@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2007-2009 Ashok P. Nadkarni
+ * Copyright (c) 2007-2013 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -75,12 +75,35 @@ static Tcl_Obj *ObjFromCRYPT_BLOB(CRYPT_DATA_BLOB *blobP)
 static Tcl_Obj *ObjFromCRYPT_BIT_BLOB(CRYPT_BIT_BLOB *blobP)
 {
     Tcl_Obj *objs[2];
-    if (blobP->cbData && blobP->pbData)
+    if (blobP->cbData && blobP->pbData) {
         objs[0] = ObjFromByteArray(blobP->pbData, blobP->cbData);
-    else
+        objs[1] = ObjFromDWORD(blobP->cUnusedBits);
+    } else {
         objs[0] = ObjFromEmptyString();
-    objs[1] = ObjFromDWORD(blobP->cUnusedBits);
+        objs[1] = ObjFromDWORD(0);
+    }
     return ObjNewList(2, objs);
+}
+
+static Tcl_Obj *ObjFromCERT_NAME_BLOB(CERT_NAME_BLOB *blobP, DWORD flags)
+{
+    int len;
+    WCHAR *wP;
+    Tcl_Obj *objP;
+    WCHAR buf[200];
+
+    len = CertNameToStrW(X509_ASN_ENCODING, blobP, flags, NULL, 0);
+    if (len == 0)
+        return ObjFromEmptyString();
+    if (len > ARRAYSIZE(buf))
+        wP = TwapiAlloc(len*sizeof(WCHAR));
+    else
+        wP = buf;
+    len = CertNameToStrW(X509_ASN_ENCODING, blobP, flags, wP, len) - 1;
+    objP = ObjFromUnicodeN(wP, len);
+    if (wP != buf)
+        TwapiFree(wP);
+    return objP;
 }
 
 static Tcl_Obj *ObjFromCERT_ALT_NAME_ENTRY(CERT_ALT_NAME_ENTRY *caneP)
@@ -203,14 +226,20 @@ static TCL_RESULT ParseCRYPT_BIT_BLOB(
     int       nobjs;
     Tcl_Interp *interp = ticP->interp;
 
-    if (ObjGetElements(NULL, pkObj, &nobjs, &objs) != TCL_OK ||
-        TwapiGetArgsEx(ticP, nobjs, objs, GETBA(blobP->pbData, blobP->cbData),
-                       GETINT(blobP->cUnusedBits), ARGEND) != TCL_OK ||
-        blobP->cUnusedBits > 7) {
-        ObjSetStaticResult(interp, "Invalid CRYPT_BIT_BLOB structure");
-        return TCL_ERROR;
+    if (ObjGetElements(NULL, pkObj, &nobjs, &objs) == TCL_OK) {
+        if (nobjs) {
+            if (TwapiGetArgsEx(ticP, nobjs, objs, GETBA(blobP->pbData, blobP->cbData),
+                               GETINT(blobP->cUnusedBits), ARGEND) == TCL_OK &&
+                blobP->cUnusedBits <= 7)
+                return TCL_OK;
+        } else {
+            blobP->pbData = NULL;
+            blobP->cbData = 0;
+            return TCL_OK;
+        }
     }
-    return TCL_OK;
+    ObjSetStaticResult(interp, "Invalid CRYPT_BIT_BLOB structure");
+    return TCL_ERROR;
 }
 
 /* Returns CERT_ALT_NAME_ENTRY structure in *caneP
@@ -729,6 +758,32 @@ static TCL_RESULT TwapiCryptEncodeObject(
 
     /* Note caller has to MemLifoPopFrame to release lifo memory */
     return TCL_OK;
+}
+
+static Tcl_Obj *ObjFromCERT_EXTENSION(CERT_EXTENSION *extP)
+{
+    Tcl_Obj *objs[3];
+    Tcl_Obj *extObj;
+
+    objs[0] = ObjFromString(extP->pszObjId);
+    objs[1] = ObjFromInt(extP->fCritical);
+    extObj = ObjFromString(extP->pszObjId);
+    if (TwapiCryptDecodeObject(NULL, extObj,
+                               extP->Value.pbData,
+                               extP->Value.cbData, &objs[2]) != TCL_OK)
+        objs[2] = ObjFromEmptyString();
+    ObjDecrRefs(extObj);
+    return ObjNewList(3, objs);
+}
+
+static Tcl_Obj *ObjFromCERT_EXTENSIONS(int nexts, CERT_EXTENSION *extP)
+{
+    int i;
+    Tcl_Obj *objP = ObjNewList(nexts, NULL);
+    for (i = 0; i < nexts; ++i) {
+        ObjAppendElement(NULL, objP, ObjFromCERT_EXTENSION(i + extP));
+    }
+    return objP;
 }
 
 /* Returns pointer to a CERT_EXTENSIONS_IDENTIFIER structure in *extsPP
@@ -1789,8 +1844,9 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     Tcl_Obj *s1Obj, *s2Obj;
     BOOL bval;
     int func = PtrToInt(clientdata);
-    Tcl_Obj *objs[3];
+    Tcl_Obj *objs[11];
     TCL_RESULT res;
+    CERT_INFO *ciP;
 
     --objc;
     ++objv;
@@ -1949,10 +2005,8 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             != TCL_OK)
             return TCL_ERROR;
         blob.pbData = ObjToByteArray(objv[0], &blob.cbData);
-        dw2 = CertNameToStrW(X509_ASN_ENCODING, &blob, dw, NULL, 0);
-        result.value.unicode.str = TwapiAlloc(dw2*sizeof(WCHAR));
-        result.value.unicode.len = CertNameToStrW(X509_ASN_ENCODING, &blob, dw, result.value.unicode.str, dw2) - 1;
-        result.type = TRT_UNICODE_DYNAMIC;
+        result.type = TRT_OBJ;
+        result.value.obj = ObjFromCERT_NAME_BLOB(&blob, dw);
         break;
 
     case 10013: // CertGetNameString
@@ -2262,24 +2316,56 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         if (res != TCL_OK)
             return res;
         result.type = TRT_EMPTY; /* Assume extension does not exist */
-        if (certP->pCertInfo->cExtension && certP->pCertInfo->rgExtension) {
+        ciP = certP->pCertInfo;
+        if (ciP && ciP->cExtension && ciP->rgExtension) {
             CERT_EXTENSION *extP =
                 CertFindExtension(ObjToString(objv[1]),
-                                  certP->pCertInfo->cExtension,
-                                  certP->pCertInfo->rgExtension);
+                                  ciP->cExtension, ciP->rgExtension);
             if (extP) {
-                if (TwapiCryptDecodeObject(interp, objv[1],
-                                           extP->Value.pbData,
-                                           extP->Value.cbData, &objs[2])
-                    != TCL_OK)
-                    return TCL_ERROR;
-                objs[0] = ObjFromString(extP->pszObjId);
-                objs[1] = ObjFromBoolean(extP->fCritical);
-                result.value.objv.objPP = objs;
-                result.value.objv.nobj = 3;
-                result.type = TRT_OBJV;
+                result.value.obj = ObjFromCERT_EXTENSION(extP);
+                result.type = TRT_OBJ;
             }
         }
+        break;
+    case 10035: //TwapiGetCertInfo
+        res = TwapiGetArgs(interp, objc, objv,
+                           GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                           ARGEND);
+        if (res != TCL_OK)
+            return res;
+        ciP = certP->pCertInfo;
+        if (ciP) {
+            objs[0] = ObjFromInt(ciP->dwVersion);
+            objs[1] = ObjFromCRYPT_BLOB(&ciP->SerialNumber);
+            objs[2] = ObjFromCRYPT_ALGORITHM_IDENTIFIER(&ciP->SignatureAlgorithm);
+            objs[3] = ObjFromCERT_NAME_BLOB(&ciP->Issuer, 0);
+            objs[4] = ObjFromFILETIME(&ciP->NotBefore);
+            objs[5] = ObjFromFILETIME(&ciP->NotAfter);
+            objs[6] = ObjFromCERT_NAME_BLOB(&ciP->Subject, 0);
+            objs[7] = ObjFromCERT_PUBLIC_KEY_INFO(&ciP->SubjectPublicKeyInfo);
+            objs[8] = ObjFromCRYPT_BIT_BLOB(&ciP->IssuerUniqueId);
+            objs[9] = ObjFromCRYPT_BIT_BLOB(&ciP->SubjectUniqueId);
+            objs[10] = ObjFromCERT_EXTENSIONS(ciP->cExtension, ciP->rgExtension);
+            result.value.objv.nobj = 11;
+        } else
+            result.value.objv.nobj = 0;
+
+        result.value.objv.objPP = objs;
+        result.type = TRT_OBJV;
+
+        break;
+    case 10036: //TwapiGetCertInfo
+        res = TwapiGetArgs(interp, objc, objv,
+                           GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                           ARGEND);
+        if (res != TCL_OK)
+            return res;
+        ciP = certP->pCertInfo;
+        if (ciP) {
+            result.value.obj = ObjFromCERT_EXTENSIONS(ciP->cExtension, ciP->rgExtension);
+            result.type = TRT_OBJ;
+        } else
+            result.type = TRT_EMPTY;
         break;
     }
 
@@ -2324,6 +2410,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertFreeCertificateChain, 10032),
         DEFINE_FNCODE_CMD(CertFindExtension, 10033),
         DEFINE_FNCODE_CMD(CryptGenRandom, 10034),
+        DEFINE_FNCODE_CMD(TwapiGetCertInfo, 10035),
+        DEFINE_FNCODE_CMD(TwapiGetCertExtensions, 10036),
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
