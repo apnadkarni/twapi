@@ -10,6 +10,10 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 #include <wdigest.h>            /* For VC6 */
 #endif
 
+#ifndef X509_ALGORITHM_IDENTIFIER
+# define X509_ALGORITHM_IDENTIFIER           ((LPCSTR) 74)
+#endif
+
 void TwapiRegisterCertPointer(Tcl_Interp *, PCCERT_CONTEXT);
 void TwapiRegisterCertPointerTic(TwapiInterpContext *, PCCERT_CONTEXT );
 TCL_RESULT TwapiUnregisterCertPointer(Tcl_Interp *, PCCERT_CONTEXT);
