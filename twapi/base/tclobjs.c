@@ -3944,7 +3944,7 @@ int ObjToPSECURITY_ATTRIBUTES(
 
 void ObjDecrRefs(Tcl_Obj *objP) 
 {
-    ObjDecrRefs(objP);
+    Tcl_DecrRefCount(objP);
 }
 
 Tcl_UniChar *ObjToUnicode(Tcl_Obj *objP)
