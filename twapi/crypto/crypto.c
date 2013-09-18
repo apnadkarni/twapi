@@ -487,15 +487,21 @@ static TCL_RESULT ParseCRYPT_ALGORITHM_IDENTIFIER(
     if ((res = ObjGetElements(ticP->interp, algObj, &nobjs, &objs)) != TCL_OK)
         return res;
 
-    if (nobjs != 1) {
+    if (nobjs != 1 && nobjs != 2) {
         ObjSetStaticResult(ticP->interp, "Invalid algorithm identifier format or unsupported parameters");
         return TCL_ERROR;
     }
 
     p = ObjToStringN(objs[0], &n);
     algidP->pszObjId = MemLifoCopy(&ticP->memlifo, p, n+1);
-    algidP->Parameters.cbData = 0;
-    algidP->Parameters.pbData = 0;
+    if (nobjs == 1) {
+        algidP->Parameters.cbData = 0;
+        algidP->Parameters.pbData = 0;
+    } else {
+        p = ObjToByteArray(objs[1], &n);
+        algidP->Parameters.pbData = MemLifoCopy(&ticP->memlifo, p, n);
+        algidP->Parameters.cbData = n;
+    }
     return TCL_OK;
 }
 
@@ -1796,6 +1802,36 @@ static TCL_RESULT Twapi_CertGetCertificateChainObjCmd(TwapiInterpContext *ticP, 
     return res;
 }
 
+static TCL_RESULT  Twapi_HashPublicKeyInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TCL_RESULT res;
+    CERT_PUBLIC_KEY_INFO ckpi;
+    Tcl_Obj *objP;
+    DWORD    len;
+    MemLifoMarkHandle mark;
+
+    CHECK_NARGS(interp, objc, 2);
+
+    mark = MemLifoPushMark(&ticP->memlifo);
+    if ((res = ParseCERT_PUBLIC_KEY_INFO(ticP, objv[1], &ckpi)) == TCL_OK) {
+        objP = ObjFromByteArray(NULL, 20);
+        if (CryptHashPublicKeyInfo(0, CALG_SHA1, 0,
+                                   X509_ASN_ENCODING | PKCS_7_ASN_ENCODING,
+                                   &ckpi, 
+                                   ObjToByteArray(objP, &len),
+                                   &len)) {
+            Tcl_SetByteArrayLength(objP, len);
+            ObjSetResult(interp, objP);
+            res = TCL_OK;
+        } else {
+            res = TwapiReturnSystemError(interp);
+        }
+    }
+
+    MemLifoPopMark(mark);
+    return res;
+}
+
 static TCL_RESULT Twapi_CertVerifyChainPolicySSLObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     PCERT_CHAIN_POLICY_PARA policy_paramP;
@@ -2327,7 +2363,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             }
         }
         break;
-    case 10035: //TwapiGetCertInfo
+    case 10035: //Twapi_GetCertInfo
         res = TwapiGetArgs(interp, objc, objv,
                            GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
                            ARGEND);
@@ -2354,7 +2390,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.type = TRT_OBJV;
 
         break;
-    case 10036: //TwapiGetCertInfo
+    case 10036: //Twapi_GetCertExtensions
         res = TwapiGetArgs(interp, objc, objv,
                            GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
                            ARGEND);
@@ -2410,8 +2446,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertFreeCertificateChain, 10032),
         DEFINE_FNCODE_CMD(CertFindExtension, 10033),
         DEFINE_FNCODE_CMD(CryptGenRandom, 10034),
-        DEFINE_FNCODE_CMD(TwapiGetCertInfo, 10035),
-        DEFINE_FNCODE_CMD(TwapiGetCertExtensions, 10036),
+        DEFINE_FNCODE_CMD(Twapi_GetCertInfo, 10035),
+        DEFINE_FNCODE_CMD(Twapi_GetCertExtensions, 10036),
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
@@ -2420,6 +2456,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CertFindCertificateInStore, Twapi_CertFindCertificateInStoreObjCmd),
         DEFINE_TCL_CMD(CertGetCertificateChain, Twapi_CertGetCertificateChainObjCmd),
         DEFINE_TCL_CMD(Twapi_CertVerifyChainPolicySSL, Twapi_CertVerifyChainPolicySSLObjCmd),
+        DEFINE_TCL_CMD(Twapi_HashPublicKeyInfo, Twapi_HashPublicKeyInfoObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
