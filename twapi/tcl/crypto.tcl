@@ -387,6 +387,8 @@ proc twapi::cert_create_self_signed {subject args} {
         critical.arg
         enhkeyusage.arg
         keyusage.arg
+        {ca.bool 0}
+        {capathlen.int -1}
     } -maxleftover 0 -ignoreunknown]
 
     set name_blob [cert_name_to_blob $subject]
@@ -431,6 +433,7 @@ proc twapi::cert_create_self_signed {subject args} {
     if {[info exists opts(keyusage)]} {
         lappend exts [_make_keyusage_ext $opts(keyusage) [expr {"keyusage" in $opts(critical)}]]
     }
+    lappend exts [_make_basic_constraints_ext $ca $capathlen]
 
     set flags 0;                # Always 0 for now
     return [CertCreateSelfSignCertificate NULL $name_blob $flags $keyinfo \
@@ -449,6 +452,8 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
         critical.arg
         enhkeyusage.arg
         keyusage.arg
+        {ca.bool 0}
+        {capathlen.int -1}
     } -maxleftover 0]
 
     set name_blob [cert_name_to_blob $subject]
@@ -477,6 +482,7 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
     if {[info exists opts(keyusage)]} {
         lappend exts [_make_keyusage_ext $opts(keyusage) [expr {"keyusage" in $opts(critical)}]]
     }
+    lappend exts [_make_basic_constraints_ext $ca $capathlen]
 
     set flags 0;                # Always 0 for now
     return [CertCreateSelfSignCertificate $hprov $name_blob $flags {} \
@@ -496,8 +502,12 @@ proc twapi::cert_create {hprov subject hissuer args} {
         critical.arg
         enhkeyusage.arg
         keyusage.arg
+        {ca.bool 0}
+        {capathlen.int -1}
     } -maxleftover 0 -setvars
     
+    # TBD - check that issuer is a CA
+
     set sigoid [list [oid $signaturealgorithm]]
 
     if {[info exists serialnumber]} {
@@ -524,32 +534,41 @@ proc twapi::cert_create {hprov subject hissuer args} {
     # Generate the extensions list
     set exts {}
     if {[info exists altnames]} {
-        lappend exts [_make_altnames_ext $opts(altnames) [expr {"altnames" in $opts(critical)}] 0]
+        lappend exts [_make_altnames_ext $altnames [expr {"altnames" in $critical}] 0]
     }
-    if {[info exists opts(enhkeyusage)]} {
-        lappend exts [_make_enhkeyusage_ext $opts(enhkeyusage) [expr {"enhkeyusage" in $opts(critical)}]]
+    if {[info exists enhkeyusage]} {
+        lappend exts [_make_enhkeyusage_ext $enhkeyusage [expr {"enhkeyusage" in $critical}]]
     }
-    if {[info exists opts(keyusage)]} {
-        lappend exts [_make_keyusage_ext $opts(keyusage) [expr {"keyusage" in $opts(critical)}]]
+    if {[info exists keyusage]} {
+        lappend exts [_make_keyusage_ext $keyusage [expr {"keyusage" in $critical}]]
     }
 
+    lappend exts [_make_basic_constraints_ext $ca $capathlen]
+
+    # Use the hash of the public key as the subject key identifier
+    
+
+
     # Get issuer name and altnames
-    set issuer_name [cert_subject_name $hissuer ]
+    set issuer_name [cert_subject_name $hissuer -name rdn -format x500]
+    set issuer_blob [cert_name_to_blob $issuer_name -format x500]
 
     # TBD Issuer altnames - get from issuer cert
     # lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
 
     # 2 -> CERT_V3
+    # issuer_id and subject_id for the certificate are left empty
+    # as recommended by gutman's X.509 paper
     set cert_info [list \
                        2 \
                        $serialnumber \
                        $sigoid \
-                       [cert_name_to_blob $issuer] \
+                       $issuer_blob \
                        $start  $end \
                        [cert_name_to_blob $subject] \
                        $pubkey \
-                       $issuer_id \
-                       $subject_id \
+                       {} \
+                       {} \
                        $exts]
 
     # 0x10001 -> X509_ASN_ENCODING, 2 -> X509_CERT_TO_BE_SIGNED
@@ -1285,10 +1304,24 @@ twapi::proc* twapi::_init_keyusage_names {} {
     }
 } {}
 
+proc twapi::_make_basic_constraints_ext {isca capathlen} {
+    if {$isca} {
+        if {$capathlen < 0} {
+            set basic {1 0 0};  # No path length constraint
+        } else {
+            set basic [list 1 1 $capathlen]
+        }
+    } else {
+        set basic {0 0 0}
+    }
+    return [list "2.5.29.19" 1 $basic]
+}
+
 proc twapi::_make_keyusage_ext {keyusage critical} {
     variable _keyusage_byte1
     variable _keyusage_byte2
 
+    _init_keyusage_names
     set byte1 0
     set byte2 0
     foreach usage $keyusage {
@@ -1311,6 +1344,7 @@ proc twapi::_decode_keyusage_bytes {bytes} {
     variable _keyusage_byte1
     variable _keyusage_byte2
     
+    _init_keyusage_names
     if {[llength $bytes] == 0} {
         return *;               # Field not present, TBD
     }

@@ -134,10 +134,10 @@ int Twapi_VerQueryValue_STRING(
     if ((! VerQueryValueW(verP, ObjToUnicode(objP), (LPVOID) &valueP, &len)) ||
         len == 0) {
         /* Return empty string, not error */
-        Tcl_DecrRefCount(objP);
+        ObjDecrRefs(objP);
         return TCL_OK;
     }
-    Tcl_DecrRefCount(objP);
+    ObjDecrRefs(objP);
 
     /* Note valueP does not have to be freed, points into verP */
     ObjSetResult(interp, ObjFromUnicode(valueP));
@@ -329,11 +329,11 @@ TCL_RESULT Twapi_EnumResourceNames(
     Tcl_IncrRefCount(ctx.objP);  /* Protect in callback, just in case */
     if (EnumResourceNamesW(hmodule, restype, EnumResourceNamesProc, (LONG_PTR) &ctx)) {
         ObjSetResult(interp, ctx.objP);
-        Tcl_DecrRefCount(ctx.objP);
+        ObjDecrRefs(ctx.objP);
         return TCL_OK;
     } else {
         TwapiReturnSystemError(interp);
-        Tcl_DecrRefCount(ctx.objP);
+        ObjDecrRefs(ctx.objP);
         return TCL_ERROR;
     }
 }
@@ -362,11 +362,11 @@ TCL_RESULT Twapi_EnumResourceTypes(
     Tcl_IncrRefCount(ctx.objP);  /* Protect in callback, just in case */
     if (EnumResourceTypesW(hmodule, EnumResourceTypesProc, (LONG_PTR) &ctx)) {
         ObjSetResult(interp, ctx.objP);
-        Tcl_DecrRefCount(ctx.objP);
+        ObjDecrRefs(ctx.objP);
         return TCL_OK;
     } else {
         TwapiReturnSystemError(interp);
-        Tcl_DecrRefCount(ctx.objP);
+        ObjDecrRefs(ctx.objP);
         return TCL_ERROR;
     }
 }
@@ -416,11 +416,11 @@ TCL_RESULT Twapi_EnumResourceLanguages(
     if (EnumResourceLanguagesW(hmodule, restype, resname,
                                EnumResourceLanguagesProc, (LONG_PTR) &ctx)) {
         ObjSetResult(interp, ctx.objP);
-        Tcl_DecrRefCount(ctx.objP);
+        ObjDecrRefs(ctx.objP);
         return TCL_OK;
     } else {
         TwapiReturnSystemError(interp);
-        Tcl_DecrRefCount(ctx.objP);
+        ObjDecrRefs(ctx.objP);
         return TCL_ERROR;
     }
 }

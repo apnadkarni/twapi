@@ -1625,7 +1625,7 @@ static int Twapi_GetBestInterfaceObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
         objP = ObjNewList(1, &objv[1]);
         Tcl_IncrRefCount(objP);
         result = ObjToSOCKADDR_STORAGE(interp, objP, &ss);
-        Tcl_DecrRefCount(objP);
+        ObjDecrRefs(objP);
         if (result != TCL_OK)
             return result;
         result = (*fn)((struct sockaddr *)&ss, &ifindex);
@@ -1673,7 +1673,7 @@ static int TwapiHostnameEventProc(Tcl_Event *tclevP, int flags)
         /* Invoke the script */
         Tcl_IncrRefCount(objP);
         (void) Tcl_EvalObjEx(interp, objP, TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);
-        Tcl_DecrRefCount(objP);
+        ObjDecrRefs(objP);
         /* TBD - check for error and add to background ? */
     }
 
@@ -1777,7 +1777,7 @@ static int TwapiAddressEventProc(Tcl_Event *tclevP, int flags)
         /* Do we need TclSave/RestoreResult ? */
         Tcl_IncrRefCount(objP);
         (void) Tcl_EvalObjEx(interp, objP, TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);
-        Tcl_DecrRefCount(objP);
+        ObjDecrRefs(objP);
         /* TBD - check for error and add to background ? */
     }
     

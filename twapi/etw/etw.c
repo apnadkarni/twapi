@@ -109,7 +109,7 @@ struct TwapiETWContext {
      * When inside a ProcessTrace,
      * EXACTLY ONE of eventsObj and errorObj must be non-NULL. Moreover,
      * when non-NULL, an Tcl_IncrRefCount must have been done on it
-     * with a corresponding Tcl_DecrRefCount when setting to NULL
+     * with a corresponding ObjDecrRefs when setting to NULL
       */
     Tcl_Obj *eventsObj;
     Tcl_Obj *errorObj;
@@ -1006,7 +1006,7 @@ ULONG WINAPI TwapiETWBufferCallback(
     args[0] = bufObj;
     args[1] = gETWContext.eventsObj;
     Tcl_ListObjReplace(interp, objP, gETWContext.buffer_cmdlen, ARRAYSIZE(args), ARRAYSIZE(args), args);
-    Tcl_DecrRefCount(gETWContext.eventsObj); /* AFTER we place on list */
+    ObjDecrRefs(gETWContext.eventsObj); /* AFTER we place on list */
 
     gETWContext.eventsObj = ObjNewList(0, NULL);/* For next set of events */
     Tcl_IncrRefCount(gETWContext.eventsObj);
@@ -1015,7 +1015,7 @@ ULONG WINAPI TwapiETWBufferCallback(
 
     /* Get rid of the command obj if we created it */
     if (objP != gETWContext.buffer_cmdObj)
-        Tcl_DecrRefCount(objP);
+        ObjDecrRefs(objP);
 
     switch (code) {
     case TCL_BREAK:
@@ -1025,7 +1025,7 @@ ULONG WINAPI TwapiETWBufferCallback(
         gETWContext.errorObj = Tcl_GetReturnOptions(gETWContext.interp,
                                                     code);
         Tcl_IncrRefCount(gETWContext.errorObj);
-        Tcl_DecrRefCount(gETWContext.eventsObj);
+        ObjDecrRefs(gETWContext.eventsObj);
         gETWContext.eventsObj = NULL;
         return FALSE;
     default:
@@ -1169,21 +1169,21 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
 
     /* Deallocated the cached key objects */
     for (i = 0; i < ARRAYSIZE(gETWEventKeys); ++i) {
-        Tcl_DecrRefCount(gETWEventKeys[i].keyObj);
+        ObjDecrRefs(gETWEventKeys[i].keyObj);
         gETWEventKeys[i].keyObj = NULL; /* Just to catch bad access */
     }
     for (i = 0; i < ARRAYSIZE(gETWBufferKeys); ++i) {
-        Tcl_DecrRefCount(gETWBufferKeys[i].keyObj);
+        ObjDecrRefs(gETWBufferKeys[i].keyObj);
         gETWBufferKeys[i].keyObj = NULL; /* Just to catch bad access */
     }
 
     if (etwc.eventsObj)
-        Tcl_DecrRefCount(etwc.eventsObj);
+        ObjDecrRefs(etwc.eventsObj);
 
     /* If the processing was successful, errorObj is NULL */
     if (etwc.errorObj) {
         code = Tcl_SetReturnOptions(interp, etwc.errorObj);
-        Tcl_DecrRefCount(etwc.errorObj); /* Match one in the event callback */
+        ObjDecrRefs(etwc.errorObj); /* Match one in the event callback */
         return code;
     }
 
@@ -1569,7 +1569,7 @@ error_handler:
     /* Tcl interp should already hold error code and result */
 
     if (resultObj)
-        Tcl_DecrRefCount(resultObj);
+        ObjDecrRefs(resultObj);
     return TCL_ERROR;
 }
 

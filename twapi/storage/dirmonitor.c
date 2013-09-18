@@ -602,7 +602,7 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
         /* Deref the action objs. Note if in use by lists this will not free them */
         for (i=0; i < ARRAYSIZE(actionObj); ++i) {
             if (actionObj[i])
-                Tcl_DecrRefCount(actionObj[i]);
+                ObjDecrRefs(actionObj[i]);
             actionObj[i] = NULL;
         }
     } /* if error/not error */
@@ -631,8 +631,8 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
         cbP->response.type = TRT_EMPTY;
         tcl_status = TCL_OK;
     }
-    Tcl_DecrRefCount(changesObj); /* Free up list elements */
-    Tcl_DecrRefCount(scriptObj); /* Free up list elements */
+    ObjDecrRefs(changesObj); /* Free up list elements */
+    ObjDecrRefs(scriptObj); /* Free up list elements */
     return tcl_status;
 
 }

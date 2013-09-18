@@ -276,7 +276,7 @@ TCL_RESULT Twapi_SourceResource(Tcl_Interp *interp, HANDLE dllH, const char *nam
     Tcl_AppendToObj(pathObj, name, -1);
     Tcl_IncrRefCount(pathObj);  /* Must before calling any Tcl_FS functions */
     result = Tcl_FSEvalFile(interp, pathObj);
-    Tcl_DecrRefCount(pathObj);
+    ObjDecrRefs(pathObj);
 
     return result;
 }
@@ -828,7 +828,7 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
 
 /*
  * Returns the Tcl_Obj corresponding to the given string.
- * Caller MUST NOT call Tcl_DecrRefCount on the object without
+ * Caller MUST NOT call ObjDecrRefs on the object without
  * a prior Tcl_IncrRefCount. Moreover, if it wants to hang on to it
  * it must do a Tcl_IncrRefCount itself directly, or implicitly via
  * a call such as ObjAppendElement.
@@ -879,7 +879,7 @@ static void TwapiBaseModuleCleanup(TwapiInterpContext *ticP)
             /* It is safe to delete this and only this hash element */
             Tcl_Obj *objP = Tcl_GetHashValue(he);
             Tcl_DeleteHashEntry(he);
-            Tcl_DecrRefCount(objP);
+            ObjDecrRefs(objP);
         }
         Tcl_DeleteHashTable(&(BASE_CONTEXT(ticP)->atoms));
 

@@ -208,7 +208,7 @@ int Twapi_SystemPagefileInformation(Tcl_Interp *interp)
         return TCL_OK;
     } else {
         DWORD winerr = GetLastError();
-        Tcl_DecrRefCount(resultObj);
+        ObjDecrRefs(resultObj);
         return Twapi_AppendSystemError(interp, winerr);
     }
 }

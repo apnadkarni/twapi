@@ -458,7 +458,7 @@ int Twapi_RecordArrayObjCmd(
             ObjAppendElement(interp, new_ra[1],
                                      ObjNewList(nslice_fields, slice_values));
         }
-        Tcl_DecrRefCount(emptyObj);
+        ObjDecrRefs(emptyObj);
         resultObj = ObjNewList(2, new_ra);
         break;
     }

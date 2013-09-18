@@ -715,7 +715,7 @@ static TCL_RESULT Twapi_MakeSignatureObjCmd(TwapiInterpContext *ticP, Tcl_Interp
         int i;
         Twapi_AppendSystemError(interp, ss);
         for (i=0; i < ARRAYSIZE(objs); ++i)
-            Tcl_DecrRefCount(objs[i]);
+            ObjDecrRefs(objs[i]);
     } else {
         int i;
         for (i=0; i < ARRAYSIZE(objs); ++i)
@@ -773,7 +773,7 @@ static TCL_RESULT Twapi_EncryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_Inter
         int i;
         Twapi_AppendSystemError(ticP->interp, ss);
         for (i=0; i < ARRAYSIZE(objs); ++i)
-            Tcl_DecrRefCount(objs[i]);
+            ObjDecrRefs(objs[i]);
     } else {
         int i;
         for (i=0; i < ARRAYSIZE(objs); ++i)
@@ -846,7 +846,7 @@ static TCL_RESULT Twapi_EncryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
         int i;
         Twapi_AppendSystemError(interp, ss);
         for (i=0; i < ARRAYSIZE(objs); ++i)
-            Tcl_DecrRefCount(objs[i]);
+            ObjDecrRefs(objs[i]);
     } else {
         ObjSetResult(interp, ObjNewList(ARRAYSIZE(objs), objs));
     }
