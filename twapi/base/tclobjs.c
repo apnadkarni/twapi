@@ -170,13 +170,13 @@ static void UpdateOpaqueTypeString(Tcl_Obj *objP)
     objP->length = listObj->length; /* Note does not include terminating \0 */
     objP->bytes = ckalloc(listObj->length + 1);
     CopyMemory(objP->bytes, listObj->bytes, listObj->length+1);
-    Tcl_DecrRefCount(listObj);
+    ObjDecrRefs(listObj);
 }
 
 static void FreeOpaqueType(Tcl_Obj *objP)
 {
     if (OPAQUE_REP_CTYPE(objP))
-        Tcl_DecrRefCount(OPAQUE_REP_CTYPE(objP));
+        ObjDecrRefs(OPAQUE_REP_CTYPE(objP));
     OPAQUE_REP_VALUE(objP) = NULL;
     OPAQUE_REP_CTYPE(objP) = NULL;
     objP->typePtr = NULL;
@@ -418,7 +418,7 @@ int Twapi_InternalCastObjCmd(
 
             if (Tcl_ConvertToType(interp, objP, typeP) == TCL_ERROR) {
                 if (objP != objv[2]) {
-                    Tcl_DecrRefCount(objP);
+                    ObjDecrRefs(objP);
                 }
                 return TCL_ERROR;
             }
@@ -1960,7 +1960,7 @@ Tcl_Obj *ObjFromULONGLONGHex(ULONGLONG ull)
     Tcl_Obj *wideObj;
     wideobj = ObjFromWideInt((Tcl_WideInt) ull);
     objP = Tcl_Format(NULL, "0x%16.16lx", 1, &wideobj);
-    Tcl_DecrRefCount(wideobj);
+    ObjDecrRefs(wideobj);
 #else
     char buf[40];
     _snprintf(buf, sizeof(buf), "0x%16.16I64x", ull);
@@ -1984,7 +1984,7 @@ Tcl_Obj *ObjFromULONGLONG(ULONGLONG ull)
         Tcl_Obj *mpobj;
         objP = ObjFromWideInt((Tcl_WideInt) ull);
         mpobj = Tcl_Format(NULL, "0x%lx", 1, &objP);
-        Tcl_DecrRefCount(objP);
+        ObjDecrRefs(objP);
         objP = mpobj;
 #else
         char buf[40];
@@ -2612,7 +2612,7 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
 
 error_handler:
     if (resultObj)
-        Tcl_DecrRefCount(resultObj);
+        ObjDecrRefs(resultObj);
     return NULL;
 }
 
@@ -3942,6 +3942,11 @@ int ObjToPSECURITY_ATTRIBUTES(
     return TCL_ERROR;
 }
 
+void ObjDecrRefs(Tcl_Obj *objP) 
+{
+    ObjDecrRefs(objP);
+}
+
 Tcl_UniChar *ObjToUnicode(Tcl_Obj *objP)
 {
     return Tcl_GetUnicode(objP);
@@ -4152,7 +4157,7 @@ Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nchars)
     /* RtlEncryptMemory */
     status = fnP(p, sz, 0);
     if (status != 0) {
-        Tcl_DecrRefCount(objP);
+        ObjDecrRefs(objP);
         Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
         return NULL;
     }

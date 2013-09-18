@@ -206,7 +206,7 @@ void TwapiCallRegisteredWaitScript(TwapiInterpContext *ticP, TwapiId id, HANDLE 
                  TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);
 
     for (i = 0; i < ARRAYSIZE(objs); ++i) {
-        Tcl_DecrRefCount(objs[i]);
+        ObjDecrRefs(objs[i]);
     }
 }
 

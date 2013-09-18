@@ -927,7 +927,7 @@ error_return:
     if (netenum.netbufP)
         NetApiBufferFree((LPBYTE) netenum.netbufP);
     if (enumObj)
-        Tcl_DecrRefCount(enumObj);
+        ObjDecrRefs(enumObj);
 
     return TCL_ERROR;
 

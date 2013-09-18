@@ -1173,7 +1173,7 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
                 ObjToByteArray(result.value.obj, &n),
                 &n)) {
             TwapiReturnSystemError(interp);
-            Tcl_DecrRefCount(result.value.obj);
+            ObjDecrRefs(result.value.obj);
             return TCL_ERROR;
         }
         Tcl_SetByteArrayLength(result.value.obj, n);
@@ -1364,7 +1364,7 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
         n = GetLastError();
         TwapiFree(pv);
         if (n != ERROR_NO_MORE_ITEMS) {
-            Tcl_DecrRefCount(objP);
+            ObjDecrRefs(objP);
             return Twapi_AppendSystemError(interp, n);
         }
         ObjSetResult(interp, objP);
@@ -1384,7 +1384,7 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
 
     if (! CryptGetProvParam(hprov, param, pv, &n, flags)) {
         if (objP)
-            Tcl_DecrRefCount(objP);
+            ObjDecrRefs(objP);
         TwapiReturnSystemError(interp);
         return TCL_ERROR;
     }
@@ -1509,7 +1509,7 @@ static TCL_RESULT Twapi_PFXExportCertStoreEx(Tcl_Interp *interp, int objc, Tcl_O
     status = PFXExportCertStoreEx(hstore, &blob, password, NULL, flags);
     if (! status) {
         TwapiReturnSystemError(interp);
-        Tcl_DecrRefCount(objP);
+        ObjDecrRefs(objP);
         return TCL_ERROR;
     }
     ObjSetResult(interp, objP);
@@ -1995,7 +1995,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                 Tcl_SetByteArrayLength(result.value.obj, dw2);
                 result.type = TRT_OBJ;
             } else {
-                Tcl_DecrRefCount(result.value.obj);
+                ObjDecrRefs(result.value.obj);
             }
         }
         break;
@@ -2148,7 +2148,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             result.type = TRT_OBJ;
         } else {
             TwapiReturnSystemError(interp);
-            Tcl_DecrRefCount(result.value.obj);
+            ObjDecrRefs(result.value.obj);
             return TCL_ERROR;
         }
         break;
@@ -2165,7 +2165,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             result.type = TRT_OBJ;
         } else {
             TwapiReturnSystemError(interp);
-            Tcl_DecrRefCount(result.value.obj);
+            ObjDecrRefs(result.value.obj);
             return TCL_ERROR;
         }
         break;
@@ -2181,7 +2181,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             result.type = TRT_OBJ;
         } else {
             TwapiReturnSystemError(interp);
-            Tcl_DecrRefCount(result.value.obj);
+            ObjDecrRefs(result.value.obj);
             return TCL_ERROR;
         }
         break;

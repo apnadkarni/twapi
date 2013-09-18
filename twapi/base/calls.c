@@ -2567,7 +2567,7 @@ static Tcl_Obj *TwapiRandomByteArrayObj(Tcl_Interp *interp, int nbytes)
     if (fnP(ObjToByteArray(objP, NULL), nbytes))
         return objP;
 
-    Tcl_DecrRefCount(objP);
+    ObjDecrRefs(objP);
     TwapiReturnError(interp, TWAPI_SYSTEM_ERROR);
     return NULL;
 }

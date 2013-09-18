@@ -1081,7 +1081,7 @@ TWAPI_EXTERN TCL_RESULT ObjListIndex(Tcl_Interp *interp, Tcl_Obj *l, int ix, Tcl
 TWAPI_EXTERN TCL_RESULT ObjAppendElement(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Obj *e);
 TWAPI_EXTERN TCL_RESULT ObjGetElements(Tcl_Interp *interp, Tcl_Obj *l, int *objcP, Tcl_Obj ***objvP);
 
-#define Twapi_FreeNewTclObj(o_) do { if (o_) { Tcl_DecrRefCount(o_); } } while (0)
+#define Twapi_FreeNewTclObj(o_) do { if (o_) { ObjDecrRefs(o_); } } while (0)
 
 int Twapi_GetVersionEx(Tcl_Interp *interp);
 
@@ -1241,6 +1241,8 @@ TWAPI_EXTERN int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Ob
 /* Tcl_Obj manipulation and conversion - basic Windows types */
 int TwapiInitTclTypes(void);
 TWAPI_EXTERN int TwapiGetTclType(Tcl_Obj *objP);
+
+TWAPI_EXTERN void ObjDecrRefs(Tcl_Obj *);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromOpaque(void *pv, char *name);
 #define ObjFromHANDLE(h) ObjFromOpaque((h), "HANDLE")

@@ -72,7 +72,7 @@ void TwapiDebugOutput(char *s) {
     Tcl_IncrRefCount(objP);
     Tcl_WriteObj(chan, objP);
     Tcl_Flush(chan);
-    Tcl_DecrRefCount(objP);
+    ObjDecrRefs(objP);
 }
 
 
@@ -337,7 +337,7 @@ vamoose:
      * caller had done an incr-ref on it.
      */
     for (i = 0; i < objc; ++i) {
-        Tcl_DecrRefCount(objv[i]);
+        ObjDecrRefs(objv[i]);
     }
 
     return tcl_status;
@@ -394,7 +394,7 @@ int Twapi_AppendObjLog(Tcl_Interp *interp, Tcl_Obj *msgObj)
     }
 
 vamoose:
-    Tcl_DecrRefCount(msgObj);
+    ObjDecrRefs(msgObj);
     return TCL_OK;
 }
 

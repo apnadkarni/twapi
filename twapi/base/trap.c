@@ -149,7 +149,7 @@ TCL_RESULT Twapi_TrapObjCmd(
             if (result != TCL_ERROR)
                 result = Tcl_EvalObjEx(interp, objv[i+2], 0);
 
-            Tcl_DecrRefCount (errorResultObjP);
+            ObjDecrRefs (errorResultObjP);
 
             break;              /* Error handling all done */
         }
@@ -238,7 +238,7 @@ GlobalImport (interp)
                                globalObjc,
                                globalObjv);
     for (idx = 0; idx < globalObjc; idx++) {
-        Tcl_DecrRefCount (globalObjv [idx]);
+        ObjDecrRefs (globalObjv [idx]);
     }
 
     if (code == TCL_ERROR)
@@ -247,6 +247,6 @@ GlobalImport (interp)
     return ObjSetResult (interp, savedResult);
 
   errorExit:
-    Tcl_DecrRefCount (savedResult);
+    ObjDecrRefs (savedResult);
     return TCL_ERROR;
 }

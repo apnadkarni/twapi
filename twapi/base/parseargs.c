@@ -38,15 +38,15 @@ static struct Tcl_ObjType gParseargsOptionType = {
 static void CleanupOptionDescriptor(struct OptionDescriptor *optP)
 {
     if (optP->name) {
-        Tcl_DecrRefCount(optP->name);
+        ObjDecrRefs(optP->name);
         optP->name = NULL;
     }
     if (optP->def_value) {
-        Tcl_DecrRefCount(optP->def_value);
+        ObjDecrRefs(optP->def_value);
         optP->def_value = NULL;
     }
     if (optP->valid_values) {
-        Tcl_DecrRefCount(optP->valid_values);
+        ObjDecrRefs(optP->valid_values);
         optP->valid_values = NULL;
     }
 }
@@ -86,7 +86,7 @@ static void UpdateStringParseargsOpt(Tcl_Obj *objP)
     objP->length = listObj->length; /* Note does not include terminating \0 */
     objP->bytes = ckalloc(listObj->length + 1);
     CopyMemory(objP->bytes, listObj->bytes, listObj->length+1);
-    Tcl_DecrRefCount(listObj);
+    ObjDecrRefs(listObj);
 }
 
 static void FreeParseargsOpt(Tcl_Obj *objP)
@@ -652,16 +652,16 @@ invalid_args_error:
 error_return:
     /* Free up allocated resources that were not used because of error */
     if (newargvObj)
-        Tcl_DecrRefCount(newargvObj);
+        ObjDecrRefs(newargvObj);
     if (retP && nret) {
-        /* Note we cannot just Tcl_DecrRefCount retP[] objects since
+        /* Note we cannot just ObjDecrRefs retP[] objects since
            some will have ref 0 and some that came from argv[] 1 or more.
            To free, we need to incr and then decr. Otherwise we will
            land up freeing a ref of 1 belong to someone else
         */
         for (j = 0; j < nret; ++j) {
             Tcl_IncrRefCount(retP[j]);
-            Tcl_DecrRefCount(retP[j]);
+            ObjDecrRefs(retP[j]);
         }
     }
     if (valuesP && valuesP != values)

@@ -103,7 +103,7 @@ Tcl_Obj *ObjFromSID_AND_ATTRIBUTES_Array (
         if (obj)
             ObjAppendElement(interp, resultObj, obj);
         else {
-            Tcl_DecrRefCount(resultObj);
+            ObjDecrRefs(resultObj);
             return NULL;
         }
     }
