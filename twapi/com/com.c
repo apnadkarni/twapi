@@ -335,7 +335,7 @@ static ULONG STDMETHODCALLTYPE Twapi_EventSink_Release(IDispatch *this)
         if (me->interp)
             Tcl_Release(me->interp);
         if (me->cmd)
-            Tcl_DecrRefCount(me->cmd);
+            ObjDecrRefs(me->cmd);
         TwapiFree(this);
         return 0;
     } else
@@ -470,7 +470,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
 
     /* Free the objects we allocated */
     for (i = 0; i < cmdobjc; ++i) {
-        Tcl_DecrRefCount(cmdobjv[i]);
+        ObjDecrRefs(cmdobjv[i]);
     }
 
     /* Undo the AddRef we did before */
@@ -789,7 +789,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                         Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
                         Tcl_AppendObjToObj(errorResultObj, scodeObj);
                         ObjSetResult(interp, errorResultObj);
-                        Tcl_DecrRefCount(scodeObj);
+                        ObjDecrRefs(scodeObj);
                     }
                 }
             }
@@ -1395,7 +1395,7 @@ int TwapiMakeVariantParam(
 
 vamoose:
     if (paramdefaultObj)
-        Tcl_DecrRefCount(paramdefaultObj);
+        ObjDecrRefs(paramdefaultObj);
 
     return status;
 

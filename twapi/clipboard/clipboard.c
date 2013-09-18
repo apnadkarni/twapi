@@ -30,7 +30,7 @@ int Twapi_EnumClipboardFormats(Tcl_Interp *interp)
         else {
             DWORD error = GetLastError();
             if (error != ERROR_SUCCESS) {
-                Tcl_DecrRefCount(resultObj);
+                ObjDecrRefs(resultObj);
                 return TwapiReturnSystemError(interp);
             }
             break;
