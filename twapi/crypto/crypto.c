@@ -484,11 +484,12 @@ static TCL_RESULT TwapiCryptDecodeObject(
     Tcl_Obj **objPP)
 {
     Tcl_Obj *objP;
+    Tcl_Obj *objs[3];
     union {
         void *pv;
         CERT_ENHKEY_USAGE *enhkeyP;
-        CERT_ALT_NAME_INFO *altnameP;
-        CRYPT_BIT_BLOB     *bitsP;
+        CERT_AUTHORITY_KEY_ID2_INFO *akeyidP;
+        CERT_BASIC_CONSTRAINTS2_INFO *basicP;
     } u;
     DWORD n;
     LPCSTR oid;
@@ -518,8 +519,14 @@ static TCL_RESULT TwapiCryptDecodeObject(
                      STREQ(oid, szOID_SUBJECT_ALT_NAME) ||
                      STREQ(oid, szOID_ISSUER_ALT_NAME)) {
                 dwoid = (DWORD_PTR) X509_ALTERNATE_NAME;
-            } else
-                dwoid = 65536;      /* Will return as a byte array */
+            } else if (STREQ(oid, szOID_SUBJECT_KEY_IDENTIFIER))
+                dwoid = 65535-1;
+            else if (STREQ(oid, szOID_BASIC_CONSTRAINTS2))
+                dwoid = (DWORD_PTR) X509_BASIC_CONSTRAINTS2;
+            else if (STREQ(oid, szOID_AUTHORITY_KEY_IDENTIFIER2))
+                dwoid = (DWORD_PTR) X509_AUTHORITY_KEY_ID2;
+            else
+                dwoid = 65535;      /* Will return as a byte array */
         }
     }
 
@@ -534,14 +541,31 @@ static TCL_RESULT TwapiCryptDecodeObject(
     
     switch (dwoid) {
     case (DWORD_PTR) X509_KEY_USAGE:
-        objP = ObjFromCRYPT_BIT_BLOB(u.bitsP);
+        objP = ObjFromCRYPT_BIT_BLOB(u.pv);
         break;
     case (DWORD_PTR) X509_ENHANCED_KEY_USAGE:
         objP = ObjFromArgvA(u.enhkeyP->cUsageIdentifier,
                             u.enhkeyP->rgpszUsageIdentifier);
         break;
     case (DWORD_PTR) X509_ALTERNATE_NAME:
-        objP = ObjFromCERT_ALT_NAME_INFO(u.altnameP);
+        objP = ObjFromCERT_ALT_NAME_INFO(u.pv);
+        break;
+    case (DWORD_PTR) X509_BASIC_CONSTRAINTS2:
+        objs[0] = ObjFromBoolean(u.basicP->fCA);
+        objs[1] = ObjFromBoolean(u.basicP->fPathLenConstraint);
+        objs[2] = ObjFromDWORD(u.basicP->dwPathLenConstraint);
+        objP = ObjNewList(3, objs);
+        break;
+    case (DWORD_PTR) X509_AUTHORITY_KEY_ID2:
+        objs[0] = ObjFromCRYPT_BLOB(&u.akeyidP->KeyId);
+        objs[1] = ObjFromCERT_ALT_NAME_INFO(&u.akeyidP->AuthorityCertIssuer);
+        objs[2] = ObjFromCRYPT_BLOB(&u.akeyidP->AuthorityCertSerialNumber);
+        objP = ObjNewList(3, objs);
+        break;
+    case X509_ALGORITHM_IDENTIFIER:
+        objP = ObjFromCRYPT_ALGORITHM_IDENTIFIER(u.pv);
+    case 65535-1:
+        objP = ObjFromCRYPT_BLOB(u.pv);
         break;
     default:
         objP = ObjFromByteArray(u.pv, n);
@@ -2172,18 +2196,18 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 10033: // CertFindExtension
         res = TwapiGetArgs(interp, objc, objv,
                            GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
-                           GETASTR(cP), ARGEND);
+                           ARGSKIP, ARGEND);
         if (res != TCL_OK)
             return res;
         if (certP->pCertInfo->cExtension && certP->pCertInfo->rgExtension) {
             CERT_EXTENSION *extP =
-                CertFindExtension(cP,
+                CertFindExtension(ObjToString(objv[1]),
                                   certP->pCertInfo->cExtension,
                                   certP->pCertInfo->rgExtension);
             if (extP == NULL)
                 result.type = TRT_EMPTY;
             else {
-                if (TwapiCryptDecodeObject(interp, extP->pszObjId,
+                if (TwapiCryptDecodeObject(interp, objv[1],
                                            extP->Value.pbData,
                                            extP->Value.cbData, &objs[2])
                     != TCL_OK)
