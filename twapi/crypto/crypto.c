@@ -638,6 +638,7 @@ static TCL_RESULT TwapiCryptDecodeObject(
     DWORD n;
     LPCSTR oid;
     DWORD_PTR dwoid;
+    Tcl_Obj * (*fnP)(void *);
 
     /*
      * poid may be a Tcl_Obj or a dword corresponding to a Win32 #define
@@ -695,16 +696,17 @@ static TCL_RESULT TwapiCryptDecodeObject(
             &n))
         return TwapiReturnSystemError(interp);
     
+    objP = NULL;
     switch (dwoid) {
     case (DWORD_PTR) X509_KEY_USAGE:
-        objP = ObjFromCRYPT_BIT_BLOB(u.pv);
+        fnP = ObjFromCRYPT_BIT_BLOB;
         break;
     case (DWORD_PTR) X509_ENHANCED_KEY_USAGE:
         objP = ObjFromArgvA(u.enhkeyP->cUsageIdentifier,
                             u.enhkeyP->rgpszUsageIdentifier);
         break;
     case (DWORD_PTR) X509_ALTERNATE_NAME:
-        objP = ObjFromCERT_ALT_NAME_INFO(u.pv);
+        fnP = ObjFromCERT_ALT_NAME_INFO;
         break;
     case (DWORD_PTR) X509_BASIC_CONSTRAINTS2:
         objs[0] = ObjFromBoolean(u.basicP->fCA);
@@ -719,30 +721,33 @@ static TCL_RESULT TwapiCryptDecodeObject(
         objP = ObjNewList(3, objs);
         break;
     case X509_ALGORITHM_IDENTIFIER:
-        objP = ObjFromCRYPT_ALGORITHM_IDENTIFIER(u.pv);
+        fnP = ObjFromCRYPT_ALGORITHM_IDENTIFIER;
         break;
     case X509_CERT_POLICIES:
-        objP = ObjFromCERT_POLICIES_INFO(u.pv);
+        fnP = ObjFromCERT_POLICIES_INFO;
         break;
     case X509_POLICY_CONSTRAINTS:
-        objP = ObjFromCERT_POLICY_CONSTRAINTS_INFO(u.pv);
+        fnP = ObjFromCERT_POLICY_CONSTRAINTS_INFO;
         break;
     case X509_POLICY_MAPPINGS:
-        objP = ObjFromCERT_POLICY_MAPPINGS_INFO(u.pv);
+        fnP = ObjFromCERT_POLICY_MAPPINGS_INFO;
         break;
     case X509_CRL_DIST_POINTS:
-        objP = ObjFromCRL_DIST_POINTS_INFO(u.pv);
+        fnP = ObjFromCRL_DIST_POINTS_INFO;
         break;
     case X509_AUTHORITY_INFO_ACCESS: // FALLTHROUGH
-        objP = ObjFromCERT_AUTHORITY_INFO_ACCESS(u.pv);
+        fnP = ObjFromCERT_AUTHORITY_INFO_ACCESS;
         break;
     case 65535-1: // szOID_SUBJECT_KEY_IDENTIFIER
-        objP = ObjFromCRYPT_BLOB(u.pv);
+        fnP = ObjFromCRYPT_BLOB;
         break;
     default:
         objP = ObjFromByteArray(u.pv, n);
         break;
     }
+
+    if (objP == NULL)
+        objP = fnP(u.pv);
 
     LocalFree(u.pv);
     *objPP = objP;
