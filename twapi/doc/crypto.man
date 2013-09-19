@@ -637,6 +637,9 @@ Default is [const false].
 The store must be closed with [uri #cert_store_close [cmd cert_store_close]]
 when no longer needed.
 
+[call [cmd cert_free] [arg HCERT]]
+Frees resource associated with the specified certificate context.
+
 [call [cmd cert_get_property] [arg HCERT] [arg PROPERTY]]
 Returns the value of a property in a certificate context. Raises
 an error if the property does not exist in the context.
