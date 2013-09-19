@@ -196,6 +196,15 @@ static Tcl_Obj *ObjFromCERT_PUBLIC_KEY_INFO(CERT_PUBLIC_KEY_INFO *cpiP)
     return ObjNewList(2, objs);
 }
 
+static Tcl_Obj *ObjFromCERT_POLICY_CONSTRAINTS_INFO(CERT_POLICY_CONSTRAINTS_INFO  *cpciP)
+{
+    Tcl_Obj *objs[4];
+    objs[0] = ObjFromBoolean(cpciP->fRequireExplicitPolicy);
+    objs[1] = ObjFromDWORD(cpciP->dwRequireExplicitPolicySkipCerts);
+    objs[2] = ObjFromBoolean(cpciP->fInhibitPolicyMapping);
+    objs[3] = ObjFromDWORD(cpciP->dwInhibitPolicyMappingSkipCerts);
+    return ObjNewList(4, objs);
+}
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParseCRYPT_BLOB(
@@ -529,6 +538,88 @@ static TCL_RESULT ParseCERT_PUBLIC_KEY_INFO(
     return TCL_OK;
 }
 
+static Tcl_Obj *ObjFromCERT_POLICY_INFO(CERT_POLICY_INFO *cpiP)
+{
+    int i;
+    Tcl_Obj *objs[2];
+
+    objs[0] = ObjFromString(cpiP->pszPolicyIdentifier);
+    objs[1] = ObjNewList(cpiP->cPolicyQualifier, NULL);
+    for (i = 0; i < cpiP->cPolicyQualifier; ++i) {
+        Tcl_Obj *qualObjs[2];
+        CERT_POLICY_QUALIFIER_INFO *qualP = &cpiP->rgPolicyQualifier[i];
+        qualObjs[0] = ObjFromString(qualP->pszPolicyQualifierId);
+        qualObjs[1] = ObjFromCRYPT_BLOB(&qualP->Qualifier);
+        // TBD - should we decode qualifers defined in RFC 5280 ?
+        ObjAppendElement(NULL, objs[1], ObjNewList(2, qualObjs));
+    }
+    return ObjNewList(2, objs);
+}
+
+static Tcl_Obj *ObjFromCERT_POLICIES_INFO(CERT_POLICIES_INFO *cpiP)
+{
+    int i;
+    Tcl_Obj *objP = ObjNewList(cpiP->cPolicyInfo, NULL);
+    for (i = 0; i < cpiP->cPolicyInfo; ++i) {
+        ObjAppendElement(NULL, objP,
+                         ObjFromCERT_POLICY_INFO(&cpiP->rgPolicyInfo[i]));
+    }
+    return objP;
+}
+
+static Tcl_Obj *ObjFromCERT_POLICY_MAPPINGS_INFO(CERT_POLICY_MAPPINGS_INFO *cpmiP) {
+    int i;
+    Tcl_Obj *objP = ObjNewList(cpmiP->cPolicyMapping, NULL);
+    for (i = 0; i < cpmiP->cPolicyMapping; ++i) {
+        Tcl_Obj *objs[2];
+        objs[0] = ObjFromString(cpmiP->rgPolicyMapping[i].pszIssuerDomainPolicy);
+        objs[1] = ObjFromString(cpmiP->rgPolicyMapping[i].pszSubjectDomainPolicy);
+        ObjAppendElement(NULL, objP, ObjNewList(2, objs));
+    }
+    return objP;
+}
+
+static Tcl_Obj *ObjFromCRL_DIST_POINTS_INFO(CRL_DIST_POINTS_INFO *cdpiP)
+{
+    int i, j;
+    Tcl_Obj *objP = ObjNewList(cdpiP->cDistPoint, NULL);
+    for (i = 0; i < cdpiP->cDistPoint; ++i) {
+        Tcl_Obj *objs[3];
+        CRL_DIST_POINT *cdpP = &cdpiP->rgDistPoint[i];
+        objs[0] = ObjFromInt(cdpP->DistPointName.dwDistPointNameChoice);
+        j = 1;
+        switch (cdpP->DistPointName.dwDistPointNameChoice) {
+        case CRL_DIST_POINT_FULL_NAME:
+            objs[1] = ObjFromCERT_ALT_NAME_INFO(&cdpP->DistPointName.FullName);
+            ++j;
+            break;
+        case CRL_DIST_POINT_NO_NAME:
+        case CRL_DIST_POINT_ISSUER_RDN_NAME:
+        default:
+            break;
+        }
+        objs[0] = ObjNewList(j, objs);
+        objs[1] = ObjFromCRYPT_BIT_BLOB(&cdpP->ReasonFlags);
+        objs[2] = ObjFromCERT_ALT_NAME_INFO(&cdpP->CRLIssuer);
+        ObjAppendElement(NULL, objP, ObjNewList(3, objs));
+    }
+    return objP;
+}
+
+static Tcl_Obj *ObjFromCERT_AUTHORITY_INFO_ACCESS(CERT_AUTHORITY_INFO_ACCESS *caiP)
+{
+    int i, j;
+    Tcl_Obj *objP = ObjNewList(caiP->cAccDescr, NULL);
+    for (i = 0; i < caiP->cAccDescr; ++i) {
+        Tcl_Obj *objs[2];
+        objs[0] = ObjFromString(caiP->rgAccDescr[i].pszAccessMethod);
+        objs[1] = ObjFromCERT_ALT_NAME_ENTRY(&caiP->rgAccDescr[i].AccessLocation);
+        ObjAppendElement(NULL, objP, ObjNewList(2, objs));
+    }
+    return objP;
+}
+
+
 static TCL_RESULT TwapiCryptDecodeObject(
     Tcl_Interp *interp,
     void *poid, /* Either a Tcl_Obj or a #define X509* int value */
@@ -565,7 +656,7 @@ static TCL_RESULT TwapiCryptDecodeObject(
             oid = ObjToString(oidObj);
             if (STREQ(oid, szOID_ENHANCED_KEY_USAGE))
                 dwoid = (DWORD_PTR) X509_ENHANCED_KEY_USAGE;
-            else if (STREQ(oid, szOID_ENHANCED_KEY_USAGE))
+            else if (STREQ(oid, szOID_KEY_USAGE))
                 dwoid = (DWORD_PTR) X509_KEY_USAGE;
             else if (STREQ(oid, szOID_SUBJECT_ALT_NAME2) ||
                      STREQ(oid, szOID_ISSUER_ALT_NAME2) ||
@@ -576,6 +667,18 @@ static TCL_RESULT TwapiCryptDecodeObject(
                 dwoid = (DWORD_PTR) X509_BASIC_CONSTRAINTS2;
             else if (STREQ(oid, szOID_AUTHORITY_KEY_IDENTIFIER2))
                 dwoid = (DWORD_PTR) X509_AUTHORITY_KEY_ID2;
+            else if (STREQ(oid, szOID_CERT_POLICIES))
+                dwoid = (DWORD_PTR) X509_CERT_POLICIES;
+            else if (STREQ(oid, szOID_POLICY_CONSTRAINTS))
+                dwoid = (DWORD_PTR) X509_POLICY_CONSTRAINTS;
+            else if (STREQ(oid, szOID_POLICY_MAPPINGS))
+                dwoid = (DWORD_PTR) X509_POLICY_MAPPINGS;
+            else if (STREQ(oid, szOID_CRL_DIST_POINTS))
+                dwoid = (DWORD_PTR) X509_CRL_DIST_POINTS;
+            else if (STREQ(oid, szOID_AUTHORITY_INFO_ACCESS))
+                dwoid = (DWORD_PTR) X509_AUTHORITY_INFO_ACCESS;
+            else if (STREQ(oid, szOID_SUBJECT_INFO_ACCESS))
+                dwoid = (DWORD_PTR) X509_AUTHORITY_INFO_ACCESS; // same as AUTHORITY
             else if (STREQ(oid, szOID_SUBJECT_KEY_IDENTIFIER))
                 dwoid = 65535-1;
             else
@@ -617,6 +720,22 @@ static TCL_RESULT TwapiCryptDecodeObject(
         break;
     case X509_ALGORITHM_IDENTIFIER:
         objP = ObjFromCRYPT_ALGORITHM_IDENTIFIER(u.pv);
+        break;
+    case X509_CERT_POLICIES:
+        objP = ObjFromCERT_POLICIES_INFO(u.pv);
+        break;
+    case X509_POLICY_CONSTRAINTS:
+        objP = ObjFromCERT_POLICY_CONSTRAINTS_INFO(u.pv);
+        break;
+    case X509_POLICY_MAPPINGS:
+        objP = ObjFromCERT_POLICY_MAPPINGS_INFO(u.pv);
+        break;
+    case X509_CRL_DIST_POINTS:
+        objP = ObjFromCRL_DIST_POINTS_INFO(u.pv);
+        break;
+    case X509_AUTHORITY_INFO_ACCESS: // FALLTHROUGH
+        objP = ObjFromCERT_AUTHORITY_INFO_ACCESS(u.pv);
+        break;
     case 65535-1: // szOID_SUBJECT_KEY_IDENTIFIER
         objP = ObjFromCRYPT_BLOB(u.pv);
         break;
@@ -765,6 +884,7 @@ static TCL_RESULT TwapiCryptEncodeObject(
     /* Note caller has to MemLifoPopFrame to release lifo memory */
     return TCL_OK;
 }
+
 
 static Tcl_Obj *ObjFromCERT_EXTENSION(CERT_EXTENSION *extP)
 {
@@ -2363,7 +2483,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             }
         }
         break;
-    case 10035: //Twapi_GetCertInfo
+    case 10035: //Twapi_CertGetInfo
         res = TwapiGetArgs(interp, objc, objv,
                            GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
                            ARGEND);
@@ -2390,7 +2510,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.type = TRT_OBJV;
 
         break;
-    case 10036: //Twapi_GetCertExtensions
+    case 10036: //Twapi_CertGetExtensions
         res = TwapiGetArgs(interp, objc, objv,
                            GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
                            ARGEND);
@@ -2446,8 +2566,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertFreeCertificateChain, 10032),
         DEFINE_FNCODE_CMD(CertFindExtension, 10033),
         DEFINE_FNCODE_CMD(CryptGenRandom, 10034),
-        DEFINE_FNCODE_CMD(Twapi_GetCertInfo, 10035),
-        DEFINE_FNCODE_CMD(Twapi_GetCertExtensions, 10036),
+        DEFINE_FNCODE_CMD(Twapi_CertGetInfo, 10035),
+        DEFINE_FNCODE_CMD(Twapi_CertGetExtensions, 10036),
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {

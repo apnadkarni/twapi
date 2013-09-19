@@ -361,20 +361,35 @@ proc twapi::cert_export {hcert} {
 }
 
 proc twapi::cert_enhkey_usage {hcert {loc both}} {
-    # TBD - does return value have to be mapped to symbols ?
-    return [CertGetEnhancedKeyUsage $hcert [dict! {property 4 extension 2 both 0} $loc 1]]
+    return [_cert_decode_enhkey [CertGetEnhancedKeyUsage $hcert [dict! {property 4 extension 2 both 0} $loc 1]]]
 }
 
 proc twapi::cert_key_usage {hcert} {
     # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
-    binary scan [Twapi_CertGetIntendedKeyUsage 0x10001 $hcert] c* bytes
-    return [_decode_keyusage_bytes $bytes]
+    return [_cert_decode_keyusage [Twapi_CertGetIntendedKeyUsage 0x10001 $hcert]]
 }
 
 # TBD - document
 proc twapi::cert_thumbprint {hcert} {
     binary scan [cert_get_property $hcert sha1_hash] H* hash
     return $hash
+}
+
+# TBD - document
+proc twapi::cert_get_info {hcert} {
+    return [twine {-version -serialnumber -signaturealgorithm -issuer
+        -start -end -subject -publickey -issuerid -subjectid -extensions} \
+                [Twapi_CertGetInfo $hcert]]
+}
+
+# TBD - document
+proc twapi::cert_get_extension {hcert oid} {
+    set ext [CertFindExtension $hcert [oid $oid]]
+    if {[llength $ext] == 0} {
+        return $ext
+    }
+    lassign $ext oid critical val
+    return [list $critical [_cert_decode_extension $oid $val]]
 }
 
 proc twapi::cert_create_self_signed {subject args} {
@@ -385,7 +400,7 @@ proc twapi::cert_create_self_signed {subject args} {
         {silent.bool 0 0x40}
         {csp.arg {}}
         {csptype.arg {prov_rsa_full}}
-        {signaturealgoritm.arg oid_rsa_sha1rsa}
+        {signaturealgorithm.arg oid_rsa_sha1rsa}
         start.int
         end.int
         {gmt.bool 1}
@@ -453,7 +468,7 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
         start.int
         end.int
         {gmt.bool 0}
-        {signaturealgoritm.arg oid_rsa_sha1rsa}
+        {signaturealgorithm.arg oid_rsa_sha1rsa}
         altnames.arg
         critical.arg
         enhkeyusage.arg
@@ -502,7 +517,7 @@ proc twapi::cert_create {hprov subject hissuer args} {
         end.int
         {gmt.bool 0}
         {keyspec.arg keyexchange {keyexchange signature}}
-        {signaturealgoritm.arg oid_rsa_sha1rsa}
+        {signaturealgorithm.arg oid_rsa_sha1rsa}
         {serialnumber.arg {}}
         altnames.arg
         critical.arg
@@ -1180,7 +1195,7 @@ twapi::proc* twapi::oids {{pattern *}} {
         oid_pkix_kp_ipsec_tunnel "1.3.6.1.5.5.7.3.6"
         oid_pkix_kp_ipsec_user "1.3.6.1.5.5.7.3.7"
         oid_pkix_kp_timestamp_signing "1.3.6.1.5.5.7.3.8"
-        oid_pkix_kp_ipsec_ike_intermediate "1.3.6.1.5.5.8.2.2"
+        oid_pkix_kp_ocsp_signing      "1.3.6.1.5.5.7.3.9"
 
         oid_oiw               "1.3.14"
 
@@ -1243,6 +1258,47 @@ twapi::proc* twapi::oids {{pattern *}} {
         oid_infosec_mosaickmandupdsig     "2.16.840.1.101.2.1.1.20"
         oid_infosec_mosaicupdatedinteg    "2.16.840.1.101.2.1.1.21"
     }
+
+    # OIDs for certificate extensions
+    array set _name_oid_map {
+        oid_authority_key_identifier_old  "2.5.29.1"
+        oid_key_attributes            "2.5.29.2"
+        oid_cert_policies_95          "2.5.29.3"
+        oid_key_usage_restriction     "2.5.29.4"
+        oid_subject_alt_name_old          "2.5.29.7"
+        oid_issuer_alt_name_old           "2.5.29.8"
+        oid_basic_constraints_old     "2.5.29.10"
+        oid_key_usage                 "2.5.29.15"
+        oid_privatekey_usage_period   "2.5.29.16"
+        oid_basic_constraints        "2.5.29.19"
+
+        oid_cert_policies             "2.5.29.32"
+        oid_any_cert_policy           "2.5.29.32.0"
+        oid_inhibit_any_policy        "2.5.29.54"
+
+        oid_authority_key_identifier "2.5.29.35"
+        oid_subject_key_identifier    "2.5.29.14"
+        oid_subject_alt_name2         "2.5.29.17"
+        oid_issuer_alt_name          "2.5.29.18"
+        oid_crl_reason_code           "2.5.29.21"
+        oid_reason_code_hold          "2.5.29.23"
+        oid_crl_dist_points           "2.5.29.31"
+        oid_enhanced_key_usage        "2.5.29.37"
+
+        oid_any_enhanced_key_usage    "2.5.29.37.0"
+
+        oid_crl_number                "2.5.29.20"
+        oid_delta_crl_indicator       "2.5.29.27"
+        oid_issuing_dist_point        "2.5.29.28"
+        oid_freshest_crl              "2.5.29.46"
+        oid_name_constraints          "2.5.29.30"
+
+        oid_policy_mappings           "2.5.29.33"
+        oid_legacy_policy_mappings    "2.5.29.5"
+        oid_policy_constraints        "2.5.29.36"
+    }
+
+
 
     array set _oid_name_map [swapl [array get _name_oid_map]]
 } {
@@ -1345,12 +1401,15 @@ proc twapi::_make_keyusage_ext {keyusage critical} {
     return [list "2.5.29.15" $critical [list $bin 7]]
 }
 
-# Given a list integer bytes, decode to key usage flags
-proc twapi::_decode_keyusage_bytes {bytes} {
+# Given a byte array, decode to key usage flags
+proc twapi::_cert_decode_keyusage {bin} {
     variable _keyusage_byte1
     variable _keyusage_byte2
     
     _init_keyusage_names
+
+    binary scan $bin c* bytes
+
     if {[llength $bytes] == 0} {
         return *;               # Field not present, TBD
     }
@@ -1371,20 +1430,41 @@ proc twapi::_decode_keyusage_bytes {bytes} {
         }
     } 
 
-    # For the second byte, not all bits are defined. Error if any
-    # that we do not understand
-    if {$byte} {
-        error "Key usage sequence $bytes includes unsupported bits"
-    }
+    if {0} {
+        # Commented out because some certificates seem to contain
+        # bits not defined by RF5280. Do not barf on these
 
-    # If there are more bytes, they should all be 0 as well
-    foreach byte [lrange $bytes 2 end] {
+        # For the second byte, not all bits are defined. Error if any
+        # that we do not understand
         if {$byte} {
             error "Key usage sequence $bytes includes unsupported bits"
+        }
+
+        # If there are more bytes, they should all be 0 as well
+        foreach byte [lrange $bytes 2 end] {
+            if {$byte} {
+                error "Key usage sequence $bytes includes unsupported bits"
+            }
         }
     }
 
     return $usages
+}
+
+proc twapi::_cert_decode_enhkey {vals} {
+    set result {}
+    foreach val $vals {
+        lappend result [dict* [swapl [oids oid_pkix_kp_*]] $val]
+    }
+    return $result
+}
+
+proc twapi::_cert_decode_extension {oid val} {
+    switch $oid {
+        2.5.29.15 { return [_cert_decode_keyusage $val] }
+        2.5.29.37 { return [_cert_decode_enhkey $val] }
+    }
+    return $val
 }
 
 # If we are being sourced ourselves, then we need to source the remaining files.
