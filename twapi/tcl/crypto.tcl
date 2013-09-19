@@ -350,9 +350,8 @@ proc twapi::cert_set_key_prov {hcert args} {
 
     # TBD - does the keyspec matter ? In case of self signed cert
     # which (keyexchange/signature) or both have to be specified ?
-    set keyspec [expr {$opts(keyspec) eq "signature" ? 2 : 1}]
     Twapi_SetCertContextKeyProvInfo $hcert \
-        [list $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(csptype)] $flags {} $keyspec]
+        [list $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(csptype)] $flags {} [_crypt_keyspec $keyspec]]
     return
 }
 
@@ -436,8 +435,7 @@ proc twapi::cert_create_self_signed {subject args} {
                      [_csp_type_name_to_id $opts(csptype)] \
                      $kiflags \
                      {} \
-                     [expr {$opts(keyspec) eq "keyexchange" ? 1 : 2}]]
-
+                     [_crypt_keyspec $keyspec]]
     
     # Generate the extensions list
     set exts {}
@@ -554,21 +552,41 @@ proc twapi::cert_create {hprov subject hissuer args} {
 
     # Generate the extensions list
     set exts {}
-    if {[info exists altnames]} {
-        lappend exts [_make_altnames_ext $altnames [expr {"altnames" in $critical}] 0]
-    }
-    if {[info exists enhkeyusage]} {
-        lappend exts [_make_enhkeyusage_ext $enhkeyusage [expr {"enhkeyusage" in $critical}]]
+    lappend exts [_make_basic_constraints_ext $ca $capathlen]
+    if {$ca} {
+        lappend keyusage key_cert_sign
     }
     if {[info exists keyusage]} {
         lappend exts [_make_keyusage_ext $keyusage [expr {"keyusage" in $critical}]]
     }
+    if {[info exists enhkeyusage]} {
+        lappend exts [_make_enhkeyusage_ext $enhkeyusage [expr {"enhkeyusage" in $critical}]]
+    }
+    if {[info exists altnames]} {
+        lappend exts [_make_altnames_ext $altnames [expr {"altnames" in $critical}] 0]
+    }
 
-    lappend exts [_make_basic_constraints_ext $ca $capathlen]
+    # The subject key id in issuer's cert will become the
+    # authority key id in the new cert
+    # 2.5.29.14 -> oid_subject_key_identifier
+    set issuer_subject_key_id [cert_get_extension $hissuer 2.5.29.14]
+    if {[string length [lindex $issuer_subject_key_id 1]] } {
+        # 2.5.29.35 -> oid_authority_key_identifier
+        lappend exts [list 2.5.29.35 0 [list [lindex $issuer_subject_key_id 1] {} {}]]
+    }
 
-    # Use the hash of the public key as the subject key identifier
-    
+    # Generate a subject key identifier for this cert based on a hash
+    # of the public key
+    # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
+    # TBD - Do not hard code oid_rsa_rsa.
+    set subject_key_id [Twapi_HashPublicKeyInfo \
+                            [CryptExportPublicKeyInfoEx $hprov \
+                                 [_crypt_keyspec $keyspec] \
+                                 0x10001 \
+                                 [oid oid_rsa_rsa] \
+                                 0]]
 
+    lappend exts [list 2.5.29.14 0 $subject_key_id]
 
     # Get issuer name and altnames
     set issuer_name [cert_subject_name $hissuer -name rdn -format x500]
@@ -594,7 +612,7 @@ proc twapi::cert_create {hprov subject hissuer args} {
 
     # 0x10001 -> X509_ASN_ENCODING, 2 -> X509_CERT_TO_BE_SIGNED
     return [CryptSignAndEncodeCert $hprov \
-                [expr {$keyspec eq "signature" ? 2 : 1}] \
+                [_crypt_keyspec $keyspec] \
                 0x10001 2 $certinfo $sigoid]
 }
 
@@ -704,54 +722,52 @@ proc twapi::cert_ssl_verify {hcert args} {
 ################################################################
 # Cryptographic context commands
 
-proc twapi::crypt_acquire {args} {
-    array set opts [parseargs args {
-        keycontainer.arg
+proc twapi::crypt_acquire {keycontainer args} {
+    parseargs args {
         csp.arg
         {csptype.arg prov_rsa_full}
         {keysettype.arg user {user machine}}
         {create.bool 0 0x8}
         {silent.bool 0 0x40}
         {verifycontext.bool 0 0xf0000000}
-    } -maxleftover 0 -nulldefault]
+    } -maxleftover 0 -nulldefault -setvars
     
     # Based on http://support.microsoft.com/kb/238187, if verifycontext
     # is not specified, default container must not be used as keys
     # from different applications might overwrite. The docs for
     # CryptAcquireContext say keycontainer must be empty if verifycontext
     # is specified. Thus they are mutually exclusive.
-    if {! $opts(verifycontext)} {
-        if {$opts(keycontainer) eq ""} {
-            badargs! "Option -verifycontext must be specified if -keycontainer option is unspecified or empty"
+    if {! $verifycontext} {
+        if {$keycontainer eq ""} {
+            badargs! "Option -verifycontext must be specified for the default key container."
         }
     }
 
-    set flags [expr {$opts(create) | $opts(silent) | $opts(verifycontext)}]
-    if {$opts(keysettype) eq "machine"} {
+    set flags [expr {$create | $silent | $verifycontext}]
+    if {$keysettype eq "machine"} {
         incr flags 0x20;        # CRYPT_KEYSET_MACHINE
     }
 
-    return [CryptAcquireContext $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(csptype)] $flags]
+    return [CryptAcquireContext $keycontainer $csp [_csp_type_name_to_id $csptype] $flags]
 }
 
 proc twapi::crypt_free {hcrypt} {
     twapi::CryptReleaseContext $hcrypt
 }
 
-proc twapi::crypt_key_container_delete args {
-    array set opts [parseargs args {
-        keycontainer.arg
+proc twapi::crypt_key_container_delete {keycontainer args} {
+    parseargs args {
         csp.arg
         {csptype.arg prov_rsa_full}
         {keysettype.arg user {machine user}}
-    } -maxleftover 0 -nulldefault]
+    } -maxleftover 0 -nulldefault -setvars
 
     set flags 0x10;             # CRYPT_DELETEKEYSET
-    if {$opts(keysettype) eq "machine"} {
+    if {$keysettype eq "machine"} {
         incr flags 0x20;        # CRYPT_MACHINE_KEYSET
     }
 
-    return [CryptAcquireContext $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(csptype)] $flags]
+    return [CryptAcquireContext $keycontainer $csp [_csp_type_name_to_id $csptype] $flags]
 }
 
 proc twapi::crypt_key_generate {hprov algid args} {
@@ -1465,6 +1481,10 @@ proc twapi::_cert_decode_extension {oid val} {
         2.5.29.37 { return [_cert_decode_enhkey $val] }
     }
     return $val
+}
+
+proc twapi::_crypt_keyspec {keyspec} {
+    return [dict* {keyexchange 1 signature 2} $keyspec]
 }
 
 # If we are being sourced ourselves, then we need to source the remaining files.

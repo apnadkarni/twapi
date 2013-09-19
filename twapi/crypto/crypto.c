@@ -540,7 +540,7 @@ static TCL_RESULT ParseCERT_PUBLIC_KEY_INFO(
 
 static Tcl_Obj *ObjFromCERT_POLICY_INFO(CERT_POLICY_INFO *cpiP)
 {
-    int i;
+    DWORD i;
     Tcl_Obj *objs[2];
 
     objs[0] = ObjFromString(cpiP->pszPolicyIdentifier);
@@ -558,7 +558,7 @@ static Tcl_Obj *ObjFromCERT_POLICY_INFO(CERT_POLICY_INFO *cpiP)
 
 static Tcl_Obj *ObjFromCERT_POLICIES_INFO(CERT_POLICIES_INFO *cpiP)
 {
-    int i;
+    DWORD i;
     Tcl_Obj *objP = ObjNewList(cpiP->cPolicyInfo, NULL);
     for (i = 0; i < cpiP->cPolicyInfo; ++i) {
         ObjAppendElement(NULL, objP,
@@ -568,7 +568,7 @@ static Tcl_Obj *ObjFromCERT_POLICIES_INFO(CERT_POLICIES_INFO *cpiP)
 }
 
 static Tcl_Obj *ObjFromCERT_POLICY_MAPPINGS_INFO(CERT_POLICY_MAPPINGS_INFO *cpmiP) {
-    int i;
+    DWORD i;
     Tcl_Obj *objP = ObjNewList(cpmiP->cPolicyMapping, NULL);
     for (i = 0; i < cpmiP->cPolicyMapping; ++i) {
         Tcl_Obj *objs[2];
@@ -581,7 +581,8 @@ static Tcl_Obj *ObjFromCERT_POLICY_MAPPINGS_INFO(CERT_POLICY_MAPPINGS_INFO *cpmi
 
 static Tcl_Obj *ObjFromCRL_DIST_POINTS_INFO(CRL_DIST_POINTS_INFO *cdpiP)
 {
-    int i, j;
+    DWORD i;
+    int j;
     Tcl_Obj *objP = ObjNewList(cdpiP->cDistPoint, NULL);
     for (i = 0; i < cdpiP->cDistPoint; ++i) {
         Tcl_Obj *objs[3];
@@ -608,7 +609,7 @@ static Tcl_Obj *ObjFromCRL_DIST_POINTS_INFO(CRL_DIST_POINTS_INFO *cdpiP)
 
 static Tcl_Obj *ObjFromCERT_AUTHORITY_INFO_ACCESS(CERT_AUTHORITY_INFO_ACCESS *caiP)
 {
-    int i, j;
+    DWORD i;
     Tcl_Obj *objP = ObjNewList(caiP->cAccDescr, NULL);
     for (i = 0; i < caiP->cAccDescr; ++i) {
         Tcl_Obj *objs[2];
