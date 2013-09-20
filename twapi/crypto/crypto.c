@@ -1023,7 +1023,7 @@ static TCL_RESULT ParseCERT_INFO(
                        GETOBJ(issuerIdObj),
                        GETOBJ(subjectIdObj),
                        GETOBJ(extsObj), ARGEND) != TCL_OK) {
-        ObjSetStaticResult(interp, "Invalid CERT_INFO structure");
+        Tcl_AppendResult(interp, "Invalid CERT_INFO structure", NULL);
         return TCL_ERROR;
     }
 
@@ -1772,7 +1772,7 @@ static TCL_RESULT Twapi_CryptSignAndEncodeCertObjCmd(
     DWORD structtype;
 
     mark = MemLifoPushMark(&ticP->memlifo);
-    res = TwapiGetArgsEx(ticP, objc, objv, GETHANDLET(hprov, HCRYPTPROV),
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETHANDLET(hprov, HCRYPTPROV),
                          GETINT(keyspec), GETINT(enctype),
                          GETINT(structtype),
                          GETOBJ(certinfoObj), GETOBJ(algidObj),
@@ -2529,6 +2529,15 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         } else
             result.type = TRT_EMPTY;
         break;
+    case 10037: // CryptFindCertificateKeyProvInfo
+        res = TwapiGetArgs(interp, objc, objv,
+                           GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                           GETINT(dw), ARGEND);
+        if (res != TCL_OK)
+            return res;
+        result.type = TRT_BOOL;
+        result.value.bval = CryptFindCertificateKeyProvInfo(certP, dw, NULL);
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -2574,6 +2583,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptGenRandom, 10034),
         DEFINE_FNCODE_CMD(Twapi_CertGetInfo, 10035),
         DEFINE_FNCODE_CMD(Twapi_CertGetExtensions, 10036),
+        DEFINE_FNCODE_CMD(CryptFindCertificateKeyProvInfo, 10037),
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
