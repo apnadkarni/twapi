@@ -304,7 +304,7 @@ if desired.
 Creating a new certificate involves several steps. As always, first
 a cryptographic context is needed that defines the algorithms,
 keys etc. that will be used to create the certificate.
-[example {set crypt [crypt_acquire -csp {Microsoft Strong Cryptographic Provider} -keycontainer twapi_test_container -csptype prov_rsa_full -create 1]}]
+[example {set crypt [crypt_acquire twapi_test_container -csp {Microsoft Strong Cryptographic Provider} -csptype prov_rsa_full -create 1]}]
 This assumes a key container called twapi_test_container does not exist.
 All the options specified above happen to be the defaults if unspecified.
 [para]
@@ -1092,9 +1092,13 @@ The certificate that can be marked for use as a CA is being used
 as a leaf or vice-versa.
 [list_end]
 
-[call [cmd crypt_acquire] [opt [arg options]]]
-Returns a handle to a cryptographic context for a particular key container
-in a [uri #cryptographicserviceproviders CSP]. The hande must be freed
+[call [cmd crypt_acquire] [arg KEYCONTAINER] [opt [arg options]]]
+Returns a handle to a cryptographic context for the specified key container
+in a [uri #cryptographicserviceproviders CSP]. 
+If [arg KEYCONTAINER] is the empty string, the default container
+for the CSP is used.
+[nl]
+The handle must be freed
 when no longer required by calling 
 [uri #crypt_free [cmd crypt_free]].
 
@@ -1107,10 +1111,6 @@ If unspecified, the default Microsoft CSP for the system is used.
 [opt_def [cmd -csptype] [arg CSPTYPE]] Indicates the type of
 CSP. Defaults to [const prov_rsa_full]. 
 See [sectref "Cryptographic Service Providers"] for all possible types.
-[opt_def [cmd -keycontainer] [arg CONTAINERNAME]] 
-Specifies the name of the key container for which the context is to
-be returned. If unspecified, the context returned is for the default
-container.
 [opt_def [cmd -keysettype] [arg KEYSETTYPE]] [arg KEYSETTYPE] must be
 [const user] (default) or [const machine]. Normally the key container
 is stored in the user's profile. If [arg KEYSETTYPE] is [const machine],
@@ -1146,8 +1146,12 @@ Frees a cryptographic context returned by
 Returns the [uri security.html#securitydescriptors "security descriptor"]
 associated with a CSP key container whose handle is [arg HCRYPT].
 
-[call [cmd crypt_key_container_delete] [opt [arg options]]]
+[call [cmd crypt_key_container_delete] [arg KEYCONTAINER] [opt [arg options]]]
 Deletes the key container identified by the specified options.
+[arg KEYCONTAINER] specifies the name of the key container to be deleted in
+the CSP. If the empty string, the default container is deleted. Since
+this can impact other applications, the [cmd -force] option must be
+specified when deleting the default container.
 [list_begin opt]
 [opt_def [cmd -csp] [arg CSP]] Specifies the name of the CSP for
 the key container.
@@ -1155,9 +1159,7 @@ If unspecified, the default Microsoft CSP for the system is used.
 [opt_def [cmd -csptype] [arg CSPTYPE]] Indicates the type of
 CSP. Defaults to [const prov_rsa_full]. 
 See [sectref "Cryptographic Service Providers"] for all possible types.
-[opt_def [cmd -keycontainer] [arg CONTAINERNAME]] 
-Specifies the name of the key container to be deleted in
-the CSP. If unspecified, the default container is deleted.
+[opt_def [cmd -force]] Must be specified when deleting the default container.
 [opt_def [cmd -keysettype] [arg KEYSETTYPE]] [arg KEYSETTYPE] must be
 [const user] (default) or [const machine]. Normally the key container
 is stored in the user's profile. If [arg KEYSETTYPE] is [const machine],
