@@ -212,9 +212,9 @@ proc twapi::cert_store_commit {hstore args} {
 ################################################################
 # Certificates
 
+
 interp alias {} twapi::cert_subject_name {} twapi::_cert_get_name subject
 interp alias {} twapi::cert_issuer_name {} twapi::_cert_get_name issuer
-
 proc twapi::_cert_get_name {field hcert args} {
 
     switch $field {
@@ -392,6 +392,8 @@ proc twapi::cert_get_extension {hcert oid} {
 }
 
 proc twapi::cert_create_self_signed {subject args} {
+    set args [_cert_create_parse_options $args opts]
+
     array set opts [parseargs args {
         {keyspec.arg keyexchange {keyexchange signature}}
         {keycontainer.arg {}}
@@ -400,30 +402,9 @@ proc twapi::cert_create_self_signed {subject args} {
         {csp.arg {}}
         {csptype.arg {prov_rsa_full}}
         {signaturealgorithm.arg {}}
-        start.int
-        end.int
-        {gmt.bool 1}
-        altnames.arg
-        critical.arg
-        enhkeyusage.arg
-        keyusage.arg
-        {ca.bool 0}
-        {capathlen.int -1}
     } -maxleftover 0 -ignoreunknown]
 
     set name_blob [cert_name_to_blob $subject]
-
-    if {![info exists opts(start)]} {
-        set opts(start) [_seconds_to_timelist [clock seconds] $opts(gmt)]
-    }
-
-    if {![info exists opts(end)]} {
-        set opts(end) $opts(start)
-        lset opts(end) 0 [expr {[lindex $opts(start) 0] + 1}]
-    }
-    if {$opts(end) <= $opts(start)} {
-        badargs! "Start time $opts(start) is greater than end time $opts(end)"
-    }
 
     set kiflags $opts(silent)
     if {$opts(keysettype) eq "machine"} {
@@ -437,183 +418,93 @@ proc twapi::cert_create_self_signed {subject args} {
                      {} \
                      [_crypt_keyspec $opts(keyspec)]]
     
-    # Generate the extensions list
-    set exts {}
-    if {[info exists opts(altnames)]} {
-        set critical [expr {"altnames" in $opts(critical)}]
-        # Issuer
-        lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
-        # Subject
-        lappend exts [_make_altnames_ext $opts(altnames) $critical 0]
-    }
-    if {[info exists opts(enhkeyusage)]} {
-        lappend exts [_make_enhkeyusage_ext $opts(enhkeyusage) [expr {"enhkeyusage" in $opts(critical)}]]
-    }
-    if {[info exists opts(keyusage)]} {
-        lappend exts [_make_keyusage_ext $opts(keyusage) [expr {"keyusage" in $opts(critical)}]]
-    }
-    lappend exts [_make_basic_constraints_ext $opts(ca) $opts(capathlen)]
-
     set flags 0;                # Always 0 for now
     return [CertCreateSelfSignCertificate NULL $name_blob $flags $keyinfo \
                 [_make_algorithm_identifier $opts(signaturealgorithm)] \
-                $opts(start) $opts(end) $exts]
+                $opts(start) $opts(end) $opts(extensions)]
 }
 
 proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
+    set args [_cert_create_parse_options $args opts]
+
     array set opts [parseargs args {
-        {silent.bool 0 0x40}
-        start.int
-        end.int
-        {gmt.bool 0}
         {signaturealgorithm.arg {}}
-        altnames.arg
-        critical.arg
-        enhkeyusage.arg
-        keyusage.arg
-        {ca.bool 0}
-        {capathlen.int -1}
     } -maxleftover 0]
 
     set name_blob [cert_name_to_blob $subject]
 
-    if {![info exists opts(start)]} {
-        set opts(start) [_seconds_to_timelist [clock seconds] $opts(gmt)]
-    }
-
-    if {![info exists opts(end)]} {
-        set opts(end) $opts(start)
-        lset opts(end) 0 [expr {[lindex $opts(start) 0] + 1}]
-    }
-
-    # Generate the extensions list
-    set exts {}
-    if {[info exists opts(altnames)]} {
-        set critical [expr {"altnames" in $opts(critical)}]
-        # Issuer
-        lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
-        # Subject
-        lappend exts [_make_altnames_ext $opts(altnames) $critical 0]
-    }
-    if {[info exists opts(enhkeyusage)]} {
-        lappend exts [_make_enhkeyusage_ext $opts(enhkeyusage) [expr {"enhkeyusage" in $opts(critical)}]]
-    }
-    if {[info exists opts(keyusage)]} {
-        lappend exts [_make_keyusage_ext $opts(keyusage) [expr {"keyusage" in $opts(critical)}]]
-    }
-    lappend exts [_make_basic_constraints_ext $ca $capathlen]
-
     set flags 0;                # Always 0 for now
     return [CertCreateSelfSignCertificate $hprov $name_blob $flags {} \
                 [_make_algorithm_identifier $opts(signaturealgorithm)] \
-                $opts(start) $opts(end) $exts]
+                $opts(start) $opts(end) $opts(extensions)]
 }
 
-proc twapi::cert_create {hprov subject hissuer args} {
+proc twapi::cert_create {hprov subject cissuer args} {
+    set args [_cert_create_parse_options $args opts]
+
     parseargs args {
-        start.int
-        end.int
-        {gmt.bool 0}
-        {keyspec.arg keyexchange {keyexchange signature}}
         {signaturealgorithm.arg oid_rsa_sha1rsa}
-        {serialnumber.arg {}}
-        altnames.arg
-        critical.arg
-        enhkeyusage.arg
-        keyusage.arg
-        {ca.bool 0}
-        {capathlen.int -1}
+        {keyspec.arg keyexchange {keyexchange signature}}
     } -maxleftover 0 -setvars
     
     # TBD - check that issuer is a CA
 
     set sigoid [list [oid $signaturealgorithm]]
 
-    if {[info exists serialnumber]} {
-        if {$serialnumber <= 0 || $serialnumber > 0x7fffffffffffffff} {
-            badargs! "Serial number must be specified as a positive wide integer."
-        }
-        # Format as little endian
-        set serialnumber [binary format w $serialnumber]
-    } else {
-        # Generate 15 byte random and add high byte (little endian)
-        # to 0x01 to ensure it is treated as positive
-        set serialnumber "[random 15]\x01"
-    }
-
-    # Validity period
-    if {![info exists start]} {
-        set start [_seconds_to_timelist [clock seconds] $gmt]
-    }
-    if {![info exists end]} {
-        set end $start
-        lset end 0 [expr {[lindex $start 0] + 1}]
-    }
-
-    # Generate the extensions list
-    set exts {}
-    lappend exts [_make_basic_constraints_ext $ca $capathlen]
-    if {$ca} {
-        lappend keyusage key_cert_sign
-    }
-    if {[info exists keyusage]} {
-        lappend exts [_make_keyusage_ext $keyusage [expr {"keyusage" in $critical}]]
-    }
-    if {[info exists enhkeyusage]} {
-        lappend exts [_make_enhkeyusage_ext $enhkeyusage [expr {"enhkeyusage" in $critical}]]
-    }
-    if {[info exists altnames]} {
-        lappend exts [_make_altnames_ext $altnames [expr {"altnames" in $critical}] 0]
-    }
-
     # The subject key id in issuer's cert will become the
     # authority key id in the new cert
+    # TBD - if fail, get the CERT_KEY_IDENTIFIER_PROP_ID
     # 2.5.29.14 -> oid_subject_key_identifier
-    set issuer_subject_key_id [cert_get_extension $hissuer 2.5.29.14]
+    set issuer_subject_key_id [cert_get_extension $cissuer 2.5.29.14]
     if {[string length [lindex $issuer_subject_key_id 1]] } {
         # 2.5.29.35 -> oid_authority_key_identifier
-        lappend exts [list 2.5.29.35 0 [list [lindex $issuer_subject_key_id 1] {} {}]]
+        lappend opts(extensions) [list 2.5.29.35 0 [list [lindex $issuer_subject_key_id 1] {} {}]]
     }
 
     # Generate a subject key identifier for this cert based on a hash
     # of the public key
     # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
     # TBD - Do not hard code oid_rsa_rsa.
-    set subject_key_id [Twapi_HashPublicKeyInfo \
-                            [CryptExportPublicKeyInfoEx $hprov \
-                                 [_crypt_keyspec $keyspec] \
-                                 0x10001 \
-                                 [oid oid_rsa_rsa] \
-                                 0]]
-
-    lappend exts [list 2.5.29.14 0 $subject_key_id]
+    set pubkey [CryptExportPublicKeyInfoEx $hprov \
+                    [_crypt_keyspec $keyspec] \
+                    0x10001 \
+                    [oid oid_rsa_rsa] \
+                    0]
+    set subject_key_id [Twapi_HashPublicKeyInfo $pubkey]
+    lappend opts(extensions) [list 2.5.29.14 0 $subject_key_id]
 
     # Get issuer name and altnames
-    set issuer_name [cert_subject_name $hissuer -name rdn -format x500]
+    set issuer_name [cert_subject_name $cissuer -name rdn -format x500]
     set issuer_blob [cert_name_to_blob $issuer_name -format x500]
 
     # TBD Issuer altnames - get from issuer cert
     # lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
 
+    set start [timelist_to_large_system_time $opts(start)]
+    set end [timelist_to_large_system_time $opts(end)]
+
     # 2 -> CERT_V3
     # issuer_id and subject_id for the certificate are left empty
     # as recommended by gutman's X.509 paper
-    set cert_info [list \
-                       2 \
-                       $serialnumber \
-                       $sigoid \
-                       $issuer_blob \
-                       $start  $end \
+    set cert_info [list 2 $opts(serialnumber) $sigoid $issuer_blob \
+                       $start $end \
                        [cert_name_to_blob $subject] \
-                       $pubkey \
-                       {} \
-                       {} \
-                       $exts]
+                       $pubkey {} {} \
+                       $opts(extensions)]
 
-    # 0x10001 -> X509_ASN_ENCODING, 2 -> X509_CERT_TO_BE_SIGNED
-    return [CryptSignAndEncodeCert $hprov \
-                [_crypt_keyspec $keyspec] \
-                0x10001 2 $certinfo $sigoid]
+    # We need to get the crypt provider for the issuer cert since
+    # that is what will sign the new cert
+    lassign [cert_get_property $cissuer key_prov_info] issuer_container issuer_provname issuer_provtype issuer_flags dontcare issuer_keyspec
+    set hissuerprov [crypt_acquire $issuer_container -csp $issuer_provname -csptype $issuer_provtype -keysettype [expr {$issuer_flags & 0x20 ? "machine" : "user"}]]
+    trap {
+        # 0x10001 -> X509_ASN_ENCODING, 2 -> X509_CERT_TO_BE_SIGNED
+        return [CryptSignAndEncodeCertificate $hissuerprov $issuer_keyspec \
+                0x10001 2 $cert_info $sigoid]
+    } finally {
+        # TBD - test to make sure ok to close this if caller had
+        # it open
+        crypt_free $hissuerprov
+    }
 }
 
 proc twapi::cert_ssl_verify {hcert args} {
@@ -1503,6 +1394,64 @@ proc twapi::_cert_decode_extension {oid val} {
 proc twapi::_crypt_keyspec {keyspec} {
     return [dict* {keyexchange 1 signature 2} $keyspec]
 }
+
+proc twapi::_cert_create_parse_options {optvals optsvar} {
+    upvar 1 $optsvar opts
+
+    parseargs optvals {
+        start.int
+        end.int
+        serialnumber.arg
+        altnames.arg
+        {critical.arg {}}
+        enhkeyusage.arg
+        keyusage.arg
+        {ca.bool 0}
+        {capathlen.int -1}
+    } -ignoreunknown -setvars
+
+    if {[info exists serialnumber]} {
+        if {$serialnumber <= 0 || $serialnumber > 0x7fffffffffffffff} {
+            badargs! "Serial number must be specified as a positive wide integer."
+        }
+        # Format as little endian
+        set opts(serialnumber) [binary format w $serialnumber]
+    } else {
+        # Generate 15 byte random and add high byte (little endian)
+        # to 0x01 to ensure it is treated as positive
+        set opts(serialnumber) "[random_bytes 15]\x01"
+    }
+    
+    # Validity period
+    if {![info exists start]} {
+        set opts(start) [_seconds_to_timelist [clock seconds] 1]
+    }
+    if {![info exists end]} {
+        set opts(end) $opts(start)
+        lset opts(end) 0 [expr {[lindex $opts(end) 0] + 1}]
+    }
+
+    # Generate the extensions list
+    set exts {}
+    lappend exts [_make_basic_constraints_ext $ca $capathlen]
+    if {$ca} {
+        lappend keyusage key_cert_sign
+    }
+    if {[info exists keyusage]} {
+        lappend exts [_make_keyusage_ext $keyusage [expr {"keyusage" in $critical}]]
+    }
+    if {[info exists enhkeyusage]} {
+        lappend exts [_make_enhkeyusage_ext $enhkeyusage [expr {"enhkeyusage" in $critical}]]
+    }
+    if {[info exists altnames]} {
+        lappend exts [_make_altnames_ext $altnames [expr {"altnames" in $critical}] 0]
+    }
+
+    set opts(extensions) $exts
+
+    return $optvals
+}
+
 
 # If we are being sourced ourselves, then we need to source the remaining files.
 if {[file tail [info script]] eq "crypto.tcl"} {
