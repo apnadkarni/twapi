@@ -468,6 +468,7 @@ proc twapi::_seconds_to_timelist {secs {gmt 0}} {
 
 # Convert local time list {Year Month Day Hour Min Sec Ms} to seconds
 # (Ms field is ignored)
+# TBD - fix this gmt issue - not clear whether caller expects gmt time
 proc twapi::_timelist_to_seconds {timelist} {
     return [clock scan [_timelist_to_timestring $timelist] -gmt false]
 }
