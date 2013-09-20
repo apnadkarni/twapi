@@ -399,7 +399,7 @@ proc twapi::cert_create_self_signed {subject args} {
         {silent.bool 0 0x40}
         {csp.arg {}}
         {csptype.arg {prov_rsa_full}}
-        {signaturealgorithm.arg oid_rsa_sha1rsa}
+        {signaturealgorithm.arg {}}
         start.int
         end.int
         {gmt.bool 1}
@@ -435,7 +435,7 @@ proc twapi::cert_create_self_signed {subject args} {
                      [_csp_type_name_to_id $opts(csptype)] \
                      $kiflags \
                      {} \
-                     [_crypt_keyspec $keyspec]]
+                     [_crypt_keyspec $opts(keyspec)]]
     
     # Generate the extensions list
     set exts {}
@@ -452,11 +452,11 @@ proc twapi::cert_create_self_signed {subject args} {
     if {[info exists opts(keyusage)]} {
         lappend exts [_make_keyusage_ext $opts(keyusage) [expr {"keyusage" in $opts(critical)}]]
     }
-    lappend exts [_make_basic_constraints_ext $ca $capathlen]
+    lappend exts [_make_basic_constraints_ext $opts(ca) $opts(capathlen)]
 
     set flags 0;                # Always 0 for now
     return [CertCreateSelfSignCertificate NULL $name_blob $flags $keyinfo \
-                [list [oid $opts(signaturealgorithm)]] \
+                [_make_algorithm_identifier $opts(signaturealgorithm)] \
                 $opts(start) $opts(end) $exts]
 }
 
@@ -466,7 +466,7 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
         start.int
         end.int
         {gmt.bool 0}
-        {signaturealgorithm.arg oid_rsa_sha1rsa}
+        {signaturealgorithm.arg {}}
         altnames.arg
         critical.arg
         enhkeyusage.arg
@@ -505,7 +505,7 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
 
     set flags 0;                # Always 0 for now
     return [CertCreateSelfSignCertificate $hprov $name_blob $flags {} \
-                [list [oid $opts(signaturealgorithm)]] \
+                [_make_algorithm_identifier $opts(signaturealgorithm)] \
                 $opts(start) $opts(end) $exts]
 }
 
@@ -760,7 +760,12 @@ proc twapi::crypt_key_container_delete {keycontainer args} {
         csp.arg
         {csptype.arg prov_rsa_full}
         {keysettype.arg user {machine user}}
+        force
     } -maxleftover 0 -nulldefault -setvars
+
+    if {$keycontainer eq "" && ! $force} {
+        error "Default container cannot be deleted unless the -force option is specified"
+    }
 
     set flags 0x10;             # CRYPT_DELETEKEYSET
     if {$keysettype eq "machine"} {
@@ -871,6 +876,18 @@ proc twapi::crypt_symmetric_key_size {hprov} {
 
 proc twapi::_algid {class type alg} {
     return [expr {($class << 13) | ($type << 9) | $alg}]
+}
+
+proc twapi::_make_algorithm_identifier {oid {param {}}} {
+    if {[string length $oid] == 0} {
+        return ""
+    }
+    set oid [oid $oid]
+    if {[string length $param]} {
+        return [list $oid $param]
+    } else {
+        return [list $oid]
+    }
 }
 
 twapi::proc* twapi::_cert_prop_id {prop} {
