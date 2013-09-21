@@ -2267,8 +2267,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         if (!CertAddCertificateContextToStore(pv, certP, dw, &certP))
             result.type = TRT_GETLASTERROR;
         else {
-            if (TwapiRegisterPointer(interp, certP, CertFreeCertificateContext) != TCL_OK)
-                Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+            TwapiRegisterCertPointer(interp, certP);
             TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
         }
         break;
@@ -2538,6 +2537,30 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.type = TRT_BOOL;
         result.value.bval = CryptFindCertificateKeyProvInfo(certP, dw, NULL);
         break;
+    case 10038: // CertAddEncodedCertificateToStore
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCERTSTORE, CertCloseStore),
+                         GETINT(dw), ARGSKIP, GETINT(dw2), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        cP = ObjToByteArray(objv[2], &dw3);
+        if (CertAddEncodedCertificateToStore(pv, dw, cP, dw3, dw2, &certP)) {
+            TwapiRegisterCertPointer(interp, certP);
+            TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
+        } else
+            result.type = TRT_GETLASTERROR;
+        break;
+    case 10039: // CertOIDToAlgId
+        CHECK_NARGS(interp, objc, 1);
+        result.type = TRT_DWORD;
+        result.value.uval = CertOIDToAlgId(ObjToString(objv[0]));
+        break;
+    case 10040: // CertAlgIdToOID
+        CHECK_NARGS(interp, objc, 1);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        result.type = TRT_CHARS;
+        result.value.chars.str = (char *) CertAlgIdToOID(dw);
+        result.value.chars.len = -1;
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -2584,6 +2607,9 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_CertGetInfo, 10035),
         DEFINE_FNCODE_CMD(Twapi_CertGetExtensions, 10036),
         DEFINE_FNCODE_CMD(CryptFindCertificateKeyProvInfo, 10037),
+        DEFINE_FNCODE_CMD(CertAddEncodedCertificateToStore, 10038),
+        DEFINE_FNCODE_CMD(CertOIDToAlgId, 10039),
+        DEFINE_FNCODE_CMD(CertAlgIdToOID, 10040),
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
