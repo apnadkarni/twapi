@@ -167,27 +167,16 @@ proc twapi::cert_store_enum_contents {hstore {hcert NULL}} {
 }
 
 proc twapi::cert_store_add_certificate {hstore hcert args} {
-    array set opts [parseargs args {
-        {disposition.arg preserve {overwrite duplicate update preserve}}
-    } -maxleftover 0 -nulldefault]
-
-    switch $opts(disposition) {
-        duplicate {
-            set disposition 4; # CERT_STORE_ADD_ALWAYS
-        }
-        overwrite {
-            set disposition 3; # CERT_STORE_ADD_REPLACE_EXISTING
-        }
-        update {
-            set disposition 6; # CERT_STORE_ADD_NEWER
-        }
-        preserve {
-            set disposition 1; # CERT_STORE_ADD_NEW
-        }
-    }
-
-    return [CertAddCertificateContextToStore $hstore $hcert $disposition]
+    array set opts [_cert_add_parseargs args]
+    return [CertAddCertificateContextToStore $hstore $hcert $opts(disposition)]
 }
+
+proc twapi::cert_store_add_encoded_certificate {hstore enccert args} {
+    array set opts [_cert_add_parseargs args]
+    return [CertAddEncodedCertificateToStore $hstore 0x10001 $enccert $opts(disposition)]
+}
+
+
 
 proc twapi::cert_store_export {hstore password args} {
     array set opts [parseargs args {
@@ -683,27 +672,13 @@ proc twapi::crypt_key_generate {hprov algid args} {
         switch -nocase -exact -- $algid {
             keyexchange {set algid 1}
             signature {set algid 2}
-            dh_ephemeral {set algid [_algid 5 5 2]}
-            dh_sandf {set algid [_algid 5 5 1]}
-            md5 {set algid [_algid 4 0 3]}
-            sha -
-            sha1 {set algid [_algid 4 0 4]}
-            mac {set algid [_algid 4 0 5]}
-            ripemd {set algid [_algid 4 0 6]}
-            rimemd160 {set algid [_algid 4 0 7]}
-            ssl3_shamd5 {set algid [_algid 4 0 8]}
-            hmac {set algid [_algid 4 0 9]}
-            sha256 {set algid [_algid 4 0 12]}
-            sha384 {set algid [_algid 4 0 13]}
-            sha512 {set algid [_algid 4 0 14]}
-            rsa_sign {set algid [_algid 1 2 0]}
-            dss_sign {set algid [_algid 1 1 0]}
-            rsa_keyx {set algid [_algid 5 2 0]}
-            des {set algid [_algid 3 3 1]}
-            3des {set algid [_algid 3 3 3]}
-            3des112 {set algid [_algid 3 3 9]}
-            desx {set algid [_algid 3 3 4]}
-            default {badargs! "Invalid value '$algid' for parameter algid"}
+            default {
+                set id [CertOIDToAlgId [oid $algid]]
+                if {$id == 0} {
+                    badargs! "Invalid algorithm id '$algid'"
+                }
+                set algid $id
+            }
         }
     }
 
@@ -1452,6 +1427,25 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
     return $optvals
 }
 
+proc twapi::_cert_add_parseargs {vargs} {
+    uplevel 1 $vargs optvals
+    parseargs optvals args {
+        {disposition.arg preserve {overwrite duplicate update preserve}}
+    } -maxleftover 0 -setvars
+
+    # 4 -> CERT_STORE_ADD_ALWAYS
+    # 3 -> CERT_STORE_ADD_REPLACE_EXISTING
+    # 6 -> CERT_STORE_ADD_NEWER
+    # 1 -> CERT_STORE_ADD_NEW
+
+    return [list disposition \
+                [dict get {
+                    duplicate 4
+                    overwrite 3
+                    update 6
+                    preserve 1
+                } $disposition]]
+}
 
 # If we are being sourced ourselves, then we need to source the remaining files.
 if {[file tail [info script]] eq "crypto.tcl"} {

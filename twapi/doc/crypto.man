@@ -337,9 +337,13 @@ Certificates can be added and deleted from certificate stores with
 the commands
 [uri #cert_store_add_certificate [cmd cert_store_add_certificate]]
 and [uri #cert_store_delete_certificate [cmd cert_store_delete_certificate]]
-respectively. Note that adding a certificate to a store creates a
+respectively. These commands take a certificate context. A certificate
+that is in encoded form can be added to a store with
+[uri #cert_store_add_encoded_certificate [cmd cert_store_add_encoded_certificate]].
+[para]
+Note that adding a certificate to a store creates a
 [emph copy] of the certificate. The original certificate (context) is
-unmodified.
+unmodified. 
 
 [para]
 The sample code below adds the certificate we created in the previous
@@ -856,6 +860,29 @@ certificate or the matching certificate's validity period start time
 is less than that of the new certificate. Otherwise an error is raised.
 [list_end]
 
+[call [cmd cert_store_add_encoded_certificate] [arg HSTORE] [arg ENCCERT] [opt "[cmd -disposition] [arg DISPOSITION]"]]
+Adds a new certificate to a certificate store. [arg HSTORE] is the handle
+to the store. [arg ENCCERT] is a binary value containing the 
+certificate encoded in X.509 ASN.1 format.
+The command returns
+a handle to the new certificate context which must be freed
+with [uri #cert_free] when no longer needed. 
+Note that the new certificate is not persisted until the store is saved.
+[nl]
+The [cmd -disposition] option controls what happens if a matching
+certificate already exists in the store. [arg DISPOSITION] may take one
+of the following values:
+[list_begin opt]
+[opt_def duplicate] Creates the new certificate while keeping the existing
+one. This will create duplicates in the store.
+[opt_def overwrite] Overwrites the existing certificate with the new one.
+[opt_def preserve] If a matching certificate exists, it is preserved
+and a error raised. Otherwise, the new certificate is added.
+[opt_def update] The new certificate is added if there is no matching
+certificate or the matching certificate's validity period start time
+is less than that of the new certificate. Otherwise an error is raised.
+[list_end]
+
 [call [cmd cert_store_close] [arg HSTORE]]
 Releases the specified handle to a certificate store.
 
@@ -1181,12 +1208,8 @@ Generates a new key or public/private key pair in the cryptographic
 context [arg HCRYPT] and returns a handle to it. 
 [arg ALGORITHM] specifies the algorithm with which the keys will be used
 and must be one of 
-[const keyexchange], [const signature], [const dh_ephemeral], [const dh_sandf],
-[const md5], [const sha], [const sha1], [const mac], [const ripemd],
-[const rimemd160], [const ssl3_shamd5], [const hmac], [const sha256],
-[const sha384], [const sha512], [const rsa_sign], [const dss_sign], 
-[const rsa_keyx], [const des], [const 3des], [const 3des112] or
-[const desx].
+[const keyexchange], [const signature], or the OID of an algorithm
+in either dotted decimal or mnemonic form.
 
 [nl]
 The following options may be specified with the command:
