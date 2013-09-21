@@ -239,7 +239,7 @@ part of the certificate itself, for example a private key associated
 with the certificate. These properties can be enumerated
 with [uri #cert_enum_properties [cmd cert_enum_properties]]
 and the value of an individual property can be retrieved with
-[uri #cert_get_property [cmd cert_get_property]].
+[uri #cert_property [cmd cert_property]].
 
 [section "Certificate contexts"]
 
@@ -258,6 +258,18 @@ When no longer needed, certificate contexts must be freed by calling
 
 [section "Getting certificate contents"]
 
+The [uri #cert_info [cmd cert_info]] command returns the fields
+in a certificate context. The [uri #cert_extension [cmd cert_extension]]
+command retrieves specific extensions. 
+Two extensions, Intended Key Usage
+and Enhanced Key Usage,
+can be also be retrieved with
+the [uri #cert_key_usage [cmd cert_key_usage]]
+and [uri #cert_enhkey_usage [cmd cert_enhkey_usage]]
+command. These look up certificate context properties in addition
+to multiple related extensions in the certificate itself.
+
+[para]
 The encoded certificate associated with a certificate context can
 be retrieved with the [uri #cert_export [cmd cert_export]] command.
 This can be written to a file or otherwise distributed.
@@ -268,13 +280,6 @@ puts -nonewline $fd [lb]cert_export $hcert[rb]
 close $fd
 [example_end]
 
-[para]
-A certificate contains two extensions, Intended Key Usage
-and Enhanced Key Usage that contain its intended
-or allowed use. These extensions can be retrieved with
-the [uri #cert_key_usage [cmd cert_key_usage]]
-and [uri #cert_enhkey_usage [cmd cert_enhkey_usage]]
-command.
 
 
 [section "Finding a certificate in a store"]
@@ -283,8 +288,8 @@ An existing certificate in a store can be retrieved in one of two ways:
 [bullet] Enumerate each certificate in the store using
 [uri #cert_store_enum_contents [cmd cert_store_enum_contents]] and
 looking for a match using
-[uri #cert_get_name [cmd cert_get_name]] or
-[uri #cert_get_property [cmd cert_get_property]].
+[uri #cert_subject_name [cmd cert_subject_name]] or
+[uri #cert_property [cmd cert_property]].
 [bullet] Searching for a match on the subject name using
 [uri #cert_store_find_certificate [cmd cert_store_find_certificate]].
 [list_end]
@@ -591,6 +596,13 @@ Returns the encoded certificate for a certificate context.
 This is encoded using X.509 ASN.1 and
 can be written to a file or otherwise distributed.
 
+[call [cmd cert_extension] [arg HCERT] [arg EXTENSION]]
+Returns a certificate extension as a two element list.
+The first element is a boolean indicating whether the extension
+is marked critical. The second element is the value of the extension.
+[arg EXTENSION] is the OID for the extension, either in dotted
+decimal or mnemonic form.
+
 [call [cmd cert_file_store_open] [arg PATH] [opt [arg options]]]
 Opens a certificate store from a file [arg PATH]
 and returns a handle to a cached copy of it.
@@ -644,48 +656,38 @@ when no longer needed.
 [call [cmd cert_free] [arg HCERT]]
 Frees resource associated with the specified certificate context.
 
-[call [cmd cert_get_property] [arg HCERT] [arg PROPERTY]]
-Returns the value of a property in a certificate context. Raises
-an error if the property does not exist in the context.
-
-[arg PROPERTY] must be one of the following:
+[call [cmd cert_info] [arg HCERT]]
+Returns the following fields from a certificate context as a dictionary.
 [list_begin opt]
-[opt_def [cmd access_state]] A non-0 integer if write operations
-to the certificate context are persisted and 0 if they are not.
-[opt_def [cmd archived]] If this property exists, the certificate is
-an archived certificate.
-[opt_def [cmd auto_enroll]] The certificate type for which
-this certificate has been auto-enrolled.
-[opt_def [cmd date_stamp]] The date and time that the certificate was
-added to the store.
-[opt_def [cmd description]] The description associated with the certificate
-for display purposes.
-[opt_def [cmd enhkey_usage]] A list of enhanced key usage OID's.
-[opt_def [cmd extended_error_info]] Any extended error information
-for the certificate context.
-[opt_def [cmd friendly_name]] The display name for the certificate.
-[opt_def [cmd issuer_public_key_md5_hash]] The MD5 hash of the issuer's public
-key used to sign the certificate.
-[opt_def [cmd issuer_serial_number_md5_hash]]
-The MD5 hash of the issuer name and serial number.
-[opt_def [cmd key_context]] A list of two elements containing a handle
-to the cryptographic context for the certificate and the key type.
-[opt_def [cmd key_identifier]] A binary containing the Subject Key Identifier
-value if it exists else the SHA1 hash on the certificate Subject Public Key.
-[opt_def [cmd key_prov_handle]] A handle to the associated cryptographic
-context.
-[opt_def [cmd key_prov_info]] A list containing the following elements:
-the name of the key container, the name of the CSP, the CSP type,
-attributes, key container parameters and the key type.
-[opt_def [cmd key_spec]] Specifies the private key.
-[opt_def [cmd md5_hash]] Binary containing the MD5 hash of the certificate.
-[opt_def [cmd pvk_file]] File path of the private key file corresponding
-to the certificate's public key.
-[opt_def [cmd sha1_hash]] Binary containing the SHA1 hash of the certificate.
-[opt_def [cmd signature_hash]] Signature hash.
-[opt_def [cmd subject_name_md5_hash]] Binary containing the MD5 hash of the
-encoded subject name.
-[opt_def [cmd subject_public_key_md5_hash]] Binary containing the MD5 hash of the certificate public key.
+[opt_def [const -end]] The end of the certificate's validity period
+in [uri base.html#large_system_time_to_secs_since_1970 "large system time"]
+format.
+[opt_def [const -extensions]] A list of extensions in the certificate.
+Each element is a triplet containing the OID of the extension,
+a boolean indicating whether the extension is marked critical or not,
+and the extension value.
+[opt_def [const -issuer]] The name of the certificate issuer.
+[opt_def [const -issuerid]] A binary containing unique id for
+the certificate issuer. This is generally not used and should not
+be relied on.
+[opt_def [const -publickkey]] The public key of the subject. This is
+a pair consisting of the algorithm identifier 
+(in the same format as [const -signaturealgorithm]) and a binary
+containing the public key.
+[opt_def [const -serialnumber]] A binary containing the serial number
+of the certificate.
+[opt_def [const -signaturealgorithm]] A pair consisting of the OID 
+for the algorithm used to sign the certificate and a binary containing
+any associated parameters.
+[opt_def [const -start]] The start of the certificate's validity period
+in [uri base.html#large_system_time_to_secs_since_1970 "large system time"]
+format.
+[opt_def [const -subject]] The name of the certificate subject.
+[opt_def [const -subjectid]] A binary containing unique id for
+the certificate subject. This is generally not used and should not
+be relied on.
+[opt_def [const -version]] The X.509 version of the certificate. Note
+this is 0-based on V3 certificates will have a value of [const 2].
 [list_end]
 
 [call [cmd cert_issuer_name] [arg HCERT] [opt [arg options]]]
@@ -723,8 +725,58 @@ operation.
 
 [call [cmd cert_key_usage] [arg HCERT]]
 Returns a list of the Intended Key Usage values in a certificate.
+The command looks for both the extensions [const 2.5.29.2] and
+[const 2.5.29.15].
 In the case where the extension is not
-present, the string [const *] is returned.
+present, the string [const *] is returned indicating the certificate
+may be used for any purpose.
+
+[call [cmd cert_property] [arg HCERT] [arg PROPERTY]]
+Returns the value of a 
+[uri #certificateproperties "certificate property"]. Raises
+an error if the property does not exist in the certificate context.
+
+[arg PROPERTY] must be one of the following:
+[list_begin opt]
+[opt_def [cmd access_state]] A non-0 integer if write operations
+to the certificate context are persisted and 0 if they are not.
+[opt_def [cmd archived]] If this property exists, the certificate is
+an archived certificate.
+[opt_def [cmd auto_enroll]] The certificate type for which
+this certificate has been auto-enrolled.
+[opt_def [cmd date_stamp]] The date and time that the certificate was
+added to the store.
+[opt_def [cmd description]] The description associated with the certificate
+for display purposes.
+[opt_def [cmd enhkey_usage]] A list of enhanced key usage OID's.
+[opt_def [cmd extended_error_info]] Any extended error information
+for the certificate context.
+[opt_def [cmd friendly_name]] The display name for the certificate.
+[opt_def [cmd issuer_public_key_md5_hash]] The MD5 hash of the issuer's public
+key used to sign the certificate.
+[opt_def [cmd issuer_serial_number_md5_hash]]
+The MD5 hash of the issuer name and serial number.
+[opt_def [cmd key_context]] A list of two elements containing a handle
+to the cryptographic context for the certificate and the key type.
+[opt_def [cmd key_identifier]] A binary containing the Subject Key Identifier
+value if it exists else the SHA1 hash on the certificate Subject Public Key.
+[opt_def [cmd key_prov_handle]] A handle to the associated cryptographic
+context.
+[opt_def [cmd key_prov_info]] A list containing the following elements:
+the name of the key container, the name of the CSP, the CSP type,
+attributes, key container parameters and the key type.
+[opt_def [cmd key_spec]] Specifies the private key.
+[opt_def [cmd md5_hash]] Binary containing the MD5 hash of the certificate.
+[opt_def [cmd pvk_file]] File path of the private key file corresponding
+to the certificate's public key.
+[opt_def [cmd sha1_hash]] Binary containing the SHA1 hash of the certificate.
+This can also be retrieved as a hexadecimal string with
+[uri #cert_thumbprint [cmd cert_thumbprint]].
+[opt_def [cmd signature_hash]] Signature hash.
+[opt_def [cmd subject_name_md5_hash]] Binary containing the MD5 hash of the
+encoded subject name.
+[opt_def [cmd subject_public_key_md5_hash]] Binary containing the MD5 hash of the certificate public key.
+[list_end]
 
 [call [cmd cert_subject_name] [arg HCERT] [opt [arg options]]]
 Returns a subject name field from the certificate context [arg HCERT]. 
@@ -957,7 +1009,7 @@ the integer [arg SEARCHTERM].
 Returns certificates that have a MD5 hash which matches the binary [arg SEARCHTERM].
 [opt_def [const property]]
 Returns certificates that have a property with id [arg SEARCHTERM]
-(see [uri #cert_get_property [cmd cert_get_property]]).
+(see [uri #cert_property [cmd cert_property]]).
 [opt_def [const pubkey_md5_hash]]
 Returns certificates whose MD5-hashed public key matches the binary [arg SEARCHTERM].
 [opt_def [const public_key]]
@@ -1118,6 +1170,11 @@ the one specified by the issuing CA.
 The certificate that can be marked for use as a CA is being used
 as a leaf or vice-versa.
 [list_end]
+
+[call [cmd cert_thumbprint] [arg HCERT]]
+Returns a SHA-1 based thumbprint for the specified certificate.
+This is returned as a hexadecimal string and can be used for
+a quick comparison to check if two certificates are identical.
 
 [call [cmd crypt_acquire] [arg KEYCONTAINER] [opt [arg options]]]
 Returns a handle to a cryptographic context for the specified key container

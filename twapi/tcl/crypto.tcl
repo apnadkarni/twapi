@@ -311,7 +311,7 @@ proc twapi::cert_enum_properties {hcert} {
     return $ids
 }
 
-proc twapi::cert_get_property {hcert prop} {
+proc twapi::cert_property {hcert prop} {
     # TBD - need to cook some properties
 
     if {[string is integer -strict $prop]} {
@@ -357,21 +357,18 @@ proc twapi::cert_key_usage {hcert} {
     return [_cert_decode_keyusage [Twapi_CertGetIntendedKeyUsage 0x10001 $hcert]]
 }
 
-# TBD - document
 proc twapi::cert_thumbprint {hcert} {
-    binary scan [cert_get_property $hcert sha1_hash] H* hash
+    binary scan [cert_property $hcert sha1_hash] H* hash
     return $hash
 }
 
-# TBD - document
-proc twapi::cert_get_info {hcert} {
+proc twapi::cert_info {hcert} {
     return [twine {-version -serialnumber -signaturealgorithm -issuer
         -start -end -subject -publickey -issuerid -subjectid -extensions} \
                 [Twapi_CertGetInfo $hcert]]
 }
 
-# TBD - document
-proc twapi::cert_get_extension {hcert oid} {
+proc twapi::cert_extension {hcert oid} {
     set ext [CertFindExtension $hcert [oid $oid]]
     if {[llength $ext] == 0} {
         return $ext
@@ -444,7 +441,7 @@ proc twapi::cert_create {hprov subject cissuer args} {
     # authority key id in the new cert
     # TBD - if fail, get the CERT_KEY_IDENTIFIER_PROP_ID
     # 2.5.29.14 -> oid_subject_key_identifier
-    set issuer_subject_key_id [cert_get_extension $cissuer 2.5.29.14]
+    set issuer_subject_key_id [cert_extension $cissuer 2.5.29.14]
     if {[string length [lindex $issuer_subject_key_id 1]] } {
         # 2.5.29.35 -> oid_authority_key_identifier
         lappend opts(extensions) [list 2.5.29.35 0 [list [lindex $issuer_subject_key_id 1] {} {}]]
@@ -483,7 +480,7 @@ proc twapi::cert_create {hprov subject cissuer args} {
 
     # We need to get the crypt provider for the issuer cert since
     # that is what will sign the new cert
-    lassign [cert_get_property $cissuer key_prov_info] issuer_container issuer_provname issuer_provtype issuer_flags dontcare issuer_keyspec
+    lassign [cert_property $cissuer key_prov_info] issuer_container issuer_provname issuer_provtype issuer_flags dontcare issuer_keyspec
     set hissuerprov [crypt_acquire $issuer_container -csp $issuer_provname -csptype $issuer_provtype -keysettype [expr {$issuer_flags & 0x20 ? "machine" : "user"}]]
     trap {
         # 0x10001 -> X509_ASN_ENCODING, 2 -> X509_CERT_TO_BE_SIGNED
