@@ -2068,16 +2068,70 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         }
         break;
 
-    case 10004: // CertDeleteCertificateFromStore
+    case 10004:
+    case 10014:
+    case 10015:
+    case 10035:
+    case 10036:
         if (TwapiGetArgs(interp, objc, objv,
                          GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        /* Unregister previous context since the next call will free it,
-           EVEN ON FAILURES */
-        if (TwapiUnregisterCertPointer(interp, certP) != TCL_OK)
-            return TCL_ERROR;
-        result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = CertDeleteCertificateFromStore(certP);
+        switch (func) {
+        case 10004: // CertDeleteCertificateFromStore
+            /* Unregister previous context since the next call will free it,
+               EVEN ON FAILURES */
+            if (TwapiUnregisterCertPointer(interp, certP) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = CertDeleteCertificateFromStore(certP);
+            break;
+        case 10014: // CertFreeCertificateContext
+            if (TwapiUnregisterCertPointer(interp, certP) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EMPTY;
+            CertFreeCertificateContext(certP);
+            break;
+        case 10015: // Twapi_CertGetEncoded
+            if (certP->pbCertEncoded && certP->cbCertEncoded) {
+                objs[0] = ObjFromDWORD(certP->dwCertEncodingType);
+                objs[1] = ObjFromByteArray(certP->pbCertEncoded, certP->cbCertEncoded);
+                result.value.objv.objPP = objs;
+                result.value.objv.nobj = 2;
+                result.type = TRT_OBJV;
+            }
+            /* else empty result */
+            break;
+        case 10035: //Twapi_CertGetInfo
+            ciP = certP->pCertInfo;
+            if (ciP) {
+                objs[0] = ObjFromInt(ciP->dwVersion);
+                objs[1] = ObjFromCRYPT_BLOB(&ciP->SerialNumber);
+                objs[2] = ObjFromCRYPT_ALGORITHM_IDENTIFIER(&ciP->SignatureAlgorithm);
+                objs[3] = ObjFromCERT_NAME_BLOB(&ciP->Issuer, 0);
+                objs[4] = ObjFromFILETIME(&ciP->NotBefore);
+                objs[5] = ObjFromFILETIME(&ciP->NotAfter);
+                objs[6] = ObjFromCERT_NAME_BLOB(&ciP->Subject, 0);
+                objs[7] = ObjFromCERT_PUBLIC_KEY_INFO(&ciP->SubjectPublicKeyInfo);
+                objs[8] = ObjFromCRYPT_BIT_BLOB(&ciP->IssuerUniqueId);
+                objs[9] = ObjFromCRYPT_BIT_BLOB(&ciP->SubjectUniqueId);
+                objs[10] = ObjFromCERT_EXTENSIONS(ciP->cExtension, ciP->rgExtension);
+                result.value.objv.nobj = 11;
+            } else
+                result.value.objv.nobj = 0;
+
+            result.value.objv.objPP = objs;
+            result.type = TRT_OBJV;
+
+            break;
+        case 10036: //Twapi_CertGetExtensions
+            ciP = certP->pCertInfo;
+            if (ciP) {
+                result.value.obj = ObjFromCERT_EXTENSIONS(ciP->cExtension, ciP->rgExtension);
+                result.type = TRT_OBJ;
+            } else
+                result.type = TRT_EMPTY;
+            break;
+        }
         break;
 
     case 10005: // Twapi_SetCertContextKeyProvInfo
@@ -2179,30 +2233,6 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             
         return TwapiCertGetNameString(interp, certP, dw, dw2, objv[3]);
 
-    case 10014: // CertFreeCertificateContext
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETPTR(certP, CERT_CONTEXT*), ARGEND) != TCL_OK ||
-            TwapiUnregisterCertPointer(interp, certP) != TCL_OK)
-            return TCL_ERROR;
-        TWAPI_ASSERT(certP);
-        result.type = TRT_EMPTY;
-        CertFreeCertificateContext(certP);
-        break;
-
-    case 10015: // Twapi_CertGetEncoded
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext), ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        if (certP->pbCertEncoded && certP->cbCertEncoded) {
-            objs[0] = ObjFromDWORD(certP->dwCertEncodingType);
-            objs[1] = ObjFromByteArray(certP->pbCertEncoded, certP->cbCertEncoded);
-            result.value.objv.objPP = objs;
-            result.value.objv.nobj = 2;
-            result.type = TRT_OBJV;
-        }
-        /* else empty result */
-
-        break;
             
     case 10016: // CertUnregisterSystemStore
         /* This command is there to primarily clean up mistakes in testing */
@@ -2412,12 +2442,13 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         else {
-            BYTE buf[2];
+            BYTE bytes[2];
+
             /* We do not currently support more than 2 bytes at Tcl level */
-            dw = CertGetIntendedKeyUsage(dw, certP->pCertInfo, buf, ARRAYSIZE(buf));
+            dw = CertGetIntendedKeyUsage(dw, certP->pCertInfo, bytes, ARRAYSIZE(bytes));
             if (dw) {
-                result.value.binary.p = buf;
-                result.value.binary.len = ARRAYSIZE(buf);
+                result.value.binary.p = bytes;
+                result.value.binary.len = ARRAYSIZE(bytes);
                 result.type = TRT_BINARY;
             } else {
                 if (GetLastError() == 0)
@@ -2487,46 +2518,6 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                 result.type = TRT_OBJ;
             }
         }
-        break;
-    case 10035: //Twapi_CertGetInfo
-        res = TwapiGetArgs(interp, objc, objv,
-                           GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
-                           ARGEND);
-        if (res != TCL_OK)
-            return res;
-        ciP = certP->pCertInfo;
-        if (ciP) {
-            objs[0] = ObjFromInt(ciP->dwVersion);
-            objs[1] = ObjFromCRYPT_BLOB(&ciP->SerialNumber);
-            objs[2] = ObjFromCRYPT_ALGORITHM_IDENTIFIER(&ciP->SignatureAlgorithm);
-            objs[3] = ObjFromCERT_NAME_BLOB(&ciP->Issuer, 0);
-            objs[4] = ObjFromFILETIME(&ciP->NotBefore);
-            objs[5] = ObjFromFILETIME(&ciP->NotAfter);
-            objs[6] = ObjFromCERT_NAME_BLOB(&ciP->Subject, 0);
-            objs[7] = ObjFromCERT_PUBLIC_KEY_INFO(&ciP->SubjectPublicKeyInfo);
-            objs[8] = ObjFromCRYPT_BIT_BLOB(&ciP->IssuerUniqueId);
-            objs[9] = ObjFromCRYPT_BIT_BLOB(&ciP->SubjectUniqueId);
-            objs[10] = ObjFromCERT_EXTENSIONS(ciP->cExtension, ciP->rgExtension);
-            result.value.objv.nobj = 11;
-        } else
-            result.value.objv.nobj = 0;
-
-        result.value.objv.objPP = objs;
-        result.type = TRT_OBJV;
-
-        break;
-    case 10036: //Twapi_CertGetExtensions
-        res = TwapiGetArgs(interp, objc, objv,
-                           GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
-                           ARGEND);
-        if (res != TCL_OK)
-            return res;
-        ciP = certP->pCertInfo;
-        if (ciP) {
-            result.value.obj = ObjFromCERT_EXTENSIONS(ciP->cExtension, ciP->rgExtension);
-            result.type = TRT_OBJ;
-        } else
-            result.type = TRT_EMPTY;
         break;
     case 10037: // CryptFindCertificateKeyProvInfo
         res = TwapiGetArgs(interp, objc, objv,

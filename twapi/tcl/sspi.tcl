@@ -580,9 +580,23 @@ proc twapi::sspi_decrypt {ctx sig data padding args} {
 # Decrypts a stream
 proc twapi::sspi_decrypt_stream {ctx data} {
     variable _sspi_state
-    _sspi_validate_handle $ctx
+    set hctx [_sspi_context_handle $ctx]
 
-    return [DecryptStream [_sspi_context_handle $ctx] $data]
+    # SSL decryption is done in max size chunks.
+    # We will loop collecting as much data as possible. Collecting
+    # as a list and joining at end minimizes internal byte copies
+    set plaintext {}
+    lassign [DecryptStream $hctx [dict get $_sspi_state($ctx) Input] $data] status decrypted extra
+    lappend plaintext $decrypted
+    
+    while {$status eq "ok" && [string length $extra]} {
+        # See if additional data and loop again
+        lassign [DecryptStream $hctx $extra] status decrypted extra
+        lappend plaintext $decrypted
+    }
+
+    dict set _sspi_state($ctx) Input $extra
+    return [list $status [join $plaintext ""]]
 }
 
 
