@@ -301,7 +301,7 @@ New certificates can be created
 by commands such as 
 [uri #cert_create_self_signed [cmd cert_create_self_signed]],
 [uri #cert_create_signed_from_crypt_context [cmd cert_create_signed_from_crypt_context]] and
-[uri #cert_create_certificate [cmd cert_create_certificate]].
+[uri #cert_create_certificate [cmd cert_create]].
 These return handles to certificate contexts that are not associated with 
 any store. The certificates must be explicitly placed in a certificate store
 if desired.
@@ -474,6 +474,52 @@ or [const newline].
 See [uri #cert_name_to_blob [cmd cert_name_to_blob]] for the reverse
 operation.
 
+[call [cmd cert_create] [arg SUBJECT] [arg HCRYPT] [arg ISSUERCERT] [opt [arg options]]]
+Creates a certificate and returns it as an ASN.1 encoded binary
+([emph not] as a certificate context). [arg HCRYPT] is a cryptographic
+context containing the public key for the certificate subject.
+[arg SUBJECT] is the name of the subject (and issuer) in X.500 format.
+[arg ISSUERCERT] is the certificate context that will be used to
+sign the created certificate. The private key associated with this
+certificate must be accessible to the current process context.
+[nl]
+The following options can be specified for the command:
+[list_begin opt_def]
+[opt_def [cmd -altnames] [arg ALTNAMES]]
+Specifies X.509 Alternative Name values to include in the certificate.
+[arg ALTNAMES] is a list of alternating name type and name value elements
+as described in [sectref "X.509 alternative names"].
+[opt_def [cmd -end] [arg ENDTIME]]
+Specifies the end of the certificate validity period. 
+[arg ENDTIME] is specified as a time list of the form
+[arg {YEAR MONTH DAY HOUR MIN SEC}].
+Defaults to one year beyond the start time.
+[opt_def [cmd -enhkeyusage] [arg ENHKEYUSAGE]]
+Specifies values to use for the X.509 enhanced key usage extension.
+[arg ENHKEYUSAGE] is a list containing one or more values from 
+[const client_auth], [const code_sign], [const email],
+[const ipsec_endsystem], [const ipsec_intermediate]. [const ipsec_tunnel],
+[const ipsec_user], [const server_auth] or [const timestamp]. It may
+also be an valid [uri #asn1objectidentifiers OID].
+[opt_def [cmd -keyspec] [arg KEYSPEC]]
+[arg KEYSPEC] must be one of [const signature] or 
+[const keyexchange] (default) and specifies the public/private key pair
+in the container for which the certificate is being created.
+[opt_def [cmd -keyusage] [arg KEYUSAGE]]
+Specifies values to use for the X.509 key usage extension.
+[arg KEYUSAGE] is a list containing one or more values from 
+[const crl_sign], [const data_encipherment], [const decipher_only]
+[const digital_signature], [const encipher_only], [const key_agreement],
+[const key_cert_sign], [const key_encipherment] and [const non_repudiation].
+[opt_def [cmd -signaturealgorithm] [arg SIGLAGORITHM]]
+Specifies the signature algorithm to use for signing the certificate.
+[opt_def [cmd -start] [arg STARTTIME]]
+Specifies the start of the certificate validity period. 
+[arg STARTTIME] is specified as a time list of the form
+[arg {YEAR MONTH DAY HOUR MIN SEC}].
+Defaults to the current time.
+[list_end]
+
 [call [cmd cert_create_self_signed] [arg SUBJECT] [opt [arg options]]]
 Creates a new certificate context for a self-signed certificate
 and returns a handle to it. The certificate is signed using 
@@ -508,9 +554,6 @@ Specifies values to use for the X.509 enhanced key usage extension.
 [const ipsec_user], [const server_auth] or [const timestamp]. It may
 also be an valid [uri #asn1objectidentifiers OID].
 
-[opt_def [cmd -gmt] [arg BOOLEAN]]
-If [const true] (default), assumes the [cmd -start] and [cmd -end]
-options are specified in GMT. Otherwise, local timezone is assumed.
 [opt_def [cmd -keycontainer] [arg CONTAINERNAME]]
 Specifies the name of the key container to use. If unspecified,
 the default container for the CSP is used.
