@@ -425,7 +425,7 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
                 $opts(start) $opts(end) $opts(extensions)]
 }
 
-proc twapi::cert_create {hprov subject cissuer args} {
+proc twapi::cert_create {subject hprov cissuer args} {
     set args [_cert_create_parse_options $args opts]
 
     parseargs args {
@@ -1193,8 +1193,6 @@ twapi::proc* twapi::oids {{pattern *}} {
         oid_legacy_policy_mappings    "2.5.29.5"
         oid_policy_constraints        "2.5.29.36"
     }
-
-
 
     array set _oid_name_map [swapl [array get _name_oid_map]]
 } {

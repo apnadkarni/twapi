@@ -862,24 +862,31 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     SecBuffer sbufs[4];
     SecBufferDesc sbd;
     Tcl_Obj *objs[3];           /* 0 status, 1 decrypted data, 2 extra data */
-    char *encP;
-    int  i, enclen;
+    char *encP, *p;
+    int  i, n, enclen;
     TCL_RESULT res;
 
-    CHECK_NARGS(interp, objc, 3);
+    CHECK_NARGS_RANGE(interp, objc, 3, INT_MAX);
     if (ObjToSecHandle(interp, objv[1], &sech) != TCL_OK)
         return TCL_ERROR;
 
-    encP = ObjToByteArray(objv[2], &enclen);
-
-    /* Note DecryptMessage decrypts in place so we cannot pass encP */
-    /* TBD - if objv[2] is not shared, can we directly decrypt in there 
-       instead of allocing from memlifo ? */
-
     sbufs[0].BufferType = SECBUFFER_DATA;
-    sbufs[0].pvBuffer   = MemLifoPushFrame(&ticP->memlifo, enclen, NULL);
-    CopyMemory(sbufs[0].pvBuffer, encP, enclen);
-    sbufs[0].cbBuffer   = enclen;
+    sbufs[0].cbBuffer   = 0;
+    for (i = 2; i < objc; ++i) {
+        ObjToByteArray(objv[i], &enclen);
+        sbufs[0].cbBuffer += enclen;
+    }
+    sbufs[0].pvBuffer = MemLifoPushFrame(&ticP->memlifo,
+                                         sbufs[0].cbBuffer, NULL);
+    p = sbufs[0].pvBuffer;
+    for (i = 2; i < objc; ++i) {
+        encP = ObjToByteArray(objv[i], &enclen);
+        CopyMemory(p, encP, enclen);
+        p += enclen;
+    }
+    TWAPI_ASSERT(p == (sbufs[0].cbBuffer + (char*) sbufs[0].pvBuffer));
+
+    /* Note DecryptMessage decrypts in place */
 
     for (i = 1; i < ARRAYSIZE(sbufs); ++i)
         sbufs[i].BufferType = SECBUFFER_EMPTY;
@@ -887,6 +894,10 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     sbd.cBuffers = 4;
     sbd.pBuffers = sbufs;
     sbd.ulVersion = SECBUFFER_VERSION;
+
+    /* DecryptMessage will not preserve values in sbufs[0] so remember them */
+    encP = sbufs[0].pvBuffer;
+    enclen = sbufs[0].cbBuffer;
 
     ss = DecryptMessage(&sech, &sbd, 0, NULL);
     switch (ss) {
@@ -912,7 +923,7 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
         if (i < ARRAYSIZE(sbufs))
             objs[1] = ObjFromByteArray(sbufs[i].pvBuffer, sbufs[i].cbBuffer);
         else
-            objs[1] = ObjFromEmptyString();
+            objs[1] = ObjFromEmptyString(); /* No leftover data */
 
         for (i = 1; i < ARRAYSIZE(sbufs); ++i) {
             if (sbufs[i].BufferType == SECBUFFER_EXTRA)
@@ -920,7 +931,6 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
         }
         if (i < ARRAYSIZE(sbufs)) {
             TWAPI_ASSERT(enclen > sbufs[i].cbBuffer);
-            TWAPI_ASSERT(encP == ObjToByteArray(objv[2], NULL));
             /* MSDN docs say "pvBuffer" does not contain a copy of the
                data. What they probably mean is that it points into
                the original data, not to a copy of it. But the sample
