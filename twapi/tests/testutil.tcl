@@ -1468,6 +1468,28 @@ proc setops::equal {A B} {
 tcltest::customMatch set setops::equal
 
 
+# Utility proc to generate three certs in a memory store - 
+# one self signed which is used to sign a client and a server cert
+proc make_test_certs {} {
+    # Create the self signed CA cert
+    set ca(csp) {Microsoft Strong Cryptographic Provider}
+    set ca(csptype) prov_rsa_full
+    set ca(container) twapi_ca_[twapi::new_uuid]
+    set ca(subject) $ca(container)
+    set crypt [twapi::crypt_acquire $ca(container) -csp $ca(csp) -csptype $ca(csptype) -create 1]
+    twapi::crypt_key_free [twapi::crypt_key_generate $crypt signature -exportable 1]
+    set cert [twapi::cert_create_self_signed_from_crypt_context "CN=$ca(container)" $crypt -ca 1]
+    set ca(store) [twapi::cert_memory_store_open]
+    set ca(certificate) [twapi::cert_store_add_certificate $ca(store) $cert]
+    twapi::cert_free $cert
+    twapi::cert_set_key_prov $ca(certificate) -csp $ca(csp) -keycontainer $ca(container) -csptype $ca(csptype)
+
+    # Create the server cert
+
+    return [array get ca]
+}
+
+
 # If this is the first argument to the shell and there are more arguments
 # execute them
 

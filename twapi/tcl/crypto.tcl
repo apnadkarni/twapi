@@ -322,25 +322,24 @@ proc twapi::cert_property {hcert prop} {
 }
 
 proc twapi::cert_set_key_prov {hcert args} {
-    array set opts [parseargs args {
+    parseargs args {
         keycontainer.arg
         csp.arg
         {csptype.arg prov_rsa_full}
         {keysettype.arg user {user machine}}
         {silent.bool 0 0x40}
         {keyspec.arg keyexchange {keyexchange signature}}
-    } -maxleftover 0 -nulldefault]
+    } -maxleftover 0 -nulldefault -setvars
 
-    set flags $opts(silent)
-    if {$opts(keysettype) eq "machine"} {
+    set flags $silent
+    if {$keysettype eq "machine"} {
         incr flags 0x20;        # CRYPT_KEYSET_MACHINE
     }
-
 
     # TBD - does the keyspec matter ? In case of self signed cert
     # which (keyexchange/signature) or both have to be specified ?
     Twapi_SetCertContextKeyProvInfo $hcert \
-        [list $opts(keycontainer) $opts(csp) [_csp_type_name_to_id $opts(csptype)] $flags {} [_crypt_keyspec $keyspec]]
+        [list $keycontainer $csp [_csp_type_name_to_id $csptype] $flags {} [_crypt_keyspec $keyspec]]
     return
 }
 
@@ -1222,20 +1221,21 @@ proc twapi::_make_altnames_ext {altnames critical {issuer 0}} {
 proc twapi::_get_enhkey_usage_oids {names} {
     array set map [oids oid_pkix_kp_*]
 
-    set oids {}
+    # We use an array to remove duplicates
+    array set oids {}
     foreach name $names {
         if {[info exists map($name)]} {
-            lappend oids $map($name)
+            set oids($map($name)) 1
         } elseif {[info exists map(oid_pkix_kp_$name)]} {
-            lappend oids $map(oid_pkix_kp_$name)
+            set oids($map(oid_pkix_kp_$name)) 1
         } elseif {[regexp {^\d([\d\.]*\d)?$} $name]} {
             # Any OID will do
-            lappend oids $name
+            set oids($name) 1
         } else {
             error "Invalid Enhanced Key Usage OID \"$name\""
         }
     }
-    return $oids
+    return [array names oids]
 }
 
 proc twapi::_make_enhkeyusage_ext {enhkeyusage critical} {
@@ -1354,6 +1354,7 @@ proc twapi::_cert_decode_enhkey {vals} {
 }
 
 proc twapi::_cert_decode_extension {oid val} {
+    # TBD - see what other types need to be decoded
     switch $oid {
         2.5.29.15 { return [_cert_decode_keyusage $val] }
         2.5.29.37 { return [_cert_decode_enhkey $val] }
@@ -1376,9 +1377,13 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
         {critical.arg {}}
         enhkeyusage.arg
         keyusage.arg
-        {ca.bool 0}
+        {purpose.arg {} {{} ca sslserver sslclient}}
         {capathlen.int -1}
     } -ignoreunknown -setvars
+
+    set ca [expr {"ca" in $purpose}]
+    set sslserver [expr {"sslserver" in $purpose}]
+    set sslclient [expr {"sslclient" in $purpose}]
 
     if {[info exists serialnumber]} {
         if {$serialnumber <= 0 || $serialnumber > 0x7fffffffffffffff} {
@@ -1405,7 +1410,16 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
     set exts {}
     lappend exts [_make_basic_constraints_ext $ca $capathlen]
     if {$ca} {
-        lappend keyusage key_cert_sign
+        lappend keyusage key_cert_sign crl_sign
+    }
+    if {$sslserver || $sslclient} {
+        lappend keyusage digital_signature key_encipherment key_agreement
+        if {$sslserver} {
+            lappend enhkeyusage oid_pkix_kp_server_auth
+        }
+        if {$sslclient} {
+            lappend enhkeyusage oid_pkix_kp_client_auth
+        }
     }
     if {[info exists keyusage]} {
         lappend exts [_make_keyusage_ext $keyusage [expr {"keyusage" in $critical}]]
@@ -1423,8 +1437,8 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
 }
 
 proc twapi::_cert_add_parseargs {vargs} {
-    uplevel 1 $vargs optvals
-    parseargs optvals args {
+    upvar 1 $vargs optvals
+    parseargs optvals {
         {disposition.arg preserve {overwrite duplicate update preserve}}
     } -maxleftover 0 -setvars
 

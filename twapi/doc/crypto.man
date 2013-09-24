@@ -365,7 +365,7 @@ part of the certificate. We therefore have to explicitly make the
 association between the CSP key container and the new certificate context
 for the memory store.
 
-[example {cert_set_key_prov $mcert -csp {Microsoft Strong Cryptographic Provider} -keycontainer twapi_test_container -csptype prov_rsa_full -create 1}]
+[example {cert_set_key_prov $mcert -csp {Microsoft Strong Cryptographic Provider} -keycontainer twapi_test_container -csptype prov_rsa_full}]
 Notice we have specified exactly the key container we had created earlier.
 [para]
 The certificate is now stored in the memory store and will be available
@@ -484,11 +484,14 @@ sign the created certificate. The private key associated with this
 certificate must be accessible to the current process context.
 [nl]
 The following options can be specified for the command:
-[list_begin opt_def]
+[list_begin opt]
 [opt_def [cmd -altnames] [arg ALTNAMES]]
 Specifies X.509 Alternative Name values to include in the certificate.
 [arg ALTNAMES] is a list of alternating name type and name value elements
 as described in [sectref "X.509 alternative names"].
+[opt_def [cmd -capathlen] [arg CAPATHLENGTH]]
+Specifies the limit on the certificate chain path length during verification.
+Ignored unless the [cmd -purpose] option includes [const ca].
 [opt_def [cmd -end] [arg ENDTIME]]
 Specifies the end of the certificate validity period. 
 [arg ENDTIME] is specified as a time list of the form
@@ -511,6 +514,30 @@ Specifies values to use for the X.509 key usage extension.
 [const crl_sign], [const data_encipherment], [const decipher_only]
 [const digital_signature], [const encipher_only], [const key_agreement],
 [const key_cert_sign], [const key_encipherment] and [const non_repudiation].
+[opt_def [cmd -purpose] [arg PURPOSELIST]]
+Specifies the purposes for which the certificate is to be used. This
+is a more convenient method of specifying common
+extensions. Use of this adds appropriate extensions but does not
+preclude caller from specifying other extension-based options.
+[arg PURPOSELIST] must be a list containing zero or more items
+from the following:
+[list_begin opt]
+[opt_def [const ca]] Indicates that the certificate may be used
+to sign other certificates as a certificate authority. Sets the
+[const basic_constraints] extension and the [const key_cert_sign]
+and [const crl_sign] bits of the keyusage extension.
+[opt_def [const sslserver]] Indicates the certificate will
+be used for a SSL/TLS server. Sets
+[const digital_signature], [const key_encipherment] and [const key_agreement]
+in the key usage extension and [const oid_pkix_kp_server_auth]
+in the enhanced key extension.
+[opt_def [const sslclient]] Indicates the certificate will
+be used for a SSL/TLS client. Sets
+[const digital_signature], [const key_encipherment] and [const key_agreement]
+in the key usage extension and [const oid_pkix_kp_client_auth]
+in the enhanced key extension.
+[list_end]
+
 [opt_def [cmd -signaturealgorithm] [arg SIGLAGORITHM]]
 Specifies the signature algorithm to use for signing the certificate.
 [opt_def [cmd -start] [arg STARTTIME]]
@@ -533,27 +560,18 @@ available.
 The following options may be specified:
 [list_begin opt]
 [opt_def [cmd -altnames] [arg ALTNAMES]]
-Specifies X.509 Alternative Name values to include in the certificate.
-[arg ALTNAMES] is a list of alternating name type and name value elements
-as described in [sectref "X.509 alternative names"].
+See [uri #cert_create [cmd cert_create]]
+[opt_def [cmd -capathlen] [arg CAPATHLENGTH]]
+See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -csp] [arg CSP]] Specifies the name of the CSP to be used.
 If unspecified, the default Microsoft CSP for the system is used.
 [opt_def [cmd -csptype] [arg CSPTYPE]] Indicates the type of
 CSP. Defaults to [const prov_rsa_full]. 
 See [sectref "Cryptographic Service Providers"] for all possible types.
 [opt_def [cmd -end] [arg ENDTIME]]
-Specifies the end of the certificate validity period. 
-[arg ENDTIME] is specified as a time list of the form
-[arg {YEAR MONTH DAY HOUR MIN SEC}].
-Defaults to one year beyond the start time.
+See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -enhkeyusage] [arg ENHKEYUSAGE]]
-Specifies values to use for the X.509 enhanced key usage extension.
-[arg ENHKEYUSAGE] is a list containing one or more values from 
-[const client_auth], [const code_sign], [const email],
-[const ipsec_endsystem], [const ipsec_intermediate]. [const ipsec_tunnel],
-[const ipsec_user], [const server_auth] or [const timestamp]. It may
-also be an valid [uri #asn1objectidentifiers OID].
-
+See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -keycontainer] [arg CONTAINERNAME]]
 Specifies the name of the key container to use. If unspecified,
 the default container for the CSP is used.
@@ -561,13 +579,11 @@ the default container for the CSP is used.
 [arg KEYSETTYPE] type must be [const user] (default) or [const machine]
 depending on whether the key container is user-specific or not.
 [opt_def [cmd -keyspec] [arg KEYSPEC]]
-[arg KEYSPEC] must be one of [const signature] or [const keyexchange] (default).
+See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -keyusage] [arg KEYUSAGE]]
-Specifies values to use for the X.509 key usage extension.
-[arg KEYUSAGE] is a list containing one or more values from 
-[const crl_sign], [const data_encipherment], [const decipher_only]
-[const digital_signature], [const encipher_only], [const key_agreement],
-[const key_cert_sign], [const key_encipherment] and [const non_repudiation].
+See [uri #cert_create [cmd cert_create]]
+[opt_def [cmd -purpose] [arg PURPOSELIST]]
+See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -silent] [arg BOOLEAN]] Normally, the CSP may prompt the user
 for any information that may be required to retrieve the keys. If this
 option is specified as [const true], the user is never prompted. Instead
@@ -578,10 +594,7 @@ Specifies the signature algorithm to use for signing the certificate.
 corresponding to a signature algorithm. Defaults to the SHA1RSA algorithm
 if unspecified.
 [opt_def [cmd -start] [arg STARTTIME]]
-Specifies the start of the certificate validity period. 
-[arg STARTTIME] is specified as a time list of the form
-[arg {YEAR MONTH DAY HOUR MIN SEC}].
-Defaults to the current time.
+See [uri #cert_create [cmd cert_create]]
 [list_end]
 
 The returned certificate handle must be freed by calling
@@ -599,21 +612,23 @@ may be used instead to explicitly specify the CSP and key container.
 The following options may be specified:
 [list_begin opt]
 [opt_def [cmd -altnames] [arg ALTNAMES]]
-See [uri #cert_create_self_signed [cmd cert_create_self_signed]].
+See [uri #cert_create [cmd cert_create]]
+[opt_def [cmd -capathlen] [arg CAPATHLENGTH]]
+See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -end] [arg ENDTIME]]
-See [uri #cert_create_self_signed [cmd cert_create_self_signed]].
+See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -enhkeyusage] [arg ENHKEYUSAGE]]
-See [uri #cert_create_self_signed [cmd cert_create_self_signed]].
-[opt_def [cmd -gmt] [arg BOOLEAN]]
-See [uri #cert_create_self_signed [cmd cert_create_self_signed]].
+See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -keyusage] [arg KEYUSAGE]]
-See [uri #cert_create_self_signed [cmd cert_create_self_signed]].
+See [uri #cert_create [cmd cert_create]]
+[opt_def [cmd -purpose] [arg PURPOSES]]
+See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -silent] [arg BOOLEAN]]
 See [uri #cert_create_self_signed [cmd cert_create_self_signed]].
 [opt_def [cmd -signaturealgorithm] [arg SIGLAGORITHM]]
 See [uri #cert_create_self_signed [cmd cert_create_self_signed]].
 [opt_def [cmd -start] [arg STARTTIME]]
-See [uri #cert_create_self_signed [cmd cert_create_self_signed]].
+See [uri #cert_create [cmd cert_create]]
 [list_end]
 
 The returned certificate handle must be freed by calling
@@ -915,9 +930,8 @@ If unspecified, the default Microsoft CSP for the system is used.
 CSP. Defaults to [const prov_rsa_full]. 
 See [sectref "Cryptographic Service Providers"] for all possible types.
 [opt_def [cmd -keycontainer] [arg CONTAINERNAME]] 
-Specifies the name of the key container for which the context is to
-be returned. If unspecified, the context returned is for the default
-container.
+Specifies the name of the key container.
+If unspecified, the default container is used.
 [opt_def [cmd -keysettype] [arg KEYSETTYPE]] [arg KEYSETTYPE] must be
 [const user] (default) or [const machine].
 [opt_def [cmd -keyspec] [arg KEYSPEC]] [arg KEYSPEC] must be one of
