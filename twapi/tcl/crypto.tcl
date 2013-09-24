@@ -176,8 +176,6 @@ proc twapi::cert_store_add_encoded_certificate {hstore enccert args} {
     return [CertAddEncodedCertificateToStore $hstore 0x10001 $enccert $opts(disposition)]
 }
 
-
-
 proc twapi::cert_store_export {hstore password args} {
     array set opts [parseargs args {
         {exportprivatekeys.bool 0 0x4}
@@ -321,14 +319,16 @@ proc twapi::cert_property {hcert prop} {
     }
 }
 
+# TBD - Also add cert_set_key_prov_from_crypt_context
 proc twapi::cert_set_key_prov {hcert args} {
+    # TB - make keycontainer explicit arg
     parseargs args {
         keycontainer.arg
         csp.arg
         {csptype.arg prov_rsa_full}
         {keysettype.arg user {user machine}}
         {silent.bool 0 0x40}
-        {keyspec.arg keyexchange {keyexchange signature}}
+        {keyspec.arg signature {keyexchange signature}}
     } -maxleftover 0 -nulldefault -setvars
 
     set flags $silent
@@ -379,8 +379,9 @@ proc twapi::cert_extension {hcert oid} {
 proc twapi::cert_create_self_signed {subject args} {
     set args [_cert_create_parse_options $args opts]
 
+    # TB - make keycontainer explicit arg
     array set opts [parseargs args {
-        {keyspec.arg keyexchange {keyexchange signature}}
+        {keyspec.arg signature {keyexchange signature}}
         {keycontainer.arg {}}
         {keysettype.arg user {machine user}}
         {silent.bool 0 0x40}
@@ -428,13 +429,18 @@ proc twapi::cert_create {subject hprov cissuer args} {
     set args [_cert_create_parse_options $args opts]
 
     parseargs args {
-        {signaturealgorithm.arg oid_rsa_sha1rsa}
-        {keyspec.arg keyexchange {keyexchange signature}}
+        {keyspec.arg signature {keyexchange signature}}
     } -maxleftover 0 -setvars
     
     # TBD - check that issuer is a CA
 
-    set sigoid [list [oid $signaturealgorithm]]
+    set issuer_info [cert_info $cissuer]
+    set issuer_blob [cert_name_to_blob [dict get $issuer_info -subject] -format x500]
+    set sigoid [dict get $issuer_info -signaturealgorithm]
+
+    # TBD Issuer altnames - get from issuer cert
+    # lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
+
 
     # The subject key id in issuer's cert will become the
     # authority key id in the new cert
@@ -458,12 +464,6 @@ proc twapi::cert_create {subject hprov cissuer args} {
     set subject_key_id [Twapi_HashPublicKeyInfo $pubkey]
     lappend opts(extensions) [list 2.5.29.14 0 $subject_key_id]
 
-    # Get issuer name and altnames
-    set issuer_name [cert_subject_name $cissuer -name rdn -format x500]
-    set issuer_blob [cert_name_to_blob $issuer_name -format x500]
-
-    # TBD Issuer altnames - get from issuer cert
-    # lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
 
     set start [timelist_to_large_system_time $opts(start)]
     set end [timelist_to_large_system_time $opts(end)]
