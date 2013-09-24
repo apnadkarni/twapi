@@ -182,7 +182,7 @@ proc twapi::sspi_acquire_credentials {args} {
                        tls {Microsoft Unified Security Protocol Provider}
                    } $package] \
                    [kl_get {inbound 1 server 1 outbound 2 client 2 both 3} $role] \
-                   "" {}]
+                   "" $credentials]
 
     if {$getexpiration} {
         return [kl_create2 {-handle -expiration} $creds]
@@ -651,4 +651,29 @@ proc twapi::_gather_secbuf_data {bufs} {
         }
     }
     return $data
+}
+
+if {0} {
+    TBD - delete
+28  set cred [sspi_acquire_credentials -package ssl -role client]
+    29  set client [sspi_client_context $cred -stream 1 -manualvalidation 1]
+    30  set out [sspi_step $client]
+    31  set so [socket 192.168.1.127 443]
+    32  fconfigure $so -blocking 0 -buffering none -translation binary
+    33  puts -nonewline $so [lindex $out 1]
+    34  set data [read $so]
+    35  set out [sspi_step $client $data]
+    36  puts -nonewline $so [lindex $out 1]
+    37  set data [read $so]
+    38  set out [sspi_step $client $data]
+    39  history
+    40  set out [sspi_encrypt_stream $client "GET / HTTP/1.0\r\n\r\n"]
+    41  puts -nonewline $so $out
+    42  set data [read $so]
+    43  set d [sspi_decrypt_stream $client $data]
+    44  parray ::twapi::_sspi_state
+    45  sspi_close_context $client
+    46  close $so ; sspi_free_credentials $cred ; sspi_free_context $client
+    47  sspi_context_free $client
+    48  sspi_close_context $client
 }

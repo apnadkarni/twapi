@@ -27,7 +27,7 @@ encrypting data passed between a client and a server.
 On the client side, the application program starts off by retrieving
 the credentials to be used to authenticate itself to the server by calling
 [uri \#sspi_acquire_credentials [cmd sspi_acquire_credentials]] with
-the [cmd -outbound] option. It then creates a new client security
+the [cmd "-role client"] option. It then creates a new client security
 context by calling
 [uri \#sspi_client_context [cmd sspi_client_context]]
 specifying appropriate desired security characteristics. The application
@@ -53,7 +53,7 @@ the client and the server.
 On the server side, the application program starts off by retrieving
 its own credentials by calling
 [uri \#sspi_acquire_credentials [cmd sspi_acquire_credentials]] with
-the [cmd -inbound]. It then creates a new server security
+the [cmd "-role server"]. It then creates a new server security
 context by calling
 [uri \#sspi_server_context [cmd sspi_server_context]]
 passing it the authentication data sent by the client. The server
@@ -98,7 +98,6 @@ respectively.
 Similarly, the security context can be used to encrypt and decrypt
 messages using
 [uri #sspi_encrypt [cmd sspi_encrypt]] and [uri #sspi_decrypt [cmd sspi_decrypt]].
-
 
 [section Commands]
 
@@ -412,7 +411,8 @@ The credentials are specified through the following options:
 [arg CERTLIST] is a list of certificate context handles with private
 keys that are used to authenticate the application. Each handle
 corresponds to a key exchange method supported by the application.
-For client applications, the provider will find an appropriate
+On the client end, this need not be specified in which case
+the provider will find an appropriate
 certificate if needed.
 [opt_def [cmd -rootstore] [arg HSTORE]]
 Specifies a handle to an additional certificate root store that contains
