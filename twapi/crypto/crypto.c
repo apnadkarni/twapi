@@ -2107,10 +2107,10 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                 objs[0] = ObjFromInt(ciP->dwVersion);
                 objs[1] = ObjFromCRYPT_BLOB(&ciP->SerialNumber);
                 objs[2] = ObjFromCRYPT_ALGORITHM_IDENTIFIER(&ciP->SignatureAlgorithm);
-                objs[3] = ObjFromCERT_NAME_BLOB(&ciP->Issuer, 0);
+                objs[3] = ObjFromCERT_NAME_BLOB(&ciP->Issuer, CERT_X500_NAME_STR);
                 objs[4] = ObjFromFILETIME(&ciP->NotBefore);
                 objs[5] = ObjFromFILETIME(&ciP->NotAfter);
-                objs[6] = ObjFromCERT_NAME_BLOB(&ciP->Subject, 0);
+                objs[6] = ObjFromCERT_NAME_BLOB(&ciP->Subject, CERT_X500_NAME_STR);
                 objs[7] = ObjFromCERT_PUBLIC_KEY_INFO(&ciP->SubjectPublicKeyInfo);
                 objs[8] = ObjFromCRYPT_BIT_BLOB(&ciP->IssuerUniqueId);
                 objs[9] = ObjFromCRYPT_BIT_BLOB(&ciP->SubjectUniqueId);
