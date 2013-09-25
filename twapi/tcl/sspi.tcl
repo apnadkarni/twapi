@@ -158,8 +158,8 @@ proc twapi::sspi_schannel_credentials args {
         incr flags 0x10;         # SCH_CRED_NO_DEFAULT_CREDS 
     }
 
-    # 3 -> SCHANNEL_CRED_VERSION
-    return [list 3 $certificates $rootstore {} {} 0 0 0 $sessionlifespan $flags 0]
+    # 4 -> SCHANNEL_CRED_VERSION
+    return [list 4 $certificates $rootstore {} {} 0 0 0 $sessionlifespan $flags 0]
 }
 
 proc twapi::sspi_winnt_identity_credentials {user domain password} {
@@ -255,7 +255,8 @@ proc twapi::sspi_delete_context {ctx} {
 
 # Shuts down a security context in orderly fashion
 # Caller should start sspi_step
-proc twapi::sspi_close_context {ctx} {
+# TBD - document
+proc twapi::sspi_shutdown_context {ctx} {
     variable _sspi_state
 
     _sspi_context_handle $ctx;  # Verify handle
@@ -296,10 +297,10 @@ proc twapi::sspi_close_context {ctx} {
     }
 }
 
-# Take the next step in client side authentication
+# Take the next step in an SSPI negotiation
 # Returns
-#   {done data newctx extradata}
-#   {continue data newctx extradata}
+#   {done data extradata}
+#   {continue data extradata}
 proc twapi::sspi_step {ctx {received ""}} {
     variable _sspi_state
 
@@ -655,7 +656,7 @@ proc twapi::_gather_secbuf_data {bufs} {
 
 if {0} {
     TBD - delete
-28  set cred [sspi_acquire_credentials -package ssl -role client]
+    28  set cred [sspi_acquire_credentials -package ssl -role client]
     29  set client [sspi_client_context $cred -stream 1 -manualvalidation 1]
     30  set out [sspi_step $client]
     31  set so [socket 192.168.1.127 443]
@@ -672,8 +673,33 @@ if {0} {
     42  set data [read $so]
     43  set d [sspi_decrypt_stream $client $data]
     44  parray ::twapi::_sspi_state
-    45  sspi_close_context $client
+    45  sspi_shutdown_context $client
     46  close $so ; sspi_free_credentials $cred ; sspi_free_context $client
     47  sspi_context_free $client
-    48  sspi_close_context $client
+    48  sspi_shutdown_context $client
+
+    # INTERNAL client-server
+    source testutil.tcl
+    set ca [make_test_certs]
+    set cs [cert_store_find_certificate $ca subject_substring server]
+    set cc [cert_store_find_certificate $ca subject_substring client]
+    set scert $cs
+    set ccert $cc
+    set ccred [sspi_schannel_credentials]
+    set scred [sspi_schannel_credentials -certificates [list $scert]]
+    set ccred [sspi_acquire_credentials -package ssl -role client -credentials $ccred]
+    set scred [sspi_acquire_credentials -package ssl -role server -credentials $scred]
+    set cctx [sspi_client_context $ccred -stream 1 -manualvalidation 1]
+    set cstep [sspi_step $cctx]
+    set sctx [sspi_server_context $scred [lindex $cstep 1] -stream 1]
+    set sstep [sspi_step $sctx]
+    set cstep [sspi_step $cctx [lindex $sstep 1]]
+    set sstep [sspi_step $sctx [lindex $cstep 1]]
+    set cstep [sspi_step $cctx [lindex $sstep 1]]
+    set out [sspi_encrypt_stream $cctx "This is a test"]
+
+    sspi_decrypt_stream $sctx $out
+    sspi_decrypt_stream $sctx ""
+    set out [sspi_encrypt_stream $sctx "This is a testx"]
+    sspi_decrypt_stream $cctx $out
 }
