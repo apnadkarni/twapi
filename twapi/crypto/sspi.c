@@ -518,7 +518,7 @@ static TCL_RESULT ParseSCHANNEL_CRED (
     if (res != TCL_OK)
         return res;
 
-    TWAPI_ASSERT(SCHANNEL_CRED_VERSION == 3);
+    TWAPI_ASSERT(SCHANNEL_CRED_VERSION == 4);
     if (credP->dwVersion != SCHANNEL_CRED_VERSION) {
         return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid SCHANNEL_CRED_VERSION");
     }
@@ -848,6 +848,9 @@ static TCL_RESULT Twapi_EncryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
         for (i=0; i < ARRAYSIZE(objs); ++i)
             ObjDecrRefs(objs[i]);
     } else {
+        /* TBD - ensure that only length of trailer has changed. Else
+           we have to copy each fragment separately into a new buffer */
+        Tcl_SetByteArrayLength(objs[0], sbufs[0].cbBuffer + sbufs[1].cbBuffer + sbufs[2].cbBuffer);
         ObjSetResult(interp, ObjNewList(ARRAYSIZE(objs), objs));
     }
 
@@ -904,7 +907,7 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     case SEC_E_INCOMPLETE_MESSAGE:
         objs[0] = STRING_LITERAL_OBJ("incomplete_message");
         objs[1] = ObjFromEmptyString();
-        objs[2] = objv[2];      /* Return input as the incomplete fragment */
+        objs[2] = ObjFromByteArray(encP, enclen);
         ObjSetResult(interp, ObjNewList(ARRAYSIZE(objs), objs));
         res = TCL_OK;
         break;
