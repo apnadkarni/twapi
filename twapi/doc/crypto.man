@@ -280,8 +280,6 @@ puts -nonewline $fd [lb]cert_export $hcert[rb]
 close $fd
 [example_end]
 
-
-
 [section "Finding a certificate in a store"]
 An existing certificate in a store can be retrieved in one of two ways:
 [list_begin bullet]
@@ -505,8 +503,8 @@ Specifies values to use for the X.509 enhanced key usage extension.
 [const ipsec_user], [const server_auth] or [const timestamp]. It may
 also be an valid [uri #asn1objectidentifiers OID].
 [opt_def [cmd -keyspec] [arg KEYSPEC]]
-[arg KEYSPEC] must be one of [const signature] or 
-[const keyexchange] (default) and specifies the public/private key pair
+[arg KEYSPEC] must be one of [const signature] (default) or 
+[const keyexchange] and specifies the public/private key pair
 in the container for which the certificate is being created.
 [opt_def [cmd -keyusage] [arg KEYUSAGE]]
 Specifies values to use for the X.509 key usage extension.
@@ -632,6 +630,14 @@ See [uri #cert_create [cmd cert_create]]
 [list_end]
 
 The returned certificate handle must be freed by calling
+[uri #cert_free [cmd cert_free]].
+
+[call [cmd cert_duplicate] [arg HCERT]]
+Duplicates a certificate context and returns a handle to it. The returned
+certificate context handle may be the same as [arg HCERT] with its
+reference count increased.
+[nl]
+The returned certificate context must be freed by calling
 [uri #cert_free [cmd cert_free]].
 
 [call [cmd cert_enhkey_usage] [arg HCERT] [opt [arg SOURCE]]]
@@ -947,7 +953,7 @@ Adds a new certificate to a certificate store. [arg HSTORE] is the handle
 to the store and [arg HCERT] is a handle to a certificate context.
 The new certificate is a [emph copy] of [arg HCERT]. The command returns
 a handle to the new certificate context which must be freed
-with [uri #cert_free] when no longer needed. 
+with [uri #cert_free [cmd cert_free]] when no longer needed. 
 Note that the new certificate is not persisted until the store is saved.
 [nl]
 Any properties associated with [arg HCERT] are also copied to the new
@@ -962,7 +968,7 @@ of the following values:
 [opt_def duplicate] Creates the new certificate while keeping the existing
 one. This will create duplicates in the store.
 [opt_def overwrite] Overwrites the existing certificate with the new one.
-[opt_def preserve] If a matching certificate exists, it is preserved
+[opt_def preserve] (default) If a matching certificate exists, it is preserved
 and a error raised. Otherwise, the new certificate is added.
 [opt_def update] The new certificate is added if there is no matching
 certificate or the matching certificate's validity period start time
@@ -975,7 +981,7 @@ to the store. [arg ENCCERT] is a binary value containing the
 certificate encoded in X.509 ASN.1 format.
 The command returns
 a handle to the new certificate context which must be freed
-with [uri #cert_free] when no longer needed. 
+with [uri #cert_free [cmd cert_free]] when no longer needed. 
 Note that the new certificate is not persisted until the store is saved.
 [nl]
 The [cmd -disposition] option controls what happens if a matching
@@ -985,7 +991,7 @@ of the following values:
 [opt_def duplicate] Creates the new certificate while keeping the existing
 one. This will create duplicates in the store.
 [opt_def overwrite] Overwrites the existing certificate with the new one.
-[opt_def preserve] If a matching certificate exists, it is preserved
+[opt_def preserve] (default) If a matching certificate exists, it is preserved
 and a error raised. Otherwise, the new certificate is added.
 [opt_def update] The new certificate is added if there is no matching
 certificate or the matching certificate's validity period start time
@@ -999,6 +1005,29 @@ Releases the specified handle to a certificate store.
 Commits any changes made to a certificate store. If [cmd -force] is
 specified as [const true], the store is written out even if no changes
 have been made to the in-memory copy.
+
+[call [cmd cert_store_enum_contents] [arg HSTORE] [opt [arg HCERT]]]
+The command returns a handle to a certificate context for 
+the next certificate in the store specified by the handle
+[arg HSTORE]. When [arg HCERT] is not specified or is specified as
+[const NULL], the enumeration starts from the first certificate in the store.
+If [arg HCERT] is specified, it must be a handle to a certificate context
+returned by a previous call to the command. The command then returns
+the next certificate in the store. The command also frees [arg HCERT]
+(even in case of errors) so caller must not access it after the command
+returns. If [arg HCERT] needs to be accessed later, use the
+[uri #cert_duplicate [cmd cert_duplicate]] command to make a copy first.
+[nl]
+A certificate context handle returned by the command that is
+not passed back in as [arg HCERT] in a subsequent call, must be released
+by calling [uri #cert_free [cmd cert_free]].
+[nl]
+The command returns an
+empty string when there are no more certificates in the store.
+[nl]
+The command 
+[uri #cert_store_find_certificate [cmd cert_store_find_certificate]]
+offers another means for retrieving certificates from a store.
 
 [call [cmd cert_store_export] [arg HSTORE] [arg PASSWORD] [opt [arg options]]]
 Returns a binary containing all the certificates in a certificate store.
@@ -1022,7 +1051,6 @@ If [const true], the command raises an error if the keys associated
 with any certificate are note marked exportable. Default is [const false].
 [list_end]
 
-
 [call [cmd cert_store_find_certificate] [arg HSTORE] [opt [arg SEARCHTYPE]] [opt [arg SEARCHTERM]] [opt [arg HCERT]]]
 The command returns a handle to a certificate context for 
 the next matching certificate in the store specified by the handle
@@ -1032,9 +1060,10 @@ If [arg HCERT] is specified, it must be a handle to a certificate context
 returned by a previous call to the command. The search then begins with
 the next certificate in the store. The command also frees [arg HCERT]
 (even in case of errors) so caller must not access it after the command
-returns.
+returns. If [arg HCERT] needs to be accessed later, use the
+[uri #cert_duplicate [cmd cert_duplicate]] command to make a copy first.
 [nl]
-A certificate context handles returned by the command that is
+A certificate context handle returned by the command that is
 not passed back in as [arg HCERT] in a subsequent call, must be released
 by calling [uri #cert_free [cmd cert_free]].
 [nl]

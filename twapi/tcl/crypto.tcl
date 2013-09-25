@@ -160,8 +160,6 @@ proc twapi::cert_store_find_certificate {hstore {type any} {term {}} {hcert NULL
     return [CertFindCertificateInStore $hstore 0x10001 0 $type $term $hcert]
 }
 
-# TBD - does this need to be documented - cert_store_find_certificate
-# with type=any does the same?
 proc twapi::cert_store_enum_contents {hstore {hcert NULL}} {
     return [CertEnumCertificatesInStore $hstore $hcert]
 }
