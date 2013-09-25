@@ -2073,6 +2073,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 10015:
     case 10035:
     case 10036:
+    case 10041:
         if (TwapiGetArgs(interp, objc, objv,
                          GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext), ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -2130,6 +2131,11 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                 result.type = TRT_OBJ;
             } else
                 result.type = TRT_EMPTY;
+            break;
+        case 10041: //CertDuplicateCertificateContext
+            certP = CertDuplicateCertificateContext(certP);
+            TwapiRegisterCertPointer(interp, certP);
+            TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
             break;
         }
         break;
@@ -2601,6 +2607,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertAddEncodedCertificateToStore, 10038),
         DEFINE_FNCODE_CMD(CertOIDToAlgId, 10039),
         DEFINE_FNCODE_CMD(CertAlgIdToOID, 10040),
+        DEFINE_FNCODE_CMD(cert_duplicate, 10041),
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
