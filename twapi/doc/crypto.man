@@ -217,7 +217,7 @@ as appropriate. These commands will optionally create the store
 if it does not exist.
 The handle returned from these commands must be passed to any
 commands that operate on stores and released by calling
-[uri #cert_store_close [cmd cert_store_close]] when no longer required.
+[uri #cert_store_release [cmd cert_store_release]] when no longer required.
 [para]
 The returned handle from these commands refers to a cached copy of the store.
 Any changes made via this handle are made to the cached copy and
@@ -254,7 +254,7 @@ as well.
 
 [para]
 When no longer needed, certificate contexts must be freed by calling
-[uri #cert_free [cmd cert_free]].
+[uri #cert_release [cmd cert_release]].
 
 [section "Getting certificate contents"]
 
@@ -279,6 +279,10 @@ chan configure $fd -translation binary
 puts -nonewline $fd [lb]cert_export $hcert[rb]
 close $fd
 [example_end]
+
+[para]
+The [uri #cert_find_private_key [cmd cert_find_private_key]] command
+locates the private key corresponding to the public key in a certificate.
 
 [section "Finding a certificate in a store"]
 An existing certificate in a store can be retrieved in one of two ways:
@@ -356,7 +360,7 @@ Then we add the certificate to it.
 [example {set mcert [cert_store_add_certificate $store $cert]}]
 This creates a copy of the certificate we created earlier. Since we
 no longer need the original, we need to free it.
-[example {cert_free $cert}]
+[example {cert_release $cert}]
 There is now one crucial additional step. The association between
 a certificate and its private key is maintained by the store and is not
 part of the certificate. We therefore have to explicitly make the
@@ -385,8 +389,8 @@ to protect the exported file.
 Finally, assuming we have no need to hold on to the certificate, we can
 free up the resources.
 [example_begin]
-cert_free $mcert
-cert_store_close $store
+cert_release $mcert
+cert_store_release $store
 [example_end]
 
 [section "Certificate validation"]
@@ -596,7 +600,7 @@ See [uri #cert_create [cmd cert_create]]
 [list_end]
 
 The returned certificate handle must be freed by calling
-[uri #cert_free [cmd cert_free]].
+[uri #cert_release [cmd cert_release]].
 
 [call [cmd cert_create_self_signed_from_crypt_context] [arg SUBJECT] [arg HCRYPT] [opt [arg options]]]
 Creates a new certificate context for a self-signed certificate
@@ -630,7 +634,7 @@ See [uri #cert_create [cmd cert_create]]
 [list_end]
 
 The returned certificate handle must be freed by calling
-[uri #cert_free [cmd cert_free]].
+[uri #cert_release [cmd cert_release]].
 
 [call [cmd cert_duplicate] [arg HCERT]]
 Duplicates a certificate context and returns a handle to it. The returned
@@ -638,7 +642,7 @@ certificate context handle may be the same as [arg HCERT] with its
 reference count increased.
 [nl]
 The returned certificate context must be freed by calling
-[uri #cert_free [cmd cert_free]].
+[uri #cert_release [cmd cert_release]].
 
 [call [cmd cert_enhkey_usage] [arg HCERT] [opt [arg SOURCE]]]
 Returns a list of OID's based on the Enhanced Key Usage (EKU) certificate
@@ -714,11 +718,29 @@ be persisted.
 Default is [const false].
 [list_end]
 
-The store must be closed with [uri #cert_store_close [cmd cert_store_close]]
+The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
 when no longer needed.
 
-[call [cmd cert_free] [arg HCERT]]
-Frees resource associated with the specified certificate context.
+[call [cmd cert_find_private_key] [arg HCERT] [opt [arg options]]]
+Searches key containers to locate the private key corresponding to
+the public key in the certificate context [arg HCERT]. Returns a
+boolean indicating if it was found. In addition, the located key is
+associated as a property of the certificate and can be retrieved
+as the [const key_prov_info] property using the
+[uri #cert_property [cmd cert_property]] command.
+[nl]
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -keysettype] [const any|user|machine]]
+Specifies which key sets are to be searched for the private key.
+If [const user] or [const machine], the search is restricted to
+the containers for the current user or the machine respectively.
+If [const any] (default), both user and machine containers are searched.
+[opt_def [cmd -silent] [arg BOOLEAN]] Normally, the CSP may prompt the user
+for any information that may be required to access key containers. If this
+option is specified as [const true], the user is never prompted. Instead
+the command will return [const 0] indicating no key could be found.
+[list_end]
 
 [call [cmd cert_info] [arg HCERT]]
 Returns the following fields from a certificate context as a dictionary.
@@ -896,7 +918,7 @@ or [const newline].
 
 [call [cmd cert_memory_store_open]]
 Opens a new certificate store in memory and returns a handle to it. 
-The store must be closed with [uri #cert_store_close [cmd cert_store_close]]
+The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
 when no longer needed. All contents of the store are deleted when
 it is closed. The [uri #cert_store_save [cmd cert_store_save]] command
 can be used to save the contents to a persistent store if desired.
@@ -914,7 +936,7 @@ Refer to the documentation of
 [uri #cert_file_store_open [cmd cert_file_store_open]] of a description
 of [arg options].
 [nl]
-The store must be closed with [uri #cert_store_close [cmd cert_store_close]]
+The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
 when no longer needed.
 
 [call [cmd cert_physical_store_delete] [arg NAME] [arg LOCATION]]
@@ -923,6 +945,10 @@ store. [arg NAME] is the name of the physical store including the
 system store component, e.g. [const Root\\.Default]. [arg LOCATION]
 specifies the location of the system store and must be one of
 the values listed in [sectref "Certificate stores"].
+
+[call [cmd cert_release] [arg HCERT]]
+Decreases the reference count for a certificate context and
+frees it if the result is 0.
 
 [call [cmd cert_set_key_prov] [arg HCERT] [opt [arg options]]]
 Associates the certificate context [arg HCERT] with a CSP key container.
@@ -953,7 +979,7 @@ Adds a new certificate to a certificate store. [arg HSTORE] is the handle
 to the store and [arg HCERT] is a handle to a certificate context.
 The new certificate is a [emph copy] of [arg HCERT]. The command returns
 a handle to the new certificate context which must be freed
-with [uri #cert_free [cmd cert_free]] when no longer needed. 
+with [uri #cert_release [cmd cert_release]] when no longer needed. 
 Note that the new certificate is not persisted until the store is saved.
 [nl]
 Any properties associated with [arg HCERT] are also copied to the new
@@ -981,7 +1007,7 @@ to the store. [arg ENCCERT] is a binary value containing the
 certificate encoded in X.509 ASN.1 format.
 The command returns
 a handle to the new certificate context which must be freed
-with [uri #cert_free [cmd cert_free]] when no longer needed. 
+with [uri #cert_release [cmd cert_release]] when no longer needed. 
 Note that the new certificate is not persisted until the store is saved.
 [nl]
 The [cmd -disposition] option controls what happens if a matching
@@ -998,13 +1024,18 @@ certificate or the matching certificate's validity period start time
 is less than that of the new certificate. Otherwise an error is raised.
 [list_end]
 
-[call [cmd cert_store_close] [arg HSTORE]]
-Releases the specified handle to a certificate store.
+[call [cmd cert_store_release] [arg HSTORE]]
+Decreases the reference count for the specified handle to a certificate store
+and releases associated resources when it reaches 0.
 
 [call [cmd cert_store_commit] [arg HSTORE] [opt "[cmd -force] [arg BOOLEAN]"]]
 Commits any changes made to a certificate store. If [cmd -force] is
 specified as [const true], the store is written out even if no changes
 have been made to the in-memory copy.
+
+[call [cmd cert_delete_from_store] [arg HCERT]]
+Deletes the specified certificate context from its containing store.
+Also decreases the reference count on the certificate context.
 
 [call [cmd cert_store_enum_contents] [arg HSTORE] [opt [arg HCERT]]]
 The command returns a handle to a certificate context for 
@@ -1020,7 +1051,7 @@ returns. If [arg HCERT] needs to be accessed later, use the
 [nl]
 A certificate context handle returned by the command that is
 not passed back in as [arg HCERT] in a subsequent call, must be released
-by calling [uri #cert_free [cmd cert_free]].
+by calling [uri #cert_release [cmd cert_release]].
 [nl]
 The command returns an
 empty string when there are no more certificates in the store.
@@ -1065,7 +1096,7 @@ returns. If [arg HCERT] needs to be accessed later, use the
 [nl]
 A certificate context handle returned by the command that is
 not passed back in as [arg HCERT] in a subsequent call, must be released
-by calling [uri #cert_free [cmd cert_free]].
+by calling [uri #cert_release [cmd cert_release]].
 [nl]
 The command returns an
 empty string when there are no more certificates in the store.
@@ -1125,7 +1156,7 @@ Refer to the documentation of
 [uri #cert_file_store_open [cmd cert_file_store_open]] of a description
 of [arg options].
 [nl]
-The store must be closed with [uri #cert_store_close [cmd cert_store_close]]
+The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
 when no longer needed.
 
 [call [cmd cert_system_store_delete] [arg NAME] [arg LOCATION]]
