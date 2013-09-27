@@ -1486,7 +1486,7 @@ proc make_test_certs {} {
     set cert [twapi::cert_create_self_signed_from_crypt_context "CN=$ca(container)" $crypt -purpose {ca}]
     set ca(store) [twapi::cert_memory_store_open]
     set ca(certificate) [twapi::cert_store_add_certificate $ca(store) $cert]
-    twapi::cert_free $cert
+    twapi::cert_release $cert
     twapi::cert_set_key_prov $ca(certificate) -csp $ca(csp) -keycontainer $ca(container) -csptype $ca(csptype)
     crypt_free $crypt
 
@@ -1500,10 +1500,10 @@ proc make_test_certs {} {
         set certificate [twapi::cert_store_add_encoded_certificate $ca(store) $encoded_cert]
         twapi::cert_set_key_prov $certificate -csp $ca(csp) -keycontainer $container -csptype $ca(csptype) -keyspec keyexchange
         crypt_free $crypt
-        cert_free $certificate
+        cert_release $certificate
     }
 
-    cert_free $ca(certificate)
+    cert_release $ca(certificate)
     return $ca(store)
 }
 
