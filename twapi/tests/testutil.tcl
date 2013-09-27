@@ -1474,7 +1474,12 @@ proc make_test_certs {} {
     # Create the self signed CA cert
     set ca(csp) {Microsoft Strong Cryptographic Provider}
     set ca(csptype) prov_rsa_full
-    set ca(container) twapitest_ca_[twapi::new_uuid]
+    if {0} {
+        set uuid [twapi::new_uuid]
+    } else {
+        set uuid ""
+    }
+    set ca(container) twapitestca$uuid
     set ca(subject) $ca(container)
     set crypt [twapi::crypt_acquire $ca(container) -csp $ca(csp) -csptype $ca(csptype) -create 1]
     twapi::crypt_key_free [twapi::crypt_key_generate $crypt signature -exportable 1]
@@ -1487,7 +1492,7 @@ proc make_test_certs {} {
 
     # Create the client and server certs
     foreach role {server client} {
-        set container twapitest_${role}_[twapi::new_uuid]
+        set container twapitest${role}$uuid
         set subject $container
         set crypt [twapi::crypt_acquire $container -csp $ca(csp) -csptype $ca(csptype) -create 1]
         twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]

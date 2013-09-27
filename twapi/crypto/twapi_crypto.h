@@ -18,6 +18,12 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 # define szOID_SUBJECT_INFO_ACCESS       "1.3.6.1.5.5.7.1.11"
 #endif
 
+#ifndef CRYPT_OID_INFO_OID_KEY_FLAGS_MASK
+# define CRYPT_OID_INFO_OID_KEY_FLAGS_MASK           0xFFFF0000
+# define CRYPT_OID_INFO_PUBKEY_SIGN_KEY_FLAG         0x80000000
+# define CRYPT_OID_INFO_PUBKEY_ENCRYPT_KEY_FLAG      0x40000000
+#endif
+
 void TwapiRegisterCertPointer(Tcl_Interp *, PCCERT_CONTEXT);
 void TwapiRegisterCertPointerTic(TwapiInterpContext *, PCCERT_CONTEXT );
 TCL_RESULT TwapiUnregisterCertPointer(Tcl_Interp *, PCCERT_CONTEXT);
