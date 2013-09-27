@@ -31,7 +31,7 @@ This is the only way that I found to attach private key to a certificate.
 # Certificate Stores
 
 # Close a certificate store
-proc twapi::cert_store_close {hstore} {
+proc twapi::cert_store_release {hstore} {
     CertCloseStore $hstore 0
 }
 
@@ -591,6 +591,16 @@ proc twapi::cert_ssl_verify {hcert args} {
     } finally {
         CertFreeCertificateChain $chainh
     }
+}
+
+proc twapi::cert_find_private_key {hcert} {
+    parseargs args {
+        {keysettype.arg any {any user machine}}
+        {silent 0 0x40}
+    } -maxleftover 0
+    
+    return [CryptFindCertificateKeyProvInfo $hcert \
+                [expr {$silent | [dict get {any 0 user 1 machine 2} $keysettype]}]]
 }
 
 ################################################################

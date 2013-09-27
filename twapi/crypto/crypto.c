@@ -19,7 +19,7 @@ void TwapiRegisterCertPointer(Tcl_Interp *interp, PCCERT_CONTEXT certP)
 {
     if (TwapiRegisterCountedPointer(interp, certP, CertFreeCertificateContext)
         != TCL_OK)
-        Tcl_Panic("Failed to register CERT_CONTEXT pointer: %s", Tcl_GetStringResult(interp));
+        Tcl_Panic("Failed to register CERT_CONTEXT*: %s", Tcl_GetStringResult(interp));
 }
 
 void TwapiRegisterCertPointerTic(TwapiInterpContext *ticP, PCCERT_CONTEXT certP)
@@ -29,7 +29,7 @@ void TwapiRegisterCertPointerTic(TwapiInterpContext *ticP, PCCERT_CONTEXT certP)
     */
     if (TwapiRegisterCountedPointerTic(ticP, certP, CertFreeCertificateContext)
         != TCL_OK)
-        Tcl_Panic("Failed to register CERT_CONTEXT pointer: %s", Tcl_GetStringResult(ticP->interp));
+        Tcl_Panic("Failed to register CERT_CONTEXT*: %s", Tcl_GetStringResult(ticP->interp));
 }
 
 TCL_RESULT TwapiUnregisterCertPointer(Tcl_Interp *interp, PCCERT_CONTEXT certP)
@@ -40,6 +40,17 @@ TCL_RESULT TwapiUnregisterCertPointer(Tcl_Interp *interp, PCCERT_CONTEXT certP)
 TCL_RESULT TwapiUnregisterCertPointerTic(TwapiInterpContext *ticP, PCCERT_CONTEXT certP)
 {
     return TwapiUnregisterPointerTic(ticP, certP, CertFreeCertificateContext);
+}
+
+void TwapiRegisterCertStorePointer(Tcl_Interp *interp, HCERTSTORE hstore)
+{
+    if (TwapiRegisterCountedPointer(interp, hstore, CertCloseStore) != TCL_OK)
+        Tcl_Panic("Failed to register HCERTSTORE: %s", Tcl_GetStringResult(interp));
+}
+
+TCL_RESULT TwapiUnregisterCertStorePointer(Tcl_Interp *interp, HCERTSTORE hstore)
+{
+    return TwapiUnregisterPointer(interp, hstore, CertCloseStore);
 }
 
 /* RtlGenRandom in base provides this but this is much faster if already have
@@ -1601,8 +1612,7 @@ static int Twapi_CertOpenStore(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv
     hstore = CertOpenStore(IntToPtr(store_provider), enc_type, 0, flags, pv);
     if (hstore) {
         /* CertCloseStore does not check ponter validity! So do ourselves*/
-        if (TwapiRegisterPointer(interp, hstore, CertCloseStore) != TCL_OK)
-            Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+        TwapiRegisterCertStorePointer(interp, hstore);
         ObjSetResult(interp, ObjFromOpaque(hstore, "HCERTSTORE"));
         return TCL_OK;
     } else {
@@ -2119,8 +2129,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         pv = CertOpenSystemStoreW(0, ObjToUnicode(objv[0]));
         if (pv) {
             /* CertCloseStore does not check ponter validity! So do ourselves*/
-            if (TwapiRegisterPointer(interp, pv, CertCloseStore) != TCL_OK)
-                Tcl_Panic("Failed to register pointer: %s", Tcl_GetStringResult(interp));
+            TwapiRegisterCertStorePointer(interp, pv);
             TwapiResult_SET_NONNULL_PTR(result, HCERTSTORE, pv);
         } else {
             return TwapiReturnSystemError(interp);
@@ -2311,7 +2320,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(pv, HCERTSTORE), ARGUSEDEFAULT,
                          GETINT(dw), ARGEND) != TCL_OK ||
-            TwapiUnregisterPointer(interp, pv, CertCloseStore) != TCL_OK)
+            TwapiUnregisterCertStorePointer(interp, pv) != TCL_OK)
             return TCL_ERROR;
 
         result.type = TRT_BOOL;
@@ -2617,6 +2626,19 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.value.chars.str = (char *) CertAlgIdToOID(dw);
         result.value.chars.len = -1;
         break;
+
+    case 10042: // CertDuplicateStore
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCERTSTORE, CertCloseStore),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+
+        pv = CertDuplicateStore(pv);
+        TWAPI_ASSERT(pv);
+        TwapiRegisterCertStorePointer(interp, pv);
+        result.value.obj = ObjFromOpaque(pv, "HCERTSTORE");
+        result.type = TRT_OBJ;
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -2629,17 +2651,17 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptReleaseContext, 10001),
         DEFINE_FNCODE_CMD(CryptGetProvParam, 10002),
         DEFINE_FNCODE_CMD(CertOpenSystemStore, 10003),
-        DEFINE_FNCODE_CMD(cert_store_delete_certificate, 10004), // Doc TBD
+        DEFINE_FNCODE_CMD(cert_delete_from_store, 10004),
         DEFINE_FNCODE_CMD(Twapi_SetCertContextKeyProvInfo, 10005),
         DEFINE_FNCODE_CMD(CertEnumCertificatesInStore, 10006),
         DEFINE_FNCODE_CMD(CertEnumCertificateContextProperties, 10007),
         DEFINE_FNCODE_CMD(CertGetCertificateContextProperty, 10008),
-        DEFINE_FNCODE_CMD(crypt_key_free, 10009), // Doc TBD
+        DEFINE_FNCODE_CMD(crypt_key_free, 10009),
         DEFINE_FNCODE_CMD(CryptGenKey, 10010),
         DEFINE_FNCODE_CMD(CertStrToName, 10011),
         DEFINE_FNCODE_CMD(CertNameToStr, 10012),
         DEFINE_FNCODE_CMD(CertGetNameString, 10013),
-        DEFINE_FNCODE_CMD(cert_free, 10014),
+        DEFINE_FNCODE_CMD(cert_release, 10014),
         DEFINE_FNCODE_CMD(Twapi_CertGetEncoded, 10015),
         DEFINE_FNCODE_CMD(CertUnregisterSystemStore, 10016),
         DEFINE_FNCODE_CMD(CertCloseStore, 10017),
@@ -2662,11 +2684,12 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptGenRandom, 10034),
         DEFINE_FNCODE_CMD(Twapi_CertGetInfo, 10035),
         DEFINE_FNCODE_CMD(Twapi_CertGetExtensions, 10036),
-        DEFINE_FNCODE_CMD(CryptFindCertificateKeyProvInfo, 10037), // TBD -Tcl
+        DEFINE_FNCODE_CMD(CryptFindCertificateKeyProvInfo, 10037),
         DEFINE_FNCODE_CMD(CertAddEncodedCertificateToStore, 10038),
         DEFINE_FNCODE_CMD(CertOIDToAlgId, 10039),
         DEFINE_FNCODE_CMD(CertAlgIdToOID, 10040),
         DEFINE_FNCODE_CMD(cert_duplicate, 10041),
+        DEFINE_FNCODE_CMD(cert_store_duplicate, 10042), // TBD - document
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
