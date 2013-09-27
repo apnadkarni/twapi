@@ -683,7 +683,7 @@ proc twapi::crypt_key_generate {hprov algid args} {
     return [CryptGenKey $hprov $algid [expr {($opts(size) << 16) | $opts(archivable) | $opts(salt) | $opts(exportable) | $opts(pregen) | $opts(userprotected) | $opts(nosalt40)}]]
 }
 
-proc twapi::crypt_key_get {hprov keyspec} {
+proc twapi::crypt_keypair {hprov keyspec} {
     return [CryptGetUserKey $hprov [dict! {keyexchange 1 signature 2} $keyspec]]
 }
 
@@ -1375,7 +1375,7 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
         {critical.arg {}}
         enhkeyusage.arg
         keyusage.arg
-        {purpose.arg {} {{} ca sslserver sslclient}}
+        {purpose.arg {} {}}
         {capathlen.int -1}
     } -ignoreunknown -setvars
 

@@ -64,7 +64,7 @@ int Twapi_CryptGenRandom(Tcl_Interp *interp, HCRYPTPROV provH, DWORD len)
     }
 }
 
-static Tcl_Obj *ObjFromCRYPT_BLOB(CRYPT_DATA_BLOB *blobP)
+static Tcl_Obj *ObjFromCRYPT_BLOB(const CRYPT_DATA_BLOB *blobP)
 {
     if (blobP && blobP->cbData && blobP->pbData)
         return ObjFromByteArray(blobP->pbData, blobP->cbData);
@@ -204,6 +204,19 @@ static Tcl_Obj *ObjFromCERT_POLICY_CONSTRAINTS_INFO(CERT_POLICY_CONSTRAINTS_INFO
     objs[2] = ObjFromBoolean(cpciP->fInhibitPolicyMapping);
     objs[3] = ObjFromDWORD(cpciP->dwInhibitPolicyMappingSkipCerts);
     return ObjNewList(4, objs);
+}
+
+static Tcl_Obj *ObjFromCRYPT_OID_INFO(PCCRYPT_OID_INFO coiP)
+{
+    Tcl_Obj *objs[5];
+
+    objs[0] = ObjFromString(coiP->pszOID);
+    objs[1] = ObjFromUnicode(coiP->pwszName);
+    objs[2] = ObjFromDWORD(coiP->dwGroupId);
+    objs[3] = ObjFromDWORD(coiP->dwValue);
+    objs[4] = ObjFromCRYPT_BLOB(&coiP->ExtraInfo);
+
+    return ObjNewList(5, objs);
 }
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
@@ -1990,6 +2003,52 @@ static TCL_RESULT Twapi_CertVerifyChainPolicySSLObjCmd(TwapiInterpContext *ticP,
     return res;
 }
 
+static int Twapi_CryptFindOIDInfoObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    DWORD keytype, group;
+    Tcl_Obj *keyObj;
+    void *pv;
+    ALG_ID algids[2];
+    Tcl_Obj **objs;
+    int nobjs;
+    PCCRYPT_OID_INFO coiP;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(keytype), GETOBJ(keyObj),
+                     GETINT(group), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    switch (keytype & ~CRYPT_OID_INFO_OID_KEY_FLAGS_MASK) {
+    case CRYPT_OID_INFO_OID_KEY:
+        pv = ObjToString(keyObj);
+        break;
+    case CRYPT_OID_INFO_NAME_KEY:
+        pv = ObjToUnicode(keyObj);
+        break;
+    case CRYPT_OID_INFO_ALGID_KEY:
+        if (ObjToDWORD(interp, keyObj, &algids[0]) != TCL_OK)
+            return TCL_ERROR;
+        pv = &algids[0];
+        break;
+    case CRYPT_OID_INFO_SIGN_KEY:
+        if (ObjGetElements(NULL, keyObj, &nobjs, &objs) != TCL_OK ||
+            nobjs != 2 ||
+            ObjToDWORD(NULL, objs[0], &algids[0]) != TCL_OK ||
+            ObjToDWORD(NULL, objs[1], &algids[1]) != TCL_OK) {
+            TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid CRYPT_OID_INFO_SIGN_KEY format");
+            return TCL_ERROR;
+        }
+        pv = algids;
+        break;
+    }
+
+    coiP = CryptFindOIDInfo(keytype, pv, group);
+    if (coiP)
+        ObjSetResult(interp, ObjFromCRYPT_OID_INFO(coiP));
+    /* Else empty result */
+
+    return TCL_OK;
+}
+
 
 static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -2603,7 +2662,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptGenRandom, 10034),
         DEFINE_FNCODE_CMD(Twapi_CertGetInfo, 10035),
         DEFINE_FNCODE_CMD(Twapi_CertGetExtensions, 10036),
-        DEFINE_FNCODE_CMD(CryptFindCertificateKeyProvInfo, 10037),
+        DEFINE_FNCODE_CMD(CryptFindCertificateKeyProvInfo, 10037), // TBD -Tcl
         DEFINE_FNCODE_CMD(CertAddEncodedCertificateToStore, 10038),
         DEFINE_FNCODE_CMD(CertOIDToAlgId, 10039),
         DEFINE_FNCODE_CMD(CertAlgIdToOID, 10040),
@@ -2617,6 +2676,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CertGetCertificateChain, Twapi_CertGetCertificateChainObjCmd),
         DEFINE_TCL_CMD(Twapi_CertVerifyChainPolicySSL, Twapi_CertVerifyChainPolicySSLObjCmd),
         DEFINE_TCL_CMD(Twapi_HashPublicKeyInfo, Twapi_HashPublicKeyInfoObjCmd),
+        DEFINE_TCL_CMD(CryptFindOIDInfo, Twapi_CryptFindOIDInfoObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
@@ -2656,3 +2716,4 @@ int Twapi_crypto_Init(Tcl_Interp *interp)
     return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, DEFAULT_TIC) ? TCL_OK : TCL_ERROR;
 }
 
+// TBD - CryptFormatObject

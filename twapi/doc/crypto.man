@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Cryptographic API" n ""]
-[copyright "2007-2009 Ashok P. Nadkarni"]
+[copyright "2007-2013 Ashok P. Nadkarni"]
 [moddesc "Cryptographic API"]
 [titledesc "Commands related to cryptographical operations"]
 [require twapi_crypto]
@@ -160,8 +160,8 @@ returns the name of key container currently associated with the context.
 [uri #crypt_key_container_names [cmd crypt_key_container_names]]
 returns the names of the other key containers owned by the CSP.
 [bullet]
-[uri #crypt_key_get [cmd crypt_key_get]] returns the
-keys in the container.
+[uri #crypt_keypair [cmd crypt_keypair]] returns a handle to
+one of the key pairs in the container.
 [bullet]
 [uri #crypt_keyset_type [cmd crypt_keyset_type]] returns
 whether the key set in the container is per-user or per-machine.
@@ -1377,10 +1377,9 @@ Microsoft recommends key size be explicitly set.
 The returned handle must be freed by calling
 [uri #crypt_key_free [cmd crypt_key_free]].
 
-[call [cmd crypt_key_get] [arg HCRYPT] [arg keytype]]
+[call [cmd crypt_keypair] [arg HCRYPT] [arg keytype]]
 Returns a handle to one of two public/private key pairs in a key container.
- [arg HCRYPT]
-is a handle to the CSP key container. [arg keytype] must be either
+[arg HCRYPT] is a handle to the CSP key container. [arg keytype] must be either
 [const keyexchange] or [const signature] and specifies which
 of the two key pairs in the container.
 
