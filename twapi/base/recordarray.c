@@ -438,7 +438,7 @@ int Twapi_RecordArrayObjCmd(
         new_ra[0] = ObjNewList(nslice_fields, slice_newfields);
         new_ra[1] = ObjNewList(0, NULL);
         emptyObj = STRING_LITERAL_OBJ(""); /* So we don't create multiple empty objs */
-        Tcl_IncrRefCount(emptyObj);
+        ObjIncrRefs(emptyObj);
         for (i=0; i < nrecs; i += 2) {
             Tcl_Obj **values;
             int nvalues;

@@ -69,7 +69,7 @@ void TwapiDebugOutput(char *s) {
      * gets jumbled - actual experience. So need a temp buffer.
      */
     objP = Tcl_ObjPrintf("%s\n", s);
-    Tcl_IncrRefCount(objP);
+    ObjIncrRefs(objP);
     Tcl_WriteObj(chan, objP);
     Tcl_Flush(chan);
     ObjDecrRefs(objP);
@@ -159,7 +159,7 @@ void *TwapiAllocRegisteredPointer(Tcl_Interp *interp, size_t sz, void *typetag)
     TWAPI_ASSERT(interp);
 
     if (TwapiRegisterPointer(interp, p, typetag) != TCL_OK) {
-        Tcl_Panic("Error (%s) registering pointer to newly allocated memory.", ObjToString(Tcl_GetObjResult(interp)));
+        Tcl_Panic("Error (%s) registering pointer to newly allocated memory.", ObjToString(ObjGetResult(interp)));
     }
 
     return p;
@@ -170,7 +170,7 @@ void TwapiFreeRegisteredPointer(Tcl_Interp *interp, void *p, void *typetag)
     TWAPI_ASSERT(interp);
 
     if (TwapiUnregisterPointer(interp, p, typetag) != TCL_OK) {
-        Tcl_Panic("Error (%s) unregistering pointer when freeing memory.", ObjToString(Tcl_GetObjResult(interp)));
+        Tcl_Panic("Error (%s) unregistering pointer when freeing memory.", ObjToString(ObjGetResult(interp)));
     }
 
     TwapiFree(p);
@@ -260,7 +260,7 @@ int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], Tw
      * on exit
      */
     for (i = 0; i < objc; ++i) {
-        Tcl_IncrRefCount(objv[i]);
+        ObjIncrRefs(objv[i]);
     }
 
     if (cbP->ticP->interp == NULL ||
@@ -286,7 +286,7 @@ int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], Tw
         cbP->winerr = ERROR_SUCCESS;
     }
     
-    objP = Tcl_GetObjResult(cbP->ticP->interp); /* OK even if interp
+    objP = ObjGetResult(cbP->ticP->interp); /* OK even if interp
                                                    logically deleted */
      /* 
       * If there are any errors in conversion, we will return TCL_ERROR
@@ -357,7 +357,7 @@ int Twapi_AppendObjLog(Tcl_Interp *interp, Tcl_Obj *msgObj)
     /* Note we always incr/decr ref counts in this function. That
        way the cases where we enter with msgObj.ref == 0, > 0 both
        work correctly in error and non-error cases */
-    Tcl_IncrRefCount(msgObj);
+    ObjIncrRefs(msgObj);
 
     /* Check if the log variable exists. If not logging is disabled */
     var = Tcl_GetVar2Ex(interp, TWAPI_SETTINGS_VAR, "log_limit", 0);
@@ -378,7 +378,7 @@ int Twapi_AppendObjLog(Tcl_Interp *interp, Tcl_Obj *msgObj)
             len = 0;
         } else {
             if (Tcl_IsShared(var)) {
-                var = Tcl_DuplicateObj(var);
+                var = ObjDuplicate(var);
                 Tcl_SetVar2Ex(interp, TWAPI_LOG_VAR, NULL, var, 0);
             }
         }
@@ -413,6 +413,15 @@ TCL_RESULT TwapiReturnNonnullHandle(Tcl_Interp *interp, HANDLE h, char *typestr)
         typestr = "HANDLE";
 
     return ObjSetResult(interp, ObjFromOpaque(h, typestr));
+}
+
+TCL_RESULT TwapiDictLookupString(Tcl_Interp *interp, Tcl_Obj *dictObj, const char *key, Tcl_Obj **objPP)
+{
+    TCL_RESULT res;
+    Tcl_Obj *keyObj = ObjFromString(key);
+    res = Tcl_DictObjGet(interp, dictObj, keyObj, objPP);
+    ObjDecrRefs(keyObj);
+    return res;
 }
 
 

@@ -126,11 +126,11 @@ static void DupParseargsOpt(Tcl_Obj *srcP, Tcl_Obj *dstP)
     dstP->internalRep.ptrAndLongRep.value = i;
     while (i--) {
         if ((doptsP->name = soptsP->name) != NULL)
-            Tcl_IncrRefCount(doptsP->name);
+            ObjIncrRefs(doptsP->name);
         if ((doptsP->def_value = soptsP->def_value) != NULL)
-            Tcl_IncrRefCount(doptsP->def_value);
+            ObjIncrRefs(doptsP->def_value);
         if ((doptsP->valid_values = soptsP->valid_values) != NULL)
-            Tcl_IncrRefCount(doptsP->valid_values);
+            ObjIncrRefs(doptsP->valid_values);
         doptsP->name_len = soptsP->name_len;
         doptsP->type = soptsP->type;
         doptsP->first = soptsP->first;
@@ -178,7 +178,7 @@ static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
 
         curP->type = OPT_SWITCH; /* Assumed option type */
         curP->name = elems[0];
-        Tcl_IncrRefCount(elems[0]);
+        ObjIncrRefs(elems[0]);
         p = ObjToStringN(elems[0], &len);
         curP->first = *p;
         type = Tcl_UtfFindFirst(p, '.');
@@ -204,13 +204,13 @@ static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
         if (nelems > 1) {
             /* Squirrel away specified default */
             curP->def_value = elems[1];
-            Tcl_IncrRefCount(elems[1]);
+            ObjIncrRefs(elems[1]);
 
             if (nelems > 2) {
                 /* Value must be in the specified list or for BOOL and SWITCH
                    value to use for 'true' */
                 curP->valid_values = elems[2];
-                Tcl_IncrRefCount(elems[2]);
+                ObjIncrRefs(elems[2]);
             }
         }
     }
@@ -660,7 +660,7 @@ error_return:
            land up freeing a ref of 1 belong to someone else
         */
         for (j = 0; j < nret; ++j) {
-            Tcl_IncrRefCount(retP[j]);
+            ObjIncrRefs(retP[j]);
             ObjDecrRefs(retP[j]);
         }
     }

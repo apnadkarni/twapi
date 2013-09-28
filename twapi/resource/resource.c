@@ -326,7 +326,7 @@ TCL_RESULT Twapi_EnumResourceNames(
 
     ctx.interp = interp;
     ctx.objP = ObjEmptyList();
-    Tcl_IncrRefCount(ctx.objP);  /* Protect in callback, just in case */
+    ObjIncrRefs(ctx.objP);  /* Protect in callback, just in case */
     if (EnumResourceNamesW(hmodule, restype, EnumResourceNamesProc, (LONG_PTR) &ctx)) {
         ObjSetResult(interp, ctx.objP);
         ObjDecrRefs(ctx.objP);
@@ -359,7 +359,7 @@ TCL_RESULT Twapi_EnumResourceTypes(
 
     ctx.interp = interp;
     ctx.objP = ObjEmptyList();
-    Tcl_IncrRefCount(ctx.objP);  /* Protect in callback, just in case */
+    ObjIncrRefs(ctx.objP);  /* Protect in callback, just in case */
     if (EnumResourceTypesW(hmodule, EnumResourceTypesProc, (LONG_PTR) &ctx)) {
         ObjSetResult(interp, ctx.objP);
         ObjDecrRefs(ctx.objP);
@@ -412,7 +412,7 @@ TCL_RESULT Twapi_EnumResourceLanguages(
 
     ctx.interp = interp;
     ctx.objP = ObjEmptyList();
-    Tcl_IncrRefCount(ctx.objP);  /* Protect in callback, just in case */
+    ObjIncrRefs(ctx.objP);  /* Protect in callback, just in case */
     if (EnumResourceLanguagesW(hmodule, restype, resname,
                                EnumResourceLanguagesProc, (LONG_PTR) &ctx)) {
         ObjSetResult(interp, ctx.objP);

@@ -456,11 +456,11 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
 
     /* The object that will hold the change list */
     changesObj = ObjEmptyList();
-    Tcl_IncrRefCount(changesObj);
+    ObjIncrRefs(changesObj);
 
     /* Object containing the callback script */
     scriptObj = ObjEmptyList();
-    Tcl_IncrRefCount(scriptObj);
+    ObjIncrRefs(scriptObj);
     ObjAppendElement(interp, scriptObj, STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_filesystem_monitor_handler"));
     ObjAppendElement(interp, scriptObj, ObjFromHANDLE(dmcP->directory_handle));
 
@@ -544,42 +544,42 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
                 case FILE_ACTION_ADDED:
                     if (actionObj[0] == NULL) {
                         actionObj[0] = STRING_LITERAL_OBJ("added");
-                        Tcl_IncrRefCount(actionObj[0]);
+                        ObjIncrRefs(actionObj[0]);
                     }
                     fnObj[0] = actionObj[0];
                     break;
                 case FILE_ACTION_REMOVED:
                     if (actionObj[1] == NULL) {
                         actionObj[1] = STRING_LITERAL_OBJ("removed");
-                        Tcl_IncrRefCount(actionObj[1]);
+                        ObjIncrRefs(actionObj[1]);
                     }
                     fnObj[0] = actionObj[1];
                     break;
                 case FILE_ACTION_MODIFIED:
                     if (actionObj[2] == NULL) {
                         actionObj[2] = STRING_LITERAL_OBJ("modified");
-                        Tcl_IncrRefCount(actionObj[2]);
+                        ObjIncrRefs(actionObj[2]);
                     }
                     fnObj[0] = actionObj[2];
                     break;
                 case FILE_ACTION_RENAMED_OLD_NAME:
                     if (actionObj[3] == NULL) {
                         actionObj[3] = STRING_LITERAL_OBJ("renameold");
-                        Tcl_IncrRefCount(actionObj[3]);
+                        ObjIncrRefs(actionObj[3]);
                     }
                     fnObj[0] = actionObj[3];
                     break;
                 case FILE_ACTION_RENAMED_NEW_NAME:
                     if (actionObj[4] == NULL) {
                         actionObj[4] = STRING_LITERAL_OBJ("renamenew");
-                        Tcl_IncrRefCount(actionObj[4]);
+                        ObjIncrRefs(actionObj[4]);
                     }
                     fnObj[0] = actionObj[4];
                     break;
                 default:
                     if (actionObj[5] == NULL) {
                         actionObj[5] = STRING_LITERAL_OBJ("unknown");
-                        Tcl_IncrRefCount(actionObj[5]);
+                        ObjIncrRefs(actionObj[5]);
                     }
                     fnObj[0] = actionObj[5];
                     break;

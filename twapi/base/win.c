@@ -260,7 +260,7 @@ LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, L
     objs[5] = ObjFromDWORD(GetTickCount());
 
     for (i=0; i < ARRAYSIZE(objs); ++i) {
-        Tcl_IncrRefCount(objs[i]);
+        ObjIncrRefs(objs[i]);
     }
 
     /* Preserve structures during eval */
@@ -276,7 +276,7 @@ LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, L
     if (Tcl_EvalObjv(interp, ARRAYSIZE(objs), objs, 
                      TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL) == TCL_OK) {
         /* Note if not integer result, lresult stays 0 */
-        ObjToDWORD_PTR(interp, Tcl_GetObjResult(interp), &lresult);
+        ObjToDWORD_PTR(interp, ObjGetResult(interp), &lresult);
     }
 
     /* Restore Interp state */
@@ -290,7 +290,7 @@ LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, L
      * caller had done an incr-ref on it.
      */
     for (i=0; i < ARRAYSIZE(objs); ++i) {
-        Tcl_IncrRefCount(objs[i]);
+        ObjIncrRefs(objs[i]);
     }
 
     return lresult;
