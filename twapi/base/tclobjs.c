@@ -188,7 +188,7 @@ static void DupOpaqueType(Tcl_Obj *srcP, Tcl_Obj *dstP)
     OPAQUE_REP_VALUE(dstP) = OPAQUE_REP_VALUE(srcP);
     OPAQUE_REP_CTYPE(dstP) = OPAQUE_REP_CTYPE(srcP);
     if (OPAQUE_REP_CTYPE(dstP))
-        Tcl_IncrRefCount(OPAQUE_REP_CTYPE(dstP));
+        ObjIncrRefs(OPAQUE_REP_CTYPE(dstP));
 }
 
 TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
@@ -237,7 +237,7 @@ TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
             ctype = NULL;
         else {
             ctype = objs[1];
-            Tcl_IncrRefCount(ctype);
+            ObjIncrRefs(ctype);
         }
     }
 
@@ -410,7 +410,7 @@ int Twapi_InternalCastObjCmd(
                 goto error_handler;
 
             if (Tcl_IsShared(objv[2])) {
-                objP = Tcl_DuplicateObj(objv[2]);
+                objP = ObjDuplicate(objv[2]);
             } else {
                 objP = objv[2];
             }
@@ -457,6 +457,16 @@ TCL_RESULT ObjSetResult(Tcl_Interp *interp, Tcl_Obj *objP)
 {
     Tcl_SetObjResult(interp, objP);
     return TCL_OK;
+}
+
+Tcl_Obj *ObjGetResult(Tcl_Interp *interp)
+{
+    return Tcl_GetObjResult(interp);
+}
+
+Tcl_Obj *ObjDuplicate(Tcl_Obj *objP)
+{
+    return Tcl_DuplicateObj(objP);
 }
 
 /*
@@ -1731,7 +1741,7 @@ Tcl_Obj *ObjFromOpaque(void *pv, char *name)
     OPAQUE_REP_VALUE(objP) = pv;
     if (name) {
         OPAQUE_REP_CTYPE(objP) = ObjFromString(name);
-        Tcl_IncrRefCount(OPAQUE_REP_CTYPE(objP));
+        ObjIncrRefs(OPAQUE_REP_CTYPE(objP));
     } else {
         OPAQUE_REP_CTYPE(objP) = NULL;
     }        
@@ -3940,6 +3950,11 @@ int ObjToPSECURITY_ATTRIBUTES(
         *secattrPP = NULL;
     }
     return TCL_ERROR;
+}
+
+void ObjIncrRefs(Tcl_Obj *objP) 
+{
+    Tcl_IncrRefCount(objP);
 }
 
 void ObjDecrRefs(Tcl_Obj *objP) 
