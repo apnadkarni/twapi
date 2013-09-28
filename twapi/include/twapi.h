@@ -1201,6 +1201,8 @@ TWAPI_EXTERN void ObjSetStaticResult(Tcl_Interp *interp, CONST char s[]);
 #define TwapiSetStaticResult ObjSetStaticResult
 TWAPI_EXTERN TCL_RESULT ObjSetResult(Tcl_Interp *interp, Tcl_Obj *objP);
 #define TwapiSetObjResult ObjSetResult
+TWAPI_EXTERN Tcl_Obj *ObjGetResult(Tcl_Interp *interp);
+TWAPI_EXTERN Tcl_Obj *ObjDuplicate(Tcl_Obj *);
 
 /* errors.c */
 TWAPI_EXTERN TCL_RESULT TwapiReturnSystemError(Tcl_Interp *interp);
@@ -1242,6 +1244,7 @@ TWAPI_EXTERN int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Ob
 int TwapiInitTclTypes(void);
 TWAPI_EXTERN int TwapiGetTclType(Tcl_Obj *objP);
 
+TWAPI_EXTERN void ObjIncrRefs(Tcl_Obj *);
 TWAPI_EXTERN void ObjDecrRefs(Tcl_Obj *);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromOpaque(void *pv, char *name);
@@ -1480,6 +1483,8 @@ TWAPI_EXTERN TCL_RESULT TwapiRegisterPointer(Tcl_Interp *interp, const void *p, 
 TWAPI_EXTERN TCL_RESULT TwapiRegisterCountedPointer(Tcl_Interp *interp, const void *p, void *typetag);
 TWAPI_EXTERN int TwapiUnregisterPointer(Tcl_Interp *interp, const void *p, void *typetag);
 TWAPI_EXTERN int TwapiVerifyPointer(Tcl_Interp *interp, const void *p, void *typetag);
+
+TWAPI_EXTERN TCL_RESULT TwapiDictLookupString(Tcl_Interp *interp, Tcl_Obj *dictObj, const char *key, Tcl_Obj **objPP);
 
 TWAPI_EXTERN Tcl_Obj *TwapiGetInstallDir(Tcl_Interp *interp, HANDLE dllH);
 

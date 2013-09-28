@@ -431,7 +431,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
                  
 
     for (i = 0; i < cmdobjc; ++i) {
-        Tcl_IncrRefCount(cmdobjv[i]); /* Protect while we are using it.
+        ObjIncrRefs(cmdobjv[i]); /* Protect while we are using it.
                                          Required by Tcl_EvalObjv */
     }
 
@@ -459,7 +459,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
             excepP->scode = hr;
         }
     } else {
-        /* TBD - appropriately init retvarP from Tcl_GetObjResult keeping
+        /* TBD - appropriately init retvarP from ObjGetResult keeping
          * in mind that the retvarP by be BYREF as well.
          */
         if (retvarP)
@@ -517,7 +517,7 @@ int Twapi_ComEventSinkObjCmd(
     Tcl_Preserve(interp);   /* TBD - inappropriate use of interp, use ticP */
     sinkP->interp = interp;
     sinkP->refc = 1;
-    Tcl_IncrRefCount(objv[2]);
+    ObjIncrRefs(objv[2]);
     sinkP->cmd = objv[2];
 
     ObjSetResult(interp, ObjFromIUnknown(sinkP));
@@ -767,7 +767,7 @@ int Twapi_IDispatch_InvokeObjCmd(
             Twapi_AppendSystemErrorEx(interp, hr, ObjNewList(ARRAYSIZE(errorcode_extra), errorcode_extra));
 
             if (einfo.bstrDescription) {
-                errorResultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
+                errorResultObj = ObjDuplicate(ObjGetResult(interp));
                 Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
                 Tcl_AppendUnicodeToObj(errorResultObj,
                                        einfo.bstrDescription,
@@ -784,8 +784,8 @@ int Twapi_IDispatch_InvokeObjCmd(
                      FACILITY_RPC == HRESULT_FACILITY(einfo.scode))) {
                     Tcl_Obj *scodeObj = Twapi_MapWindowsErrorToString(einfo.scode);
                     if (scodeObj) {
-                        Tcl_IncrRefCount(scodeObj);
-                        errorResultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
+                        ObjIncrRefs(scodeObj);
+                        errorResultObj = ObjDuplicate(ObjGetResult(interp));
                         Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
                         Tcl_AppendObjToObj(errorResultObj, scodeObj);
                         ObjSetResult(interp, errorResultObj);
@@ -1153,7 +1153,7 @@ int TwapiMakeVariantParam(
                 /* We hold on to this for a while, so make sure it does not
                    go away due to shimmering while the list holding it is
                    modified or changes type */
-                Tcl_IncrRefCount(paramdefaultObj);
+                ObjIncrRefs(paramdefaultObj);
             }
         }
         /* paramdefaultObj points to actual value (or NULL) at this point */

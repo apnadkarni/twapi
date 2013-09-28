@@ -701,7 +701,7 @@ static TCL_RESULT Twapi_MakeSignatureObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     sbufs[0].BufferType = SECBUFFER_TOKEN;
     sbufs[0].pvBuffer   = ObjToByteArray(objs[0], &sbufs[0].cbBuffer);
 
-    objs[1] = Tcl_DuplicateObj(dataObj);
+    objs[1] = ObjDuplicate(dataObj);
     TWAPI_ASSERT(! Tcl_IsShared(objs[1]));
     sbufs[1].BufferType = SECBUFFER_DATA | SECBUFFER_READONLY;
     sbufs[1].pvBuffer   = ObjToByteArray(objs[1], &sbufs[1].cbBuffer);
@@ -755,7 +755,7 @@ static TCL_RESULT Twapi_EncryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     sbufs[0].BufferType = SECBUFFER_TOKEN;
     sbufs[0].pvBuffer   = ObjToByteArray(objs[0], &sbufs[0].cbBuffer);
 
-    objs[1] = Tcl_DuplicateObj(dataObj);
+    objs[1] = ObjDuplicate(dataObj);
     TWAPI_ASSERT(! Tcl_IsShared(objs[1]));
     sbufs[1].BufferType = SECBUFFER_DATA;
     sbufs[1].pvBuffer   = ObjToByteArray(objs[1], &sbufs[1].cbBuffer);
@@ -866,7 +866,7 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     SecBufferDesc sbd;
     Tcl_Obj *objs[3];           /* 0 status, 1 decrypted data, 2 extra data */
     char *encP, *p;
-    int  i, n, enclen;
+    int  i, enclen;
     TCL_RESULT res;
 
     CHECK_NARGS_RANGE(interp, objc, 3, INT_MAX);

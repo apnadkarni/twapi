@@ -416,7 +416,7 @@ Tcl_Obj *ObjFromIP_ADAPTER_ADDRESSES(IP_ADAPTER_ADDRESSES *iaaP)
     } else {
         objv[29] = ObjFromDWORD(0);
         objv[31] = Tcl_NewObj(); /* Empty object */
-        Tcl_IncrRefCount(objv[31]);
+        ObjIncrRefs(objv[31]);
         objv[33] = objv[31];
     }
 
@@ -1623,7 +1623,7 @@ static int Twapi_GetBestInterfaceObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
          * it as first element of a list with optional second param
          */
         objP = ObjNewList(1, &objv[1]);
-        Tcl_IncrRefCount(objP);
+        ObjIncrRefs(objP);
         result = ObjToSOCKADDR_STORAGE(interp, objP, &ss);
         ObjDecrRefs(objP);
         if (result != TCL_OK)
@@ -1671,7 +1671,7 @@ static int TwapiHostnameEventProc(Tcl_Event *tclevP, int flags)
                                      ObjFromLong(theP->status));
         }
         /* Invoke the script */
-        Tcl_IncrRefCount(objP);
+        ObjIncrRefs(objP);
         (void) Tcl_EvalObjEx(interp, objP, TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);
         ObjDecrRefs(objP);
         /* TBD - check for error and add to background ? */
@@ -1775,7 +1775,7 @@ static int TwapiAddressEventProc(Tcl_Event *tclevP, int flags)
         }
         /* Invoke the script */
         /* Do we need TclSave/RestoreResult ? */
-        Tcl_IncrRefCount(objP);
+        ObjIncrRefs(objP);
         (void) Tcl_EvalObjEx(interp, objP, TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);
         ObjDecrRefs(objP);
         /* TBD - check for error and add to background ? */

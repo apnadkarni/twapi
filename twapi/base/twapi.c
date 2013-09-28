@@ -274,7 +274,7 @@ TCL_RESULT Twapi_SourceResource(Tcl_Interp *interp, HANDLE dllH, const char *nam
     if (pathObj == NULL)
         return TCL_ERROR;
     Tcl_AppendToObj(pathObj, name, -1);
-    Tcl_IncrRefCount(pathObj);  /* Must before calling any Tcl_FS functions */
+    ObjIncrRefs(pathObj);  /* Must before calling any Tcl_FS functions */
     result = Tcl_FSEvalFile(interp, pathObj);
     ObjDecrRefs(pathObj);
 
@@ -829,8 +829,8 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
 /*
  * Returns the Tcl_Obj corresponding to the given string.
  * Caller MUST NOT call ObjDecrRefs on the object without
- * a prior Tcl_IncrRefCount. Moreover, if it wants to hang on to it
- * it must do a Tcl_IncrRefCount itself directly, or implicitly via
+ * a prior ObjIncrRefs. Moreover, if it wants to hang on to it
+ * it must do a ObjIncrRefs itself directly, or implicitly via
  * a call such as ObjAppendElement.
  * (This is similar to ObjListIndex)
  */
@@ -845,7 +845,7 @@ Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key)
     he = Tcl_CreateHashEntry(&BASE_CONTEXT(ticP)->atoms, key, &new_entry);
     if (new_entry) {
         Tcl_Obj *objP = ObjFromString(key);
-        Tcl_IncrRefCount(objP);
+        ObjIncrRefs(objP);
         Tcl_SetHashValue(he, objP);
         return objP;
     } else {
@@ -993,7 +993,6 @@ TCL_RESULT TwapiRegisterCountedPointer(Tcl_Interp *interp, const void *p, void *
 TCL_RESULT TwapiUnregisterPointerTic(TwapiInterpContext *ticP, const void *p, void *typetag)
 {
     Tcl_HashEntry *he;
-    void *stored_type;
     int code;
 
     TWAPI_ASSERT(BASE_CONTEXT(ticP));

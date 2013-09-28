@@ -200,7 +200,7 @@ void TwapiCallRegisteredWaitScript(TwapiInterpContext *ticP, TwapiId id, HANDLE 
         objs[3] = STRING_LITERAL_OBJ("signalled");
 
     for (i = 0; i < ARRAYSIZE(objs); ++i) {
-        Tcl_IncrRefCount(objs[i]);
+        ObjIncrRefs(objs[i]);
     }
     Tcl_EvalObjv(ticP->interp, ARRAYSIZE(objs), objs, 
                  TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL);

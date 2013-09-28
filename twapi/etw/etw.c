@@ -108,7 +108,7 @@ struct TwapiETWContext {
     /*
      * When inside a ProcessTrace,
      * EXACTLY ONE of eventsObj and errorObj must be non-NULL. Moreover,
-     * when non-NULL, an Tcl_IncrRefCount must have been done on it
+     * when non-NULL, an ObjIncrRefs must have been done on it
      * with a corresponding ObjDecrRefs when setting to NULL
       */
     Tcl_Obj *eventsObj;
@@ -934,8 +934,8 @@ ULONG WINAPI TwapiETWBufferCallback(
      * if necessary
      */
     if (Tcl_IsShared(gETWContext.buffer_cmdObj)) {
-        objP = Tcl_DuplicateObj(gETWContext.buffer_cmdObj);
-        Tcl_IncrRefCount(objP);
+        objP = ObjDuplicate(gETWContext.buffer_cmdObj);
+        ObjIncrRefs(objP);
     } else
         objP = gETWContext.buffer_cmdObj;
 
@@ -1000,7 +1000,7 @@ ULONG WINAPI TwapiETWBufferCallback(
     Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[28].keyObj, ObjFromLARGE_INTEGER(adjustedP->StartTime));
 
     /*
-     * Note: Do not need to Tcl_IncrRefCount bufObj[] because we are adding
+     * Note: Do not need to ObjIncrRefs bufObj[] because we are adding
      * it to the command list
      */
     args[0] = bufObj;
@@ -1009,7 +1009,7 @@ ULONG WINAPI TwapiETWBufferCallback(
     ObjDecrRefs(gETWContext.eventsObj); /* AFTER we place on list */
 
     gETWContext.eventsObj = ObjNewList(0, NULL);/* For next set of events */
-    Tcl_IncrRefCount(gETWContext.eventsObj);
+    ObjIncrRefs(gETWContext.eventsObj);
 
     code = Tcl_EvalObjEx(gETWContext.interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
 
@@ -1024,7 +1024,7 @@ ULONG WINAPI TwapiETWBufferCallback(
     case TCL_ERROR:
         gETWContext.errorObj = Tcl_GetReturnOptions(gETWContext.interp,
                                                     code);
-        Tcl_IncrRefCount(gETWContext.errorObj);
+        ObjIncrRefs(gETWContext.errorObj);
         ObjDecrRefs(gETWContext.eventsObj);
         gETWContext.eventsObj = NULL;
         return FALSE;
@@ -1138,7 +1138,7 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
     gETWContext.buffer_cmdlen = buffer_cmdlen;
     gETWContext.buffer_cmdObj = buffer_cmdlen ? objv[1] : NULL;
     gETWContext.eventsObj = ObjNewList(0, NULL);
-    Tcl_IncrRefCount(gETWContext.eventsObj);
+    ObjIncrRefs(gETWContext.eventsObj);
     gETWContext.errorObj = NULL;
     gETWContext.interp = interp;
 
@@ -1149,11 +1149,11 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
      */
     for (i = 0; i < ARRAYSIZE(gETWEventKeys); ++i) {
         gETWEventKeys[i].keyObj = ObjFromString(gETWEventKeys[i].keystring);
-        Tcl_IncrRefCount(gETWEventKeys[i].keyObj);
+        ObjIncrRefs(gETWEventKeys[i].keyObj);
     }
     for (i = 0; i < ARRAYSIZE(gETWBufferKeys); ++i) {
         gETWBufferKeys[i].keyObj = ObjFromString(gETWBufferKeys[i].keystring);
-        Tcl_IncrRefCount(gETWBufferKeys[i].keyObj);
+        ObjIncrRefs(gETWBufferKeys[i].keyObj);
     }
 
     winerr = ProcessTrace(htraces, ntraces, startP, endP);

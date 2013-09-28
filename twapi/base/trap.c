@@ -132,8 +132,8 @@ TCL_RESULT Twapi_TrapObjCmd(
              * the errorCode, errorResult and errorInfo into local scope
              * We are basically cloning TclX's try_eval command code here
              */
-            errorResultObjP = Tcl_DuplicateObj (Tcl_GetObjResult (interp));
-            Tcl_IncrRefCount (errorResultObjP);
+            errorResultObjP = ObjDuplicate (ObjGetResult (interp));
+            ObjIncrRefs (errorResultObjP);
             Tcl_ResetResult (interp);
 
             /* Import errorResult, errorInfo, errorCode */
@@ -216,7 +216,7 @@ GlobalImport (interp)
     Tcl_Obj *globalObjv [globalObjc];
     int idx, code = TCL_OK;
 
-    savedResult = Tcl_DuplicateObj (Tcl_GetObjResult (interp));
+    savedResult = ObjDuplicate (ObjGetResult (interp));
 
     if (!Tcl_GetCommandInfo (interp, global, &cmdInfo)) {
         Tcl_AppendResult (interp, "can't find \"global\" command",
@@ -230,7 +230,7 @@ GlobalImport (interp)
     globalObjv [3] = ObjFromString ("errorCode");
 
     for (idx = 0; idx < globalObjc; idx++) {
-        Tcl_IncrRefCount (globalObjv [idx]);
+        ObjIncrRefs (globalObjv [idx]);
     }
 
     code = (*cmdInfo.objProc) (cmdInfo.objClientData,

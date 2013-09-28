@@ -205,7 +205,7 @@ int TwapiReturnErrorEx(Tcl_Interp *interp, int code, Tcl_Obj *objP)
         if (objP) {
             const char *msgP;
             if (Tcl_IsShared(objP))
-                objP = Tcl_DuplicateObj(objP); /* since we are modifying it */
+                objP = ObjDuplicate(objP); /* since we are modifying it */
             msgP = TwapiMapErrorCode(code);
             if (msgP)
                 Tcl_AppendStringsToObj(objP, " TWAPI error: ", msgP, NULL);
@@ -345,7 +345,7 @@ int Twapi_AppendSystemErrorEx(
     /* Third element of error code is also the message */
     if (ObjListIndex(NULL, errorCodeObj, 2, &msgObj) == TCL_OK &&
         msgObj != NULL) {
-        Tcl_Obj *resultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
+        Tcl_Obj *resultObj = ObjDuplicate(ObjGetResult(interp));
         if (ObjCharLength(resultObj)) {
             Tcl_AppendUnicodeToObj(resultObj, L" ", 1);
         }
@@ -397,7 +397,7 @@ int Twapi_AppendWNetError(
      * append the WNet message 
      */
     if (error == ERROR_EXTENDED_ERROR && wneterror == NO_ERROR) {
-        Tcl_Obj *resultObj = Tcl_DuplicateObj(Tcl_GetObjResult(interp));
+        Tcl_Obj *resultObj = ObjDuplicate(ObjGetResult(interp));
         Tcl_AppendUnicodeToObj(resultObj, L" ", 1);
         Tcl_AppendUnicodeToObj(resultObj, provider, -1);
         Tcl_AppendUnicodeToObj(resultObj, L": ", 2);
