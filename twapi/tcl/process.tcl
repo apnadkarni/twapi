@@ -1806,9 +1806,7 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
                 return $opts(noexist)
             }
         } else {
-            # Rethrows original error - note try automatically brings these
-            # into scope
-            error $errorResult $errorInfo $errorCode
+            rethrow
         }
     } onerror {TWAPI_WIN32 299} {
         # Partial read - usually means either we are WOW64 and target

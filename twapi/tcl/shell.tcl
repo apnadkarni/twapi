@@ -75,9 +75,6 @@ proc twapi::get_shell_folder {csidl args} {
         set path [SHGetSpecialFolderPath 0 $csidl $opts(create)]
     } onerror {} {
         # Try some other way to get the information
-        set code $errorCode
-        set msg $errorResult
-        set info $errorInfo
         switch -exact -- [format %x $csidl] {
             1a { catch {set path $::env(APPDATA)} }
             2b { catch {set path $::env(CommonProgramFiles)} }
@@ -86,7 +83,6 @@ proc twapi::get_shell_folder {csidl args} {
             25 { catch {set path [file join $::env(systemroot) system32]} }
         }
         if {![info exists path]} {
-            #error $msg $info $code
             return ""
         }
     }

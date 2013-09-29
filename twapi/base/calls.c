@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2010-2012, Ashok P. Nadkarni
+ * Copyright (c) 2010-2013, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
  */
 
 #include "twapi.h"
+#include "twapi_base.h"
 #include <wincred.h>
 
 static TCL_RESULT Twapi_LsaQueryInformationPolicy (
@@ -1361,6 +1362,7 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
     TwapiId twapi_id;
     DWORD dw, dw2;
     HANDLE h;
+    Tcl_Obj *objP = NULL;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -1415,6 +1417,17 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
             return TCL_ERROR;
         return TwapiThreadPoolRegister(
             ticP, h, dw, dw2, TwapiCallRegisteredWaitScript, NULL);
+    case 8: // trapresult
+    case 9: // trapoptions
+        CHECK_NARGS(interp, objc, 0);
+        dw = 0;
+        ObjListLength(NULL, BASE_CONTEXT(ticP)->trapstack, &dw);
+        if (dw > 1) {
+            ObjListIndex(NULL, BASE_CONTEXT(ticP)->trapstack,
+                         dw - 1 - (func == 8), &result.value.obj);
+            result.type = TRT_OBJ;
+        } else
+            return TwapiReturnError(interp, TWAPI_INVALID_COMMAND_SCOPE);
     }
 
     return TwapiSetResult(interp, &result);
@@ -2199,6 +2212,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
         DEFINE_ALIAS_CMD(random_bytes, 6),
         DEFINE_ALIAS_CMD(Twapi_RegisterWaitOnHandle, 7),
+        DEFINE_ALIAS_CMD(trapresult, 8),
+        DEFINE_ALIAS_CMD(trapoptions, 9),
     };
 
     struct tcl_dispatch_s TclDispatch[] = {
