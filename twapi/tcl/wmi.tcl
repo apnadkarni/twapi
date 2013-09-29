@@ -120,13 +120,12 @@ proc twapi::wmi_collect_classes {swbemservices args} {
             }
         }
     } onerror {} {
-        debuglog "Error: $::errorResult (inside [info level 0])"
         foreach class $delete_on_error {
             if {[comobj? $class]} {
                 $class destroy
             }
         }
-        error $::errorResult $::errorInfo $::errorCode
+        rethrow
     } finally {
         $classes destroy
     }

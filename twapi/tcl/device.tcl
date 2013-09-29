@@ -192,7 +192,7 @@ proc twapi::get_devinfoset_registry_properties {hdevinfo args} {
                              [Twapi_SetupDiGetDeviceRegistryProperty \
                                   $hdevinfo $devinfo_data $prop]]
                 } onerror {} {
-                    lappend item $prop [list fail $errorCode]
+                    lappend item $prop [list fail $::errorCode]
                 }
             }
             lappend result $item
@@ -256,7 +256,7 @@ proc twapi::get_devinfoset_interface_details {hdevinfo guid args} {
                     }
                 } onerror {} {
                     if {! $opts(ignoreerrors)} {
-                        error $errorResult $errorInfo $errorCode
+                        rethrow
                     }
                 }
             }

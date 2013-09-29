@@ -21,6 +21,10 @@ namespace eval twapi {
     ################################################################
     # Following procs are used early in init process so defined here
 
+    proc rethrow {} {
+        return -code error -level 0 -options [twapi::trapoptions] [twapi::trapresult]
+    }
+
     # Dict lookup, returns key if not in dict
     proc dict* {d key} {
         if {[dict exists $d $key]} {

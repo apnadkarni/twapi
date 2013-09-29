@@ -117,10 +117,16 @@ Added [cmd -raw] option to
 [bullet]
 Added [cmd -setvars] option to [uri base.html#parseargs [cmd parseargs]].
 
+[bullet]
+Added the [cmd rethrow], [cmd trapresult] and [cmd trapoptions]
+commands to [uri base.html#trap [cmd trap]].
+
 [bullet] [emph "INCOMPATIBILITY"]
 The [cmd try] command, deprecated in previous versions, has been removed
 to prevent conflicts with the [cmd try] command in Tcl 8.6.
-Use [uri base.man#trap [cmd trap]] instead.
+Use [uri base.man#trap [cmd trap]] instead. The [var errorCode],
+[var errorInfo] global variables are no longer brought into scope
+automatically in onerror clauses.
 
 [bullet] [emph "INCOMPATIBILITY"]
 Format and content of [uri base.html#get_build_config [cmd get_build_config]]

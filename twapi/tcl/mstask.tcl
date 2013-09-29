@@ -28,8 +28,7 @@ proc twapi::itaskscheduler_new {args} {
         itaskscheduler_set_target_system $its $opts(system)
     } onerror {} {
         IUnknown_Release $its
-        # Rethrow the original error
-        error $errorResult $errorInfo $errorCode
+        rethrow
     }
     return $its
 }

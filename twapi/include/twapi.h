@@ -332,6 +332,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_REGISTERED_POINTER_NOTFOUND 17
 #define TWAPI_NULL_POINTER 18
 #define TWAPI_REGISTERED_POINTER_IS_NOT_COUNTED 19
+#define TWAPI_INVALID_COMMAND_SCOPE 20
 
 /*
  * Map TWAPI error codes into Win32 error code format.

@@ -38,10 +38,8 @@ proc twapi::new_user {username args} {
             _set_user_priv_level $username $opts(priv) -system $opts(system)
         } onerror {} {
             # Remove the previously created user account
-            set ecode $errorCode
-            set einfo $errorInfo
             catch {delete_user $username -system $opts(system)}
-            error $errorResult $einfo $ecode
+            rethrow
         }
     }
 }

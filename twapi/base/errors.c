@@ -35,6 +35,7 @@ static struct TWAPI_ERROR_MAP error_map[] = {
     {TWAPI_REGISTERED_POINTER_NOTFOUND, "Pointer is not registered. Probably invalid or already freed."},
     {TWAPI_NULL_POINTER, "Pointer is NULL."},
     {TWAPI_REGISTERED_POINTER_IS_NOT_COUNTED, "Pointer is registered as an uncounted pointer."},
+    {TWAPI_INVALID_COMMAND_SCOPE, "Command cannot be called in this scope."},
 };
 #define TWAPI_ERROR_MAP_SIZE (sizeof(error_map)/sizeof(error_map[0]))
 

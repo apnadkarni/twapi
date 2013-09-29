@@ -191,8 +191,7 @@ proc twapi::get_hcounter_value {hcounter args} {
         # we will not generate an error but pass back a return value
         # of 0
         if {[string length $opts(var)] == 0} {
-            # Pass on the error
-            error $errorResult $errorInfo $errorCode
+            rethrow
         }
         set status 0
     }
