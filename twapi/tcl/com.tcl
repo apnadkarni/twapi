@@ -3208,7 +3208,7 @@ twapi::class create ::twapi::Automation {
                     ::twapi::IUnknown_Release [set $ifc]
                 }
             }
-            error $errorResult $errorInfo $errorCode
+            rethrow
         } finally {
             # In all cases, release any interfaces we created
             # Note connpt_ifc and sink_ifc are released at unbind time except

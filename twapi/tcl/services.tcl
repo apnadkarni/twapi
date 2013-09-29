@@ -244,9 +244,9 @@ proc twapi::control_service {name code access finalstate args} {
     trap {
         ControlService $svch $code
     } onerror {TWAPI_WIN32} {
-        if {[lsearch -exact -integer $opts(ignorecodes) [lindex $errorCode 1]] < 0} {
-            #Not one of the error codes we can ignore. Rethrow the error
-            error $errorResult $errorInfo $errorCode
+        if {[lsearch -exact -integer $opts(ignorecodes) [lindex $::errorCode 1]] < 0} {
+            # Not one of the error codes we can ignore. 
+            rethrow
         }
     } finally {
         CloseServiceHandle $svch

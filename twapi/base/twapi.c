@@ -13,28 +13,6 @@
 #define TWAPI_TCL_MAJOR 8
 #define TWAPI_MIN_TCL_MINOR 5
 
-/* Contains per-interp context specific to the base module. Hangs off
- * the module.pval field in a TwapiInterpContext.
- */
-typedef struct _TwapiBaseSpecificContext {
-    /*
-     * We keep a stash of commonly used Tcl_Objs so as to not recreate
-     * them every time. Example of intended use is as keys in a keyed list or
-     * dictionary when large numbers of objects are involved.
-     *
-     * Should be accessed only from the Tcl interp thread.
-     */
-    Tcl_HashTable atoms;
-
-    /*
-     * We keep track of pointers returned to scripts to prevent double frees,
-     * invalid pointers etc.
-     *
-     * Should be accessed only from the Tcl interp thread.
-     */
-    Tcl_HashTable pointers;
-} TwapiBaseSpecificContext;
-#define BASE_CONTEXT(ticP_) ((TwapiBaseSpecificContext *)((ticP_)->module.data.pval))
 
 /*
  * Struct to keep track of registered pointers.
@@ -197,6 +175,9 @@ int Twapi_base_Init(Tcl_Interp *interp)
     Tcl_InitHashTable(&BASE_CONTEXT(ticP)->atoms, TCL_STRING_KEYS);
     /* Pointer registration table */
     Tcl_InitHashTable(&BASE_CONTEXT(ticP)->pointers, TCL_ONE_WORD_KEYS);
+    /* Trap stack */
+    BASE_CONTEXT(ticP)->trapstack = ObjNewList(0, NULL);
+    ObjIncrRefs(BASE_CONTEXT(ticP)->trapstack);
 
     return TwapiLoadStaticModules(interp);
 }

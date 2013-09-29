@@ -6,8 +6,7 @@
  */
 
 #include <twapi.h>
-
-static int GlobalImport (Tcl_Interp *interp);
+#include "twapi_base.h"
 
 TCL_RESULT Twapi_TrapObjCmd(
     TwapiInterpContext *ticP,
@@ -22,11 +21,10 @@ TCL_RESULT Twapi_TrapObjCmd(
     char    *facilityP;
     char    *codeP;
     TCL_RESULT result = TCL_ERROR;
-
+    int      trapstackpushed = 0;
 
     if (objc < 2)
         goto badargs;
-
 
     /* First parse syntax without evaluating */
     final = 0;
@@ -63,6 +61,10 @@ TCL_RESULT Twapi_TrapObjCmd(
      */
     if (result != TCL_ERROR)
         goto finalize;
+
+    ObjAppendElement(NULL, BASE_CONTEXT(ticP)->trapstack, ObjGetResult(interp));
+    ObjAppendElement(NULL, BASE_CONTEXT(ticP)->trapstack, Tcl_GetReturnOptions(interp, result));
+    trapstackpushed = 1;
 
     /* Get the errorCode variable */
     errorCodeVar = Tcl_GetVar2Ex(interp, "errorCode", NULL, TCL_GLOBAL_ONLY);
@@ -126,13 +128,14 @@ TCL_RESULT Twapi_TrapObjCmd(
 
 
         if (match) {
+#ifdef OBSOLETE
             Tcl_Obj *errorResultObjP;
             /*
              * This onerror clause matches. Execute the code after importing
              * the errorCode, errorResult and errorInfo into local scope
              * We are basically cloning TclX's try_eval command code here
              */
-            errorResultObjP = ObjDuplicate (ObjGetResult (interp));
+            errorResultObjP = ObjDuplicate(ObjGetResult(interp));
             ObjIncrRefs (errorResultObjP);
             Tcl_ResetResult (interp);
 
@@ -147,10 +150,12 @@ TCL_RESULT Twapi_TrapObjCmd(
             }
             /* If no errors, eval the error handling script */
             if (result != TCL_ERROR)
+#endif // OBSOLETE
                 result = Tcl_EvalObjEx(interp, objv[i+2], 0);
 
-            ObjDecrRefs (errorResultObjP);
-
+#ifdef OBSOLETE
+            ObjDecrRefs(errorResultObjP);
+#endif
             break;              /* Error handling all done */
         }
     }
@@ -184,15 +189,31 @@ badsyntax:
         NULL);
     goto pop_and_return;
 
-    badargs:
+badargs:
     Tcl_ResetResult(interp);
     Tcl_WrongNumArgs(interp, 1, objv, "script ?onerror ERROR errorscript? ...?finally FINALSCRIPT?");
     /* Fall thru */
 
 pop_and_return:
+    if (trapstackpushed) {
+        Tcl_Obj *objP;
+        int n = 0;
+        objP = BASE_CONTEXT(ticP)->trapstack;
+        ObjListLength(NULL, objP, &n);
+        TWAPI_ASSERT(n >= 2);
+        if (Tcl_IsShared(objP)) {
+            objP = ObjDuplicate(objP);
+            ObjIncrRefs(objP);
+            ObjDecrRefs(BASE_CONTEXT(ticP)->trapstack);
+            BASE_CONTEXT(ticP)->trapstack = objP;
+        }        
+        Tcl_ListObjReplace(interp, objP, n-2, 2, 0, NULL);
+    }
+
     return result;
 }
 
+#ifdef OBSOLETE
 /*-----------------------------------------------------------------------------
  * Copied from the TclX code
  * GlobalImport --
@@ -250,3 +271,4 @@ GlobalImport (interp)
     ObjDecrRefs (savedResult);
     return TCL_ERROR;
 }
+#endif

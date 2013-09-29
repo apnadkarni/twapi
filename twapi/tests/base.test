@@ -1595,7 +1595,6 @@ namespace eval twapi::base::test {
 
     test trap-1.0 {
         Verify script with no errors and no onerror and finally clauses
-    } -constraints {
     } -setup {
         catch {unset x}
     } -body {
@@ -1605,7 +1604,6 @@ namespace eval twapi::base::test {
 
     test trap-1.1 {
         Verify script with errors and no onerror and finally clauses
-    } -constraints {
     } -body {
         twapi::trap {set nosuchvar}
     } -returnCodes error -result $nosuchvar_error
@@ -1614,7 +1612,6 @@ namespace eval twapi::base::test {
 
     test trap-2.0 {
         Verify script with no errors and no onerror but finally clause
-    } -constraints {
     } -setup {
         catch {unset x}
         catch {unset y}
@@ -1630,7 +1627,6 @@ namespace eval twapi::base::test {
 
     test trap-2.1 {
         Verify script with errors and no onerror clause but with finally clause
-    } -constraints {
     } -setup {
         catch {unset x}
         catch {unset y}
@@ -1649,16 +1645,17 @@ namespace eval twapi::base::test {
 
     test trap-3.0 {
         Verify script with errors and matching onerror clause
-    } -constraints {
     } -body {
         twapi::trap {
             error "Error message" "This is errorinfo" {TEST 5}
         } onerror {TEST 5} {
+            set trapopts [twapi::trapoptions]
             expr {
-                  [lindex $errorCode 0] == "TEST" &&
-                  [lindex $errorCode 1] == 5 &&
-                  $errorResult == "Error message" &&
-                  $errorInfo == "This is errorinfo"
+                  $::errorCode eq [dict get $trapopts -errorcode] &&
+                  [lindex $::errorCode 0] == "TEST" &&
+                  [lindex $::errorCode 1] == 5 &&
+                  [twapi::trapresult] == "Error message" &&
+                  $::errorInfo == "This is errorinfo"
               }
         }
     } -result 1
@@ -1667,7 +1664,6 @@ namespace eval twapi::base::test {
 
     test trap-3.1 {
         Verify script with errors and no match on onerror facility
-    } -constraints {
     } -body {
         twapi::trap {
             error "Error message" "" {TEST 5}
@@ -1679,7 +1675,6 @@ namespace eval twapi::base::test {
 
     test trap-3.2 {
         Verify script with errors and no match on onerror code
-    } -constraints {
     } -body {
         twapi::trap {
             error "Error message" "" {TEST 5}
@@ -1691,7 +1686,6 @@ namespace eval twapi::base::test {
 
     test trap-3.3 {
         Verify script with errors and default onerror clause
-    } -constraints {
     } -body {
         twapi::trap {
             error "Error message" "This is errorinfo" {TEST 5}
@@ -1699,10 +1693,11 @@ namespace eval twapi::base::test {
             set x 6
         } onerror {} {
             expr {
-                  [lindex $errorCode 0] == "TEST" &&
-                  [lindex $errorCode 1] == 5 &&
-                  $errorResult == "Error message" &&
-                  $errorInfo == "This is errorinfo"
+                  $::errorCode eq [dict get [twapi::trapoptions] -errorcode] &&
+                  [lindex $::errorCode 0] == "TEST" &&
+                  [lindex $::errorCode 1] == 5 &&
+                  [twapi::trapresult] == "Error message" &&
+                  $::errorInfo == "This is errorinfo"
               }
         }
     } -result 1
@@ -1711,7 +1706,6 @@ namespace eval twapi::base::test {
 
     test trap-3.4 {
         Verify multiple onerror clauses
-    } -constraints {
     } -setup {
         catch {unset x}
     } -body {
@@ -1728,7 +1722,6 @@ namespace eval twapi::base::test {
 
     test trap-3.5 {
         Verify sequencing of onerror clauses
-    } -constraints {
     } -setup {
         catch {unset x}
         catch {unset y}
@@ -1746,16 +1739,16 @@ namespace eval twapi::base::test {
 
     test trap-3.6 {
         Verify script with errors and matching integer format onerror clause
-    } -constraints {
     } -body {
         twapi::trap {
             error "Error message" "This is errorinfo" {TEST 20}
         } onerror {TEST 0x14} {
             expr {
-                  [lindex $errorCode 0] == "TEST" &&
-                  [lindex $errorCode 1] == 20 &&
-                  $errorResult == "Error message" &&
-                  $errorInfo == "This is errorinfo"
+                  $::errorCode eq [dict get [twapi::trapoptions] -errorcode] &&
+                  [lindex $::errorCode 0] == "TEST" &&
+                  [lindex $::errorCode 1] == 20 &&
+                  [twapi::trapresult] == "Error message" &&
+                  $::errorInfo == "This is errorinfo"
               }
         }
     } -result 1
@@ -1764,16 +1757,16 @@ namespace eval twapi::base::test {
 
     test trap-3.7 {
         Verify script with errors and matching onerror clause only on facility
-    } -constraints {
     } -body {
         twapi::trap {
             error "Error message" "This is errorinfo" {TEST 5}
         } onerror {TEST} {
             expr {
-                  [lindex $errorCode 0] == "TEST" &&
-                  [lindex $errorCode 1] == 5 &&
-                  $errorResult == "Error message" &&
-                  $errorInfo == "This is errorinfo"
+                  $::errorCode eq [dict get [twapi::trapoptions] -errorcode] &&
+                  [lindex $::errorCode 0] == "TEST" &&
+                  [lindex $::errorCode 1] == 5 &&
+                  [twapi::trapresult] == "Error message" &&
+                  $::errorInfo == "This is errorinfo"
               }
         }
     } -result 1
@@ -1782,7 +1775,6 @@ namespace eval twapi::base::test {
 
     test trap-4.0 {
         Verify trap with no errors with both onerror and finally clauses
-    } -constraints {
     } -setup {
         catch {unset x}
     } -body {
@@ -1800,7 +1792,6 @@ namespace eval twapi::base::test {
 
     test trap-4.1 {
         Verify trap with errors with matching onerror and finally clauses
-    } -constraints {
     } -setup {
         catch {unset x}
         catch {unset y}
@@ -1809,10 +1800,11 @@ namespace eval twapi::base::test {
             error "Error message" "This is errorinfo" {TEST 5}
         } onerror {} {
             expr {
-                  [lindex $errorCode 0] == "TEST" &&
-                  [lindex $errorCode 1] == 5 &&
-                  $errorResult == "Error message" &&
-                  $errorInfo == "This is errorinfo"
+                  $::errorCode eq [dict get [twapi::trapoptions] -errorcode] &&
+                  [lindex $::errorCode 0] == "TEST" &&
+                  [lindex $::errorCode 1] == 5 &&
+                  [twapi::trapresult] == "Error message" &&
+                  $::errorInfo == "This is errorinfo"
               }
         } finally {
             set  y final
@@ -1824,7 +1816,6 @@ namespace eval twapi::base::test {
 
     test trap-4.2 {
         Verify trap with errors with nonmatching onerror and finally clauses
-    } -constraints {
     } -setup {
         catch {unset x}
         catch {unset y}
@@ -1834,10 +1825,11 @@ namespace eval twapi::base::test {
                 error "Error message" "This is errorinfo" {TEST 5}
             } onerror {XXX} {
                 expr {
-                      [lindex $errorCode 0] == "TEST" &&
-                      [lindex $errorCode 1] == 5 &&
-                      $errorResult == "Error message" &&
-                      $errorInfo == "This is errorinfo"
+                      $::errorCode eq [dict get [twapi::trapoptions] -errorcode] &&
+                      [lindex $::errorCode 0] == "TEST" &&
+                      [lindex $::errorCode 1] == 5 &&
+                      [twapi::trapresult] == "Error message" &&
+                      $::errorInfo == "This is errorinfo"
                   }
             } finally {
                 set  y final
@@ -1850,7 +1842,6 @@ namespace eval twapi::base::test {
 
     test trap-4.3 {
         Verify finally clause position can be anywhere
-    } -constraints {
     } -setup {
         catch {unset x}
         catch {unset y}
@@ -1863,14 +1854,54 @@ namespace eval twapi::base::test {
             set  y final
         } onerror {} {
             expr {
-                  [lindex $errorCode 0] == "TEST" &&
-                  [lindex $errorCode 1] == 5 &&
-                  $errorResult == "Error message" &&
-                  $errorInfo == "This is errorinfo"
+                  $::errorCode eq [dict get [twapi::trapoptions] -errorcode] &&
+                  [lindex $::errorCode 0] == "TEST" &&
+                  [lindex $::errorCode 1] == 5 &&
+                  [twapi::trapresult] == "Error message" &&
+                  $::errorInfo == "This is errorinfo"
               }
         }]
         expr {$result == 1 && $y == "final"}
     } -result 1
+
+    test trap-5.0 {
+        Verify rethrow
+    } -body {
+        catch {
+            twapi::trap {
+                error "This is an error" "" [list ERROR RETHROW]
+            } onerror {} {
+                catch {error "Another error"}
+                twapi::rethrow
+            }
+        } msg options
+        list $msg [dict get $options -errorcode]
+    } -result {{This is an error} {ERROR RETHROW}}
+
+    test trap-5.1 {
+        Verify nested rethrow
+    } -body {
+        catch {
+            twapi::trap {
+                error "This is an error" "" [list ERROR RETHROW]
+            } onerror {} {
+                twapi::trap {
+                    error "Nested error" "" [list NESTED RETHROW]
+                } onerror {} {
+                    catch {error "another error"}
+                    twapi::rethrow
+                }
+            }
+        } msg options
+        list $msg [dict get $options -errorcode]
+    } -result {{Nested error} {NESTED RETHROW}}
+
+    test trap-5.2 {
+        Verify rethrow fails outside trap
+    } -body {
+        twapi::rethrow
+    } -returnCodes error -result "Command cannot be called in this scope."
+
 
     ################################################################
 

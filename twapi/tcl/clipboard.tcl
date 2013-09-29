@@ -36,7 +36,7 @@ proc twapi::read_clipboard {fmt} {
         set data [Twapi_ReadMemory 1 $p 0 [GlobalSize $h]]
     } onerror {} {
         catch {close_clipboard}
-        error $errorResult $errorInfo $errorCode
+        rethrow
     } finally {
         # If p exists, then we must have locked the handle
         if {[info exists p]} {
@@ -62,7 +62,7 @@ proc twapi::read_clipboard_text {args} {
         }
     } onerror {} {
         catch {close_clipboard}
-        error $errorResult $errorInfo $errorCode
+        rethrow
     } finally {
         if {[info exists p]} {
             GlobalUnlock $h
@@ -95,7 +95,7 @@ proc twapi::write_clipboard {fmt data} {
         SetClipboardData $fmt $h
     } onerror {} {
         catch {close_clipboard}
-        error $errorResult $errorInfo $errorCode
+        rethrow
     } finally {
         if {[info exists mem_p]} {
             GlobalUnlock $mem_h
@@ -138,7 +138,7 @@ proc twapi::write_clipboard_text {data args} {
         SetClipboardData 13 $h;         # 13 -> Unicode format
     } onerror {} {
         catch {close_clipboard}
-        error $errorResult $errorInfo $errorCode
+        rethrow
     } finally {
         if {[info exists mem_p]} {
             GlobalUnlock $mem_h

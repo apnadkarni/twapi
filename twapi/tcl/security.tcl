@@ -626,7 +626,7 @@ proc twapi::map_luid_to_privilege {luid args} {
             dict set _luid_to_privilege_map $opts(system) $luid $name
         } onerror {TWAPI_WIN32 1313} {
             if {! $opts(mapunknown)} {
-                error $errorResult $errorInfo $errorCode
+                rethrow
             }
             set name "Privilege-$luid"
             # Do not put in cache as privilege name might change?
@@ -1193,7 +1193,7 @@ proc twapi::get_resource_security_descriptor {restype name args} {
                 set secd [lindex [get_share_info $name -secd] 1]
             } else {
                 # Throw the same error
-                error $errorResult $errorInfo $errorCode
+                rethrow
             }
         }
     }

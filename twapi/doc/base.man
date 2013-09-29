@@ -660,6 +660,14 @@ to inform it whether the returned credentials are valid or not by calling
 The command [uri #credentials_dialog [cmd credentials_dialog]] provides
 a GUI version of this command.
 
+[call [cmd rethrow]]
+Raises a Tcl error where the error options, including values of
+[var errorCode] and [var errorStack], are the same as when an exception
+was raised inside a [uri #trap [cmd trap]] command.
+This command can only be used inside a [cmd onerror] clause of
+a [cmd trap] and is useful to regenerate the original error when
+the error handler cannot handle the exception.
+
 [call [cmd reveal] [arg ENCRYPTED]]
 Decrypts a binary string that was encrypted by [uri #conceal [cmd conceal]].
 
@@ -713,18 +721,13 @@ element of [cmd ::errorCode], first a exact string match is tried and
 if that fails, an integer match is tried if both operands being compared
 are valid integers.
 [nl]
-When a [arg ERRORSCRIPT] script is run, the global Tcl variables
-[cmd ::errorCode], [cmd ::errorInfo] are automatically brought into scope
-without needing a [cmd global] statement in the script and contain
-the values set when [arg SCRIPT] generated the error. In addition,
-the variable [cmd ::errorResult] is set to the error message set by
-the original error. This behavior is
-similar to the [cmd try_eval] command from [uri http://tclx.sf.net TclX].
-
-[call [cmd try] [arg ...]]
-This is an alias for the [uri #trap [cmd trap]] command. This command
-is deprecated as it conflicts with the [cmd try] command in Tcl 8.6 when
-imported into the global namespace.
+Within an [cmd onerror] clause, the command
+[uri #rethrow [cmd rethrow]] may be used to raise the error that was
+caught by the clause. This is useful when an error handler finds it
+cannot handle the case and wants to raise the original error.
+Similarly, the [cmd trapresult] and [cmd trapoptions] commands
+can be used in a [cmd onerror] clause to retrieve the error message
+and error options dictionary captured by the [cmd onerror] clause.
 
 [call [cmd wait_on_handle] [arg HANDLE] [opt [arg options]]]
 The command waits on the specified [arg HANDLE] until it is either
