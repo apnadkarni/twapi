@@ -25,10 +25,13 @@ namespace eval twapi {
         return -code error -level 0 -options [twapi::trapoptions] [twapi::trapresult]
     }
 
-    # Dict lookup, returns key if not in dict
-    proc dict* {d key} {
+    # Dict lookup, returns default (from args) if not in dict and
+    # key itself if no defaults specified
+    proc dict* {d key args} {
         if {[dict exists $d $key]} {
             return [dict get $d $key]
+        } elseif {[llength $args]} {
+            return [lindex $args 0]
         } else {
             return $key
         }
@@ -62,7 +65,6 @@ namespace eval twapi {
         }
         return $swapped
     }
-
 }
 
 # Make twapi versions the same as the base module versions
