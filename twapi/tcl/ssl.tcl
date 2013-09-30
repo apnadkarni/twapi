@@ -17,7 +17,7 @@ proc twapi::ssl::_socket {args} {
         certificate.arg
     } -setvars
 
-    set chan [chan create {read write} [list [namespace current]::ssl]]
+    set chan [chan create {read write} [list [namespace current]]]
 
     set socket_args {}
     if {[info exists server]} {
@@ -71,7 +71,7 @@ proc twapi::ssl::finalize {chan} {
     variable _channels
     if {[info exists _channels($chan)]} {
         if {[dict exists $_channels($chan) socket]} {
-            catch {chan close [dict get $_channels socket]}
+            chan close [dict get $_channels($chan) socket]
         }
         unset _channels($chan)
     }
@@ -81,7 +81,7 @@ proc twapi::ssl::finalize {chan} {
 proc twapi::ssl::blocking {chan mode} {
     variable _channels
 
-    chan configure $chan -blocking $mode
+    chan configure [_chansocket $chan] -blocking $mode
     dict set _channels($chan) blocking $mode
     return
 }
@@ -108,7 +108,7 @@ proc twapi::ssl::watch {chan watchmask} {
 proc twapi::ssl::read {chan nbytes} {
     variable _channels
 
-    set so [_socket $chan]
+    set so [_chansocket $chan]
     
     set data [chan read $so $nbytes]
     if {[string length $data]} {
@@ -117,14 +117,16 @@ proc twapi::ssl::read {chan nbytes} {
     if {[chan eof $so]} {
         return ""
     }
-    if {(![dict get $_channels($chan) blocking]) && [fblocked $so]} {
+    if {![dict get $_channels($chan) blocking]} {
         return -code error EAGAIN
     }
     error "Unknown error. Data could not be read from channel $so"
 }
 
 proc twapi::ssl::write {chan data} {
-    chan puts -nonewline [_socket $chan] $data
+    set so [_chansocket $chan]
+    chan puts -nonewline $so $data
+    flush $so
     return [string length $data]
 }
 
@@ -133,14 +135,14 @@ proc twapi::ssl::configure {chan opt val} {
         error "Option -certificates is read-only."
     }
 
-    chan configure [_socket $chan] $opt $val
+    chan configure [_chansocket $chan] $opt $val
     return
 }
 
 proc twapi::ssl::cget {chan opt} {
     variable _channels
 
-    set so [_socket $chan]
+    set so [_chansocket $chan]
 
     if {$opt eq "-certificates"} {
         return [dict get $_channels($chan) certificates]
@@ -150,13 +152,13 @@ proc twapi::ssl::cget {chan opt} {
 }
 
 proc twapi::ssl::cgetall {chan} {
-    set so [_socket $chan]
+    set so [_chansocket $chan]
     set config [chan configure $so]
     lappend config -certificates [dict get $_channels($chan) certificates]
     return $config
 }
 
-proc twapi::ssl::_socket {chan} {
+proc twapi::ssl::_chansocket {chan} {
     variable _channels
     if {![info exists _channels($chan)]} {
         error "Channel $chan not found."
@@ -167,8 +169,10 @@ proc twapi::ssl::_socket {chan} {
 proc twapi::ssl::_init {chan type so} {
     variable _channels
 
-    chan configure $so -translation binary
-    dict set _channels($chan) [list socket $so state INIT type $type blocking [chan configure $so -blocking] watchmask {}]
+    # TBD - verify that -buffering none is the right thing to do
+    # as the scripted channel interface takes care of this itself
+    chan configure $so -translation binary -buffering none
+    set _channels($chan) [list socket $so state INIT type $type blocking [chan configure $so -blocking] watchmask {}]
     if {$type eq "LISTENER"} {
         dict set _channels($chan) accept_callback $server
     }
