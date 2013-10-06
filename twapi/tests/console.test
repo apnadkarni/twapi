@@ -556,7 +556,7 @@ namespace eval twapi::console::test {
         nt userInteraction singleproc
     } -body {
         twapi::set_console_control_handler [namespace current]::console_event_handler
-        after 5000 {set ::console_test_event timeout}
+        after 10000 {set ::console_test_event timeout}
         puts "Please hit Ctrl-C"
         vwait ::console_test_event
         set ::console_test_event
@@ -570,7 +570,7 @@ namespace eval twapi::console::test {
         nt userInteraction singleproc
     } -body {
         twapi::set_console_control_handler [namespace current]::console_event_handler
-        after 5000 {set ::console_test_event timeout}
+        after 10000 {set ::console_test_event timeout}
         puts "Please hit Ctrl-break"
         vwait ::console_test_event
         set ::console_test_event
@@ -578,13 +578,29 @@ namespace eval twapi::console::test {
         twapi::set_console_control_handler ""
     } -result ctrl-break
 
-    test set_console_control_handler-2.1 {
+    test set_console_control_handler-2.0 {
         Reset the control handler for the console
     } -constraints {
         nt userInteraction singleproc TBD
     } -body {
         Not clear how to test console handler reset without exiting.
     } -result ctrl-break
+
+    test set_console_control_handler-3.0 {
+        Verify handler runs in global run level (Bug #125)
+    } -constraints {
+        nt userInteraction singleproc
+    } -body {
+        # Global proc trap with same name as twapi command trap
+        proc ::trap {event} { set ::console_test_event [namespace current] ; return 1}
+        twapi::set_console_control_handler trap
+        after 10000 {set ::console_test_event timeout}
+        puts "Please hit Ctrl-C"
+        vwait ::console_test_event
+        set ::console_test_event
+    } -cleanup {
+        twapi::set_console_control_handler ""
+    } -result "::"
 
     ################################################################
 
