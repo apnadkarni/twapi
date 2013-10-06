@@ -149,7 +149,7 @@ proc twapi::_wait_handler {id h event} {
 
     if {[info exists _wait_handle_ids($h)] &&
         $_wait_handle_ids($h) == $id} {
-        eval $_wait_handle_scripts($id) [list $h $event]
+        uplevel #0 [linsert $_wait_handle_scripts($id) end $h $event]
     }
 
     return

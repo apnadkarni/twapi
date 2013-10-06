@@ -183,7 +183,7 @@ proc twapi::_clipboard_handler {} {
     }
 
     foreach {id script} $_clipboard_monitors {
-        set code [catch {eval $script} msg]
+        set code [catch {uplevel #0 $script} msg]
         if {$code == 1} {
             # Error - put in background but we do not abort
             after 0 [list error $msg $::errorInfo $::errorCode]
