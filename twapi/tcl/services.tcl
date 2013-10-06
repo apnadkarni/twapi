@@ -739,7 +739,7 @@ proc twapi::_service_handler_unsafe {name service_status_handle control extra_ar
             } else {
                 set seq -1
             }
-            set result [eval [linsert $service_state($name,script) end $control $name $seq] $extra_args]
+            set result [uplevel #0 [linsert $service_state($name,script) end $control $name $seq {*}$extra_args]]
             # Note that if the above script may call back into us,
             # via update_service_status for example, the service
             # state may be updated at this point
@@ -861,7 +861,7 @@ proc twapi::update_service_status {name seq state args} {
             }
         }
         if {$all_stopped} {
-            eval [linsert $service_state($name,script) end all_stopped]
+            uplevel #0 [linsert $service_state($name,script) end all_stopped]
         }
     }
 

@@ -90,7 +90,7 @@ proc twapi::_power_handler {msg power_event lparam msgpos ticks} {
     }
 
     dict for {id script} $_power_monitors {
-        set code [catch {eval [linsert $script end $power_event $lparam]} msg]
+        set code [catch {uplevel #0 [linsert $script end $power_event $lparam]} msg]
         if {$code == 1} {
             # Error - put in background but we do not abort
             after 0 [list error $msg $::errorInfo $::errorCode]
