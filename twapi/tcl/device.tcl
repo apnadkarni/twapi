@@ -39,7 +39,7 @@ proc twapi::_device_notification_handler {id args} {
         lset args 3 $attrs
     }
 
-    return [eval $script [list $idstr] $args]
+    return [uplevel #0 [linsert $script end $idstr {*}$args]]
 }
 
 proc twapi::start_device_notifier {script args} {

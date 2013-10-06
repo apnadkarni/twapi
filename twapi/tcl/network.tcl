@@ -1076,7 +1076,7 @@ proc twapi::_address_resolve_handler {id status hostname} {
     unset _address_handler_scripts($id)
 
     # Before invoking the callback, store result if available
-    eval [linsert $script end $addr $status $hostname]
+    uplevel #0 [linsert $script end $addr $status $hostname]
     return
 }
 
@@ -1104,7 +1104,7 @@ proc twapi::_hostname_resolve_handler {id status addrandports} {
         set status success
     }
 
-    eval [linsert $script end $name $status $addrs]
+    uplevel #0 [linsert $script end $name $status $addrs]
     return
 }
 

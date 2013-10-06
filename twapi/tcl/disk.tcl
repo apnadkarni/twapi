@@ -200,7 +200,7 @@ proc twapi::unmap_drive_local {drive args} {
 proc twapi::_filesystem_monitor_handler {id changes} {
     variable _filesystem_monitor_scripts
     if {[info exists _filesystem_monitor_scripts($id)]} {
-        return [eval $_filesystem_monitor_scripts($id) [list $id $changes]]
+        return [uplevel #0 [linsert $_filesystem_monitor_scripts($id) end $id $changes]]
     } else {
         # Callback queued after close. Ignore
     }

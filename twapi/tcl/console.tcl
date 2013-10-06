@@ -571,7 +571,7 @@ interp alias {} twapi::read_console {} twapi::_do_console_proc twapi::_console_r
 proc twapi::_console_ctrl_handler {ctrl} {
     variable _console_control_script
     if {[info exists _console_control_script]} {
-        return [eval [linsert $_console_control_script end $ctrl]]
+        return [uplevel #0 [linsert $_console_control_script end $ctrl]]
     }
     return 0;                   # Not handled
 }
