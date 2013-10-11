@@ -1467,5 +1467,6 @@ proc twapi::_cert_add_parseargs {vargs} {
 # If we are being sourced ourselves, then we need to source the remaining files.
 if {[file tail [info script]] eq "crypto.tcl"} {
     source [file join [file dirname [info script]] sspi.tcl]
+    source [file join [file dirname [info script]] ssl.tcl]
 }
 
