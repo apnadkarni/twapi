@@ -96,16 +96,18 @@ proc twapi::ssl::finalize {chan} {
 proc twapi::ssl::blocking {chan mode} {
     variable _channels
 
-    chan configure [_chansocket $chan] -blocking $mode
-    dict set _channels($chan) Blocking $mode
-    if {$mode == 0} {
-        # Since we need to negotiate SSL we always have socket event
-        # handlers irrespective of the state of the watch mask
-        chan event $Socket readable [list [namespace current]::_so_read_handler $chan]
-        chan event $Socket writable [list [namespace current]::_so_write_handler $chan]
-    } else {
-        chan event $Socket readable {}
-        chan event $Socket writable {}
+    dict with _channels($chan) {
+        set Blocking $mode
+        chan configure $Socket -blocking $mode
+        if {$mode == 0} {
+            # Since we need to negotiate SSL we always have socket event
+            # handlers irrespective of the state of the watch mask
+            chan event $Socket readable [list [namespace current]::_so_read_handler $chan]
+            chan event $Socket writable [list [namespace current]::_so_write_handler $chan]
+        } else {
+            chan event $Socket readable {}
+            chan event $Socket writable {}
+        }
     }
     return
 }
@@ -350,13 +352,20 @@ proc twapi::ssl::_so_read_handler {chan} {
     variable _channels
 
     if {[info exists _channels($chan)]} {
-        dict with _channels($chan) {}
         if {[dict get $_channels($chan) State] in {SERVERINIT CLIENTINIT NEGOTIATING}} {
             _negotiate $chan
         }
 
-        if {"read" in [dict get $_channels($chan) WatchMask] && [string length [dict get $_channels($chan) Input]]} {
-            chan postevent $chan read
+        if {"read" in [dict get $_channels($chan) WatchMask]} {
+            if {[string length [dict get $_channels($chan) Input]]} {
+                chan postevent $chan read
+            }
+        } else {
+            # We are not asked to generate read events, turn off the read
+            # event handler unless we are negotiating
+            if {[dict get $_channels($chan) State] ni {SERVERINIT CLIENTINIT NEGOTIATING}} {
+                chan event [dict get $_channels($chan) Socket] readable {}
+            }
         }
     }
     return
@@ -364,12 +373,24 @@ proc twapi::ssl::_so_read_handler {chan} {
 
 proc twapi::ssl::_so_write_handler {chan} {
     variable _channels
+
     if {[info exists _channels($chan)]} {
-        if {[dict get $_channels($chan) State] in {SERVERINIT CLIENTINIT NEGOTIATING}} {
+        dict with _channels($chan) {}
+
+        # If we are not actually asked to generate write events,
+        # the only time we want a write handler is on a client -async
+        # Once it runs, we never want it again else it will keep triggering
+        # as sockets are always writable
+        if {"write" ni $WatchMask} {
+            chan event $Socket writable {}
+        }
+
+        if {$State in {SERVERINIT CLIENTINIT NEGOTIATING}} {
             _negotiate $chan
         }
 
-        if {"write" in [dict get $_channels($chan) WatchMask] && [dict get $_channels($chan) State] eq "OPEN"} {
+        # Do not use local var $State because _negotiate might have updated it
+        if {"write" in $WatchMask && [dict get $_channels($chan) State] eq "OPEN"} {
             chan postevent $chan write
         }
     }
@@ -436,15 +457,17 @@ proc twapi::ssl::_negotiate2 {chan} {
             if {[dict get $_channels($chan) Blocking]} {
                 _client_blocking_negotiate $chan
             } else {
-                set State NEGOTIATING
-                set SspiContext [sspi_client_context $Credentials -stream 1]
-                lassign [sspi_step $SspiContext] status output
-                if {[string length $output]} {
-                    chan puts -nonewline $Socket $output
-                    chan flush $Socket
-                }
-                if {$status ne "continue"} {
-                    error "Unexpected status $status from sspi_step"
+                dict with _channels($chan) {
+                    set State NEGOTIATING
+                    set SspiContext [sspi_client_context $Credentials -stream 1]
+                    lassign [sspi_step $SspiContext] status output
+                    if {[string length $output]} {
+                        chan puts -nonewline $Socket $output
+                        chan flush $Socket
+                    }
+                    if {$status ne "continue"} {
+                        error "Unexpected status $status from sspi_step"
+                    }
                 }
             }
         }
