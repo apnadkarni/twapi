@@ -73,10 +73,10 @@ proc twapi::ssl::_accept {listener so raddr raport} {
     variable _channels
 
     trap {
-        set chan [chan create {read write} [list [namespace current]::ssl $id]]
+        set chan [chan create {read write} [list [namespace current]]]
         _init $chan SERVER $so [dict get $_channels($listener) Credentials] [dict get $_channels($listener) Verifier]
-        {*}[dict get _channels($listener) AcceptCallback] $chan $raddr $raport
-    } onerror {
+        {*}[dict get $_channels($listener) AcceptCallback] $chan $raddr $raport
+    } onerror {} {
         catch {_cleanup $chan}
         rethrow
     }
