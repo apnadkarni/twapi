@@ -214,6 +214,22 @@ proc twapi::ssl::read {chan nbytes} {
 
 proc twapi::ssl::write {chan data} {
     variable _channels
+
+    # This is not inside the dict with because _negotiate will update the dict
+    if {[dict get $_channels($chan) State] in {SERVERINIT CLIENTINIT NEGOTIATING}} {
+        _negotiate $chan
+        if {[dict get $_channels($chan) State] in {SERVERINIT CLIENTINIT NEGOTIATING}} {
+            # If a blocking channel, should have come back with negotiation
+            # complete. If non-blocking, return EAGAIN to indicate channel
+            # not open yet
+            if {[dict get $_channels($chan) Blocking]} {
+                error "SSL negotiation failed on blocking channel" 
+            } else {
+                return -code error EAGAIN
+            }
+        }
+    }
+
     dict with _channels($chan) {
         switch $State {
             CLOSED {
@@ -279,7 +295,7 @@ proc twapi::ssl::_init {chan type so creds verifier {accept_callback {}}} {
     # TBD - verify that -buffering none is the right thing to do
     # as the scripted channel interface takes care of this itself
     # We always set -blocking to 0 and take care of blocking ourselves
-    chan configure $so -translation binary -buffering none -blocking 0
+    chan configure $so -translation binary -buffering none
     set _channels($chan) [list Socket $so \
                               State ${type}INIT \
                               Type $type \
