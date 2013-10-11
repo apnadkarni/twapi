@@ -238,7 +238,7 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
     SecBuffer     sb_out;
     SecBufferDesc sbd_out;
     SECURITY_STATUS status;
-    CtxtHandle    new_context;
+    CtxtHandle    new_context = {0, 0};
     ULONG         new_context_attr;
     Tcl_Obj      *objs[6];
     TimeStamp     expiration;
@@ -319,14 +319,38 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
     }
 
     /* TBD - check if below is valid for ALL status values */
-    objs[1] = ObjFromSecHandle(&new_context);
+    if (contextP) {
+        objs[1] = ObjFromSecHandle(contextP);
+        objs[3] = ObjFromLong(new_context_attr);
+    } else {
+        /* For some codes like INCOMPLETE_MESSAGE on the first call,
+           new_context is not set by the AcceptSecurityContext call
+        */
+        if (new_context.dwLower || new_context.dwUpper) {
+            /* Yes, a security handle was returned */
+            objs[1] = ObjFromSecHandle(&new_context);
+            objs[3] = ObjFromLong(new_context_attr);
+        } else {
+            objs[1] = ObjFromEmptyString();
+            objs[3] = ObjFromLong(0);
+        }
+    }
+
     objs[2] = ObjFromSecBufferDesc(&sbd_out);
-    objs[3] = ObjFromLong(new_context_attr);
     objs[4] = ObjFromWideInt(expiration.QuadPart);
 
     /* Check if there was any unprocessed left over data that 
-       has to be passed back to the caller */
-    objs[5] = ObjFromSECBUFFER_EXTRA(sbd_inP);
+       has to be passed back to the caller. In case of INCOMPLETE_MESSAGE
+       this is the original data passed in
+    */
+    if (status == SEC_E_INCOMPLETE_MESSAGE) {
+        if (sbd_inP)
+            objs[5] = ObjFromByteArray(sbd_inP->pBuffers[0].pvBuffer,
+                                       sbd_inP->pBuffers[0].cbBuffer);
+        else
+            objs[5] = ObjFromEmptyString();
+    } else
+        objs[5] = ObjFromSECBUFFER_EXTRA(sbd_inP);
 
     ObjSetResult(interp, ObjNewList(6, objs));
 
@@ -346,7 +370,7 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     SecBuffer     sb_out;
     SecBufferDesc sbd_out;
     SECURITY_STATUS status;
-    CtxtHandle    new_context;
+    CtxtHandle    new_context = {0, 0};
     ULONG         new_context_attr;
     Tcl_Obj      *objs[6];
     TimeStamp     expiration;
@@ -420,14 +444,37 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     }
 
     /* TBD - check if below is valid for all status */
-    objs[1] = ObjFromSecHandle(&new_context);
+    if (contextP) {
+        objs[1] = ObjFromSecHandle(contextP);
+        objs[3] = ObjFromLong(new_context_attr);
+    } else {
+        /* For some codes like INCOMPLETE_MESSAGE on the first call,
+           new_context is not set by the AcceptSecurityContext call
+        */
+        if (new_context.dwLower || new_context.dwUpper) {
+            /* Yes, a security handle was returned */
+            objs[1] = ObjFromSecHandle(&new_context);
+            objs[3] = ObjFromLong(new_context_attr);
+        } else {
+            objs[1] = ObjFromEmptyString();
+            objs[3] = ObjFromLong(0);
+        }
+    }
     objs[2] = ObjFromSecBufferDesc(&sbd_out);
-    objs[3] = ObjFromLong(new_context_attr);
     objs[4] = ObjFromWideInt(expiration.QuadPart);
 
     /* Check if there was any unprocessed left over data that 
-       has to be passed back to the caller */
-    objs[5] = ObjFromSECBUFFER_EXTRA(sbd_inP);
+       has to be passed back to the caller. In case of INCOMPLETE_MESSAGE
+       this is the original data passed in
+    */
+    if (status == SEC_E_INCOMPLETE_MESSAGE) {
+        if (sbd_inP)
+            objs[5] = ObjFromByteArray(sbd_inP->pBuffers[0].pvBuffer,
+                                       sbd_inP->pBuffers[0].cbBuffer);
+        else
+            objs[5] = ObjFromEmptyString();
+    } else
+        objs[5] = ObjFromSECBUFFER_EXTRA(sbd_inP);
 
     ObjSetResult(interp, ObjNewList(6, objs));
 

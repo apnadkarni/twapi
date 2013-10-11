@@ -1522,6 +1522,12 @@ proc crypt_test_containers {} {
     return $names
 }
 
+proc crypt_test_container_cleanup {} {
+    foreach c [crypt_test_containers] {
+        crypt_key_container_delete $c
+    }
+}
+
 # If this is the first argument to the shell and there are more arguments
 # execute them
 
