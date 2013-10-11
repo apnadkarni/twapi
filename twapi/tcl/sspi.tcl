@@ -221,7 +221,6 @@ proc twapi::sspi_client_context {cred args} {
 
     set context_flags 0
     foreach {opt flag} [array get _client_security_context_syms] {
-        puts "$opt=[set $opt]"
         if {[set $opt]} {
             set context_flags [expr {$context_flags | $flag}]
         }
@@ -699,7 +698,6 @@ if {0} {
     puts -nonewline $so $out
     set data [read $so]
     set d [sspi_decrypt_stream $client $data]
-    parray ::twapi::_sspi_state
     sspi_shutdown_context $client
     close $so ; sspi_free_credentials $cred ; sspi_free_context $client
     sspi_context_free $client
