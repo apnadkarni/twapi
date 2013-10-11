@@ -5,7 +5,7 @@ EXTRALIBS = crypt32.lib
 !include ..\include\common.inc
 
 OBJS  = $(OBJDIR)\crypto.obj $(OBJDIR)\sspi.obj
-TCLFILES=..\tcl\crypto.tcl ..\tcl\sspi.tcl
+TCLFILES=..\tcl\crypto.tcl ..\tcl\sspi.tcl ..\tcl\ssl.tcl
 
 !include ..\include\rules.inc
 
