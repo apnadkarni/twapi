@@ -250,7 +250,10 @@ proc twapi::sspi_client_context {cred args} {
 # Delete a security context
 proc twapi::sspi_delete_context {ctx} {
     variable _sspi_state
-    DeleteSecurityContext [_sspi_context_handle $ctx]
+    set h [_sspi_context_handle $ctx]
+    if {[llength $h]} {
+        DeleteSecurityContext 
+    }
     unset _sspi_state($ctx)
 }
 
@@ -301,7 +304,7 @@ proc twapi::sspi_shutdown_context {ctx} {
 # Take the next step in an SSPI negotiation
 # Returns
 #   {done data extradata}
-#   {continue data extradata}
+#   {continue data}
 #   {expired data}
 proc twapi::sspi_step {ctx {received ""}} {
     variable _sspi_state
@@ -332,7 +335,7 @@ proc twapi::sspi_step {ctx {received ""}} {
                     # Most providers take only the first buffer
                     # but SChannel/UNISP need the second. Since
                     # others don't seem to mind the second buffer
-                    # we always include it
+                    # we always always include it
                     # 2 -> SECBUFFER_TOKEN, 0 -> SECBUFFER_EMPTY
                     set inbuflist [list [list 2 $Input] [list 0]]
                     if {$Ctxtype eq "client"} {
@@ -360,16 +363,14 @@ proc twapi::sspi_step {ctx {received ""}} {
                 } else {
                     # There was no received data. Return any data
                     # to be sent to remote end
-                    set data ""
-                    foreach buf $Output {
-                        append data [lindex $buf 1]
-                    }
+                    set data [_gather_secbuf_data $Output]
                     set Output {}
                     return [list continue $data ""]
                 }
             }
             incomplete_message {
                 # Caller has to get more data from remote end
+                set State continue
                 return [list continue "" ""]
             }
             expired {
@@ -539,10 +540,32 @@ proc twapi::sspi_encrypt_stream {ctx data args} {
     set enc ""
     while {[string length $data]} {
         lassign [EncryptStream $h $qop $data] fragment data
-        append enc $fragment
+        lappend enc $fragment
     }
 
-    return $enc
+    return [join $enc ""]
+}
+
+# TBD - document
+# chan must be in binary mode
+proc twapi::sspi_encrypt_stream_output {ctx data chan args} {
+    variable _sspi_state
+    
+    set h [_sspi_context_handle $ctx]
+
+    parseargs args {
+        {qop.int 0}
+        {flush.bool 1}
+    } -maxleftover 0 -setvars
+
+    while {[string length $data]} {
+        lassign [EncryptStream $h $qop $data] fragment data
+        puts -nonewline $chan $fragment
+    }
+
+    if {$flush} {
+        chan flush $chan
+    }
 }
 
 
@@ -646,14 +669,14 @@ proc twapi::_gather_secbuf_data {bufs} {
     if {[llength $bufs] == 1} {
         return [lindex [lindex $bufs 0] 1]
     } else {
-        set data ""
+        set data {}
         foreach buf $bufs {
             # First element is buffer type, which we do not care
             # Second element is actual data
-            append data [lindex $buf 1]
+            lappend data [lindex $buf 1]
         }
+        return [join $data {}]
     }
-    return $data
 }
 
 if {0} {

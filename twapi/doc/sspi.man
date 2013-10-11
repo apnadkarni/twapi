@@ -435,8 +435,8 @@ This is the return value from
 [uri #sspi_server_context [cmd sspi_server_context]].
 
 [nl]
-The command returns a list containing three elements. The first element
-may be one of the following values:
+The command returns a list containing two or three elements. The first element
+is a status which may be one of the following values:
 [list_begin opt]
 [opt_def [const done]]
 Indicates that the security context negotiation is completed.
@@ -455,8 +455,9 @@ If the second element of the returned
 list is not an empty string, it contains data that must be sent to the
 remote end. This is true for [emph "all three cases"] above.
 [nl]
-Finally, the third element of the returned list contains leftover
-application data after negotiation is complete. If not empty,
+Finally, the third element of the returned list, if present, contains leftover
+application data after negotiation is complete (indicated by a status of [const done]).
+If not empty,
 it must be passed to the decryption commands. This occurs for
 stream oriented contexts only (like SSL/TLS).
 
