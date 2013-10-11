@@ -42,6 +42,9 @@ proc twapi::ssl::_socket {args} {
     if {[info exists server]} {
         set type LISTENER
         lappend socket_args -server [list [namespace current]::_accept $chan]
+        if {[llength $credentials] == 0} {
+            error "Option -credentials must be specified for server sockets"
+        }
     } else {
         set server ""
         lappend socket_args -async; # Always async, we will explicitly block
