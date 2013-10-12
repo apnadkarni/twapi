@@ -139,7 +139,7 @@ proc twapi::sspi_schannel_credentials args {
         {revocationcheck.arg none {full endonly excluderoot none}}
         {ignoreerrorrevocationoffline.bool 0 0x1000}
         {ignoreerrornorevocationcheck.bool 0 0x800}
-        validateservercert.bool
+        {validateservercert.bool 1}
     } -setvars -nulldefault -maxleftover 0
 
     set flags [expr {$disablereconnects | $ignoreerrornorevocationcheck | $ignoreerrorrevocationoffline}]
