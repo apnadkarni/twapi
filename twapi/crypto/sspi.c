@@ -613,11 +613,13 @@ int Twapi_QueryContextAttributes(
         SecPkgContext_NativeNamesW   nativenames;
         SecPkgContext_PasswordExpiry passwordexpiry;
         SecPkgContext_PackageInfoW pkginfo;
+        SecPkgContext_IssuerListInfoEx issuerlist;
         CERT_CONTEXT *certP;
     } param;
     SECURITY_STATUS ss;
     Tcl_Obj *obj;
     Tcl_Obj *objs[6];
+    int i;
 
     buf = NULL;
     obj = NULL;
@@ -633,6 +635,7 @@ int Twapi_QueryContextAttributes(
     case SECPKG_ATTR_PACKAGE_INFO:
     case SECPKG_ATTR_LOCAL_CERT_CONTEXT:
     case SECPKG_ATTR_REMOTE_CERT_CONTEXT:
+    case SECPKG_ATTR_ISSUER_LIST_EX:
         ss = QueryContextAttributesW(ctxP, attr, &param);
         if (ss == SEC_E_OK) {
             switch (attr) {
@@ -698,7 +701,15 @@ int Twapi_QueryContextAttributes(
                 TwapiRegisterCertPointer(interp, param.certP);
                 obj = ObjFromOpaque(param.certP, "CERT_CONTEXT*");
                 break;
+            case SECPKG_ATTR_ISSUER_LIST_EX:
+                obj = ObjNewList(param.issuerlist.cIssuers, NULL);
+                for (i = 0; i < param.issuerlist.cIssuers; ++i) {
+                    ObjAppendElement(interp, obj, ObjFromCERT_NAME_BLOB(&param.issuerlist.aIssuers[0], 0));
+                }
+                buf = param.issuerlist.aIssuers; /* So it is freed below */
+                break;
             }
+            
         }
         break;
         

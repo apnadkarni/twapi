@@ -28,5 +28,6 @@ void TwapiRegisterCertPointer(Tcl_Interp *, PCCERT_CONTEXT);
 void TwapiRegisterCertPointerTic(TwapiInterpContext *, PCCERT_CONTEXT );
 TCL_RESULT TwapiUnregisterCertPointer(Tcl_Interp *, PCCERT_CONTEXT);
 TCL_RESULT TwapiUnregisterCertPointerTic(TwapiInterpContext *, PCCERT_CONTEXT);
+Tcl_Obj *ObjFromCERT_NAME_BLOB(CERT_NAME_BLOB *blobP, DWORD flags);
 
 #endif
