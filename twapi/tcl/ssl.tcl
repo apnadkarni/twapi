@@ -5,6 +5,7 @@ namespace eval twapi::ssl {
     #  Type - SERVER, CLIENT, LISTENER
     #  Blocking - 0/1 indicating whether blocking or non-blocking channel
     #  WatchMask - list of {read write} indicating what events to post
+    #  Target - Name for server cert
     #  Credentials - credentials handle to use for local end of connection
     #  FreeCredentials - if credentials should be freed on connection cleanup
     #  AcceptCallback - application callback on a listener socket
@@ -26,6 +27,7 @@ proc twapi::ssl::_socket {args} {
         myport.int
         async
         server.arg
+        peersubject.arg
         {credentials.arg {}}
         {verifier.arg {}}
     } -setvars
@@ -40,12 +42,19 @@ proc twapi::ssl::_socket {args} {
     }
 
     if {[info exists server]} {
+        if {[info exists peersubject]} {
+            error "Option -peersubject cannot be specified for with -server"
+        }
+        set peersubject ""
         set type LISTENER
         lappend socket_args -server [list [namespace current]::_accept $chan]
         if {[llength $credentials] == 0} {
             error "Option -credentials must be specified for server sockets"
         }
     } else {
+        if {![info exists peersubject]} {
+            set peersubject [lindex $args 0]
+        }
         set server ""
         lappend socket_args -async; # Always async, we will explicitly block
         set type CLIENT
@@ -53,7 +62,7 @@ proc twapi::ssl::_socket {args} {
 
     trap {
         set so [socket {*}$socket_args {*}$args]
-        _init $chan $type $so $credentials $verifier $server
+        _init $chan $type $so $credentials $peersubject $verifier $server
         if {$type eq "CLIENT"} {
             if {! $async} {
                 _client_blocking_negotiate $chan
@@ -77,7 +86,7 @@ proc twapi::ssl::_accept {listener so raddr raport} {
 
     trap {
         set chan [chan create {read write} [list [namespace current]]]
-        _init $chan SERVER $so [dict get $_channels($listener) Credentials] [dict get $_channels($listener) Verifier]
+        _init $chan SERVER $so [dict get $_channels($listener) Credentials] "" [dict get $_channels($listener) Verifier]
         {*}[dict get $_channels($listener) AcceptCallback] $chan $raddr $raport
     } onerror {} {
         catch {_cleanup $chan}
@@ -294,7 +303,7 @@ proc twapi::ssl::_chansocket {chan} {
     return [dict get $_channels($chan) Socket]
 }
 
-proc twapi::ssl::_init {chan type so creds verifier {accept_callback {}}} {
+proc twapi::ssl::_init {chan type so creds peersubject verifier {accept_callback {}}} {
     variable _channels
 
     # TBD - verify that -buffering none is the right thing to do
@@ -308,6 +317,7 @@ proc twapi::ssl::_init {chan type so creds verifier {accept_callback {}}} {
                               WatchMask {} \
                               Verifier $verifier \
                               SspiContext {} \
+                              PeerSubject $peersubject \
                               Input {} Output {}]
 
     if {[llength $creds]} {
@@ -462,7 +472,7 @@ proc twapi::ssl::_negotiate2 {chan} {
             } else {
                 dict with _channels($chan) {
                     set State NEGOTIATING
-                    set SspiContext [sspi_client_context $Credentials -stream 1]
+                    set SspiContext [sspi_client_context $Credentials -stream 1 -target $PeerSubject]
                     lassign [sspi_step $SspiContext] status output
                     if {[string length $output]} {
                         chan puts -nonewline $Socket $output
@@ -527,7 +537,7 @@ proc twapi::ssl::_client_blocking_negotiate {chan} {
     variable _channels
     dict with _channels($chan) {
         set State NEGOTIATING
-        set SspiContext [sspi_client_context $Credentials -stream 1]
+        set SspiContext [sspi_client_context $Credentials -stream 1 -target $PeerSubject]
     }
     return [_blocking_negotiate_loop $chan]
 }
