@@ -62,7 +62,7 @@ proc twapi::ssl::_socket {args} {
 
     trap {
         set so [socket {*}$socket_args {*}$args]
-        _init $chan $type $so $credentials $peersubject $verifier $server
+        _init $chan $type $so $credentials $peersubject [lrange $verifier 0 end] $server
         if {$type eq "CLIENT"} {
             if {! $async} {
                 _client_blocking_negotiate $chan
@@ -427,13 +427,67 @@ proc twapi::ssl::_negotiate chan {
 proc twapi::ssl::_negotiate2 {chan} {
     variable _channels
         
-    switch [dict get $_channels($chan) State] {
+    dict with _channels($chan) {}; # dict -> local vars
+    switch $State {
         NEGOTIATING {
-            dict with _channels($chan) {
-                if {$Blocking} {
-                    error "Internal error: NEGOTIATING state not expected on a blocking ssl socket"
-                }
+            if {$Blocking} {
+                error "Internal error: NEGOTIATING state not expected on a blocking ssl socket"
+            }
 
+            set data [chan read $Socket]
+            if {[string length $data] == 0} {
+                if {[chan eof $Socket]} {
+                    error "Unexpected EOF during SSL negotiation"
+                } else {
+                    # No data yet, just keep waiting
+                    return
+                }
+            } else {
+                lassign [sspi_step $SspiContext $data] status outdata leftover
+                if {[string length $outdata]} {
+                    chan puts -nonewline $Socket $outdata
+                    chan flush $Socket
+                }
+                switch $status {
+                    done {
+                        if {[string length $leftover]} {
+                            dict append _channels($chan) Input [sspi_decrypt_stream $SspiContext $leftover]
+                        }
+                        _open $chan
+                    }
+                    continue {
+                        # Keep waiting for next input
+                    }
+                    default {
+                        error "Unexpected status $status from sspi_step"
+                    }
+                }
+            }
+        }
+
+        CLIENTINIT {
+            if {$Blocking} {
+                _client_blocking_negotiate $chan
+            } else {
+                dict set _channels($chan) State NEGOTIATING
+                set SspiContext [sspi_client_context $Credentials -stream 1 -target $PeerSubject -manualvalidation [expr {[llength $Verifier] > 0}]]
+                dict set _channels($chan) SspiContext $SspiContext
+                lassign [sspi_step $SspiContext] status outdata
+                if {[string length $outdata]} {
+                    chan puts -nonewline $Socket $outdata
+                    chan flush $Socket
+                }
+                if {$status ne "continue"} {
+                    error "Unexpected status $status from sspi_step"
+                }
+            }
+        }
+        
+        SERVERINIT {
+            if {$Blocking} {
+                _server_blocking_negotiate $chan
+            } else {
+                dict set _channels($chan) State NEGOTIATING
                 set data [chan read $Socket]
                 if {[string length $data] == 0} {
                     if {[chan eof $Socket]} {
@@ -443,82 +497,25 @@ proc twapi::ssl::_negotiate2 {chan} {
                         return
                     }
                 } else {
-                    lassign [sspi_step $SspiContext $data] status output leftover
-                    if {[string length $output]} {
-                        chan puts -nonewline $Socket $output
+                    set SspiContext [sspi_server_context $Credentials $data -stream 1]
+                    dict set _channels($chan) SspiContext $SspiContext
+                    lassign [sspi_step $SspiContext] status outdata leftover
+                    if {[string length $outdata]} {
+                        chan puts -nonewline $Socket $outdata
                         chan flush $Socket
                     }
                     switch $status {
                         done {
-                            set State OPEN
                             if {[string length $leftover]} {
-                                set Input [sspi_decrypt_stream $SspiContext $leftover]
+                                dict append _channels($chan) Input [sspi_decrypt_stream $SspiContext $leftover]
                             }
+                            _open $chan
                         }
                         continue {
                             # Keep waiting for next input
                         }
                         default {
                             error "Unexpected status $status from sspi_step"
-                        }
-                    }
-                }
-            }
-        }
-
-        CLIENTINIT {
-            if {[dict get $_channels($chan) Blocking]} {
-                _client_blocking_negotiate $chan
-            } else {
-                dict with _channels($chan) {
-                    set State NEGOTIATING
-                    set SspiContext [sspi_client_context $Credentials -stream 1 -target $PeerSubject]
-                    lassign [sspi_step $SspiContext] status output
-                    if {[string length $output]} {
-                        chan puts -nonewline $Socket $output
-                        chan flush $Socket
-                    }
-                    if {$status ne "continue"} {
-                        error "Unexpected status $status from sspi_step"
-                    }
-                }
-            }
-        }
-        
-        SERVERINIT {
-            if {[dict get $_channels($chan) Blocking]} {
-                _server_blocking_negotiate $chan
-            } else {
-                dict with _channels($chan) {
-                    set State NEGOTIATING
-                    set data [chan read $Socket]
-                    if {[string length $data] == 0} {
-                        if {[chan eof $Socket]} {
-                            error "Unexpected EOF during SSL negotiation"
-                        } else {
-                            # No data yet, just keep waiting
-                            return
-                        }
-                    } else {
-                        set SspiContext [sspi_server_context $Credentials $data -stream 1]
-                        lassign [sspi_step $SspiContext] status output leftover
-                        if {[string length $output]} {
-                            chan puts -nonewline $Socket $output
-                            chan flush $Socket
-                        }
-                        switch $status {
-                            done {
-                                set State OPEN
-                                if {[string length $leftover]} {
-                                    set Input [sspi_decrypt_stream $SspiContext $leftover]
-                                }
-                            }
-                            continue {
-                                # Keep waiting for next input
-                            }
-                            default {
-                                error "Unexpected status $status from sspi_step"
-                            }
                         }
                     }
                 }
@@ -537,59 +534,58 @@ proc twapi::ssl::_client_blocking_negotiate {chan} {
     variable _channels
     dict with _channels($chan) {
         set State NEGOTIATING
-        set SspiContext [sspi_client_context $Credentials -stream 1 -target $PeerSubject]
+        set SspiContext [sspi_client_context $Credentials -stream 1 -target $PeerSubject -manualvalidation [expr {[llength $Verifier] > 0}]]
     }
     return [_blocking_negotiate_loop $chan]
 }
 
 proc twapi::ssl::_server_blocking_negotiate {chan} {
     variable _channels
-    dict with _channels($chan) {
-        set State NEGOTIATING
-        set input [_blocking_read $Socket]
-        if {[chan eof $Socket]} {
-            error "Unexpected EOF during SSL negotiation."
-        }
-
-        set SspiContext [sspi_server_context $Credentials $input -stream 1]
+    dict set _channels($chan) State NEGOTIATING
+    set so [dict get $_channels($chan) Socket]
+    set indata [_blocking_read $so]
+    if {[chan eof $so]} {
+        error "Unexpected EOF during SSL negotiation."
     }
+    dict set _channels($chan) SspiContext [sspi_server_context [dict get $_channels($chan) Credentials] $indata -stream 1]
     return [_blocking_negotiate_loop $chan]
 }
 
 proc twapi::ssl::_blocking_negotiate_loop {chan} {
     variable _channels
-    dict with _channels($chan) {
-        lassign [sspi_step $SspiContext] status output
-        # Keep looping as long as the SSPI state machine tells us to 
-        while {$status eq "continue"} {
-            # If the previous step had any output, send it out
-            if {[string length $output]} {
-                chan puts -nonewline $Socket $output
-                chan flush $Socket
-            }
+    dict with _channels($chan) {}; # dict -> local vars
 
-            set input [_blocking_read $Socket]
-            if {[chan eof $Socket]} {
-                error "Unexpected EOF during SSL negotiation."
-            }
-            lassign [sspi_step $SspiContext $input] status output leftover
-        }
-        # Send output irrespective of status
-        if {[string length $output]} {
-            chan puts -nonewline $Socket $output
+    lassign [sspi_step $SspiContext] status outdata
+    # Keep looping as long as the SSPI state machine tells us to 
+    while {$status eq "continue"} {
+        # If the previous step had any output, send it out
+        if {[string length $outdata]} {
+            chan puts -nonewline $Socket $outdata
             chan flush $Socket
         }
 
-        if {$status eq "done"} {
-            set State OPEN
-            if {[string length $leftover]} {
-                set Input [sspi_decrypt_stream $SspiContext $leftover]
-            }
-        } else {
-            # Should not happen. Negotiation failures will raise an error,
-            # not return a value
-            error "SSL negotiation failed: status $status."
+        set indata [_blocking_read $Socket]
+        if {[chan eof $Socket]} {
+            error "Unexpected EOF during SSL negotiation."
         }
+        lassign [sspi_step $SspiContext $indata] status outdata leftover
+    }
+
+    # Send output irrespective of status
+    if {[string length $outdata]} {
+        chan puts -nonewline $Socket $outdata
+        chan flush $Socket
+    }
+
+    if {$status eq "done"} {
+        if {[string length $leftover]} {
+            dict append _channels($chan) Input [sspi_decrypt_stream $SspiContext $leftover]
+        }
+        _open $chan
+    } else {
+        # Should not happen. Negotiation failures will raise an error,
+        # not return a value
+        error "SSL negotiation failed: status $status."
     }
     return
 }
@@ -607,6 +603,35 @@ proc twapi::ssl::_blocking_read {so} {
     return $input
 }
 
+proc twapi::ssl::_open {chan} {
+    variable _channels
+
+    dict with _channels($chan) {}; # dict -> local vars
+
+    if {[llength $Verifier] == 0} {
+        # No verifier specified. In this case, we would not have specified
+        # -manualvalidation in creating the context and the system would
+        # have done the verification already for client. For servers,
+        # there is no verification of clients to be done by default
+
+        # TBD - what about server accept callback ?
+        dict set _channels($chan) State OPEN
+        return 1
+    }
+
+    trap {
+        if {[{*}$Verifier $SspiContext]} {
+            dict set _channels($chan) State OPEN
+            return 1
+        }
+    } onerror {} {
+        # TBD - debug log
+    }
+
+    dict set _channels($chan) State CLOSED
+    catch {close $Socket}
+    return 0
+}
 
 namespace eval twapi::ssl {
     namespace export initialize finalize blocking watch read write configure cget cgetall
