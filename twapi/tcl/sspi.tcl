@@ -140,6 +140,8 @@ proc twapi::sspi_schannel_credentials args {
         {ignoreerrorrevocationoffline.bool 0 0x1000}
         {ignoreerrornorevocationcheck.bool 0 0x800}
         {validateservercert.bool 1}
+        cipherstrength.arg
+        {protocols.arg any}
     } -setvars -nulldefault -maxleftover 0
 
     set flags [expr {$disablereconnects | $ignoreerrornorevocationcheck | $ignoreerrorrevocationoffline}]
@@ -158,8 +160,33 @@ proc twapi::sspi_schannel_credentials args {
         incr flags 0x10;         # SCH_CRED_NO_DEFAULT_CREDS 
     }
 
+    set protbits 0
+    foreach prot $protocols {
+        if {$prot eq "any"} {
+            set protbits 0;     # Override others
+            break
+        }
+        set protbits [expr {
+                            $protbits | [dict! {
+                                ssl2 0xc ssl3 0x30 tls1 0xc0 tls1.1 0x300 tls1.2 0xc00
+                            } $prot]
+                        }]
+    }
+
+    switch [llength $cipherstrength] {
+        0 { set minbits 0 ; set maxbits 0 }
+        1 { set minbits [lindex $cipherstrength 0] ; set maxbits $minbits }
+        2 {
+            set minbits [lindex $cipherstrength 0]
+            set maxbits [lindex $cipherstrength 1]
+        }
+        default {
+            error "Invalid value '$cipherstrength' for option -cipherstrength"
+        }
+    }
+
     # 4 -> SCHANNEL_CRED_VERSION
-    return [list 4 $certificates $rootstore {} {} 0 0 0 $sessionlifespan $flags 0]
+    return [list 4 $certificates $rootstore {} {} $protbits $minbits $maxbits $sessionlifespan $flags 0]
 }
 
 proc twapi::sspi_winnt_identity_credentials {user domain password} {
@@ -483,6 +510,11 @@ proc twapi::sspi_remote_cert {ctx} {
 # TBD - document
 proc twapi::sspi_local_cert {ctx} {
     return [QueryContextAttributes [_sspi_context_handle $ctx] 0x54]
+}
+
+# TBD - document
+proc twapi::sspi_issuers_accepted_by_peer {ctx} {
+    return [QueryContextAttributes [_sspi_context_handle $ctx] 0x59]
 }
 
 # Returns a signature
