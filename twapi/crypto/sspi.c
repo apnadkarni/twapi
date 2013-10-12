@@ -247,7 +247,7 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
                        GETVAR(credential, ObjToSecHandle),
                        GETVAR(contextP, ObjToSecHandle_NULL),
-                       GETWSTR(targetP),
+                       GETEMPTYASNULL(targetP),
                        GETINT(contextreq),
                        GETINT(reserved1),
                        GETINT(targetdatarep),
