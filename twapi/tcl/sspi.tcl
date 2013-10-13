@@ -601,6 +601,7 @@ proc twapi::sspi_encrypt_stream_output {ctx data chan args} {
 
 
 # Decrypts a message
+# TBD - why does this not return a status like sspi_decrypt_stream ?
 proc twapi::sspi_decrypt {ctx sig data padding args} {
     variable _sspi_state
     _sspi_validate_handle $ctx
@@ -653,6 +654,9 @@ proc twapi::sspi_decrypt_stream {ctx data} {
     }
 
     dict set _sspi_state($ctx) Input $extra
+    if {$status eq "incomplete_message"} {
+        set status ok
+    }
     return [list $status [join $plaintext ""]]
 }
 
