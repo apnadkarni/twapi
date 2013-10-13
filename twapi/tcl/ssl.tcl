@@ -171,59 +171,67 @@ proc twapi::ssl::read {chan nbytes} {
             # We already have enough decrypted bytes
             # TBD - see if return [lindex [list [string range $Input 0 $nbytes-1] [set Input [string range $Input $nbytes end]]] 0]
             # is significantly faster (inline K operator)
-
-            set ret [string range $Input 0 $nbytes-1]
-            set Input [string range $Input $nbytes end]
-            return $ret
-        }
-
-        if {$State eq "OPEN"} {
+            set status ok
+        } elseif {$State eq "OPEN"} {
             if {$Blocking} {
                 # The channel does not compress so we need to read in
                 # at least $needed bytes. Because of SSL overhead, we may actually
                 # need even more
+                set status ok
                 while {[set ninput [string length $Input]] < $nbytes} {
                     set needed [expr {$nbytes-$ninput}]
                     set data [chan read $Socket $needed]
                     if {[string length $data]} {
-                        append Input [sspi_decrypt_stream $SspiContext $data]
+                        lassign [sspi_decrypt_stream $SspiContext $data] status plaintext
+                        append Input $plaintext
+                        if {$status ne "ok"} break
                     }
                     
                     if {[string length $data] < $needed} {
-                        set State CLOSED
+                        set status eof
                         break
                     }
                 }
-                set ret [string range $Input 0 $nbytes-1]
-                set Input [string range $Input $nbytes end]
-                return $ret
             } else {
                 # Non-blocking - read all that we can
+                set status ok
                 set data [chan read $Socket]
                 if {[string length $data]} {
-                    append Input [sspi_decrypt_stream $SspiContext $data]
+                    lassign [sspi_decrypt_stream $SspiContext $data] status plaintext
+                    append Input $plaintext
+                } else {
+                    if {[chan eof $Socket]} {
+                        set status eof
+                    }
                 }
-                if {[string length $Input]} {
-                    # Return whatever we have (may be less than $nbytes)
-                    set ret [string range $Input 0 $nbytes-1]
-                    set Input [string range $Input $nbytes end]
-                    return $ret
+                if {[string length $Input] == 0} {
+                    # Do not have enough data. See if connection closed
+                    # TBD - also handle status == renegotiate
+                    if {$status eq "ok"} {
+                        # Not closed, just waiting for data
+                        return -code error EAGAIN
+                    }
                 }
-
-                # Do not have enough data. See if connection closed
-                if {[chan eof $Socket]} {
-                    set State CLOSED
-                    return "";          # EOF
-                }
-                # Not closed, just waiting for data
-                return -code error EAGAIN
             }
-        } elseif {$State eq "CLOSED"} {
-            # Return whatever we have (less than $nbytes)
-            return $Input[set Input ""]
         }
-    }
 
+        # TBD - use inline K operator to make this faster? Probably no use
+        # since Input is also referred to from _channels($chan)
+        set ret [string range $Input 0 $nbytes-1]
+        set Input [string range $Input $nbytes end]
+        if {"read" in [dict get $_channels($chan) WatchMask] && [string length $Input]} {
+            chan postevent $chan read
+        }
+        if {$status ne "ok"} {
+            # TBD - handle renegotiate
+            lassign [sspi_shutdown_context $SspiContext] _ outdata
+            if {[string length $outdata]} {
+                puts -nonewline $Socket $outdata
+            }
+            set State CLOSED
+        }
+        return $ret;            # Note ret may be ""
+    }
 }
 
 proc twapi::ssl::write {chan data} {
@@ -235,10 +243,11 @@ proc twapi::ssl::write {chan data} {
         if {[dict get $_channels($chan) State] in {SERVERINIT CLIENTINIT NEGOTIATING}} {
             # If a blocking channel, should have come back with negotiation
             # complete. If non-blocking, return EAGAIN to indicate channel
-            # not open yet
+            # not open yet.
             if {[dict get $_channels($chan) Blocking]} {
                 error "SSL negotiation failed on blocking channel" 
             } else {
+                # TBD - should we just accept the data ?
                 return -code error EAGAIN
             }
         }
@@ -340,15 +349,22 @@ proc twapi::ssl::_cleanup {chan} {
         # Note _cleanup can be called in inconsistent state so not all
         # keys may be set up
         dict with _channels($chan) {
+            if {[info exists SspiContext]} {
+                if {$State eq "OPEN"} {
+                    lassign [sspi_shutdown_context $SspiContext] _ outdata
+                    if {[string length $outdata] && [info exists Socket]} {
+                        if {[catch {puts -nonewline $Socket $outdata} msg]} {
+                            # TBD - debug log
+                        }
+                    }
+                }
+                if {[catch {sspi_delete_context $SspiContext} msg]} {
+                    # TBD - debug log
+                }
+            }
             if {[info exists Socket]} {
                 if {[catch {chan close $Socket} msg]} {
                     # TBD - debug log socket close error
-                }
-            }
-            if {[info exists SspiContext]} {
-                # TBD - call sspi_shutdown_context first ?
-                if {[catch {sspi_delete_context $SspiContext} msg]} {
-                    # TBD - debug log
                 }
             }
             if {[info exists Credentials] && $FreeCredentials} {
@@ -370,9 +386,7 @@ proc twapi::ssl::_so_read_handler {chan} {
         }
 
         if {"read" in [dict get $_channels($chan) WatchMask]} {
-            if {[string length [dict get $_channels($chan) Input]]} {
-                chan postevent $chan read
-            }
+            chan postevent $chan read
         } else {
             # We are not asked to generate read events, turn off the read
             # event handler unless we are negotiating
@@ -451,7 +465,11 @@ proc twapi::ssl::_negotiate2 {chan} {
                 switch $status {
                     done {
                         if {[string length $leftover]} {
-                            dict append _channels($chan) Input [sspi_decrypt_stream $SspiContext $leftover]
+                            lassign [sspi_decrypt_stream $SspiContext $leftover] status plaintext
+                            dict append _channels($chan) Input $plaintext
+                            if {$status ne "ok"} {
+                                # TBD - shutdown channel or let _cleanup do it?
+                            }
                         }
                         _open $chan
                     }
@@ -507,7 +525,11 @@ proc twapi::ssl::_negotiate2 {chan} {
                     switch $status {
                         done {
                             if {[string length $leftover]} {
-                                dict append _channels($chan) Input [sspi_decrypt_stream $SspiContext $leftover]
+                                lassign [sspi_decrypt_stream $SspiContext $leftover] status plaintext
+                                dict append _channels($chan) Input $plaintext
+                                if {$status ne "ok"} {
+                                    # TBD - shut down channel
+                                }
                             }
                             _open $chan
                         }
@@ -579,7 +601,11 @@ proc twapi::ssl::_blocking_negotiate_loop {chan} {
 
     if {$status eq "done"} {
         if {[string length $leftover]} {
-            dict append _channels($chan) Input [sspi_decrypt_stream $SspiContext $leftover]
+            lassign [sspi_decrypt_stream $SspiContext $leftover] status plaintext
+            dict append _channels($chan) Input $plaintext
+            if {$status ne "ok"} {
+                # TBD - shut down channel
+            }
         }
         _open $chan
     } else {
