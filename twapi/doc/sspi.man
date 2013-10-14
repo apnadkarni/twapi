@@ -414,10 +414,31 @@ corresponds to a key exchange method supported by the application.
 On the client end, this need not be specified in which case
 the provider will find an appropriate
 certificate if needed.
+[opt_def [cmd -cipherstrength] [arg CIPHERSTRENGTH]]
+Specifies the strength of the block ciphers to be used in connections
+using the returned credentials. [arg CIPHERSTRENGTH] is list of
+one or two elements. The first element is the minimum number of 
+bits required in the negotiated encryption key. The second element
+is the maximum number of bits in the key and defaults to the minimum
+number of bits if the list contains only one element. A value of [const 0]
+indicates a system-specific default to be used. A value of [const -1]
+indicates a null cipher (no encryption but with message authentication).
+This should be used only for debugging purposes.
+[opt_def [cmd -protocols] [arg PROTOCOLLIST]]
+Specifies the protocols that are acceptable for a connection using
+the returned credentials. [arg PROTOCOLLIST] is a list of one or more
+of the following: [const ssl2], [const ssl3], [const tls1], [const tls1.1] 
+and [const tls1.2].
+If unspecified, or if [arg PROTOCOLLIST] is an empty list, 
+defaults to the list of protocols configured in the system registry.
 [opt_def [cmd -rootstore] [arg HSTORE]]
 Specifies a handle to an additional certificate root store that contains
 root certificates to authenticate incoming client connections. This
 is only used by server applications which need to authenticate clients.
+[opt_def [cmd -sessionlifespan] [arg MILLISECS]]
+Specifies the number of milliseconds that a Schannel session should be cached.
+New connections after this time will require a new session. A value
+of [const 0] (default) indicates the system-specific default is to be used.
 [list_end]
 
 [call [cmd sspi_step] [arg CONTEXT] [opt [arg RESPONSE]]]
