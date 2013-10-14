@@ -87,6 +87,7 @@ proc twapi::ssl::_accept {listener so raddr raport} {
     trap {
         set chan [chan create {read write} [list [namespace current]]]
         _init $chan SERVER $so [dict get $_channels($listener) Credentials] "" [dict get $_channels($listener) Verifier]
+        # TBD - should we call this AFTER verification / negotiation is done?
         {*}[dict get $_channels($listener) AcceptCallback] $chan $raddr $raport
     } onerror {} {
         catch {_cleanup $chan}
@@ -167,12 +168,9 @@ proc twapi::ssl::read {chan nbytes} {
     }
 
     dict with _channels($chan) {
-        if {[string length $Input] >= $nbytes} {
-            # We already have enough decrypted bytes
-            # TBD - see if return [lindex [list [string range $Input 0 $nbytes-1] [set Input [string range $Input $nbytes end]]] 0]
-            # is significantly faster (inline K operator)
-            set status ok
-        } elseif {$State eq "OPEN"} {
+        # Try to read more bytes if don't have enough AND conn is open
+        set status ok
+        if {[string length $Input] < $nbytes && $State eq "OPEN"} {
             if {$Blocking} {
                 # The channel does not compress so we need to read in
                 # at least $needed bytes. Because of SSL overhead, we may actually

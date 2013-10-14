@@ -1471,6 +1471,8 @@ tcltest::customMatch set setops::equal
 # Utility proc to generate three certs in a memory store - 
 # one self signed which is used to sign a client and a server cert
 proc make_test_certs {} {
+    crypt_test_container_cleanup
+
     # Create the self signed CA cert
     set ca(csp) {Microsoft Strong Cryptographic Provider}
     set ca(csptype) prov_rsa_full
