@@ -141,7 +141,7 @@ proc twapi::sspi_schannel_credentials args {
         {ignoreerrornorevocationcheck.bool 0 0x800}
         {validateservercert.bool 1}
         cipherstrength.arg
-        {protocols.arg any}
+        protocols.arg
     } -setvars -nulldefault -maxleftover 0
 
     set flags [expr {$disablereconnects | $ignoreerrornorevocationcheck | $ignoreerrorrevocationoffline}]
@@ -162,10 +162,6 @@ proc twapi::sspi_schannel_credentials args {
 
     set protbits 0
     foreach prot $protocols {
-        if {$prot eq "any"} {
-            set protbits 0;     # Override others
-            break
-        }
         set protbits [expr {
                             $protbits | [dict! {
                                 ssl2 0xc ssl3 0x30 tls1 0xc0 tls1.1 0x300 tls1.2 0xc00
@@ -278,7 +274,7 @@ proc twapi::sspi_delete_context {ctx} {
     variable _sspi_state
     set h [_sspi_context_handle $ctx]
     if {[llength $h]} {
-        DeleteSecurityContext 
+        DeleteSecurityContext $h
     }
     unset _sspi_state($ctx)
 }
