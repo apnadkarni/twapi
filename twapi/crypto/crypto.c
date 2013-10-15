@@ -1628,12 +1628,13 @@ static int Twapi_CertOpenStore(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv
 static TCL_RESULT Twapi_PFXExportCertStoreEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HCERTSTORE hstore;
-    LPWSTR password;
+    LPWSTR password = NULL;
     int password_len;
     Tcl_Obj *objP;
     CRYPT_DATA_BLOB blob;
     BOOL status;
     int flags;
+    TCL_RESULT res;
     
     if (TwapiGetArgs(interp, objc, objv,
                      GETVERIFIEDPTR(hstore, HCERTSTORE, CertCloseStore),
@@ -1645,30 +1646,36 @@ static TCL_RESULT Twapi_PFXExportCertStoreEx(Tcl_Interp *interp, int objc, Tcl_O
     if (password == NULL)
         return TCL_ERROR;
     
+    res = TCL_OK;
+
     blob.cbData = 0;
     blob.pbData = NULL;
 
     status = PFXExportCertStoreEx(hstore, &blob, password, NULL, flags);
-    
-    SecureZeroMemory(password, sizeof(WCHAR) * password_len);
-    TwapiFree(password);
-
-    if (!status)
-        return TwapiReturnSystemError(interp);
+    if (!status) {
+        res = TwapiReturnSystemError(interp);
+        goto vamoose;
+    }
 
     if (blob.cbData == 0)
-        return TCL_OK;        /* Nothing to export ? */
+        goto vamoose;
 
     objP = ObjFromByteArray(NULL, blob.cbData);
     blob.pbData = ObjToByteArray(objP, &blob.cbData);
     status = PFXExportCertStoreEx(hstore, &blob, password, NULL, flags);
     if (! status) {
-        TwapiReturnSystemError(interp);
+        res = TwapiReturnSystemError(interp);
         ObjDecrRefs(objP);
-        return TCL_ERROR;
+        goto vamoose;
     }
     ObjSetResult(interp, objP);
-    return TCL_OK;
+
+vamoose:
+    if (password) {
+        SecureZeroMemory(password, sizeof(WCHAR) * password_len);
+        TwapiFree(password);
+    }
+    return res;
 }
 
 
@@ -2627,6 +2634,8 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.value.chars.len = -1;
         break;
 
+        // case 10041 is above
+
     case 10042: // CertDuplicateStore
         if (TwapiGetArgs(interp, objc, objv,
                          GETVERIFIEDPTR(pv, HCERTSTORE, CertCloseStore),
@@ -2638,6 +2647,25 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         TwapiRegisterCertStorePointer(interp, pv);
         result.value.obj = ObjFromOpaque(pv, "HCERTSTORE");
         result.type = TRT_OBJ;
+        break;
+
+    case 10043: // PFXIsPFXBlob
+        CHECK_NARGS(interp, objc, 1);
+        result.type = TRT_BOOL;
+        blob.pbData = ObjToByteArray(objv[0], &blob.cbData);
+        result.value.bval = PFXIsPFXBlob(&blob);
+        break;
+
+    case 10044: // PFXVerifyPassword
+        CHECK_NARGS(interp, objc, 2);
+        pv = ObjDecryptUnicode(interp, objv[1], &dw);
+        if (pv == NULL)
+            return TCL_ERROR;
+        result.type = TRT_BOOL;
+        blob.pbData = ObjToByteArray(objv[0], &blob.cbData);
+        result.value.bval = PFXVerifyPassword(&blob, pv, 0);
+        SecureZeroMemory(pv, sizeof(WCHAR) * dw);
+        TwapiFree(pv);
         break;
     }
 
@@ -2690,6 +2718,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertAlgIdToOID, 10040),
         DEFINE_FNCODE_CMD(cert_duplicate, 10041),
         DEFINE_FNCODE_CMD(cert_store_duplicate, 10042), // TBD - document
+        DEFINE_FNCODE_CMD(PFXIsPFXBlob, 10043), //TBD - document
+        DEFINE_FNCODE_CMD(PFXVerifyPassword, 10044), // TBD - document
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
