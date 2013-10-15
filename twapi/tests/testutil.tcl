@@ -1468,67 +1468,6 @@ proc setops::equal {A B} {
 tcltest::customMatch set setops::equal
 
 
-# Utility proc to generate three certs in a memory store - 
-# one self signed which is used to sign a client and a server cert
-proc make_test_certs {} {
-    crypt_test_container_cleanup
-
-    # Create the self signed CA cert
-    set ca(csp) {Microsoft Strong Cryptographic Provider}
-    set ca(csptype) prov_rsa_full
-    if {0} {
-        set uuid [twapi::new_uuid]
-    } else {
-        set uuid ""
-    }
-    set ca(container) twapitestca$uuid
-    set ca(subject) $ca(container)
-    set crypt [twapi::crypt_acquire $ca(container) -csp $ca(csp) -csptype $ca(csptype) -create 1]
-    twapi::crypt_key_free [twapi::crypt_key_generate $crypt signature -exportable 1]
-    set cert [twapi::cert_create_self_signed_from_crypt_context "CN=$ca(container)" $crypt -purpose {ca}]
-    set ca(store) [twapi::cert_memory_store_open]
-    set ca(certificate) [twapi::cert_store_add_certificate $ca(store) $cert]
-    twapi::cert_release $cert
-    twapi::cert_set_key_prov $ca(certificate) -csp $ca(csp) -keycontainer $ca(container) -csptype $ca(csptype)
-    crypt_free $crypt
-
-    # Create the client and server certs
-    foreach role {server client} {
-        set container twapitest${role}$uuid
-        set subject $container
-        set crypt [twapi::crypt_acquire $container -csp $ca(csp) -csptype $ca(csptype) -create 1]
-        twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
-        set encoded_cert [twapi::cert_create "CN=$container" $crypt $ca(certificate) -keyspec keyexchange -purpose [expr {$role eq "server" ? "sslserver" : "sslclient"}]]
-        set certificate [twapi::cert_store_add_encoded_certificate $ca(store) $encoded_cert]
-        twapi::cert_set_key_prov $certificate -csp $ca(csp) -keycontainer $container -csptype $ca(csptype) -keyspec keyexchange
-        crypt_free $crypt
-        cert_release $certificate
-    }
-
-    cert_release $ca(certificate)
-    return $ca(store)
-}
-
-proc crypt_test_containers {} {
-    set crypt [crypt_acquire "" -verifycontext 1]
-    twapi::trap {
-        set names {}
-        foreach name [crypt_key_container_names $crypt] {
-            if {[string match twapitest* $name]} {
-                lappend names $name
-            }
-        }
-    } finally {
-        crypt_free $crypt
-    }
-    return $names
-}
-
-proc crypt_test_container_cleanup {} {
-    foreach c [crypt_test_containers] {
-        crypt_key_container_delete $c
-    }
-}
 
 # If this is the first argument to the shell and there are more arguments
 # execute them
