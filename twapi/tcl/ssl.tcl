@@ -171,22 +171,23 @@ proc twapi::ssl::read {chan nbytes} {
         set status ok
         if {[string length $Input] < $nbytes && $State eq "OPEN"} {
             if {$Blocking} {
-                # The channel does not compress so we need to read in
-                # at least $needed bytes. Because of SSL overhead, we may actually
-                # need even more
-                set status ok
-                while {[set ninput [string length $Input]] < $nbytes} {
-                    set needed [expr {$nbytes-$ninput}]
-                    set data [chan read $Socket $needed]
+                # For blocking channels, we do not want to block if some
+                # bytes are already available. The refchan will call us
+                # with number of bytes corresponding to its buffer size,
+                # not what app's read call has asked. It expects us
+                # to return whatever we have (but at least one byte)
+                # and block only if nothing is available
+                if {[string length $Input] == 0} {
+                    # The channel does not compress so we need to read in
+                    # at least $needed bytes. Because of SSL overhead, we may
+                    # actually need even more
+                    set status ok
+                    set data [_blocking_read $Socket]
                     if {[string length $data]} {
                         lassign [sspi_decrypt_stream $SspiContext $data] status plaintext
                         append Input $plaintext
-                        if {$status ne "ok"} break
-                    }
-                    
-                    if {[string length $data] < $needed} {
+                    } else {
                         set status eof
-                        break
                     }
                 }
             } else {
