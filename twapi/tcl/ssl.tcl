@@ -56,7 +56,6 @@ proc twapi::ssl::_socket {args} {
             set peersubject [lindex $args 0]
         }
         set server ""
-        lappend socket_args -async; # Always async, we will explicitly block
         set type CLIENT
     }
 
@@ -223,7 +222,7 @@ proc twapi::ssl::read {chan nbytes} {
         if {$status ne "ok"} {
             # TBD - handle renegotiate
             lassign [sspi_shutdown_context $SspiContext] _ outdata
-            if {[string length $outdata]} {
+            if {[string length $outdata] && $status ne "eof"} {
                 puts -nonewline $Socket $outdata
             }
             set State CLOSED
@@ -296,9 +295,13 @@ proc twapi::ssl::cget {chan opt} {
 }
 
 proc twapi::ssl::cgetall {chan} {
+    variable _channels
     set so [_chansocket $chan]
-    set config [chan configure $so]
-    lappend config -credentials [dict get $_channels($chan) Credentials]
+    foreach opt {-peername -sockname} {
+        lappend config $opt [chan configure $so $opt]
+    }    
+    lappend config -credentials [dict get $_channels($chan) Credentials] \
+        -verifier [dict get $_channels($chan) Verifier]
     return $config
 }
 
