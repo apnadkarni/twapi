@@ -1466,7 +1466,7 @@ proc twapi::_cert_add_parseargs {vargs} {
 
 # Utility proc to generate three certs in a memory store - 
 # one self signed which is used to sign a client and a server cert
-proc twapi::make_test_certs {} {
+proc twapi::make_test_certs {{hstore {}}} {
     crypt_test_container_cleanup
 
     # Create the self signed CA cert
@@ -1482,8 +1482,10 @@ proc twapi::make_test_certs {} {
     set crypt [twapi::crypt_acquire $ca(container) -csp $ca(csp) -csptype $ca(csptype) -create 1]
     twapi::crypt_key_free [twapi::crypt_key_generate $crypt signature -exportable 1]
     set cert [twapi::cert_create_self_signed_from_crypt_context "CN=$ca(container)" $crypt -purpose {ca}]
-    set ca(store) [twapi::cert_memory_store_open]
-    set ca(certificate) [twapi::cert_store_add_certificate $ca(store) $cert]
+    if {[llength $hstore] == 0} {
+        set hstore [twapi::cert_memory_store_open]
+    }
+    set ca(certificate) [twapi::cert_store_add_certificate $hstore $cert]
     twapi::cert_release $cert
     twapi::cert_set_key_prov $ca(certificate) -csp $ca(csp) -keycontainer $ca(container) -csptype $ca(csptype)
     crypt_free $crypt
@@ -1495,14 +1497,14 @@ proc twapi::make_test_certs {} {
         set crypt [twapi::crypt_acquire $container -csp $ca(csp) -csptype $ca(csptype) -create 1]
         twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
         set encoded_cert [twapi::cert_create "CN=$container" $crypt $ca(certificate) -keyspec keyexchange -purpose [expr {$role eq "server" ? "sslserver" : "sslclient"}]]
-        set certificate [twapi::cert_store_add_encoded_certificate $ca(store) $encoded_cert]
+        set certificate [twapi::cert_store_add_encoded_certificate $hstore $encoded_cert]
         twapi::cert_set_key_prov $certificate -csp $ca(csp) -keycontainer $container -csptype $ca(csptype) -keyspec keyexchange
         crypt_free $crypt
         cert_release $certificate
     }
 
     cert_release $ca(certificate)
-    return $ca(store)
+    return $hstore
 }
 
 proc twapi::crypt_test_containers {} {
