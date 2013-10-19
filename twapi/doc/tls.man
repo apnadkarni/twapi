@@ -1,0 +1,98 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "SSL/TLS API" n ""]
+[copyright "2013 Ashok P. Nadkarni"]
+[moddesc "SSL/TLS API"]
+[titledesc "Secure Sockets Layer and Transport Layer Security Channels"]
+[require twapi_crypto]
+[description]
+[para]
+
+[emph "This module is still experimental and liable to change."]
+
+[para]
+This package provides a Tcl channel facility that implements 
+the Secure Sockets Layer / Transport Layer Security on top
+of the Windows Security Service
+Provider Interface (SSPI) interface.
+
+[section "SSL/TLS channels"]
+
+The module implements a single command,
+[uri #ssl_socket [cmd ssl_socket]], that implements a SSL/TLS
+based channel which can be used with all Tcl channel based commands like
+[cmd puts], [cmd read], [cmd chan].
+
+[section Commands]
+
+[list_begin definitions]
+
+[call [cmd ssl_socket] [opt [arg options]] [arg REMOTEADDR] [arg PORT]]
+[call [cmd ssl_socket] [cmd -server] [arg SERVERCALLBACK] [opt [arg options]] [arg PORT]]
+The [cmd ssl_socket] command provides the same interface as the Tcl
+[cmd socket] command except that the connection runs over TLS or SSL.
+[nl]
+The first form is used by client-side applications to connect to a remote
+server running on port [arg PORT] at address [arg REMOTEADDR]. The latter
+form is used by server-side applications to listen for incoming connections
+on port [arg PORT].
+[nl]
+The command options include [cmd -server], [cmd -myaddr], [cmd -myport]
+and [cmd -async]. Please refer to the Tcl documentation of the [cmd socket]
+command for the use of these options.
+[nl]
+The [cmd ssl_socket] command supports the following additional options:
+
+[list_begin opt]
+
+[opt_def [cmd -credentials] [arg CREDENTIALS]]
+Specifies the credentials to be used for the connection.
+[arg CREDENTIALS] should be credentials returned from a call to
+[uri #sspi_acquire_credentials [cmd sspi_acquire_credentials]] using
+the [cmd "-package ssl"] option. For client-side connections, this option
+only needs to be specified when connecting to servers that require
+clients to be authenticated. For server-side connections, this option
+is usually required for the connection to complete as most remote clients
+will require validation of server certificates.
+[opt_def [cmd -peersubject] [arg PEERNAME]]
+Specifies the subject name to be verified on the remote certificate.
+Only used for client-side connections to verify the name in the
+certificate returned by the remote server. If unspecified, defaults
+to [arg REMOTEADDR]. This option is silently ignored for server-side
+connections.
+[opt_def [cmd -verifier] [arg VERIFYCOMMAND]]
+Specifies a callback to invoke to verify remote credentials. 
+The [arg VERIFYCOMMAND] command prefix is invoked with two additional
+parameters - the channel and a handle to the
+[uri sspi.html "security context"] for the connection. If the command
+returns a [const true] value, the connection is completed. For any other
+values or errors, the connection is aborted. The callback can
+retrieve the remote certificate from the passed
+security context with the 
+[uri sspi.html#sspi_remote_cert [cmd sspi_remote_cert]] command
+and use [uri crypto.html#cert_tls_verify [cmd cert_tls_verify]]
+to validate it.
+[nl]
+For client-side
+connections, if this option is specified and is not empty, automatic
+verification of the server certificate is not done. For server-side
+connections, automatic verification of client certificates is never
+done and must be done through this callback.
+[list_end]
+The channel returned by [cmd ssl_socket] may be used with any
+of the Tcl channel commands and supports all channel and socket configuration
+options. In addition, the following read-only configuration options
+are supported:
+[list_begin opt]
+[opt_def [cmd -credentials]]
+Returns the handle to the local credentials for the channel.
+[opt_def [cmd -context]]
+Returns the handle to the security context for the channel.
+[opt_def [cmd -verifier]]
+Returns the verification callback for the channel.
+[list_end]
+
+[list_end]
+
+[keywords SSL TLS encryption decryption SSPI schannel]
+
+[manpage_end]

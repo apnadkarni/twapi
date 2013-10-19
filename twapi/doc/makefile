@@ -55,6 +55,7 @@ MANFILES= \
 	apputil.man \
 	crypto.man \
 	sspi.man \
+	tls.man \
 	console.man \
 	winsta.man \
 	schedule.man \
