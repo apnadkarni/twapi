@@ -281,7 +281,6 @@ proc twapi::sspi_delete_context {ctx} {
 
 # Shuts down a security context in orderly fashion
 # Caller should start sspi_step
-# TBD - document
 proc twapi::sspi_shutdown_context {ctx} {
     variable _sspi_state
 
@@ -498,17 +497,14 @@ proc twapi::sspi_context_sizes {ctx} {
     return [twine {-maxtoken -maxsig -blocksize -trailersize} $sizes]
 }
 
-# TBD - document
 proc twapi::sspi_remote_cert {ctx} {
     return [QueryContextAttributes [_sspi_context_handle $ctx] 0x53]
 }
 
-# TBD - document
 proc twapi::sspi_local_cert {ctx} {
     return [QueryContextAttributes [_sspi_context_handle $ctx] 0x54]
 }
 
-# TBD - document
 proc twapi::sspi_issuers_accepted_by_peer {ctx} {
     return [QueryContextAttributes [_sspi_context_handle $ctx] 0x59]
 }
@@ -542,6 +538,7 @@ proc twapi::sspi_verify_signature {ctx sig data args} {
 
 # Encrypts a data as per a context
 # Returns {securitytrailer encrypteddata padding}
+# TBD - docment options
 proc twapi::sspi_encrypt {ctx data args} {
     parseargs args {
         {seqnum.int 0}
@@ -560,6 +557,7 @@ proc twapi::sspi_encrypt_stream {ctx data args} {
     
     set h [_sspi_context_handle $ctx]
 
+    # TBD - docment options
     parseargs args {
         {qop.int 0}
     } -maxleftover 0 -setvars
@@ -573,9 +571,8 @@ proc twapi::sspi_encrypt_stream {ctx data args} {
     return [join $enc ""]
 }
 
-# TBD - document
 # chan must be in binary mode
-proc twapi::sspi_encrypt_stream_output {ctx data chan args} {
+proc twapi::sspi_encrypt_and_write {ctx data chan args} {
     variable _sspi_state
     
     set h [_sspi_context_handle $ctx]
@@ -602,6 +599,7 @@ proc twapi::sspi_decrypt {ctx sig data padding args} {
     variable _sspi_state
     _sspi_validate_handle $ctx
 
+    # TBD - document options
     parseargs args {
         {seqnum.int 0}
     } -maxleftover 0 -setvars
@@ -643,6 +641,7 @@ proc twapi::sspi_decrypt_stream {ctx data} {
     lassign [DecryptStream $hctx [dict get $_sspi_state($ctx) Input] $data] status decrypted extra
     lappend plaintext $decrypted
     
+    # TBD - handle renegotiate status
     while {$status eq "ok" && [string length $extra]} {
         # See if additional data and loop again
         lassign [DecryptStream $hctx $extra] status decrypted extra
@@ -762,4 +761,14 @@ if {0} {
     sspi_decrypt_stream $sctx ""
     set out [sspi_encrypt_stream $sctx "This is a testx"]
     sspi_decrypt_stream $cctx $out
+
+    proc 'ccred {} {
+        set store [cert_system_store_open twapitest user]
+        set ccert [cert_store_find_certificate $store subject_substring twapitestclient]
+        set ccred [sspi_acquire_credentials -package ssl -role client -credentials [sspi_schannel_credentials -certificates [list $ccert]]]
+        cert_store_release $store
+        cert_release $ccert
+        return $ccred
+    }
+
 }

@@ -490,7 +490,7 @@ proc twapi::cert_create {subject hprov cissuer args} {
     }
 }
 
-proc twapi::cert_ssl_verify {hcert args} {
+proc twapi::cert_tls_verify {hcert args} {
 
     parseargs args {
         {ignoreerrors.arg {}}
@@ -1532,6 +1532,6 @@ proc twapi::crypt_test_container_cleanup {} {
 # If we are being sourced ourselves, then we need to source the remaining files.
 if {[file tail [info script]] eq "crypto.tcl"} {
     source [file join [file dirname [info script]] sspi.tcl]
-    source [file join [file dirname [info script]] ssl.tcl]
+    source [file join [file dirname [info script]] tls.tcl]
 }
 

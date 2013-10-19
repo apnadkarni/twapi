@@ -1,4 +1,4 @@
-namespace eval twapi::ssl {
+namespace eval twapi::tls {
     # Each element of _channels is dictionary with the following keys
     #  Socket - the underlying socket
     #  State - SERVERINIT, CLIENTINIT, LISTENERINIT, OPEN, NEGOTIATING, CLOSED
@@ -19,8 +19,8 @@ namespace eval twapi::ssl {
     namespace path [linsert [namespace path] 0 [namespace parent]]
 }
 
-interp alias {} twapi::ssl_socket {} twapi::ssl::_socket
-proc twapi::ssl::_socket {args} {
+interp alias {} twapi::tls_socket {} twapi::tls::_socket
+proc twapi::tls::_socket {args} {
 
     parseargs args {
         myaddr.arg
@@ -80,7 +80,7 @@ proc twapi::ssl::_socket {args} {
 }
 
 
-proc twapi::ssl::_accept {listener so raddr raport} {
+proc twapi::tls::_accept {listener so raddr raport} {
     variable _channels
 
     trap {
@@ -95,24 +95,24 @@ proc twapi::ssl::_accept {listener so raddr raport} {
     return
 }
 
-proc twapi::ssl::initialize {chan mode} {
+proc twapi::tls::initialize {chan mode} {
     # All init is done in chan creation routine after base socket is created
     return {initialize finalize watch blocking read write configure cget cgetall}
 }
 
-proc twapi::ssl::finalize {chan} {
+proc twapi::tls::finalize {chan} {
     _cleanup $chan
     return
 }
 
-proc twapi::ssl::blocking {chan mode} {
+proc twapi::tls::blocking {chan mode} {
     variable _channels
 
     dict with _channels($chan) {
         set Blocking $mode
         chan configure $Socket -blocking $mode
         if {$mode == 0} {
-            # Since we need to negotiate SSL we always have socket event
+            # Since we need to negotiate TLS we always have socket event
             # handlers irrespective of the state of the watch mask
             chan event $Socket readable [list [namespace current]::_so_read_handler $chan]
             chan event $Socket writable [list [namespace current]::_so_write_handler $chan]
@@ -124,7 +124,7 @@ proc twapi::ssl::blocking {chan mode} {
     return
 }
 
-proc twapi::ssl::watch {chan watchmask} {
+proc twapi::tls::watch {chan watchmask} {
     variable _channels
     dict with _channels($chan) {
         set WatchMask $watchmask
@@ -144,7 +144,7 @@ proc twapi::ssl::watch {chan watchmask} {
     return
 }
 
-proc twapi::ssl::read {chan nbytes} {
+proc twapi::tls::read {chan nbytes} {
     variable _channels
 
     if {$nbytes == 0} {
@@ -159,7 +159,7 @@ proc twapi::ssl::read {chan nbytes} {
             # complete. If non-blocking, return EAGAIN to indicate no
             # data yet
             if {[dict get $_channels($chan) Blocking]} {
-                error "SSL negotiation failed on blocking channel" 
+                error "TLS negotiation failed on blocking channel" 
             } else {
                 return -code error EAGAIN
             }
@@ -177,14 +177,16 @@ proc twapi::ssl::read {chan nbytes} {
                 # not what app's read call has asked. It expects us
                 # to return whatever we have (but at least one byte)
                 # and block only if nothing is available
-                if {[string length $Input] == 0} {
+                while {[string length $Input] == 0 && $status eq "ok"} {
                     # The channel does not compress so we need to read in
-                    # at least $needed bytes. Because of SSL overhead, we may
+                    # at least $needed bytes. Because of TLS overhead, we may
                     # actually need even more
                     set status ok
                     set data [_blocking_read $Socket]
                     if {[string length $data]} {
                         lassign [sspi_decrypt_stream $SspiContext $data] status plaintext
+                        # Note plaintext might be "" if complete cipher block
+                        # was not received
                         append Input $plaintext
                     } else {
                         set status eof
@@ -232,7 +234,7 @@ proc twapi::ssl::read {chan nbytes} {
     }
 }
 
-proc twapi::ssl::write {chan data} {
+proc twapi::tls::write {chan data} {
     variable _channels
 
     # This is not inside the dict with because _negotiate will update the dict
@@ -243,7 +245,7 @@ proc twapi::ssl::write {chan data} {
             # complete. If non-blocking, return EAGAIN to indicate channel
             # not open yet.
             if {[dict get $_channels($chan) Blocking]} {
-                error "SSL negotiation failed on blocking channel" 
+                error "TLS negotiation failed on blocking channel" 
             } else {
                 # TBD - should we just accept the data ?
                 return -code error EAGAIN
@@ -259,6 +261,7 @@ proc twapi::ssl::write {chan data} {
             OPEN {
                 # There might be pending output if channel has just
                 # transitioned to OPEN state
+                # TBD - use sspi_encrypt_and_write instead
                 if {[string length $Output]} {
                     chan puts -nonewline $Socket [sspi_encrypt_stream $SspiContext $Output]
                     set Output ""
@@ -274,39 +277,54 @@ proc twapi::ssl::write {chan data} {
     return [string length $data]
 }
 
-proc twapi::ssl::configure {chan opt val} {
-    if {$opt eq "-credentials"} {
-        error "Option -credentials is read-only."
+proc twapi::tls::configure {chan opt val} {
+    # Does not make sense to change creds and verifier after creation
+    switch $opt {
+        -context -
+        -verifier -
+        -credentials {
+            error "Option -credentials is read-only."
+        }
+        default {
+            chan configure [_chansocket $chan] $opt $val
+        }
     }
 
-    chan configure [_chansocket $chan] $opt $val
     return
 }
 
-proc twapi::ssl::cget {chan opt} {
+proc twapi::tls::cget {chan opt} {
     variable _channels
 
-    set so [_chansocket $chan]
-
-    if {$opt eq "-credentials"} {
-        return [dict get $_channels($chan) Credentials]
+    switch $opt {
+        -credentials {
+            return [dict get $_channels($chan) Credentials]
+        }
+        -verifier {
+            return [dict get $_channels($chan) Verifier]
+        }
+        -context {
+            return [dict get $_channels($chan) SspiContext]
+        }
+        default {
+            return [chan configure [_chansocket $chan] $opt]
+        }
     }
-
-    return [chan configure $so $opt]
 }
 
-proc twapi::ssl::cgetall {chan} {
+proc twapi::tls::cgetall {chan} {
     variable _channels
     set so [_chansocket $chan]
     foreach opt {-peername -sockname} {
         lappend config $opt [chan configure $so $opt]
     }    
     lappend config -credentials [dict get $_channels($chan) Credentials] \
-        -verifier [dict get $_channels($chan) Verifier]
+        -verifier [dict get $_channels($chan) Verifier] \
+        -context [dict get $_channels($chan) SspiContext]
     return $config
 }
 
-proc twapi::ssl::_chansocket {chan} {
+proc twapi::tls::_chansocket {chan} {
     variable _channels
     if {![info exists _channels($chan)]} {
         error "Channel $chan not found."
@@ -314,7 +332,7 @@ proc twapi::ssl::_chansocket {chan} {
     return [dict get $_channels($chan) Socket]
 }
 
-proc twapi::ssl::_init {chan type so creds peersubject verifier {accept_callback {}}} {
+proc twapi::tls::_init {chan type so creds peersubject verifier {accept_callback {}}} {
     variable _channels
 
     # TBD - verify that -buffering none is the right thing to do
@@ -334,7 +352,7 @@ proc twapi::ssl::_init {chan type so creds peersubject verifier {accept_callback
     if {[llength $creds]} {
         set free_creds 0
     } else {
-        set creds [sspi_acquire_credentials -package ssl -role client -credentials [sspi_schannel_credentials]]
+        set creds [sspi_acquire_credentials -package tls -role client -credentials [sspi_schannel_credentials]]
         set free_creds 1
     }
     dict set _channels($chan) Credentials $creds
@@ -345,7 +363,7 @@ proc twapi::ssl::_init {chan type so creds peersubject verifier {accept_callback
     }
 }
 
-proc twapi::ssl::_cleanup {chan} {
+proc twapi::tls::_cleanup {chan} {
     variable _channels
     if {[info exists _channels($chan)]} {
         # Note _cleanup can be called in inconsistent state so not all
@@ -379,7 +397,7 @@ proc twapi::ssl::_cleanup {chan} {
     }
 }
 
-proc twapi::ssl::_so_read_handler {chan} {
+proc twapi::tls::_so_read_handler {chan} {
     variable _channels
 
     if {[info exists _channels($chan)]} {
@@ -400,7 +418,7 @@ proc twapi::ssl::_so_read_handler {chan} {
     return
 }
 
-proc twapi::ssl::_so_write_handler {chan} {
+proc twapi::tls::_so_write_handler {chan} {
     variable _channels
 
     if {[info exists _channels($chan)]} {
@@ -426,7 +444,7 @@ proc twapi::ssl::_so_write_handler {chan} {
     return
 }
 
-proc twapi::ssl::_negotiate chan {
+proc twapi::tls::_negotiate chan {
     trap {
         _negotiate2 $chan
     } onerror {} {
@@ -440,20 +458,20 @@ proc twapi::ssl::_negotiate chan {
     }
 }
 
-proc twapi::ssl::_negotiate2 {chan} {
+proc twapi::tls::_negotiate2 {chan} {
     variable _channels
         
     dict with _channels($chan) {}; # dict -> local vars
     switch $State {
         NEGOTIATING {
             if {$Blocking} {
-                error "Internal error: NEGOTIATING state not expected on a blocking ssl socket"
+                error "Internal error: NEGOTIATING state not expected on a blocking tls socket"
             }
 
             set data [chan read $Socket]
             if {[string length $data] == 0} {
                 if {[chan eof $Socket]} {
-                    error "Unexpected EOF during SSL negotiation"
+                    error "Unexpected EOF during TLS negotiation"
                 } else {
                     # No data yet, just keep waiting
                     return
@@ -511,7 +529,7 @@ proc twapi::ssl::_negotiate2 {chan} {
                 set data [chan read $Socket]
                 if {[string length $data] == 0} {
                     if {[chan eof $Socket]} {
-                        error "Unexpected EOF during SSL negotiation"
+                        error "Unexpected EOF during TLS negotiation"
                     } else {
                         # No data yet, just keep waiting
                         return
@@ -554,7 +572,7 @@ proc twapi::ssl::_negotiate2 {chan} {
     return
 }
 
-proc twapi::ssl::_client_blocking_negotiate {chan} {
+proc twapi::tls::_client_blocking_negotiate {chan} {
     variable _channels
     dict with _channels($chan) {
         set State NEGOTIATING
@@ -563,19 +581,19 @@ proc twapi::ssl::_client_blocking_negotiate {chan} {
     return [_blocking_negotiate_loop $chan]
 }
 
-proc twapi::ssl::_server_blocking_negotiate {chan} {
+proc twapi::tls::_server_blocking_negotiate {chan} {
     variable _channels
     dict set _channels($chan) State NEGOTIATING
     set so [dict get $_channels($chan) Socket]
     set indata [_blocking_read $so]
     if {[chan eof $so]} {
-        error "Unexpected EOF during SSL negotiation."
+        error "Unexpected EOF during TLS negotiation."
     }
     dict set _channels($chan) SspiContext [sspi_server_context [dict get $_channels($chan) Credentials] $indata -stream 1]
     return [_blocking_negotiate_loop $chan]
 }
 
-proc twapi::ssl::_blocking_negotiate_loop {chan} {
+proc twapi::tls::_blocking_negotiate_loop {chan} {
     variable _channels
     dict with _channels($chan) {}; # dict -> local vars
 
@@ -590,7 +608,7 @@ proc twapi::ssl::_blocking_negotiate_loop {chan} {
 
         set indata [_blocking_read $Socket]
         if {[chan eof $Socket]} {
-            error "Unexpected EOF during SSL negotiation."
+            error "Unexpected EOF during TLS negotiation."
         }
         lassign [sspi_step $SspiContext $indata] status outdata leftover
     }
@@ -613,12 +631,12 @@ proc twapi::ssl::_blocking_negotiate_loop {chan} {
     } else {
         # Should not happen. Negotiation failures will raise an error,
         # not return a value
-        error "SSL negotiation failed: status $status."
+        error "TLS negotiation failed: status $status."
     }
     return
 }
 
-proc twapi::ssl::_blocking_read {so} {
+proc twapi::tls::_blocking_read {so} {
     # Read from a blocking socket. We do not know how much data is needed
     # so read a single byte and then read any pending
     set input [chan read $so 1]
@@ -631,7 +649,7 @@ proc twapi::ssl::_blocking_read {so} {
     return $input
 }
 
-proc twapi::ssl::_open {chan} {
+proc twapi::tls::_open {chan} {
     variable _channels
 
     dict with _channels($chan) {}; # dict -> local vars
@@ -642,13 +660,15 @@ proc twapi::ssl::_open {chan} {
         # have done the verification already for client. For servers,
         # there is no verification of clients to be done by default
 
-        # TBD - what about server accept callback ?
+        # TBD - what about server accept callback ? When is that called?
+
         dict set _channels($chan) State OPEN
         return 1
     }
 
     trap {
-        if {[{*}$Verifier $SspiContext]} {
+        # TBD - what if verifier closes the channel
+        if {[{*}$Verifier $chan $SspiContext]} {
             dict set _channels($chan) State OPEN
             return 1
         }
@@ -661,7 +681,7 @@ proc twapi::ssl::_open {chan} {
     return 0
 }
 
-namespace eval twapi::ssl {
+namespace eval twapi::tls {
     namespace export initialize finalize blocking watch read write configure cget cgetall
     namespace ensemble create
 }
