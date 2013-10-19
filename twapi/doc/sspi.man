@@ -78,12 +78,18 @@ in use for a connection.
 Note that not all commands are supported by all security providers.
 
 [para]
-When no longer required, both the server and client ends should free
+The security context should be released when
+no longer needed. For schannel based providers only, first call
+[uri #sspi_shutdown_context [cmd sspi_shutdown_context]] 
+and pass any returned data to the remote peer. Then call
+[uri \#sspi_delete_context [cmd sspi_delete_context]] to release
+context releases. For other providers, only [cmd sspi_delete_context]
+should be called.
+
+[para] Similarly, when no longer required,
+both the server and client ends should free
 resources associated with their credentials by calling
 [uri \#sspi_free_credentials [cmd sspi_free_credentials]].
-Similarly, the security context should be released when
-no longer needed by calling
-[uri \#sspi_delete_context [cmd sspi_delete_context]].
 
 
 [section "SSPI message signing and encryption"]
@@ -98,6 +104,14 @@ respectively.
 Similarly, the security context can be used to encrypt and decrypt
 messages using
 [uri #sspi_encrypt [cmd sspi_encrypt]] and [uri #sspi_decrypt [cmd sspi_decrypt]].
+
+[section "SSPI stream encryption"]
+For SSPI stream contexts, the commands
+[uri #sspi_encrypt_stream [cmd sspi_encrypt_stream]] and
+[uri #sspi_decrypt_stream [cmd sspi_decrypt_stream]] encrypt and decrypt
+streaming data. Alternately the 
+[uri #sspi_encrypt_and_write [cmd sspi_encrypt_and_write]] command
+can be used to directly write encrypted data to a channel.
 
 [section Commands]
 
@@ -289,9 +303,23 @@ Size of security trailer to be appended to messages.
 [call [cmd sspi_context_username] [arg CONTEXT]]
 [emph TBD]
 
-
 [call [cmd sspi_decrypt] [arg CONTEXT] [arg ENCRYPTTOKEN] [arg ENCRYPTEDDATA] [arg PADDING] [opt [arg options]]]
-Returns the decrypted data. 
+Returns the decrypted data. [arg CONTEXT] is a datagram or connection
+context. The other parameters correspond to the corresponding values
+returned from [uri #sspi_encrypt [cmd sspi_encrypt]].
+
+[call [cmd sspi_decrypt_stream] [arg CONTEXT] [arg ENCRYPTEDDATA]]
+Returns the decrypted data using the specified stream context.
+The return value is a pair consisting of a status and the decrypted
+data. The status may be one of [const ok], [const expired],
+or [const renegotiate]. In all cases the second element, if non empty,
+contains the decrypted data.
+[nl]
+A status of [const ok] is a normal return. If the status is [const expired],
+the context has expired and the caller should call
+[uri #sspi_shutdown_context [cmd sspi_shutdown_context]] and
+[uri #sspi_delete_context [cmd sspi_delete_context]] to free
+the context.
 
 [call [cmd sspi_delete_context] [arg CONTEXT]]
 Closes a security context constructed through
@@ -299,11 +327,20 @@ Closes a security context constructed through
 [uri #sspi_server_context [cmd sspi_server_context]] or
 and frees any associated resources.
 
-[call [cmd sspi_encrypt] [arg CONTEXT] [arg PLAINTEXT] [opt [arg options]]]
-Encrypts [arg PLAINTEXT] based on the specified security context. Returns
+[call [cmd sspi_encrypt] [arg CONTEXT] [arg BINDATA] [opt [arg options]]]
+Encrypts the binary data [arg BINDATA] 
+based on the specified security context. Returns
 a list of three elements - the encryption token, the encrypted data
-and padding. These must be passed to [uri #sspi_decrypt] for decryption
-to be successful.
+and padding. These must all be passed to the remote peer for it successfully
+decrypt and verify the data.
+
+[call [cmd sspi_encrypt_and_write] [arg CONTEXT] [arg BINDATA] [opt [arg options]]]
+Encrypts binary data [arg BINDATA] based on the specified security context and
+writes it to the specified channel. The channel must be in binary mode.
+
+[call [cmd sspi_encrypt_stream] [arg CONTEXT] [arg BINDATA] [opt [arg options]]]
+Encrypts [arg BINDATA] based on the specified security context and
+returns the encrypted data.
 
 [call [cmd sspi_enumerate_packages] [opt [arg options]]]
 If no arguments are specified, 
@@ -327,6 +364,11 @@ capabilties of the provider.
 Frees resources associated with credentials returned by
 [uri \#sspi_acquire_credentials [cmd sspi_acquire_credentials]].
 
+[call [cmd sspi_issuers_accepted_by_peer] [arg CONTEXT]]
+For SChannel based client contexts, the remote server can request
+a client certificate issued by specific certificate issuers it will accept.
+This command returns the list of issuers acceptable to the remote server.
+
 [call [cmd sspi_local_cert] [arg CONTEXT]]
 Returns a certificate context for the certificate for the local end
 of a secured connection. The returned certificate context
@@ -336,7 +378,6 @@ must be freed by calling [uri #cert_free [cmd cert_free]].
 Returns a certificate context for the certificate sent by the remote
 end of a secured connection. The returned certificate context
 must be freed by calling [uri #cert_free [cmd cert_free]].
-
 
 [call [cmd sspi_server_context] [arg CREDENTIALS] [arg CLIENTDATA] [opt [arg options]]]
 
@@ -440,6 +481,18 @@ Specifies the number of milliseconds that a Schannel session should be cached.
 New connections after this time will require a new session. A value
 of [const 0] (default) indicates the system-specific default is to be used.
 [list_end]
+
+[call [cmd sspi_shutdown_context] [arg CONTEXT]]
+Begins the process of shutting down a context. This command is needed,
+and should be called, only for contexts based on the Schannel based
+providers. The return value from the command is a pair, the first element
+of which is the [const continue], or [const done]. In the former case,
+the caller should call [uri #sspi_step [cmd sspi_step]] to continue the 
+process of shutting down. In the latter case, the caller can
+release the context by calling 
+[uri #sspi_delete_context [cmd sspi_delete_context]]. In both cases,
+the second element contains binary data to be sent to the remote end 
+to complete the shutdown.
 
 [call [cmd sspi_step] [arg CONTEXT] [opt [arg RESPONSE]]]
 Depending on the security provider in use, building a security context

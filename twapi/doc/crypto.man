@@ -406,7 +406,7 @@ a trusted root certificate authority,
 [bullet] the identity specified in the certificate is what is expected
 [list_end]
 
-The [uri #cert_ssl_verify [cmd cert_ssl_verify]] command can be used for this
+The [uri #cert_tls_verify [cmd cert_tls_verify]] command can be used for this
 purpose. Currently, TWAPI only supports certificate verification for use
 in SSL connections.
 
@@ -1166,9 +1166,9 @@ system store component, e.g. [const Root\\.Default]. [arg LOCATION]
 specifies the location of the system store and must be one of
 the values listed in [sectref "Certificate stores"].
 
-[call [cmd cert_ssl_verify] [arg HCERT] [opt [arg options]]]
+[call [cmd cert_tls_verify] [arg HCERT] [opt [arg options]]]
 Verifies a certificate context [arg HCERT] for use
-in an SSL connection. The following options may be specified:
+in an SSL/TLS connection. The following options may be specified:
 
 [list_begin opt]
 [opt_def [cmd -cacheendcert] [arg BOOLEAN]]
