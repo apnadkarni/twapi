@@ -40,26 +40,7 @@ proc twapi::cert_memory_store_open {} {
 }
 
 proc twapi::cert_file_store_open {path args} {
-    array set opts [parseargs args {
-        {readonly.bool        0 0x00008000}
-        {commitenable.bool    0 0x00010000}
-        {existing.bool        0 0x00004000}
-        {create.bool          0 0x00002000}
-        {includearchived.bool 0 0x00000200}
-        {maxpermissions.bool  0 0x00001000}
-        {deferclose.bool      0 0x00000004}
-        {backupprivilege.bool 0 0x00000800}
-    } -maxleftover 0 -nulldefault]
-
-    if {$opts(readonly) && $opts(commitenable)} {
-        badargs! "Options -commitenable and -readonly are mutually exclusive."
-    }
-
-    set flags 0
-    foreach {opt val} [array get opts] {
-        incr flags $val
-    }
-
+    set flags [_parse_store_open_opts $args]
     # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
     return [CertOpenStore 8 0x10001 NULL $flags [file nativename [file normalize $path]]]
 }
@@ -67,25 +48,7 @@ proc twapi::cert_file_store_open {path args} {
 proc twapi::cert_physical_store_open {name location args} {
     variable _system_stores
 
-    array set opts [parseargs args {
-        {readonly.bool        0 0x00008000}
-        {commitenable.bool    0 0x00010000}
-        {existing.bool        0 0x00004000}
-        {create.bool          0 0x00002000}
-        {includearchived.bool 0 0x00000200}
-        {maxpermissions.bool  0 0x00001000}
-        {deferclose.bool      0 0x00000004}
-        {backupprivilege.bool 0 0x00000800}
-    } -maxleftover 0 -nulldefault]
-
-    if {$opts(readonly) && $opts(commitenable)} {
-        badargs! "Options -commitenable and -readonly are mutually exclusive."
-    }
-
-    set flags 0
-    foreach {opt val} [array get opts] {
-        incr flags $val
-    }
+    set flags [_parse_store_open_opts $args]
     incr flags [_system_store_id $location]
     return [CertOpenStore 14 0 NULL $flags $name]
 }
@@ -174,7 +137,7 @@ proc twapi::cert_store_add_encoded_certificate {hstore enccert args} {
     return [CertAddEncodedCertificateToStore $hstore 0x10001 $enccert $opts(disposition)]
 }
 
-proc twapi::cert_store_export {hstore password args} {
+proc twapi::cert_store_to_pfx {hstore password args} {
     array set opts [parseargs args {
         {exportprivatekeys.bool 0 0x4}
         {failonmissingkey.bool 0 0x1}
@@ -193,6 +156,15 @@ proc twapi::cert_store_commit {hstore args} {
     
     return [Twapi_CertStoreCommit $hstore $opts(force)]
 }
+
+proc twapi::cert_store_serialize {hstore} {
+    return [Twapi_CertStoreSerialize $hstore 1]
+}
+
+proc twapi::cert_store_to_pkcs7 {hstore} {
+    return [Twapi_CertStoreSerialize $hstore 2]
+}
+
 
 ################################################################
 # Certificates
@@ -1463,6 +1435,30 @@ proc twapi::_cert_add_parseargs {vargs} {
                     preserve 1
                 } $disposition]]
 }
+
+proc twapi::_parse_store_open_opts {optvals} {
+    array set opts [parseargs optvals {
+        {readonly.bool        0 0x00008000}
+        {commitenable.bool    0 0x00010000}
+        {existing.bool        0 0x00004000}
+        {create.bool          0 0x00002000}
+        {includearchived.bool 0 0x00000200}
+        {maxpermissions.bool  0 0x00001000}
+        {deferclose.bool      0 0x00000004}
+        {backupprivilege.bool 0 0x00000800}
+    } -maxleftover 0 -nulldefault]
+
+    if {$opts(readonly) && $opts(commitenable)} {
+        badargs! "Options -commitenable and -readonly are mutually exclusive." 3
+    }
+
+    set flags 0
+    foreach {opt val} [array get opts] {
+        incr flags $val
+    }
+    return $flags
+}
+
 
 # Utility proc to generate three certs in a memory store - 
 # one self signed which is used to sign a client and a server cert

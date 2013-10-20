@@ -2066,8 +2066,7 @@ static int Twapi_CryptFindOIDInfoObjCmd(ClientData clientdata, Tcl_Interp *inter
     return TCL_OK;
 }
 
-
-static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
     DWORD dw, dw2, dw3;
@@ -2085,6 +2084,7 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     Tcl_Obj *objs[11];
     TCL_RESULT res;
     CERT_INFO *ciP;
+    HCERTSTORE hstore;
 
     --objc;
     ++objv;
@@ -2667,6 +2667,28 @@ static int Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         SecureZeroMemory(pv, sizeof(WCHAR) * dw);
         TwapiFree(pv);
         break;
+
+    case 10045: // Twapi_CertStoreSerialize
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(hstore, HCERTSTORE, CertCloseStore),
+                         GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        blob.pbData = NULL;
+        blob.cbData = 0;
+        if (! CertSaveStore(hstore, PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
+                            dw, CERT_STORE_SAVE_TO_MEMORY, &blob, 0))
+            return TwapiReturnSystemError(interp);
+        result.value.obj = ObjFromByteArray(NULL, blob.cbData);
+        blob.pbData = ObjToByteArray(result.value.obj, &blob.cbData);
+        if (! CertSaveStore(hstore, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING,
+                            dw, CERT_STORE_SAVE_TO_MEMORY, &blob, 0)) {
+            TwapiReturnSystemError(interp);
+            ObjDecrRefs(result.value.obj);
+            return TCL_ERROR;
+        }
+        Tcl_SetByteArrayLength(result.value.obj, blob.cbData);
+        result.type = TRT_OBJ;
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -2720,6 +2742,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(cert_store_duplicate, 10042), // TBD - document
         DEFINE_FNCODE_CMD(PFXIsPFXBlob, 10043), //TBD - document
         DEFINE_FNCODE_CMD(PFXVerifyPassword, 10044), // TBD - document
+        DEFINE_FNCODE_CMD(Twapi_CertStoreSerialize, 10045),
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
