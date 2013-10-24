@@ -962,83 +962,62 @@ Tcl_Obj *ObjFromSYSTEMTIME(LPSYSTEMTIME timeP)
 /*
  * Convert a Tcl Obj to SYSTEMTIME
  */
-int ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME timeP)
+TCL_RESULT ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME timeP)
 {
     Tcl_Obj **objv;
     int       objc;
-    int       itemp;
-    int       hindex;
+    int       i, itemp;
+    TCL_RESULT res;
+    WORD      words[7];
 
     if (ObjGetElements(interp, timeObj, &objc, &objv) != TCL_OK)
-        return TCL_ERROR;
+        goto syntax_error;
 
     /*
-     * There may be variable number of arguments.
+     * List size - 
      * 0 - current date and time
-     * 1 - hour, min,sec,ms=0, current date
-     * 2 - hour, min, sec,ms=0, current date
-     * 3 - hour, min, sec, ms=0, current date
-     * 4 - hour, min, sec, ms, current date
-     * 5 - day, hour, min, sec, ms, current month and year
-     * 6 - month, day, hour, min, sec, ms, current year
-     * 7 - year, month, day, hour, min, sec, ms
-     * Extra args ignored
+     * 3-7 - year, month, day, ?hour, min, sec, ms?
      */
-    if (objc < 7)
+    if (objc == 0) {
         GetSystemTime(timeP);
-    timeP->wMinute = 0;
-    timeP->wSecond = 0;
-    timeP->wMilliseconds = 0;
-
-    hindex = 0;               /* Slot where the Hindex is to be found */
-    switch (objc) {
-    case 0:
-        break;              /* Just use current time */
-    default:
-        /* FALLTHRU (extra args ignored) */
-    case 7:
-        if (ObjToRangedInt(interp, objv[hindex], 0, 30827, &itemp) != TCL_OK)
-            return TCL_ERROR;
-        timeP->wYear = (WORD) itemp;
-        ++hindex;                 /* Bump up remaining slots */
-        /* FALLTHRU */
-    case 6:
-        if (ObjToRangedInt(interp, objv[hindex], 1, 12, &itemp) != TCL_OK)
-            return TCL_ERROR;
-        timeP->wMonth = (WORD) itemp;
-        ++hindex;                 /* Bump up remaining slots */
-        /* FALLTHRU */
-    case 5:
-        /* Should do more validation for day range */
-        if (ObjToRangedInt(interp, objv[hindex], 0, 31, &itemp) != TCL_OK)
-            return TCL_ERROR;
-        timeP->wDay = (WORD) itemp;
-        ++hindex;                 /* Bump up remaining slots */
-        /* FALLTHRU */
-    case 4:
-        /* Max 60 to allow for leap seconds */
-        if (ObjToRangedInt(interp, objv[hindex+3], 0, 999, &itemp) != TCL_OK)
-            return TCL_ERROR;
-        timeP->wMilliseconds = (WORD) itemp;
-        /* FALLTHRU */
-    case 3:
-        /* Max 60 to allow for leap seconds */
-        if (ObjToRangedInt(interp, objv[hindex+2], 0, 60, &itemp) != TCL_OK)
-            return TCL_ERROR;
-        timeP->wSecond = (WORD) itemp;
-        /* FALLTHRU */
-    case 2:
-        if (ObjToRangedInt(interp, objv[hindex+1], 0, 59, &itemp) != TCL_OK)
-            return TCL_ERROR;
-        timeP->wMinute = (WORD) itemp;
-        /* FALLTHRU */
-    case 1:
-        if (ObjToRangedInt(interp, objv[hindex], 0, 23, &itemp) != TCL_OK)
-            return TCL_ERROR;
-        timeP->wHour = (WORD) itemp;
-        break;
+        return TCL_OK;
     }
+    if (objc < 3 || objc > 7)
+        goto syntax_error;
+
+    words[3] = words[4] = words[5] = words[6] = 0;
+    for (i = 0; i < objc; ++i) {
+        if (ObjToWord(NULL, objv[i], &words[i]) != TCL_OK)
+            goto syntax_error;
+    }
+    /* 30827 -> high end of SYSTEMTIME */
+    if (words[0] > 30827)
+        goto syntax_error;
+    timeP->wYear = words[0];
+    if (words[1] < 1 || words[1] > 12)
+        goto syntax_error;
+    timeP->wMonth = words[1];
+    if (words[2] < 1 || words[2] > 31)
+        goto syntax_error;
+    timeP->wDay = words[2];
+    if (words[3] > 24)
+        goto syntax_error;
+    timeP->wHour = words[3];
+    if (words[4] > 59)
+        goto syntax_error;
+    timeP->wMinute = words[4];
+    if (words[5] > 60)          /* 60 for leap secs */
+        goto syntax_error;
+    timeP->wSecond = words[5];
+    if (words[6] > 999)
+        goto syntax_error;
+    timeP->wMilliseconds = words[6];
+    /* TBD - validate days for that month */
     return TCL_OK;
+
+syntax_error:
+    ObjSetResult(interp, Tcl_ObjPrintf("Invalid time list syntax '%s'", ObjToString(timeObj)));
+    return TCL_ERROR;
 }
 
 Tcl_Obj *ObjFromFILETIME(FILETIME *ftimeP)
