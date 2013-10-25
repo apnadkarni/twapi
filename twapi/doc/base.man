@@ -677,6 +677,11 @@ the epoch Jan 1, 1970 to the number of 100 nanoseconds since Jan 1, 1601.
 
 [call [cmd timelist_to_large_system_time] [arg TIMELIST]]
 Converts [arg TIMELIST] to the number of 100 nanoseconds since Jan 1, 1601.
+If [arg TIMELIST] is an empty list, it defaults to the current date and time.
+Otherwise it is a list of 3-7 elements that specify the year, month,
+day, hours, minutes, seconds and milliseconds. The last four are optional
+and default to [const 0]. 
+
 [arg TIMELIST] must be a list
 of 7 elements representing the year, month, day, hour, minutes, seconds
 and milliseconds.
