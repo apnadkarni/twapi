@@ -6,6 +6,10 @@
 
 namespace eval twapi {}
 
+if {0} {
+    makeing a sample cert
+set cert [cert_create_self_signed_from_crypt_context "CN=twapisamplecert, C=IN, O=opensource, OU=twapi" $crypt -purpose {ca sslserver sslclient} -keyusage {crl_sign data_encipherment digital_signature key_agreement key_cert_sign key_encipherment non_repudiation} -enhkeyusage {client_auth code_signing email_protection ipsec_end_system  ipsec_tunnel ipsec_user server_auth timestamp_signing ocsp_signing} -end {2020 12 31 23 59 59 0} -altnames [list email nobody@twapitest.com dns twapitest.com url http://url.twapitest.com directory [cert_name_to_blob "CN=twapisamplealtname"] ip [binary format c4 {127 0 0 1}]] -capathlen 2]
+}
 
 if {0} {
     TBD - associating private key with cert
@@ -313,8 +317,19 @@ proc twapi::cert_set_key_prov {hcert args} {
     return
 }
 
-proc twapi::cert_export {hcert} {
-    return [lindex [Twapi_CertGetEncoded $hcert] 1]
+proc twapi::cert_export {hcert args} {
+    parseargs args {
+        format.arg der {der cer crt pem}
+    } -maxleftover 0 -setvars
+
+    set enc [lindex [Twapi_CertGetEncoded $hcert] 1]
+    if {$format eq "pem"} {
+        # 0 -> CRYPT_STRING_BASE64HEADER 
+        # 0x80000000 -> LF-only, not CRLF
+        return [CryptBinaryToString $enc 0x80000000]
+    } else {
+        return $enc
+    }
 }
 
 proc twapi::cert_enhkey_usage {hcert {loc both}} {
@@ -332,7 +347,8 @@ proc twapi::cert_thumbprint {hcert} {
 }
 
 proc twapi::cert_info {hcert} {
-    return [twine {-version -serialnumber -signaturealgorithm -issuer
+    return [twine {
+        -version -serialnumber -signaturealgorithm -issuer
         -start -end -subject -publickey -issuerid -subjectid -extensions} \
                 [Twapi_CertGetInfo $hcert]]
 }
@@ -1350,8 +1366,8 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
     upvar 1 $optsvar opts
 
     parseargs optvals {
-        start.int
-        end.int
+        start.arg
+        end.arg
         serialnumber.arg
         altnames.arg
         {critical.arg {}}
@@ -1378,10 +1394,14 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
     }
     
     # Validity period
-    if {![info exists start]} {
+    if {[info exists start]} {
+        set opts(start) $start
+    } else {
         set opts(start) [_seconds_to_timelist [clock seconds] 1]
     }
-    if {![info exists end]} {
+    if {[info exists end]} {
+        set opts(end) $end
+    } else {
         set opts(end) $opts(start)
         lset opts(end) 0 [expr {[lindex $opts(end) 0] + 1}]
     }

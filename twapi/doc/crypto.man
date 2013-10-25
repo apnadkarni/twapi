@@ -504,16 +504,16 @@ as described in [sectref "X.509 alternative names"].
 Specifies the limit on the certificate chain path length during verification.
 Ignored unless the [cmd -purpose] option includes [const ca].
 [opt_def [cmd -end] [arg ENDTIME]]
-Specifies the end of the certificate validity period. 
-[arg ENDTIME] is specified as a time list of the form
-[arg {YEAR MONTH DAY HOUR MIN SEC}].
+Specifies the end of the certificate validity period. [arg ENDTIME] must
+be of the form [arg "Year-Month-Day Hour:Minutes:Seconds"].
 Defaults to one year beyond the start time.
 [opt_def [cmd -enhkeyusage] [arg ENHKEYUSAGE]]
 Specifies values to use for the X.509 enhanced key usage extension.
 [arg ENHKEYUSAGE] is a list containing one or more values from 
-[const client_auth], [const code_sign], [const email],
-[const ipsec_endsystem], [const ipsec_intermediate]. [const ipsec_tunnel],
-[const ipsec_user], [const server_auth] or [const timestamp]. It may
+[const client_auth], [const code_signing], [const email_protection],
+[const ipsec_endsystem], [const ipsec_tunnel],
+[const ipsec_user], [const server_auth], [const ocsp_signing]
+or [const timestamp_signing]. It may
 also be an valid [uri #asn1objectidentifiers OID].
 [opt_def [cmd -keyspec] [arg KEYSPEC]]
 [arg KEYSPEC] must be one of [const signature] (default) or 
@@ -553,8 +553,8 @@ in the enhanced key extension.
 Specifies the signature algorithm to use for signing the certificate.
 [opt_def [cmd -start] [arg STARTTIME]]
 Specifies the start of the certificate validity period. 
-[arg STARTTIME] is specified as a time list of the form
-[arg {YEAR MONTH DAY HOUR MIN SEC}].
+[arg STARTTIME] must be
+of the form [arg "Year-Month-Day Hour:Minutes:Seconds"].
 Defaults to the current time.
 [list_end]
 
@@ -669,9 +669,7 @@ the certificate is considered invalid for any use.
 Returns a list properties defined for the certificate context [arg HCERT].
 
 [call [cmd cert_export] [arg HCERT]]
-Returns the encoded certificate for a certificate context.
-This is encoded using X.509 ASN.1 and
-can be written to a file or otherwise distributed.
+Returns the certificate for a certificate context in DER format.
 
 [call [cmd cert_extension] [arg HCERT] [arg EXTENSION]]
 Returns a certificate extension as a two element list.
@@ -759,8 +757,7 @@ the command will return [const 0] indicating no key could be found.
 Returns the following fields from a certificate context as a dictionary.
 [list_begin opt]
 [opt_def [const -end]] The end of the certificate's validity period
-in [uri base.html#large_system_time_to_secs_since_1970 "large system time"]
-format.
+in the format [arg "Year-Month-Day Hour:Minutes:Seconds"]
 [opt_def [const -extensions]] A list of extensions in the certificate.
 Each element is a triplet containing the OID of the extension,
 a boolean indicating whether the extension is marked critical or not,
@@ -779,8 +776,7 @@ of the certificate.
 for the algorithm used to sign the certificate and a binary containing
 any associated parameters.
 [opt_def [const -start]] The start of the certificate's validity period
-in [uri base.html#large_system_time_to_secs_since_1970 "large system time"]
-format.
+in the format [arg "Year-Month-Day Hour:Minutes:Seconds"].
 [opt_def [const -subject]] The name of the certificate subject.
 [opt_def [const -subjectid]] A binary containing unique id for
 the certificate subject. This is generally not used and should not
