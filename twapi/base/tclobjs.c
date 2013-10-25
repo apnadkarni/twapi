@@ -966,9 +966,9 @@ TCL_RESULT ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME ti
 {
     Tcl_Obj **objv;
     int       objc;
-    int       i, itemp;
+    int       i;
     TCL_RESULT res;
-    WORD      words[7];
+    FILETIME  ft;
 
     if (ObjGetElements(interp, timeObj, &objc, &objv) != TCL_OK)
         goto syntax_error;
@@ -977,46 +977,47 @@ TCL_RESULT ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME ti
      * List size - 
      * 0 - current date and time
      * 3-7 - year, month, day, ?hour, min, sec, ms?
+     * Additional elements are ignored (since the reverse operation
+     * returns day of week as 8th element)
      */
     if (objc == 0) {
         GetSystemTime(timeP);
         return TCL_OK;
     }
-    if (objc < 3 || objc > 7)
+    if (objc < 3)
         goto syntax_error;
 
-    words[3] = words[4] = words[5] = words[6] = 0;
-    for (i = 0; i < objc; ++i) {
-        if (ObjToWord(NULL, objv[i], &words[i]) != TCL_OK)
+    if (ObjToWord(NULL, objv[0], &timeP->wYear) != TCL_OK ||
+        ObjToWord(NULL, objv[1], &timeP->wMonth) != TCL_OK ||
+        ObjToWord(NULL, objv[2], &timeP->wDay) != TCL_OK)
+        goto syntax_error;
+    timeP->wHour = timeP->wMinute = timeP->wSecond = timeP->wMilliseconds = 0;
+    TWAPI_ASSERT(objc >= 3);
+    switch (objc) {
+    default: /* > 7 */
+    case 7:
+        if (ObjToWord(NULL, objv[6], &timeP->wMilliseconds) != TCL_OK)
             goto syntax_error;
+    case 6:
+        if (ObjToWord(NULL, objv[5], &timeP->wSecond) != TCL_OK)
+            goto syntax_error;
+    case 5:
+        if (ObjToWord(NULL, objv[4], &timeP->wMinute) != TCL_OK)
+            goto syntax_error;
+    case 4:
+        if (ObjToWord(NULL, objv[3], &timeP->wHour) != TCL_OK)
+            goto syntax_error;
+        break;
+    case 3:
+        break;
     }
-    /* 30827 -> high end of SYSTEMTIME */
-    if (words[0] > 30827)
-        goto syntax_error;
-    timeP->wYear = words[0];
-    if (words[1] < 1 || words[1] > 12)
-        goto syntax_error;
-    timeP->wMonth = words[1];
-    if (words[2] < 1 || words[2] > 31)
-        goto syntax_error;
-    timeP->wDay = words[2];
-    if (words[3] > 24)
-        goto syntax_error;
-    timeP->wHour = words[3];
-    if (words[4] > 59)
-        goto syntax_error;
-    timeP->wMinute = words[4];
-    if (words[5] > 60)          /* 60 for leap secs */
-        goto syntax_error;
-    timeP->wSecond = words[5];
-    if (words[6] > 999)
-        goto syntax_error;
-    timeP->wMilliseconds = words[6];
-    /* TBD - validate days for that month */
-    return TCL_OK;
+
+    /* Validate field values */
+    if (SystemTimeToFileTime(timeP, &ft))
+        return TCL_OK;
 
 syntax_error:
-    ObjSetResult(interp, Tcl_ObjPrintf("Invalid time list syntax '%s'", ObjToString(timeObj)));
+    ObjSetResult(interp, Tcl_ObjPrintf("Invalid time list '%s'", ObjToString(timeObj)));
     return TCL_ERROR;
 }
 
