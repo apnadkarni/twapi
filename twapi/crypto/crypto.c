@@ -2175,7 +2175,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
                 result.value.objv.nobj = 2;
                 result.type = TRT_OBJV;
             }
-            /* else empty result */
+            /* else empty result - TBD */
             break;
         case 10035: //Twapi_CertGetInfo
             ciP = certP->pCertInfo;
@@ -2689,6 +2689,54 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         Tcl_SetByteArrayLength(result.value.obj, blob.cbData);
         result.type = TRT_OBJ;
         break;
+
+    case 10046: // CryptStringToBinary
+        if (TwapiGetArgs(interp, objc, objv, GETOBJ(s1Obj),
+                         GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        s1 = ObjToUnicodeN(s1Obj, &dw2);
+        if (!CryptStringToBinaryW(s1, dw2, dw, NULL, &dw3, NULL, NULL))
+            return TwapiReturnSystemError(interp);
+        result.value.obj = ObjFromByteArray(NULL, dw3);
+        pv = ObjToByteArray(result.value.obj, &dw3);
+        if (!CryptStringToBinaryW(s1, dw2, dw, pv, &dw3, NULL, NULL)) {
+            TwapiReturnSystemError(interp);
+            ObjDecrRefs(result.value.obj);
+        }
+        Tcl_SetByteArrayLength(result.value.obj, dw3);
+        result.type = TRT_OBJ;
+        break;
+    case 10047: // CryptBinaryToString
+        if (TwapiGetArgs(interp, objc, objv, GETOBJ(s1Obj),
+                         GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        pv = ObjToByteArray(s1Obj, &dw2);
+        if (!CryptBinaryToStringW(pv, dw2, dw, NULL, &dw3))
+            return TwapiReturnSystemError(interp);
+        result.value.unicode.str = TwapiAlloc(sizeof(WCHAR)*dw3);
+        if (!CryptBinaryToStringW(pv, dw2, dw, result.value.unicode.str, &dw3)) {
+            TwapiReturnSystemError(interp);
+            TwapiFree(result.value.unicode.str);
+            return TCL_ERROR;
+        }        
+        result.value.unicode.len = dw3;
+        result.type = TRT_UNICODE_DYNAMIC;
+        break;
+    case 10048:
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETINT(dw), GETINT(dw2), GETOBJ(s1Obj),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (dw != CERT_STORE_CERTIFICATE_CONTEXT) {
+            return TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
+        }
+        pv = ObjToByteArray(s1Obj, &dw3);
+        certP = CertCreateContext(dw, dw2, pv, dw3, 0, NULL);
+        if (certP == NULL)
+            return TwapiReturnSystemError(interp);
+        TwapiRegisterCertPointer(interp, certP);
+        TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -2743,6 +2791,9 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(PFXIsPFXBlob, 10043), //TBD - document
         DEFINE_FNCODE_CMD(PFXVerifyPassword, 10044), // TBD - document
         DEFINE_FNCODE_CMD(Twapi_CertStoreSerialize, 10045),
+        DEFINE_FNCODE_CMD(CryptStringToBinary, 10046), // Tcl
+        DEFINE_FNCODE_CMD(CryptBinaryToString, 10047), // Tcl
+        DEFINE_FNCODE_CMD(CertCreateContext, 10048), // Tcl
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
