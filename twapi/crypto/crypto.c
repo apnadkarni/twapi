@@ -1061,6 +1061,34 @@ static TCL_RESULT ParseCERT_INFO(
     return TCL_OK;
 }
 
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParseCERT_REQUEST_INFO(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *criObj,
+    CERT_REQUEST_INFO *criP /* Will contain garbage in case of errors */
+    )
+{
+    Tcl_Obj **objs;
+    int       nobjs;
+    Tcl_Interp *interp = ticP->interp;
+    Tcl_Obj *algObj, *pubkeyObj, *issuerIdObj, *subjectIdObj, *extsObj;
+
+    /* TBD - support for rgAttributes field in CERT_REQUEST_INFO struct */
+    if (ObjGetElements(NULL, criObj, &nobjs, &objs) != TCL_OK ||
+        TwapiGetArgsEx(ticP, nobjs, objs,
+                       GETINT(criP->dwVersion),
+                       GETBA(criP->Subject.pbData, criP->Subject.cbData),
+                       GETOBJ(pubkeyObj), ARGEND) != TCL_OK) {
+        Tcl_AppendResult(interp, "Invalid CERT_REQUEST_INFO structure", NULL);
+        return TCL_ERROR;
+    }
+
+    if (ParseCERT_PUBLIC_KEY_INFO(ticP, pubkeyObj, &criP->SubjectPublicKeyInfo) != TCL_OK)
+        return TCL_ERROR;
+        
+    return TCL_OK;
+}
+
 /* 
  * Parses a non-empty Tcl_Obj into a SYSTEMTIME structure *timeP 
  * and stores timeP in *timePP. If the Tcl_Obj is empty (meaning use default)
@@ -1795,7 +1823,10 @@ static TCL_RESULT Twapi_CryptSignAndEncodeCertObjCmd(
     TCL_RESULT res;
     CRYPT_ALGORITHM_IDENTIFIER algid;
     DWORD keyspec, enctype;
-    CERT_INFO ci;
+    union {
+        CERT_INFO ci;
+        CERT_REQUEST_INFO cri;
+    } u;
     HCRYPTPROV hprov;
     MemLifoMarkHandle mark;
     DWORD nbytes;
@@ -1810,27 +1841,32 @@ static TCL_RESULT Twapi_CryptSignAndEncodeCertObjCmd(
     if (res != TCL_OK)
         goto vamoose;
 
-    if ((DWORD_PTR) structtype != (DWORD_PTR) X509_CERT_TO_BE_SIGNED) {
+    switch (structtype) {
+    case (DWORD)(DWORD_PTR) X509_CERT_TO_BE_SIGNED:
+        res = ParseCERT_INFO(ticP, certinfoObj, &u.ci);
+        break;
+    case (DWORD)(DWORD_PTR) X509_CERT_REQUEST_TO_BE_SIGNED:
+        res = ParseCERT_REQUEST_INFO(ticP, certinfoObj, &u.cri);
+        break;
+    default:
         res = TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
-        goto vamoose;
+        break;
     }
+    if (res != TCL_OK)
+        goto vamoose;
 
     res = ParseCRYPT_ALGORITHM_IDENTIFIER(ticP, algidObj, &algid);
     if (res != TCL_OK)
         goto vamoose;
 
-    res = ParseCERT_INFO(ticP, certinfoObj, &ci);
-    if (res != TCL_OK)
-        goto vamoose;
-    
     if (! CryptSignAndEncodeCertificate(hprov, keyspec, enctype,
-                                        X509_CERT_TO_BE_SIGNED, &ci,
+                                        X509_CERT_TO_BE_SIGNED, &u,
                                         &algid, NULL, NULL, &nbytes))
         res = TwapiReturnSystemError(ticP->interp);
     else {
         encodedObj = ObjFromByteArray(NULL, nbytes);
         if (CryptSignAndEncodeCertificate(hprov, keyspec, enctype,
-                                          X509_CERT_TO_BE_SIGNED, &ci,
+                                          X509_CERT_TO_BE_SIGNED, &u,
                                           &algid, NULL,
                                           ObjToByteArray(encodedObj, NULL),
                                           &nbytes)) {
