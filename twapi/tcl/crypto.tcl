@@ -437,9 +437,16 @@ proc twapi::cert_create {subject hprov cissuer args} {
         lappend opts(extensions) [list 2.5.29.35 0 [list [lindex $issuer_subject_key_id 1] {} {}]]
     }
 
+    
+    # TBD - should the algo oid be hardcoded to oid_rsa_rsa ? That's known
+    # to work. Using [lindex $sigalgo 1] in the case of certificate
+    # requests caused openssl to fail to recognize the oid in CSR
+    # verification. Perhaps the same could happen here so for now
+    # always use oid_rsa_rsa. What about DH etc. ?
+    set pubkey [crypt_public_key $hprov $keyspec oid_rsa_rsa]
+
     # Generate a subject key identifier for this cert based on a hash
     # of the public key
-    set pubkey [crypt_public_key $hprov $keyspec [lindex $sigalgo 0]
     set subject_key_id [Twapi_HashPublicKeyInfo $pubkey]
     lappend opts(extensions) [list 2.5.29.14 0 $subject_key_id]
 
@@ -596,7 +603,9 @@ proc twapi::cert_request {subject hprov keyspec args} {
     }
     set keyspec [twapi::_crypt_keyspec $keyspec]
     # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
-    set pubkeyinfo [crypt_public_key $hprov $keyspec $sigoid]
+    # Pass oid_rsa_rsa as that seems to be what OPENSSL understands in
+    # a CSR
+    set pubkeyinfo [crypt_public_key $hprov $keyspec oid_rsa_rsa]
     set req [CryptSignAndEncodeCertificate $hprov $keyspec 0x10001 4 [list 0 [cert_name_to_blob $subject] $pubkeyinfo] $sigoid]
     if {$format eq "base64"} {
         # 3 -> CRYPT_STRING_BASE64REQUESTHEADER 
