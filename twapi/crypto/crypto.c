@@ -1073,7 +1073,6 @@ static TCL_RESULT ParseCERT_REQUEST_INFO(
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj *algObj, *pubkeyObj, *issuerIdObj, *subjectIdObj, *extsObj;
 
-    /* TBD - support for rgAttributes field in CERT_REQUEST_INFO struct */
     if (ObjGetElements(NULL, criObj, &nobjs, &objs) != TCL_OK ||
         TwapiGetArgsEx(ticP, nobjs, objs,
                        GETINT(criP->dwVersion),
@@ -1086,6 +1085,10 @@ static TCL_RESULT ParseCERT_REQUEST_INFO(
     if (ParseCERT_PUBLIC_KEY_INFO(ticP, pubkeyObj, &criP->SubjectPublicKeyInfo) != TCL_OK)
         return TCL_ERROR;
         
+    /* TBD - support for rgAttributes field in CERT_REQUEST_INFO struct */
+    criP->cAttribute = 0;
+    criP->rgAttribute = NULL;
+
     return TCL_OK;
 }
 
@@ -1860,13 +1863,13 @@ static TCL_RESULT Twapi_CryptSignAndEncodeCertObjCmd(
         goto vamoose;
 
     if (! CryptSignAndEncodeCertificate(hprov, keyspec, enctype,
-                                        X509_CERT_TO_BE_SIGNED, &u,
+                                        (LPCSTR) (DWORD_PTR) structtype, &u,
                                         &algid, NULL, NULL, &nbytes))
         res = TwapiReturnSystemError(ticP->interp);
     else {
         encodedObj = ObjFromByteArray(NULL, nbytes);
         if (CryptSignAndEncodeCertificate(hprov, keyspec, enctype,
-                                          X509_CERT_TO_BE_SIGNED, &u,
+                                          (LPCSTR) (DWORD_PTR) structtype, &u,
                                           &algid, NULL,
                                           ObjToByteArray(encodedObj, NULL),
                                           &nbytes)) {

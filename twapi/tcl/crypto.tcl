@@ -319,11 +319,11 @@ proc twapi::cert_set_key_prov {hcert args} {
 
 proc twapi::cert_export {hcert args} {
     parseargs args {
-        format.arg der {der cer crt pem}
+        format.arg der {der cer crt pem base64}
     } -maxleftover 0 -setvars
 
     set enc [lindex [Twapi_CertGetEncoded $hcert] 1]
-    if {$format eq "pem"} {
+    if {$format in {pem base64}} {
         # 0 -> CRYPT_STRING_BASE64HEADER 
         # 0x80000000 -> LF-only, not CRLF
         return [CryptBinaryToString $enc 0x80000000]
@@ -422,11 +422,10 @@ proc twapi::cert_create {subject hprov cissuer args} {
 
     set issuer_info [cert_info $cissuer]
     set issuer_blob [cert_name_to_blob [dict get $issuer_info -subject] -format x500]
-    set sigoid [dict get $issuer_info -signaturealgorithm]
+    set sigalgo [dict get $issuer_info -signaturealgorithm]
 
     # TBD Issuer altnames - get from issuer cert
     # lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
-
 
     # The subject key id in issuer's cert will become the
     # authority key id in the new cert
@@ -440,16 +439,9 @@ proc twapi::cert_create {subject hprov cissuer args} {
 
     # Generate a subject key identifier for this cert based on a hash
     # of the public key
-    # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
-    # TBD - Do not hard code oid_rsa_rsa.
-    set pubkey [CryptExportPublicKeyInfoEx $hprov \
-                    [_crypt_keyspec $keyspec] \
-                    0x10001 \
-                    [oid oid_rsa_rsa] \
-                    0]
+    set pubkey [crypt_public_key $hprov $keyspec [lindex $sigalgo 0]
     set subject_key_id [Twapi_HashPublicKeyInfo $pubkey]
     lappend opts(extensions) [list 2.5.29.14 0 $subject_key_id]
-
 
     set start [timelist_to_large_system_time $opts(start)]
     set end [timelist_to_large_system_time $opts(end)]
@@ -457,7 +449,7 @@ proc twapi::cert_create {subject hprov cissuer args} {
     # 2 -> CERT_V3
     # issuer_id and subject_id for the certificate are left empty
     # as recommended by gutman's X.509 paper
-    set cert_info [list 2 $opts(serialnumber) $sigoid $issuer_blob \
+    set cert_info [list 2 $opts(serialnumber) $sigalgo $issuer_blob \
                        $start $end \
                        [cert_name_to_blob $subject] \
                        $pubkey {} {} \
@@ -470,7 +462,7 @@ proc twapi::cert_create {subject hprov cissuer args} {
     trap {
         # 0x10001 -> X509_ASN_ENCODING, 2 -> X509_CERT_TO_BE_SIGNED
         return [CryptSignAndEncodeCertificate $hissuerprov $issuer_keyspec \
-                0x10001 2 $cert_info $sigoid]
+                0x10001 2 $cert_info $sigalgo]
     } finally {
         # TBD - test to make sure ok to close this if caller had
         # it open
@@ -581,7 +573,7 @@ proc twapi::cert_tls_verify {hcert args} {
     }
 }
 
-proc twapi::cert_find_private_key {hcert} {
+proc twapi::cert_locate_private_key {hcert} {
     parseargs args {
         {keysettype.arg any {any user machine}}
         {silent 0 0x40}
@@ -589,6 +581,30 @@ proc twapi::cert_find_private_key {hcert} {
     
     return [CryptFindCertificateKeyProvInfo $hcert \
                 [expr {$silent | [dict get {any 0 user 1 machine 2} $keysettype]}]]
+}
+
+
+proc twapi::cert_request {subject hprov keyspec args} {
+    parseargs args {
+        {signaturealgorithmid.arg oid_rsa_sha1rsa}
+        {format.arg der {der base64}}
+    } -setvars -maxleftover 0
+    
+    set sigoid [oid $signaturealgorithmid]
+    if {$sigoid ni [list [oid oid_rsa_sha1rsa] [oid oid_rsa_md5rsa] [oid oid_x957_sha1dsa]]} {
+        badargs! "Invalid signature algorithm '$sigalg'"
+    }
+    set keyspec [twapi::_crypt_keyspec $keyspec]
+    # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
+    set pubkeyinfo [crypt_public_key $hprov $keyspec $sigoid]
+    set req [CryptSignAndEncodeCertificate $hprov $keyspec 0x10001 4 [list 0 [cert_name_to_blob $subject] $pubkeyinfo] $sigoid]
+    if {$format eq "base64"} {
+        # 3 -> CRYPT_STRING_BASE64REQUESTHEADER 
+        # 0x80000000 -> LF-only, not CRLF
+        return [CryptBinaryToString $req 0x80000003]
+    } else {
+        return $req
+    }
 }
 
 ################################################################
@@ -683,6 +699,15 @@ proc twapi::crypt_key_generate {hprov algid args} {
 
 proc twapi::crypt_keypair {hprov keyspec} {
     return [CryptGetUserKey $hprov [dict! {keyexchange 1 signature 2} $keyspec]]
+}
+
+# TBD - Document
+proc twapi::crypt_public_key {hprov keyspec {sigoid oid_rsa_rsa}} {
+    set pubkey [CryptExportPublicKeyInfoEx $hprov \
+                    [_crypt_keyspec $keyspec] \
+                    0x10001 \
+                    [oid $sigoid] \
+                    0]
 }
 
 proc twapi::crypt_get_security_descriptor {hprov} {
