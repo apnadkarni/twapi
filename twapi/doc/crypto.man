@@ -1,7 +1,7 @@
 [comment {-*- tcl -*- doctools manpage}]
-[manpage_begin "Cryptographic API" n ""]
+[manpage_begin "CryptoAPI" n ""]
 [copyright "2007-2013 Ashok P. Nadkarni"]
-[moddesc "Cryptographic API"]
+[moddesc "Cryptographic and Certificate API"]
 [titledesc "Commands related to cryptographical operations"]
 [require twapi_crypto]
 [description]
@@ -290,7 +290,7 @@ close $fd
 [example_end]
 
 [para]
-The [uri #cert_find_private_key [cmd cert_find_private_key]] command
+The [uri #cert_locate_private_key [cmd cert_locate_private_key]] command
 locates the private key corresponding to the public key in a certificate.
 
 [section "Finding a certificate in a store"]
@@ -668,8 +668,11 @@ the certificate is considered invalid for any use.
 [call [cmd cert_enum_properties] [arg HCERT]]
 Returns a list properties defined for the certificate context [arg HCERT].
 
-[call [cmd cert_export] [arg HCERT]]
-Returns the certificate for a certificate context in DER format.
+[call [cmd cert_export] [arg HCERT] [opt "[cmd -format] [arg FORMAT]"]]
+Returns the certificate content for the specified certificate context.
+If [arg FORMAT] is specified as [const der] (default), [const cer] or
+[const crt],  the content is in DER format. If [arg FORMAT] is 
+[const pem] or [const base64], the content is returned in PEM format.
 
 [call [cmd cert_extension] [arg HCERT] [arg EXTENSION]]
 Returns a certificate extension as a two element list.
@@ -732,7 +735,7 @@ Otherwise the file is written as a serialized certificate store.
 The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
 when no longer needed.
 
-[call [cmd cert_find_private_key] [arg HCERT] [opt [arg options]]]
+[call [cmd cert_locate_private_key] [arg HCERT] [opt [arg options]]]
 Searches key containers to locate the private key corresponding to
 the public key in the certificate context [arg HCERT]. Returns a
 boolean indicating if it was found. In addition, the located key is
@@ -872,6 +875,20 @@ This can also be retrieved as a hexadecimal string with
 encoded subject name.
 [opt_def [cmd subject_public_key_md5_hash]] Binary containing the MD5 hash of the certificate public key.
 [list_end]
+
+[call [cmd cert_request] [arg SUBJECT] [arg HCRYPT] [arg KEYSPEC] [opt "[cmd -format] [arg FORMAT]"]]
+Returns an encoded certificate request.
+[arg SUBJECT] is the name of the subject (and issuer) in X.500 format.
+[arg HCRYPT] is a cryptographic
+context containing the public key for the certificate subject.
+[arg KEYSPEC] must be [const signature] or [const keyexhange] depending
+on which public/private key pair in the key container
+the certificate is to be created.
+[nl]
+If [cmd -format] is unspecified or [arg FORMAT] is [const der], the
+returned certificate request is in DER format. If [arg FORMAT] is
+[const base64], the returned request is base-64 encoded with a 
+certificate request header.
 
 [call [cmd cert_subject_name] [arg HCERT] [opt [arg options]]]
 Returns a subject name field from the certificate context [arg HCERT]. 
