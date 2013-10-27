@@ -14,6 +14,14 @@
 HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+static Tcl_Obj *ObjFromCERT_EXTENSIONS(int nexts, CERT_EXTENSION *extP);
+static TCL_RESULT TwapiCryptDecodeObject(
+    Tcl_Interp *interp,
+    void *poid, /* Either a Tcl_Obj or a #define X509* int value */
+    void *penc,
+    DWORD nenc,
+    Tcl_Obj **objPP);
+
 
 void TwapiRegisterCertPointer(Tcl_Interp *interp, PCCERT_CONTEXT certP)
 {
@@ -229,6 +237,43 @@ static Tcl_Obj *ObjFromCRYPT_OID_INFO(PCCRYPT_OID_INFO coiP)
 
     return ObjNewList(5, objs);
 }
+
+static Tcl_Obj *ObjFromCRYPT_ATTRIBUTE(CRYPT_ATTRIBUTE *caP)
+{
+    Tcl_Obj *objs[2];
+    int i;
+
+    objs[0] = ObjFromString(caP->pszObjId);
+    objs[1] = ObjNewList(caP->cValue, NULL);
+    for (i = 0; i < caP->cValue; ++i) {
+        Tcl_Obj *attrObj;
+        /* Try to decode and if cannot do so, return plain byte array */
+        if (TwapiCryptDecodeObject(NULL, objs[0],
+                                   caP->rgValue[i].pbData, caP->rgValue[i].cbData,
+                                   &attrObj) == TCL_OK)
+            ObjAppendElement(NULL, objs[1], attrObj);
+        else
+            ObjAppendElement(NULL, objs[1], ObjFromCRYPT_BLOB(&caP->rgValue[i]));
+    }
+    return ObjNewList(2, objs);
+}
+
+
+static Tcl_Obj *ObjFromCERT_REQUEST_INFO(CERT_REQUEST_INFO *criP)
+{
+    Tcl_Obj *objs[4];
+    int i;
+
+    objs[0] = ObjFromDWORD(criP->dwVersion);
+    objs[1] = ObjFromCRYPT_BLOB(&criP->Subject);
+    objs[2] = ObjFromCERT_PUBLIC_KEY_INFO(&criP->SubjectPublicKeyInfo);
+    objs[3] = ObjNewList(criP->cAttribute, NULL);
+    for (i = 0; i < criP->cAttribute; ++i) {
+        ObjAppendElement(NULL, objs[3], ObjFromCRYPT_ATTRIBUTE(&criP->rgAttribute[i]));
+    }
+    return ObjNewList(4, objs);
+}
+
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParseCRYPT_BLOB(
@@ -659,6 +704,7 @@ static TCL_RESULT TwapiCryptDecodeObject(
         CERT_ENHKEY_USAGE *enhkeyP;
         CERT_AUTHORITY_KEY_ID2_INFO *akeyidP;
         CERT_BASIC_CONSTRAINTS2_INFO *basicP;
+        CERT_EXTENSIONS *cextsP;
     } u;
     DWORD n;
     LPCSTR oid;
@@ -707,6 +753,9 @@ static TCL_RESULT TwapiCryptDecodeObject(
                 dwoid = (DWORD_PTR) X509_AUTHORITY_INFO_ACCESS; // same as AUTHORITY
             else if (STREQ(oid, szOID_SUBJECT_KEY_IDENTIFIER))
                 dwoid = 65535-1;
+            else if (STREQ(oid, szOID_CERT_EXTENSIONS) ||
+                     STREQ(oid, szOID_RSA_certExtensions))
+                dwoid = (DWORD_PTR) X509_EXTENSIONS;
             else
                 dwoid = 65535;      /* Will return as a byte array */
         }
@@ -748,6 +797,9 @@ static TCL_RESULT TwapiCryptDecodeObject(
     case X509_ALGORITHM_IDENTIFIER:
         fnP = ObjFromCRYPT_ALGORITHM_IDENTIFIER;
         break;
+    case X509_CERT_REQUEST_TO_BE_SIGNED:
+        fnP = ObjFromCERT_REQUEST_INFO;
+        break;
     case X509_CERT_POLICIES:
         fnP = ObjFromCERT_POLICIES_INFO;
         break;
@@ -757,10 +809,13 @@ static TCL_RESULT TwapiCryptDecodeObject(
     case X509_POLICY_MAPPINGS:
         fnP = ObjFromCERT_POLICY_MAPPINGS_INFO;
         break;
+    case X509_EXTENSIONS:
+        objP = ObjFromCERT_EXTENSIONS(u.cextsP->cExtension, u.cextsP->rgExtension);
+        break;
     case X509_CRL_DIST_POINTS:
         fnP = ObjFromCRL_DIST_POINTS_INFO;
         break;
-    case X509_AUTHORITY_INFO_ACCESS: // FALLTHROUGH
+    case X509_AUTHORITY_INFO_ACCESS:
         fnP = ObjFromCERT_AUTHORITY_INFO_ACCESS;
         break;
     case 65535-1: // szOID_SUBJECT_KEY_IDENTIFIER
@@ -926,8 +981,10 @@ static Tcl_Obj *ObjFromCERT_EXTENSION(CERT_EXTENSION *extP)
     extObj = ObjFromString(extP->pszObjId);
     if (TwapiCryptDecodeObject(NULL, extObj,
                                extP->Value.pbData,
-                               extP->Value.cbData, &objs[2]) != TCL_OK)
-        objs[2] = ObjFromEmptyString();
+                               extP->Value.cbData, &objs[2]) != TCL_OK) {
+        /* TBD - this is not quite correct. How can caller distinguish error?*/
+        objs[2] = ObjFromByteArray(extP->Value.pbData, extP->Value.cbData);
+    }
     ObjDecrRefs(extObj);
     return ObjNewList(3, objs);
 }
@@ -2027,6 +2084,25 @@ static TCL_RESULT  Twapi_HashPublicKeyInfoObjCmd(TwapiInterpContext *ticP, Tcl_I
     return res;
 }
 
+static TCL_RESULT Twapi_CryptDecodeObjectExObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    Tcl_Obj *typeObj;
+    void *encP;
+    int  enc_len;
+    Tcl_Obj *objP;
+    TCL_RESULT res;
+
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETOBJ(typeObj),
+                         GETBA(encP, enc_len), ARGEND);
+    if (res == TCL_OK) {
+        res = TwapiCryptDecodeObject(interp, typeObj, encP, enc_len, &objP);
+        if (res == TCL_OK)
+            ObjSetResult(interp, objP);
+    }
+
+    return res;
+}
+
 static TCL_RESULT Twapi_CertVerifyChainPolicySSLObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     PCERT_CHAIN_POLICY_PARA policy_paramP;
@@ -2833,6 +2909,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptStringToBinary, 10046), // Tcl
         DEFINE_FNCODE_CMD(CryptBinaryToString, 10047), // Tcl
         DEFINE_FNCODE_CMD(CertCreateContext, 10048), // Tcl
+        DEFINE_FNCODE_CMD(CryptDecodeObjectEx, 10049), // Tcl
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
@@ -2843,6 +2920,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(Twapi_CertVerifyChainPolicySSL, Twapi_CertVerifyChainPolicySSLObjCmd),
         DEFINE_TCL_CMD(Twapi_HashPublicKeyInfo, Twapi_HashPublicKeyInfoObjCmd),
         DEFINE_TCL_CMD(CryptFindOIDInfo, Twapi_CryptFindOIDInfoObjCmd),
+        DEFINE_TCL_CMD(CryptDecodeObjectEx, Twapi_CryptDecodeObjectExObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
