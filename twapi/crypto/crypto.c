@@ -15,6 +15,12 @@ HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
 static Tcl_Obj *ObjFromCERT_EXTENSIONS(int nexts, CERT_EXTENSION *extP);
+static TCL_RESULT ParseCERT_EXTENSIONS(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *extsObj,
+    DWORD *nextsP,
+    CERT_EXTENSION **extsPP
+    );
 static TCL_RESULT TwapiCryptDecodeObject(
     Tcl_Interp *interp,
     void *poid, /* Either a Tcl_Obj or a #define X509* int value */
@@ -861,6 +867,7 @@ static TCL_RESULT TwapiCryptEncodeObject(
         CERT_BASIC_CONSTRAINTS2_INFO basic;
         CERT_AUTHORITY_KEY_ID2_INFO auth_key_id;
         CRYPT_ALGORITHM_IDENTIFIER algid;
+        CERT_EXTENSIONS cexts;
     } u;
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj **objs;
@@ -898,6 +905,9 @@ static TCL_RESULT TwapiCryptEncodeObject(
                 dwoid = (DWORD_PTR) X509_AUTHORITY_KEY_ID2;
             else if (STREQ(oid, szOID_SUBJECT_KEY_IDENTIFIER))
                 dwoid = 65535-1;
+            else if (STREQ(oid, szOID_CERT_EXTENSIONS) ||
+                     STREQ(oid, szOID_RSA_certExtensions))
+                dwoid = (DWORD_PTR) X509_EXTENSIONS;
             else
                 dwoid = 65535;      /* Will return as a byte array */
         }
@@ -938,6 +948,9 @@ static TCL_RESULT TwapiCryptEncodeObject(
         res = ParseCRYPT_ALGORITHM_IDENTIFIER(ticP, valObj, &u.algid);
         if (res != TCL_OK)
             return res;
+        break;
+    case X509_EXTENSIONS:
+        res = ParseCERT_EXTENSIONS(ticP, valObj, &u.cexts.cExtension, &u.cexts.rgExtension);
         break;
     case 65535-1: // szOID_SUBJECT_KEY_IDENTIFIER
         res = ParseCRYPT_BLOB(ticP, valObj, &u.blob);
@@ -2084,6 +2097,57 @@ static TCL_RESULT  Twapi_HashPublicKeyInfoObjCmd(TwapiInterpContext *ticP, Tcl_I
     return res;
 }
 
+static TCL_RESULT Twapi_CryptFormatObjectObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    Tcl_Obj *typeObj;
+    DWORD encoding, flags;
+    void *encP, *bufP;
+    int  enclen, buflen;
+    Tcl_Obj *objP;
+    TCL_RESULT res;
+    MemLifoMarkHandle mark;
+    char *oid;
+
+    mark = MemLifoPushMark(&ticP->memlifo);
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1,
+                         GETINT(encoding), ARGSKIP, GETINT(flags), ARGSKIP,
+                         GETASTR(oid), GETBA(encP, enclen), ARGEND);
+    if (res == TCL_OK) {
+        /* First try a buffer size guess */
+        bufP = MemLifoAlloc(&ticP->memlifo, enclen, &buflen);
+        if (CryptFormatObject(encoding, 0, flags, NULL, oid, encP, enclen,
+                              bufP, &buflen))
+            ObjSetResult(interp, ObjFromUnicodeN(bufP, buflen/sizeof(WCHAR)));
+        else
+            res = TwapiReturnSystemError(interp);
+    }
+
+    MemLifoPopMark(mark);
+    return res;
+}
+
+static TCL_RESULT Twapi_CryptEncodeObjectExObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    Tcl_Obj *typeObj, *valObj;
+    void *encP;
+    int  enc_len;
+    TCL_RESULT res;
+    CRYPT_OBJID_BLOB blob;
+    MemLifoMarkHandle mark;
+
+    mark = MemLifoPushMark(&ticP->memlifo);
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETOBJ(typeObj),
+                         GETOBJ(valObj), ARGEND);
+    if (res == TCL_OK) {
+        res = TwapiCryptEncodeObject(ticP, typeObj, valObj, &blob);
+        if (res == TCL_OK)
+            ObjSetResult(interp, ObjFromCRYPT_BLOB(&blob));
+    }
+
+    MemLifoPopMark(mark);
+    return res;
+}
+
 static TCL_RESULT Twapi_CryptDecodeObjectExObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     Tcl_Obj *typeObj;
@@ -2091,7 +2155,9 @@ static TCL_RESULT Twapi_CryptDecodeObjectExObjCmd(TwapiInterpContext *ticP, Tcl_
     int  enc_len;
     Tcl_Obj *objP;
     TCL_RESULT res;
+    MemLifoMarkHandle mark;
 
+    mark = MemLifoPushMark(&ticP->memlifo);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETOBJ(typeObj),
                          GETBA(encP, enc_len), ARGEND);
     if (res == TCL_OK) {
@@ -2100,6 +2166,7 @@ static TCL_RESULT Twapi_CryptDecodeObjectExObjCmd(TwapiInterpContext *ticP, Tcl_
             ObjSetResult(interp, objP);
     }
 
+    MemLifoPopMark(mark);
     return res;
 }
 
@@ -2921,6 +2988,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(Twapi_HashPublicKeyInfo, Twapi_HashPublicKeyInfoObjCmd),
         DEFINE_TCL_CMD(CryptFindOIDInfo, Twapi_CryptFindOIDInfoObjCmd),
         DEFINE_TCL_CMD(CryptDecodeObjectEx, Twapi_CryptDecodeObjectExObjCmd),
+        DEFINE_TCL_CMD(CryptEncodeObjectEx, Twapi_CryptEncodeObjectExObjCmd),
+        DEFINE_TCL_CMD(CryptFormatObject, Twapi_CryptFormatObjectObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
