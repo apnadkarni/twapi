@@ -622,6 +622,9 @@ proc twapi::cert_request_parse {req args} {
 }
 
 proc twapi::cert_request {subject hprov keyspec args} {
+    set args [_cert_create_parse_options $args opts]
+    # TBD - barf if any elements other than extensions is set
+
     parseargs args {
         {signaturealgorithmid.arg oid_rsa_sha1rsa}
         {format.arg der {der pem base64}}
@@ -636,7 +639,13 @@ proc twapi::cert_request {subject hprov keyspec args} {
     # Pass oid_rsa_rsa as that seems to be what OPENSSL understands in
     # a CSR
     set pubkeyinfo [crypt_public_key $hprov $keyspec oid_rsa_rsa]
-    set req [CryptSignAndEncodeCertificate $hprov $keyspec 0x10001 4 [list 0 [cert_name_to_blob $subject] $pubkeyinfo] $sigoid]
+    set attrs [list 0 [cert_name_to_blob $subject] $pubkeyinfo]
+    if {[llength $opts(extensions)]} {
+        lappend attrs [list [list [oid oid_rsa_certextensions] [list $opts(extensions)]]]
+    } else {
+        lappend attrs {}
+    }
+    set req [CryptSignAndEncodeCertificate $hprov $keyspec 0x10001 4 $attrs $sigoid]
     if {$format in {pem base64}} {
         # 3 -> CRYPT_STRING_BASE64REQUESTHEADER 
         # 0x80000000 -> LF-only, not CRLF
