@@ -841,7 +841,7 @@ static TCL_RESULT TwapiCryptDecodeObject(
 }
     
 /*
- * Note: Allocates memory for blobP from lifoP. Note structure internal
+ * Note: Allocates memory for blobP from ticP lifo. Note structure internal
  * pointers may point to Tcl_Obj areas within valObj so
  *  TREAT RETURNED STRUCTURES AS VOLATILE.
  *
@@ -1132,6 +1132,39 @@ static TCL_RESULT ParseCERT_INFO(
 }
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParseCRYPT_ATTRIBUTE(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *attrObj,
+    CRYPT_ATTRIBUTE *attrP /* Will contain garbage in case of errors */
+    )
+{
+    Tcl_Obj **objs;
+    int       n, nobjs;
+    Tcl_Interp *interp = ticP->interp;
+    void *pv;
+
+    if (ObjGetElements(NULL, attrObj, &nobjs, &objs) == TCL_OK &&
+        nobjs == 2) {
+        Tcl_Obj **valObjs;
+        pv = ObjToStringN(objs[0], &n);
+        attrP->pszObjId = MemLifoCopy(&ticP->memlifo, pv, n+1);
+        if (ObjGetElements(NULL, objs[1], &nobjs, &valObjs) == TCL_OK) {
+            attrP->cValue = nobjs;
+            attrP->rgValue = MemLifoAlloc(&ticP->memlifo, nobjs*sizeof(*(attrP->rgValue)), NULL);
+            for (n = 0; n < nobjs; ++n) {
+                if (TwapiCryptEncodeObject(ticP, objs[0], valObjs[n], &attrP->rgValue[n]) != TCL_OK)
+                    goto error_return;
+            }
+            return TCL_OK;
+        }
+    }
+
+error_return:
+    Tcl_AppendResult(interp, "Invalid CRYPT_ATTRIBUTE structure", NULL);
+    return TCL_ERROR;
+}
+
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParseCERT_REQUEST_INFO(
     TwapiInterpContext *ticP,
     Tcl_Obj *criObj,
@@ -1141,25 +1174,35 @@ static TCL_RESULT ParseCERT_REQUEST_INFO(
     Tcl_Obj **objs;
     int       nobjs;
     Tcl_Interp *interp = ticP->interp;
-    Tcl_Obj *algObj, *pubkeyObj, *issuerIdObj, *subjectIdObj, *extsObj;
+    Tcl_Obj *pubkeyObj, *attrObj;
 
-    if (ObjGetElements(NULL, criObj, &nobjs, &objs) != TCL_OK ||
+    if (ObjGetElements(NULL, criObj, &nobjs, &objs) == TCL_OK &&
         TwapiGetArgsEx(ticP, nobjs, objs,
                        GETINT(criP->dwVersion),
                        GETBA(criP->Subject.pbData, criP->Subject.cbData),
-                       GETOBJ(pubkeyObj), ARGEND) != TCL_OK) {
-        Tcl_AppendResult(interp, "Invalid CERT_REQUEST_INFO structure", NULL);
-        return TCL_ERROR;
+                       GETOBJ(pubkeyObj), GETOBJ(attrObj),
+                       ARGEND) == TCL_OK &&
+        ParseCERT_PUBLIC_KEY_INFO(ticP, pubkeyObj, &criP->SubjectPublicKeyInfo) == TCL_OK &&
+        ObjGetElements(NULL, attrObj, &nobjs, &objs) == TCL_OK) {
+        if (nobjs == 0) {
+            criP->cAttribute = 0;
+            criP->rgAttribute = NULL;
+        } else {
+            int i;
+            criP->cAttribute = nobjs;
+            criP->rgAttribute = MemLifoAlloc(&ticP->memlifo, nobjs * sizeof(*(criP->rgAttribute)), NULL);
+            for (i = 0; i < nobjs; ++i) {
+                if (ParseCRYPT_ATTRIBUTE(ticP, objs[i], &criP->rgAttribute[i]) != TCL_OK)
+                    goto error_return;
+            }
+        }
+        return TCL_OK;
     }
 
-    if (ParseCERT_PUBLIC_KEY_INFO(ticP, pubkeyObj, &criP->SubjectPublicKeyInfo) != TCL_OK)
-        return TCL_ERROR;
-        
-    /* TBD - support for rgAttributes field in CERT_REQUEST_INFO struct */
-    criP->cAttribute = 0;
-    criP->rgAttribute = NULL;
 
-    return TCL_OK;
+error_return:
+    Tcl_AppendResult(interp, "Invalid CERT_REQUEST_INFO structure", NULL);
+    return TCL_ERROR;
 }
 
 /* 

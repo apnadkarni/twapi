@@ -590,11 +590,41 @@ proc twapi::cert_locate_private_key {hcert} {
                 [expr {$silent | [dict get {any 0 user 1 machine 2} $keysettype]}]]
 }
 
+proc twapi::cert_request_parse {req args} {
+    parseargs args {
+        {format.arg der {der pem base64}}
+    } -setvars -maxleftover 0
+
+    if {$format in {pem base64}} {
+        # 3 -> CRYPT_STRING_BASE64REQUESTHEADER 
+        set req [CryptStringToBinary $req 3]
+    }
+
+    # 4 -> X509_CERT_REQUEST_TO_BE_SIGNED 
+    lassign [::twapi::CryptDecodeObjectEx 4 $req] ver subject pubkey attrs
+    lappend reqdict version $ver pubkey $pubkey attributes $attrs
+    lappend reqdict subject [cert_blob_to_name $subject]
+    foreach attr $attrs {
+        lassign $attr oid values
+        if {$oid eq "1.2.840.113549.1.9.14"} {
+            # Extensions
+            set extensions {}
+            foreach ext [lindex $values 0] {
+                lassign $ext oid critical value
+                set value [_cert_decode_extension $oid $value]
+                lappend extensions [list $oid $critical $value]
+            }
+            lappend reqdict extensions $extensions
+        }
+    }
+
+    return $reqdict
+}
 
 proc twapi::cert_request {subject hprov keyspec args} {
     parseargs args {
         {signaturealgorithmid.arg oid_rsa_sha1rsa}
-        {format.arg der {der base64}}
+        {format.arg der {der pem base64}}
     } -setvars -maxleftover 0
     
     set sigoid [oid $signaturealgorithmid]
@@ -607,7 +637,7 @@ proc twapi::cert_request {subject hprov keyspec args} {
     # a CSR
     set pubkeyinfo [crypt_public_key $hprov $keyspec oid_rsa_rsa]
     set req [CryptSignAndEncodeCertificate $hprov $keyspec 0x10001 4 [list 0 [cert_name_to_blob $subject] $pubkeyinfo] $sigoid]
-    if {$format eq "base64"} {
+    if {$format in {pem base64}} {
         # 3 -> CRYPT_STRING_BASE64REQUESTHEADER 
         # 0x80000000 -> LF-only, not CRLF
         return [CryptBinaryToString $req 0x80000003]
@@ -1377,17 +1407,34 @@ proc twapi::_cert_decode_keyusage {bin} {
 
 proc twapi::_cert_decode_enhkey {vals} {
     set result {}
+    set symmap [swapl [oids oid_pkix_kp_*]]
     foreach val $vals {
-        lappend result [dict* [swapl [oids oid_pkix_kp_*]] $val]
+        if {[dict exists $symmap $val]} {
+            lappend result [string range [dict get $symmap $val] 12 end]
+        } else {
+            lappend result $val
+        }
     }
     return $result
 }
 
 proc twapi::_cert_decode_extension {oid val} {
     # TBD - see what other types need to be decoded
+    # 2.5.29.19 - basic constraints
+    # 
     switch $oid {
         2.5.29.15 { return [_cert_decode_keyusage $val] }
         2.5.29.37 { return [_cert_decode_enhkey $val] }
+        2.5.29.17 -
+        2.5.29.18 {
+            set names {}
+            foreach elem $val {
+                lappend names [list [dict* {
+                    1 other 2 email 3 dns 5 directory 7 url 8 ip 9 registered
+                } [lindex $elem 0]] [lindex $elem 1]]
+            }
+            return $names
+        }
     }
     return $val
 }
