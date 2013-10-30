@@ -949,20 +949,6 @@ encoded subject name.
 [opt_def [cmd subject_public_key_md5_hash]] Binary containing the MD5 hash of the certificate public key.
 [list_end]
 
-[call [cmd cert_request] [arg SUBJECT] [arg HCRYPT] [arg KEYSPEC] [opt "[cmd -format] [arg FORMAT]"]]
-Returns an encoded certificate request.
-[arg SUBJECT] is the name of the subject (and issuer) in X.500 format.
-[arg HCRYPT] is a cryptographic
-context containing the public key for the certificate subject.
-[arg KEYSPEC] must be [const signature] or [const keyexhange] depending
-on which public/private key pair in the key container
-the certificate is to be created.
-[nl]
-If [cmd -format] is unspecified or [arg FORMAT] is [const der], the
-returned certificate request is in DER format. If [arg FORMAT] is
-[const base64], the returned request is base-64 encoded with a 
-certificate request header.
-
 [call [cmd cert_subject_name] [arg HCERT] [opt [arg options]]]
 Returns a subject name field from the certificate context [arg HCERT]. 
 The field may be from the certificate itself or a certificate property
