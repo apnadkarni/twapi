@@ -365,7 +365,7 @@ proc twapi::cert_extension {hcert oid} {
 proc twapi::cert_create_self_signed {subject args} {
     set args [_cert_create_parse_options $args opts]
 
-    # TB - make keycontainer explicit arg
+    # TBD - make keycontainer explicit arg
     array set opts [parseargs args {
         {keyspec.arg signature {keyexchange signature}}
         {keycontainer.arg {}}
@@ -416,6 +416,7 @@ proc twapi::cert_create {subject pubkey cissuer args} {
 
     parseargs args {
         {keyspec.arg signature {keyexchange signature}}
+        format.arg der {der cer crt pem base64}
     } -maxleftover 0 -setvars
     
     # TBD - check that issuer is a CA
@@ -460,8 +461,16 @@ proc twapi::cert_create {subject pubkey cissuer args} {
     set hissuerprov [crypt_acquire $issuer_container -csp $issuer_provname -csptype $issuer_provtype -keysettype [expr {$issuer_flags & 0x20 ? "machine" : "user"}]]
     trap {
         # 0x10001 -> X509_ASN_ENCODING, 2 -> X509_CERT_TO_BE_SIGNED
-        return [CryptSignAndEncodeCertificate $hissuerprov $issuer_keyspec \
-                0x10001 2 $cert_info $sigalgo]
+        set enc [CryptSignAndEncodeCertificate $hissuerprov $issuer_keyspec \
+                      0x10001 2 $cert_info $sigalgo]
+
+        if {$format in {pem base64}} {
+            # 0 -> CRYPT_STRING_BASE64HEADER 
+            # 0x80000000 -> LF-only, not CRLF
+            return [CryptBinaryToString $enc 0x80000000]
+        } else {
+            return $enc
+        }
     } finally {
         # TBD - test to make sure ok to close this if caller had
         # it open
@@ -584,7 +593,7 @@ proc twapi::cert_locate_private_key {hcert} {
 
 proc twapi::cert_request_parse {req args} {
     parseargs args {
-        {format.arg der {der pem base64}}
+        {format.arg der {der cer crt pem base64}}
     } -setvars -maxleftover 0
 
     if {$format in {pem base64}} {
@@ -604,7 +613,13 @@ proc twapi::cert_request_parse {req args} {
             foreach ext [lindex $values 0] {
                 lassign $ext oid critical value
                 set value [_cert_decode_extension $oid $value]
-                lappend extensions [list $oid $critical $value]
+                switch -exact -- $oid {
+                    2.5.29.15 { set oidname -keyusage }
+                    2.5.29.19 { set oidname -basicconstraints }
+                    2.5.29.37 { set oidname -enhkeyusage }
+                    default { set oidname $oid }
+                }
+                lappend extensions $oidname [list $value $critical]
             }
             lappend reqdict extensions $extensions
         }
@@ -613,10 +628,11 @@ proc twapi::cert_request_parse {req args} {
     return $reqdict
 }
 
+
 proc twapi::cert_request_create {subject hprov keyspec args} {
     set args [_cert_create_parse_options $args opts]
     # TBD - barf if any elements other than extensions is set
-
+    # TBD - document signaturealgorithmid
     parseargs args {
         {signaturealgorithmid.arg oid_rsa_sha1rsa}
         {format.arg der {der pem base64}}
@@ -1262,7 +1278,7 @@ twapi::proc* twapi::oids {{pattern *}} {
 }
 
 
-proc twapi::_make_altnames_ext {altnames critical {issuer 0}} {
+proc twapi::_make_altnames_ext {altnames {critical 0} {issuer 0}} {
     set names {}
     foreach {alttype altname} $altnames {
         lappend names [list \
@@ -1300,7 +1316,7 @@ proc twapi::_get_enhkey_usage_oids {names} {
     return [array names oids]
 }
 
-proc twapi::_make_enhkeyusage_ext {enhkeyusage critical} {
+proc twapi::_make_enhkeyusage_ext {enhkeyusage {critical 0}} {
     return [list "2.5.29.37" $critical [_get_enhkey_usage_oids $enhkeyusage]]
 }
 
@@ -1322,20 +1338,16 @@ twapi::proc* twapi::_init_keyusage_names {} {
     }
 } {}
 
-proc twapi::_make_basic_constraints_ext {isca capathlen} {
-    if {$isca} {
-        if {$capathlen < 0} {
-            set basic {1 0 0};  # No path length constraint
-        } else {
-            set basic [list 1 1 $capathlen]
-        }
-    } else {
-        set basic {0 0 0}
+proc twapi::_make_basic_constraints_ext {basicconstraints {critical 1}} {
+    lassign $basicconstraints isca capathlenvalid capathlen
+    if {[string is boolean $isca] && [string is boolean $capathlenvalid] &&
+        [string is integer -strict $capathlen] && $capathlen >= 0} {
+        return [list "2.5.29.19" $critical [list $isca $capathlenvalid $capathlen]]
     }
-    return [list "2.5.29.19" 1 $basic]
+    error "Invalid basicconstraints value"
 }
 
-proc twapi::_make_keyusage_ext {keyusage critical} {
+proc twapi::_make_keyusage_ext {keyusage {critical 0}} {
     variable _keyusage_byte1
     variable _keyusage_byte2
 
@@ -1453,14 +1465,28 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
         end.arg
         serialnumber.arg
         altnames.arg
-        {critical.arg {}}
         enhkeyusage.arg
         keyusage.arg
+        basicconstraints.arg
         {purpose.arg {} {}}
         {capathlen.int -1}
     } -ignoreunknown -setvars
 
     set ca [expr {"ca" in $purpose}]
+    if {$ca} {
+        if {[info exists basicconstraints]} {
+            badargs! "Option -basicconstraints cannot be specified if \"ca\" is included in the -purpose option"
+        }
+        if {$capathlen < 0} {
+            set basicconstraints {{1 0 0} 1};  # No path length constraint
+        } else {
+            set basic [list [list 1 1 $capathlen] 1]
+        }
+    } else {
+        if {![info exists basicconstraints]} {
+            set basicconstraints {{0 0 0} 1}
+        }
+    }
     set sslserver [expr {"sslserver" in $purpose}]
     set sslclient [expr {"sslclient" in $purpose}]
 
@@ -1491,27 +1517,27 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
 
     # Generate the extensions list
     set exts {}
-    lappend exts [_make_basic_constraints_ext $ca $capathlen]
+    lappend exts [_make_basic_constraints_ext {*}$basicconstraints ]
     if {$ca} {
         lappend keyusage key_cert_sign crl_sign
     }
     if {$sslserver || $sslclient} {
         lappend keyusage digital_signature key_encipherment key_agreement
-        if {$sslserver} {
-            lappend enhkeyusage oid_pkix_kp_server_auth
+        if {$sslserver} { 
+           lappend enhkeyusage oid_pkix_kp_server_auth
         }
         if {$sslclient} {
             lappend enhkeyusage oid_pkix_kp_client_auth
         }
     }
     if {[info exists keyusage]} {
-        lappend exts [_make_keyusage_ext $keyusage [expr {"keyusage" in $critical}]]
+        lappend exts [_make_keyusage_ext {*}$keyusage]
     }
     if {[info exists enhkeyusage]} {
-        lappend exts [_make_enhkeyusage_ext $enhkeyusage [expr {"enhkeyusage" in $critical}]]
+        lappend exts [_make_enhkeyusage_ext {*}$enhkeyusage]
     }
     if {[info exists altnames]} {
-        lappend exts [_make_altnames_ext $altnames [expr {"altnames" in $critical}] 0]
+        lappend exts [_make_altnames_ext {*}$altnames]
     }
 
     set opts(extensions) $exts
