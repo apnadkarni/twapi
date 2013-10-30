@@ -348,6 +348,48 @@ succeeding sections of this document.
 The cryptographic context is not needed any more and can be released.
 [example {crypt_free $crypt}]
 
+[para]
+Certificates that are not self-signed are created through
+[uri #cert_create [cmd cert_create]]. The private key for the signing
+certificate must be accessible to the application. The data for
+the new certificate, such as the subject name, the certificate public
+key, extensions etc. may be provided by the application itself but
+more often come from a
+[emph "certificate signing request"] which is generated elsewhere,
+possibly even on a different system. The command
+[uri #cert_request_parse [cmd cert_request_parse]] can be used to
+parse such a request and the extracted fields passed to
+[uri #cert_create [cmd cert_create]]. The request itself can be
+created by [uri #cert_request_create [cmd cert_request_create]].
+[para]
+On the requester's side, assuming the key container for the requestor
+has been already created as in the example above,
+[example_begin]
+set crypt [lb]crypt_acquire twapi_requestor_container -csp {Microsoft Strong Cryptographic Provider} -csptype prov_rsa_full[rb]
+set req [lb]cert_request_create "CN=My Subject Name" $crypt keyexchange -keyusage {key_agreement key_encipherment} -enhkeyusaeg client_auth[rb]
+crypt_free $crypt
+[example_end]
+The above will create a binary which can be sent to the remote signing
+authority where the certificate request contents can be retrieved:
+[example {set parsed_req [cert_request_parse $rew]}]
+After verifying the validity of the request
+([emph "how this is done is entirely up to the application"]),
+a certificate for the requestor can be created:
+[example_begin]
+# Assume cissuer is certificate context of signing certificate
+set subject [lb]dict get $parsed_req subject[rb]
+set pubkey [lb]dict get $parsed_req pubkey[rb]
+set opts {}
+foreach optname {-basicconstraints -keyusage -enhkeyusage} {
+    if {[lb]dict exists $parsed_req extensions $optname[rb]} {
+        lappend opts $optname [lb]dict get $parsed_req extensions $optname[rb]
+    }
+}
+set reqcert [lb]cert_create $subject $pubkey $cissuer {*}$opts[rb]
+[example_end]
+The encoded new certificate returned can be sent back to the requesting
+client.
+
 [section "Adding and deleting certificates from a store"]
 Certificates can be added and deleted from certificate stores with
 the commands
@@ -485,11 +527,12 @@ or [const newline].
 See [uri #cert_name_to_blob [cmd cert_name_to_blob]] for the reverse
 operation.
 
-[call [cmd cert_create] [arg SUBJECT] [arg HCRYPT] [arg ISSUERCERT] [opt [arg options]]]
-Creates a certificate and returns it as an ASN.1 encoded binary
-([emph not] as a certificate context). [arg HCRYPT] is a cryptographic
-context containing the public key for the certificate subject.
+[call [cmd cert_create] [arg SUBJECT] [arg PUBKEY] [arg ISSUERCERT] [opt [arg options]]]
+Creates a certificate and returns it in ASN.1 DER-encoded
+or PEM base-64 encoded format ([emph not] as a certificate context).
 [arg SUBJECT] is the name of the subject (and issuer) in X.500 format.
+ [arg PUBKEY] is
+the public key for the certificate subject.
 [arg ISSUERCERT] is the certificate context that will be used to
 sign the created certificate. The private key associated with this
 certificate must be accessible to the current process context.
@@ -498,8 +541,26 @@ The following options can be specified for the command:
 [list_begin opt]
 [opt_def [cmd -altnames] [arg ALTNAMES]]
 Specifies X.509 Alternative Name values to include in the certificate.
-[arg ALTNAMES] is a list of alternating name type and name value elements
+[arg ALTNAMES] is a pair of one or two elements.
+The first is a list of alternating name type and name value elements
 as described in [sectref "X.509 alternative names"].
+The second element, which is optional and defaults to [const false],
+is a boolean indicating whether the corresponding certificate extension
+should be marked critical or not.
+[opt_def [cmd -basicconstraints] [arg BASICCONSTRAINTS]]
+Specifies a basic constraints extension to be included in the certificate.
+[arg BASICCONSTRAINTS] is a pair of one or two elements.
+The first is a triplet consisting of a boolean which should be [const true]
+if the certificate is to be used for a certificate authority, a boolean
+that indicates whether the path length value is to be enforced, and
+a non-negative integer which is the path length value itself. These last
+are only relevant if the first is [const true].
+The second element of [arg BASICCONSTRAINTS],
+which is optional and defaults to [const true],
+is a boolean indicating whether the corresponding certificate extension
+should be marked critical or not.
+This element cannot be specified if the [cmd -purpose] option is specified
+and contains the value [const "ca"].
 [opt_def [cmd -capathlen] [arg CAPATHLENGTH]]
 Specifies the limit on the certificate chain path length during verification.
 Ignored unless the [cmd -purpose] option includes [const ca].
@@ -509,22 +570,34 @@ be of the form [arg "Year-Month-Day Hour:Minutes:Seconds"].
 Defaults to one year beyond the start time.
 [opt_def [cmd -enhkeyusage] [arg ENHKEYUSAGE]]
 Specifies values to use for the X.509 enhanced key usage extension.
-[arg ENHKEYUSAGE] is a list containing one or more values from 
+[arg ENHKEYUSAGE] is a pair of one or two elements, the first of which
+is a list containing one or more values from 
 [const client_auth], [const code_signing], [const email_protection],
 [const ipsec_endsystem], [const ipsec_tunnel],
-[const ipsec_user], [const server_auth], [const ocsp_signing]
-or [const timestamp_signing]. It may
-also be an valid [uri #asn1objectidentifiers OID].
+[const ipsec_user], [const server_auth], [const ocsp_signing],
+[const timestamp_signing] or a valid [uri #asn1objectidentifiers OID].
+The second element, which is optional and defaults to [const false],
+is a boolean indicating whether the corresponding certificate extension
+should be marked critical or not.
+[opt_def [cmd -format] [arg FORMAT]]
+Specifies the format in which the encoded certificate is returned.
+If [arg FORMAT] is specified as [const der] (default), [const cer] or
+[const crt],  the certificate is in DER format. If [arg FORMAT] is 
+[const pem] or [const base64], it is returned in PEM format.
 [opt_def [cmd -keyspec] [arg KEYSPEC]]
 [arg KEYSPEC] must be one of [const signature] (default) or 
 [const keyexchange] and specifies the public/private key pair
 in the container for which the certificate is being created.
 [opt_def [cmd -keyusage] [arg KEYUSAGE]]
 Specifies values to use for the X.509 key usage extension.
-[arg KEYUSAGE] is a list containing one or more values from 
+[arg KEYUSAGE] is a pair of one or two elements, the first of which
+is a list containing one or more values from 
 [const crl_sign], [const data_encipherment], [const decipher_only]
 [const digital_signature], [const encipher_only], [const key_agreement],
 [const key_cert_sign], [const key_encipherment] and [const non_repudiation].
+The second element, which is optional and defaults to [const false],
+is a boolean indicating whether the corresponding certificate extension
+should be marked critical or not.
 [opt_def [cmd -purpose] [arg PURPOSELIST]]
 Specifies the purposes for which the certificate is to be used. This
 is a more convenient method of specifying common
@@ -536,7 +609,8 @@ from the following:
 [opt_def [const ca]] Indicates that the certificate may be used
 to sign other certificates as a certificate authority. Sets the
 [const basic_constraints] extension and the [const key_cert_sign]
-and [const crl_sign] bits of the keyusage extension.
+and [const crl_sign] bits of the keyusage extension. The
+[cmd -basicconstraints] option can be specified in this case.
 [opt_def [const sslserver]] Indicates the certificate will
 be used for a SSL/TLS server. Sets
 [const digital_signature], [const key_encipherment] and [const key_agreement]
@@ -548,7 +622,6 @@ be used for a SSL/TLS client. Sets
 in the key usage extension and [const oid_pkix_kp_client_auth]
 in the enhanced key extension.
 [list_end]
-
 [opt_def [cmd -signaturealgorithm] [arg SIGLAGORITHM]]
 Specifies the signature algorithm to use for signing the certificate.
 [opt_def [cmd -start] [arg STARTTIME]]
@@ -975,6 +1048,69 @@ the values listed in [sectref "Certificate stores"].
 [call [cmd cert_release] [arg HCERT]]
 Decreases the reference count for a certificate context and
 frees it if the result is 0.
+
+[call [cmd cert_request_create] [arg SUBJECT] [arg HCRYPT] [arg KEYSPEC] [opt [arg options]]]
+[arg SUBJECT] is the name of the subject in X.500 format.
+Returns an encoded certificate signing request (CSR) that can be sent
+to a certificate authority. [arg HCRYPT] and [arg KEYSPEC]
+together select the public/private key pair
+for which a certificate is to be requested.
+[arg HCRYPT] is a handle to a
+cryptographic context and
+[arg KEYSPEC] must be [const signature] or [const keyexhange] to
+select the appropriate key pair in the context.
+[nl]
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -altnames] [arg ALTNAMES]]
+See [uri #cert_create [cmd cert_create]]
+[opt_def [cmd -capathlen] [arg CAPATHLENGTH]]
+See [uri #cert_create [cmd cert_create]]
+[opt_def [cmd -enhkeyusage] [arg ENHKEYUSAGE]]
+See [uri #cert_create [cmd cert_create]]
+[opt_def [cmd -format] [arg FORMAT]]
+Specifies the format in which the encoded CSR is returned.
+If [arg FORMAT] is specified as [const der] (default), [const cer] or
+[const crt],  the CSR is in DER format. If [arg FORMAT] is 
+[const pem] or [const base64], it is returned in PEM format.
+[opt_def [cmd -keyusage] [arg KEYUSAGE]]
+See [uri #cert_create [cmd cert_create]]
+[opt_def [cmd -purpose] [arg PURPOSES]]
+See [uri #cert_create [cmd cert_create]]
+[list_end]
+
+[call [cmd cert_request_parse] [arg CSR] [opt "[cmd -format] [arg FORMAT]"]]
+Parses a certificate signing request [arg CSR] and returns a dictionary with
+its contents. 
+If [arg FORMAT] is specified as [const der] (default), [const cer] or
+[const crt],  the CSE is assumed to be in DER format. If [arg FORMAT] is 
+[const pem] or [const base64], it is assumed to be in PEM format.
+[nl]
+The returned dictionary has the following keys:
+[list_begin opt]
+[opt_def [cmd attributes]] The attribute field in the CSR. This
+is a list each element of which is a pair consisting of an OID
+and a list of corresponding values.
+[opt_def [cmd extensions]] A subset of the [cmd attributes] key,
+formatted for easier processing. See the discussion below.
+[opt_def [cmd pubkey]] The public key of the requestor. This should
+be passed to [uri #cert_create [cmd cert_create]] as the public key
+argument.
+[opt_def [cmd subject]] The subject name of the requestor. This should
+be passed to [uri #cert_create [cmd cert_create]] as the subject
+argument.
+[opt_def [cmd version]] The CSR format version number.
+[list_end]
+
+One of the potential attribute fields in a CSR is
+OID [const 1.2.840.113549.1.9.14] through which the requestor
+can indicate certain certificate extensions to be included in
+the returned certificate. This specific attribute is parsed and
+returned as the value of the [cmd extensions] dictionary element above.
+This value is itself a dictionary which may contain zero or more of the
+keys [cmd -basicconstraints], [cmd -keyusage] and [cmd -enhkeyusage].
+The corresponding values have the same format as the corresponding
+options to the [uri #cert_create [cmd cert_create]] command.
 
 [call [cmd cert_set_key_prov] [arg HCERT] [opt [arg options]]]
 Associates the certificate context [arg HCERT] with a CSP key container.

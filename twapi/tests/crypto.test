@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010, Ashok P. Nadkarni
+# Copyright (c) 2010-2013, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -12,43 +12,43 @@ eval tcltest::configure $argv
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_crypto
 
-proc setup_contexts {package} {
-    set ccred [twapi::sspi_acquire_credentials -direction outbound -package $package]
-    set scred [twapi::sspi_acquire_credentials -direction inbound -package $package]
-    set cctx [twapi::sspi_client_context $ccred -target LUNA -confidentiality true -connection true]
-    lassign [twapi::sspi_step $cctx] step data extra
-    set sctx [twapi::sspi_server_context $scred $data]
-    lassign [twapi::sspi_step $sctx] step data extra
-    lassign [twapi::sspi_step $cctx $data] step data extra
-    lassign [twapi::sspi_step $sctx $data] step data extra
-    twapi::sspi_free_credentials $scred
-    twapi::sspi_free_credentials $ccred
-    return [list $cctx $sctx]
-}
-
-proc encrypt_test {cctx sctx} {
-    lassign [twapi::sspi_encrypt $cctx abc] sig data padding
-    set data1 [twapi::sspi_decrypt $sctx $sig $data $padding]
-    lassign [twapi::sspi_encrypt $cctx 123 -seqnum 1] sig data padding
-    set data2 [twapi::sspi_decrypt $sctx $sig $data $padding]
-    lassign [twapi::sspi_encrypt $cctx \001\002\003 -seqnum 2] sig data padding
-    set data3 [twapi::sspi_decrypt $sctx $sig $data $padding]
-    return [equal_lists [list $data1 $data2 $data3] [list abc 123 \001\002\003]]
-}
-
-proc encrypt_test_noseq {cctx sctx} {
-    lassign [twapi::sspi_encrypt $cctx abc] sig data padding
-    set data1 [twapi::sspi_decrypt $sctx $sig $data $padding]
-    lassign [twapi::sspi_encrypt $cctx 123] sig data padding
-    set data2 [twapi::sspi_decrypt $sctx $sig $data $padding]
-    lassign [twapi::sspi_encrypt $cctx \001\002\003] sig data padding
-    set data3 [twapi::sspi_decrypt $sctx $sig $data $padding]
-    return [equal_lists [list $data1 $data2 $data3] [list abc 123 \001\002\003]]
-}
 
 namespace eval twapi::crypto::test {
     namespace import ::tcltest::test
-    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+
+    proc setup_contexts {package} {
+        set ccred [twapi::sspi_acquire_credentials -direction outbound -package $package]
+        set scred [twapi::sspi_acquire_credentials -direction inbound -package $package]
+        set cctx [twapi::sspi_client_context $ccred -target LUNA -confidentiality true -connection true]
+        lassign [twapi::sspi_step $cctx] step data extra
+        set sctx [twapi::sspi_server_context $scred $data]
+        lassign [twapi::sspi_step $sctx] step data extra
+        lassign [twapi::sspi_step $cctx $data] step data extra
+        lassign [twapi::sspi_step $sctx $data] step data extra
+        twapi::sspi_free_credentials $scred
+        twapi::sspi_free_credentials $ccred
+        return [list $cctx $sctx]
+    }
+
+    proc encrypt_test {cctx sctx} {
+        lassign [twapi::sspi_encrypt $cctx abc] sig data padding
+        set data1 [twapi::sspi_decrypt $sctx $sig $data $padding]
+        lassign [twapi::sspi_encrypt $cctx 123 -seqnum 1] sig data padding
+        set data2 [twapi::sspi_decrypt $sctx $sig $data $padding]
+        lassign [twapi::sspi_encrypt $cctx \001\002\003 -seqnum 2] sig data padding
+        set data3 [twapi::sspi_decrypt $sctx $sig $data $padding]
+        return [equal_lists [list $data1 $data2 $data3] [list abc 123 \001\002\003]]
+    }
+
+    proc encrypt_test_noseq {cctx sctx} {
+        lassign [twapi::sspi_encrypt $cctx abc] sig data padding
+        set data1 [twapi::sspi_decrypt $sctx $sig $data $padding]
+        lassign [twapi::sspi_encrypt $cctx 123] sig data padding
+        set data2 [twapi::sspi_decrypt $sctx $sig $data $padding]
+        lassign [twapi::sspi_encrypt $cctx \001\002\003] sig data padding
+        set data3 [twapi::sspi_decrypt $sctx $sig $data $padding]
+        return [equal_lists [list $data1 $data2 $data3] [list abc 123 \001\002\003]]
+    }
 
     foreach pkg {NTLM Negotiate Kerberos WDigest} {
         test encrypt-${pkg}-1.0 "Verify basic encryption and decryption - $pkg" -setup "lassign \[setup_contexts $pkg\] cctx sctx" -body {
@@ -238,9 +238,430 @@ namespace eval twapi::crypto::test {
     } -result {}
 
 
-    #
-    # Clean up
-    ::tcltest::cleanupTests
+    # Certificate Stores
+
+    test cert_store_release {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_memory_store_open-1.0 {
+        Open a memory store
+    } -body {
+        twapi::cert_store_release [twapi::cert_memory_store_open]
+    } -result 1
+
+    test cert_memory_store_open-1.1 {
+        Open a memory store and add a certificate to it
+    } -body {
+        set store [twapi::cert_memory_store_open]
+    } -result 1
+
+
+    test cert_memory_store_open-2.0 {
+        Verify cert memory stores protected against double frees
+    } -body {
+        set store [twapi::cert_memory_store_open]
+        twapi::cert_store_release $store
+        twapi::cert_store_release $store
+    } -result "*Pointer is not registered*" -returnCodes error -match glob
+
+    test cert_file_store_open {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_physical_store_open {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_physical_store_delete {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_system_store_open {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_system_store_delete {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_store_find_certificate {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+
+    test cert_store_enum_contents {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_store_add_certificate {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_store_add_encoded_certificate {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_store_to_pfx {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_store_to_pkcs12 {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_store_to_pkcs7 {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_store_to_serialize {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_store_commit {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_subject_name {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_issuer_name {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_blob_to_name {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_name_to_blob {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_enum_properties {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_property {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_set_key_prov {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_export {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_enhkey_usage {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_key_usage {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_thumbprint {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_info {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_extension {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_create_self_signed {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_create_self_signed_from_crypt_context {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_create {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_request {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+    
+    test cert_tls_verify {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_locate_private_key {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_acquire {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_free {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_key_container_delete {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_key_generate {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_keypair {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_public_key {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_get_security_descriptor {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_set_security_descriptor {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_key_container_name {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_key_container_unique_name {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_csp {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_csptype {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_key_container_names {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_session_key_size {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_keyset_type {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_symmetric_key_size {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
 }
 
+::tcltest::cleanupTests
 namespace delete ::twapi::crypto::test
