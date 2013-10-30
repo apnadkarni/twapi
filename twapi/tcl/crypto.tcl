@@ -411,7 +411,7 @@ proc twapi::cert_create_self_signed_from_crypt_context {subject hprov args} {
                 $opts(start) $opts(end) $opts(extensions)]
 }
 
-proc twapi::cert_create {subject hprov cissuer args} {
+proc twapi::cert_create {subject pubkey cissuer args} {
     set args [_cert_create_parse_options $args opts]
 
     parseargs args {
@@ -436,14 +436,6 @@ proc twapi::cert_create {subject hprov cissuer args} {
         # 2.5.29.35 -> oid_authority_key_identifier
         lappend opts(extensions) [list 2.5.29.35 0 [list [lindex $issuer_subject_key_id 1] {} {}]]
     }
-
-    
-    # TBD - should the algo oid be hardcoded to oid_rsa_rsa ? That's known
-    # to work. Using [lindex $sigalgo 1] in the case of certificate
-    # requests caused openssl to fail to recognize the oid in CSR
-    # verification. Perhaps the same could happen here so for now
-    # always use oid_rsa_rsa. What about DH etc. ?
-    set pubkey [crypt_public_key $hprov $keyspec oid_rsa_rsa]
 
     # Generate a subject key identifier for this cert based on a hash
     # of the public key
@@ -621,7 +613,7 @@ proc twapi::cert_request_parse {req args} {
     return $reqdict
 }
 
-proc twapi::cert_request {subject hprov keyspec args} {
+proc twapi::cert_request_create {subject hprov keyspec args} {
     set args [_cert_create_parse_options $args opts]
     # TBD - barf if any elements other than extensions is set
 
@@ -654,6 +646,7 @@ proc twapi::cert_request {subject hprov keyspec args} {
         return $req
     }
 }
+
 
 ################################################################
 # Cryptographic context commands
