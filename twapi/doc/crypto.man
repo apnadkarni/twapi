@@ -1149,7 +1149,7 @@ certificate or the matching certificate's validity period start time
 is less than that of the new certificate. Otherwise an error is raised.
 [list_end]
 
-[call [cmd cert_store_add_encoded_certificate] [arg HSTORE] [arg ENCCERT] [opt "[cmd -disposition] [arg DISPOSITION]"]]
+[call [cmd cert_store_add_encoded_certificate] [arg HSTORE] [arg ENCCERT] [opt [arg options]]]
 Adds a new certificate to a certificate store. [arg HSTORE] is the handle
 to the store. [arg ENCCERT] is a binary value containing the 
 certificate encoded in X.509 ASN.1 format.
@@ -1158,7 +1158,10 @@ a handle to the new certificate context which must be freed
 with [uri #cert_release [cmd cert_release]] when no longer needed. 
 Note that the new certificate is not persisted until the store is saved.
 [nl]
-The [cmd -disposition] option controls what happens if a matching
+Supported options are:
+[list_begin opt]
+[opt_def [cmd -disposition] [arg DISPOSITION]]
+Controls what happens if a matching
 certificate already exists in the store. [arg DISPOSITION] may take one
 of the following values:
 [list_begin opt]
@@ -1170,6 +1173,13 @@ and a error raised. Otherwise, the new certificate is added.
 [opt_def update] The new certificate is added if there is no matching
 certificate or the matching certificate's validity period start time
 is less than that of the new certificate. Otherwise an error is raised.
+[list_end]
+[opt_def [cmd -format] [arg FORMAT]]
+Specifies the format of the encoded certificate in [arg ENCCERT].
+If [arg FORMAT] is specified as [const der] (default), [const cer] or
+[const crt],  the certificate should be in DER format. If [arg FORMAT] is 
+[const pem] or [const base64], it should be in PEM format with
+or without a header.
 [list_end]
 
 [call [cmd cert_store_release] [arg HSTORE]]

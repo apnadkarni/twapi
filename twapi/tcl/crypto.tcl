@@ -137,7 +137,14 @@ proc twapi::cert_store_add_certificate {hstore hcert args} {
 }
 
 proc twapi::cert_store_add_encoded_certificate {hstore enccert args} {
+    array set opts [parseargs args {
+        {format.arg der {der cer crt pem base64}}
+    } -ignoreunknown]
     array set opts [_cert_add_parseargs args]
+    if {$opts(format) in {pem base64}} {
+        # 6 -> CRYPT_STRING_BASE64_ANY 
+        set enccert [CryptStringToBinary $enccert 6]
+    }
     return [CertAddEncodedCertificateToStore $hstore 0x10001 $enccert $opts(disposition)]
 }
 
@@ -635,7 +642,7 @@ proc twapi::cert_request_create {subject hprov keyspec args} {
     # TBD - document signaturealgorithmid
     parseargs args {
         {signaturealgorithmid.arg oid_rsa_sha1rsa}
-        {format.arg der {der pem base64}}
+        {format.arg der {der cer crt pem base64}}
     } -setvars -maxleftover 0
     
     set sigoid [oid $signaturealgorithmid]
