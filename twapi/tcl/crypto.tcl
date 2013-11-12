@@ -71,26 +71,7 @@ proc twapi::cert_system_store_open {name args} {
         return [CertOpenSystemStore $name]
     }
 
-    set args [lassign $args location]
-    array set opts [parseargs args {
-        {readonly        0 0x00008000}
-        {commitenable    0 0x00010000}
-        {existing        0 0x00004000}
-        {create          0 0x00002000}
-        {includearchived 0 0x00000200}
-        {maxpermissions  0 0x00001000}
-        {deferclose      0 0x00000004}
-        {backupprivilege 0 0x00000800}
-    } -maxleftover 0 -nulldefault]
-
-    if {$opts(readonly) && $opts(commitenable)} {
-        badargs! "Options -commitenable and -readonly are mutually exclusive."
-    }
-
-    set flags 0
-    foreach {opt val} [array get opts] {
-        incr flags $val
-    }
+    set flags [_parse_store_open_opts [lassign $args location]]
     incr flags [_system_store_id $location]
     return [CertOpenStore 10 0 NULL $flags $name]
 }
@@ -1487,7 +1468,7 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
         if {$capathlen < 0} {
             set basicconstraints {{1 0 0} 1};  # No path length constraint
         } else {
-            set basic [list [list 1 1 $capathlen] 1]
+            set basicconstraints [list [list 1 1 $capathlen] 1]
         }
     } else {
         if {![info exists basicconstraints]} {
@@ -1538,13 +1519,13 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
         }
     }
     if {[info exists keyusage]} {
-        lappend exts [_make_keyusage_ext {*}$keyusage]
+        lappend exts [_make_keyusage_ext $keyusage]
     }
     if {[info exists enhkeyusage]} {
-        lappend exts [_make_enhkeyusage_ext {*}$enhkeyusage]
+        lappend exts [_make_enhkeyusage_ext $enhkeyusage]
     }
     if {[info exists altnames]} {
-        lappend exts [_make_altnames_ext {*}$altnames]
+        lappend exts [_make_altnames_ext $altnames]
     }
 
     set opts(extensions) $exts
