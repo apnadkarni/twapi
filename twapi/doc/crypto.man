@@ -193,7 +193,10 @@ own custom store.
 [para]
 Note that the system stores are relative to a [emph "system store location"]
 which must be specified when opening the store.
-These locations are specified in the following table:
+To enumerate the locations of the system stores, use
+[uri #cert_system_store_locations [cmd cert_system_store_locations]].
+Optionally, the following predefined values may be used to specify
+a system store location:
 
 [list_begin opt]
 [opt_def [const user]] Certificates associated with the current user account.
@@ -207,6 +210,10 @@ global enterprise directory.
 [opt_def [const usergrouppolicy]]  Certificates associated with the group policy for the current user.
 [list_end]
 
+To enumerate system stores at a location, use the
+[uri #cert_system_stores [cmd cert_system_stores]].
+
+[para]
 Most certificate store operations require the store to be first opened
 using the one of the commands
 [uri #cert_system_store_open [cmd cert_system_store_open]],
@@ -1337,6 +1344,14 @@ Deletes a certificate physical store that is part of a logical system
 store. [arg NAME] is the name of the physical store including the
 system store component, e.g. [const Root\\.Default]. [arg LOCATION]
 specifies the location of the system store and must be one of
+the values listed in [sectref "Certificate stores"].
+
+[call [cmd cert_system_store_locations] [arg LOCATION]]
+Returns a list of system store locations. See [sectref "Certificate stores"].
+
+[call [cmd cert_system_stores] [arg LOCATION]]
+Returns a list of system stores at the system store location [arg LOCATION].
+[arg LOCATION] specifies the location of the system store and must be one of
 the values listed in [sectref "Certificate stores"].
 
 [call [cmd cert_tls_verify] [arg HCERT] [opt [arg options]]]
