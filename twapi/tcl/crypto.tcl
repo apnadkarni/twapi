@@ -64,6 +64,11 @@ proc twapi::cert_physical_store_delete {name location} {
     return [CertOpenStore 14 0 NULL $flags $name]
 }
 
+# TBD - document and figure out what format to return data in
+proc twapi::cert_physical_stores {system_store_name location} {
+    return [CertEnumPhysicalStore $system_store_name [_system_store_id $location]]
+}
+
 proc twapi::cert_system_store_open {name args} {
     variable _system_stores
 
@@ -80,6 +85,22 @@ proc twapi::cert_system_store_delete {name location} {
     set flags 0x10;             # CERT_STORE_DELETE_FLAG
     incr flags [_system_store_id $location]
     return [CertOpenStore 10 0 NULL $flags $name]
+}
+
+proc twapi::cert_system_store_locations {} {
+    set l {}
+    foreach e [CertEnumSystemStoreLocation 0] {
+        lappend l [lindex $e 0]
+    }
+    return $l
+}
+
+proc twapi::cert_system_stores {location} {
+    set l {}
+    foreach e [CertEnumSystemStore [_system_store_id $location] ""] {
+        lappend l [lindex $e 0]
+    }
+    return $l
 }
 
 proc twapi::cert_store_find_certificate {hstore {type any} {term {}} {hcert NULL}} {
@@ -916,15 +937,10 @@ twapi::proc* twapi::_cert_prop_name {id} {
     badargs! "Unknown certificate property id '$id'" 3
 }
 
-proc twapi::_system_store_id {name} {
-    if {[string is integer -strict $name]} {
-        if {$name < 65536} {
-            badargs! "Invalid system store name $name" 3
-        }
-        return $name
-    }
-
-    set system_stores {
+twapi::proc* twapi::_system_store_id {name} {
+    variable _system_store_locations
+    
+    set _system_store_locations {
         service          0x40000
         ""               0x10000
         user             0x10000
@@ -936,7 +952,20 @@ proc twapi::_system_store_id {name} {
         users    0x60000
     }
 
-    return [dict! $system_stores $name 2]
+    foreach loc [CertEnumSystemStoreLocation 0] {
+        dict set _system_store_locations {*}$loc
+    }
+} {
+    variable _system_store_locations
+
+    if {[string is integer -strict $name]} {
+        if {$name < 65536} {
+            badargs! "Invalid system store name $name" 3
+        }
+        return $name
+    }
+
+    return [dict! $_system_store_locations $name 2]
 }
 
 twapi::proc* twapi::_csp_type_name_to_id prov {
