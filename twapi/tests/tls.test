@@ -1,0 +1,30 @@
+#
+# Copyright (c) 2013, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from crypto.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi_package twapi_crypto
+
+namespace eval twapi::crypto::test {
+    namespace import ::tcltest::test
+
+    test tsl_socket-1.0 {
+        TBD
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+    
+
+}
+
+::tcltest::cleanupTests
+namespace delete ::twapi::crypto::test
