@@ -966,8 +966,6 @@ TCL_RESULT ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME ti
 {
     Tcl_Obj **objv;
     int       objc;
-    int       i;
-    TCL_RESULT res;
     FILETIME  ft;
 
     if (ObjGetElements(interp, timeObj, &objc, &objv) != TCL_OK)
