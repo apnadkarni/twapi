@@ -18,7 +18,7 @@ Provider Interface (SSPI) interface.
 [section "SSL/TLS channels"]
 
 The module implements a single command,
-[uri #ssl_socket [cmd ssl_socket]], that implements a SSL/TLS
+[uri #tls_socket [cmd tls_socket]], that implements a SSL/TLS
 based channel which can be used with all Tcl channel based commands like
 [cmd puts], [cmd read], [cmd chan].
 
@@ -26,9 +26,9 @@ based channel which can be used with all Tcl channel based commands like
 
 [list_begin definitions]
 
-[call [cmd ssl_socket] [opt [arg options]] [arg REMOTEADDR] [arg PORT]]
-[call [cmd ssl_socket] [cmd -server] [arg SERVERCALLBACK] [opt [arg options]] [arg PORT]]
-The [cmd ssl_socket] command provides the same interface as the Tcl
+[call [cmd tls_socket] [opt [arg options]] [arg REMOTEADDR] [arg PORT]]
+[call [cmd tls_socket] [cmd -server] [arg SERVERCALLBACK] [opt [arg options]] [arg PORT]]
+The [cmd tls_socket] command provides the same interface as the Tcl
 [cmd socket] command except that the connection runs over TLS or SSL.
 [nl]
 The first form is used by client-side applications to connect to a remote
@@ -40,7 +40,7 @@ The command options include [cmd -server], [cmd -myaddr], [cmd -myport]
 and [cmd -async]. Please refer to the Tcl documentation of the [cmd socket]
 command for the use of these options.
 [nl]
-The [cmd ssl_socket] command supports the following additional options:
+The [cmd tls_socket] command supports the following additional options:
 
 [list_begin opt]
 
@@ -78,7 +78,7 @@ verification of the server certificate is not done. For server-side
 connections, automatic verification of client certificates is never
 done and must be done through this callback.
 [list_end]
-The channel returned by [cmd ssl_socket] may be used with any
+The channel returned by [cmd tls_socket] may be used with any
 of the Tcl channel commands and supports all channel and socket configuration
 options. In addition, the following read-only configuration options
 are supported:
