@@ -619,7 +619,7 @@ int Twapi_QueryContextAttributes(
     SECURITY_STATUS ss;
     Tcl_Obj *obj;
     Tcl_Obj *objs[6];
-    int i;
+    DWORD i;
 
     buf = NULL;
     obj = NULL;

@@ -247,7 +247,7 @@ static Tcl_Obj *ObjFromCRYPT_OID_INFO(PCCRYPT_OID_INFO coiP)
 static Tcl_Obj *ObjFromCRYPT_ATTRIBUTE(CRYPT_ATTRIBUTE *caP)
 {
     Tcl_Obj *objs[2];
-    int i;
+    DWORD i;
 
     objs[0] = ObjFromString(caP->pszObjId);
     objs[1] = ObjNewList(caP->cValue, NULL);
@@ -268,7 +268,7 @@ static Tcl_Obj *ObjFromCRYPT_ATTRIBUTE(CRYPT_ATTRIBUTE *caP)
 static Tcl_Obj *ObjFromCERT_REQUEST_INFO(CERT_REQUEST_INFO *criP)
 {
     Tcl_Obj *objs[4];
-    int i;
+    DWORD i;
 
     objs[0] = ObjFromDWORD(criP->dwVersion);
     objs[1] = ObjFromCRYPT_BLOB(&criP->Subject);
@@ -2142,11 +2142,9 @@ static TCL_RESULT  Twapi_HashPublicKeyInfoObjCmd(TwapiInterpContext *ticP, Tcl_I
 
 static TCL_RESULT Twapi_CryptFormatObjectObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    Tcl_Obj *typeObj;
     DWORD encoding, flags;
     void *encP, *bufP;
     int  enclen, buflen;
-    Tcl_Obj *objP;
     TCL_RESULT res;
     MemLifoMarkHandle mark;
     char *oid;
@@ -2172,8 +2170,6 @@ static TCL_RESULT Twapi_CryptFormatObjectObjCmd(TwapiInterpContext *ticP, Tcl_In
 static TCL_RESULT Twapi_CryptEncodeObjectExObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     Tcl_Obj *typeObj, *valObj;
-    void *encP;
-    int  enc_len;
     TCL_RESULT res;
     CRYPT_OBJID_BLOB blob;
     MemLifoMarkHandle mark;
