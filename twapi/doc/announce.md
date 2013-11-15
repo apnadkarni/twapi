@@ -1,9 +1,9 @@
-# Tcl Windows API (TWAPI) 4.0.22 BETA
+# Tcl Windows API (TWAPI) 4.0.26 BETA
 
-This is the first beta release of TWAPI 4.0.
+This is the second beta release of TWAPI 4.0.
 
 Project home page, including documentation,
-is at http://twapi.magicsplat.com/4.0-dev.
+is at http://twapi.sourceforge.net/4.0-dev.
 
 ## Supported platforms
 
@@ -15,12 +15,12 @@ TWAPI requires
 ## Changes since 3.1.17
 
 For a complete list, including INCOMPATIBLE CHANGES, see 
-http://twapi.magicsplat.com/4.0-dev/versionhistory.html
+http://twapi.sourceforge.net/4.0-dev/versionhistory.html
 
 ## Distributions
 
 TWAPI is distributed in multiple formats.
-See http://twapi.magicsplat.com/4.0-dev/installation.html for the details
+See http://twapi.sourceforge.net/4.0-dev/installation.html for the details
 and the pros and cons of each format.
 
 ## TWAPI Summary
@@ -61,4 +61,5 @@ Functions in the following areas are implemented:
   * Synchronization
   * Power management
   * Device I/O and management
-  * Crypto API
+  * Crypto API and certificates
+  * SSL/TLS

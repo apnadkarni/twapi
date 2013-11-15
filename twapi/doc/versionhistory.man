@@ -7,7 +7,7 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 4.0.24 Beta"]
+[section "Version 4.0.26 Beta"]
 Major changes in this release are support for Windows event tracing,
 new Windows event logging API,
 greatly enhanced support for CryptoAPI including certificate handling,
