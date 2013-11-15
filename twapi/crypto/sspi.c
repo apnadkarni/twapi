@@ -7,6 +7,52 @@
 
 /* Interface to CryptoAPI */
 
+/*
+Table showing SECBUFFER usage for different functions/providers in different sample code
++--------------+-----------------+-------------+-------------------+-------------------+--------------+-----------------------------+
+|Source        |InitializeContext|AcceptContext|EncryptMesssage    |DecryptMessage     |MakeSignature |VerifySignature              |
+|              |                 |             |                   |                   |              |                             |
+|              |                 |             |                   |                   |              |                             |
+|              |                 |             |                   |                   |              |                             |
+|              |                 |             |                   |                   |              |                             |
++--------------+-----------------+-------------+-------------------+-------------------+--------------+-----------------------------+
+|Richter       |in=TOKEN         |in=TOKEN     |TOKEN, DATA,       |TOKEN, DATA,       |TOKEN, DATA   |TOKEN, DATA                  |
+|              |out=TOKEN        |out=TOKEN    |PADDING            |PADDING            |              |                             |
++--------------+-----------------+-------------+-------------------+-------------------+--------------+-----------------------------+
+|Richter (ssl) |(in NULL first   |in=TOKEN,    |STREAM_HEADER,     |DATA, EMPTY,       |              |                             |
+|              |call)            |EMPTY        |DATA,              |EMPTY, EMPTY       |              |                             |
+|              |in=TOKEN,EMPTY   |out=TOKEN    |STREAM_TRAILER     |                   |              |                             |
+|              |out=TOKEN        |             |                   |                   |              |                             |
++--------------+-----------------+-------------+-------------------+-------------------+--------------+-----------------------------+
+|WebClient     |(in NULL first   |             |STREAM_HEADER,     |DATA, EMPTY,       |              |                             |
+|              |call)            |             |DATA,              |EMPTY, EMPTY       |              |                             |
+|              |in=TOKEN,        |             |STREAM_TRAILER,    |                   |              |                             |
+|              |EMPTY out=TOKEN  |             |EMPTY              |                   |              |                             |
++--------------+-----------------+-------------+-------------------+-------------------+--------------+-----------------------------+
+|WebServer     |                 |in=TOKEN,    |STREAM_HEADER,     |DATA, EMPTY,       |              |                             |
+|              |                 |EMPTY        |DATA,              |EMPTY, EMPTY       |              |                             |
+|              |                 |out=TOKEN    |STREAM_TRAILER,    |                   |              |                             |
+|              |                 |             |EMPTY              |                   |              |                             |
++--------------+-----------------+-------------+-------------------+-------------------+--------------+-----------------------------+
+|curl          |first call       |             |same as            |Same as            |              |                             |
+|              |in=NULL,         |             |WebClient/Webserver|WEbClient/Webserver|              |                             |
+|              |out=EMPTY Further|             |                   |                   |              |                             |
+|              |calls in=TOKEN,  |             |                   |                   |              |                             |
+|              |EMPTY out=TOKEN, |             |                   |                   |              |                             |
+|              |ALERT            |             |                   |                   |              |                             |
++--------------+-----------------+-------------+-------------------+-------------------+--------------+-----------------------------+
+|coast         |first call       |             | same as           |same as            |              |                             |
+|              |in=NULL,         |             |WebCleint/Webserver|Webclient/Webserver|              |                             |
+|              |out=TOKEN Further|             |                   |                   |              |                             |
+|              |in=TOKEN, EMPTY  |             |                   |                   |              |                             |
+|              |out=TOKEN        |             |                   |                   |              |                             |
++--------------+-----------------+-------------+-------------------+-------------------+--------------+-----------------------------+
+|codeproject   |                 |             |                   |                   |              |                             |
++--------------+-----------------+-------------+-------------------+-------------------+--------------+-----------------------------+
+
+*/
+
+
 #include "twapi.h"
 #include "twapi_crypto.h"
 
