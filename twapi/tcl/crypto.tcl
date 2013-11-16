@@ -321,7 +321,10 @@ proc twapi::cert_set_key_prov {hcert args} {
 
     # TBD - does the keyspec matter ? In case of self signed cert
     # which (keyexchange/signature) or both have to be specified ?
-    Twapi_SetCertContextKeyProvInfo $hcert \
+
+    # 2 -> CERT_KEY_PROV_INFO_PROP_ID
+    # TBD - the provider param is hardcoded as {}. Should that be an option ?
+    CertSetCertificateContextProperty $hcert 2 0 \
         [list $keycontainer $csp [_csp_type_name_to_id $csptype] $flags {} [_crypt_keyspec $keyspec]]
     return
 }
@@ -425,7 +428,7 @@ proc twapi::cert_create {subject pubkey cissuer args} {
 
     parseargs args {
         {keyspec.arg signature {keyexchange signature}}
-        format.arg der {der cer crt pem base64}
+        {format.arg der {der cer crt pem base64}}
     } -maxleftover 0 -setvars
     
     # TBD - check that issuer is a CA
@@ -1477,6 +1480,7 @@ proc twapi::_crypt_keyspec {keyspec} {
 proc twapi::_cert_create_parse_options {optvals optsvar} {
     upvar 1 $optsvar opts
 
+    # TBD - add -issueraltnames
     parseargs optvals {
         start.arg
         end.arg
@@ -1536,25 +1540,47 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
     set exts {}
     lappend exts [_make_basic_constraints_ext {*}$basicconstraints ]
     if {$ca} {
-        lappend keyusage key_cert_sign crl_sign
+        lappend extra_keyusage key_cert_sign crl_sign
     }
     if {$sslserver || $sslclient} {
-        lappend keyusage digital_signature key_encipherment key_agreement
+        lappend extra_keyusage digital_signature key_encipherment key_agreement
         if {$sslserver} { 
-           lappend enhkeyusage oid_pkix_kp_server_auth
+           lappend extra_enhkeyusage oid_pkix_kp_server_auth
         }
         if {$sslclient} {
-            lappend enhkeyusage oid_pkix_kp_client_auth
+            lappend extra_enhkeyusage oid_pkix_kp_client_auth
         }
     }
+
+    if {[info exists extra_keyusage]} {
+        if {[info exists keyusage]} {
+            # TBD - should it be marked critical or not ?
+            lset keyusage 0 [concat [lindex $keyusage 0] $extra_keyusage]
+        } else {
+            # TBD - should it be marked critical or not ?
+            set keyusage [list $extra_keyusage 1]
+        }
+    }
+
     if {[info exists keyusage]} {
-        lappend exts [_make_keyusage_ext $keyusage]
+        lappend exts [_make_keyusage_ext {*}$keyusage]
+    }
+
+    if {[info exists extra_enhkeyusage]} {
+        if {[info exists enhkeyusage]} {
+            # TBD - should it be marked critical or not ?
+            lset enhkeyusage 0 [concat [lindex $enhkeyusage 0] $extra_enhkeyusage]
+        } else {
+            # TBD - should it be marked critical or not ?
+            set enhkeyusage [list $extra_enhkeyusage 1]
+        }
     }
     if {[info exists enhkeyusage]} {
-        lappend exts [_make_enhkeyusage_ext $enhkeyusage]
+        lappend exts [_make_enhkeyusage_ext {*}$enhkeyusage]
     }
+
     if {[info exists altnames]} {
-        lappend exts [_make_altnames_ext $altnames]
+        lappend exts [_make_altnames_ext {*}$altnames]
     }
 
     set opts(extensions) $exts
@@ -1638,10 +1664,20 @@ proc twapi::make_test_certs {{hstore {}}} {
         set subject $container
         set crypt [twapi::crypt_acquire $container -csp $ca(csp) -csptype $ca(csptype) -create 1]
         twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
-        set encoded_cert [twapi::cert_create "CN=$container" $crypt $ca(certificate) -keyspec keyexchange -purpose [expr {$role eq "server" ? "sslserver" : "sslclient"}]]
+        set req [cert_request_create "CN=$container" $crypt keyexchange -purpose [expr {$role eq "server" ? "sslserver" : "sslclient"}]]
+        crypt_free $crypt
+        set parsed_req [cert_request_parse $req]
+        set subject [dict get $parsed_req subject]
+        set pubkey [dict get $parsed_req pubkey]
+        set opts {}
+        foreach optname {-basicconstraints -keyusage -enhkeyusage} {
+            if {[dict exists $parsed_req extensions $optname]} {
+                lappend opts $optname [dict get $parsed_req extensions $optname]
+            }
+        }
+        set encoded_cert [cert_create $subject $pubkey $ca(certificate) {*}$opts]
         set certificate [twapi::cert_store_add_encoded_certificate $hstore $encoded_cert]
         twapi::cert_set_key_prov $certificate -csp $ca(csp) -keycontainer $container -csptype $ca(csptype) -keyspec keyexchange
-        crypt_free $crypt
         cert_release $certificate
     }
 
