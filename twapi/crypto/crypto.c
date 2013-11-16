@@ -613,6 +613,73 @@ static TCL_RESULT ParseCERT_PUBLIC_KEY_INFO(
     return TCL_OK;
 }
 
+/* Returns CRYPT_KEY_PROV_INFO structure using memory from ticP->memlifo.
+ * Caller responsible for releasing storage in both success and error cases
+ * *kiPP is returned as NULL in case of empty list structure.
+ */
+static TCL_RESULT ParseCRYPT_KEY_PROV_INFO(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *kiObj,
+    CRYPT_KEY_PROV_INFO **kiPP
+    )
+{
+    Tcl_Obj **objs;
+    int i, nobjs;
+    CRYPT_KEY_PROV_INFO *kiP;
+    Tcl_Obj *provparaObj;
+
+    if (ObjGetElements(NULL, kiObj, &nobjs, &objs) != TCL_OK)
+        goto error_return;
+    
+    if (nobjs == 0) {
+        *kiPP = NULL;
+        return TCL_OK;
+    }
+
+    kiP = MemLifoAlloc(&ticP->memlifo, sizeof(*kiP), NULL);
+    if (TwapiGetArgsEx(ticP, nobjs, objs,
+                       GETWSTR(kiP->pwszContainerName),
+                       GETWSTR(kiP->pwszProvName),
+                       GETINT(kiP->dwProvType),
+                       GETINT(kiP->dwFlags),
+                       GETOBJ(provparaObj),
+                       GETINT(kiP->dwKeySpec),
+                       ARGEND) != TCL_OK)
+        goto error_return;
+
+    if (ObjGetElements(NULL, provparaObj, &nobjs, &objs) != TCL_OK)
+        goto error_return;
+    if (nobjs == 0) {
+        kiP->rgProvParam = NULL;
+        kiP->cProvParam = 0;
+    } else {
+        kiP->cProvParam = nobjs;
+        kiP->rgProvParam = MemLifoAlloc(&ticP->memlifo,
+                                        kiP->cProvParam * sizeof(*kiP->rgProvParam),
+                                        NULL);
+        for (i = 0; i < nobjs; ++i) {
+            Tcl_Obj **parObjs;
+            int       npar;
+            CRYPT_KEY_PROV_PARAM *parP = &kiP->rgProvParam[i];
+            if (ObjGetElements(NULL, objs[i], &npar, &parObjs) != TCL_OK)
+                goto error_return;
+            if (TwapiGetArgsEx(ticP, npar, parObjs,
+                               GETINT(parP->dwParam),
+                               GETBA(parP->pbData, parP->cbData),
+                               GETINT(parP->dwFlags),
+                               ARGEND) != TCL_OK)
+                goto error_return;
+        }
+    }
+    *kiPP = kiP;
+    return TCL_OK;
+
+error_return:
+        return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid key provider info structure.");
+
+}
+
+
 static Tcl_Obj *ObjFromCERT_POLICY_INFO(CERT_POLICY_INFO *cpiP)
 {
     DWORD i;
@@ -1241,7 +1308,7 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     DWORD flags;
     int status;
     CERT_NAME_BLOB name_blob;
-    CRYPT_KEY_PROV_INFO ki, *kiP;
+    CRYPT_KEY_PROV_INFO *kiP;
     CRYPT_ALGORITHM_IDENTIFIER algid, *algidP;
     Tcl_Obj **objs;
     int       nobjs;
@@ -1268,6 +1335,10 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
 
     hprov = (HCRYPTPROV) pv;
  
+    status = ParseCRYPT_KEY_PROV_INFO(ticP, provinfoObj, &kiP);
+    if (status != TCL_OK)
+        goto vamoose;
+#ifdef OBSOLETE
     /* Parse CRYPT_KEY_PROV_INFO */
     if ((status = ObjGetElements(interp, provinfoObj, &nobjs, &objs)) != TCL_OK)
         goto vamoose;
@@ -1294,6 +1365,7 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
         ki.rgProvParam = NULL;
         kiP = &ki;
     }
+#endif
 
     /* Parse CRYPT_ALGORITHM_IDENTIFIER */
     if ((status = ObjListLength(interp, algidObj, &nobjs)) != TCL_OK)
@@ -1482,6 +1554,7 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
     return TwapiSetResult(interp, &result);
 }
 
+#ifdef OBSOLETE
 static TCL_RESULT Twapi_SetCertContextKeyProvInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     PCCERT_CONTEXT certP;
@@ -1522,6 +1595,7 @@ static TCL_RESULT Twapi_SetCertContextKeyProvInfo(Tcl_Interp *interp, int objc, 
     else
         return TwapiReturnSystemError(interp);
 }
+#endif // OBSOLETE Twapi_SetCertContextKeyProvInfo
 
 static TCL_RESULT TwapiCertGetNameString(
     Tcl_Interp *interp,
@@ -2297,7 +2371,7 @@ static int Twapi_CertSetCertificateContextProperty(TwapiInterpContext *ticP, Tcl
     MemLifoMarkHandle mark;
     int nobjs;
     Tcl_Obj **objs;
-    CRYPT_KEY_PROV_INFO ckpi;
+    CRYPT_KEY_PROV_INFO *kiP;
     CERT_CONTEXT *certP;
 
     mark = MemLifoPushMark(&ticP->memlifo);
@@ -2313,9 +2387,15 @@ static int Twapi_CertSetCertificateContextProperty(TwapiInterpContext *ticP, Tcl
         pv = NULL;              /* Property to be deleted */
     else {
         switch (prop_id) {
+        case CERT_KEY_PROV_INFO_PROP_ID:
+            res = ParseCRYPT_KEY_PROV_INFO(ticP, valObj, &kiP);
+            pv = kiP;
+            break;
+
         case CERT_DESCRIPTION_PROP_ID:
         case CERT_ARCHIVED_PROP_ID:
         case CERT_FRIENDLY_NAME_PROP_ID:
+            pv = &blob;
             res = ParseCRYPT_BLOB(ticP, valObj, &blob);
             break;
         default:
@@ -2485,8 +2565,21 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         }
         break;
 
-    case 10005: // Twapi_SetCertContextKeyProvInfo
-        return Twapi_SetCertContextKeyProvInfo(interp, objc, objv);
+    case 10005:
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETINT(dw), GETINT(dw2), GETOBJ(s1Obj),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (dw != CERT_STORE_CERTIFICATE_CONTEXT) {
+            return TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
+        }
+        pv = ObjToByteArray(s1Obj, &dw3);
+        certP = CertCreateContext(dw, dw2, pv, dw3, 0, NULL);
+        if (certP == NULL)
+            return TwapiReturnSystemError(interp);
+        TwapiRegisterCertPointer(interp, certP);
+        TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
+        break;
 
     case 10006: // CertEnumCertificatesInStore
         if (TwapiGetArgs(interp, objc, objv,
@@ -2992,21 +3085,6 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         result.value.unicode.len = dw3;
         result.type = TRT_UNICODE_DYNAMIC;
         break;
-    case 10048:
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), GETINT(dw2), GETOBJ(s1Obj),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        if (dw != CERT_STORE_CERTIFICATE_CONTEXT) {
-            return TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
-        }
-        pv = ObjToByteArray(s1Obj, &dw3);
-        certP = CertCreateContext(dw, dw2, pv, dw3, 0, NULL);
-        if (certP == NULL)
-            return TwapiReturnSystemError(interp);
-        TwapiRegisterCertPointer(interp, certP);
-        TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
-        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -3020,7 +3098,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptGetProvParam, 10002),
         DEFINE_FNCODE_CMD(CertOpenSystemStore, 10003),
         DEFINE_FNCODE_CMD(cert_delete_from_store, 10004),
-        DEFINE_FNCODE_CMD(Twapi_SetCertContextKeyProvInfo, 10005),
+        DEFINE_FNCODE_CMD(CertCreateContext, 10005), // Tcl
         DEFINE_FNCODE_CMD(CertEnumCertificatesInStore, 10006),
         DEFINE_FNCODE_CMD(CertEnumCertificateContextProperties, 10007),
         DEFINE_FNCODE_CMD(CertGetCertificateContextProperty, 10008),
@@ -3063,7 +3141,6 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_CertStoreSerialize, 10045),
         DEFINE_FNCODE_CMD(CryptStringToBinary, 10046), // Tcl
         DEFINE_FNCODE_CMD(CryptBinaryToString, 10047), // Tcl
-        DEFINE_FNCODE_CMD(CertCreateContext, 10048), // Tcl
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
