@@ -979,7 +979,7 @@ static TCL_RESULT TwapiCryptEncodeObject(
     blobP->cbData = nenc;
     blobP->pbData = penc;
 
-    /* Note caller has to MemLifoPopFrame to release lifo memory */
+    /* Note caller has to MemLifoPop* to release lifo memory */
     return TCL_OK;
 }
 
@@ -2241,7 +2241,7 @@ static TCL_RESULT Twapi_CertVerifyChainPolicySSLObjCmd(TwapiInterpContext *ticP,
     return res;
 }
 
-static int Twapi_CryptFindOIDInfoObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_CryptFindOIDInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     DWORD keytype, group;
     Tcl_Obj *keyObj;
@@ -2285,6 +2285,55 @@ static int Twapi_CryptFindOIDInfoObjCmd(ClientData clientdata, Tcl_Interp *inter
     /* Else empty result */
 
     return TCL_OK;
+}
+
+static int Twapi_CertSetCertificateContextProperty(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    DWORD prop_id, flags;
+    Tcl_Obj *valObj;
+    void *pv;
+    CRYPT_DATA_BLOB blob;
+    TCL_RESULT res;
+    MemLifoMarkHandle mark;
+    int nobjs;
+    Tcl_Obj **objs;
+    CRYPT_KEY_PROV_INFO ckpi;
+    CERT_CONTEXT *certP;
+
+    mark = MemLifoPushMark(&ticP->memlifo);
+    
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1,
+                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                         GETINT(prop_id), GETINT(flags), ARGUSEDEFAULT,
+                         GETOBJ(valObj), ARGEND);
+    if (res != TCL_OK)
+        goto vamoose;
+
+    if (valObj == NULL)
+        pv = NULL;              /* Property to be deleted */
+    else {
+        switch (prop_id) {
+        case CERT_DESCRIPTION_PROP_ID:
+        case CERT_ARCHIVED_PROP_ID:
+        case CERT_FRIENDLY_NAME_PROP_ID:
+            res = ParseCRYPT_BLOB(ticP, valObj, &blob);
+            break;
+        default:
+            res = TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
+            break;
+        }
+    }
+    if (res != TCL_OK)
+        goto vamoose;
+
+    if (CertSetCertificateContextProperty(certP, prop_id, flags, pv))
+        res = TCL_OK;
+    else
+        res = TwapiReturnSystemError(interp);
+
+vamoose:
+    MemLifoPopMark(mark);
+    return res;
 }
 
 static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
@@ -3015,7 +3064,6 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptStringToBinary, 10046), // Tcl
         DEFINE_FNCODE_CMD(CryptBinaryToString, 10047), // Tcl
         DEFINE_FNCODE_CMD(CertCreateContext, 10048), // Tcl
-        DEFINE_FNCODE_CMD(CryptDecodeObjectEx, 10049), // Tcl
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
@@ -3026,9 +3074,10 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(Twapi_CertVerifyChainPolicySSL, Twapi_CertVerifyChainPolicySSLObjCmd),
         DEFINE_TCL_CMD(Twapi_HashPublicKeyInfo, Twapi_HashPublicKeyInfoObjCmd),
         DEFINE_TCL_CMD(CryptFindOIDInfo, Twapi_CryptFindOIDInfoObjCmd),
-        DEFINE_TCL_CMD(CryptDecodeObjectEx, Twapi_CryptDecodeObjectExObjCmd),
+        DEFINE_TCL_CMD(CryptDecodeObjectEx, Twapi_CryptDecodeObjectExObjCmd), // Tcl
         DEFINE_TCL_CMD(CryptEncodeObjectEx, Twapi_CryptEncodeObjectExObjCmd),
         DEFINE_TCL_CMD(CryptFormatObject, Twapi_CryptFormatObjectObjCmd),
+        DEFINE_TCL_CMD(CertSetCertificateContextProperty, Twapi_CertSetCertificateContextProperty),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
