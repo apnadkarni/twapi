@@ -23,6 +23,11 @@ as authentication, encryption and integrity. The SSPI interface allows
 establishment of a security context that can be used for signing and
 encrypting data passed between a client and a server.
 
+[para]
+This module currently supports only the 
+[const Negotiate], [const NTLM], [const Kerberos], [const SChannel] and 
+[const {Microsoft Unified Security Protocol Provider}] packages.
+
 [section "SSPI security context establishment"]
 On the client side, the application program starts off by retrieving
 the credentials to be used to authenticate itself to the server by calling
