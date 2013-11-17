@@ -1501,6 +1501,7 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
         case CERT_EXTENDED_ERROR_INFO_PROP_ID:
         case CERT_FRIENDLY_NAME_PROP_ID:
         case CERT_PVK_FILE_PROP_ID:
+        case CERT_DESCRIPTION_PROP_ID:
             if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n))
                 return TwapiReturnSystemError(interp);
             result.value.unicode.str = TwapiAlloc(n);
@@ -1522,7 +1523,6 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
 
         /*        
          * The following are handled via defaults for now
-         *  CERT_DESCRIPTION_PROP_ID: // TBD - is this unicode?
          *  CERT_HASH_PROP_ID:
          *  CERT_ISSUER_PUBLIC_KEY_MD5_HASH_PROP_ID:
          *  CERT_ISSUER_SERIAL_NUMBER_MD5_HASH_PROP_ID:
