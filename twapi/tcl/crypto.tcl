@@ -302,6 +302,19 @@ proc twapi::cert_property {hcert prop} {
     }
 }
 
+proc twapi::cert_property_set {hcert prop propval} {
+    set unicode_props {pvk_file friendly_name description}
+    if {$prop ni $unicode_props} {
+        badargs! "Invalid or unsupported property name \"$prop\". Must be one of [join $unicode_props {, }]."
+    }
+
+    CertSetCertificateContextProperty $hcert [_cert_prop_id $prop] 0 [encoding convertto unicode "${propval}\0"]
+}
+
+proc twapi::cert_property_delete {hcert prop} {
+    CertSetCertificateContextProperty $hcert [_cert_prop_id $prop] 0
+}
+
 # TBD - Also add cert_set_key_prov_from_crypt_context
 proc twapi::cert_set_key_prov {hcert args} {
     # TB - make keycontainer explicit arg
