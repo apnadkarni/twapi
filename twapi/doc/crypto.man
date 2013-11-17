@@ -253,9 +253,11 @@ When a certificate is placed
 in a store, it is associated with additional properties that are not
 part of the certificate itself, for example a private key associated
 with the certificate. These properties can be enumerated
-with [uri #cert_enum_properties [cmd cert_enum_properties]]
-and the value of an individual property can be retrieved with
-[uri #cert_property [cmd cert_property]].
+with [uri #cert_enum_properties [cmd cert_enum_properties]] and
+manipulated with the
+[uri #cert_property [cmd cert_property]],
+[uri #cert_property_set [cmd cert_property_set]] and
+[uri #cert_property_delete [cmd cert_property_delete]] commands.
 
 [section "Certificate contexts"]
 
@@ -373,12 +375,12 @@ On the requester's side, assuming the key container for the requestor
 has been already created as in the example above,
 [example_begin]
 set crypt [lb]crypt_acquire twapi_requestor_container -csp {Microsoft Strong Cryptographic Provider} -csptype prov_rsa_full[rb]
-set req [lb]cert_request_create "CN=My Subject Name" $crypt keyexchange -keyusage {key_agreement key_encipherment} -enhkeyusaeg client_auth[rb]
+set req [lb]cert_request_create "CN=My Subject Name" $crypt keyexchange -keyusage {key_agreement key_encipherment} -enhkeyusage client_auth[rb]
 crypt_free $crypt
 [example_end]
 The above will create a binary which can be sent to the remote signing
 authority where the certificate request contents can be retrieved:
-[example {set parsed_req [cert_request_parse $rew]}]
+[example {set parsed_req [cert_request_parse $req]}]
 After verifying the validity of the request
 ([emph "how this is done is entirely up to the application"]),
 a certificate for the requestor can be created:
@@ -815,27 +817,6 @@ Otherwise the file is written as a serialized certificate store.
 The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
 when no longer needed.
 
-[call [cmd cert_locate_private_key] [arg HCERT] [opt [arg options]]]
-Searches key containers to locate the private key corresponding to
-the public key in the certificate context [arg HCERT]. Returns a
-boolean indicating if it was found. In addition, the located key is
-associated as a property of the certificate and can be retrieved
-as the [const key_prov_info] property using the
-[uri #cert_property [cmd cert_property]] command.
-[nl]
-The following options may be specified:
-[list_begin opt]
-[opt_def [cmd -keysettype] [const any|user|machine]]
-Specifies which key sets are to be searched for the private key.
-If [const user] or [const machine], the search is restricted to
-the containers for the current user or the machine respectively.
-If [const any] (default), both user and machine containers are searched.
-[opt_def [cmd -silent] [arg BOOLEAN]] Normally, the CSP may prompt the user
-for any information that may be required to access key containers. If this
-option is specified as [const true], the user is never prompted. Instead
-the command will return [const 0] indicating no key could be found.
-[list_end]
-
 [call [cmd cert_info] [arg HCERT]]
 Returns the following fields from a certificate context as a dictionary.
 [list_begin opt]
@@ -876,6 +857,42 @@ in the context.
 Refer to [uri #cert_subject_name [cmd cert_subject_name]] for a list
 of options.
 
+[call [cmd cert_key_usage] [arg HCERT]]
+Returns a list of the Intended Key Usage values in a certificate.
+The command looks for both the extensions [const 2.5.29.2] and
+[const 2.5.29.15].
+In the case where the extension is not
+present, the string [const *] is returned indicating the certificate
+may be used for any purpose.
+
+[call [cmd cert_locate_private_key] [arg HCERT] [opt [arg options]]]
+Searches key containers to locate the private key corresponding to
+the public key in the certificate context [arg HCERT]. Returns a
+boolean indicating if it was found. In addition, the located key is
+associated as a property of the certificate and can be retrieved
+as the [const key_prov_info] property using the
+[uri #cert_property [cmd cert_property]] command.
+[nl]
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -keysettype] [const any|user|machine]]
+Specifies which key sets are to be searched for the private key.
+If [const user] or [const machine], the search is restricted to
+the containers for the current user or the machine respectively.
+If [const any] (default), both user and machine containers are searched.
+[opt_def [cmd -silent] [arg BOOLEAN]] Normally, the CSP may prompt the user
+for any information that may be required to access key containers. If this
+option is specified as [const true], the user is never prompted. Instead
+the command will return [const 0] indicating no key could be found.
+[list_end]
+
+[call [cmd cert_memory_store_open]]
+Opens a new certificate store in memory and returns a handle to it. 
+The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
+when no longer needed. All contents of the store are deleted when
+it is closed. The [uri #cert_store_save [cmd cert_store_save]] command
+can be used to save the contents to a persistent store if desired.
+
 [call [cmd cert_name_to_blob] [arg NAME] [opt [arg options]]]
 Converts the string [arg NAME] to an X.509 ASN encoded binary.
 The following options control the allowed format for [arg NAME].
@@ -901,17 +918,33 @@ and linefeed characters are treated as separators.
 See [uri #cert_blob_to_name [cmd cert_blob_to_name]] for the reverse
 operation.
 
-[call [cmd cert_key_usage] [arg HCERT]]
-Returns a list of the Intended Key Usage values in a certificate.
-The command looks for both the extensions [const 2.5.29.2] and
-[const 2.5.29.15].
-In the case where the extension is not
-present, the string [const *] is returned indicating the certificate
-may be used for any purpose.
+
+[call [cmd cert_physical_store_open] [arg NAME] [arg LOCATION] [opt [arg options]]]
+Opens a certificate physical store that is part of a logical system
+store and returns a handle to a cached copy.
+[arg NAME] is the name of the physical store including the
+system store component, e.g. [const Root\\.Default]. [arg LOCATION]
+specifies the location of the system store and must be one of
+the values listed in [sectref "Certificate stores"].
+[nl]
+Refer to the documentation of
+[uri #cert_file_store_open [cmd cert_file_store_open]] of a description
+of [arg options].
+[nl]
+The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
+when no longer needed.
+
+[call [cmd cert_physical_store_delete] [arg NAME] [arg LOCATION]]
+Deletes a certificate physical store that is part of a logical system
+store. [arg NAME] is the name of the physical store including the
+system store component, e.g. [const Root\\.Default]. [arg LOCATION]
+specifies the location of the system store and must be one of
+the values listed in [sectref "Certificate stores"].
 
 [call [cmd cert_property] [arg HCERT] [arg PROPERTY]]
 Returns the value of a 
-[uri #certificateproperties "certificate property"]. Raises
+[uri #certificateproperties "certificate property"] in
+the certificate context referenced by [arg HCERT]. Raises
 an error if the property does not exist in the certificate context.
 
 [arg PROPERTY] must be one of the following:
@@ -956,87 +989,19 @@ encoded subject name.
 [opt_def [cmd subject_public_key_md5_hash]] Binary containing the MD5 hash of the certificate public key.
 [list_end]
 
-[call [cmd cert_subject_name] [arg HCERT] [opt [arg options]]]
-Returns a subject name field from the certificate context [arg HCERT]. 
-The field may be from the certificate itself or a certificate property
-in the context.
-[nl]
-By default the common name in the certificate is returned.
-The [cmd -name] option can be specified to retrieve a different field.
-The value of the option can be a OID string identifying a certificate
-name attribute or one of the values in the table below:
-[list_begin opt]
-[opt_def [const dns]] Returns the DNSName choice in the Alternative Name
-extension if there is one, or the the CN OID [const 2.5.4.3] from the
-Subject Name field. If neither is found returns an empty string.
-[opt_def [const email]] Returns the first rfc822Name choice in 
-the Alternative Name extension. If not found, returns the name field
-for the Email OID. Otherwise returns an empty string.
-[opt_def [const friendlydisplay]] Returns the [const CERT_FRIENDLY_NAME_PROP_ID]
-property if there is one. Otherwise behaves as [cmd simpledisplay].
-[opt_def [const simpledisplay]] Returns the first attribute suitable
-for display purposes from
-Name or Alternative Name extension.
-[opt_def [const oid_common_name]] Returns the Common Name (Default).
-[opt_def [const rdn]] Returns the Subject Name RDN if there is one.
-If not found, returns the first Directory Name choice from
-the Alternative Name extension if there is one. Otherwise returns
-an empty string. The format for this option can be further controlled
-as described later.
-[opt_def [const upn]] Returns the UPN from the OID 
-[const 1.3.6.1.4.1.311.20.2.3] in the OtherName choices from
-the Alternative Name extension and an empty string if not found.
-[opt_def [const url]] Returns the URL choice in the Alternative Name
-extension if there is one. If not found, returns an empty string.
-[list_end]
+[call [cmd cert_property_delete] [arg HCERT] [arg PROPERTY]]
+Deletes a [uri #certificateproperties "certificate property"] in
+the certificate context referenced by [arg HCERT]. No error is
+raised if the property does not exist.
+[arg PROPERTY] must be one of the property names
+listed in the documentation for [uri #cert_property [cmd cert_property]].
 
-When the [cmd -name] option is [const rdn], the following options
-may be further specified to control the returned format.
-[list_begin opt]
-[opt_def [cmd -format] [arg FORMAT]] Specifies how the output
-is to be formatted. [arg FORMAT] must be one of [const x500] (default),
-[const oid] or [const simple].
-[opt_def [cmd -noplus] [arg BOOLEAN]] If [const true], the plus sign
-in names is replaced with a single space. Default is [const false].
-[opt_def [cmd -noquote] [arg BOOLEAN]] If [const true], quoting of
-special characters in RDN names is disabled. Default is [const false].
-[opt_def [cmd -reverse] [arg BOOLEAN]] If [const true], order of
-RDN components is reversed. Default is [const false].
-[opt_def [cmd -separator] [arg SEPARATOR]] Specifies the separator
-to use between RDN components.
-[arg SEPARATOR] must be one of [const comma] (default), [const semicolon]
-or [const newline].
-[list_end]
-
-[call [cmd cert_memory_store_open]]
-Opens a new certificate store in memory and returns a handle to it. 
-The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
-when no longer needed. All contents of the store are deleted when
-it is closed. The [uri #cert_store_save [cmd cert_store_save]] command
-can be used to save the contents to a persistent store if desired.
-
-
-[call [cmd cert_physical_store_open] [arg NAME] [arg LOCATION] [opt [arg options]]]
-Opens a certificate physical store that is part of a logical system
-store and returns a handle to a cached copy.
-[arg NAME] is the name of the physical store including the
-system store component, e.g. [const Root\\.Default]. [arg LOCATION]
-specifies the location of the system store and must be one of
-the values listed in [sectref "Certificate stores"].
-[nl]
-Refer to the documentation of
-[uri #cert_file_store_open [cmd cert_file_store_open]] of a description
-of [arg options].
-[nl]
-The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
-when no longer needed.
-
-[call [cmd cert_physical_store_delete] [arg NAME] [arg LOCATION]]
-Deletes a certificate physical store that is part of a logical system
-store. [arg NAME] is the name of the physical store including the
-system store component, e.g. [const Root\\.Default]. [arg LOCATION]
-specifies the location of the system store and must be one of
-the values listed in [sectref "Certificate stores"].
+[call [cmd cert_property_set] [arg HCERT] [arg PROPERTY] [arg PROPVAL]]
+Sets the value of a [uri #certificateproperties "certificate property"] in
+the certificate context referenced by [arg HCERT].
+[arg PROPERTY] must be one of 
+[const description], [const friendly_name] or [const pvk_file]
+(see [uri #cert_property [cmd cert_property]]).
 
 [call [cmd cert_release] [arg HCERT]]
 Decreases the reference count for a certificate context and
@@ -1325,6 +1290,58 @@ in a certificate store.
 [arg HSTORE] is a handle to the store. External properties associated
 with certificate are not present in the returned binary.
 
+[call [cmd cert_subject_name] [arg HCERT] [opt [arg options]]]
+Returns a subject name field from the certificate context [arg HCERT]. 
+The field may be from the certificate itself or a certificate property
+in the context.
+[nl]
+By default the common name in the certificate is returned.
+The [cmd -name] option can be specified to retrieve a different field.
+The value of the option can be a OID string identifying a certificate
+name attribute or one of the values in the table below:
+[list_begin opt]
+[opt_def [const dns]] Returns the DNSName choice in the Alternative Name
+extension if there is one, or the the CN OID [const 2.5.4.3] from the
+Subject Name field. If neither is found returns an empty string.
+[opt_def [const email]] Returns the first rfc822Name choice in 
+the Alternative Name extension. If not found, returns the name field
+for the Email OID. Otherwise returns an empty string.
+[opt_def [const friendlydisplay]] Returns the [const CERT_FRIENDLY_NAME_PROP_ID]
+property if there is one. Otherwise behaves as [cmd simpledisplay].
+[opt_def [const simpledisplay]] Returns the first attribute suitable
+for display purposes from
+Name or Alternative Name extension.
+[opt_def [const oid_common_name]] Returns the Common Name (Default).
+[opt_def [const rdn]] Returns the Subject Name RDN if there is one.
+If not found, returns the first Directory Name choice from
+the Alternative Name extension if there is one. Otherwise returns
+an empty string. The format for this option can be further controlled
+as described later.
+[opt_def [const upn]] Returns the UPN from the OID 
+[const 1.3.6.1.4.1.311.20.2.3] in the OtherName choices from
+the Alternative Name extension and an empty string if not found.
+[opt_def [const url]] Returns the URL choice in the Alternative Name
+extension if there is one. If not found, returns an empty string.
+[list_end]
+
+When the [cmd -name] option is [const rdn], the following options
+may be further specified to control the returned format.
+[list_begin opt]
+[opt_def [cmd -format] [arg FORMAT]] Specifies how the output
+is to be formatted. [arg FORMAT] must be one of [const x500] (default),
+[const oid] or [const simple].
+[opt_def [cmd -noplus] [arg BOOLEAN]] If [const true], the plus sign
+in names is replaced with a single space. Default is [const false].
+[opt_def [cmd -noquote] [arg BOOLEAN]] If [const true], quoting of
+special characters in RDN names is disabled. Default is [const false].
+[opt_def [cmd -reverse] [arg BOOLEAN]] If [const true], order of
+RDN components is reversed. Default is [const false].
+[opt_def [cmd -separator] [arg SEPARATOR]] Specifies the separator
+to use between RDN components.
+[arg SEPARATOR] must be one of [const comma] (default), [const semicolon]
+or [const newline].
+[list_end]
+
 [call [cmd cert_system_store_open] [arg NAME] [opt [arg LOCATION]] [opt [arg options]]]
 Opens a logical system store and returns a handle to a cached copy.
 [arg NAME] is the name of the logical store such as [const Root] or
@@ -1353,6 +1370,11 @@ Returns a list of system store locations. See [sectref "Certificate stores"].
 Returns a list of system stores at the system store location [arg LOCATION].
 [arg LOCATION] specifies the location of the system store and must be one of
 the values listed in [sectref "Certificate stores"].
+
+[call [cmd cert_thumbprint] [arg HCERT]]
+Returns a SHA-1 based thumbprint for the specified certificate.
+This is returned as a hexadecimal string and can be used for
+a quick comparison to check if two certificates are identical.
 
 [call [cmd cert_tls_verify] [arg HCERT] [opt [arg options]]]
 Verifies a certificate context [arg HCERT] for use
@@ -1475,11 +1497,6 @@ the one specified by the issuing CA.
 The certificate that can be marked for use as a CA is being used
 as a leaf or vice-versa.
 [list_end]
-
-[call [cmd cert_thumbprint] [arg HCERT]]
-Returns a SHA-1 based thumbprint for the specified certificate.
-This is returned as a hexadecimal string and can be used for
-a quick comparison to check if two certificates are identical.
 
 [call [cmd crypt_acquire] [arg KEYCONTAINER] [opt [arg options]]]
 Returns a handle to a cryptographic context for the specified key container
