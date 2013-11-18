@@ -3085,6 +3085,18 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         result.value.unicode.len = dw3;
         result.type = TRT_UNICODE_DYNAMIC;
         break;
+    case 10048: // CryptFindLocalizedName
+        CHECK_NARGS(interp, objc, 1);
+        result.value.unicode.str = (WCHAR *)CryptFindLocalizedName(ObjToUnicode(objv[0]));
+        /* Note returned string is STATIC RESOURCE and must NOT be dealloced*/
+        if (result.value.unicode.str) {
+            result.value.unicode.len = -1;
+            result.type = TRT_UNICODE;
+        } else {
+            result.value.obj = objv[0];
+            result.type = TRT_OBJ;
+        }
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -3139,8 +3151,9 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(PFXIsPFXBlob, 10043), //TBD - document
         DEFINE_FNCODE_CMD(PFXVerifyPassword, 10044), // TBD - document
         DEFINE_FNCODE_CMD(Twapi_CertStoreSerialize, 10045),
-        DEFINE_FNCODE_CMD(CryptStringToBinary, 10046), // Tcl
-        DEFINE_FNCODE_CMD(CryptBinaryToString, 10047), // Tcl
+        DEFINE_FNCODE_CMD(CryptStringToBinary, 10046), // Tcl TBD
+        DEFINE_FNCODE_CMD(CryptBinaryToString, 10047), // Tcl TBD
+        DEFINE_FNCODE_CMD(crypt_localize_string,10048), // TBD - document
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
