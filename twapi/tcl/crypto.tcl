@@ -103,12 +103,34 @@ proc twapi::cert_system_stores {location} {
     return $l
 }
 
+# TBD - document?
+proc twapi::cert_store_iterate {hstore varname script {type any} {term {}}} {
+    upvar 1 $varname cert
+    set cert NULL
+    while {1} {
+        set cert [cert_store_find_certificate $hstore $type $term $cert]
+        if {$cert eq ""} break
+        switch [catch {uplevel 1 $script} result options] {
+            0 -
+            4 {}
+            3 {cert_release $cert ; break}
+            1 -
+            default {
+                cert_release $cert
+                return -options $options $result
+            }
+        }
+    }
+    return
+}
+
 proc twapi::cert_store_find_certificate {hstore {type any} {term {}} {hcert NULL}} {
+
+    # TBD subject_cert 11<<16
 
     set term_types {
         any 0
         existing 13<<16
-        subject_cert 11<<16
         key_identifier 15<<16
         md5_hash 4<<16
         pubkey_md5_hash 18<<16
