@@ -127,13 +127,14 @@ proc twapi::cert_store_iterate {hstore varname script {type any} {term {}}} {
 proc twapi::cert_store_find_certificate {hstore {type any} {term {}} {hcert NULL}} {
 
     # TBD subject_cert 11<<16
+    # TBD key_spec 9<<16
 
     set term_types {
         any 0
         existing 13<<16
         key_identifier 15<<16
         md5_hash 4<<16
-        pubkey_md5_hash 18<<16
+        public_key_md5_hash 18<<16
         sha1_hash 1<<16
         signature_hash 14<<16
         issuer_name (2<<16)|4
@@ -141,10 +142,12 @@ proc twapi::cert_store_find_certificate {hstore {type any} {term {}} {hcert NULL
         issuer_substring (8<<16)|4
         subject_substring (8<<16)|7
         property 5<<16
-        key_spec 9<<16
         public_key 6<<16
     }
 
+    if {$type eq "property"} {
+        set term [_cert_prop_id $term]
+    }
     set type [expr [dict! $term_types $type 1]]
 
     # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
@@ -305,11 +308,19 @@ proc twapi::cert_name_to_blob {name args} {
     return [CertStrToName $name $arg]
 }
 
-proc twapi::cert_enum_properties {hcert} {
+proc twapi::cert_enum_properties {hcert args} {
+    parseargs args {
+        names
+    } -setvars -maxleftover 0
+    
     set id 0
     set ids {}
     while {[set id [CertEnumCertificateContextProperties $hcert $id]]} {
-        lappend ids [list $id [_cert_prop_name $id]]
+        if {$names} {
+            lappend ids [_cert_prop_name $id]
+        } else {
+            lappend ids $id
+        }
     }
     return $ids
 }
