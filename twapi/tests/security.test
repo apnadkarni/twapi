@@ -21,7 +21,6 @@ twapi::get_process_ids;         # To force loading - TBD
 
 namespace eval twapi::security::test {
     namespace import ::tcltest::test
-    ::tcltest::testConstraint win2k [twapi::min_os_version 5]
     ::tcltest::testConstraint win6 [twapi::min_os_version 6]
 
     # Account name prefix to use for creation/deletion
