@@ -17,8 +17,8 @@ namespace eval twapi::crypto::test {
     namespace import ::tcltest::test
 
     proc setup_contexts {package} {
-        set ccred [twapi::sspi_acquire_credentials -direction outbound -package $package]
-        set scred [twapi::sspi_acquire_credentials -direction inbound -package $package]
+        set ccred [twapi::sspi_acquire_credentials -role client -package $package]
+        set scred [twapi::sspi_acquire_credentials -role server -package $package]
         set cctx [twapi::sspi_client_context $ccred -target LUNA -confidentiality true -connection true]
         lassign [twapi::sspi_step $cctx] step data extra
         set sctx [twapi::sspi_server_context $scred $data]
@@ -81,21 +81,41 @@ namespace eval twapi::crypto::test {
         }
     }
 
-    foreach pkg {NTLM Negotiate Kerberos WDigest} {
-        test encrypt-${pkg}-1.0 "Verify basic encryption and decryption - $pkg" -setup "lassign \[setup_contexts $pkg\] cctx sctx" -body {
+    proc equal_certs {certa certb} {
+        return [expr {[twapi::cert_thumbprint $certa] eq [twapi::cert_thumbprint $certb]}]
+    }
+
+    # Returns cert from a store at index n for testing searches
+    # Errors if not enough certs
+    proc pick_cert {hstore {n 4}} {
+        set hcert NULL
+        time {set hcert [twapi::cert_store_find_certificate $hstore any "" $hcert]} [incr n]
+        return $hcert
+    }
+
+    foreach pkg {NTLM Negotiate Kerberos} {
+        test encrypt-${pkg}-1.0 "Verify basic encryption and decryption - $pkg" -setup "lassign \[setup_contexts $pkg\] cctx sctx" -constraints [expr {$pkg eq "Kerberos" ? "domain" : ""}]  -body {
             encrypt_test $cctx $sctx
         } -cleanup {
             twapi::sspi_delete_context $sctx
             twapi::sspi_delete_context $cctx
         } -result 1
 
-        test encrypt-${pkg}-1.1 "Verify basic encryption and decryption without seq num - $pkg" -setup "lassign \[setup_contexts $pkg\] cctx sctx" -body {
+        test encrypt-${pkg}-1.1 "Verify basic encryption and decryption without seq num - $pkg" -setup "lassign \[setup_contexts $pkg\] cctx sctx" -constraints [expr {$pkg eq "Kerberos" ? "domain" : ""}] -body {
             encrypt_test_noseq $cctx $sctx
         } -cleanup {
             twapi::sspi_delete_context $sctx
             twapi::sspi_delete_context $cctx
         } -result 1
     }
+
+    test encrypt-WDigest-1.0 {
+        TBD - Verify basic encryption and decryption - WDigest
+    } -constraints {
+        TBD
+    } -body {
+        TBD - add to loop above once WDigest is supported
+    } -result TBD
 
     test sign-1.0 {
         Verify basic signing and verification
@@ -343,6 +363,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
+        file delete $storepath
     } -result twapisamplecert
 
     test cert_file_store_open-1.4 {
@@ -358,6 +379,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
+        file delete $storepath
     } -result twapisamplecert
 
     test cert_file_store_open-1.5 {
@@ -420,16 +442,61 @@ namespace eval twapi::crypto::test {
         twapi::cert_store_release $hstore
     } -result twapisamplecert
 
+    test cert_file_store_open-3.0 {
+        Verify changes to cert contexts persisted after store closed -deferclose 1
+    } -setup {
+        # Create temporary store to modify
+        set storepath [file join [tcltest::temporaryDirectory] [clock microseconds].store]
+        set hstore [twapi::cert_file_store_open $storepath -commitenable 1]
+        set cer [sampleencodedcert]
+        set hcert [twapi::cert_store_add_encoded_certificate $hstore $cer]
+        twapi::cert_property_set $hcert description "original"
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -body {
+        set hstore [twapi::cert_file_store_open $storepath -commitenable 1]
+        set hcert [twapi::cert_store_enum_contents $hstore]
+        set desc1 [twapi::cert_property $hcert description]
+        twapi::cert_store_release $hstore; # Close store first
+        twapi::cert_property_set $hcert description "new"; # Should NOT be saved
+        twapi::cert_release $hcert
 
-    test cert_file_store_open {
-        TBD
+        set hstore [twapi::cert_file_store_open $storepath -commitenable 1 -deferclose 1]
+        set hcert [twapi::cert_store_enum_contents $hstore]
+        set desc2 [twapi::cert_property $hcert description]
+        twapi::cert_store_release $hstore; # Close store first
+        twapi::cert_property_set $hcert description "new"; # SHOULD be saved
+        twapi::cert_release $hcert
+
+        set hstore [twapi::cert_file_store_open $storepath -commitenable 1]
+        set hcert [twapi::cert_store_enum_contents $hstore]
+        set desc3 [twapi::cert_property $hcert description]
+
+        list $desc1 $desc2 $desc3
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+        file delete $storepath
+    } -result [list original original new]
+
+    test cert_file_store_open-4.0 {
+        TBD - cert_file_store_open -backupprivilege
     } -body {
         TBD 
     } -constraints {
         TBD
     } -result TBD
-    test cert_file_store_open {
+
+    test cert_file_store_open-5.0 {
+        TBD - cert_file_store_open -includearchived
+    } -body {
+        TBD 
+    } -constraints {
         TBD
+    } -result TBD
+
+    test cert_file_store_open-6.0 {
+        TBD - cert_file_store_open -maxpermissions
     } -body {
         TBD 
     } -constraints {
@@ -489,14 +556,459 @@ namespace eval twapi::crypto::test {
           }
     } -result 1
 
-    test cert_store_find_certificate {
-        TBD
+    test cert_store_find_certificate-1.0 {
+        Find certificate any, system store
+    } -setup {
+        set hstore [twapi::cert_system_store_open CA]
     } -body {
-        TBD 
+        set hcert NULL
+        set count 0
+        while {1} {
+            set hcert2 [twapi::cert_store_find_certificate $hstore any "" $hcert]
+            if {[llength $hcert2] == 0} break; # Iteration over
+            incr count
+            # Verify it is a cert
+            twapi::cert_subject_name $hcert2
+            # Verify previous cert was released
+            if {$hcert ne "NULL"} {
+                if {! [catch {twapi::cert_release $hcert}]} {
+                    error "Previous cert was not released"
+                }
+            }
+            set hcert $hcert2
+        }
+        expr {$count > 10}
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result 1
+
+    test cert_store_find_certificate-1.1 {
+        Find certificate any - single cert, file store
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_cert_file_store_path]]
+    } -body {
+        set hcert NULL
+        set count 0
+        while {1} {
+            set hcert2 [twapi::cert_store_find_certificate $hstore any "" $hcert]
+            if {[llength $hcert2] == 0} break; # Iteration over
+            incr count
+            # Verify it is a cert
+            set subj [twapi::cert_subject_name $hcert2]
+            # Verify previous cert was released
+            if {$hcert ne "NULL"} {
+                if {! [catch {twapi::cert_release $hcert}]} {
+                    error "Previous cert was not released"
+                }
+            }
+            set hcert $hcert2
+        }
+        list $subj $count
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result {twapisamplecert 1}
+
+    test cert_store_find_certificate-1.2 {
+        Find certificate any - no cert, memory store
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+    } -body {
+        twapi::cert_store_find_certificate $hstore any ""
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result {}
+
+    test cert_store_find_certificate-2.0 {
+        Find certificate -existing
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+        set cert [pick_cert $hstore]
+    } -body {
+        # Assumes exactly one cert with that pub key
+        set cert2 [twapi::cert_store_find_certificate $hstore existing $cert]
+        equal_certs $cert $cert2
+    } -cleanup {
+        twapi::cert_store_release $hstore
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
+
+    test cert_store_find_certificate-2.1 {
+        Find certificate - existing (fail)
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+        set cert [pick_cert $hstore 0]
+        set hstore2 [twapi::cert_file_store_open [temp_cert_file_store_path]]
+    } -body {
+        twapi::cert_store_find_certificate $hstore2 existing $cert
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+        twapi::cert_store_release $hstore2
+    } -result ""
+
+    test cert_store_find_certificate-3.0 {
+        Find certificate - issuer_name
+    } -setup {
+        # Choose CA (Intermediate Auth) so issuer not same as subject
+        set hstore [twapi::cert_system_store_open CA]
+        set cert [pick_cert $hstore]
+        set issuer_name [twapi::cert_issuer_name $cert -name rdn]
+    } -body {
+        # Assumes exactly one cert with that pub key
+        set cert2 [twapi::cert_store_find_certificate $hstore issuer_name [twapi::cert_name_to_blob $issuer_name]]
+        string equal $issuer_name [twapi::cert_issuer_name $cert2 -name rdn]
+    } -cleanup {
+        twapi::cert_store_release $hstore
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
+
+    test cert_store_find_certificate-3.1 {
+        Find certificate - issuer_name (fail)
+    } -setup {
+        set hstore [twapi::cert_system_store_open CA]
+        set cert [pick_cert $hstore 0]
+        set hstore2 [twapi::cert_file_store_open [temp_cert_file_store_path]]
+        set issuer_name [twapi::cert_issuer_name $cert -name rdn]
+    } -body {
+        twapi::cert_store_find_certificate $hstore2 issuer_name [twapi::cert_name_to_blob $issuer_name]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+        twapi::cert_store_release $hstore2
+    } -result ""
+
+    test cert_store_find_certificate-3.2 {
+        Find certificate - issuer_name (multiple)
+    } -setup {
+        # Choose CA (Intermediate Auth) so issuer not same as subject
+        set hstore [twapi::cert_system_store_open CA]
+        # Try to find a issuer with more than one cert
+        if {$::tcl_platform(osVersion) eq "5.1"} {
+            set issuer_name {OU=Copyright (c) 1997 Microsoft Corp., OU=Microsoft Corporation, CN=Microsoft Root Authority}
+        } else {
+            set issuer_name {C=US, O="VeriSign, Inc.", OU=VeriSign Trust Network, OU="(c) 2006 VeriSign, Inc. - For authorized use only", CN=VeriSign Class 3 Public Primary Certification Authority - G5}
+        }
+        set issuer_blob [twapi::cert_name_to_blob $issuer_name]
+    } -body {
+        set count 0
+        set matches 0
+        set cert NULL
+        while {1} {
+            set cert [twapi::cert_store_find_certificate $hstore issuer_name $issuer_blob $cert]
+            if {$cert eq ""} break
+            incr count
+            incr matches [string equal $issuer_name [twapi::cert_issuer_name $cert -name rdn]]
+        }
+        list [expr {$count > 0}] [expr {$count == $matches}]
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result {1 1}
+
+
+    test cert_store_find_certificate-4.0 {
+        Find certificate - issuer_substring
+    } -setup {
+        # Choose CA (Intermediate Auth) so issuer not same as subject
+        set hstore [twapi::cert_system_store_open CA]
+    } -body {
+        set cert [twapi::cert_store_find_certificate $hstore issuer_substring microsoft]
+        string match -nocase *microsoft* [twapi::cert_issuer_name $cert -name rdn -format simple]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result 1
+
+    test cert_store_find_certificate-4.1 {
+        Find certificate - issuer_substring (fail)
+    } -setup {
+        # Choose CA (Intermediate Auth) so issuer not same as subject
+        set hstore [twapi::cert_system_store_open CA]
+    } -body {
+        twapi::cert_store_find_certificate $hstore issuer_substring XmicrosoftX
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result ""
+
+    test cert_store_find_certificate-4.2 {
+        Find certificate - issuer_substring (multiple)
+    } -setup {
+        # Choose CA (Intermediate Auth) so issuer not same as subject
+        set hstore [twapi::cert_system_store_open CA]
+    } -body {
+        set count 0
+        set matches 0
+        set cert NULL
+        while {1} {
+            set cert [twapi::cert_store_find_certificate $hstore issuer_substring microsoft $cert]
+            if {$cert eq ""} break
+            incr count
+            incr matches [string match -nocase *microsoft* [twapi::cert_issuer_name $cert -name rdn]]
+        }
+        list [expr {$count > 1}] [expr {$count == $matches}]
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result {1 1}
+
+    test cert_store_find_certificate-5.0 {
+        Find certificate - key_identifier
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+        set cert [pick_cert $hstore]
+        set ki [twapi::cert_property $cert key_identifier]
+    } -body {
+        # Assumes exactly one cert with that pub key
+        set cert2 [twapi::cert_store_find_certificate $hstore key_identifier $ki]
+        list [equal_certs $cert $cert2] [string equal $ki [twapi::cert_property $cert2 key_identifier]]
+    } -cleanup {
+        twapi::cert_store_release $hstore
+        twapi::cert_release $cert2
+        twapi::cert_release $cert
+    } -result {1 1}
+
+    test cert_store_find_certificate-6.0 {
+        Find certificate - md5_hash
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+        set cert [pick_cert $hstore]
+        set hash [twapi::cert_property $cert md5_hash]
+    } -body {
+        set cert2 [twapi::cert_store_find_certificate $hstore md5_hash $hash]
+        set hash2 [twapi::cert_property $cert2 md5_hash]; # since cert2 will be freed 
+        set cert3 [twapi::cert_store_find_certificate $hstore md5_hash $hash $cert2]; # Frees cert2
+        list [string equal $hash $hash2] $cert3
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result {1 {}}
+
+    test cert_store_find_certificate-6.1 {
+        Find certificate - md5_hash (fail)
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+        set cert [pick_cert $hstore]
+        set hash [twapi::cert_property $cert md5_hash]
+        set hash "[string range $hash 0 end-1]\0"
+    } -body {
+        twapi::cert_store_find_certificate $hstore md5_hash $hash
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result {}
+
+    foreach prop {access_state archived auto_enroll date_stamp description enhkey_usage extended_error_info friendly_name issuer_public_key_md5_hash issuer_serial_number_md5_hash key_context key_identifier key_prov_handle key_prov_info key_spec md5_hash pvk_file sha1_hash signature_hash subject_name_md5_hash subject_public_key_md5_hash} {
+        test cert_store_find_certificate-${prop}-7.0 "Find certificate - property $prop" -setup {
+            set hstore [twapi::cert_system_store_open CA]
+        } -body [format {
+            set cert [twapi::cert_store_find_certificate $hstore property %1$s]
+            if {$cert ne ""} {
+                # Ensure we can get the property with no errors
+                twapi::cert_property $cert %1$s
+                twapi::cert_release $cert
+            }
+        } $prop] -cleanup {
+            twapi::cert_store_release $hstore
+        } -result {}
+
+        test cert_store_find_certificate-${prop}-7.1 "Find certificate - numeric property [twapi::_cert_prop_id $prop]" -setup {
+            set hstore [twapi::cert_system_store_open CA]
+        } -body [format {
+            set cert [twapi::cert_store_find_certificate $hstore property %1$s]
+            if {$cert ne ""} {
+                # Ensure we can get the property with no errors
+                twapi::cert_property $cert %1$s
+                twapi::cert_release $cert
+            }
+        } [twapi::_cert_prop_id $prop]] -cleanup {
+            twapi::cert_store_release $hstore
+        } -result {}
+
+    }
+
+    test cert_store_find_certificate-7.x {
+        TBD - Need better tests for property - above tests just check no errors generated
     } -constraints {
         TBD
+    } -setup {
+    } -body {
     } -result TBD
 
+    test cert_store_find_certificate-8.0 {
+        Find certificate - public_key_md5_hash
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+        set cert [pick_cert $hstore]
+        set hash [twapi::cert_property $cert public_key_md5_hash]
+    } -body {
+        set cert2 [twapi::cert_store_find_certificate $hstore public_key_md5_hash $hash]
+        set hash2 [twapi::cert_property $cert2 public_key_md5_hash]; # since cert2 will be freed 
+        set cert3 [twapi::cert_store_find_certificate $hstore public_key_md5_hash $hash $cert2]; # Frees cert2
+        list [string equal $hash $hash2] $cert3
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result {1 {}}
+
+    test cert_store_find_certificate-10.0 {
+        Find certificate -public_key
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+        set cert [pick_cert $hstore]
+        set pubkey [dict get [twapi::cert_info $cert] -publickey]
+    } -body {
+        # Assumes exactly one cert with that pub key
+        set cert2 [twapi::cert_store_find_certificate $hstore public_key $pubkey]
+        equal_certs $cert $cert2
+    } -cleanup {
+        twapi::cert_store_release $hstore
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
+
+    test cert_store_find_certificate-11.0 {
+        Find certificate - sha1_hash
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+        set cert [pick_cert $hstore]
+        set hash [twapi::cert_property $cert sha1_hash]
+    } -body {
+        set cert2 [twapi::cert_store_find_certificate $hstore sha1_hash $hash]
+        set hash2 [twapi::cert_property $cert2 sha1_hash]; # since cert2 will be freed 
+        set cert3 [twapi::cert_store_find_certificate $hstore sha1_hash $hash $cert2]; # Frees cert2
+        list [string equal $hash $hash2] $cert3
+    } -cleanup {
+        twapi::cert_store_release $hstore
+        twapi::cert_release $cert
+    } -result {1 {}}
+
+    test cert_store_find_certificate-11.1 {
+        Find certificate - sha1_hash (fail)
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+        set cert [pick_cert $hstore]
+        set hash [twapi::cert_property $cert sha1_hash]
+        set hash "[string range $hash 0 end-1]\0"
+    } -body {
+        twapi::cert_store_find_certificate $hstore sha1_hash $hash
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result {}
+
+    test cert_store_find_certificate-12.0 {
+        Find certificate - signature_hash
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+        set cert [pick_cert $hstore]
+        set hash [twapi::cert_property $cert signature_hash]
+    } -body {
+        set cert2 [twapi::cert_store_find_certificate $hstore signature_hash $hash]
+        set hash2 [twapi::cert_property $cert2 signature_hash]; # since cert2 will be freed 
+        set cert3 [twapi::cert_store_find_certificate $hstore signature_hash $hash $cert2]; # Frees cert2
+        list [string equal $hash $hash2] $cert3
+    } -cleanup {
+        twapi::cert_store_release $hstore
+        twapi::cert_release $cert
+    } -result {1 {}}
+
+    test cert_store_find_certificate-12.1 {
+        Find certificate - signature_hash (fail)
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+        set cert [pick_cert $hstore]
+        set hash [twapi::cert_property $cert signature_hash]
+        set hash "[string range $hash 0 end-1]\0"
+    } -body {
+        twapi::cert_store_find_certificate $hstore signature_hash $hash
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result {}
+
+    test cert_store_find_certificate-13.0 {
+        Find certificate - subject_name
+    } -setup {
+        # Choose CA (Intermediate Auth) so issuer not same as subject
+        set hstore [twapi::cert_system_store_open CA]
+        set cert [pick_cert $hstore]
+        set subject_name [twapi::cert_subject_name $cert -name rdn]
+    } -body {
+        # Assumes exactly one cert with that pub key
+        set cert2 [twapi::cert_store_find_certificate $hstore subject_name [twapi::cert_name_to_blob $subject_name]]
+        string equal $subject_name [twapi::cert_subject_name $cert2 -name rdn]
+    } -cleanup {
+        twapi::cert_store_release $hstore
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
+
+    test cert_store_find_certificate-13.1 {
+        Find certificate - subject_name (fail)
+    } -setup {
+        set hstore [twapi::cert_system_store_open CA]
+        set cert [pick_cert $hstore 0]
+        set hstore2 [twapi::cert_file_store_open [temp_cert_file_store_path]]
+        set subject_name [twapi::cert_subject_name $cert -name rdn]
+    } -body {
+        twapi::cert_store_find_certificate $hstore2 subject_name [twapi::cert_name_to_blob $subject_name]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+        twapi::cert_store_release $hstore2
+    } -result ""
+
+    test cert_store_find_certificate-14.0 {
+        Find certificate - subject_substring
+    } -setup {
+        # Choose CA (Intermediate Auth) so issuer not same as subject
+        set hstore [twapi::cert_system_store_open CA]
+    } -body {
+        set cert [twapi::cert_store_find_certificate $hstore subject_substring microsoft]
+        string match -nocase *microsoft* [twapi::cert_subject_name $cert -name rdn -format simple]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result 1
+
+    test cert_store_find_certificate-14.1 {
+        Find certificate - subject_substring (fail)
+    } -setup {
+        # Choose CA (Intermediate Auth) so issuer not same as subject
+        set hstore [twapi::cert_system_store_open CA]
+    } -body {
+        twapi::cert_store_find_certificate $hstore subject_substring XmicrosoftX
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result ""
+
+    test cert_store_find_certificate-14.2 {
+        Find certificate - subject_substring (multiple)
+    } -setup {
+        # Choose CA (Intermediate Auth) so issuer not same as subject
+        set hstore [twapi::cert_system_store_open CA]
+    } -body {
+        set count 0
+        set matches 0
+        set cert NULL
+        while {1} {
+            set cert [twapi::cert_store_find_certificate $hstore subject_substring microsoft $cert]
+            if {$cert eq ""} break
+            incr count
+            incr matches [string match -nocase *microsoft* [twapi::cert_subject_name $cert -name rdn]]
+        }
+        list [expr {$count > 1}] [expr {$count == $matches}]
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result {1 1}
+
+    test cert_store_find_certificate-14.0 {
+        TBD - Find certificate -subject_substring
+    } -constraints {
+        TBD
+    } -setup {
+    } -body {
+    } -result TBD
 
     test cert_store_enum_contents {
         TBD
@@ -603,6 +1115,22 @@ namespace eval twapi::crypto::test {
     } -result TBD
 
     test cert_property {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_property_set {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_property_delete {
         TBD
     } -body {
         TBD 
