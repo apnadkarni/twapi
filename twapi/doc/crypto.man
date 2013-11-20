@@ -747,8 +747,13 @@ present, the string [const *] is returned indicating the certificate
 is considered valid for all uses. If the returned list is empty,
 the certificate is considered invalid for any use.
 
-[call [cmd cert_enum_properties] [arg HCERT]]
-Returns a list properties defined for the certificate context [arg HCERT].
+[call [cmd cert_enum_properties] [arg HCERT] [opt [cmd -names]]]
+Returns a list of properties defined for the certificate context [arg HCERT].
+By default, the returned list contains integer property ids.
+If [cmd -names] is specified, the returned list contains the mnenomic
+for the property id 
+(see [uri #cert_property [cmd cert_property]]) if defined, and
+the integer value otherwise.
 
 [call [cmd cert_export] [arg HCERT] [opt "[cmd -format] [arg FORMAT]"]]
 Returns the certificate content for the specified certificate context.
@@ -830,7 +835,7 @@ and the extension value.
 [opt_def [const -issuerid]] A binary containing unique id for
 the certificate issuer. This is generally not used and should not
 be relied on.
-[opt_def [const -publickkey]] The public key of the subject. This is
+[opt_def [const -publickey]] The public key of the subject. This is
 a pair consisting of the algorithm identifier 
 (in the same format as [const -signaturealgorithm]) and a binary
 containing the public key.
@@ -1227,9 +1232,6 @@ Returns certificates whose issuer contains the string [arg SEARCHTERM].
 Note [arg SEARCHTERM] is a string, not in X.509 encoded form.
 [opt_def [const key_identifier]] Returns certificates with a matching
 value for the subject key identifier (OID [const 2.5.29.14]) extension.
-[opt_def [const key_spec]]
-Returns certificates whose [const CERT_KEY_SPEC_PROP_ID] matches
-the integer [arg SEARCHTERM].
 [opt_def [const md5_hash]]
 Returns certificates that have a MD5 hash which matches the binary [arg SEARCHTERM].
 [opt_def [const property]]
@@ -1238,11 +1240,14 @@ Returns certificates that have a property with id [arg SEARCHTERM]
 [opt_def [const pubkey_md5_hash]]
 Returns certificates whose MD5-hashed public key matches the binary [arg SEARCHTERM].
 [opt_def [const public_key]]
+Returns certificates containint the specified public key [arg SEARCHTERM].
+This is a pair consisting of the algorithm identifier 
+(in the same format as [const -signaturealgorithm]) and a binary
+containing the public key.
 [opt_def [const sha1_hash]]
 Returns certificates that have a SHA1 hash which matches the binary [arg SEARCHTERM].
 [opt_def [const signature_hash]]
 Returns certificates that have a signature hash which matches the binary [arg SEARCHTERM].
-[opt_def [const subject_cert]]
 [opt_def [const subject_name]]
 Returns certificates whose subject exactly matches [arg SEARCHTERM].
 [arg SEARCHTERM] is a X.509 name in encoded form as returned
