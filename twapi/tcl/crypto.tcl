@@ -37,6 +37,7 @@ This is the only way that I found to attach private key to a certificate.
 # Close a certificate store
 proc twapi::cert_store_release {hstore} {
     CertCloseStore $hstore 0
+    return
 }
 
 proc twapi::cert_memory_store_open {} {
@@ -45,6 +46,12 @@ proc twapi::cert_memory_store_open {} {
 
 proc twapi::cert_file_store_open {path args} {
     set flags [_parse_store_open_opts $args]
+
+    if {! ($flags & 0x00008000)} {
+        # If not readonly, set commitenable
+        set flags [expr {$flags | 0x00010000}]
+    }
+
     # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
     return [CertOpenStore 8 0x10001 NULL $flags [file nativename [file normalize $path]]]
 }
@@ -1655,9 +1662,8 @@ proc twapi::_cert_add_parseargs {vargs} {
 }
 
 proc twapi::_parse_store_open_opts {optvals} {
-    array set opts [parseargs optvals {
+    array set opts [parseargs optvals  {
         {readonly.bool        0 0x00008000}
-        {commitenable.bool    0 0x00010000}
         {existing.bool        0 0x00004000}
         {create.bool          0 0x00002000}
         {includearchived.bool 0 0x00000200}
@@ -1665,10 +1671,6 @@ proc twapi::_parse_store_open_opts {optvals} {
         {deferclose.bool      0 0x00000004}
         {backupprivilege.bool 0 0x00000800}
     } -maxleftover 0 -nulldefault]
-
-    if {$opts(readonly) && $opts(commitenable)} {
-        badargs! "Options -commitenable and -readonly are mutually exclusive." 3
-    }
 
     set flags 0
     foreach {opt val} [array get opts] {
