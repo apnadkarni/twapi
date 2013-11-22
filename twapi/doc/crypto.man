@@ -810,8 +810,8 @@ If [const true], the store is opened with the maximum set of access permissions
 possible.
 Default is [const false].
 [opt_def [cmd -readonly] [arg BOOLEAN]]
-If [const true], the store is opened in read-only mode. Changes made cannot
-be persisted.
+If [const true], the underlying file is opened in read-only mode. However,
+changes can still be made to the in-memory cache.
 Default is [const false].
 [list_end]
 [nl]
@@ -923,7 +923,6 @@ and linefeed characters are treated as separators.
 See [uri #cert_blob_to_name [cmd cert_blob_to_name]] for the reverse
 operation.
 
-
 [call [cmd cert_physical_store_open] [arg NAME] [arg LOCATION] [opt [arg options]]]
 Opens a certificate physical store that is part of a logical system
 store and returns a handle to a cached copy.
@@ -933,7 +932,7 @@ specifies the location of the system store and must be one of
 the values listed in [sectref "Certificate stores"].
 [nl]
 Refer to the documentation of
-[uri #cert_file_store_open [cmd cert_file_store_open]] of a description
+[uri #cert_system_store_open [cmd cert_system_store_open]] of a description
 of [arg options].
 [nl]
 The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
@@ -1354,10 +1353,44 @@ Opens a logical system store and returns a handle to a cached copy.
 and must be one of
 the values listed in [sectref "Certificate stores"].
 [nl]
-Refer to the documentation of
-[uri #cert_file_store_open [cmd cert_file_store_open]] of a description
-of [arg options].
-[nl]
+The following options may be specified:
+
+[list_begin opt]
+
+[opt_def [cmd -backupprivilege] [arg BOOLEAN]]
+If [const true], specifies that the thread's [const SE_BACKUP_NAME]
+and [const SE_RESTORE_NAME] privileges must be used to open the store.
+Default is [const false].
+
+[opt_def [cmd -create] [arg BOOLEAN]]
+If [const true], a new store is opened only if it did not exist. An error
+is raised if the store already existed.
+Default is [const false] so no error is raised in the latter case.
+[opt_def [cmd -deferclose] [arg BOOLEAN]]
+Normally changes to any certificate contexts made after the associated store
+is closed are not persisted. Setting this option to [const true] will
+defer the closing of the store until all associated certificate contexts
+have been released.
+Default is [const false].
+[opt_def [cmd -existing] [arg BOOLEAN]]
+If [const true], when [arg PATH] does not already exist, it is not created.
+An exception is raised instead.
+Default is [const false].
+[opt_def [cmd -includearchived] [arg BOOLEAN]]
+By default, enumeration of certificates in a store will not include any
+that are marked as archived. Setting this option to [const true] will
+cause those certificates to be included.
+Default is [const false].
+[opt_def [cmd -maxpermissions] [arg BOOLEAN]]
+If [const true], the store is opened with the maximum set of access permissions
+possible.
+Default is [const false].
+[opt_def [cmd -readonly] [arg BOOLEAN]]
+If [const true], the store is opened in read-only mode. 
+Depending on the provider, the effect may be to either disallow all changes to
+the store, or to allow changes to the in-memory cache but not persisting them.
+Default is [const false].
+[list_end]
 The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
 when no longer needed.
 
