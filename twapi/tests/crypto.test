@@ -65,7 +65,7 @@ namespace eval twapi::crypto::test {
 
         if {![info exists temp_system_store_path]} {
             set temp_system_store_path TwapiTest-[clock microseconds]
-            set hstore [twapi::cert_system_store_open $temp_system_store_path user -commitenable 1]
+            set hstore [twapi::cert_system_store_open $temp_system_store_path user]
             set cer [sampleencodedcert]
             twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
             twapi::cert_store_release $hstore
@@ -345,7 +345,6 @@ namespace eval twapi::crypto::test {
         twapi::cert_store_release $store
     } -result "*Pointer is not registered*" -returnCodes error -match glob
 
-
     test cert_file_store_open-1.0 {
         Open a non-existing file store
     } -setup {
@@ -521,60 +520,37 @@ namespace eval twapi::crypto::test {
     } -setup {
         set storepath TwapiTest-[clock microseconds]
     } -body {
-        list [catch {twapi::cert_system_store_open $storepath user} msg] [lrange $::errorCode 0 1]
-    } -result {1 {TWAPI_WIN32 2}}
+        set hstore [twapi::cert_system_store_open $storepath user]
+        set cer [sampleencodedcert]
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
+        set hcert [twapi::cert_store_enum_contents $hstore]
+        twapi::cert_subject_name $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapisamplecert
 
     test cert_system_store_open-1.1 {
-        Open a non-existing system store -readonly
+        Open a non-existing system store -readonly 0
     } -setup {
         set storepath TwapiTest-[clock microseconds]
     } -body {
-        list [catch {twapi::cert_system_store_open $storepath user -readonly 1} msg] [lrange $::errorCode 0 1]
-    } -result {1 {TWAPI_WIN32 2}}
+        set hstore [twapi::cert_system_store_open $storepath user -readonly 0]
+        set cer [sampleencodedcert]
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
+        set hcert [twapi::cert_store_enum_contents $hstore]
+        twapi::cert_subject_name $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapisamplecert
 
     test cert_system_store_open-1.2 {
-        Open a non-existing system store -readonly 1 -commitenable 1
+        Open a non-existing system store 1 -existing 1
     } -setup {
         set storepath TwapiTest-[clock microseconds]
     } -body {
-        twapi::cert_system_store_open $storepath user -readonly 1 -commitenable 1
-    } -result {Options -commitenable and -readonly are mutually exclusive.} -returnCodes error
-    test cert_system_store_open-1.3 {
-        Open a non-existing system store -commitenable 1
-    } -setup {
-        set storepath TwapiTest-[clock microseconds]
-    } -body {
-        set hstore [twapi::cert_system_store_open $storepath user -commitenable 1]
-        set cer [sampleencodedcert]
-        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
-        set hcert [twapi::cert_store_enum_contents $hstore]
-        twapi::cert_subject_name $hcert
-    } -cleanup {
-        twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
-    } -result twapisamplecert
-
-    test cert_system_store_open-1.4 {
-        Open a non-existing system store -commitenable 1 -readonly 0
-    } -setup {
-        set storepath TwapiTest-[clock microseconds]
-    } -body {
-        set hstore [twapi::cert_system_store_open $storepath user -commitenable 1]
-        set cer [sampleencodedcert]
-        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
-        set hcert [twapi::cert_store_enum_contents $hstore]
-        twapi::cert_subject_name $hcert
-    } -cleanup {
-        twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
-    } -result twapisamplecert
-
-    test cert_system_store_open-1.5 {
-        Open a non-existing system store -commitenable 1 -existing 1
-    } -setup {
-        set storepath TwapiTest-[clock microseconds]
-    } -body {
-        list [catch {twapi::cert_system_store_open $storepath user -commitenable 1 -existing 1}] [lrange $::errorCode 0 1]
+        list [catch {twapi::cert_system_store_open $storepath user -existing 1}] [lrange $::errorCode 0 1]
     } -result {1 {TWAPI_WIN32 2}}
 
     test cert_system_store_open-2.0 {
@@ -621,60 +597,54 @@ namespace eval twapi::crypto::test {
     } -setup {
         set storepath [temp_system_store_path]
     } -body {
-        set hstore [twapi::cert_system_store_open $storepath user -create 1]
-        set hcert [twapi::cert_store_enum_contents $hstore]
-        twapi::cert_subject_name $hcert
-    } -cleanup {
-        twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
-    } -result twapisamplecert
+        list [catch {twapi::cert_system_store_open $storepath user -create 1}] [lrange $::errorCode 0 1]
+    } -result {1 {TWAPI_WIN32 80}}
 
     test cert_system_store_open-3.0 {
         Verify changes to cert contexts persisted after store closed -deferclose 1
     } -setup {
         # Create temporary store to modify
         set storepath TwapiTest-[clock microseconds]
-        set hstore [twapi::cert_system_store_open $storepath user -commitenable 1]
+        set hstore [twapi::cert_system_store_open $storepath user]
         set cer [sampleencodedcert]
         set hcert [twapi::cert_store_add_encoded_certificate $hstore $cer]
         twapi::cert_property_set $hcert description "original"
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
     } -body {
-        set hstore [twapi::cert_system_store_open $storepath user -commitenable 1]
+        set hstore [twapi::cert_system_store_open $storepath user]
         set hcert [twapi::cert_store_enum_contents $hstore]
         set desc1 [twapi::cert_property $hcert description]
         twapi::cert_store_release $hstore; # Close store first
-        twapi::cert_property_set $hcert description "new"; # Should NOT be saved
+        twapi::cert_property_set $hcert description "shouldnotbesaved"; 
         twapi::cert_release $hcert
 
-        set hstore [twapi::cert_system_store_open $storepath user -commitenable 1 -deferclose 1]
+        set hstore [twapi::cert_system_store_open $storepath user -deferclose 1]
         set hcert [twapi::cert_store_enum_contents $hstore]
         set desc2 [twapi::cert_property $hcert description]
         twapi::cert_store_release $hstore; # Close store first
-        twapi::cert_property_set $hcert description "new"; # SHOULD be saved
+        twapi::cert_property_set $hcert description "shouldbesaved"
         twapi::cert_release $hcert
 
-        set hstore [twapi::cert_system_store_open $storepath user -commitenable 1]
+        set hstore [twapi::cert_system_store_open $storepath user]
         set hcert [twapi::cert_store_enum_contents $hstore]
         set desc3 [twapi::cert_property $hcert description]
 
+        # TBD - do not understand why this test fails
         list $desc1 $desc2 $desc3
     } -cleanup {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
         file delete $storepath
-    } -result [list original original new]
+    } -result [list original original shouldbesaved]
 
     foreach loc [concat {user users service services localmachine localmachineenterprise localmachinegrouppolicy usergrouppolicy} [twapi::cert_system_store_locations]] {
-        test "cert_system_store_open-$loc-1.0" {
+        test "cert_system_store_open-$loc-1.0"  {
             Get system store list
-        } -body [format {
-            twapi::cert_store_release [twapi::cert_system_store_open My $loc]
-        } $loc] -result ""
+        } -constraints [expr {$loc in {users services Users Services} ? "TBD" : ""}] -body [format {
+                twapi::cert_store_release [twapi::cert_system_store_open My $loc]
+            } $loc] -result ""
     }
-
-
 
     test cert_system_store_delete {
         TBD
