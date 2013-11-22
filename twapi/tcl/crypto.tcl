@@ -1663,6 +1663,7 @@ proc twapi::_cert_add_parseargs {vargs} {
 
 proc twapi::_parse_store_open_opts {optvals} {
     array set opts [parseargs optvals  {
+        {commitenable.bool    0 0x00010000}
         {readonly.bool        0 0x00008000}
         {existing.bool        0 0x00004000}
         {create.bool          0 0x00002000}
