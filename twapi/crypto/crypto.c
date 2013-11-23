@@ -2424,7 +2424,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     LPVOID pv;
     LPWSTR s1;
     LPSTR  cP;
-    struct _CRYPTOAPI_BLOB blob;
+    struct _CRYPTOAPI_BLOB blob, blob2;
     PCCERT_CONTEXT certP, cert2P;
     void *bufP;
     DWORD buf_sz;
@@ -3097,6 +3097,15 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             result.type = TRT_OBJ;
         }
         break;
+    case 10049: // CertCompareCertificateName
+        // TBD - is this any different than doing a string compare in script?
+        CHECK_NARGS(interp, objc, 3);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        blob.pbData = ObjToByteArray(objv[1], &blob.cbData);
+        blob2.pbData = ObjToByteArray(objv[2], &blob2.cbData);
+        result.type = TRT_BOOL;
+        result.value.bval = CertCompareCertificateName(dw, &blob, &blob2);
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -3154,6 +3163,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptStringToBinary, 10046), // Tcl TBD
         DEFINE_FNCODE_CMD(CryptBinaryToString, 10047), // Tcl TBD
         DEFINE_FNCODE_CMD(crypt_localize_string,10048), // TBD - document
+        DEFINE_FNCODE_CMD(CertCompareCertificateName, 10049), // TBD Tcl
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
