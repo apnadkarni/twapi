@@ -124,8 +124,8 @@ commands to [uri base.html#trap [cmd trap]].
 [bullet] [emph "INCOMPATIBILITY"]
 The [cmd try] command, deprecated in previous versions, has been removed
 to prevent conflicts with the [cmd try] command in Tcl 8.6.
-Use [uri base.man#trap [cmd trap]] instead. The [var errorCode],
-[var errorInfo] global variables are no longer brought into scope
+Use [uri base.man#trap [cmd trap]] instead. The [var errorCode], [var errorResult] and
+[var errorInfo] variables are no longer brought into scope
 automatically in onerror clauses.
 
 [bullet] [emph "INCOMPATIBILITY"]
@@ -140,7 +140,7 @@ as argument. Both these can be replaced by a combination of
 and [uri process.html#get_process_ids [cmd "get_process_ids -name"]].
 
 [bullet] [emph "INCOMPATIBILITY"]
-The command [cmd TwapiThemeDefineValue] is no longer available.
+The command [cmd TwapiThemeDefineValue] has been removed.
 
 [bullet] [emph "INCOMPATIBILITY"]
 The deprecated command [cmd address_to_hostname] has been removed. Use
