@@ -2653,12 +2653,21 @@ twapi::class create ::twapi::ITypeLibProxy {
         # do not output a namespace
         if {$opts(namespace) ne "" &&
             ([dict exists $data enum] ||
+             [dict exists $data module] ||
              [dict exists $data coclass])
         } {
             append code "\nnamespace eval $opts(namespace) \{"
             append code \n
         }
 
+        if {[dict exists $data module]} {
+            dict for {guid guiddata} [dict get $data module] {
+                set module_name [dict get $guiddata -name]
+                append code "\n    # Module $module_name ($guid)\n"
+                append code "    [list array set $module_name [dict get $guiddata -values]]"
+                append code \n
+            }
+        }
 
         if {[dict exists $data enum]} {
             dict for {name def} [dict get $data enum] {
@@ -2712,6 +2721,7 @@ twapi::class create ::twapi::ITypeLibProxy {
 
         if {$opts(namespace) ne "" &&
             ([dict exists $data enum] ||
+             [dict exists $data module] ||
              [dict exists $data coclass])
         } {
             append code "\}"
@@ -2752,7 +2762,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                     }
                     dispatch {
                         # Load up the functions
-                        dict set data "dispatch" $attrs(-guid) -name $name
+                        dict set data $attrs(-typekind) $attrs(-guid) -name $name
                         for {set j 0} {$j < $attrs(-fncount)} {incr j} {
                             array set funcdata [$ti GetFuncDesc $j]
                             if {$funcdata(funckind) != 4} {
@@ -2775,7 +2785,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                                 lappend proto {}
                             }
 
-                            dict set data "dispatch" \
+                            dict set data "$attrs(-typekind)" \
                                 $attrs(-guid) \
                                 -methods \
                                 [$ti @GetName $funcdata(memid)] \
@@ -2786,9 +2796,10 @@ twapi::class create ::twapi::ITypeLibProxy {
                         # Load up the properties
                         for {set j 0} {$j < $attrs(-varcount)} {incr j} {
                             array set vardata [$ti GetVarDesc $j]
+                            parray vardata
                             # We will add both propput and propget.
                             # propget:
-                            dict set data "dispatch" \
+                            dict set data "$attrs(-typekind)" \
                                 $attrs(-guid) \
                                 -properties \
                                 [$ti @GetName $vardata(memid)] \
@@ -2805,7 +2816,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                             # propput:
                             if {! ($vardata(wVarFlags) & 1)} {
                                 # Not read-only
-                                dict set data "dispatch" \
+                                dict set data "$attrs(-typekind)" \
                                     $attrs(-guid) \
                                     -properties \
                                     [$ti @GetName $vardata(memid)] \
@@ -2815,7 +2826,19 @@ twapi::class create ::twapi::ITypeLibProxy {
                             }
                         }
                     }
-                    module -
+
+
+                    module {
+                        dict set data $attrs(-typekind) $attrs(-guid) -name $name
+                        # TBD - Load up the functions
+
+                        # Now load up the variables
+                        for {set j 0} {$j < $attrs(-varcount)} {incr j} {
+                            array set vardata [$ti @GetVarDesc $j -name -value]
+                            dict set data $attrs(-typekind) $attrs(-guid) -values $vardata(-name) $vardata(-value)
+                        }
+                    }
+
                     interface {
                         # TBD
                     }

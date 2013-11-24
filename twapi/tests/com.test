@@ -893,6 +893,14 @@ namespace eval twapi::com::test {
         TBD
     } -result TBD
 
+    test generate_code_from_typelib-2.0 {
+        Verify generate_code_from_typelib from imports module constants
+    } -body {
+        eval [ twapi::generate_code_from_typelib [file join $::env(SYSTEMROOT) system32/Speech/Common/sapi.dll] -namespace [namespace current]::tempns -type module]
+        set tempns::SpeechStringConstants(SpeechRegistryUserRoot)
+    } -cleanup {
+        namespace delete [namespace current]::tempns
+    } -result {HKEY_CURRENT_USER\SOFTWARE\Microsoft\Speech}
 
     ################################################################
 
