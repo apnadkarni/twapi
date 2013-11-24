@@ -2392,6 +2392,7 @@ static int Twapi_CertSetCertificateContextProperty(TwapiInterpContext *ticP, Tcl
             pv = kiP;
             break;
 
+        case CERT_ENHKEY_USAGE_PROP_ID:
         case CERT_DESCRIPTION_PROP_ID:
         case CERT_ARCHIVED_PROP_ID:
         case CERT_FRIENDLY_NAME_PROP_ID:
@@ -3176,7 +3177,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptFindOIDInfo, Twapi_CryptFindOIDInfoObjCmd),
         DEFINE_TCL_CMD(CryptDecodeObjectEx, Twapi_CryptDecodeObjectExObjCmd), // Tcl
         DEFINE_TCL_CMD(CryptEncodeObjectEx, Twapi_CryptEncodeObjectExObjCmd),
-        DEFINE_TCL_CMD(CryptFormatObject, Twapi_CryptFormatObjectObjCmd),
+        DEFINE_TCL_CMD(CryptFormatObject, Twapi_CryptFormatObjectObjCmd), // Tcl
         DEFINE_TCL_CMD(CertSetCertificateContextProperty, Twapi_CertSetCertificateContextProperty),
     };
 
@@ -3217,4 +3218,3 @@ int Twapi_crypto_Init(Tcl_Interp *interp)
     return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, DEFAULT_TIC) ? TCL_OK : TCL_ERROR;
 }
 
-// TBD - CryptFormatObject
