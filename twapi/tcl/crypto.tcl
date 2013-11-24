@@ -120,10 +120,15 @@ proc twapi::cert_store_iterate {hstore varname script {type any} {term {}}} {
         switch [catch {uplevel 1 $script} result options] {
             0 -
             4 {}
-            3 {cert_release $cert ; break}
+            3 {
+                cert_release $cert
+                set cert ""
+                return
+            }
             1 -
             default {
                 cert_release $cert
+                set cert ""
                 return -options $options $result
             }
         }
@@ -333,7 +338,7 @@ proc twapi::cert_enum_properties {hcert args} {
 }
 
 proc twapi::cert_property {hcert prop} {
-    # TBD - need to cook some properties
+    # TBD - need to cook some properties - enhkey_usage
 
     if {[string is integer -strict $prop]} {
         return [CertGetCertificateContextProperty $hcert $prop]
@@ -343,12 +348,21 @@ proc twapi::cert_property {hcert prop} {
 }
 
 proc twapi::cert_property_set {hcert prop propval} {
-    set unicode_props {pvk_file friendly_name description}
-    if {$prop ni $unicode_props} {
-        badargs! "Invalid or unsupported property name \"$prop\". Must be one of [join $unicode_props {, }]."
+    switch $prop {
+        pvk_file -
+        friendly_name -
+        description {
+            set val [encoding convertto unicode "${propval}\0"]
+        }
+        enhkey_usage {
+            set val [::twapi::CryptEncodeObjectEx 2.5.29.37 [_get_enhkey_usage_oids $propval]]
+        }
+        default {
+            badargs! "Invalid or unsupported property name \"$prop\". Must be one of [join $unicode_props {, }]."
+        }
     }
 
-    CertSetCertificateContextProperty $hcert [_cert_prop_id $prop] 0 [encoding convertto unicode "${propval}\0"]
+    CertSetCertificateContextProperty $hcert [_cert_prop_id $prop] 0 $val
 }
 
 proc twapi::cert_property_delete {hcert prop} {
@@ -384,7 +398,7 @@ proc twapi::cert_set_key_prov {hcert args} {
 
 proc twapi::cert_export {hcert args} {
     parseargs args {
-        format.arg der {der cer crt pem base64}
+        {format.arg der {der cer crt pem base64}}
     } -maxleftover 0 -setvars
 
     set enc [lindex [Twapi_CertGetEncoded $hcert] 1]
@@ -680,6 +694,7 @@ proc twapi::cert_request_parse {req args} {
                 set value [_cert_decode_extension $oid $value]
                 switch -exact -- $oid {
                     2.5.29.15 { set oidname -keyusage }
+                    2.5.29.17 { set oidname -altnames }
                     2.5.29.19 { set oidname -basicconstraints }
                     2.5.29.37 { set oidname -enhkeyusage }
                     default { set oidname $oid }
@@ -1353,7 +1368,8 @@ twapi::proc* twapi::oids {{pattern *}} {
 
 proc twapi::_make_altnames_ext {altnames {critical 0} {issuer 0}} {
     set names {}
-    foreach {alttype altname} $altnames {
+    foreach pair $altnames {
+        lassign $pair alttype altname
         lappend names [list \
                            [dict get {
                                other 1
@@ -1561,8 +1577,8 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
             set basicconstraints {{0 0 0} 1}
         }
     }
-    set sslserver [expr {"sslserver" in $purpose}]
-    set sslclient [expr {"sslclient" in $purpose}]
+    set sslserver [expr {"server" in $purpose}]
+    set sslclient [expr {"client" in $purpose}]
 
     if {[info exists serialnumber]} {
         if {$serialnumber <= 0 || $serialnumber > 0x7fffffffffffffff} {
@@ -1683,54 +1699,75 @@ proc twapi::_parse_store_open_opts {optvals} {
 
 # Utility proc to generate three certs in a memory store - 
 # one self signed which is used to sign a client and a server cert
-proc twapi::make_test_certs {{hstore {}}} {
+proc twapi::make_test_certs {{hstore {}} args} {
     crypt_test_container_cleanup
 
-    # Create the self signed CA cert
-    set ca(csp) {Microsoft Strong Cryptographic Provider}
-    set ca(csptype) prov_rsa_full
-    if {0} {
+    parseargs args {
+        {csp.arg {Microsoft Strong Cryptographic Provider}}
+        {csptype.arg prov_rsa_full}
+        unique
+    } -maxleftover 0 -setvars
+
+    if {$unique} {
         set uuid [twapi::new_uuid]
     } else {
         set uuid ""
     }
-    set ca(container) twapitestca$uuid
-    set ca(subject) $ca(container)
-    set crypt [twapi::crypt_acquire $ca(container) -csp $ca(csp) -csptype $ca(csptype) -create 1]
+
+    # Create the self signed CA cert
+    set container twapitestca$uuid
+    set crypt [twapi::crypt_acquire $container -csp $csp -csptype $csptype -create 1]
     twapi::crypt_key_free [twapi::crypt_key_generate $crypt signature -exportable 1]
-    set cert [twapi::cert_create_self_signed_from_crypt_context "CN=$ca(container)" $crypt -purpose {ca}]
+    set cert [twapi::cert_create_self_signed_from_crypt_context "CN=$container, C=IN, O=Tcl, OU=twapi" $crypt -purpose {ca}]
     if {[llength $hstore] == 0} {
         set hstore [twapi::cert_memory_store_open]
     }
-    set ca(certificate) [twapi::cert_store_add_certificate $hstore $cert]
+    set ca_certificate [twapi::cert_store_add_certificate $hstore $cert]
     twapi::cert_release $cert
-    twapi::cert_set_key_prov $ca(certificate) -csp $ca(csp) -keycontainer $ca(container) -csptype $ca(csptype)
+    twapi::cert_set_key_prov $ca_certificate -csp $csp -keycontainer $container -csptype $csptype
     crypt_free $crypt
 
     # Create the client and server certs
-    foreach role {server client} {
-        set container twapitest${role}$uuid
+    foreach cert_type {server client full min} {
+        set container twapitest${cert_type}$uuid
         set subject $container
-        set crypt [twapi::crypt_acquire $container -csp $ca(csp) -csptype $ca(csptype) -create 1]
+        set crypt [twapi::crypt_acquire $container -csp $csp -csptype $csptype -create 1]
         twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
-        set req [cert_request_create "CN=$container" $crypt keyexchange -purpose [expr {$role eq "server" ? "sslserver" : "sslclient"}]]
+        switch $cert_type {
+            client -
+            server {
+                set req [cert_request_create "CN=$container, C=IN, O=Tcl, OU=twapi" $crypt keyexchange -purpose $cert_type]
+            }
+            full {
+                set altnames [list [list [list email ${container}@twapitest.com] [list dns ${container}.twapitest.com] [list url http://${container}.twapitest.com] [list directory [cert_name_to_blob "CN=${container}altname"]] [list ip [binary format c4 {127 0 0 1}]]]]
+                set req [cert_request_create \
+                             "CN=$container, C=IN, O=Tcl, OU=twapi" \
+                             $crypt keyexchange \
+                             -keyusage [list {crl_sign data_encipherment digital_signature key_agreement key_cert_sign key_encipherment non_repudiation} 1]\
+                             -enhkeyusage [list {client_auth code_signing email_protection ipsec_end_system  ipsec_tunnel ipsec_user server_auth timestamp_signing ocsp_signing} 1] \
+                             -altnames $altnames]
+            }
+            min {
+                set req [cert_request_create "CN=$container" $crypt keyexchange]
+            }
+        }
         crypt_free $crypt
         set parsed_req [cert_request_parse $req]
         set subject [dict get $parsed_req subject]
         set pubkey [dict get $parsed_req pubkey]
         set opts {}
-        foreach optname {-basicconstraints -keyusage -enhkeyusage} {
+        foreach optname {-basicconstraints -keyusage -enhkeyusage -altnames} {
             if {[dict exists $parsed_req extensions $optname]} {
                 lappend opts $optname [dict get $parsed_req extensions $optname]
             }
         }
-        set encoded_cert [cert_create $subject $pubkey $ca(certificate) {*}$opts]
+        set encoded_cert [cert_create $subject $pubkey $ca_certificate {*}$opts -end {2020 12 31 23 59 59 0}]
         set certificate [twapi::cert_store_add_encoded_certificate $hstore $encoded_cert]
-        twapi::cert_set_key_prov $certificate -csp $ca(csp) -keycontainer $container -csptype $ca(csptype) -keyspec keyexchange
+        twapi::cert_set_key_prov $certificate -csp $csp -keycontainer $container -csptype $csptype -keyspec keyexchange
         cert_release $certificate
     }
 
-    cert_release $ca(certificate)
+    cert_release $ca_certificate
     return $hstore
 }
 

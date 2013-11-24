@@ -53,7 +53,7 @@ namespace eval twapi::crypto::test {
     proc sampleencodedcert {{which full}} {
         variable _sampleencodedcert
         if {![info exists _sampleencodedcert($which)]} {
-            set fd [open [file join [tcltest::testsDirectory] certs twapisamplecert${which}.cer] rb]
+            set fd [open [file join [tcltest::testsDirectory] certs twapitest${which}.cer] rb]
             set _sampleencodedcert($which) [read $fd]
             close $fd
         }
@@ -335,7 +335,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
-    } -result twapisamplecert
+    } -result twapitestfull
 
     test cert_memory_store_open-2.0 {
         Verify cert memory stores protected against double frees
@@ -359,7 +359,7 @@ namespace eval twapi::crypto::test {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
         file delete $storepath
-    } -result twapisamplecert
+    } -result twapitestfull
 
     test cert_file_store_open-1.1 {
         Open a non-existing file store -readonly 0
@@ -375,7 +375,7 @@ namespace eval twapi::crypto::test {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
         file delete $storepath
-    } -result twapisamplecert
+    } -result twapitestfull
 
     test cert_file_store_open-1.2 {
         Open a non-existing file store -readonly 1
@@ -404,7 +404,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
-    } -result twapisamplecert
+    } -result twapitestfull
 
     test cert_file_store_open-2.1 {
         Open an existing file store -create 0
@@ -417,7 +417,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
-    } -result twapisamplecert
+    } -result twapitestfull
 
     test cert_file_store_open-2.2 {
         Open an existing file store -create 1
@@ -528,7 +528,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
-    } -result twapisamplecert
+    } -result twapitestfull
 
     test cert_system_store_open-1.1 {
         Open a non-existing system store -readonly 0
@@ -543,7 +543,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
-    } -result twapisamplecert
+    } -result twapitestfull
 
     test cert_system_store_open-1.2 {
         Open a non-existing system store 1 -existing 1
@@ -564,7 +564,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
-    } -result twapisamplecert
+    } -result twapitestfull
 
     test cert_system_store_open-2.1 {
         Open an existing system store -readonly 1
@@ -577,7 +577,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
-    } -result twapisamplecert
+    } -result twapitestfull
 
     test cert_system_store_open-2.2 {
         Open an existing system store -create 0
@@ -590,7 +590,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
-    } -result twapisamplecert
+    } -result twapitestfull
 
     test cert_system_store_open-2.3 {
         Open an existing system store -create 1
@@ -646,13 +646,20 @@ namespace eval twapi::crypto::test {
             } $loc] -result ""
     }
 
-    test cert_system_store_delete {
-        TBD
+    ################################################################
+
+    test cert_system_store_delete-1.0 {
+        Delete system store
+    } -setup {
+        # Create temporary store to modify
+        set storepath TwapiTest-[clock microseconds]
+        twapi::cert_store_release [twapi::cert_system_store_open $storepath user]
     } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
+        twapi::cert_system_store_delete $storepath user
+        list [catch {twapi::cert_system_store_open $storepath user -existing 1}] [lrange $::errorCode 0 1]
+    } -result {1 {TWAPI_WIN32 2}}
+
+    ################################################################
 
     foreach loc [concat {user users service services localmachine localmachineenterprise localmachinegrouppolicy usergrouppolicy} [twapi::cert_system_store_locations]] {
         test "cert_system_stores-$loc-1.0" {
@@ -662,6 +669,8 @@ namespace eval twapi::crypto::test {
             expr {"My" in $stores && "CA" in $stores && "Root" in $stores}
         } $loc] -result 1
     }
+
+    ################################################################
 
     test cert_system_store_locations-1.0 {
         Get system store locations
@@ -673,6 +682,8 @@ namespace eval twapi::crypto::test {
               "Service" in $locs
           }
     } -result 1
+
+    ################################################################
 
     test cert_store_find_certificate-1.0 {
         Find certificate any, system store
@@ -726,7 +737,7 @@ namespace eval twapi::crypto::test {
         list $subj $count
     } -cleanup {
         twapi::cert_store_release $hstore
-    } -result {twapisamplecert 1}
+    } -result {twapitestfull 1}
 
     test cert_store_find_certificate-1.2 {
         Find certificate any - no cert, memory store
@@ -1122,6 +1133,8 @@ namespace eval twapi::crypto::test {
         twapi::cert_store_release $hstore
     } -result {1 1}
 
+    ################################################################
+
     test cert_store_enum_contents-1.0 {
         Enum certificate store contents
     } -setup {
@@ -1157,6 +1170,8 @@ namespace eval twapi::crypto::test {
         twapi::cert_store_release $hstore
     } -result 1
 
+    ################################################################
+
     test cert_store_add_certificate {
         TBD
     } -body {
@@ -1164,6 +1179,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test cert_store_add_encoded_certificate {
         TBD
@@ -1173,6 +1190,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test cert_store_to_pfx {
         TBD
     } -body {
@@ -1180,6 +1199,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test cert_store_to_pkcs12 {
         TBD
@@ -1189,6 +1210,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test cert_store_to_pkcs7 {
         TBD
     } -body {
@@ -1196,6 +1219,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test cert_store_serialize {
         TBD
@@ -1205,6 +1230,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test cert_store_commit {
         TBD
     } -body {
@@ -1213,7 +1240,607 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
-    test cert_subject_name {
+    ################################################################
+
+    test cert_subject_name-1.0 {
+        Get certificate subject name
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestfull
+
+    test cert_subject_name-1.1 {
+        Get certificate subject -name dns
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name dns
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestfull.twapitest.com
+
+    test cert_subject_name-1.2 {
+        Get certificate subject -name email
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name email
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestfull@twapitest.com
+
+    test cert_subject_name-1.3 {
+        Get certificate subject name friendlydisplay
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name friendlydisplay
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestfull
+
+    test cert_subject_name-1.4 {
+        Get certificate subject name simpledisplay
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name simpledisplay
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestfull
+
+    test cert_subject_name-1.5 {
+        Get certificate subject name oid_common_name
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name oid_common_name
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestfull
+
+    test cert_subject_name-1.6 {
+        Get certificate subject name rdn
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
+
+    test cert_subject_name-1.7 {
+        Get certificate subject name upn
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name upn
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result ""
+
+    test cert_subject_name-1.8 {
+        Get certificate subject name url
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name url
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result http://twapitestfull.twapitest.com
+
+    test cert_subject_name-2.0 {
+        Get certificate subject name rdn -format x500
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -format x500
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
+
+    test cert_subject_name-2.1 {
+        Get certificate subject name rdn -format oid
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -format oid
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "2.5.4.3=twapitestfull, 2.5.4.6=IN, 2.5.4.10=Tcl, 2.5.4.11=twapi"
+
+
+    test cert_subject_name-2.2 {
+        Get certificate subject name rdn -format simple
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -format simple
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "twapitestfull, IN, Tcl, twapi"
+
+    test cert_subject_name-3.0 {
+        Get certificate subject name rdn -format x500 -separator comma
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -format x500 -separator comma
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
+
+    test cert_subject_name-3.1 {
+        Get certificate subject name rdn -format oid -separator semicolon
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -format oid -separator semicolon
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "2.5.4.3=twapitestfull; 2.5.4.6=IN; 2.5.4.10=Tcl; 2.5.4.11=twapi"
+
+    test cert_subject_name-3.2 {
+        Get certificate subject name rdn -format simple -format newline
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -format simple -separator newline
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "twapitestfull\r\nIN\r\nTcl\r\ntwapi"
+
+    test cert_subject_name-4.0 {
+        Get certificate subject name rdn -format x500 -reverse 0
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -format x500 -reverse 0
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
+
+    test cert_subject_name-4.1 {
+        Get certificate subject name rdn -reverse 1
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -reverse 1
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "OU=twapi, O=Tcl, C=IN, CN=twapitestfull"
+
+    test cert_subject_name-5.0 {
+        Get certificate subject name rdn -format x500 -noplus 0
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -format x500 -noplus 0
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
+
+    test cert_subject_name-5.1 {
+        Get certificate subject name rdn -format x500 -noplus 1
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -format x500 -noplus 1
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
+
+    test cert_subject_name-5.2 {
+        Get certificate subject name rdn -format x500 -noplus 1
+    } -constraints {
+        TBD - need a cert with a plus in the name
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -format x500 -noplus 1
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
+
+    test cert_subject_name-6.0 {
+        Get certificate subject name rdn -noquote 0
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -noquote 0
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
+
+    test cert_subject_name-6.1 {
+        Get certificate subject name rdn -noquote 1
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -noquote 1
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
+
+    test cert_subject_name-6.2 {
+        Get certificate subject name rdn -noquote 1
+    } -constraints {
+        TBD - need a cert with a special char in the name
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -noquote 1
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
+
+    test cert_subject_name-7.0 {
+        Get certificate subject name from property
+    } -constraints {
+        TBD - need a cert with a subject name property
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_subject_name $hcert -name rdn -noquote 1
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
+
+
+
+
+    ################################################################
+
+    test cert_issuer_name-1.0 {
+        Get certificate issuer name
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestca
+
+    test cert_issuer_name-1.1 {
+        Get certificate issuer -name dns
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name dns
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestca.twapitest.com
+
+    test cert_issuer_name-1.2 {
+        Get certificate issuer -name email
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name email
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestca@twapitest.com
+
+    test cert_issuer_name-1.3 {
+        Get certificate issuer name friendlydisplay
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name friendlydisplay
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestca
+
+    test cert_issuer_name-1.4 {
+        Get certificate issuer name simpledisplay
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name simpledisplay
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestca
+
+    test cert_issuer_name-1.5 {
+        Get certificate issuer name oid_common_name
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name oid_common_name
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestca
+
+    test cert_issuer_name-1.6 {
+        Get certificate issuer name rdn
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
+
+    test cert_issuer_name-1.7 {
+        Get certificate issuer name upn
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name upn
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result ""
+
+    test cert_issuer_name-1.8 {
+        Get certificate issuer name url
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name url
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result http://twapitestca.twapitest.com
+
+    test cert_issuer_name-2.0 {
+        Get certificate issuer name rdn -format x500
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -format x500
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
+
+
+    test cert_issuer_name-2.1 {
+        Get certificate issuer name rdn -format oid
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -format oid
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "2.5.4.3=twapitestca, 2.5.4.6=IN, 2.5.4.10=Tcl, 2.5.4.11=twapi"
+
+
+    test cert_issuer_name-2.2 {
+        Get certificate issuer name rdn -format simple
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -format simple
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "twapitestca, IN, Tcl, twapi"
+
+    test cert_issuer_name-3.0 {
+        Get certificate issuer name rdn -format x500 -separator comma
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -format x500 -separator comma
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
+
+    test cert_issuer_name-3.1 {
+        Get certificate issuer name rdn -format oid -separator semicolon
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -format oid -separator semicolon
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "2.5.4.3=twapitestca; 2.5.4.6=IN; 2.5.4.10=Tcl; 2.5.4.11=twapi"
+
+    test cert_issuer_name-3.2 {
+        Get certificate issuer name rdn -format simple -format newline
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -format simple -separator newline
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "twapitestca\r\nIN\r\nTcl\r\ntwapi"
+
+    test cert_issuer_name-4.0 {
+        Get certificate issuer name rdn -format x500 -reverse 0
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -format x500 -reverse 0
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
+
+    test cert_issuer_name-4.1 {
+        Get certificate issuer name rdn -reverse 1
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -reverse 1
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "OU=twapi, O=Tcl, C=IN, CN=twapitestca"
+
+    test cert_issuer_name-5.0 {
+        Get certificate issuer name rdn -format x500 -noplus 0
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -format x500 -noplus 0
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
+
+    test cert_issuer_name-5.1 {
+        Get certificate issuer name rdn -format x500 -noplus 1
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -format x500 -noplus 1
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
+
+    test cert_issuer_name-5.2 {
+        Get certificate issuer name rdn -format x500 -noplus 1
+    } -constraints {
+        TBD - need a cert with a plus in the name
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -format x500 -noplus 1
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
+
+    test cert_issuer_name-6.0 {
+        Get certificate issuer name rdn -noquote 0
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -noquote 0
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestca"
+
+    test cert_issuer_name-6.1 {
+        Get certificate issuer name rdn -noquote 1
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -noquote 1
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestca"
+
+    test cert_issuer_name-6.2 {
+        Get certificate issuer name rdn -noquote 1
+    } -constraints {
+        TBD - need a cert with a special char in the name
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -noquote 1
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
+
+    test cert_issuer_name-7.0 {
+        Get certificate issuer name from property
+    } -constraints {
+        TBD - need a cert with a issuer name property
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set hcert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_issuer_name $hcert -name rdn -noquote 1
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
+
+    ################################################################
+
+    test cert_blob_to_name-1.0 {
         TBD
     } -body {
         TBD 
@@ -1221,21 +1848,7 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
-    test cert_issuer_name {
-        TBD
-    } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
-
-    test cert_blob_to_name {
-        TBD
-    } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
+    ################################################################
 
     test cert_name_to_blob {
         TBD
@@ -1245,13 +1858,39 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
-    test cert_enum_properties {
-        TBD
+    ################################################################
+
+    test cert_enum_properties-1.0 {
+        Enumerate certificate properties
+    } -setup {
+        set hstore [twapi::cert_system_store_open CA user -readonly 1]
     } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
+        set count 0
+        twapi::cert_store_iterate $hstore hcert {
+            foreach prop [twapi::cert_enum_properties $hcert] {
+                twapi::cert_property $hcert $prop
+            }
+        }
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result ""
+
+    test cert_enum_properties-1.1 {
+        Enumerate certificate properties -names
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root user -readonly 1]
+    } -body {
+        set count 0
+        twapi::cert_store_iterate $hstore hcert {
+            foreach prop [twapi::cert_enum_properties $hcert -names] {
+                twapi::cert_property $hcert $prop
+            }
+        }
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result ""
+
+    ################################################################
 
     test cert_property {
         TBD
@@ -1261,13 +1900,71 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
-    test cert_property_set {
-        TBD
+    ################################################################
+
+    test cert_property_set-1.0 {
+        Set certificate property friendly_name
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set cert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_property_set $cert friendly_name "Cert friendly name"
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set cert [pick_cert $hstore 0]
+        twapi::cert_property $cert friendly_name
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result  "Cert friendly name"
+
+    test cert_property_set-2.0 {
+        Set certificate property description
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set cert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_property_set $cert description "Cert description"
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set cert [pick_cert $hstore 0]
+        twapi::cert_property $cert description
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result  "Cert description"
+
+    test cert_property_set-3.0 {
+        Set certificate property pvk_file
     } -body {
         TBD 
     } -constraints {
         TBD
     } -result TBD
+
+    test cert_property_set-4.0 {
+        Set certificate property enhkey_usage
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set cert [pick_cert $hstore 0]
+    } -body {
+        twapi::cert_property_set $cert enhkey_usage {server_auth client_auth code_signing}
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set cert [pick_cert $hstore 0]
+        twapi::cert_enhkey_usage $cert property
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result {server_auth client_auth code_signing}
+
+    ################################################################
 
     test cert_property_delete {
         TBD
@@ -1277,6 +1974,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test cert_set_key_prov {
         TBD
     } -body {
@@ -1284,6 +1983,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test cert_export {
         TBD
@@ -1293,13 +1994,148 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
-    test cert_enhkey_usage {
-        TBD
+    ################################################################
+
+    test cert_enhkey_usage-1.0 {
+        Cert enhanced key usage
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set cert [pick_cert $hstore 0]
     } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
+        lsort [twapi::cert_enhkey_usage $cert]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result {client_auth code_signing email_protection ipsec_end_system ipsec_tunnel ipsec_user ocsp_signing server_auth timestamp_signing}
+
+    test cert_enhkey_usage-1.1 {
+        Cert enhanced key usage - property (not present)
+    } -setup {
+        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
+        set cert [pick_cert $hstore 0]
+    } -body {
+        lsort [twapi::cert_enhkey_usage $cert property]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result *
+
+    test cert_enhkey_usage-1.2 {
+        Cert enhkey usage - extension not present
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert min]]
+    } -body {
+        lsort [twapi::cert_enhkey_usage $cert]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result *
+
+    test cert_enhkey_usage-1.3 {
+        Cert enhkey usage - extension, extension not present
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert min]]
+    } -body {
+        lsort [twapi::cert_enhkey_usage $cert extension]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result *
+
+    test cert_enhkey_usage-2.0 {
+        Cert enhkey usage (property)
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert min]]
+        twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
+    } -body {
+        lsort [twapi::cert_enhkey_usage $cert]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result {code_signing server_auth}
+
+    test cert_enhkey_usage-2.1 {
+        Cert enhkey usage (property)
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert]]
+        twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
+    } -body {
+        lsort [twapi::cert_enhkey_usage $cert]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result {code_signing server_auth}
+
+    test cert_enhkey_usage-2.2 {
+        Cert enhkey usage (property, both)
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert]]
+        twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
+    } -body {
+        lsort [twapi::cert_enhkey_usage $cert both]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result {code_signing server_auth}
+
+    test cert_enhkey_usage-2.3 {
+        Cert enhkey usage (property, propertyonly)
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert min]]
+        twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
+    } -body {
+        lsort [twapi::cert_enhkey_usage $cert property]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result {code_signing server_auth}
+
+    test cert_enhkey_usage-2.4 {
+        Cert enhkey usage (property, propertyonly)
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert]]
+        twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
+    } -body {
+        lsort [twapi::cert_enhkey_usage $cert property]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result {code_signing server_auth}
+
+    test cert_enhkey_usage-2.5 {
+        Cert enhkey usage (property, extension)
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert min]]
+        twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
+    } -body {
+        lsort [twapi::cert_enhkey_usage $cert extension]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result *
+
+    test cert_enhkey_usage-2.6 {
+        Cert enhkey usage (property, extension)
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert]]
+        twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
+    } -body {
+        lsort [twapi::cert_enhkey_usage $cert extension]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result {client_auth code_signing email_protection ipsec_end_system ipsec_tunnel ipsec_user ocsp_signing server_auth timestamp_signing}
+
+    ################################################################
 
     test cert_key_usage {
         TBD
@@ -1309,13 +2145,21 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
-    test cert_thumbprint {
-        TBD
+    ################################################################
+
+    test cert_thumbprint-1.0 {
+        Certificate thumbprint
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert]]
     } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
+        twapi::cert_thumbprint $cert
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_store_release $hstore
+    } -result 9ffd6b9a7bb6900c2bcfbf3c770f97195d1798d1
+
+    ################################################################
 
     test cert_info {
         TBD
@@ -1325,6 +2169,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test cert_extension {
         TBD
     } -body {
@@ -1332,6 +2178,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test cert_create_self_signed {
         TBD
@@ -1341,6 +2189,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test cert_create_self_signed_from_crypt_context {
         TBD
     } -body {
@@ -1348,6 +2198,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test cert_create {
         TBD
@@ -1357,6 +2209,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test cert_request {
         TBD
     } -body {
@@ -1365,6 +2219,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
     
+    ################################################################
+
     test cert_tls_verify {
         TBD
     } -body {
@@ -1372,6 +2228,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test cert_locate_private_key {
         TBD
@@ -1381,6 +2239,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test crypt_acquire {
         TBD
     } -body {
@@ -1388,6 +2248,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test crypt_free {
         TBD
@@ -1397,6 +2259,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test crypt_key_container_delete {
         TBD
     } -body {
@@ -1404,6 +2268,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test crypt_key_generate {
         TBD
@@ -1413,6 +2279,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test crypt_keypair {
         TBD
     } -body {
@@ -1420,6 +2288,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test crypt_public_key {
         TBD
@@ -1429,6 +2299,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test crypt_get_security_descriptor {
         TBD
     } -body {
@@ -1436,6 +2308,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test crypt_set_security_descriptor {
         TBD
@@ -1445,6 +2319,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test crypt_key_container_name {
         TBD
     } -body {
@@ -1452,6 +2328,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test crypt_key_container_unique_name {
         TBD
@@ -1461,6 +2339,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test crypt_csp {
         TBD
     } -body {
@@ -1468,6 +2348,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test crypt_csptype {
         TBD
@@ -1477,6 +2359,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test crypt_key_container_names {
         TBD
     } -body {
@@ -1484,6 +2368,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test crypt_session_key_size {
         TBD
@@ -1493,6 +2379,8 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
     test crypt_keyset_type {
         TBD
     } -body {
@@ -1500,6 +2388,8 @@ namespace eval twapi::crypto::test {
     } -constraints {
         TBD
     } -result TBD
+
+    ################################################################
 
     test crypt_symmetric_key_size {
         TBD

@@ -620,15 +620,15 @@ to sign other certificates as a certificate authority. Sets the
 [const basic_constraints] extension and the [const key_cert_sign]
 and [const crl_sign] bits of the keyusage extension. The
 [cmd -basicconstraints] option can be specified in this case.
-[opt_def [const sslserver]] Indicates the certificate will
-be used for a SSL/TLS server. Sets
-[const digital_signature], [const key_encipherment] and [const key_agreement]
-in the key usage extension and [const oid_pkix_kp_server_auth]
-in the enhanced key extension.
-[opt_def [const sslclient]] Indicates the certificate will
+[opt_def [const client]] Indicates the certificate will
 be used for a SSL/TLS client. Sets
 [const digital_signature], [const key_encipherment] and [const key_agreement]
 in the key usage extension and [const oid_pkix_kp_client_auth]
+in the enhanced key extension.
+[opt_def [const server]] Indicates the certificate will
+be used for a SSL/TLS server. Sets
+[const digital_signature], [const key_encipherment] and [const key_agreement]
+in the key usage extension and [const oid_pkix_kp_server_auth]
 in the enhanced key extension.
 [list_end]
 [opt_def [cmd -signaturealgorithm] [arg SIGLAGORITHM]]
@@ -857,7 +857,8 @@ this is 0-based on V3 certificates will have a value of [const 2].
 [call [cmd cert_issuer_name] [arg HCERT] [opt [arg options]]]
 Returns an issuer name field from the certificate context [arg HCERT]. 
 The field may be from the certificate itself or a certificate property
-in the context.
+in the context. The command returns an empty string if the specified name 
+field does not exist in the certificate.
 [nl]
 Refer to [uri #cert_subject_name [cmd cert_subject_name]] for a list
 of options.
@@ -1345,6 +1346,8 @@ to use between RDN components.
 [arg SEPARATOR] must be one of [const comma] (default), [const semicolon]
 or [const newline].
 [list_end]
+The command returns an empty string if the specified name does not exist in the
+certificate.
 
 [call [cmd cert_system_store_open] [arg NAME] [opt [arg LOCATION]] [opt [arg options]]]
 Opens a logical system store and returns a handle to a cached copy.
@@ -1395,10 +1398,10 @@ The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
 when no longer needed.
 
 [call [cmd cert_system_store_delete] [arg NAME] [arg LOCATION]]
-Deletes a certificate physical store that is part of a logical system
-store. [arg NAME] is the name of the physical store including the
-system store component, e.g. [const Root\\.Default]. [arg LOCATION]
-specifies the location of the system store and must be one of
+Deletes a certificate system store.
+[arg NAME] is the name of the store and
+[arg LOCATION]
+specifies its location which must be one of
 the values listed in [sectref "Certificate stores"].
 
 [call [cmd cert_system_store_locations] [arg LOCATION]]

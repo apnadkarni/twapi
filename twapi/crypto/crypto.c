@@ -2866,6 +2866,12 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
                 }
             }
             TwapiFree(pv);
+        } else {
+            if (GetLastError() == CRYPT_E_NOT_FOUND) {
+                /* Extension/Property not present -> all uses valid */
+                result.type = TRT_OBJ;
+                result.value.obj = STRING_LITERAL_OBJ("*");
+            }
         }
         break;
 
