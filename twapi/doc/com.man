@@ -409,7 +409,8 @@ instances of a COM automation object just like in the
 In addition, the above will also define arrays within the namespace
 corresponding to the enums defined in the type library.
 For example, [cmd excel::XlRgbColor] will contain the values
-mapping rgb color names.
+mapping rgb color names. Similarly, constant variable definitions
+within a module will be contained within an array of that name.
 
 [para]
 Instead of [cmd eval]ing the returned script, we could also have saved
@@ -783,10 +784,11 @@ as [const stdout] in which case it is written out to standard output.
 [opt_def [cmd -type] [arg TYPE]]
 Normally, the generated script processes definitions of all types.
 If this option is specified, only definitions of that type are processed.
-[arg TYPE] must be one of [const enum], [const coclass], or [const interface].
+[arg TYPE] must be one of [const enum], [const coclass], [const interface]
+or [const module].
 [list_end]
-See [sectref "Using Type Libraries"] for more details and
-examples.
+See [sectref "Using Type Libraries"] for more details about the generated
+code and examples.
 
 [call [cmd get_typelib_path_from_guid] [arg GUID] [arg MAJOR] [arg MINOR] [opt "[cmd -lcid] [arg LCID]"]]
 Returns the path to the type library identified
