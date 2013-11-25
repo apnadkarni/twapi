@@ -867,9 +867,29 @@ proc twapi::crypt_csp {hprov} {
     return [_ascii_binary_to_string [CryptGetProvParam $hprov 4 0]]
 }
 
+proc twapi::crypt_csps {} {
+    set i 0
+    set result {}
+    while {[llength [set csp [::twapi::CryptEnumProviders $i]]]} {
+        lappend result [lreplace $csp 0 0 [_csp_type_id_to_name [lindex $csp 0]]]
+        incr i
+    }
+    return $result
+}
+
 proc twapi::crypt_csptype {hprov} {
     binary scan [CryptGetProvParam $hprov 16 0] i i
     return [_csp_type_id_to_name $i]
+}
+
+proc twapi::crypt_csptypes {} {
+    set i 0
+    set result {}
+    while {[llength [set csptype [::twapi::CryptEnumProviderTypes $i]]]} {
+        lappend result [lreplace $csptype 0 0 [_csp_type_id_to_name [lindex $csptype 0]]]
+        incr i
+    }
+    return $result
 }
 
 proc twapi::crypt_key_container_names {hprov} {
@@ -1133,6 +1153,9 @@ twapi::proc* twapi::oidname {oid} {
         badargs! "Invalid OID '$name'"
     }
 }
+
+
+
 
 twapi::proc* twapi::oids {{pattern *}} {
     variable _oid_name_map
@@ -1776,7 +1799,7 @@ proc twapi::crypt_test_containers {} {
     twapi::trap {
         set names {}
         foreach name [crypt_key_container_names $crypt] {
-            if {[string match twapitest* $name]} {
+            if {[string match -nocase twapitest* $name]} {
                 lappend names $name
             }
         }
