@@ -85,6 +85,13 @@ On most systems, the latter is the default when no specific CSP is selected
 and is sufficient in most cases unless some special functionality like
 hardware based cryptography is desired.
 
+[para]
+The commands
+[uri #crypt_csps [cmd crypt_csps]] and 
+[uri #crypt_csptypes [cmd crypt_csptypes]] 
+return the list of CSP's and CSP types on the system.
+
+
 [section "Keys and key containers"]
 The keys used for cryptographic operations are stored in 
 [emph "key containers"] within a CSP's control.
@@ -551,7 +558,7 @@ The following options can be specified for the command:
 [opt_def [cmd -altnames] [arg ALTNAMES]]
 Specifies X.509 Alternative Name values to include in the certificate.
 [arg ALTNAMES] is a pair of one or two elements.
-The first is a list of alternating name type and name value elements
+The first is a list of pairs containing the name type and name value
 as described in [sectref "X.509 alternative names"].
 The second element, which is optional and defaults to [const false],
 is a boolean indicating whether the corresponding certificate extension
@@ -1582,8 +1589,18 @@ released. See the [uri http://support.microsoft.com/kb/238187 "Microsoft knowled
 [call [cmd crypt_csp] [arg HCRYPT]]
 Returns the name of the CSP owning the cryptographic context [arg HCRYPT].
 
+[call [cmd crypt_csps]]
+Returns a list of pairs, each representing a CSP on the system.
+The first element of each pair is a CSP type 
+and the second is the name of the CSP.
+
 [call [cmd crypt_csptype] [arg HCRYPT]]
 Returns the type of the CSP owning the cryptographic context [arg HCRYPT].
+
+[call [cmd crypt_csptypes]]
+Returns a list of pairs, each representing a CSP type on the system.
+The first element of each pair is a CSP type 
+and the second is the name of the CSP.
 
 [call [cmd crypt_free] [arg HCRYPT]]
 Frees a cryptographic context returned by
