@@ -3113,6 +3113,27 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         result.type = TRT_BOOL;
         result.value.bval = CertCompareCertificateName(dw, &blob, &blob2);
         break;
+    case 10050: // CryptEnumProviderTypes
+    case 10051: // CryptEnumProvider
+        CHECK_NARGS(interp, objc, 1);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        dw2 = MAX_PATH;
+        pv = TwapiAlloc(MAX_PATH * sizeof(WCHAR));
+        if ((func == 10050 ? CryptEnumProviderTypesW : CryptEnumProvidersW)(dw, NULL, 0, &dw3, pv, &dw2)) {
+            objs[0] = ObjFromDWORD(dw3);
+            objs[1] = ObjFromUnicode(pv);
+            result.type= TRT_OBJV;
+            result.value.objv.objPP = objs;
+            result.value.objv.nobj = 2;
+        } else {
+            result.value.ival = GetLastError();
+            if (result.value.ival == ERROR_NO_MORE_ITEMS)
+                result.type = TRT_EMPTY;
+            else
+                result.type = TRT_EXCEPTION_ON_ERROR;
+        }
+        TwapiFree(pv);
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -3171,6 +3192,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptBinaryToString, 10047), // Tcl TBD
         DEFINE_FNCODE_CMD(crypt_localize_string,10048), // TBD - document
         DEFINE_FNCODE_CMD(CertCompareCertificateName, 10049), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptEnumProviderTypes, 10050), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptEnumProviders, 10051), // TBD Tcl
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
