@@ -73,11 +73,19 @@ namespace eval twapi::crypto::test {
         return $temp_system_store_path
     }
 
+    proc temp_crypto_dir_path {} {
+        variable temp_crypto_dir_path
+        if {![info exists temp_crypto_dir_path]} {
+            set temp_crypto_dir_path [tcltest::makeDirectory twapicryptotest]
+        }
+        return $temp_crypto_dir_path
+    }
+
     proc temp_file_store_path {} {
         variable temp_file_store_path
 
         if {![info exists temp_file_store_path]} {
-            set temp_file_store_path [file join [tcltest::temporaryDirectory] [clock microseconds].store]
+            set temp_file_store_path [file join [temp_crypto_dir_path] [clock microseconds].store]
             set hstore [twapi::cert_file_store_open $temp_file_store_path]
             set cer [sampleencodedcert]
             twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
@@ -2480,7 +2488,109 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    test cert_request {
+    test cert_request_create-1.0 {
+        Create a certificate request for a TLS client
+    } -setup {
+        set subject twapitest-[clock microseconds]
+        set crypt [twapi::crypt_acquire $subject -create 1]
+        twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+    } -body {
+        set x509_name "CN=$subject SSL Client, O=Twapi Open Source, OU=test"
+        set req [twapi::cert_request_create $x509_name $crypt keyexchange -purpose client]
+        set path [write_test_file $req wb]
+        set output [exec ../../tools/openssl/bin/openssl req -inform der -in $path -noout -text -verify 2>@1]
+        regexp "^Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Key Encipherment, Key Agreement\n.+X509v3 Extended Key Usage: critical.+TLS Web Client Authentication\n.+verify OK$" $output
+    } -result 1
+    
+    test cert_request_create-1.1 {
+        Create a certificate request for a TLS server (PEM)
+    } -setup {
+        set subject twapitest-[clock microseconds]
+        set crypt [twapi::crypt_acquire $subject -create 1]
+        twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+    } -body {
+        set x509_name "CN=$subject SSL Server, O=Twapi Open Source, OU=test"
+        set req [twapi::cert_request_create $x509_name $crypt keyexchange -purpose server -format pem]
+        set path [write_test_file $req w]
+        set output [exec ../../tools/openssl/bin/openssl req -in $path -noout -text -verify 2>@1]
+        regexp "^Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Key Encipherment, Key Agreement\n.+X509v3 Extended Key Usage: critical.+TLS Web Server Authentication\n.+verify OK$" $output
+    } -result 1
+    
+    test cert_request_create-1.2 {
+        Create a certificate request with no options
+    } -setup {
+        set subject twapitest-[clock microseconds]
+        set crypt [twapi::crypt_acquire $subject -create 1]
+        twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+    } -body {
+        set x509_name "CN=$subject No Options, O=Twapi Open Source, OU=test"
+        set req [twapi::cert_request_create $x509_name $crypt keyexchange]
+        set path [write_test_file $req wb]
+        set output [exec ../../tools/openssl/bin/openssl req -in $path -inform der -noout -text -verify 2>@1]
+puts $output
+        regexp "^Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE\\s+Signature Algorithm:.+verify OK$" $output
+    } -result 1
+
+    test cert_request_create-1.3 {
+        Create a full certificate request (PEM)
+    } -setup {
+        set subject twapitest-[clock microseconds]
+        set crypt [twapi::crypt_acquire $subject -create 1]
+        twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+    } -body {
+        set x509_name "CN=$subject Full, O=Twapi Open Source, OU=test"
+        set altnames [list [list [list email ${subject}@twapitest.com] [list dns ${subject}.twapitest.com] [list url http://${subject}.twapitest.com] [list directory [twapi::cert_name_to_blob "CN=${subject}altname"]] [list ip [binary format c4 {127 0 0 1}]]]]
+        set req [twapi::cert_request_create $x509_name $crypt keyexchange \
+                     -format pem \
+                     -keyusage [list {crl_sign data_encipherment digital_signature key_agreement key_cert_sign key_encipherment non_repudiation} 1] \
+                     -enhkeyusage [list {client_auth code_signing email_protection ipsec_end_system  ipsec_tunnel ipsec_user server_auth timestamp_signing ocsp_signing} 0] \
+                     -altnames $altnames]
+        set path [write_test_file $req w]
+        set output [exec ../../tools/openssl/bin/openssl req -in $path -noout -text -verify 2>@1]
+        
+        # Single regexp overflows the stack so we need break it up
+        list [regexp "^Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Non Repudiation, Key Encipherment, Data Encipherment, Key Agreement, Certificate Sign, CRL Sign\\s+X509v3 Extended Key Usage:\\s+OCSP Signing, TLS Web Server Authentication, IPSec End System, IPSec Tunnel, TLS Web Client Authentication, IPSec User, Code Signing, Time Stamping, E-mail Protection\\s" $output] \
+            [regexp ".+X509v3 Subject Alternative Name:.+email:${subject}@twapitest.com, DNS:${subject}.twapitest.com, URI:http://${subject}.twapitest.com, DirName:/CN=${subject}altname, IP Address:127.0.0.1.+verify OK$" $output]
+    } -result {1 1}
+
+
+    ################################################################
+
+    test cert_request_parse-1.0 {
+        Parse a certificate request
+    } -setup {
+        set subject twapitest-[clock microseconds]
+        set crypt [twapi::crypt_acquire $subject -create 1]
+        twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+        set x509_name "CN=$subject Full, O=Twapi Open Source, OU=test"
+        set altnames [list [list [list email ${subject}@twapitest.com] [list dns ${subject}.twapitest.com] [list url http://${subject}.twapitest.com] [list directory [twapi::cert_name_to_blob "CN=${subject}altname"]] [list ip [binary format c4 {127 0 0 1}]]]]
+        set req [twapi::cert_request_create $x509_name $crypt keyexchange \
+                     -format der \
+                     -keyusage [list {crl_sign data_encipherment digital_signature key_agreement key_cert_sign key_encipherment non_repudiation} 1] \
+                     -enhkeyusage [list {client_auth code_signing email_protection ipsec_end_system  ipsec_tunnel ipsec_user server_auth timestamp_signing ocsp_signing} 0] \
+                     -altnames $altnames]
+    } -body {
+        set csr [twapi::cert_request_parse $req]
+        set altnames [concat {*}[lindex [dict get $csr extensions -altnames] 0]]
+        list \
+            [dict get $csr version] \
+            [expr {[dict get $csr subject] eq $x509_name}] \
+            [dict get $csr extensions -basicconstraints] \
+            [lindex [dict get $csr extensions -keyusage] 1] \
+            [equal_sets [lindex [dict get $csr extensions -keyusage] 0] {digital_signature non_repudiation key_encipherment data_encipherment key_agreement key_cert_sign crl_sign}] \
+            [dict exists $csr attributes] \
+            [lindex [dict get $csr extensions -enhkeyusage] 1] \
+            [equal_sets [lindex [dict get $csr extensions -enhkeyusage] 0] {ocsp_signing server_auth ipsec_end_system ipsec_tunnel client_auth ipsec_user code_signing timestamp_signing email_protection}] \
+            [string equal [dict get $altnames email] ${subject}@twapitest.com] \
+            [string equal [dict get $altnames dns] ${subject}.twapitest.com] \
+            [string equal [dict get $altnames url] http://${subject}.twapitest.com] \
+            [string equal [dict get $altnames directory] [twapi::cert_name_to_blob "CN=${subject}altname"]] \
+            [string equal [dict get $altnames ip] [binary format c4 {127 0 0 1}]]
+    } -result {0 1 {{0 0 0} 1} 1 1 1 0 1 1 1 1 1 1}
+
+
+
+    test cert_request_parse {
         TBD
     } -body {
         TBD 

@@ -1350,6 +1350,13 @@ proc attempt_lock_mutex {mutex open_call} {
     twapi::close_handle $hmutex
 }
 
+proc write_test_file {content {mode wb}} {
+    set path [tcltest::makeFile "" twapitest-[clock microseconds]]
+    set fd [open $path $mode]
+    puts -nonewline $fd $content
+    close $fd
+    return $path
+}
 
 #####
 #
