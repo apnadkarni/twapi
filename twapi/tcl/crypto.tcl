@@ -275,9 +275,9 @@ proc twapi::cert_blob_to_name {blob args} {
     array set opts [parseargs args {
         {format.arg x500 {x500 oid simple}}
         {separator.arg comma {comma semi newline}}
-        {reverse 0 0x02000000}
-        {noquote 0 0x10000000}
-        {noplus  0 0x20000000}
+        {reverse.bool 0 0x02000000}
+        {noquote.bool 0 0x10000000}
+        {noplus.bool  0 0x20000000}
     } -maxleftover 0]
 
     switch $opts(format) {
@@ -299,9 +299,9 @@ proc twapi::cert_name_to_blob {name args} {
     array set opts [parseargs args {
         {format.arg x500 {x500 oid simple}}
         {separator.arg any {any comma semicolon newline}}
-        {reverse 0 0x02000000}
-        {noquote 0 0x10000000}
-        {noplus  0 0x20000000}
+        {reverse.bool 0 0x02000000}
+        {noquote.bool 0 0x10000000}
+        {noplus.bool  0 0x20000000}
     } -maxleftover 0]
 
     switch $opts(format) {
@@ -911,7 +911,26 @@ proc twapi::crypt_symmetric_key_size {hprov} {
     return $i
 }
 
-################################################################
+###
+# ASN.1 procs
+
+# TBD - document
+proc twapi::asn1_decode_string {bin} {
+    # 24 -> X509_UNICODE_ANY_STRING
+    return [lindex [twapi::CryptDecodeObjectEx 24 $bin] 1]
+}
+
+# TBD - document
+proc twapi::asn1_encode_string {s {encformat utf8}} {
+    # 24 -> X509_UNICODE_ANY_STRING
+    return [twapi::CryptEncodeObjectEx 24 [list [dict! {
+        numeric 3 printable 4 teletex 5 t61 5 videotex 6 ia5 7 graphic 8
+        visible 9 iso646 9 general 10 universal 11 int4 11
+        bmp 12 unicode 12 utf8 13
+    } $encformat] $s]]
+}
+
+###
 # Utility procs
 
 proc twapi::_algid {class type alg} {

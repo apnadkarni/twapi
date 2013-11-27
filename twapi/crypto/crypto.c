@@ -131,6 +131,22 @@ Tcl_Obj *ObjFromCERT_NAME_BLOB(CERT_NAME_BLOB *blobP, DWORD flags)
     return objP;
 }
 
+static Tcl_Obj *ObjFromCERT_NAME_VALUE(CERT_NAME_VALUE *valP)
+{
+    Tcl_Obj *objs[2];
+    objs[0] = ObjFromDWORD(valP->dwValueType);
+    objs[1] = ObjFromCRYPT_BLOB(&valP->Value);
+    return ObjNewList(2, objs);
+}
+
+static Tcl_Obj *ObjFromCERT_NAME_VALUE_Unicode(CERT_NAME_VALUE *valP)
+{
+    Tcl_Obj *objs[2];
+    objs[0] = ObjFromDWORD(valP->dwValueType);
+    objs[1] = ObjFromUnicodeN((WCHAR *)valP->Value.pbData, valP->Value.cbData/sizeof(WCHAR));
+    return ObjNewList(2, objs);
+}
+
 static Tcl_Obj *ObjFromCERT_ALT_NAME_ENTRY(CERT_ALT_NAME_ENTRY *caneP)
 {
     Tcl_Obj *objs[2];
@@ -390,6 +406,46 @@ format_error:
                  Tcl_ObjPrintf("Invalid or unsupported name format \"%s\"", ObjToString(nameObj)));
     return TCL_ERROR;
 }
+
+static TCL_RESULT ParseCERT_NAME_VALUE(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *namevalObj,
+    CERT_NAME_VALUE *cnvP
+    )
+{
+    Tcl_Obj **objs;
+    int nobjs;
+    TCL_RESULT res;
+
+    if (ObjGetElements(NULL, namevalObj, &nobjs, &objs) == TCL_OK &&
+        nobjs == 2 &&
+        ObjToDWORD(NULL, objs[0], &cnvP->dwValueType) == TCL_OK &&
+        ParseCRYPT_BLOB(ticP, objs[1], &cnvP->Value) == TCL_OK) {
+        return TCL_OK;
+    } else
+        return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid CERT_NAME_VALUE");
+}
+
+static TCL_RESULT ParseCERT_NAME_VALUE_Unicode(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *namevalObj,
+    CERT_NAME_VALUE *cnvP
+    )
+{
+    Tcl_Obj **objs;
+    int nchars, nobjs;
+    TCL_RESULT res;
+
+    if (ObjGetElements(NULL, namevalObj, &nobjs, &objs) == TCL_OK &&
+        TwapiGetArgsEx(ticP, nobjs, objs, GETINT(cnvP->dwValueType),
+                       GETWSTRN(cnvP->Value.pbData, nchars), ARGEND)
+        ==  TCL_OK) {
+        cnvP->Value.cbData = nchars * sizeof(WCHAR);
+        return TCL_OK;
+    } else
+        return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid CERT_NAME_VALUE");
+}
+
 
 
 
@@ -891,6 +947,9 @@ static TCL_RESULT TwapiCryptDecodeObject(
     case X509_AUTHORITY_INFO_ACCESS:
         fnP = ObjFromCERT_AUTHORITY_INFO_ACCESS;
         break;
+    case X509_UNICODE_ANY_STRING:
+        fnP = ObjFromCERT_NAME_VALUE_Unicode;
+        break;
     case 65535-1: // szOID_SUBJECT_KEY_IDENTIFIER
         fnP = ObjFromCRYPT_BLOB;
         break;
@@ -935,6 +994,7 @@ static TCL_RESULT TwapiCryptEncodeObject(
         CERT_AUTHORITY_KEY_ID2_INFO auth_key_id;
         CRYPT_ALGORITHM_IDENTIFIER algid;
         CERT_EXTENSIONS cexts;
+        CERT_NAME_VALUE cnv;
     } u;
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj **objs;
@@ -1019,6 +1079,11 @@ static TCL_RESULT TwapiCryptEncodeObject(
     case X509_EXTENSIONS:
         res = ParseCERT_EXTENSIONS(ticP, valObj, &u.cexts.cExtension, &u.cexts.rgExtension);
         break;
+    case (DWORD_PTR) X509_UNICODE_ANY_STRING:
+        if ((res = ParseCERT_NAME_VALUE_Unicode(ticP, valObj, &u.cnv)) != TCL_OK)
+            return res;
+        break;
+
     case 65535-1: // szOID_SUBJECT_KEY_IDENTIFIER
         res = ParseCRYPT_BLOB(ticP, valObj, &u.blob);
         if (res != TCL_OK)
