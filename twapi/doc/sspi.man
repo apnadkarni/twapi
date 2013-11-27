@@ -139,7 +139,7 @@ The following options may be specified with the command:
 Specifies the credentials to which a handle is to be returned. If unspecified
 the default credentials for the package are used. For NTLM or Negotiate
 providers, the [uri #sspi_winnt_identity_credentials [cmd sspi_winnt_identity_credentials]]
-should be used to return non-default credentials in the appropirate format.
+should be used to return non-default credentials in the appropriate format.
 For SSL/Schannel based providers, the
 [uri #sspi_schannel_credentials [cmd sspi_schannel_credentials]]
 should be used for the same purpose.
