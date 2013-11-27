@@ -101,6 +101,7 @@ namespace eval twapi::crypto::test {
             }
         }
 
+        twapi::crypt_test_container_cleanup
     }
 
     proc equal_certs {certa certb} {
@@ -1172,8 +1173,10 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    test cert_store_add_certificate {
-        TBD
+    test cert_store_add_certificate-1.0 {
+        Add a certficate to a store
+    } -setup {
+        
     } -body {
         TBD 
     } -constraints {
@@ -1182,13 +1185,171 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    test cert_store_add_encoded_certificate {
-        TBD
+    test cert_store_add_encoded_certificate-1.0 {
+        Add encoded certificate to store
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cer [sampleencodedcert]
     } -body {
-        TBD 
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
+        set hcert [twapi::cert_store_enum_contents $hstore]
+        twapi::cert_subject_name $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestfull
+
+    test cert_store_add_encoded_certificate-2.0 {
+        Add duplicate encoded certificate to store
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cer [sampleencodedcert]
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
+    } -body {
+        list [catch {twapi::cert_store_add_encoded_certificate $hstore $cer}] [lrange $::errorCode 0 1]
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result {1 {TWAPI_WIN32 -2146885627}}
+
+    test cert_store_add_encoded_certificate-2.1 {
+        Add duplicate encoded certificate to store -disposition preserve
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cer [sampleencodedcert]
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition preserve]
+    } -body {
+        list [catch {twapi::cert_store_add_encoded_certificate $hstore $cer -disposition preserve}] [lrange $::errorCode 0 1]
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result {1 {TWAPI_WIN32 -2146885627}}
+
+    test cert_store_add_encoded_certificate-2.2 {
+        Add duplicate encoded certificate to store -disposition overwrite
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cer [sampleencodedcert]
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition overwrite]
+    } -body {
+        set count 0
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition overwrite]
+        twapi::cert_store_iterate $hstore cert {
+            set subject [twapi::cert_subject_name $hcert]
+            incr count
+        }
+        list $count $subject
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result {1 twapitestfull}
+
+    test cert_store_add_encoded_certificate-2.3 {
+        Add duplicate encoded certificate to store -disposition duplicate
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cer [sampleencodedcert]
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition duplicate]
+    } -body {
+        set count 0
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition duplicate]
+        twapi::cert_store_iterate $hstore cert {
+            set subject [twapi::cert_subject_name $hcert]
+            incr count
+        }
+        list $count $subject
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result {2 twapitestfull}
+
+    test cert_store_add_encoded_certificate-2.4 {
+        Add duplicate encoded certificate to store -disposition update
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cer [sampleencodedcert]
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition update]
+    } -body {
+        list [catch {twapi::cert_store_add_encoded_certificate $hstore $cer -disposition update}] [lrange $::errorCode 0 1]
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result {1 {TWAPI_WIN32 -2146885627}}
+
+    test cert_store_add_encoded_certificate-2.5 {
+        Add duplicate encoded certificate to store -disposition update (newer cert)
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cer [sampleencodedcert]
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition update]
     } -constraints {
-        TBD
-    } -result TBD
+        TBD - need to generate same cert with newer validity
+    } -body {
+        # TBD need to add a newer cert, not the same one
+        set count 0
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition update]
+        twapi::cert_store_iterate $hstore cert {
+            set subject [twapi::cert_subject_name $hcert]
+            incr count
+        }
+        list $count $subject
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result {1 twapitestfull}
+
+    test cert_store_add_encoded_certificate-3.0 {
+        Add encoded certificate to store -format cer
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cer [sampleencodedcert]
+    } -body {
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -format cer]
+        set hcert [twapi::cert_store_enum_contents $hstore]
+        twapi::cert_subject_name $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestfull
+
+    test cert_store_add_encoded_certificate-3.1 {
+        Add encoded certificate to store -format der
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cer [sampleencodedcert]
+    } -body {
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -format der]
+        set hcert [twapi::cert_store_enum_contents $hstore]
+        twapi::cert_subject_name $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestfull
+
+    test cert_store_add_encoded_certificate-3.2 {
+        Add encoded certificate to store -format pem
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cer [CryptBinaryToString [sampleencodedcert] 0x80000000]
+    } -body {
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -format pem]
+        set hcert [twapi::cert_store_enum_contents $hstore]
+        twapi::cert_subject_name $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestfull
+
+    test cert_store_add_encoded_certificate-3.3 {
+        Add encoded certificate to store -format base64
+    } -setup {
+        set hstore [twapi::cert_memory_store_open]
+        set cer [CryptBinaryToString [sampleencodedcert] 0x80000000]
+    } -body {
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -format base64]
+        set hcert [twapi::cert_store_enum_contents $hstore]
+        twapi::cert_subject_name $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestfull
 
     ################################################################
 
@@ -1840,23 +2001,131 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    test cert_blob_to_name-1.0 {
-        TBD
+    test blob_name_conversion-1.0 {
+        Convert name blob to a string
     } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"}]
+    } -result "CN=Common Name, C=Country, O=Organization, OU=Organizational Unit"
 
-    ################################################################
-
-    test cert_name_to_blob {
-        TBD
+    test blob_name_conversion-1.1 {
+        Convert name blob to a string -format x500
     } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"}] -format x500
+    } -result "CN=Common Name, C=Country, O=Organization, OU=Organizational Unit"
+
+    test blob_name_conversion-1.2 {
+        Convert name blob to a string -format oid
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"}] -format oid
+    } -result "2.5.4.3=Common Name, 2.5.4.6=Country, 2.5.4.10=Organization, 2.5.4.11=Organizational Unit"
+
+    test blob_name_conversion-1.3 {
+        Convert name blob to a string -format simple
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"}] -format simple
+    } -result "Common Name, Country, Organization, Organizational Unit"
+
+    test blob_name_conversion-2.0 {
+        Convert name blob to a string -reverse false
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"}] -reverse false
+    } -result "CN=Common Name, C=Country, O=Organization, OU=Organizational Unit"
+
+    test blob_name_conversion-2.1 {
+        Convert name blob to a string -reverse true
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"}] -reverse true
+    } -result "OU=Organizational Unit, O=Organization, C=Country, CN=Common Name"
+
+    test blob_name_conversion-3.0 {
+        Convert name blob to a string -separator comma
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"}] -separator comma
+    } -result "CN=Common Name, C=Country, O=Organization, OU=Organizational Unit"
+
+    test blob_name_conversion-3.1 {
+        Convert name blob to a string -separator semi
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"}] -separator semi
+    } -result "CN=Common Name; C=Country; O=Organization; OU=Organizational Unit"
+
+    test blob_name_conversion-3.2 {
+        Convert name blob to a string -separator newline
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"}] -separator newline
+    } -result "CN=Common Name\r\nC=Country\r\nO=Organization\r\nOU=Organizational Unit"
+
+    test blob_name_conversion-4.0 {
+        Convert name blob to a string -noquote true,false
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"} -noquote true] -noquote false
+    } -result {CN=Common Name, C=Country, O=Organization, OU="""Organizational Unit"""}
+
+    test blob_name_conversion-4.1 {
+        Convert name blob to a string -noquote true,true
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"} -noquote true] -noquote true
+    } -result {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"}
+
+    test blob_name_conversion-4.2 {
+        Convert name blob to a string -noquote false,false
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"} -noquote false] -noquote false
+    } -result {CN=Common Name, C=Country, O=Organization, OU=Organizational Unit}
+
+    test blob_name_conversion-4.3 {
+        Convert name blob to a string -noquote false,true
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"} -noquote false] -noquote true
+    } -result {CN=Common Name, C=Country, O=Organization, OU=Organizational Unit}
+
+    test blob_name_conversion-4.4 {
+        Convert name blob to a string -noquote false,default
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"} -noquote false]
+    } -result {CN=Common Name, C=Country, O=Organization, OU=Organizational Unit}
+
+    test blob_name_conversion-4.5 {
+        Convert name blob to a string -noquote true,default
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob {CN=Common Name, C=Country, O=Organization, OU="Organizational Unit"} -noquote true]
+    } -result {CN=Common Name, C=Country, O=Organization, OU="""Organizational Unit"""}
+
+    test blob_name_conversion-5.0 {
+        Convert name blob to string -noplus false,false
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob "CN=A+CN=B, O=Org" -noplus false] -noplus false
+    } -result "CN=A + CN=B, O=Org"
+
+    test blob_name_conversion-5.1 {
+        Convert name blob to string -noplus false,true
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob "CN=A+CN=B, O=Org" -noplus false] -noplus true
+    } -result "CN=A CN=B, O=Org"
+
+    test blob_name_conversion-5.2 {
+        Convert name blob to string -noplus true,false
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob "CN=A+CN=B, O=Org" -noplus true] -noplus false
+    } -result {CN="A+CN=B", O=Org}
+
+    test blob_name_conversion-5.3 {
+        Convert name blob to string -noplus true,true
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob "CN=A+CN=B, O=Org" -noplus true] -noplus true
+    } -result {CN="A+CN=B", O=Org}
+                              
+    test blob_name_conversion-5.4 {
+        Convert name blob to string -noplus false,default
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob "CN=A+CN=B, O=Org" -noplus false]
+    } -result "CN=A + CN=B, O=Org"
+
+    test blob_name_conversion-5.2 {
+        Convert name blob to string -noplus true,default
+    } -body {
+        twapi::cert_blob_to_name [twapi::cert_name_to_blob "CN=A+CN=B, O=Org" -noplus true]
+    } -result {CN="A+CN=B", O=Org}
 
     ################################################################
 
@@ -2321,23 +2590,29 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    test crypt_key_container_name {
-        TBD
+    test crypt_key_container_name-1.0 {
+        Get key container name
+    } -setup {
+        set name TwapiTest-[clock microseconds]
+        set hcrypt [twapi::crypt_acquire $name -create 1]
     } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
+        string equal [twapi::crypt_key_container_name $hcrypt] $name
+    } -cleanup {
+        twapi::crypt_free $hcrypt
+    } -result 1
 
     ################################################################
 
-    test crypt_key_container_unique_name {
-        TBD
+    test crypt_key_container_unique_name-1.0 {
+        Get key container name
+    } -setup {
+        set name TwapiTest-[clock microseconds]
+        set hcrypt [twapi::crypt_acquire $name -create 1]
     } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
+        twapi::crypt_key_container_unique_name $hcrypt
+    } -cleanup {
+        twapi::crypt_free $hcrypt
+    } -result {^[[:xdigit:]]+_[[:xdigit:]]+-[[:xdigit:]]+-[[:xdigit:]]+-[[:xdigit:]]+-[[:xdigit:]]+$} -match regexp
 
     ################################################################
 
