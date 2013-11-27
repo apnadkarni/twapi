@@ -47,7 +47,7 @@ The [cmd tls_socket] command supports the following additional options:
 [opt_def [cmd -credentials] [arg CREDENTIALS]]
 Specifies the credentials to be used for the connection.
 [arg CREDENTIALS] should be credentials returned from a call to
-[uri #sspi_acquire_credentials [cmd sspi_acquire_credentials]] using
+[uri sspi.html#sspi_acquire_credentials [cmd sspi_acquire_credentials]] using
 the [cmd "-package ssl"] option. For client-side connections, this option
 only needs to be specified when connecting to servers that require
 clients to be authenticated. For server-side connections, this option
