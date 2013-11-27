@@ -597,8 +597,8 @@ is a boolean indicating whether the corresponding certificate extension
 should be marked critical or not.
 [opt_def [cmd -format] [arg FORMAT]]
 Specifies the format in which the encoded certificate is returned.
-If [arg FORMAT] is specified as [const der] (default), [const cer] or
-[const crt],  the certificate is in DER format. If [arg FORMAT] is 
+If [arg FORMAT] is specified as [const der] (default) or [const cer]
+the certificate is in DER format. If [arg FORMAT] is 
 [const pem] or [const base64], it is returned in PEM format.
 [opt_def [cmd -keyspec] [arg KEYSPEC]]
 [arg KEYSPEC] must be one of [const signature] (default) or 
@@ -1062,7 +1062,8 @@ The returned dictionary has the following keys:
 is a list each element of which is a pair consisting of an OID
 and a list of corresponding values.
 [opt_def [cmd extensions]] A subset of the [cmd attributes] key,
-formatted for easier processing. See the discussion below.
+formatted for easier processing. See the discussion below. This key
+may be absent if the attributes do not contain any extensions.
 [opt_def [cmd pubkey]] The public key of the requestor. This should
 be passed to [uri #cert_create [cmd cert_create]] as the public key
 argument.
