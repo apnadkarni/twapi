@@ -646,6 +646,11 @@ static TCL_RESULT ParseCERT_CHAIN_POLICY_PARA_SSL(
                            GETWSTR(sslP->pwszServerName),
                            ARGEND) != TCL_OK)
             goto error_return;
+        /* Although docs say pwszServerName is ignored for AUTHTYPE_CLIENT,
+           it appears not to be so. It seems to do a name check if the
+           field is not NULL */
+        if (sslP->dwAuthType == AUTHTYPE_CLIENT && sslP->pwszServerName[0] == 0)
+            sslP->pwszServerName = NULL;
         policy_paramP->pvExtraPolicyPara = sslP;
     }
 
