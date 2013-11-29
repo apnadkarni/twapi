@@ -573,6 +573,7 @@ proc twapi::cert_tls_verify {hcert args} {
         {engine.arg user {user machine}}
         {timestamp.arg ""}
         {hstore.arg NULL}
+        {trustedroots.arg}
         server.arg
     } -setvars -maxleftover 0
 
@@ -586,16 +587,21 @@ proc twapi::cert_tls_verify {hcert args} {
         }
         set usage_op 0;         # USAGE_MATCH_TYPE_AND
         set usage [_get_enhkey_usage_oids $usageall]
-    } else {
-        lappend usageany;       # Ensure it exists
+    } elseif {[info exists usageany]} {
         set usage [_get_enhkey_usage_oids $usageany]
+    } else {
+        if {[info exists server]} {
+            set usage [_get_enhkey_usage_oids [list server_auth]]
+        } else {
+            set usage [_get_enhkey_usage_oids [list client_auth]]
+        }
     }
 
     set chainh [CertGetCertificateChain \
                     [dict* {user NULL machine {1 HCERTCHAINENGINE}} $engine] \
                     $hcert $timestamp $hstore \
                     [list [list $usage_op $usage]] $flags]
-
+    
     trap {
         set verify_flags 0
         foreach ignore $ignoreerrors {
@@ -634,6 +640,46 @@ proc twapi::cert_tls_verify {hcert args} {
         }
 
         set status [Twapi_CertVerifyChainPolicySSL $chainh [list $verify_flags [list $role $checks $server]]]
+
+        # If caller had provided additional trusted roots that are not
+        # in the Windows trusted store, and the error is that the root is
+        # untrusted, see if the root cert is one of the passed trusted ones
+        if {$status == 0x800B0109 &&
+            [info exists trustedroots] &&
+            [llength $trustedroots]} {
+            set chains [twapi::Twapi_CertChainContexts $chainh]
+            set simple_chains [lindex $chains 1]
+            # We will only deal when there is a single possible chain else
+            # the recheck becomes very complicated as we are not sure if
+            # the recheck will employ the same chain or not.
+            if {[llength $simple_chains] == 1} {
+                set certs_in_chain [lindex $simple_chains 0 1]
+                # Get thumbprint of root cert
+                set thumbprint [cert_thumbprint [lindex $certs_in_chain end 0]]
+                # Match against each trusted root
+                set trusted 0
+                foreach trusted_cert $trustedroots {
+                    if {$thumbprint eq [cert_thumbprint $trusted_cert]} {
+                        set trusted 1
+                        break
+                    }
+                }
+                if {$trusted} {
+                    # Yes, the root is trusted. It is not enough to
+                    # say validation is ok because even if root
+                    # is trusted, other errors might show up
+                    # once untrusted roots are ignored. So we have
+                    # to call the verification again.
+                    # 0x10 -> CERT_CHAIN_POLICY_ALLOW_UNKNOWN_CA_FLAG
+                    set verify_flags [expr {$verify_flags | 0x10}]
+                    # 0x100 -> SECURITY_FLAG_IGNORE_UNKNOWN_CA
+                    set checks [expr {$checks | 0x100}]
+                    # Retry the call ignoring root errors
+                    set status [Twapi_CertVerifyChainPolicySSL $chainh [list $verify_flags [list $role $checks $server]]]
+                }
+            }
+        }
+
         return [dict*  {
             0x00000000 ok
             0x80096004 signature
@@ -654,10 +700,16 @@ proc twapi::cert_tls_verify {hcert args} {
             0x800B0106 purpose
             0x800B0103 carole
         } [format 0x%8.8X $status]]
-
     } finally {
+        if {[info exists certs_in_chain]} {
+            foreach cert_stat $certs_in_chain {
+                cert_release [lindex $cert_stat 0]
+            }
+        }
         CertFreeCertificateChain $chainh
     }
+
+    return $status
 }
 
 proc twapi::cert_locate_private_key {hcert} {
@@ -1770,15 +1822,20 @@ proc twapi::make_test_certs {{hstore {}} args} {
     crypt_free $crypt
 
     # Create the client and server certs
-    foreach cert_type {server client full min} {
+    foreach cert_type {intermediate server client full min} {
         set container twapitest${cert_type}$uuid
         set subject $container
         set crypt [twapi::crypt_acquire $container -csp $csp -csptype $csptype -create 1]
         twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
         switch $cert_type {
+            intermediate {
+                set req [cert_request_create "CN=$container, C=IN, O=Tcl, OU=twapi" $crypt keyexchange -purpose ca]
+                set signing_cert $ca_certificate
+            }
             client -
             server {
                 set req [cert_request_create "CN=$container, C=IN, O=Tcl, OU=twapi" $crypt keyexchange -purpose $cert_type]
+                set signing_cert $intermediate_certificate
             }
             full {
                 set altnames [list [list [list email ${container}@twapitest.com] [list dns ${container}.twapitest.com] [list url http://${container}.twapitest.com] [list directory [cert_name_to_blob "CN=${container}altname"]] [list ip [binary format c4 {127 0 0 1}]]]]
@@ -1788,9 +1845,11 @@ proc twapi::make_test_certs {{hstore {}} args} {
                              -keyusage [list {crl_sign data_encipherment digital_signature key_agreement key_cert_sign key_encipherment non_repudiation} 1]\
                              -enhkeyusage [list {client_auth code_signing email_protection ipsec_end_system  ipsec_tunnel ipsec_user server_auth timestamp_signing ocsp_signing} 1] \
                              -altnames $altnames]
+                set signing_cert $ca_certificate
             }
             min {
                 set req [cert_request_create "CN=$container" $crypt keyexchange]
+                set signing_cert $ca_certificate
             }
         }
         crypt_free $crypt
@@ -1803,13 +1862,18 @@ proc twapi::make_test_certs {{hstore {}} args} {
                 lappend opts $optname [dict get $parsed_req extensions $optname]
             }
         }
-        set encoded_cert [cert_create $subject $pubkey $ca_certificate {*}$opts -end {2020 12 31 23 59 59 0}]
+        set encoded_cert [cert_create $subject $pubkey $signing_cert {*}$opts -end {2020 12 31 23 59 59 0}]
         set certificate [twapi::cert_store_add_encoded_certificate $hstore $encoded_cert]
         twapi::cert_set_key_prov $certificate -csp $csp -keycontainer $container -csptype $csptype -keyspec keyexchange
-        cert_release $certificate
+        if {$cert_type eq "intermediate"} {
+            set intermediate_certificate $certificate
+        } else {
+            cert_release $certificate
+        }
     }
 
     cert_release $ca_certificate
+    cert_release $intermediate_certificate
     return $hstore
 }
 
