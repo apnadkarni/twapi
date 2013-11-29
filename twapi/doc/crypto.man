@@ -1468,11 +1468,25 @@ checked when verifying revocation. Default is [const false].
 [opt_def [cmd -server] [arg SERVER]]
 Specifies that the certificate being verified is for a server with
 name [arg SERVER]. If this option is not specified, the verification
-is done assuming the certificate represents a client. Note this
-verifies that the certificate intended use is for a server or client
-as appropriate. In the former case, it also verifies that the
+is done assuming the certificate represents a client. 
+In the former case, it also verifies that the
 name in the certificate matches [arg SERVER]. The command does
 not verify names in the case of client certificates.
+[nl]
+If neither of the options [cmd -usageall] or [cmd -usageany] is explicitly
+specified, they default to [const server_auth] and [const client_auth]
+respectively depending on whether [cmd -server] is specified or not.
+
+[opt_def [cmd -trustedroots] [arg HCERTLIST]]
+Windows requires the root of the certificate verification
+chain belong to one the Windows' trusted stores. Under some circumstances,
+such as use of a private certificate authority whose root certificate is
+not in the Windows trusted store list, the command will return
+a status of [const untrustedroot]. Instead of ignoring this error
+through the [cmd "-ignoreerrors unknownca"] option, the caller
+can provide a list of certificate contexts [arg HCERTLIST] 
+that are acceptable as trusted root certificates [emph "in addition"] to
+those in the Windows trusted store.
 
 [opt_def [cmd -urlretrievalcacheonly] [arg BOOLEAN]]
 If [arg BOOLEAN] is [const true], only cached URLs are used in building
