@@ -829,6 +829,14 @@ Otherwise the file is written as a serialized certificate store.
 The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
 when no longer needed.
 
+[call [cmd cert_import] [arg ENCODEDCERT] [opt "[cmd -format] [arg FORMAT]"]]
+Creates and returns a certificate context from encoded data in
+[arg ENCODEDCERT]. 
+If [arg FORMAT] is specified as [const der] (default), [const cer] or
+[const crt],  [arg ENCODEDCERT] is assumed to be in DER format.
+If [arg FORMAT] is [const pem] or [const base64], it is assumed to
+be in PEM format.
+
 [call [cmd cert_info] [arg HCERT]]
 Returns the following fields from a certificate context as a dictionary.
 [list_begin opt]
