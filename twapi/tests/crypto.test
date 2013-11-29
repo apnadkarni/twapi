@@ -2285,6 +2285,16 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
+    test cert_import {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    ################################################################
+
     test cert_enhkey_usage-1.0 {
         Cert enhanced key usage
     } -setup {
@@ -2621,19 +2631,204 @@ puts $output
     ################################################################
 
     test cert_tls_verify-1.0 {
-        Verify TLS certificate with trusted system root
+        Verify TLS certificate with trusted system root (success, server)
     } -setup {
-        TBD
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem]] -format pem]
     } -body {
-        TBD 
-    } -result TBD
+        twapi::cert_tls_verify $hcert -server www.google.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
 
+    test cert_tls_verify-1.0 {
+        Verify TLS certificate with trusted system root (client)
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem]] -format pem]
+    } -body {
+        twapi::cert_tls_verify $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_tls_verify-2.0 {
+        Verify TLS certificate with trusted system root (cnmatch)
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem]] -format pem]
+    } -body {
+        twapi::cert_tls_verify $hcert -server www.yahoo.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result cnmatch
+
+    test cert_tls_verify-2.1 {
+        Verify TLS certificate with trusted system root (cnmatch, ignoreerror)
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem]] -format pem]
+    } -body {
+        twapi::cert_tls_verify $hcert -server www.yahoo.com -ignoreerrors {name}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_tls_verify-3.0 {
+        Verify TLS certificate with trusted system root (usageany)
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem]] -format pem]
+    } -body {
+        twapi::cert_tls_verify $hcert -server www.google.com -usageany {server_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_tls_verify-3.1 {
+        Verify TLS certificate with trusted system root (usageany, wrongusage)
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem]] -format pem]
+    } -body {
+        twapi::cert_tls_verify $hcert -server www.google.com -usageany {code_signing}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result wrongusage
+
+    test cert_tls_verify-3.2 {
+        Verify TLS certificate with trusted system root (usageany, any)
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem]] -format pem]
+    } -body {
+        twapi::cert_tls_verify $hcert -server www.google.com -usageany {code_signing server_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_tls_verify-4.0 {
+        Verify TLS certificate with trusted system root (usageall)
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem]] -format pem]
+    } -body {
+        twapi::cert_tls_verify $hcert -server www.google.com -usageall {server_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_tls_verify-4.1 {
+        Verify TLS certificate with trusted system root (usageall, wrongusage)
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem]] -format pem]
+    } -body {
+        twapi::cert_tls_verify $hcert -server www.google.com -usageall {server_auth code_signing}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result wrongusage
+
+    test cert_tls_verify-4.2 {
+        Verify TLS certificate with trusted system root (usageall, all)
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem]] -format pem]
+    } -body {
+        twapi::cert_tls_verify $hcert -server www.google.com -usageall {client_auth server_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_tls_verify-5.0 {
+        Verify TLS certificate with trusted system root (engine user)
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem]] -format pem]
+    } -body {
+        twapi::cert_tls_verify $hcert -server www.google.com -engine user
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_tls_verify-5.1 {
+        Verify TLS certificate with trusted system root (engine machine)
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem]] -format pem]
+    } -body {
+        twapi::cert_tls_verify $hcert -server www.google.com -engine machine
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_tls_verify-6.0 {
+        Verify TLS certificate with errors
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs twapitestserver.cer] rb]]
+    } -body {
+        twapi::cert_tls_verify $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result untrustedroot
+
+    test cert_tls_verify-6.1 {
+        Verify TLS certificate with errors
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs twapitestserver.cer] rb]]
+    } -body {
+        twapi::cert_tls_verify $hcert -ignoreerrors {}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result untrustedroot
+
+    test cert_tls_verify-6.2 {
+        Verify TLS certificate with errors
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs twapitestserver.cer] rb]]
+    } -body {
+        twapi::cert_tls_verify $hcert -ignoreerrors {unknownca}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result wrongusage
+
+    test cert_tls_verify-6.3 {
+        Verify TLS certificate with errors
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs twapitestserver.cer] rb]]
+    } -body {
+        twapi::cert_tls_verify $hcert -ignoreerrors {unknownca usage} -usageany {client_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result revocationoffline
+
+    test cert_tls_verify-6.4 {
+        Verify TLS certificate with errors
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs twapitestserver.cer] rb]]
+    } -body {
+        twapi::cert_tls_verify $hcert -ignoreerrors {unknownca usage revocation} -usageany {client_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_tls_verify-6.5 {
+        Verify TLS certificate with errors -ignoreerrors name
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs twapitestserver.cer] rb]]
+    } -body {
+        twapi::cert_tls_verify $hcert -ignoreerrors {unknownca usage name revocation} -server twapitestserverx
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_tls_verify-6.10 {
+        Verify TLS certificate with errors TBD
+    } -constraints {
+        TBD -ignoreerrors criticalextensions basicconstraints policy time
+    } -setup {
+        set hcert [twapi::cert_import [read_file [file join [tcltest::testsDirectory] certs twapitestserver.cer] rb]]
+    } -body {
+        twapi::cert_tls_verify $hcert -ignoreerrors {unknownca usage revocation} -usageany {client_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    
 
     test cert_tls_verify- {
         Verify TLS certificate
     } -setup {
-        set hstore [samplestore]
-    } -body {
+
+    } -constraints {
         TBD 
     } -result TBD
 
