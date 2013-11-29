@@ -1358,6 +1358,13 @@ proc write_test_file {content {mode wb}} {
     return $path
 }
 
+proc read_file {path {mode r}} {
+    set fd [open $path $mode]
+    set data [read $fd]
+    close $fd
+    return $data
+}
+
 #####
 #
 # "SetOps, Code, 8.x v2"

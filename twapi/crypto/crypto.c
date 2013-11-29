@@ -2700,20 +2700,17 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         }
         break;
 
-    case 10005:
+    case 10005: // CertCreateCertificateContext
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), GETINT(dw2), GETOBJ(s1Obj),
-                         ARGEND) != TCL_OK)
+                         GETINT(dw), ARGSKIP, ARGEND) != TCL_OK)
             return TCL_ERROR;
-        if (dw != CERT_STORE_CERTIFICATE_CONTEXT) {
-            return TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
-        }
-        pv = ObjToByteArray(s1Obj, &dw3);
-        certP = CertCreateContext(dw, dw2, pv, dw3, 0, NULL);
-        if (certP == NULL)
-            return TwapiReturnSystemError(interp);
-        TwapiRegisterCertPointer(interp, certP);
-        TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
+        cP = ObjToByteArray(objv[1], &dw2);
+        certP = CertCreateCertificateContext(dw, cP, dw2);
+        if (certP) {
+            TwapiRegisterCertPointer(interp, certP);
+            TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
+        } else
+            result.type = TRT_GETLASTERROR;
         break;
 
     case 10006: // CertEnumCertificatesInStore
@@ -3270,6 +3267,25 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         }
         TwapiFree(pv);
         break;
+
+#ifdef TBD
+    case TBD: // CertCreateContext
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETINT(dw), GETINT(dw2), GETOBJ(s1Obj),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (dw != CERT_STORE_CERTIFICATE_CONTEXT) {
+            return TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
+        }
+        pv = ObjToByteArray(s1Obj, &dw3);
+        certP = CertCreateContext(dw, dw2, pv, dw3, 0, NULL);
+        if (certP == NULL)
+            return TwapiReturnSystemError(interp);
+        TwapiRegisterCertPointer(interp, certP);
+        TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
+        break;
+#endif
+
     }
 
     return TwapiSetResult(interp, &result);
@@ -3283,7 +3299,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptGetProvParam, 10002),
         DEFINE_FNCODE_CMD(CertOpenSystemStore, 10003),
         DEFINE_FNCODE_CMD(cert_delete_from_store, 10004),
-        DEFINE_FNCODE_CMD(CertCreateContext, 10005), // Tcl
+        DEFINE_FNCODE_CMD(CertCreateCertificateContext, 10005),
         DEFINE_FNCODE_CMD(CertEnumCertificatesInStore, 10006),
         DEFINE_FNCODE_CMD(CertEnumCertificateContextProperties, 10007),
         DEFINE_FNCODE_CMD(CertGetCertificateContextProperty, 10008),
@@ -3330,6 +3346,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertCompareCertificateName, 10049), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptEnumProviderTypes, 10050), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptEnumProviders, 10051), // TBD Tcl
+        // TBD DEFINE_FNCODE_CMD(CertCreateContext, TBD),
+
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
