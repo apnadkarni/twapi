@@ -411,6 +411,20 @@ proc twapi::cert_export {hcert args} {
     }
 }
 
+proc twapi::cert_import {enccert args} {
+    parseargs args {
+        {format.arg der {der cer crt pem base64}}
+    } -maxleftover 0 -setvars
+
+    if {$format in {pem base64}} {
+        # 6 -> CRYPT_STRING_BASE64_ANY 
+        set enccert [CryptStringToBinary $enccert 6]
+    }
+
+    return [CertCreateCertificateContext 0x10001 $enccert]
+}
+
+
 proc twapi::cert_enhkey_usage {hcert {loc both}} {
     return [_cert_decode_enhkey [CertGetEnhancedKeyUsage $hcert [dict! {property 4 extension 2 both 0} $loc 1]]]
 }

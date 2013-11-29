@@ -16,6 +16,10 @@ load_twapi_package twapi_crypto
 namespace eval twapi::crypto::test {
     namespace import ::tcltest::test
 
+    proc openssl {args} {
+        return [exec ../../tools/openssl/bin/openssl.exe {*}$args 2>@1]
+    }
+
     proc setup_contexts {package} {
         set ccred [twapi::sspi_acquire_credentials -role client -package $package]
         set scred [twapi::sspi_acquire_credentials -role server -package $package]
@@ -48,6 +52,14 @@ namespace eval twapi::crypto::test {
         lassign [twapi::sspi_encrypt $cctx \001\002\003] sig data padding
         set data3 [twapi::sspi_decrypt $sctx $sig $data $padding]
         return [equal_lists [list $data1 $data2 $data3] [list        123 \001\002\003]]
+    }
+
+    proc samplestore {} {
+        variable samplestore
+        if {![info exists samplestore]} {
+            set samplestore [twapi::make_test_certificates]
+        }
+        return $samplestore
     }
 
     proc sampleencodedcert {{which full}} {
@@ -2498,7 +2510,7 @@ namespace eval twapi::crypto::test {
         set x509_name "CN=$subject SSL Client, O=Twapi Open Source, OU=test"
         set req [twapi::cert_request_create $x509_name $crypt keyexchange -purpose client]
         set path [write_test_file $req wb]
-        set output [exec ../../tools/openssl/bin/openssl req -inform der -in $path -noout -text -verify 2>@1]
+        set output [openssl req -inform der -in $path -noout -text -verify]
         regexp "^Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Key Encipherment, Key Agreement\n.+X509v3 Extended Key Usage: critical.+TLS Web Client Authentication\n.+verify OK$" $output
     } -result 1
     
@@ -2512,7 +2524,7 @@ namespace eval twapi::crypto::test {
         set x509_name "CN=$subject SSL Server, O=Twapi Open Source, OU=test"
         set req [twapi::cert_request_create $x509_name $crypt keyexchange -purpose server -format pem]
         set path [write_test_file $req w]
-        set output [exec ../../tools/openssl/bin/openssl req -in $path -noout -text -verify 2>@1]
+        set output [openssl req -in $path -noout -text -verify]
         regexp "^Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Key Encipherment, Key Agreement\n.+X509v3 Extended Key Usage: critical.+TLS Web Server Authentication\n.+verify OK$" $output
     } -result 1
     
@@ -2526,7 +2538,7 @@ namespace eval twapi::crypto::test {
         set x509_name "CN=$subject No Options, O=Twapi Open Source, OU=test"
         set req [twapi::cert_request_create $x509_name $crypt keyexchange]
         set path [write_test_file $req wb]
-        set output [exec ../../tools/openssl/bin/openssl req -in $path -inform der -noout -text -verify 2>@1]
+        set output [openssl req -in $path -inform der -noout -text -verify]
 puts $output
         regexp "^Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE\\s+Signature Algorithm:.+verify OK$" $output
     } -result 1
@@ -2546,7 +2558,7 @@ puts $output
                      -enhkeyusage [list {client_auth code_signing email_protection ipsec_end_system  ipsec_tunnel ipsec_user server_auth timestamp_signing ocsp_signing} 0] \
                      -altnames $altnames]
         set path [write_test_file $req w]
-        set output [exec ../../tools/openssl/bin/openssl req -in $path -noout -text -verify 2>@1]
+        set output [openssl req -in $path -noout -text -verify]
         
         # Single regexp overflows the stack so we need break it up
         list [regexp "^Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Non Repudiation, Key Encipherment, Data Encipherment, Key Agreement, Certificate Sign, CRL Sign\\s+X509v3 Extended Key Usage:\\s+OCSP Signing, TLS Web Server Authentication, IPSec End System, IPSec Tunnel, TLS Web Client Authentication, IPSec User, Code Signing, Time Stamping, E-mail Protection\\s" $output] \
@@ -2589,23 +2601,40 @@ puts $output
     } -result {0 1 {{0 0 0} 1} 1 1 1 0 1 1 1 1 1 1}
 
 
-
-    test cert_request_parse {
-        TBD
+    test cert_request_parse-1.1 {
+        Parse a certificate request (PEM, openssl)
+    } -setup {
+        set subject twapitest-[clock microseconds]
+        set x509_name "/CN=$subject/O=Twapi/OU=test"
+        set req [openssl req -new -batch -nodes -keyout [tcltest::makeFile "" $subject.key] -subj $x509_name]
     } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
+        set csr [twapi::cert_request_parse $req -format pem]
+        list \
+            [dict get $csr version] \
+            [string equal [dict get $csr subject] "CN=$subject, O=Twapi, OU=test"] \
+            [dict get $csr attributes] \
+            [dict exists $csr extensions] \
+            [dict exists $csr pubkey]
+    } -result {0 1 {} 0 1}
+
     
     ################################################################
 
-    test cert_tls_verify {
+    test cert_tls_verify-1.0 {
+        Verify TLS certificate with trusted system root
+    } -setup {
         TBD
     } -body {
         TBD 
-    } -constraints {
-        TBD
+    } -result TBD
+
+
+    test cert_tls_verify- {
+        Verify TLS certificate
+    } -setup {
+        set hstore [samplestore]
+    } -body {
+        TBD 
     } -result TBD
 
     ################################################################
