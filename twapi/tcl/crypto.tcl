@@ -732,11 +732,11 @@ proc twapi::cert_tls_verify {hcert args} {
     return $status
 }
 
-proc twapi::cert_locate_private_key {hcert} {
+proc twapi::cert_locate_private_key {hcert args} {
     parseargs args {
         {keysettype.arg any {any user machine}}
         {silent 0 0x40}
-    } -maxleftover 0
+    } -maxleftover 0 -setvars
     
     return [CryptFindCertificateKeyProvInfo $hcert \
                 [expr {$silent | [dict get {any 0 user 1 machine 2} $keysettype]}]]
