@@ -1450,597 +1450,498 @@ namespace eval twapi::crypto::test {
     test cert_subject_name-1.0 {
         Get certificate subject name
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result twapitestfull
 
     test cert_subject_name-1.1 {
         Get certificate subject -name dns
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name dns
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result twapitestfull.twapitest.com
 
     test cert_subject_name-1.2 {
         Get certificate subject -name email
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name email
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result twapitestfull@twapitest.com
 
     test cert_subject_name-1.3 {
         Get certificate subject name friendlydisplay
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name friendlydisplay
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result twapitestfull
 
     test cert_subject_name-1.4 {
         Get certificate subject name simpledisplay
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name simpledisplay
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result twapitestfull
 
     test cert_subject_name-1.5 {
         Get certificate subject name oid_common_name
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name oid_common_name
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result twapitestfull
 
     test cert_subject_name-1.6 {
         Get certificate subject name rdn
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
 
     test cert_subject_name-1.7 {
         Get certificate subject name upn
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name upn
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result ""
 
     test cert_subject_name-1.8 {
         Get certificate subject name url
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name url
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result http://twapitestfull.twapitest.com
 
     test cert_subject_name-2.0 {
         Get certificate subject name rdn -format x500
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -format x500
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
 
     test cert_subject_name-2.1 {
         Get certificate subject name rdn -format oid
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -format oid
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "2.5.4.3=twapitestfull, 2.5.4.6=IN, 2.5.4.10=Tcl, 2.5.4.11=twapi"
 
 
     test cert_subject_name-2.2 {
         Get certificate subject name rdn -format simple
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -format simple
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "twapitestfull, IN, Tcl, twapi"
 
     test cert_subject_name-3.0 {
         Get certificate subject name rdn -format x500 -separator comma
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -format x500 -separator comma
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
 
     test cert_subject_name-3.1 {
         Get certificate subject name rdn -format oid -separator semicolon
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -format oid -separator semicolon
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "2.5.4.3=twapitestfull; 2.5.4.6=IN; 2.5.4.10=Tcl; 2.5.4.11=twapi"
 
     test cert_subject_name-3.2 {
         Get certificate subject name rdn -format simple -format newline
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -format simple -separator newline
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "twapitestfull\r\nIN\r\nTcl\r\ntwapi"
 
     test cert_subject_name-4.0 {
         Get certificate subject name rdn -format x500 -reverse 0
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -format x500 -reverse 0
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
 
     test cert_subject_name-4.1 {
         Get certificate subject name rdn -reverse 1
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -reverse 1
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "OU=twapi, O=Tcl, C=IN, CN=twapitestfull"
 
     test cert_subject_name-5.0 {
         Get certificate subject name rdn -format x500 -noplus 0
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -format x500 -noplus 0
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
 
     test cert_subject_name-5.1 {
         Get certificate subject name rdn -format x500 -noplus 1
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -format x500 -noplus 1
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
 
     test cert_subject_name-5.2 {
-        Get certificate subject name rdn -format x500 -noplus 1
+        Get certificate subject name rdn -format x500 -noplus 1 - need a cert with a plus in the name
     } -constraints {
-        TBD - need a cert with a plus in the name
+        TBD
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -format x500 -noplus 1
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
 
     test cert_subject_name-6.0 {
         Get certificate subject name rdn -noquote 0
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -noquote 0
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
 
     test cert_subject_name-6.1 {
         Get certificate subject name rdn -noquote 1
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -noquote 1
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
 
     test cert_subject_name-6.2 {
-        Get certificate subject name rdn -noquote 1
+        Get certificate subject name rdn -noquote 1 - need a cert with a special char in the name
     } -constraints {
-        TBD - need a cert with a special char in the name
+        TBD
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -noquote 1
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
 
     test cert_subject_name-7.0 {
-        Get certificate subject name from property
+        Get certificate subject name from property - need a cert with a subject name property
     } -constraints {
-        TBD - need a cert with a subject name property
+        TBD
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_subject_name $hcert -name rdn -noquote 1
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestfull, C=IN, O=Tcl, OU=twapi"
-
-
-
 
     ################################################################
 
     test cert_issuer_name-1.0 {
         Get certificate issuer name
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result twapitestca
 
     test cert_issuer_name-1.1 {
         Get certificate issuer -name dns
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name dns
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result twapitestca.twapitest.com
 
     test cert_issuer_name-1.2 {
         Get certificate issuer -name email
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name email
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result twapitestca@twapitest.com
 
     test cert_issuer_name-1.3 {
         Get certificate issuer name friendlydisplay
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name friendlydisplay
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result twapitestca
 
     test cert_issuer_name-1.4 {
         Get certificate issuer name simpledisplay
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name simpledisplay
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result twapitestca
 
     test cert_issuer_name-1.5 {
         Get certificate issuer name oid_common_name
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name oid_common_name
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result twapitestca
 
     test cert_issuer_name-1.6 {
         Get certificate issuer name rdn
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
 
     test cert_issuer_name-1.7 {
         Get certificate issuer name upn
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name upn
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result ""
 
     test cert_issuer_name-1.8 {
         Get certificate issuer name url
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name url
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result http://twapitestca.twapitest.com
 
     test cert_issuer_name-2.0 {
         Get certificate issuer name rdn -format x500
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -format x500
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
 
 
     test cert_issuer_name-2.1 {
         Get certificate issuer name rdn -format oid
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -format oid
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "2.5.4.3=twapitestca, 2.5.4.6=IN, 2.5.4.10=Tcl, 2.5.4.11=twapi"
 
 
     test cert_issuer_name-2.2 {
         Get certificate issuer name rdn -format simple
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -format simple
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "twapitestca, IN, Tcl, twapi"
 
     test cert_issuer_name-3.0 {
         Get certificate issuer name rdn -format x500 -separator comma
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -format x500 -separator comma
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
 
     test cert_issuer_name-3.1 {
         Get certificate issuer name rdn -format oid -separator semicolon
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -format oid -separator semicolon
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "2.5.4.3=twapitestca; 2.5.4.6=IN; 2.5.4.10=Tcl; 2.5.4.11=twapi"
 
     test cert_issuer_name-3.2 {
         Get certificate issuer name rdn -format simple -format newline
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -format simple -separator newline
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "twapitestca\r\nIN\r\nTcl\r\ntwapi"
 
     test cert_issuer_name-4.0 {
         Get certificate issuer name rdn -format x500 -reverse 0
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -format x500 -reverse 0
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
 
     test cert_issuer_name-4.1 {
         Get certificate issuer name rdn -reverse 1
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -reverse 1
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "OU=twapi, O=Tcl, C=IN, CN=twapitestca"
 
     test cert_issuer_name-5.0 {
         Get certificate issuer name rdn -format x500 -noplus 0
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -format x500 -noplus 0
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
 
     test cert_issuer_name-5.1 {
         Get certificate issuer name rdn -format x500 -noplus 1
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -format x500 -noplus 1
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
 
     test cert_issuer_name-5.2 {
-        Get certificate issuer name rdn -format x500 -noplus 1
+        Get certificate issuer name rdn -format x500 -noplus 1 - need a cert with a plus in the name
     } -constraints {
-        TBD - need a cert with a plus in the name
+        TBD 
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -format x500 -noplus 1
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
 
     test cert_issuer_name-6.0 {
         Get certificate issuer name rdn -noquote 0
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -noquote 0
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
 
     test cert_issuer_name-6.1 {
         Get certificate issuer name rdn -noquote 1
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -noquote 1
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
 
     test cert_issuer_name-6.2 {
-        Get certificate issuer name rdn -noquote 1
+        Get certificate issuer name rdn -noquote 1 - need a cert with a special char in the name
     } -constraints {
-        TBD - need a cert with a special char in the name
+        TBD 
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -noquote 1
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
 
     test cert_issuer_name-7.0 {
-        Get certificate issuer name from property
+        Get certificate issuer name from property - need a cert with a issuer name property
     } -constraints {
-        TBD - need a cert with a issuer name property
+        TBD
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set hcert [pick_cert $hstore 0]
+        set hcert [samplecert]
     } -body {
         twapi::cert_issuer_name $hcert -name rdn -noquote 1
     } -cleanup {
         twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -result "CN=twapitestca, C=IN, O=Tcl, OU=twapi"
 
     ################################################################
