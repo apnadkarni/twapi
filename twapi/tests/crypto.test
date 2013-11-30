@@ -2299,23 +2299,113 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    test cert_export {
-        TBD
+    test cert_export_import-1.0 {
+        Export and import certificates
+    } -setup {
+        set cert [samplecert]
     } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
+        set cert2 [twapi::cert_import [twapi::cert_export $cert]]
+        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
 
-    ################################################################
-
-    test cert_import {
-        TBD
+    test cert_export_import-1.1 {
+        Export and import certificates (der, default)
+    } -setup {
+        set cert [samplecert]
     } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
+        set cert2 [twapi::cert_import [twapi::cert_export $cert -format der]]
+        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
+
+    test cert_export_import-1.2 {
+        Export and import certificates (default, der)
+    } -setup {
+        set cert [samplecert]
+    } -body {
+        set cert2 [twapi::cert_import [twapi::cert_export $cert] -format der]
+        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
+
+    test cert_export_import-1.3 {
+        Export and import certificates (der, der)
+    } -setup {
+        set cert [samplecert]
+    } -body {
+        set cert2 [twapi::cert_import [twapi::cert_export $cert -format der] -format der]
+        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
+
+    test cert_export_import-1.4 {
+        Export and import certificates (cer, cer)
+    } -setup {
+        set cert [samplecert]
+    } -body {
+        set cert2 [twapi::cert_import [twapi::cert_export $cert -format cer] -format cer]
+        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
+
+    test cert_export_import-1.5 {
+        Export and import certificates (cer, der)
+    } -setup {
+        set cert [samplecert]
+    } -body {
+        set cert2 [twapi::cert_import [twapi::cert_export $cert -format cer] -format der]
+        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
+
+    test cert_export_import-2.0 {
+        Export and import certificates (pem, pem)
+    } -setup {
+        set cert [samplecert]
+    } -body {
+        set cert2 [twapi::cert_import [twapi::cert_export $cert -format pem] -format pem]
+        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
+
+    test cert_export_import-2.1 {
+        Export and import certificates (pem, base64)
+    } -setup {
+        set cert [samplecert]
+    } -body {
+        set cert2 [twapi::cert_import [twapi::cert_export $cert -format pem] -format base64]
+        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
+
+    test cert_export_import-2.2 {
+        Export and import certificates (base64, base64)
+    } -setup {
+        set cert [samplecert]
+    } -body {
+        set cert2 [twapi::cert_import [twapi::cert_export $cert -format base64] -format base64]
+        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
 
     ################################################################
 
