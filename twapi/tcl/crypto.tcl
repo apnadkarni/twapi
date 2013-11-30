@@ -146,7 +146,7 @@ proc twapi::cert_store_find_certificate {hstore {type any} {term {}} {hcert NULL
         existing 13<<16
         key_identifier 15<<16
         md5_hash 4<<16
-        public_key_md5_hash 18<<16
+        subject_public_key_md5_hash 18<<16
         sha1_hash 1<<16
         signature_hash 14<<16
         issuer_name (2<<16)|4
@@ -517,6 +517,12 @@ proc twapi::cert_create {subject pubkey cissuer args} {
     set issuer_info [cert_info $cissuer]
     set issuer_blob [cert_name_to_blob [dict get $issuer_info -subject] -format x500]
     set sigalgo [dict get $issuer_info -signaturealgorithm]
+
+    # If issuer cert has altnames, use they as issuer altnames for new cert
+    set issuer_altnames [lindex [cert_extension $cissuer 2.5.29.17] 1]
+    if {[llength $issuer_altnames]} {
+        lappend opts(extensions) [_make_altnames_ext $issuer_altnames 0 1]
+    }
 
     # TBD Issuer altnames - get from issuer cert
     # lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
@@ -1826,7 +1832,8 @@ proc twapi::make_test_certs {{hstore {}} args} {
     set container twapitestca$uuid
     set crypt [twapi::crypt_acquire $container -csp $csp -csptype $csptype -create 1]
     twapi::crypt_key_free [twapi::crypt_key_generate $crypt signature -exportable 1]
-    set cert [twapi::cert_create_self_signed_from_crypt_context "CN=$container, C=IN, O=Tcl, OU=twapi" $crypt -purpose {ca}]
+    set ca_altnames [list [list [list email ${container}@twapitest.com] [list dns ${container}.twapitest.com] [list url http://${container}.twapitest.com] [list directory [cert_name_to_blob "CN=${container}altname"]] [list ip [binary format c4 {127 0 0 2}]]]]
+    set cert [twapi::cert_create_self_signed_from_crypt_context "CN=$container, C=IN, O=Tcl, OU=twapi" $crypt -purpose {ca} -altnames $ca_altnames]
     if {[llength $hstore] == 0} {
         set hstore [twapi::cert_memory_store_open]
     }

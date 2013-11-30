@@ -546,12 +546,14 @@ operation.
 [call [cmd cert_create] [arg SUBJECT] [arg PUBKEY] [arg ISSUERCERT] [opt [arg options]]]
 Creates a certificate and returns it in ASN.1 DER-encoded
 or PEM base-64 encoded format ([emph not] as a certificate context).
-[arg SUBJECT] is the name of the subject (and issuer) in X.500 format.
- [arg PUBKEY] is
-the public key for the certificate subject.
+[arg SUBJECT] is the name of the subject in X.500 format.
+[arg PUBKEY] is the public key for the certificate subject.
 [arg ISSUERCERT] is the certificate context that will be used to
 sign the created certificate. The private key associated with this
 certificate must be accessible to the current process context.
+The subject name, and alternate name extension if present, from [arg ISSUERCERT]
+will be stored as the issuer name and issuer alternate name extension
+in the generated certificate.
 [nl]
 The following options can be specified for the command:
 [list_begin opt]
