@@ -1365,6 +1365,128 @@ proc read_file {path {mode r}} {
     return $data
 }
 
+####
+# Certificate stuff
+
+# Returns the sample store context handle. Must not be released by caller
+# Note this contains only certs, NO private keys
+proc samplestore {} {
+    variable samplestore
+    if {![info exists samplestore]} {
+        set samplestore [twapi::cert_memory_store_open]
+        foreach suff {ca intermediate server client full min} {
+            twapi::cert_release [twapi::cert_store_add_encoded_certificate $samplestore [sampleencodedcert $suff]]
+        }
+    }
+    return $samplestore
+}
+
+proc storewithkeys {} {
+    variable storewithkeys
+    if {![info exists storewithkeys]} {
+        set storewithkeys [twapi::make_test_certs]
+    }
+    return $samplestorewithkeys
+}
+
+
+# Returns revoked cert. Must be released by caller
+proc revokedcert {} {
+    set enc [read_file [file join [tcltest::testsDirectory] certs verisignrevoked.cer] rb]
+    return [twapi::cert_import $enc]
+}
+
+# Returns google cert. Must be released by caller
+proc googlecert {} {
+    set enc [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem] r]
+    return [twapi::cert_import $enc -format pem]
+}
+
+# Returns google encoded cert.
+proc googleencodedcert {} {
+    return [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem] r]
+}
+
+# Returns context for one of the sample certs in the sample store
+# Must be released by caller
+proc samplecert {{which full}} {
+    return [twapi::cert_store_find_certificate [samplestore] subject_substring twapitest$which]
+}
+
+# Returns one of the sample certs in encoded form
+proc sampleencodedcert {{which full}} {
+    variable _sampleencodedcert
+    if {![info exists _sampleencodedcert($which)]} {
+        set _sampleencodedcert($which) [read_file [file join [tcltest::testsDirectory] certs twapitest${which}.cer] rb]
+    }
+    return $_sampleencodedcert($which)
+}
+
+proc temp_system_store_path {} {
+    variable temp_system_store_path
+
+    if {![info exists temp_system_store_path]} {
+        set temp_system_store_path TwapiTest-[clock microseconds]
+        set hstore [twapi::cert_system_store_open $temp_system_store_path user]
+        set cer [sampleencodedcert]
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
+        twapi::cert_store_release $hstore
+    }
+    return $temp_system_store_path
+}
+
+proc temp_crypto_dir_path {} {
+    variable temp_crypto_dir_path
+    if {![info exists temp_crypto_dir_path]} {
+        set temp_crypto_dir_path [tcltest::makeDirectory twapicryptotest]
+    }
+    return $temp_crypto_dir_path
+}
+
+proc temp_file_store_path {} {
+    variable temp_file_store_path
+
+    if {![info exists temp_file_store_path]} {
+        set temp_file_store_path [file join [temp_crypto_dir_path] [clock microseconds].store]
+        set hstore [twapi::cert_file_store_open $temp_file_store_path]
+        set cer [sampleencodedcert]
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
+        twapi::cert_store_release $hstore
+    }
+    return $temp_file_store_path
+}
+
+proc cleanup_test_cert_files {} {
+    variable temp_file_store_path
+    variable temp_system_store_path
+
+    if {[info exists temp_file_store_path] &&
+        [file exists $temp_file_store_path]} {
+        file delete $temp_file_store_path
+    }
+
+    foreach store [twapi::cert_system_stores user] {
+        if {[string match -nocase TwapiTest-* $store]} {
+            twapi::cert_system_store_delete $store user
+        }
+    }
+
+    twapi::crypt_test_container_cleanup
+}
+
+proc equal_certs {certa certb} {
+    return [expr {[twapi::cert_thumbprint $certa] eq [twapi::cert_thumbprint $certb]}]
+}
+
+# Returns cert from a store at index n for testing searches
+# Errors if not enough certs
+proc pick_cert {hstore {n 4}} {
+    set hcert NULL
+    time {set hcert [twapi::cert_store_find_certificate $hstore any "" $hcert]} [incr n]
+    return $hcert
+}
+
+
 #####
 #
 # "SetOps, Code, 8.x v2"

@@ -241,12 +241,15 @@ by calling [uri #cert_store_commit [cmd cert_store_commit]].
 
 [para]
 Commands
-[uri #cert_store_to_pfx [cmd cert_store_to_pfx]],
-[uri #cert_store_to_pkcs12 [cmd cert_store_to_pkcs12]],
-[uri #cert_store_to_pkcs7 [cmd cert_store_to_pkcs7]],
+[uri #cert_store_export_pfx [cmd cert_store_export_pfx]],
+[uri #cert_store_export_pkcs12 [cmd cert_store_export_pkcs12]],
+[uri #cert_store_export_pkcs7 [cmd cert_store_export_pkcs7]],
 and
 [uri #cert_store_serialize [cmd cert_store_serialize]] can be used
-to export certificate stores in various formats.
+to export certificate stores in various formats. 
+Commands [uri #cert_store_import_pfx [cmd cert_store_import_pfx]] and
+[uri #cert_store_import_pkcs12 [cmd cert_store_import_pkcs12]]
+do the inverse operation.
 
 [para]
 Existing certificate stores can be deleted using the commands
@@ -447,7 +450,7 @@ is only necessary if we want to move the certificate elsewhere.
 [example_begin]
 set fd [lb]open MyCert.pfx w[rb]
 chan configure $fd -translation binary
-puts -nonewline $fd [lb]cert_store_to_pfx $store [lb]password[rb] -exportprivate[rb]
+puts -nonewline $fd [lb]cert_store_export_pfx $store [lb]password[rb] -exportprivate[rb]
 close $fd
 [example_end]
 Note that because we are exporting private keys, a password is required
@@ -1177,10 +1180,6 @@ If [arg FORMAT] is specified as [const der] (default), [const cer] or
 or without a header.
 [list_end]
 
-[call [cmd cert_store_release] [arg HSTORE]]
-Decreases the reference count for the specified handle to a certificate store
-and releases associated resources when it reaches 0.
-
 [call [cmd cert_store_commit] [arg HSTORE] [opt "[cmd -force] [arg BOOLEAN]"]]
 Commits any changes made to a certificate store. If [cmd -force] is
 specified as [const true], the store is written out even if no changes
@@ -1212,6 +1211,41 @@ empty string when there are no more certificates in the store.
 The command 
 [uri #cert_store_find_certificate [cmd cert_store_find_certificate]]
 offers another means for retrieving certificates from a store.
+
+[call [cmd cert_store_export_pfx] [arg HSTORE] [arg PASSWORD] [opt [arg options]]]
+Returns a binary containing all the certificates in a certificate store
+in PFX (PKCS #12) format.
+[arg HSTORE] is a handle to the store and [arg PASSWORD] is the password
+to be used for encrypting the returned content. [arg PASSWORD] itself
+must be an empty string (if the returned data is not to be encrypted),
+or the encryption password in 
+[uri base.html#passwordprotection "encrypted form"] as returned
+by the [uri base.html#read_credentials [cmd read_credentials]] or
+[uri base.html#conceal [cmd conceal]] commands.
+[nl]
+The following options may be specified with the command:
+[list_begin opt]
+[opt_def [cmd -exportprivatekeys] [arg BOOLEAN]]
+If [const true], any private keys associated with the exported certificates
+are included in the returned binary. Default is [const false].
+[opt_def [cmd -failonmissingkey] [arg BOOLEAN]]
+If [const true], the command raises an error if any certificate claims
+to have an associated private key but does actually have one.
+ Default is [const false].
+[opt_def [cmd -failonunexportablekey] [arg BOOLEAN]]
+If [const true], the command raises an error if any certificate claims
+to have an associated private key but does actually have one that is
+exportable. Default is [const false].
+[list_end]
+
+[call [cmd cert_store_export_pkcs12] [arg HSTORE] [arg PASSWORD] [opt [arg options]]]
+Alias for [uri #cert_store_export_pfx [cmd cert_store_export_pfx]].
+
+[call [cmd cert_store_export_pkcs7] [arg HSTORE]]
+Returns a binary in PKCS #7 format containing all the certificates 
+in a certificate store.
+[arg HSTORE] is a handle to the store. External properties associated
+with certificate are not present in the returned binary.
 
 [call [cmd cert_store_find_certificate] [arg HSTORE] [opt [arg SEARCHTYPE]] [opt [arg SEARCHTERM]] [opt [arg HCERT]]]
 The command returns a handle to a certificate context for 
@@ -1276,42 +1310,50 @@ Note [arg SEARCHTERM] is a string, not in X.509 encoded form.
 
 [list_end]
 
-[call [cmd cert_store_serialize] [arg HSTORE]]
-Returns a binary containing all the certificates 
-in a certificate store along with their external properties.
-[arg HSTORE] is a handle to the store.
-
-[call [cmd cert_store_to_pfx] [arg HSTORE] [arg PASSWORD] [opt [arg options]]]
-Returns a binary containing all the certificates in a certificate store
-in PFX (PKCS #12) format.
-[arg HSTORE] is a handle to the store and [arg PASSWORD] is the password
-to be used for encrypting the returned content. [arg PASSWORD] itself
-must not be in plaintext, but should be in 
+[call [cmd cert_store_import_pfx] [arg PFXBLOB] [arg PASSWORD] [opt [arg options]]]
+Creates a new temporary store and imports certificates and keys from
+a PFX/PKCS #12 blob.
+[arg PASSWORD] is the password
+to be used for decrypting the returned content. [arg PASSWORD] itself
+must be an empty string (if [arg PFXBLOB] is not encrypted),
+or the decryption password in 
 [uri base.html#passwordprotection "encrypted form"] as returned by
 by the [uri base.html#read_credentials [cmd read_credentials]] or
 [uri base.html#conceal [cmd conceal]] commands.
 [nl]
-The following options may be specified with the command:
+The following options may be specified with
+the command:
 [list_begin opt]
-[opt_def [cmd -exportprivatekeys] [arg BOOLEAN]]
-If [const true], any private keys associated with the exported certificates
-are included in the returned binary. Default is [const false].
-[opt_def [cmd -failonmissingkey] [arg BOOLEAN]]
-If [const true], the command raises an error if any certificate does
-not have keys associated with it. Default is [const false].
-[opt_def [cmd -failonunexportablekey] [arg BOOLEAN]]
-If [const true], the command raises an error if the keys associated
-with any certificate are note marked exportable. Default is [const false].
+[opt_def [cmd -exportableprivatekeys] [arg BOOLEAN]]
+If specified as [const true], private keys in the created certificate
+store may be exported. Default is [const false].
+[opt_def [cmd -keysettype] [const user|machine]]
+Without this option, keys are imported as per-user or per-machine
+as specified in the PFX blob. This option can be used to override this.
+[opt_def [cmd -password] [arg PASSWORD]]
+Without this option, the command assumes [arg PFXBLOB] is in unencrypted
+form. Specify this option if the blob is encrypted with [arg PASSWORD].
+[opt_def [cmd -userprotected] [arg BOOLEAN]]
+If specified as [const true], the private keys are protected such that
+the user is notified on operations that use that key. The specific
+operations that will trigger notifications depend on the CSP being used.
 [list_end]
 
-[call [cmd cert_store_to_pkcs12] [arg HSTORE] [arg PASSWORD] [opt [arg options]]]
-Alias for [uri #cert_store_to_pfx [cmd cert_store_to_pfx]].
+[call [cmd cert_store_import_pkcs12] [arg PKCS12BLOB] [opt [arg options]]]
+This is an alias for the
+[uri #cert_store_import_pfx [cmd cert_store_import_pfx]] command.
 
-[call [cmd cert_store_to_pkcs7] [arg HSTORE]]
-Returns a binary in PKCS #7 format containing all the certificates 
-in a certificate store.
-[arg HSTORE] is a handle to the store. External properties associated
-with certificate are not present in the returned binary.
+[call [cmd cert_store_release] [arg HSTORE]]
+Decreases the reference count for the specified handle to a certificate store
+and releases associated resources when it reaches 0.
+
+[call [cmd cert_store_serialize] [arg HSTORE]]
+Returns a binary containing all the certificates 
+in a certificate store along with their external properties.
+[arg HSTORE] is a handle to the store to be serialized. The returned
+data may be stored in a file that can be opened with
+[uri #cert_file_store_open [cmd cert_file_store_open]].
+
 
 [call [cmd cert_subject_name] [arg HCERT] [opt [arg options]]]
 Returns a subject name field from the certificate context [arg HCERT]. 

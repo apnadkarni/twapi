@@ -62,6 +62,12 @@ void TwapiRegisterCertStorePointer(Tcl_Interp *interp, HCERTSTORE hstore)
         Tcl_Panic("Failed to register HCERTSTORE: %s", Tcl_GetStringResult(interp));
 }
 
+void TwapiRegisterCertStorePointerTic(TwapiInterpContext *ticP, HCERTSTORE hstore)
+{
+    if (TwapiRegisterCountedPointerTic(ticP, hstore, CertCloseStore) != TCL_OK)
+        Tcl_Panic("Failed to register HCERTSTORE: %s", Tcl_GetStringResult(ticP->interp));
+}
+
 TCL_RESULT TwapiUnregisterCertStorePointer(Tcl_Interp *interp, HCERTSTORE hstore)
 {
     return TwapiUnregisterPointer(interp, hstore, CertCloseStore);
@@ -1646,7 +1652,6 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
          *  CERT_ISSUER_SERIAL_NUMBER_MD5_HASH_PROP_ID:
          *  CERT_ARCHIVED_KEY_HASH_PROP_ID:
          *  CERT_KEY_IDENTIFIER_PROP_ID:
-         *  CERT_KEY_PROV_INFO_PROP_ID
          *  CERT_MD5_HASH_PROP_ID
          *  CERT_RENEWAL_PROP_ID
          *  CERT_SHA1_HASH_PROP_ID
@@ -1961,27 +1966,27 @@ static int Twapi_CertOpenStore(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv
     }
 }
 
-static TCL_RESULT Twapi_PFXExportCertStoreEx(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_PFXExportCertStoreExObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HCERTSTORE hstore;
     LPWSTR password = NULL;
     int password_len;
-    Tcl_Obj *objP;
+    Tcl_Obj *objP, *passObj;
     CRYPT_DATA_BLOB blob;
     BOOL status;
     int flags;
     TCL_RESULT res;
     
-    if (TwapiGetArgs(interp, objc, objv,
+    if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(hstore, HCERTSTORE, CertCloseStore),
-                     ARGSKIP, ARGUNUSED, 
+                     GETOBJ(passObj), ARGUNUSED,
                      GETINT(flags), ARGEND) != TCL_OK)
         return TCL_ERROR;
     
-    password = ObjDecryptUnicode(interp, objv[1], &password_len);
+    password = ObjDecryptUnicode(interp, passObj, &password_len);
     if (password == NULL)
         return TCL_ERROR;
-    
+
     res = TCL_OK;
 
     blob.cbData = 0;
@@ -2005,6 +2010,45 @@ static TCL_RESULT Twapi_PFXExportCertStoreEx(Tcl_Interp *interp, int objc, Tcl_O
         goto vamoose;
     }
     ObjSetResult(interp, objP);
+
+vamoose:
+    if (password) {
+        SecureZeroMemory(password, sizeof(WCHAR) * password_len);
+        TwapiFree(password);
+    }
+    return res;
+}
+
+static TCL_RESULT Twapi_PFXImportCertStoreObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    HCERTSTORE hstore;
+    LPWSTR password = NULL;
+    int password_len;
+    Tcl_Obj *objP, *passObj;
+    CRYPT_DATA_BLOB blob;
+    int flags;
+    TCL_RESULT res;
+    
+    if (TwapiGetArgsEx(ticP, objc-1, objv+1,
+                       GETBA(blob.pbData, blob.cbData),
+                       GETOBJ(passObj),
+                       GETINT(flags), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+    
+    password = ObjDecryptUnicode(interp, passObj, &password_len);
+    if (password == NULL)
+        return TCL_ERROR;
+
+    res = TCL_OK;
+
+    hstore = PFXImportCertStore(&blob, password, flags);
+    if (hstore == NULL) {
+        res = TwapiReturnSystemError(interp);
+        goto vamoose;
+    }
+
+    TwapiRegisterCertStorePointerTic(ticP, hstore);
+    ObjSetResult(interp, ObjFromOpaque(hstore, "HCERTSTORE"));
 
 vamoose:
     if (password) {
@@ -2866,8 +2910,8 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 10020: // CertOpenStore
         return Twapi_CertOpenStore(interp, objc, objv);
 
-    case 10021: // PFXExportCertStoreEx
-        return Twapi_PFXExportCertStoreEx(interp, objc, objv);
+    case 10021: // UNUSED
+        break;
 
     case 10022: // CertAddCertificateContextToStore
         if (TwapiGetArgs(interp, objc, objv,
@@ -3320,13 +3364,12 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptGetUserKey, 10018),
         DEFINE_FNCODE_CMD(CryptSetProvParam, 10019),
         DEFINE_FNCODE_CMD(CertOpenStore, 10020),
-        DEFINE_FNCODE_CMD(PFXExportCertStoreEx, 10021),
         DEFINE_FNCODE_CMD(CertAddCertificateContextToStore, 10022),
         DEFINE_FNCODE_CMD(CryptExportPublicKeyInfoEx, 10023),
         DEFINE_FNCODE_CMD(CertEnumSystemStore, 10024),
         DEFINE_FNCODE_CMD(CertEnumPhysicalStore, 10025),
         DEFINE_FNCODE_CMD(CertEnumSystemStoreLocation, 10026),
-        DEFINE_FNCODE_CMD(CryptAcquireCertificatePrivateKey, 10027),
+        DEFINE_FNCODE_CMD(CryptAcquireCertificatePrivateKey, 10027), // Tcl
         DEFINE_FNCODE_CMD(CertGetEnhancedKeyUsage, 10028),
         DEFINE_FNCODE_CMD(Twapi_CertStoreCommit, 10029),
         DEFINE_FNCODE_CMD(Twapi_CertGetIntendedKeyUsage, 10030),
@@ -3349,8 +3392,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptBinaryToString, 10047), // Tcl TBD
         DEFINE_FNCODE_CMD(crypt_localize_string,10048), // TBD - document
         DEFINE_FNCODE_CMD(CertCompareCertificateName, 10049), // TBD Tcl
-        DEFINE_FNCODE_CMD(CryptEnumProviderTypes, 10050), // TBD Tcl
-        DEFINE_FNCODE_CMD(CryptEnumProviders, 10051), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptEnumProviderTypes, 10050),
+        DEFINE_FNCODE_CMD(CryptEnumProviders, 10051),
         // TBD DEFINE_FNCODE_CMD(CertCreateContext, TBD),
 
     };
@@ -3368,6 +3411,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptFormatObject, Twapi_CryptFormatObjectObjCmd), // Tcl
         DEFINE_TCL_CMD(CertSetCertificateContextProperty, Twapi_CertSetCertificateContextPropertyObjCmd),
         DEFINE_TCL_CMD(Twapi_CertChainContexts, Twapi_CertChainContextsObjCmd),
+        DEFINE_FNCODE_CMD(PFXExportCertStoreEx, Twapi_PFXExportCertStoreExObjCmd),
+        DEFINE_FNCODE_CMD(PFXImportCertStore, Twapi_PFXImportCertStoreObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
