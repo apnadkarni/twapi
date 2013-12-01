@@ -187,17 +187,47 @@ proc twapi::cert_store_add_encoded_certificate {hstore enccert args} {
     return [CertAddEncodedCertificateToStore $hstore 0x10001 $enccert $opts(disposition)]
 }
 
-proc twapi::cert_store_to_pfx {hstore password args} {
-    array set opts [parseargs args {
+proc twapi::cert_store_export_pfx {hstore password args} {
+    parseargs args {
         {exportprivatekeys.bool 0 0x4}
         {failonmissingkey.bool 0 0x1}
         {failonunexportablekey.bool 0 0x2}
-    } -maxleftover 0]
+    } -maxleftover 0 -setvars
 
-    set flags [tcl::mathop::| $opts(exportprivatekeys) $opts(failonunexportablekey) $opts(failonmissingkey)]
+    if {[string length $password] == 0} {
+        set password [conceal ""]
+    }
 
-    return [::twapi::PFXExportCertStoreEx $hstore $password {} $flags]
+    # NOTE: the -fail* flags only take effect iff the certificate in the store
+    # claims to have a private key but does not actually have one. It will
+    # not fail if the cert does not actually claim to have a private key
+
+    set flags [tcl::mathop::| $exportprivatekeys $failonunexportablekey $failonmissingkey]
+
+    return [PFXExportCertStoreEx $hstore $password {} $flags]
 }
+interp alias {} twapi::cert_store_export_pkcs12 {} twapi::cert_store_export_pfx
+
+proc twapi::cert_store_import_pfx {pfx password args} {
+    parseargs args {
+        {exportableprivatekeys.bool 0 1}
+        {userprotected.bool 0 2}
+        keysettype.arg
+    } -maxleftover 0 -setvars
+
+    if {[string length $password] == 0} {
+        set password [conceal ""]
+    }
+    set flags 0
+    if {[info exists keysettype]} {
+        set flags [dict! {user 0x1000 machine 0x20} $keysettype]
+    }
+
+    set flags [tcl::mathop::| $flags $exportableprivatekeys $userprotected]
+    return [PFXImportCertStore $pfx $password $flags]
+}
+interp alias {} twapi::cert_store_import_pkcs12 {} twapi::cert_store_import_pfx
+
 
 proc twapi::cert_store_commit {hstore args} {
     array set opts [parseargs args {
@@ -211,7 +241,7 @@ proc twapi::cert_store_serialize {hstore} {
     return [Twapi_CertStoreSerialize $hstore 1]
 }
 
-proc twapi::cert_store_to_pkcs7 {hstore} {
+proc twapi::cert_store_export_pkcs7 {hstore} {
     return [Twapi_CertStoreSerialize $hstore 2]
 }
 

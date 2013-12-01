@@ -54,113 +54,6 @@ namespace eval twapi::crypto::test {
         return [equal_lists [list $data1 $data2 $data3] [list        123 \001\002\003]]
     }
 
-    # Returns the sample store context handle. Must not be released by caller
-    proc samplestore {} {
-        variable samplestore
-        if {![info exists samplestore]} {
-            set samplestore [twapi::cert_memory_store_open]
-            foreach suff {ca intermediate server client full min} {
-                twapi::cert_release [twapi::cert_store_add_encoded_certificate $samplestore [sampleencodedcert $suff]]
-            }
-        }
-        return $samplestore
-    }
-
-    # Returns revoked cert. Must be released by caller
-    proc revokedcert {} {
-        set enc [read_file [file join [tcltest::testsDirectory] certs verisignrevoked.cer] rb]
-        return [twapi::cert_import $enc]
-    }
-
-    # Returns google cert. Must be released by caller
-    proc googlecert {} {
-        set enc [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem] r]
-        return [twapi::cert_import $enc -format pem]
-    }
-
-    # Returns google encoded cert.
-    proc googleencodedcert {} {
-        return [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem] r]
-    }
-
-    # Returns context for one of the sample certs in the sample store
-    # Must be released by caller
-    proc samplecert {{which full}} {
-        return [twapi::cert_store_find_certificate [samplestore] subject_substring twapitest$which]
-    }
-
-    # Returns one of the sample certs in encoded form
-    proc sampleencodedcert {{which full}} {
-        variable _sampleencodedcert
-        if {![info exists _sampleencodedcert($which)]} {
-            set _sampleencodedcert($which) [read_file [file join [tcltest::testsDirectory] certs twapitest${which}.cer] rb]
-        }
-        return $_sampleencodedcert($which)
-    }
-
-    proc temp_system_store_path {} {
-        variable temp_system_store_path
-
-        if {![info exists temp_system_store_path]} {
-            set temp_system_store_path TwapiTest-[clock microseconds]
-            set hstore [twapi::cert_system_store_open $temp_system_store_path user]
-            set cer [sampleencodedcert]
-            twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
-            twapi::cert_store_release $hstore
-        }
-        return $temp_system_store_path
-    }
-
-    proc temp_crypto_dir_path {} {
-        variable temp_crypto_dir_path
-        if {![info exists temp_crypto_dir_path]} {
-            set temp_crypto_dir_path [tcltest::makeDirectory twapicryptotest]
-        }
-        return $temp_crypto_dir_path
-    }
-
-    proc temp_file_store_path {} {
-        variable temp_file_store_path
-
-        if {![info exists temp_file_store_path]} {
-            set temp_file_store_path [file join [temp_crypto_dir_path] [clock microseconds].store]
-            set hstore [twapi::cert_file_store_open $temp_file_store_path]
-            set cer [sampleencodedcert]
-            twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
-            twapi::cert_store_release $hstore
-        }
-        return $temp_file_store_path
-    }
-
-    proc cleanup_test_cert_files {} {
-        variable temp_file_store_path
-        variable temp_system_store_path
-
-        if {[info exists temp_file_store_path] &&
-            [file exists $temp_file_store_path]} {
-            file delete $temp_file_store_path
-        }
-
-        foreach store [twapi::cert_system_stores user] {
-            if {[string match -nocase TwapiTest-* $store]} {
-                twapi::cert_system_store_delete $store user
-            }
-        }
-
-        twapi::crypt_test_container_cleanup
-    }
-
-    proc equal_certs {certa certb} {
-        return [expr {[twapi::cert_thumbprint $certa] eq [twapi::cert_thumbprint $certb]}]
-    }
-
-    # Returns cert from a store at index n for testing searches
-    # Errors if not enough certs
-    proc pick_cert {hstore {n 4}} {
-        set hcert NULL
-        time {set hcert [twapi::cert_store_find_certificate $hstore any "" $hcert]} [incr n]
-        return $hcert
-    }
 
     foreach pkg {NTLM Negotiate Kerberos} {
         test encrypt-${pkg}-1.0 "Verify basic encryption and decryption - $pkg" -setup "lassign \[setup_contexts $pkg\] cctx sctx" -constraints [expr {$pkg eq "Kerberos" ? "domain" : ""}]  -body {
@@ -1397,7 +1290,88 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    test cert_store_to_pfx {
+    test cert_store_export_pfx-1.0 {
+        Export a certificate store with empty password
+    } -body {
+        twapi::PFXIsPFXBlob [twapi::cert_store_export_pfx [samplestore] ""]
+    } -result 1
+
+    test cert_store_export_pfx-1.1 {
+        Export a certificate store with empty password - openssl
+    } -body {
+        set path [write_test_file [twapi::cert_store_export_pfx [samplestore] ""]]
+        openssl pkcs12 -in $path -info -passin pass:
+    } -result {(\sCertificate bag){6}} -match regexp
+
+    test cert_store_export_pfx-2.0 {
+        Export a certificate store with non empty password
+    } -body {
+        twapi::PFXIsPFXBlob [twapi::cert_store_export_pfx [samplestore] [twapi::conceal pkcspass]]
+    } -result 1
+
+    test cert_store_export_pfx-2.1 {
+        Export a certificate store with password - openssl
+    } -body {
+        set path [write_test_file [twapi::cert_store_export_pfx [samplestore] [twapi::conceal pkcspass]]]
+        openssl pkcs12 -in $path -info -passin pass:pkcspass
+    } -result {(\sCertificate bag){6}} -match regexp
+
+    test cert_store_export_pfx-2.2 {
+        Export a certificate store with password - openssl (fail)
+    } -body {
+        set path [write_test_file [twapi::cert_store_export_pfx [samplestore] [twapi::conceal pkcspass]]]
+        openssl pkcs12 -in $path -info -passin pass:
+    } -result {*invalid password*} -match glob -returnCodes error
+
+    test cert_store_export_pfx-2.3 {
+        Export a certificate store with password - openssl (fail)
+    } -body {
+        set path [write_test_file [twapi::cert_store_export_pfx [samplestore] [twapi::conceal pkcspass]]]
+        openssl pkcs12 -in $path -info -passin pass:PKCSPASS
+    } -result {*invalid password*} -match glob -returnCodes error
+
+    test cert_store_export_pfx-3.0 {
+        Export a certificate store with non empty password -exportprivatekeys false
+    } -body {
+        twapi::PFXIsPFXBlob [twapi::cert_store_export_pfx [samplestore] [twapi::conceal pkcspass] -exportprivatekeys 0]
+    } -result 1
+
+    test cert_store_export_pfx-3.1 {
+        Export a certificate store with password - -exportprivatekeys false, openssl
+    } -body {
+        set path [write_test_file [twapi::cert_store_export_pfx [storewithkeys] [twapi::conceal pkcspass] -exportprivatekeys false]]
+        set output [openssl pkcs12 -in $path -info -passin pass:pkcspass -noout]
+        list [llength [regexp -all -inline "Shrouded Keybag" $output]] [llength [regexp -all -inline "Certificate bag" $output]] 
+    } -result {0 6}
+
+    test cert_store_export_pfx-3.2 {
+        Export a certificate store with password - -exportprivatekeys 1, openssl
+    } -body {
+        set path [write_test_file [twapi::cert_store_export_pfx [storewithkeys] [twapi::conceal pkcspass] -exportprivatekeys 1]]
+        set output [openssl pkcs12 -in $path -info -passin pass:pkcspass -noout]
+        list [llength [regexp -all -inline "Shrouded Keybag" $output]] [llength [regexp -all -inline "Certificate bag" $output]] 
+    } -result {6 6}
+
+    test cert_store_export_pfx-4.0 {
+        Export a certificate store -failonmissingkey
+    } -constraints {
+        TBD
+    } -body {
+        TBD - cannot generate a test case that tests this. Export always succeeds with private key exported even when crypt_acquire and cert_locate_private_key indicate key does not exist
+    } -result TBD
+
+    test cert_store_export_pfx-5.0 {
+        Export a certificate store -failonunexportablekey
+    } -constraints {
+        TBD
+    } -body {
+        TBD - cannot generate a test case that tests this. Export always succeeds with private key exported even when crypt_acquire and cert_locate_private_key indicate key does not exist
+    } -result TBD
+
+
+    ################################################################
+
+    test cert_store_export_pkcs12 {
         TBD
     } -body {
         TBD 
@@ -1407,17 +1381,7 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    test cert_store_to_pkcs12 {
-        TBD
-    } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
-
-    ################################################################
-
-    test cert_store_to_pkcs7 {
+    test cert_store_export_pkcs7 {
         TBD
     } -body {
         TBD 
