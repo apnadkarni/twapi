@@ -1901,13 +1901,14 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
     return TCL_OK;
 }
 
-static int Twapi_CertOpenStore(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_CertOpenStore(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     DWORD store_provider, enc_type, flags;
     void *pv = NULL;
     HCERTSTORE hstore;
     HANDLE h;
     TCL_RESULT res;
+    CRYPT_DATA_BLOB blob;
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETINT(store_provider), GETINT(enc_type), ARGUNUSED,
@@ -1941,6 +1942,10 @@ static int Twapi_CertOpenStore(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv
 
     case 5: // CERT_STORE_PROV_PKCS7
     case 6: // CERT_STORE_PROV_SERIALIZED
+        blob.pbData = ObjToByteArray(objv[4], &blob.cbData);
+        pv = &blob;
+        break;
+
     case 15: // CERT_STORE_PROV_SMART_CARD
     case 16: // CERT_STORE_PROV_LDAP
     case 1: // CERT_STORE_PROV_MSG
