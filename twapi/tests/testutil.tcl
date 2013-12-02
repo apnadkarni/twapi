@@ -1371,9 +1371,9 @@ proc read_file {path {mode r}} {
 # Returns the sample store context handle. Must not be released by caller
 # Note this contains only certs, NO private keys
 proc samplestore {} {
-    variable samplestore
+    global samplestore
     if {![info exists samplestore]} {
-        set samplestore [twapi::cert_memory_store_open]
+        set samplestore [twapi::cert_temporary_store]
         foreach suff {ca intermediate server client full min} {
             twapi::cert_release [twapi::cert_store_add_encoded_certificate $samplestore [sampleencodedcert $suff]]
         }
@@ -1382,11 +1382,11 @@ proc samplestore {} {
 }
 
 proc storewithkeys {} {
-    variable storewithkeys
+    global storewithkeys
     if {![info exists storewithkeys]} {
         set storewithkeys [twapi::make_test_certs]
     }
-    return $samplestorewithkeys
+    return $storewithkeys
 }
 
 
@@ -1399,7 +1399,7 @@ proc revokedcert {} {
 # Returns google cert. Must be released by caller
 proc googlecert {} {
     set enc [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem] r]
-    return [twapi::cert_import $enc -format pem]
+    return [twapi::cert_import $enc -encoding pem]
 }
 
 # Returns google encoded cert.
@@ -1442,6 +1442,7 @@ proc temp_crypto_dir_path {} {
     }
     return $temp_crypto_dir_path
 }
+
 
 proc temp_file_store_path {} {
     variable temp_file_store_path
