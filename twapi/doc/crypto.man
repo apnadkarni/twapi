@@ -222,13 +222,22 @@ To enumerate system stores at a location, use the
 
 [para]
 Most certificate store operations require the store to be first opened
+or created. Persistent stores are opened or created
 using the one of the commands
 [uri #cert_system_store_open [cmd cert_system_store_open]],
-[uri #cert_physical_store_open [cmd cert_physical_store_open]],
-[uri #cert_file_store_open [cmd cert_file_store_open]] and
-[uri #cert_memory_store_open [cmd cert_memory_store_open]]
-as appropriate. These commands will optionally create the store
-if it does not exist.
+[uri #cert_physical_store_open [cmd cert_physical_store_open]] or
+[uri #cert_file_store_open [cmd cert_file_store_open]]
+as appropriate. Non-persistent stores are created using
+[uri #cert_memory_store_open [cmd cert_memory_store_open]],
+which creates an empty certificate store, 
+[uri #cert_pkcs7_store_open [cmd cert_pkcs7_store_open]], which
+creates a store populated with certificates from a PKCS#7 formatted
+packet, or
+[uri #cert_serialized_store_open [cmd cert_serialized_store_open]], which
+creates a store populated with certificates from a serialized certificate
+store such as returned by the
+[uri #cert_store_serialize [cmd cert_store_serialize]] command.
+[nl]
 The handle returned from these commands must be passed to any
 commands that operate on stores and released by calling
 [uri #cert_store_release [cmd cert_store_release]] when no longer required.
@@ -966,6 +975,21 @@ system store component, e.g. [const Root\\.Default]. [arg LOCATION]
 specifies the location of the system store and must be one of
 the values listed in [sectref "Certificate stores"].
 
+[call [cmd cert_pkcs7_store_open] [arg PKCS7BLOB] [opt [arg options]]]
+Creates a temporary, non-persistent certificate store populated
+with certificates from a PKCS #7 formatted data packet.
+The [cmd -format] option may be specified as [const der] (default)
+or [const cer] to indicate [arg PKCS7BLOB] is DER-encoded, or
+as [const pem] or [const base64] if it is in PEM form.
+[nl]
+Refer to the documentation of
+[uri #cert_system_store_open [cmd cert_system_store_open]] of a description
+of other [arg options].
+[nl]
+The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
+when no longer needed.
+
+
 [call [cmd cert_property] [arg HCERT] [arg PROPERTY]]
 Returns the value of a 
 [uri #certificateproperties "certificate property"] in
@@ -1095,6 +1119,19 @@ This value is itself a dictionary which may contain zero or more of the
 keys [cmd -basicconstraints], [cmd -keyusage] and [cmd -enhkeyusage].
 The corresponding values have the same format as the corresponding
 options to the [uri #cert_create [cmd cert_create]] command.
+
+[call [cmd cert_serialized_store_open] [arg BLOB] [opt [arg options]]]
+Creates a temporary, non-persistent certificate store populated
+with certificates from a serialized certifcate store
+such as returned from
+[uri #cert_store_serialize [cmd cert_store_serialize]].
+[nl]
+Refer to the documentation of
+[uri #cert_system_store_open [cmd cert_system_store_open]] of a description
+of other [arg options].
+[nl]
+The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
+when no longer needed.
 
 [call [cmd cert_set_key_prov] [arg HCERT] [opt [arg options]]]
 Associates the certificate context [arg HCERT] with a CSP key container.
@@ -1241,11 +1278,15 @@ exportable. Default is [const false].
 [call [cmd cert_store_export_pkcs12] [arg HSTORE] [arg PASSWORD] [opt [arg options]]]
 Alias for [uri #cert_store_export_pfx [cmd cert_store_export_pfx]].
 
-[call [cmd cert_store_export_pkcs7] [arg HSTORE]]
+[call [cmd cert_store_export_pkcs7] [arg HSTORE] [opt "[cmd -format] [arg FORMAT]"]]
 Returns a binary in PKCS #7 format containing all the certificates 
 in a certificate store.
 [arg HSTORE] is a handle to the store. External properties associated
-with certificate are not present in the returned binary.
+with certificate are not exported.
+The [cmd -format] 
+specifies the format in which the encoded certificate is returned.
+[arg FORMAT] should be [const der] (default) or [const cer]
+for DER format and [const pem] or [const base64] for PEM format.
 
 [call [cmd cert_store_find_certificate] [arg HSTORE] [opt [arg SEARCHTYPE]] [opt [arg SEARCHTERM]] [opt [arg HCERT]]]
 The command returns a handle to a certificate context for 
