@@ -228,16 +228,10 @@ using the one of the commands
 [uri #cert_physical_store_open [cmd cert_physical_store_open]] or
 [uri #cert_file_store_open [cmd cert_file_store_open]]
 as appropriate. Non-persistent stores are created using
-[uri #cert_memory_store_open [cmd cert_memory_store_open]],
-which creates an empty certificate store, 
-[uri #cert_pkcs7_store_open [cmd cert_pkcs7_store_open]], which
-creates a store populated with certificates from a PKCS#7 formatted
-packet, or
-[uri #cert_serialized_store_open [cmd cert_serialized_store_open]], which
-creates a store populated with certificates from a serialized certificate
-store such as returned by the
-[uri #cert_store_serialize [cmd cert_store_serialize]] command.
-[nl]
+[uri #cert_temporary_store [cmd cert_temporary_store]] which includes
+various options for populating the store, for example with the contents of
+PFX/PKCS #12 or PKCS #7 packets.
+[para]
 The handle returned from these commands must be passed to any
 commands that operate on stores and released by calling
 [uri #cert_store_release [cmd cert_store_release]] when no longer required.
@@ -256,9 +250,6 @@ Commands
 and
 [uri #cert_store_serialize [cmd cert_store_serialize]] can be used
 to export certificate stores in various formats. 
-Commands [uri #cert_store_import_pfx [cmd cert_store_import_pfx]] and
-[uri #cert_store_import_pkcs12 [cmd cert_store_import_pkcs12]]
-do the inverse operation.
 
 [para]
 Existing certificate stores can be deleted using the commands
@@ -433,8 +424,8 @@ unmodified.
 
 [para]
 The sample code below adds the certificate we created in the previous
-section to a memory store. First we create the memory store.
-[example {set store [cert_memory_store_open]}]
+section to a temporary in-memory store. First we create the memory store.
+[example {set store [cert_temporary_open]}]
 Then we add the certificate to it.
 [example {set mcert [cert_store_add_certificate $store $cert]}]
 This creates a copy of the certificate we created earlier. Since we
@@ -444,13 +435,13 @@ There is now one crucial additional step. The association between
 a certificate and its private key is maintained by the store and is not
 part of the certificate. We therefore have to explicitly make the
 association between the CSP key container and the new certificate context
-for the memory store.
+for the temporary store.
 
 [example {cert_set_key_prov $mcert -csp {Microsoft Strong Cryptographic Provider} -keycontainer twapi_test_container -csptype prov_rsa_full}]
 Notice we have specified exactly the key container we had created earlier.
 [para]
-The certificate is now stored in the memory store and will be available
-as long as the volatile memory store is not closed. As a final step
+The certificate is now stored in the temporary store and will be available
+as long as the volatile temporary store is not closed. As a final step
 we will export the certificate and the private keys to a file. This step
 is only necessary if we want to move the certificate elsewhere. 
 (Note if we only wanted to export the certificate without private keys, we
@@ -609,11 +600,10 @@ is a list containing one or more values from
 The second element, which is optional and defaults to [const false],
 is a boolean indicating whether the corresponding certificate extension
 should be marked critical or not.
-[opt_def [cmd -format] [arg FORMAT]]
-Specifies the format in which the encoded certificate is returned.
-If [arg FORMAT] is specified as [const der] (default) or [const cer]
-the certificate is in DER format. If [arg FORMAT] is 
-[const pem] or [const base64], it is returned in PEM format.
+[opt_def [cmd -encoding] [arg ENCODING]]
+Specifies the encoding in which the encoded certificate is returned.
+[arg ENCODING] may be [const der] (default) or [const pem]
+for DER- and PEM-encoding respectively.
 [opt_def [cmd -keyspec] [arg KEYSPEC]]
 [arg KEYSPEC] must be one of [const signature] (default) or 
 [const keyexchange] and specifies the public/private key pair
@@ -776,11 +766,11 @@ for the property id
 (see [uri #cert_property [cmd cert_property]]) if defined, and
 the integer value otherwise.
 
-[call [cmd cert_export] [arg HCERT] [opt "[cmd -format] [arg FORMAT]"]]
+[call [cmd cert_export] [arg HCERT] [opt "[cmd -encoding] [arg ENCODING]"]]
 Returns the certificate content for the specified certificate context.
-If [arg FORMAT] is specified as [const der] (default), [const cer] or
-[const crt],  the content is in DER format. If [arg FORMAT] is 
-[const pem] or [const base64], the content is returned in PEM format.
+The [cmd -encoding] option controls the encoding of the returned content.
+[arg ENCODING] may be [const der] (default) or [const pem]
+for DER- and PEM-encoding respectively.
 
 [call [cmd cert_extension] [arg HCERT] [arg EXTENSION]]
 Returns a certificate extension as a two element list.
@@ -843,13 +833,11 @@ Otherwise the file is written as a serialized certificate store.
 The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
 when no longer needed.
 
-[call [cmd cert_import] [arg ENCODEDCERT] [opt "[cmd -format] [arg FORMAT]"]]
+[call [cmd cert_import] [arg ENCODEDCERT] [opt "[cmd -encoding] [arg encoding]"]]
 Creates and returns a certificate context from encoded data in
 [arg ENCODEDCERT]. 
-If [arg FORMAT] is specified as [const der] (default), [const cer] or
-[const crt],  [arg ENCODEDCERT] is assumed to be in DER format.
-If [arg FORMAT] is [const pem] or [const base64], it is assumed to
-be in PEM format.
+[arg ENCODING] should be [const der] (default) or [const pem]
+depending on whether [arg ENCODEDCERT] uses DER- or PEM-encoding.
 
 [call [cmd cert_info] [arg HCERT]]
 Returns the following fields from a certificate context as a dictionary.
@@ -921,13 +909,6 @@ option is specified as [const true], the user is never prompted. Instead
 the command will return [const 0] indicating no key could be found.
 [list_end]
 
-[call [cmd cert_memory_store_open]]
-Opens a new certificate store in memory and returns a handle to it. 
-The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
-when no longer needed. All contents of the store are deleted when
-it is closed. The [uri #cert_store_save [cmd cert_store_save]] command
-can be used to save the contents to a persistent store if desired.
-
 [call [cmd cert_name_to_blob] [arg NAME] [opt [arg options]]]
 Converts the string [arg NAME] to an X.509 ASN encoded binary.
 The following options control the allowed format for [arg NAME].
@@ -975,19 +956,6 @@ system store component, e.g. [const Root\\.Default]. [arg LOCATION]
 specifies the location of the system store and must be one of
 the values listed in [sectref "Certificate stores"].
 
-[call [cmd cert_pkcs7_store_open] [arg PKCS7BLOB] [opt [arg options]]]
-Creates a temporary, non-persistent certificate store populated
-with certificates from a PKCS #7 formatted data packet.
-The [cmd -format] option may be specified as [const der] (default)
-or [const cer] to indicate [arg PKCS7BLOB] is DER-encoded, or
-as [const pem] or [const base64] if it is in PEM form.
-[nl]
-Refer to the documentation of
-[uri #cert_system_store_open [cmd cert_system_store_open]] of a description
-of other [arg options].
-[nl]
-The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
-when no longer needed.
 
 
 [call [cmd cert_property] [arg HCERT] [arg PROPERTY]]
@@ -1073,25 +1041,23 @@ The following options may be specified:
 See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -capathlen] [arg CAPATHLENGTH]]
 See [uri #cert_create [cmd cert_create]]
+[opt_def [cmd -encoding] [arg ENCODING]]
+Specifies the encoding of the returned CSR.
+[arg ENCODING] may be [const der] (default) or [const pem]
+for DER- and PEM-encoding respectively.
 [opt_def [cmd -enhkeyusage] [arg ENHKEYUSAGE]]
 See [uri #cert_create [cmd cert_create]]
-[opt_def [cmd -format] [arg FORMAT]]
-Specifies the format in which the encoded CSR is returned.
-If [arg FORMAT] is specified as [const der] (default), [const cer] or
-[const crt],  the CSR is in DER format. If [arg FORMAT] is 
-[const pem] or [const base64], it is returned in PEM format.
 [opt_def [cmd -keyusage] [arg KEYUSAGE]]
 See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -purpose] [arg PURPOSES]]
 See [uri #cert_create [cmd cert_create]]
 [list_end]
 
-[call [cmd cert_request_parse] [arg CSR] [opt "[cmd -format] [arg FORMAT]"]]
+[call [cmd cert_request_parse] [arg CSR] [opt "[cmd -encoding] [arg ENCODING]"]]
 Parses a certificate signing request [arg CSR] and returns a dictionary with
 its contents. 
-If [arg FORMAT] is specified as [const der] (default), [const cer] or
-[const crt],  the CSE is assumed to be in DER format. If [arg FORMAT] is 
-[const pem] or [const base64], it is assumed to be in PEM format.
+[arg ENCODING] should be [const der] (default) or [const pem]
+depending on whether [arg ENCODEDCERT] uses DER- or PEM-encoding.
 [nl]
 The returned dictionary has the following keys:
 [list_begin opt]
@@ -1119,19 +1085,6 @@ This value is itself a dictionary which may contain zero or more of the
 keys [cmd -basicconstraints], [cmd -keyusage] and [cmd -enhkeyusage].
 The corresponding values have the same format as the corresponding
 options to the [uri #cert_create [cmd cert_create]] command.
-
-[call [cmd cert_serialized_store_open] [arg BLOB] [opt [arg options]]]
-Creates a temporary, non-persistent certificate store populated
-with certificates from a serialized certifcate store
-such as returned from
-[uri #cert_store_serialize [cmd cert_store_serialize]].
-[nl]
-Refer to the documentation of
-[uri #cert_system_store_open [cmd cert_system_store_open]] of a description
-of other [arg options].
-[nl]
-The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
-when no longer needed.
 
 [call [cmd cert_set_key_prov] [arg HCERT] [opt [arg options]]]
 Associates the certificate context [arg HCERT] with a CSP key container.
@@ -1184,9 +1137,9 @@ certificate or the matching certificate's validity period start time
 is less than that of the new certificate. Otherwise an error is raised.
 [list_end]
 
-[call [cmd cert_store_add_encoded_certificate] [arg HSTORE] [arg ENCCERT] [opt [arg options]]]
+[call [cmd cert_store_add_encoded_certificate] [arg HSTORE] [arg ENCODEDCERT] [opt [arg options]]]
 Adds a new certificate to a certificate store. [arg HSTORE] is the handle
-to the store. [arg ENCCERT] is a binary value containing the 
+to the store. [arg ENCODEDCERT] is a binary value containing the 
 certificate encoded in X.509 ASN.1 format.
 The command returns
 a handle to the new certificate context which must be freed
@@ -1209,12 +1162,10 @@ and a error raised. Otherwise, the new certificate is added.
 certificate or the matching certificate's validity period start time
 is less than that of the new certificate. Otherwise an error is raised.
 [list_end]
-[opt_def [cmd -format] [arg FORMAT]]
-Specifies the format of the encoded certificate in [arg ENCCERT].
-If [arg FORMAT] is specified as [const der] (default), [const cer] or
-[const crt],  the certificate should be in DER format. If [arg FORMAT] is 
-[const pem] or [const base64], it should be in PEM format with
-or without a header.
+[opt_def [cmd -encoding] [arg ENCODING]]
+Specifies the encoding of [arg ENCODEDCERT].
+[arg ENCODING] should be [const der] (default) or [const pem]
+depending on whether [arg ENCODEDCERT] uses DER- or PEM-encoding.
 [list_end]
 
 [call [cmd cert_store_commit] [arg HSTORE] [opt "[cmd -force] [arg BOOLEAN]"]]
@@ -1278,15 +1229,15 @@ exportable. Default is [const false].
 [call [cmd cert_store_export_pkcs12] [arg HSTORE] [arg PASSWORD] [opt [arg options]]]
 Alias for [uri #cert_store_export_pfx [cmd cert_store_export_pfx]].
 
-[call [cmd cert_store_export_pkcs7] [arg HSTORE] [opt "[cmd -format] [arg FORMAT]"]]
+[call [cmd cert_store_export_pkcs7] [arg HSTORE] [opt "[cmd -encoding] [arg ENCODING]"]]
 Returns a binary in PKCS #7 format containing all the certificates 
 in a certificate store.
 [arg HSTORE] is a handle to the store. External properties associated
 with certificate are not exported.
-The [cmd -format] 
-specifies the format in which the encoded certificate is returned.
-[arg FORMAT] should be [const der] (default) or [const cer]
-for DER format and [const pem] or [const base64] for PEM format.
+The [cmd -encoding] option
+specifies the encoding for the returned certificate.
+[arg ENCODING] should be [const der] (default) or [const pem]
+for DER- and PEM-encoding respectively.
 
 [call [cmd cert_store_find_certificate] [arg HSTORE] [opt [arg SEARCHTYPE]] [opt [arg SEARCHTERM]] [opt [arg HCERT]]]
 The command returns a handle to a certificate context for 
@@ -1350,39 +1301,6 @@ Returns certificates whose subject contains the string [arg SEARCHTERM].
 Note [arg SEARCHTERM] is a string, not in X.509 encoded form.
 
 [list_end]
-
-[call [cmd cert_store_import_pfx] [arg PFXBLOB] [arg PASSWORD] [opt [arg options]]]
-Creates a new temporary store and imports certificates and keys from
-a PFX/PKCS #12 blob.
-[arg PASSWORD] is the password
-to be used for decrypting the returned content. [arg PASSWORD] itself
-must be an empty string (if [arg PFXBLOB] is not encrypted),
-or the decryption password in 
-[uri base.html#passwordprotection "encrypted form"] as returned by
-by the [uri base.html#read_credentials [cmd read_credentials]] or
-[uri base.html#conceal [cmd conceal]] commands.
-[nl]
-The following options may be specified with
-the command:
-[list_begin opt]
-[opt_def [cmd -exportableprivatekeys] [arg BOOLEAN]]
-If specified as [const true], private keys in the created certificate
-store may be exported. Default is [const false].
-[opt_def [cmd -keysettype] [const user|machine]]
-Without this option, keys are imported as per-user or per-machine
-as specified in the PFX blob. This option can be used to override this.
-[opt_def [cmd -password] [arg PASSWORD]]
-Without this option, the command assumes [arg PFXBLOB] is in unencrypted
-form. Specify this option if the blob is encrypted with [arg PASSWORD].
-[opt_def [cmd -userprotected] [arg BOOLEAN]]
-If specified as [const true], the private keys are protected such that
-the user is notified on operations that use that key. The specific
-operations that will trigger notifications depend on the CSP being used.
-[list_end]
-
-[call [cmd cert_store_import_pkcs12] [arg PKCS12BLOB] [opt [arg options]]]
-This is an alias for the
-[uri #cert_store_import_pfx [cmd cert_store_import_pfx]] command.
 
 [call [cmd cert_store_release] [arg HSTORE]]
 Decreases the reference count for the specified handle to a certificate store
@@ -1512,6 +1430,61 @@ Returns a list of system store locations. See [sectref "Certificate stores"].
 Returns a list of system stores at the system store location [arg LOCATION].
 [arg LOCATION] specifies the location of the system store and must be one of
 the values listed in [sectref "Certificate stores"].
+
+[call [cmd cert_temporary_store] [opt [arg options]]]
+Creates a temporary, non-persistent certificate store in memory
+and returns a handle to it.
+The store must be closed with [uri #cert_store_release [cmd cert_store_release]]
+when no longer needed. All contents of the store are deleted when
+it is closed. The [uri #cert_store_save [cmd cert_store_save]] command
+can be used to save the contents to a persistent store if desired.
+[nl]
+By default, the created store is empty. The following 
+[emph "mutually exclusive"] options may be specified to initialize the
+store with certificates.
+[list_begin opt]
+[opt_def [cmd -pfx] [arg PFXBLOB]]
+Initializes the temporary store with certificates imported from
+a PFX (also known as PKCS #12) formatted packet. In addition to the
+certificates, any private keys present are also imported into the
+system. Unlike the store itself, these keys are persisted. The following
+additional options may be used with [cmd -pfx] and [cmd -pkcs12]:
+[list_begin opt]
+[opt_def [cmd -exportableprivatekeys] [arg BOOLEAN]]
+If specified as [const true], private keys in the created certificate
+store may be exported. Default is [const false].
+[opt_def [cmd -keysettype] [const user|machine]]
+Without this option, keys are imported as per-user or per-machine
+as specified in the PFX blob. This option can be used to override this.
+[opt_def [cmd -password] [arg PASSWORD]]
+Specifies the password used to decrypt [arg PFXBLOB]. If the
+option is not specified, or if [arg PASSWORD] is the empty string,
+the command assumes [arg PFXBLOB] is in unencrypted
+form. If not the empty string,
+[arg PASSWORD] must be in
+[uri base.html#passwordprotection "encrypted form"] as returned by
+by the [uri base.html#read_credentials [cmd read_credentials]] or
+[uri base.html#conceal [cmd conceal]] commands.
+[opt_def [cmd -userprotected] [arg BOOLEAN]]
+If specified as [const true], the private keys are protected such that
+the user is notified on operations that use that key. The specific
+operations that will trigger notifications depend on the CSP being used.
+[list_end]
+[opt_def [cmd -pkcs12] [arg PKCS12BLOB]]
+This an alias for the [cmd -pfx] option.
+[opt_def [cmd -pkcs7] [arg PKCS7BLOB]]
+[arg PKCS7BLOB] is a PKCS #7 packet containing certificates. The additional
+option "[cmd -encoding] [arg ENCODING]" may be used with [cmd -pkcs7]
+where [arg ENCODING] must be [const der] (default), or [const pem] to
+indicate the packet is DER- or PEM-encoded.
+[opt_def [cmd -serialized] [arg SERIALIZEDBLOB]]
+[arg SERIALIZEDBLOB] is a serialized certificate store,
+such as returned from [uri #cert_store_serialize [cmd cert_store_serialize]].
+[list_end]
+[nl]
+The temporary store must be closed with
+[uri #cert_store_release [cmd cert_store_release]]
+when no longer needed.
 
 [call [cmd cert_thumbprint] [arg HCERT]]
 Returns a SHA-1 based thumbprint for the specified certificate.

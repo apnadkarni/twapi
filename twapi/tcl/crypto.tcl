@@ -40,8 +40,61 @@ proc twapi::cert_store_release {hstore} {
     return
 }
 
-proc twapi::cert_memory_store_open {} {
-    return [CertOpenStore 2 0 NULL 0 ""]
+proc twapi::cert_temporary_store {args} {
+    parseargs args {
+        {encoding.arg der {der cer crt pem base64}}
+        serialized.arg
+        pkcs7.arg
+        {password.arg ""}
+        pfx.arg
+        pkcs12.arg
+        {exportableprivatekeys.bool 0 1}
+        {userprotected.bool 0 2}
+        keysettype.arg
+    } -setvars -maxleftover 0
+    
+    set nformats 0
+    foreach format {serialized pkcs7 pfx pkcs12} {
+        if {[info exists $format]} {
+            set data [set $format]
+            incr nformats
+        }
+    }
+    if {$nformats > 1} {
+        badargs! "At most one of -pfx, -pkcs12, -pkcs7 or -serialized may be specified."
+    }
+    if {$nformats == 0} {
+        # 2 -> CERT_STORE_PROV_MEMORY 
+        return [CertOpenStore 2 0 NULL 0 ""]
+    }
+    
+    # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
+
+    if {[info exists serialized]} {
+        # 6 -> CERT_STORE_PROV_SERIALIZED
+        return [CertOpenStore 6 0x10001 NULL 0 $data]
+    }
+
+    if {[info exists pkcs7]} {
+        if {$encoding in {pem base64}} {
+            # 6 -> CRYPT_STRING_BASE64_ANY 
+            set data [CryptStringToBinary $data 6]
+        }
+        # 5 -> CERT_STORE_PROV_PKCS7
+        return [CertOpenStore 5 0x10001 NULL 0 $data]
+    }
+
+    # PFX/PKCS12
+    if {[string length $password] == 0} {
+        set password [conceal ""]
+    }
+    set flags 0
+    if {[info exists keysettype]} {
+        set flags [dict! {user 0x1000 machine 0x20} $keysettype]
+    }
+
+    set flags [tcl::mathop::| $flags $exportableprivatekeys $userprotected]
+    return [PFXImportCertStore $data $password $flags]
 }
 
 proc twapi::cert_file_store_open {path args} {
@@ -53,14 +106,26 @@ proc twapi::cert_file_store_open {path args} {
     }
 
     # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
+    # 8 -> CERT_STORE_PROV_FILENAME_W
     return [CertOpenStore 8 0x10001 NULL $flags [file nativename [file normalize $path]]]
 }
+
+proc twapi::cert_serialized_store_open {data args} {
+    set flags [_parse_store_open_opts $args]
+
+    # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
+    # 6 -> CERT_STORE_PROV_SERIALIZED
+    return [CertOpenStore 6 0x10001 NULL $flags $data]
+}
+
+
 
 proc twapi::cert_physical_store_open {name location args} {
     variable _system_stores
 
     set flags [_parse_store_open_opts $args]
     incr flags [_system_store_id $location]
+    # 14 -> CERT_STORE_PROV_PHYSICAL_W
     return [CertOpenStore 14 0 NULL $flags $name]
 }
 
@@ -68,6 +133,7 @@ proc twapi::cert_physical_store_delete {name location} {
     set flags 0x10;             # CERT_STORE_DELETE_FLAG
     incr flags [_system_store_id $location]
     
+    # 14 -> CERT_STORE_PROV_PHYSICAL_W
     return [CertOpenStore 14 0 NULL $flags $name]
 }
 
@@ -176,11 +242,11 @@ proc twapi::cert_store_add_certificate {hstore hcert args} {
 }
 
 proc twapi::cert_store_add_encoded_certificate {hstore enccert args} {
-    array set opts [parseargs args {
-        {format.arg der {der cer crt pem base64}}
-    } -ignoreunknown]
+    parseargs args {
+        {encoding.arg der {der pem}}
+    } -ignoreunknown -setvars
     array set opts [_cert_add_parseargs args]
-    if {$opts(format) in {pem base64}} {
+    if {$encoding eq "pem"} {
         # 6 -> CRYPT_STRING_BASE64_ANY 
         set enccert [CryptStringToBinary $enccert 6]
     }
@@ -208,7 +274,7 @@ proc twapi::cert_store_export_pfx {hstore password args} {
 }
 interp alias {} twapi::cert_store_export_pkcs12 {} twapi::cert_store_export_pfx
 
-proc twapi::cert_store_import_pfx {pfx password args} {
+proc twapi::OBSOLETEcert_store_import_pfx {pfx password args} {
     parseargs args {
         {exportableprivatekeys.bool 0 1}
         {userprotected.bool 0 2}
@@ -226,7 +292,7 @@ proc twapi::cert_store_import_pfx {pfx password args} {
     set flags [tcl::mathop::| $flags $exportableprivatekeys $userprotected]
     return [PFXImportCertStore $pfx $password $flags]
 }
-interp alias {} twapi::cert_store_import_pkcs12 {} twapi::cert_store_import_pfx
+interp alias {} twapi::OBSOLETEcert_store_import_pkcs12 {} twapi::cert_store_import_pfx
 
 
 proc twapi::cert_store_commit {hstore args} {
@@ -241,14 +307,23 @@ proc twapi::cert_store_serialize {hstore} {
     return [Twapi_CertStoreSerialize $hstore 1]
 }
 
-proc twapi::cert_store_export_pkcs7 {hstore} {
-    return [Twapi_CertStoreSerialize $hstore 2]
+proc twapi::cert_store_export_pkcs7 {hstore args} {
+    parseargs args {
+        {encoding.arg der {der pem}}
+    } -setvars -maxleftover 0
+    
+    set exp [Twapi_CertStoreSerialize $hstore 2]
+    if {$encoding eq "pem"} {
+        # 1 -> CRYPT_STRING_BASE64
+        # 0x80000000 -> LF-only, not CRLF
+        return "-----BEGIN PKCS7-----\n[CryptBinaryToString $exp 0x80000001]-----END PKCS7-----\n"
+    } else {
+        return $exp
+    }
 }
-
 
 ################################################################
 # Certificates
-
 
 interp alias {} twapi::cert_subject_name {} twapi::_cert_get_name subject
 interp alias {} twapi::cert_issuer_name {} twapi::_cert_get_name issuer
@@ -428,11 +503,11 @@ proc twapi::cert_set_key_prov {hcert args} {
 
 proc twapi::cert_export {hcert args} {
     parseargs args {
-        {format.arg der {der cer crt pem base64}}
+        {encoding.arg der {der pem}}
     } -maxleftover 0 -setvars
 
     set enc [lindex [Twapi_CertGetEncoded $hcert] 1]
-    if {$format in {pem base64}} {
+    if {$encoding eq "pem"} {
         # 0 -> CRYPT_STRING_BASE64HEADER 
         # 0x80000000 -> LF-only, not CRLF
         return [CryptBinaryToString $enc 0x80000000]
@@ -443,10 +518,10 @@ proc twapi::cert_export {hcert args} {
 
 proc twapi::cert_import {enccert args} {
     parseargs args {
-        {format.arg der {der cer crt pem base64}}
+        {encoding.arg der {der pem}}
     } -maxleftover 0 -setvars
 
-    if {$format in {pem base64}} {
+    if {$encoding eq "pem"} {
         # 6 -> CRYPT_STRING_BASE64_ANY 
         set enccert [CryptStringToBinary $enccert 6]
     }
@@ -539,7 +614,7 @@ proc twapi::cert_create {subject pubkey cissuer args} {
 
     parseargs args {
         {keyspec.arg signature {keyexchange signature}}
-        {format.arg der {der cer crt pem base64}}
+        {encoding.arg der {der pem}}
     } -maxleftover 0 -setvars
     
     # TBD - check that issuer is a CA
@@ -593,7 +668,7 @@ proc twapi::cert_create {subject pubkey cissuer args} {
         set enc [CryptSignAndEncodeCertificate $hissuerprov $issuer_keyspec \
                       0x10001 2 $cert_info $sigalgo]
 
-        if {$format in {pem base64}} {
+        if {$encoding eq "pem"} {
             # 0 -> CRYPT_STRING_BASE64HEADER 
             # 0x80000000 -> LF-only, not CRLF
             return [CryptBinaryToString $enc 0x80000000]
@@ -774,10 +849,10 @@ proc twapi::cert_locate_private_key {hcert args} {
 
 proc twapi::cert_request_parse {req args} {
     parseargs args {
-        {format.arg der {der cer crt pem base64}}
+        {encoding.arg der {der pem}}
     } -setvars -maxleftover 0
 
-    if {$format in {pem base64}} {
+    if {$encoding eq "pem"} {
         # 3 -> CRYPT_STRING_BASE64REQUESTHEADER 
         set req [CryptStringToBinary $req 3]
     }
@@ -817,7 +892,7 @@ proc twapi::cert_request_create {subject hprov keyspec args} {
     # TBD - document signaturealgorithmid
     parseargs args {
         {signaturealgorithmid.arg oid_rsa_sha1rsa}
-        {format.arg der {der cer crt pem base64}}
+        {encoding.arg der {der pem}}
     } -setvars -maxleftover 0
     
     set sigoid [oid $signaturealgorithmid]
@@ -836,7 +911,7 @@ proc twapi::cert_request_create {subject hprov keyspec args} {
         lappend attrs {}
     }
     set req [CryptSignAndEncodeCertificate $hprov $keyspec 0x10001 4 $attrs $sigoid]
-    if {$format in {pem base64}} {
+    if {$encoding eq "pem"} {
         # 3 -> CRYPT_STRING_BASE64REQUESTHEADER 
         # 0x80000000 -> LF-only, not CRLF
         return [CryptBinaryToString $req 0x80000003]
@@ -1865,7 +1940,7 @@ proc twapi::make_test_certs {{hstore {}} args} {
     set ca_altnames [list [list [list email ${container}@twapitest.com] [list dns ${container}.twapitest.com] [list url http://${container}.twapitest.com] [list directory [cert_name_to_blob "CN=${container}altname"]] [list ip [binary format c4 {127 0 0 2}]]]]
     set cert [twapi::cert_create_self_signed_from_crypt_context "CN=$container, C=IN, O=Tcl, OU=twapi" $crypt -purpose {ca} -altnames $ca_altnames]
     if {[llength $hstore] == 0} {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
     }
     set ca_certificate [twapi::cert_store_add_certificate $hstore $cert]
     twapi::cert_release $cert

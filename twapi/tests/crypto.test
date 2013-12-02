@@ -35,23 +35,23 @@ namespace eval twapi::crypto::test {
     }
 
     proc encrypt_test {cctx sctx} {
-        lassign [twapi::sspi_encrypt $cctx       ] sig data padding
+        lassign [twapi::sspi_encrypt $cctx abc] sig data padding
         set data1 [twapi::sspi_decrypt $sctx $sig $data $padding]
         lassign [twapi::sspi_encrypt $cctx 123 -seqnum 1] sig data padding
         set data2 [twapi::sspi_decrypt $sctx $sig $data $padding]
         lassign [twapi::sspi_encrypt $cctx \001\002\003 -seqnum 2] sig data padding
         set data3 [twapi::sspi_decrypt $sctx $sig $data $padding]
-        return [equal_lists [list $data1 $data2 $data3] [list        123 \001\002\003]]
+        return [equal_lists [list $data1 $data2 $data3] [list abc 123 \001\002\003]]
     }
 
     proc encrypt_test_noseq {cctx sctx} {
-        lassign [twapi::sspi_encrypt $cctx       ] sig data padding
+        lassign [twapi::sspi_encrypt $cctx abc] sig data padding
         set data1 [twapi::sspi_decrypt $sctx $sig $data $padding]
         lassign [twapi::sspi_encrypt $cctx 123] sig data padding
         set data2 [twapi::sspi_decrypt $sctx $sig $data $padding]
         lassign [twapi::sspi_encrypt $cctx \001\002\003] sig data padding
         set data3 [twapi::sspi_decrypt $sctx $sig $data $padding]
-        return [equal_lists [list $data1 $data2 $data3] [list        123 \001\002\003]]
+        return [equal_lists [list $data1 $data2 $data3] [list abc 123 \001\002\003]]
     }
 
 
@@ -255,19 +255,19 @@ namespace eval twapi::crypto::test {
     test cert_store_release-1.0 {
         Release a store
     } -body {
-        twapi::cert_store_release [twapi::cert_memory_store_open]
+        twapi::cert_store_release [twapi::cert_temporary_store]
     } -result {}
 
-    test cert_memory_store_open-1.0 {
+    test cert_temporary_store-1.0 {
         Open a memory store
     } -body {
-        twapi::cert_store_release [twapi::cert_memory_store_open]
+        twapi::cert_store_release [twapi::cert_temporary_store]
     } -result ""
 
-    test cert_memory_store_open-1.1 {
+    test cert_temporary_store-1.1 {
         Open a memory store and add a certificate to it
     } -body {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cer [sampleencodedcert]
         twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
         set hcert [twapi::cert_store_enum_contents $hstore]
@@ -277,13 +277,125 @@ namespace eval twapi::crypto::test {
         twapi::cert_store_release $hstore
     } -result twapitestfull
 
-    test cert_memory_store_open-2.0 {
+    test cert_temporary_store-2.0 {
         Verify cert memory stores protected against double frees
     } -body {
-        set store [twapi::cert_memory_store_open]
+        set store [twapi::cert_temporary_store]
         twapi::cert_store_release $store
         twapi::cert_store_release $store
     } -result "*Pointer is not registered*" -returnCodes error -match glob
+
+    test cert_temporary_store-pfx-1.0 {
+        Open a PFX certificate store with empty password, no private keys
+    } -body {
+        set hstore [twapi::cert_temporary_store -pfx [twapi::cert_store_export_pfx [samplestore] ""]]
+        set count 0
+        twapi::cert_store_iterate $hstore hcert {
+            incr count [catch {twapi::cert_property $hcert key_prov_info}]
+        }
+        set count
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result 6
+
+    test cert_temporary_store-pfx-1.1 {
+        Open a PFX certificate store with non empty password, no private keys
+    } -body {
+        set hstore [twapi::cert_temporary_store -pfx [twapi::cert_store_export_pfx [samplestore] [twapi::conceal somerandompass]] -password [twapi::conceal somerandompass]]
+        set count 0
+        twapi::cert_store_iterate $hstore hcert {
+            incr count [catch {twapi::cert_property $hcert key_prov_info}]
+        }
+        set count
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result 6
+
+    test cert_temporary_store-pfx-2.0 {
+        Import a certificate store with password and private keys
+    } -body {
+        set hstore [twapi::cert_temporary_store -pfx [twapi::cert_store_export_pfx [storewithkeys] [twapi::conceal pkcspass] -exportprivatekeys 1] -password [twapi::conceal pkcspass]]
+        set count 0
+        twapi::cert_store_iterate $hstore hcert {
+            twapi::cert_property $hcert key_prov_info
+            incr count
+        }
+        set count
+    } -result 6
+
+    test cert_temporary_store-pfx-3.0 {
+        Import a certificate store -exportableprivatekeys
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test cert_temporary_store-pfx-4.0 {
+        Import a certificate store -userprotected
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test cert_temporary_store-pfx-5.0 {
+        Import a certificate store -keysettype
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test cert_temporary_store-pkcs12-1.0 {
+        Open a PKCS12 certificate store with password and private keys
+    } -body {
+        set hstore [twapi::cert_temporary_store -pkcs12 [twapi::cert_store_export_pfx [storewithkeys] [twapi::conceal pkcspass] -exportprivatekeys 1] -password [twapi::conceal pkcspass]]
+        set count 0
+        twapi::cert_store_iterate $hstore hcert {
+            twapi::cert_property $hcert key_prov_info
+            incr count
+        }
+        set count
+    } -result 6
+
+    test cert_temporary_store-serialized-1.0 {
+        Open a serialized certificate store
+    } -body {
+        set hstore [twapi::cert_temporary_store -serialized [twapi::cert_store_serialize [samplestore]]]
+        set count 0
+        twapi::cert_store_iterate $hstore hcert {
+            incr count
+        }
+        set count
+    } -result 6
+
+    test cert_temporary_store-pkcs7-1.0 {
+        Open a PKCS7 certificate store
+    } -body {
+        set hstore [twapi::cert_temporary_store -pkcs7 [twapi::cert_store_export_pkcs7 [samplestore]]]
+        set count 0
+        twapi::cert_store_iterate $hstore hcert { incr count }
+        set count
+    } -result 6
+
+    test cert_temporary_store-pkcs7-1.1 {
+        Open a PKCS7 certificate store (der)
+    } -body {
+        set hstore [twapi::cert_temporary_store -pkcs7 [twapi::cert_store_export_pkcs7 [samplestore] -encoding der] -encoding der]
+        set count 0
+        twapi::cert_store_iterate $hstore hcert { incr count }
+        set count
+    } -result 6
+
+    test cert_temporary_store-pkcs7-1.2 {
+        Open a PKCS7 certificate store (pem)
+    } -body {
+        set hstore [twapi::cert_temporary_store -pkcs7 [twapi::cert_store_export_pkcs7 [samplestore] -encoding pem] -encoding pem]
+        set count 0
+        twapi::cert_store_iterate $hstore hcert { incr count }
+        set count
+    } -result 6
+
+
+    ################################################################
 
     test cert_file_store_open-1.0 {
         Open a non-existing file store
@@ -413,6 +525,8 @@ namespace eval twapi::crypto::test {
         catch {twapi::cert_store_release [twapi::cert_file_store_open $storepath]} msg
         catch {twapi::cert_store_release [twapi::cert_file_store_open $storepath -readonly 0]} msg2
         list $msg $msg2 [twapi::cert_store_release [twapi::cert_file_store_open $storepath -readonly 1]]
+    } -cleanup {
+        file attributes $storepath -readonly 0
     } -result {{Access is denied.} {Access is denied.} {}}
 
     test cert_file_store_open-5.0 {
@@ -682,7 +796,7 @@ namespace eval twapi::crypto::test {
     test cert_store_find_certificate-1.2 {
         Find certificate any - no cert, memory store
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
     } -body {
         twapi::cert_store_find_certificate $hstore any ""
     } -cleanup {
@@ -1127,7 +1241,7 @@ namespace eval twapi::crypto::test {
     test cert_store_add_encoded_certificate-1.0 {
         Add encoded certificate to store
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cer [sampleencodedcert]
     } -body {
         twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
@@ -1141,7 +1255,7 @@ namespace eval twapi::crypto::test {
     test cert_store_add_encoded_certificate-2.0 {
         Add duplicate encoded certificate to store
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cer [sampleencodedcert]
         twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
     } -body {
@@ -1153,7 +1267,7 @@ namespace eval twapi::crypto::test {
     test cert_store_add_encoded_certificate-2.1 {
         Add duplicate encoded certificate to store -disposition preserve
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cer [sampleencodedcert]
         twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition preserve]
     } -body {
@@ -1165,7 +1279,7 @@ namespace eval twapi::crypto::test {
     test cert_store_add_encoded_certificate-2.2 {
         Add duplicate encoded certificate to store -disposition overwrite
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cer [sampleencodedcert]
         twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition overwrite]
     } -body {
@@ -1183,7 +1297,7 @@ namespace eval twapi::crypto::test {
     test cert_store_add_encoded_certificate-2.3 {
         Add duplicate encoded certificate to store -disposition duplicate
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cer [sampleencodedcert]
         twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition duplicate]
     } -body {
@@ -1201,7 +1315,7 @@ namespace eval twapi::crypto::test {
     test cert_store_add_encoded_certificate-2.4 {
         Add duplicate encoded certificate to store -disposition update
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cer [sampleencodedcert]
         twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition update]
     } -body {
@@ -1213,7 +1327,7 @@ namespace eval twapi::crypto::test {
     test cert_store_add_encoded_certificate-2.5 {
         Add duplicate encoded certificate to store -disposition update (newer cert)
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cer [sampleencodedcert]
         twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition update]
     } -constraints {
@@ -1233,12 +1347,12 @@ namespace eval twapi::crypto::test {
     } -result {1 twapitestfull}
 
     test cert_store_add_encoded_certificate-3.0 {
-        Add encoded certificate to store -format cer
+        Add encoded certificate to store -encoding der
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cer [sampleencodedcert]
     } -body {
-        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -format cer]
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -encoding der]
         set hcert [twapi::cert_store_enum_contents $hstore]
         twapi::cert_subject_name $hcert
     } -cleanup {
@@ -1247,40 +1361,12 @@ namespace eval twapi::crypto::test {
     } -result twapitestfull
 
     test cert_store_add_encoded_certificate-3.1 {
-        Add encoded certificate to store -format der
+        Add encoded certificate to store -encoding pem
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
-        set cer [sampleencodedcert]
-    } -body {
-        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -format der]
-        set hcert [twapi::cert_store_enum_contents $hstore]
-        twapi::cert_subject_name $hcert
-    } -cleanup {
-        twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
-    } -result twapitestfull
-
-    test cert_store_add_encoded_certificate-3.2 {
-        Add encoded certificate to store -format pem
-    } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set pem [googleencodedcert]
     } -body {
-        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $pem -format pem]
-        set hcert [twapi::cert_store_enum_contents $hstore]
-        twapi::cert_subject_name $hcert
-    } -cleanup {
-        twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
-    } -result www.google.com
-
-    test cert_store_add_encoded_certificate-3.3 {
-        Add encoded certificate to store -format base64
-    } -setup {
-        set hstore [twapi::cert_memory_store_open]
-        set pem [googleencodedcert]
-    } -body {
-        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $pem -format base64]
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $pem -encoding pem]
         set hcert [twapi::cert_store_enum_contents $hstore]
         twapi::cert_subject_name $hcert
     } -cleanup {
@@ -1371,18 +1457,44 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    test cert_store_export_pkcs12 {
-        TBD
+    test cert_store_export_pkcs12-1.0 {
+        Export a certificate store with password - -exportprivatekeys 1, openssl
     } -body {
-        TBD 
-    } -constraints {
-        TBD
-    } -result TBD
+        set path [write_test_file [twapi::cert_store_export_pkcs12 [storewithkeys] [twapi::conceal pkcspass] -exportprivatekeys 1]]
+        set output [openssl pkcs12 -in $path -info -passin pass:pkcspass -noout]
+        list [llength [regexp -all -inline "Shrouded Keybag" $output]] [llength [regexp -all -inline "Certificate bag" $output]] 
+    } -result {6 6}
 
     ################################################################
 
-    test cert_store_export_pkcs7 {
-        TBD
+    test cert_store_export_pkcs7-1.0 {
+        Export a certificate store as pkcs7
+    } -body {
+        set path [write_test_file [twapi::cert_store_export_pkcs7 [samplestore]]]
+        set output [openssl pkcs7 -in $path -noout -inform der -print_certs]
+        llength [regexp -inline -all {subject=/CN=twapitest} $output]
+    } -result 6
+
+    test cert_store_export_pkcs7-2.0 {
+        Export a certificate store as pkcs7 -encoding der
+    } -body {
+        set path [write_test_file [twapi::cert_store_export_pkcs7 [samplestore] -encoding der]]
+        set output [openssl pkcs7 -in $path -noout -inform der -print_certs]
+        llength [regexp -inline -all {subject=/CN=twapitest} $output]
+    } -result 6
+
+    test cert_store_export_pkcs7-2.1 {
+        Export a certificate store as pkcs7 -encoding pem
+    } -body {
+        set path [write_test_file [twapi::cert_store_export_pkcs7 [samplestore] -encoding pem]]
+        set output [openssl pkcs7 -in $path -noout -print_certs]
+        llength [regexp -inline -all {subject=/CN=twapitest} $output]
+    } -result 6
+
+    ################################################################
+
+    test cert_pkcs7_store_open {
+        Open a pkcs 7 certificate store
     } -body {
         TBD 
     } -constraints {
@@ -1392,7 +1504,7 @@ namespace eval twapi::crypto::test {
     ################################################################
 
     test cert_store_serialize {
-        TBD
+        Serialize a certificate store
     } -body {
         TBD 
     } -constraints {
@@ -2181,7 +2293,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set cert [samplecert]
     } -body {
-        set cert2 [twapi::cert_import [twapi::cert_export $cert -format der]]
+        set cert2 [twapi::cert_import [twapi::cert_export $cert -encoding der]]
         string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
     } -cleanup {
         twapi::cert_release $cert
@@ -2193,7 +2305,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set cert [samplecert]
     } -body {
-        set cert2 [twapi::cert_import [twapi::cert_export $cert] -format der]
+        set cert2 [twapi::cert_import [twapi::cert_export $cert] -encoding der]
         string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
     } -cleanup {
         twapi::cert_release $cert
@@ -2205,31 +2317,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set cert [samplecert]
     } -body {
-        set cert2 [twapi::cert_import [twapi::cert_export $cert -format der] -format der]
-        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
-    } -cleanup {
-        twapi::cert_release $cert
-        twapi::cert_release $cert2
-    } -result 1
-
-    test cert_export_import-1.4 {
-        Export and import certificates (cer, cer)
-    } -setup {
-        set cert [samplecert]
-    } -body {
-        set cert2 [twapi::cert_import [twapi::cert_export $cert -format cer] -format cer]
-        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
-    } -cleanup {
-        twapi::cert_release $cert
-        twapi::cert_release $cert2
-    } -result 1
-
-    test cert_export_import-1.5 {
-        Export and import certificates (cer, der)
-    } -setup {
-        set cert [samplecert]
-    } -body {
-        set cert2 [twapi::cert_import [twapi::cert_export $cert -format cer] -format der]
+        set cert2 [twapi::cert_import [twapi::cert_export $cert -encoding der] -encoding der]
         string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
     } -cleanup {
         twapi::cert_release $cert
@@ -2241,31 +2329,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set cert [samplecert]
     } -body {
-        set cert2 [twapi::cert_import [twapi::cert_export $cert -format pem] -format pem]
-        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
-    } -cleanup {
-        twapi::cert_release $cert
-        twapi::cert_release $cert2
-    } -result 1
-
-    test cert_export_import-2.1 {
-        Export and import certificates (pem, base64)
-    } -setup {
-        set cert [samplecert]
-    } -body {
-        set cert2 [twapi::cert_import [twapi::cert_export $cert -format pem] -format base64]
-        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
-    } -cleanup {
-        twapi::cert_release $cert
-        twapi::cert_release $cert2
-    } -result 1
-
-    test cert_export_import-2.2 {
-        Export and import certificates (base64, base64)
-    } -setup {
-        set cert [samplecert]
-    } -body {
-        set cert2 [twapi::cert_import [twapi::cert_export $cert -format base64] -format base64]
+        set cert2 [twapi::cert_import [twapi::cert_export $cert -encoding pem] -encoding pem]
         string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
     } -cleanup {
         twapi::cert_release $cert
@@ -2277,31 +2341,27 @@ namespace eval twapi::crypto::test {
     test cert_enhkey_usage-1.0 {
         Cert enhanced key usage
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set cert [pick_cert $hstore 0]
+        set cert [samplecert]
     } -body {
         lsort [twapi::cert_enhkey_usage $cert]
     } -cleanup {
         twapi::cert_release $cert
-        twapi::cert_store_release $hstore
     } -result {client_auth code_signing email_protection ipsec_end_system ipsec_tunnel ipsec_user ocsp_signing server_auth timestamp_signing}
 
     test cert_enhkey_usage-1.1 {
         Cert enhanced key usage - property (not present)
     } -setup {
-        set hstore [twapi::cert_file_store_open [temp_file_store_path]]
-        set cert [pick_cert $hstore 0]
+        set cert [samplecert]
     } -body {
         lsort [twapi::cert_enhkey_usage $cert property]
     } -cleanup {
         twapi::cert_release $cert
-        twapi::cert_store_release $hstore
     } -result *
 
     test cert_enhkey_usage-1.2 {
         Cert enhkey usage - extension not present
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert min]]
     } -body {
         lsort [twapi::cert_enhkey_usage $cert]
@@ -2313,7 +2373,7 @@ namespace eval twapi::crypto::test {
     test cert_enhkey_usage-1.3 {
         Cert enhkey usage - extension, extension not present
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert min]]
     } -body {
         lsort [twapi::cert_enhkey_usage $cert extension]
@@ -2325,7 +2385,7 @@ namespace eval twapi::crypto::test {
     test cert_enhkey_usage-2.0 {
         Cert enhkey usage (property)
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert min]]
         twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
     } -body {
@@ -2338,7 +2398,7 @@ namespace eval twapi::crypto::test {
     test cert_enhkey_usage-2.1 {
         Cert enhkey usage (property)
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert]]
         twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
     } -body {
@@ -2351,7 +2411,7 @@ namespace eval twapi::crypto::test {
     test cert_enhkey_usage-2.2 {
         Cert enhkey usage (property, both)
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert]]
         twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
     } -body {
@@ -2364,7 +2424,7 @@ namespace eval twapi::crypto::test {
     test cert_enhkey_usage-2.3 {
         Cert enhkey usage (property, propertyonly)
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert min]]
         twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
     } -body {
@@ -2377,7 +2437,7 @@ namespace eval twapi::crypto::test {
     test cert_enhkey_usage-2.4 {
         Cert enhkey usage (property, propertyonly)
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert]]
         twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
     } -body {
@@ -2390,7 +2450,7 @@ namespace eval twapi::crypto::test {
     test cert_enhkey_usage-2.5 {
         Cert enhkey usage (property, extension)
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert min]]
         twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
     } -body {
@@ -2403,7 +2463,7 @@ namespace eval twapi::crypto::test {
     test cert_enhkey_usage-2.6 {
         Cert enhkey usage (property, extension)
     } -setup {
-        set hstore [twapi::cert_memory_store_open]
+        set hstore [twapi::cert_temporary_store]
         set cert [twapi::cert_store_add_encoded_certificate $hstore [sampleencodedcert]]
         twapi::cert_property_set $cert enhkey_usage {server_auth code_signing}
     } -body {
@@ -2433,7 +2493,7 @@ namespace eval twapi::crypto::test {
         twapi::cert_thumbprint $cert
     } -cleanup {
         twapi::cert_release $cert
-    } -result cbd73965009912155e751d5f9879cf83530885fe
+    } -result 6c4dc7e773dba9bbe680d66554b6cfd595cc4c0c
 
     ################################################################
 
@@ -2509,7 +2569,7 @@ namespace eval twapi::crypto::test {
         twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
     } -body {
         set x509_name "CN=$subject SSL Server, O=Twapi Open Source, OU=test"
-        set req [twapi::cert_request_create $x509_name $crypt keyexchange -purpose server -format pem]
+        set req [twapi::cert_request_create $x509_name $crypt keyexchange -purpose server -encoding pem]
         set path [write_test_file $req w]
         set output [openssl req -in $path -noout -text -verify]
         regexp "^Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Key Encipherment, Key Agreement\n.+X509v3 Extended Key Usage: critical.+TLS Web Server Authentication\n.+verify OK$" $output
@@ -2539,7 +2599,7 @@ namespace eval twapi::crypto::test {
         set x509_name "CN=$subject Full, O=Twapi Open Source, OU=test"
         set altnames [list [list [list email ${subject}@twapitest.com] [list dns ${subject}.twapitest.com] [list url http://${subject}.twapitest.com] [list directory [twapi::cert_name_to_blob "CN=${subject}altname"]] [list ip [binary format c4 {127 0 0 1}]]]]
         set req [twapi::cert_request_create $x509_name $crypt keyexchange \
-                     -format pem \
+                     -encoding pem \
                      -keyusage [list {crl_sign data_encipherment digital_signature key_agreement key_cert_sign key_encipherment non_repudiation} 1] \
                      -enhkeyusage [list {client_auth code_signing email_protection ipsec_end_system  ipsec_tunnel ipsec_user server_auth timestamp_signing ocsp_signing} 0] \
                      -altnames $altnames]
@@ -2563,7 +2623,7 @@ namespace eval twapi::crypto::test {
         set x509_name "CN=$subject Full, O=Twapi Open Source, OU=test"
         set altnames [list [list [list email ${subject}@twapitest.com] [list dns ${subject}.twapitest.com] [list url http://${subject}.twapitest.com] [list directory [twapi::cert_name_to_blob "CN=${subject}altname"]] [list ip [binary format c4 {127 0 0 1}]]]]
         set req [twapi::cert_request_create $x509_name $crypt keyexchange \
-                     -format der \
+                     -encoding der \
                      -keyusage [list {crl_sign data_encipherment digital_signature key_agreement key_cert_sign key_encipherment non_repudiation} 1] \
                      -enhkeyusage [list {client_auth code_signing email_protection ipsec_end_system  ipsec_tunnel ipsec_user server_auth timestamp_signing ocsp_signing} 0] \
                      -altnames $altnames]
@@ -2594,7 +2654,7 @@ namespace eval twapi::crypto::test {
         set x509_name "/CN=$subject/O=Twapi/OU=test"
         set req [openssl req -new -batch -nodes -keyout [tcltest::makeFile "" $subject.key] -subj $x509_name]
     } -body {
-        set csr [twapi::cert_request_parse $req -format pem]
+        set csr [twapi::cert_request_parse $req -encoding pem]
         list \
             [dict get $csr version] \
             [string equal [dict get $csr subject] "CN=$subject, O=Twapi, OU=test"] \
@@ -2602,7 +2662,6 @@ namespace eval twapi::crypto::test {
             [dict exists $csr extensions] \
             [dict exists $csr pubkey]
     } -result {0 1 {} 0 1}
-
     
     ################################################################
 
@@ -3157,6 +3216,6 @@ namespace eval twapi::crypto::test {
     } -result TBD
 }
 
-twapi::crypto::test::cleanup_test_cert_files
+cleanup_test_cert_files
 ::tcltest::cleanupTests
 namespace delete ::twapi::crypto::test
