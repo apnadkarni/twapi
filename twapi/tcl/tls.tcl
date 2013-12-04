@@ -74,7 +74,7 @@ proc twapi::tls::_socket {args} {
         }
         catch {chan close $chan}
         if {[string match "wrong # args*" [trapresult]]} {
-            badargs! "wrong # args: should be \"tls_socket ?-credentials creds? ?-verifier command? ?-peersubject peer? ?-myaddr addr? ?-myport myport? ?-async? host port\" or \"socket ?-credentials creds? ?-verifier command? -server command ?-myaddr addr? port\""
+            badargs! "wrong # args: should be \"tls_socket ?-credentials creds? ?-verifier command? ?-peersubject peer? ?-myaddr addr? ?-myport myport? ?-async? host port\" or \"tls_socket ?-credentials creds? ?-verifier command? -server command ?-myaddr addr? port\""
         } else {
             rethrow
         }
@@ -82,7 +82,6 @@ proc twapi::tls::_socket {args} {
 
     return $chan
 }
-
 
 proc twapi::tls::_accept {listener so raddr raport} {
     variable _channels
