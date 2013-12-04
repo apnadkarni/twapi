@@ -4,27 +4,394 @@
 #
 # See the file LICENSE for license
 
-# This file contains tests for commands from crypto.tcl
+# This file contains tests for twapi TLS commands
+# Most of this forked from the Tcl TLS extension tests tlsIO.test file
+# Therefore it does not follow the structure of the other TWAPI test files.
 
-package require tcltest
-eval tcltest::configure $argv
 
-source [file join [file dirname [info script]] testutil.tcl]
-load_twapi_package twapi_crypto
+# This file contains a collection of tests for one or more of the Tcl
+# built-in commands.  Sourcing this file into Tcl runs the tests and
+# generates output for errors.  No output means no errors were found.
+#
+# Copyright (c) 1994-1996 Sun Microsystems, Inc.
+# Copyright (c) 1998-2000 Ajuba Solutions. 
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+# RCS: @(#) $Id: tlsIO.test,v 1.23 2008/03/19 22:06:13 hobbs2 Exp $
 
-namespace eval twapi::crypto::test {
-    namespace import ::tcltest::test
+# Running socket tests with a remote server:
+# ------------------------------------------
+# 
+# Some tests in socket.test depend on the existence of a remote server to
+# which they connect. The remote server must be an instance of tcltest and it
+# must run the script found in the file "remote.tcl" in this directory. You
+# can start the remote server on any machine reachable from the machine on
+# which you want to run the socket tests, by issuing:
+# 
+#     tcltest remote.tcl -port 8048	# Or choose another port number.
+# 
+# If the machine you are running the remote server on has several IP
+# interfaces, you can choose which interface the server listens on for
+# connections by specifying the -address command line flag, so:
+# 
+#     tcltest remote.tcl -address your.machine.com
+# 
+# These options can also be set by environment variables. On Unix, you can
+# type these commands to the shell from which the remote server is started:
+# 
+#     shell% setenv serverPort 8048
+#     shell% setenv serverAddress your.machine.com
+# 
+# and subsequently you can start the remote server with:
+# 
+#     tcltest remote.tcl
+# 
+# to have it listen on port 8048 on the interface your.machine.com.
+#     
+# When the server starts, it prints out a detailed message containing its
+# configuration information, and it will block until killed with a Ctrl-C.
+# Once the remote server exists, you can run the tests in socket.test with
+# the server by setting two Tcl variables:
+# 
+#     % set remoteServerIP <name or address of machine on which server runs>
+#     % set remoteServerPort 8048
+# 
+# These variables are also settable from the environment. On Unix, you can:
+# 
+#     shell% setenv remoteServerIP machine.where.server.runs
+#     shell% setenv remoteServerPort 8048
+# 
+# The preamble of the socket.test file checks to see if the variables are set
+# either in Tcl or in the environment; if they are, it attempts to connect to
+# the server. If the connection is successful, the tests using the remote
+# server will be performed; otherwise, it will attempt to start the remote
+# server (via exec) on platforms that support this, on the local host,
+# listening at port 8048. If all fails, a message is printed and the tests
+# using the remote server are not performed.
 
-    test tsl_socket-1.0 {
-        TBD
-    } -constraints {
-        TBD
-    } -body {
-        TBD
-    } -result TBD
-    
-
+if {[lsearch [namespace children] ::tcltest] == -1} {
+    package require tcltest
+    namespace import ::tcltest::*
 }
 
+eval tcltest::configure $argv
+
+
+proc dputs {msg} { return ; puts stderr $msg ; flush stderr }
+
+set tlsServerPort 8048
+
+# This sequence is used in spawned processes as well.
+# So store it in a var so it can be easily invoked in children
+set initScript {
+    source [file join [file dirname [info script]] testutil.tcl]
+    load_twapi_package twapi_crypto
+
+    proc verifytrue {chan ctx} {return 1}
+    proc verifyfalse {chan ctx} {return 0}
+    proc verify {remotename chan ctx} {
+        set remote_cert [twapi::sspi_remote_cert $ctx]
+        twapi::trap {
+            if {$remote_name eq ""} {
+                set status [twapi::cert_tls_verify $remote_cert -hstore $::certStore -revocationcheck none -trustedroots $caCert]
+            } else {
+                set status [twapi::cert_tls_verify $remote_cert -hstore $::certStore -revocationcheck none -trustedroots $caCert -server $remote_name]
+            }
+            return [string equal $status ok]
+        } finally {
+            twapi::cert_release $remote_cert
+        }
+    } 
+
+
+    # Where the certificates are
+    set pfxFile [file join [file dirname [info script]] certs twapitest.pfx]
+    # Set up the store containing the certificates
+    set certStore [twapi::cert_temporary_store -pfx [read_file $pfxFile rb]]
+    # Set up the client and server credentials
+    set clientCert [twapi::cert_store_find_certificate $certStore subject_substring twapitestclient]
+    set serverCert [twapi::cert_store_find_certificate $certStore subject_substring twapitestserver]
+        set serverCert [twapi::cert_store_find_certificate $certStore subject_substring twapitestserver]
+    # TBD - check if certs can be released as soon as we obtain credentials
+    set clientCreds [twapi::sspi_acquire_credentials -credentials [twapi::sspi_schannel_credentials -certificates [list $clientCert]] -package unisp -role client]
+    set serverCreds [twapi::sspi_acquire_credentials -credentials [twapi::sspi_schannel_credentials -certificates [list $serverCert]] -package unisp -role server]
+}
+# Set up certs in this process
+eval $initScript
+
+# TBD - need to test separate creds for tls1, tls1.1, ssl3 etc.
+# TBD - need to test separate creds for -sessionlifespan
+
+#
+# Test configuration
+
+# Some tests require the testthread and exec commands
+
+set ::tcltest::testConstraints(testthread) \
+	[expr {[info commands testthread] != {}}]
+set ::tcltest::testConstraints(exec) [expr {[info commands exec] != {}}]
+
+#
+# If remoteServerIP or remoteServerPort are not set, check in the
+# environment variables for externally set values.
+#
+
+if {![info exists remoteServerIP]} {
+    if {[info exists env(remoteServerIP)]} {
+	set remoteServerIP $env(remoteServerIP)
+    }
+}
+if {![info exists remoteServerPort]} {
+    if {[info exists env(remoteServerPort)]} {
+	set remoteServerPort $env(remoteServerPort)
+    } else {
+        if {[info exists remoteServerIP]} {
+	    set remoteServerPort $tlsServerPort
+        }
+    }
+}
+
+# TBD - do_handshake not ported and handshake not implemented by twapi
+proc do_handshake {s {type readable} {cmd {}} args} {
+    if {[eof $s]} {
+	close $s
+	dputs "handshake: eof"
+	set ::do_handshake "eof"
+    } elseif {[catch {tls::handshake $s} result]} {
+	# Some errors are normal.
+	dputs "handshake: $result"
+    } elseif {$result == 1} {
+	# Handshake complete
+	if {[llength $args]} { eval [list fconfigure $s] $args }
+	if {$cmd == ""} {
+	    fileevent $s $type ""
+	} else {
+	    fileevent $s $type "$cmd [list $s]"
+	}
+	dputs "handshake: complete"
+	set ::do_handshake "complete"
+    } else {
+	dputs "handshake: in progress"
+    }
+}
+
+#
+# Check if we're supposed to do tests against the remote server
+#
+
+set doTestsWithRemoteServer 0
+if {![info exists remoteServerIP] && ($tcl_platform(platform) != "macintosh")} {
+    set remoteServerIP 127.0.0.1
+}
+if {($doTestsWithRemoteServer == 1) && (![info exists remoteServerPort])} {
+    set remoteServerPort $tlsServerPort
+}
+
+# Attempt to connect to a remote server if one is already running. If it
+# is not running or for some other reason the connect fails, attempt to
+# start the remote server on the local host listening on port 8048. This
+# is only done on platforms that support exec (i.e. not on the Mac). On
+# platforms that do not support exec, the remote server must be started
+# by the user before running the tests.
+
+set remoteProcChan ""
+set commandSocket ""
+if {$doTestsWithRemoteServer == 0} {
+    set noRemoteTestReason "doTestsWithRemoteServer initialized to 0"
+} else {
+    catch {close $commandSocket}
+    if {[catch {set commandSocket [twapi::tls_socket -credentials $clientCreds \
+                                       $remoteServerIP $remoteServerPort]}] != 0} {
+	if {[info commands exec] == ""} {
+	    set noRemoteTestReason "can't exec"
+	    set doTestsWithRemoteServer 0
+	} else {
+	    set remoteServerIP 127.0.0.1
+	    set remoteFile [file join [pwd] remote.tcl]
+	    if {[catch {set remoteProcChan \
+		    [open "|[list $::tcltest::tcltest $remoteFile \
+		    -serverIsSilent -port $remoteServerPort \
+		    -address $remoteServerIP]" w+]} msg] == 0} {
+		after 1000
+		if {[catch {set commandSocket [twapi::tls_socket -credentials $clientCreds \
+                                                   $remoteServerIP $remoteServerPort]} msg] == 0} {
+		    fconfigure $commandSocket -translation crlf -buffering line
+		} else {
+		    set noRemoteTestReason $msg
+		    set doTestsWithRemoteServer 0
+		}
+	    } else {
+		set noRemoteTestReason "$msg $::tcltest::tcltest"
+		set doTestsWithRemoteServer 0
+	    }
+	}
+    } else {
+	fconfigure $commandSocket -translation crlf -buffering line
+    }
+}
+
+# Some tests are run only if we are doing testing against a remote server.
+set ::tcltest::testConstraints(doTestsWithRemoteServer) $doTestsWithRemoteServer
+if {$doTestsWithRemoteServer == 0} {
+    if {[string first s $::tcltest::verbose] != -1} {
+    	puts "Skipping tests with remote server. See [info script] for"
+	puts "information on how to run remote server."
+	puts "Reason for not doing remote tests: $noRemoteTestReason"
+    }
+}
+
+#
+# If we do the tests, define a command to send a command to the
+# remote server.
+#
+
+if {$doTestsWithRemoteServer == 1} {
+    proc sendCommand {c} {
+	global commandSocket
+
+	if {[eof $commandSocket]} {
+	    error "remote server disappeared"
+	}
+
+	if {[catch {puts $commandSocket $c} msg]} {
+	    error "remote server disappeared: $msg"
+	}
+	if {[catch {puts $commandSocket "--Marker--Marker--Marker--"} msg]} {
+	    error "remote server disappeared: $msg"
+	}
+
+	set resp ""
+	while {1} {
+	    set line [gets $commandSocket]
+	    if {[eof $commandSocket]} {
+		error "remote server disappeared"
+	    }
+	    if {[string compare $line "--Marker--Marker--Marker--"] == 0} {
+		if {[string compare [lindex $resp 0] error] == 0} {
+		    error [lindex $resp 1]
+		} else {
+		    return [lindex $resp 1]
+		}
+	    } else {
+		append resp $line "\n"
+	    }
+	}
+    }
+
+    sendCommand [list proc dputs [info args dputs] [info body dputs]]
+
+    proc TBDsendCertValues {} {
+	# We need to be able to send certificate values that normalize
+	# filenames across platforms
+	sendCommand {
+	    set certsDir	[file join [file dirname [info script]] certs]
+	    set serverCert	[file join $certsDir server.pem]
+	    set clientCert	[file join $certsDir client.pem]
+	    set caCert		[file join $certsDir cacert.pem]
+	    set serverKey	[file join $certsDir server.key]
+	    set clientKey	[file join $certsDir client.key]
+	}
+    }
+}
+
+test tlsIO-1.1 {arg parsing for socket command} {socket} {
+    list [catch {twapi::tls_socket -server} msg] $msg
+} {1 {No value supplied for option '-server'}}
+
+test tlsIO-1.2 {arg parsing for socket command} {socket} {
+    list [catch {twapi::tls_socket -server foo} msg] $msg
+} {1 {Option -credentials must be specified for server sockets}}
+
+test tlsIO-1.3 {arg parsing for socket command} {socket} {
+    list [catch {twapi::tls_socket -myaddr} msg] $msg
+} {1 {No value supplied for option '-myaddr'}}
+
+test tlsIO-1.4 {arg parsing for socket command} {socket} {
+    list [catch {twapi::tls_socket -myaddr 127.0.0.1} msg] $msg
+} {1 {wrong # args: should be "tls_socket ?-credentials creds? ?-verifier command? ?-peersubject peer? ?-myaddr addr? ?-myport myport? ?-async? host port" or "tls_socket ?-credentials creds? ?-verifier command? -server command ?-myaddr addr? port"}}
+
+test tlsIO-1.5 {arg parsing for socket command} {socket} {
+    list [catch {twapi::tls_socket -myport} msg] $msg
+} {1 {No value supplied for option '-myport'}}
+
+test tlsIO-1.6 {arg parsing for socket command} {socket} {
+    list [catch {twapi::tls_socket -myport xxxx} msg] $msg
+} {1 {Non-integer value 'xxxx' specified for option '-myport'}}
+
+test tlsIO-1.7 {arg parsing for socket command} {socket} {
+    list [catch {twapi::tls_socket -myport 2522} msg] $msg
+} {1 {wrong # args: should be "tls_socket ?-credentials creds? ?-verifier command? ?-peersubject peer? ?-myaddr addr? ?-myport myport? ?-async? host port" or "tls_socket ?-credentials creds? ?-verifier command? -server command ?-myaddr addr? port"}}
+
+test tlsIO-1.8 {arg parsing for socket command} {socket} {
+    list [catch {twapi::tls_socket -froboz} msg] $msg
+} {1 {Invalid option '-froboz'. Must be one of -myaddr, -myport, -async, -server, -peersubject, -credentials, -verifier}}
+
+test tlsIO-1.9 {arg parsing for socket command} {socket} {
+    list [catch {twapi::tls_socket -server foo -myport 2521 3333} msg] $msg
+} {1 {Option -credentials must be specified for server sockets}}
+
+test tlsIO-1.10 {arg parsing for socket command} {socket} {
+    list [catch {twapi::tls_socket host 2528 -junk} msg] $msg
+} {1 {wrong # args: should be "tls_socket ?-credentials creds? ?-verifier command? ?-peersubject peer? ?-myaddr addr? ?-myport myport? ?-async? host port" or "tls_socket ?-credentials creds? ?-verifier command? -server command ?-myaddr addr? port"}}
+
+test tlsIO-1.11 {arg parsing for socket command} {socket} {
+    list [catch {twapi::tls_socket -server callback 2520 --} msg] $msg
+} {1 {Option -credentials must be specified for server sockets}}
+
+test tlsIO-1.12 {arg parsing for socket command} {socket} {
+    list [catch {twapi::tls_socket foo badport} msg] $msg
+} {1 {expected integer but got "badport"}}
+
+
+test tlsIO-2.1 {tcp connection} {socket stdio} {
+    removeFile script
+    set f [open script w]
+    puts $f $initScript
+    puts $f {
+	set timer [after 5000 "set x timed_out"]
+    }
+    puts $f {set f [twapi::tls_socket -server accept -credentials $serverCreds -verifier verifytrue 8828]}
+    puts $f {
+	proc accept {file addr port} {
+	    global x
+	    set x done
+            close $file
+	}
+	puts ready
+	vwait x
+	after cancel $timer
+	close $f
+	puts $x
+    }
+    close $f
+    set f [open "|[list $::tcltest::tcltest script]" r]
+    gets $f x
+    if {[catch {twapi::tls_socket -credentials $clientCreds \
+                    -verifier verifytrue \
+                    127.0.0.1 8828} msg]} {
+        set x "$msg"
+    } else {
+        lappend x [gets $f]
+        close $msg
+    }
+    lappend x [gets $f]
+    close $f
+    set x
+} {ready done {}}
+
+
+
+
+
+#
+# Cleanup
+
+twapi::sspi_free_credentials $clientCreds
+twapi::sspi_free_credentials $serverCreds
+twapi::cert_release $clientCert
+twapi::cert_release $serverCert
+twapi::cert_store_release $certStore
 ::tcltest::cleanupTests
-namespace delete ::twapi::crypto::test
+

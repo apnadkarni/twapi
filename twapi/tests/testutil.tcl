@@ -1373,8 +1373,9 @@ proc read_file {path {mode r}} {
 proc samplestore {} {
     global samplestore
     if {![info exists samplestore]} {
+        # TBD - may be just read in the PFX file instead ?
         set samplestore [twapi::cert_temporary_store]
-        foreach suff {ca intermediate server client full min} {
+        foreach suff {ca intermediate server client altserver full min} {
             twapi::cert_release [twapi::cert_store_add_encoded_certificate $samplestore [sampleencodedcert $suff]]
         }
     }
@@ -1388,7 +1389,6 @@ proc storewithkeys {} {
     }
     return $storewithkeys
 }
-
 
 # Returns revoked cert. Must be released by caller
 proc revokedcert {} {
