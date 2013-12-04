@@ -2675,7 +2675,7 @@ namespace eval twapi::crypto::test {
         twapi::cert_release $hcert
     } -result ok
 
-    test cert_tls_verify-1.0 {
+    test cert_tls_verify-1.1 {
         Verify TLS certificate with trusted system root (client)
     } -setup {
         set hcert [googlecert]
@@ -2684,6 +2684,34 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
+
+    test cert_tls_verify-1.2 {
+        Verify TLS certificate - common name matches (server)
+    } -setup {
+        set ca [samplecert ca]
+        set server [samplecert server]
+    } -body {
+        twapi::cert_tls_verify $server -revocationcheck none -trustedroots [list $ca] -hstore [samplestore] -server twapitestserver
+    } -cleanup {
+        twapi::cert_release $ca
+        twapi::cert_release $server
+    } -result ok
+
+    test cert_tls_verify-1.3 {
+        Verify TLS certificate - DNS name matches
+    } -setup {
+        set ca [samplecert ca]
+        set server [samplecert altserver]
+    } -body {
+        # Note altserver has no CN in subject, otherwise that would 
+        # have been used
+        list \
+            [twapi::cert_tls_verify $server -revocationcheck none -trustedroots [list $ca] -hstore [samplestore] -server altserver.twapitest.com] \
+            [twapi::cert_tls_verify $server -revocationcheck none -trustedroots [list $ca] -hstore [samplestore] -server altserver2.twapitest.com]
+    } -cleanup {
+        twapi::cert_release $ca
+        twapi::cert_release $server
+    } -result {ok ok}
 
     test cert_tls_verify-2.0 {
         Verify TLS certificate with trusted system root (cnmatch)
