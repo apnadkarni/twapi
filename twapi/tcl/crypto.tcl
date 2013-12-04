@@ -629,9 +629,6 @@ proc twapi::cert_create {subject pubkey cissuer args} {
         lappend opts(extensions) [_make_altnames_ext $issuer_altnames 0 1]
     }
 
-    # TBD Issuer altnames - get from issuer cert
-    # lappend exts [_make_altnames_ext $opts(altnames) $critical 1]
-
     # The subject key id in issuer's cert will become the
     # authority key id in the new cert
     # TBD - if fail, get the CERT_KEY_IDENTIFIER_PROP_ID
@@ -1948,7 +1945,7 @@ proc twapi::make_test_certs {{hstore {}} args} {
     crypt_free $crypt
 
     # Create the client and server certs
-    foreach cert_type {intermediate server client full min} {
+    foreach cert_type {intermediate server client altserver full min} {
         set container twapitest${cert_type}$uuid
         set subject $container
         set crypt [twapi::crypt_acquire $container -csp $csp -csptype $csptype -create 1]
@@ -1958,13 +1955,19 @@ proc twapi::make_test_certs {{hstore {}} args} {
                 set req [cert_request_create "CN=$container, C=IN, O=Tcl, OU=twapi" $crypt keyexchange -purpose ca]
                 set signing_cert $ca_certificate
             }
+            altserver {
+                # No COMMON name. Used for testing use of DNS altname
+                set altnames [list [list [list dns ${cert_type}.twapitest.com] [list dns ${cert_type}2.twapitest.com]]]
+                set req [cert_request_create "C=IN, O=Tcl, OU=twapi, OU=$container" $crypt keyexchange -purpose $cert_type -altnames $altnames]
+                set signing_cert $ca_certificate
+            }
             client -
             server {
                 set req [cert_request_create "CN=$container, C=IN, O=Tcl, OU=twapi" $crypt keyexchange -purpose $cert_type]
                 set signing_cert $intermediate_certificate
             }
             full {
-                set altnames [list [list [list email ${container}@twapitest.com] [list dns ${container}.twapitest.com] [list url http://${container}.twapitest.com] [list directory [cert_name_to_blob "CN=${container}altname"]] [list ip [binary format c4 {127 0 0 1}]]]]
+                set altnames [list [list [list email ${container}@twapitest.com] [list dns ${cert_type}.twapitest.com] [list url http://${container}.twapitest.com] [list directory [cert_name_to_blob "CN=${container}altname"]] [list ip [binary format c4 {127 0 0 1}]]]]
                 set req [cert_request_create \
                              "CN=$container, C=IN, O=Tcl, OU=twapi" \
                              $crypt keyexchange \
@@ -2001,6 +2004,17 @@ proc twapi::make_test_certs {{hstore {}} args} {
     cert_release $ca_certificate
     cert_release $intermediate_certificate
     return $hstore
+}
+
+proc twapi::dump_test_certs {hstore dir {pfxfile twapitest.pfx}} {
+    set fd [open [file join $dir $pfxfile] wb]
+    puts -nonewline $fd [cert_store_export_pfx $hstore "" -exportprivatekeys 1]
+    close $fd
+    cert_store_iterate $hstore c {
+        set fd [open [file join $dir [cert_subject_name $c -name simpledisplay].cer] wb]
+        puts -nonewline $fd [cert_export $c]
+        close $fd
+    }
 }
 
 proc twapi::crypt_test_containers {} {

@@ -377,12 +377,12 @@ This command returns the list of issuers acceptable to the remote server.
 [call [cmd sspi_local_cert] [arg CONTEXT]]
 Returns a certificate context for the certificate for the local end
 of a secured connection. The returned certificate context
-must be freed by calling [uri #cert_free [cmd cert_free]].
+must be freed by calling [uri #cert_release [cmd cert_release]].
 
 [call [cmd sspi_remote_cert] [arg CONTEXT]]
 Returns a certificate context for the certificate sent by the remote
 end of a secured connection. The returned certificate context
-must be freed by calling [uri #cert_free [cmd cert_free]].
+must be freed by calling [uri #cert_release [cmd cert_release]].
 
 [call [cmd sspi_server_context] [arg CREDENTIALS] [arg CLIENTDATA] [opt [arg options]]]
 
