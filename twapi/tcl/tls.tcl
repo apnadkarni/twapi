@@ -88,9 +88,8 @@ proc twapi::tls::_accept {listener so raddr raport} {
 
     trap {
         set chan [chan create {read write} [list [namespace current]]]
-        _init $chan SERVER $so [dict get $_channels($listener) Credentials] "" [dict get $_channels($listener) Verifier]
-        # TBD - should we call this AFTER verification / negotiation is done?
-        {*}[dict get $_channels($listener) AcceptCallback] $chan $raddr $raport
+        _init $chan SERVER $so [dict get $_channels($listener) Credentials] "" [dict get $_channels($listener) Verifier] [linsert [dict get $_channels($listener) AcceptCallback] end $chan $raddr $raport]
+        _negotiate $chan;       # TBD - this will block whole app
     } onerror {} {
         catch {_cleanup $chan}
         rethrow
@@ -286,7 +285,7 @@ proc twapi::tls::configure {chan opt val} {
         -context -
         -verifier -
         -credentials {
-            error "Option -credentials is read-only."
+            error "$opt is a read-only option."
         }
         default {
             chan configure [_chansocket $chan] $opt $val
@@ -340,7 +339,6 @@ proc twapi::tls::_init {chan type so creds peersubject verifier {accept_callback
 
     # TBD - verify that -buffering none is the right thing to do
     # as the scripted channel interface takes care of this itself
-    # We always set -blocking to 0 and take care of blocking ourselves
     chan configure $so -translation binary -buffering none
     set _channels($chan) [list Socket $so \
                               State ${type}INIT \
@@ -361,7 +359,7 @@ proc twapi::tls::_init {chan type so creds peersubject verifier {accept_callback
     dict set _channels($chan) Credentials $creds
     dict set _channels($chan) FreeCredentials $free_creds
 
-    if {$type eq "LISTENER"} {
+    if {$type eq "LISTENER" || $type eq "SERVER"} {
         dict set _channels($chan) AcceptCallback $accept_callback
     }
 }
@@ -598,6 +596,7 @@ proc twapi::tls::_server_blocking_negotiate {chan} {
 
 proc twapi::tls::_blocking_negotiate_loop {chan} {
     variable _channels
+
     dict with _channels($chan) {}; # dict -> local vars
 
     lassign [sspi_step $SspiContext] status outdata
@@ -636,6 +635,7 @@ proc twapi::tls::_blocking_negotiate_loop {chan} {
         # not return a value
         error "TLS negotiation failed: status $status."
     }
+
     return
 }
 
@@ -663,9 +663,12 @@ proc twapi::tls::_open {chan} {
         # have done the verification already for client. For servers,
         # there is no verification of clients to be done by default
 
-        # TBD - what about server accept callback ? When is that called?
-
+        # For compatibility with TLS we call accept callbacks AFTER verification
+        # TBD - what if accept callback closes channel ?
         dict set _channels($chan) State OPEN
+        if {[info exists AcceptCallback]} {
+            {*}$AcceptCallback
+        }
         return 1
     }
 
@@ -673,6 +676,12 @@ proc twapi::tls::_open {chan} {
         # TBD - what if verifier closes the channel
         if {[{*}$Verifier $chan $SspiContext]} {
             dict set _channels($chan) State OPEN
+            # For compatibility with TLS we call accept callbacks AFTER verification
+            # TBD - what if accept callback closes channel ?
+            if {[info exists AcceptCallback]} {
+                {*}$AcceptCallback
+            }
+
             return 1
         }
     } onerror {} {
