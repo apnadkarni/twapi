@@ -73,7 +73,11 @@ proc twapi::tls::_socket {args} {
             catch {chan close $so}
         }
         catch {chan close $chan}
-        rethrow
+        if {[string match "wrong # args*" [trapresult]]} {
+            badargs! "wrong # args: should be \"tls_socket ?-credentials creds? ?-verifier command? ?-peersubject peer? ?-myaddr addr? ?-myport myport? ?-async? host port\" or \"socket ?-credentials creds? ?-verifier command? -server command ?-myaddr addr? port\""
+        } else {
+            rethrow
+        }
     }
 
     return $chan
@@ -471,7 +475,7 @@ proc twapi::tls::_negotiate2 {chan} {
             set data [chan read $Socket]
             if {[string length $data] == 0} {
                 if {[chan eof $Socket]} {
-                    error "Unexpected EOF during TLS negotiation"
+                    error "Unexpected EOF during TLS negotiation (NEGOTIATING)"
                 } else {
                     # No data yet, just keep waiting
                     return
@@ -529,7 +533,7 @@ proc twapi::tls::_negotiate2 {chan} {
                 set data [chan read $Socket]
                 if {[string length $data] == 0} {
                     if {[chan eof $Socket]} {
-                        error "Unexpected EOF during TLS negotiation"
+                        error "Unexpected EOF during TLS negotiation (SERVERINIT)"
                     } else {
                         # No data yet, just keep waiting
                         return
@@ -587,7 +591,7 @@ proc twapi::tls::_server_blocking_negotiate {chan} {
     set so [dict get $_channels($chan) Socket]
     set indata [_blocking_read $so]
     if {[chan eof $so]} {
-        error "Unexpected EOF during TLS negotiation."
+        error "Unexpected EOF during TLS negotiation (server)."
     }
     dict set _channels($chan) SspiContext [sspi_server_context [dict get $_channels($chan) Credentials] $indata -stream 1]
     return [_blocking_negotiate_loop $chan]
