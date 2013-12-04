@@ -8,7 +8,10 @@ namespace eval twapi::tls {
     #  Target - Name for server cert
     #  Credentials - credentials handle to use for local end of connection
     #  FreeCredentials - if credentials should be freed on connection cleanup
-    #  AcceptCallback - application callback on a listener socket
+    #  AcceptCallback - application callback on a listener and server socket.
+    #    On listener, it is the accept command prefix. On a server 
+    #    (accepted socket) it is the prefix plus arguments passed to
+    #    accept callback. On client, this key must NOT be present
     #  SspiContext - SSPI context for the connection
     #  Input  - plaintext data to pass to app
     #  Output - plaintext data to encrypt and output
@@ -89,7 +92,13 @@ proc twapi::tls::_accept {listener so raddr raport} {
     trap {
         set chan [chan create {read write} [list [namespace current]]]
         _init $chan SERVER $so [dict get $_channels($listener) Credentials] "" [dict get $_channels($listener) Verifier] [linsert [dict get $_channels($listener) AcceptCallback] end $chan $raddr $raport]
-        _negotiate $chan;       # TBD - this will block whole app
+        # If we negotiate the connection, the socket is blocking so
+        # will hang the whole operation. Instead we mark it non-blocking
+        # and the switch back to blocking when the connection gets opened.
+        # For accepts to work, the event loop has to be running anyways.
+        chan configure $so -blocking 0
+        chan event $so readable [list [namespace current]::_so_read_handler $chan]
+        _negotiate $chan
     } onerror {} {
         catch {_cleanup $chan}
         rethrow
@@ -465,8 +474,8 @@ proc twapi::tls::_negotiate2 {chan} {
     dict with _channels($chan) {}; # dict -> local vars
     switch $State {
         NEGOTIATING {
-            if {$Blocking} {
-                error "Internal error: NEGOTIATING state not expected on a blocking tls socket"
+            if {$Blocking && ![info exists AcceptCallback]} {
+                error "Internal error: NEGOTIATING state not expected on a blocking client socket"
             }
 
             set data [chan read $Socket]
@@ -523,10 +532,11 @@ proc twapi::tls::_negotiate2 {chan} {
         }
         
         SERVERINIT {
-            if {$Blocking} {
+            if {0 && $Blocking} {
+                Always take the non-blocking path as we set the socket
+                to be non-blocking so as to not hold up the whole app
                 _server_blocking_negotiate $chan
             } else {
-                dict set _channels($chan) State NEGOTIATING
                 set data [chan read $Socket]
                 if {[string length $data] == 0} {
                     if {[chan eof $Socket]} {
@@ -536,6 +546,7 @@ proc twapi::tls::_negotiate2 {chan} {
                         return
                     }
                 } else {
+                    dict set _channels($chan) State NEGOTIATING
                     set SspiContext [sspi_server_context $Credentials $data -stream 1]
                     dict set _channels($chan) SspiContext $SspiContext
                     lassign [sspi_step $SspiContext] status outdata leftover
@@ -667,6 +678,10 @@ proc twapi::tls::_open {chan} {
         # TBD - what if accept callback closes channel ?
         dict set _channels($chan) State OPEN
         if {[info exists AcceptCallback]} {
+            # Server sockets are set up to be non-blocking during negotiation
+            # Change them back to blocking before notifying app
+            chan configure $Socket -blocking 1
+            chan event $Socket readable {}
             {*}$AcceptCallback
         }
         return 1
@@ -679,6 +694,10 @@ proc twapi::tls::_open {chan} {
             # For compatibility with TLS we call accept callbacks AFTER verification
             # TBD - what if accept callback closes channel ?
             if {[info exists AcceptCallback]} {
+                # Server sockets are set up to be non-blocking during 
+                # negotiation. Change them back to blocking before notifying app
+                chan configure $Socket -blocking 1
+                chan event $Socket readable {}
                 {*}$AcceptCallback
             }
 

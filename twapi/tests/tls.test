@@ -350,11 +350,12 @@ test tlsIO-2.1 {tcp connection} {socket stdio} {
     set f [open script w]
     puts $f $initScript
     puts $f {
-	set timer [after 5000 "set x timed_out"]
+	set timer [after 2000 "set x timed_out"]
     }
     puts $f {set f [twapi::tls_socket -server accept -credentials $serverCreds -verifier verifytrue 8828]}
     puts $f {
 	proc accept {file addr port} {
+            twapi::debuglog accept
 	    global x
 	    set x done
             close $file
