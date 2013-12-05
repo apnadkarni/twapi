@@ -1,6 +1,7 @@
 namespace eval twapi::tls {
     # Each element of _channels is dictionary with the following keys
-    #  Socket - the underlying socket
+    #  Socket - the underlying socket. This key will not exist if
+    #   socket has been closed.
     #  State - SERVERINIT, CLIENTINIT, LISTENERINIT, OPEN, NEGOTIATING, CLOSED
     #  Type - SERVER, CLIENT, LISTENER
     #  Blocking - 0/1 indicating whether blocking or non-blocking channel
@@ -24,6 +25,7 @@ namespace eval twapi::tls {
 
 interp alias {} twapi::tls_socket {} twapi::tls::_socket
 proc twapi::tls::_socket {args} {
+    variable _channels
 
     parseargs args {
         myaddr.arg
@@ -68,14 +70,26 @@ proc twapi::tls::_socket {args} {
         if {$type eq "CLIENT"} {
             if {! $async} {
                 _client_blocking_negotiate $chan
+                if {(![info exists _channels($chan)]) ||
+                    [dict get $_channels($chan) State] ne "OPEN"} {
+                    if {[info exists _channels($chan)] &&
+                        [dict exists $_channels($chan) ErrorResult]} {
+                        error [dict get $_channels($chan) ErrorResult]
+                    } else {
+                        error "TLS negotiation aborted"
+                    }
+                }
             }
         }
     } onerror {} {
-        variable _channels
-        if {![info exists _channel($chan)]} {
+        # If _init did not even go as far initializing _channels($chan),
+        # close socket ourselves. If it was initialized, the socket
+        # would have been closed even on error
+        if {![info exists _channels($chan)]} {
             catch {chan close $so}
         }
         catch {chan close $chan}
+        # DON'T ACCESS _channels HERE ON
         if {[string match "wrong # args*" [trapresult]]} {
             badargs! "wrong # args: should be \"tls_socket ?-credentials creds? ?-verifier command? ?-peersubject peer? ?-myaddr addr? ?-myport myport? ?-async? host port\" or \"tls_socket ?-credentials creds? ?-verifier command? -server command ?-myaddr addr? port\""
         } else {
@@ -118,6 +132,8 @@ proc twapi::tls::finalize {chan} {
 
 proc twapi::tls::blocking {chan mode} {
     variable _channels
+
+    # TBD - deal with closed channel and Socket not existing
 
     dict with _channels($chan) {
         set Blocking $mode
@@ -226,6 +242,8 @@ proc twapi::tls::read {chan nbytes} {
             }
         }
 
+        # TBD - handle Socket key not existing
+
         # TBD - use inline K operator to make this faster? Probably no use
         # since Input is also referred to from _channels($chan)
         set ret [string range $Input 0 $nbytes-1]
@@ -240,6 +258,8 @@ proc twapi::tls::read {chan nbytes} {
                 puts -nonewline $Socket $outdata
             }
             set State CLOSED
+            catch {close $Socket}
+            unset Socket
         }
         return $ret;            # Note ret may be ""
     }
@@ -421,7 +441,9 @@ proc twapi::tls::_so_read_handler {chan} {
             # We are not asked to generate read events, turn off the read
             # event handler unless we are negotiating
             if {[dict get $_channels($chan) State] ni {SERVERINIT CLIENTINIT NEGOTIATING}} {
-                chan event [dict get $_channels($chan) Socket] readable {}
+                if {[info exists Socket]} {
+                    chan event [dict get $_channels($chan) Socket] readable {}
+                }
             }
         }
     }
@@ -439,7 +461,9 @@ proc twapi::tls::_so_write_handler {chan} {
         # Once it runs, we never want it again else it will keep triggering
         # as sockets are always writable
         if {"write" ni $WatchMask} {
-            chan event $Socket writable {}
+            if {[info exists Socket]} {
+                chan event $Socket writable {}
+            }
         }
 
         if {$State in {SERVERINIT CLIENTINIT NEGOTIATING}} {
@@ -460,7 +484,7 @@ proc twapi::tls::_negotiate chan {
     } onerror {} {
         variable _channels
         if {[info exists _channels($chan)]} {
-            dict set _channels($chan) State FAIL
+            dict set _channels($chan) State CLOSED
             dict set _channels($chan) ErrorOptions [trapoptions]
             dict set _channels($chan) ErrorResult [trapresult]
         }
@@ -682,7 +706,7 @@ proc twapi::tls::_open {chan} {
             # Change them back to blocking before notifying app
             chan configure $Socket -blocking 1
             chan event $Socket readable {}
-            {*}$AcceptCallback
+            after 0 $AcceptCallback
         }
         return 1
     }
@@ -698,19 +722,24 @@ proc twapi::tls::_open {chan} {
                 # negotiation. Change them back to blocking before notifying app
                 chan configure $Socket -blocking 1
                 chan event $Socket readable {}
-                {*}$AcceptCallback
+                after 0 $AcceptCallback
             }
 
             return 1
+            
         }
     } onerror {} {
-        # TBD - debug log
+        dict set _channels($chan) ErrorOptions [trapoptions]
+        dict set _channels($chan) ErrorResult [trapresult]
     }
 
     dict set _channels($chan) State CLOSED
-    catch {close $Socket}
+    catch {close [dict get $_channels($chan) Socket]}
+    dict unset _channels($chan) Socket
+    
     return 0
 }
+
 
 namespace eval twapi::tls {
     namespace export initialize finalize blocking watch read write configure cget cgetall
