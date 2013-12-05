@@ -91,13 +91,13 @@ set initScript {
 
     proc verifytrue {chan ctx} {return 1}
     proc verifyfalse {chan ctx} {return 0}
-    proc verify {remotename chan ctx} {
+    proc verify {remote_name chan ctx} {
         set remote_cert [twapi::sspi_remote_cert $ctx]
         twapi::trap {
             if {$remote_name eq ""} {
-                set status [twapi::cert_tls_verify $remote_cert -hstore $::certStore -revocationcheck none -trustedroots $caCert]
+                set status [twapi::cert_tls_verify $remote_cert -hstore $::certStore -revocationcheck none -trustedroots [list $::caCert]]
             } else {
-                set status [twapi::cert_tls_verify $remote_cert -hstore $::certStore -revocationcheck none -trustedroots $caCert -server $remote_name]
+                set status [twapi::cert_tls_verify $remote_cert -hstore $::certStore -revocationcheck none -trustedroots [list $::caCert] -server $remote_name]
             }
             return [string equal $status ok]
         } finally {
@@ -113,7 +113,7 @@ set initScript {
     # Set up the client and server credentials
     set clientCert [twapi::cert_store_find_certificate $certStore subject_substring twapitestclient]
     set serverCert [twapi::cert_store_find_certificate $certStore subject_substring twapitestserver]
-        set serverCert [twapi::cert_store_find_certificate $certStore subject_substring twapitestserver]
+    set caCert [twapi::cert_store_find_certificate $certStore subject_substring twapitestca]
     # TBD - check if certs can be released as soon as we obtain credentials
     set clientCreds [twapi::sspi_acquire_credentials -credentials [twapi::sspi_schannel_credentials -certificates [list $clientCert]] -package unisp -role client]
     set serverCreds [twapi::sspi_acquire_credentials -credentials [twapi::sspi_schannel_credentials -certificates [list $serverCert]] -package unisp -role server]
@@ -352,12 +352,16 @@ test tlsIO-2.1 {tcp connection} {socket stdio} {
     puts $f {
 	set timer [after 2000 "set x timed_out"]
     }
-    puts $f {set f [twapi::tls_socket -server accept -credentials $serverCreds -verifier verifytrue 8828]}
+    puts $f {set f [twapi::tls_socket -server accept -credentials $::serverCreds -verifier verifytrue 8828]}
     puts $f {
 	proc accept {file addr port} {
-            twapi::debuglog accept
 	    global x
-	    set x done
+	    set count [gets $file x]
+            if {$count >= 0} {
+                puts $file [string reverse $x]
+            } else {
+                set x EOF
+            }
             close $file
 	}
 	puts ready
@@ -369,12 +373,13 @@ test tlsIO-2.1 {tcp connection} {socket stdio} {
     close $f
     set f [open "|[list $::tcltest::tcltest script]" r]
     gets $f x
-    if {[catch {twapi::tls_socket -credentials $clientCreds \
-                    -verifier verifytrue \
+    if {[catch {twapi::tls_socket -credentials $::clientCreds \
+                    -verifier [list verify twapitestserver] \
                     127.0.0.1 8828} msg]} {
-        set x "$msg"
+        set x [list "client side error:$msg"]
     } else {
-        lappend x [gets $f]
+        puts $msg enod; flush $msg
+        lappend x [gets $msg]
         close $msg
     }
     lappend x [gets $f]
@@ -383,6 +388,43 @@ test tlsIO-2.1 {tcp connection} {socket stdio} {
 } {ready done {}}
 
 
+test tlsIO-2.1.1 {tcp connection} {socket stdio} {
+    removeFile script
+    set f [open script w]
+    puts $f $initScript
+    puts $f {
+	set timer [after 2000 "set x timed_out"]
+    }
+    puts $f {set f [twapi::tls_socket -server accept -credentials $::serverCreds -verifier verifytrue 8828]}
+    puts $f {
+	proc accept {file addr port} {
+	    global x
+	    set x done
+            read $file
+            lappend x [eof $file]
+            close $file
+	}
+	puts ready
+	vwait x
+	after cancel $timer
+	close $f
+	puts $x
+    }
+    close $f
+    set f [open "|[list $::tcltest::tcltest script]" r]
+    gets $f x
+    if {[catch {twapi::tls_socket -credentials $::clientCreds \
+                    -verifier [list verify twapitestserverx] \
+                    127.0.0.1 8828} msg]} {
+        set x "client side error: $msg"
+    } else {
+        lappend x [gets $f]
+        close $msg
+    }
+    lappend x [gets $f]
+    close $f
+    set x
+} {ready done {}}
 
 
 
