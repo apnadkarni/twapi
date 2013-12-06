@@ -18,6 +18,10 @@ namespace eval twapi {
 
     variable scriptdir [file dirname [info script]]
 
+    # Name of the var holding log messages in reflected in the C
+    # code, don't change it!
+    variable log_messages {}
+
     ################################################################
     # Following procs are used early in init process so defined here
 
@@ -70,24 +74,29 @@ namespace eval twapi {
 # Make twapi versions the same as the base module versions
 set twapi::version(twapi) $::twapi::version(twapi_base)
 
+#
 # log for tracing / debug messages.
-proc twapi::debuglog {args} {
-    variable log_messages
-    if {[llength $args] == 0} {
-        if {[info exists log_messages]} {
-            return $log_messages
-        }
-        return [list ]
-    }
-    foreach msg $args {
-        Twapi_AppendLog $msg
-    }
-}
-
 proc twapi::debuglog_clear {} {
     variable log_messages
-    set log_messages {}
+    return $log_messages[set log_messages {}]
 }
+
+proc twapi::debuglog_enable {} {
+    catch {rename [namespace current]::debuglog {}}
+    interp alias {} [namespace current]::debuglog {} [namespace current]::Twapi_AppendLog
+}
+
+proc twapi::debuglog_disable {} {
+    proc [namespace current]::debuglog {args} {}
+}
+
+proc twapi::debuglog_get {} {
+    variable log_messages
+    return $log_messages
+}
+
+# Logging disable by default
+twapi::debuglog_disable
 
 proc twapi::get_build_config {{key ""}} {
     variable build_ids
@@ -130,7 +139,7 @@ proc twapi::support_report {} {
     foreach k [lsort -dictionary [array names a]] {
         append report "  $k = $a($k)\n"
     }
-    append report "\nDebug log:\n[join [debuglog] \n]\n"
+    append report "\nDebug log:\n[join [debuglog_get] \n]\n"
 }
 
 

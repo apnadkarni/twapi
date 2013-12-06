@@ -160,6 +160,9 @@ now returns an additional element - the day of the week.
 The command [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]]
 defaults the object type [const file] instead of attempting to guess the type.
 
+[bullet] [emph "POTENTIAL INCOMPATIBILITY"]
+Changed the interface to [uri base.html#debuglog [cmd debuglog]].
+
 [list_end]
 
 [section "Version 3.1"]

@@ -1387,22 +1387,32 @@ namespace eval twapi::base::test {
 
     test debuglog-1.0 {
         Verify debug log messages
+    } -setup {
+        twapi::debuglog_clear
     } -body {
+        # Initially debuglog is supposed to be disabled
+        # so to test that, we are not explicitly disabling it.
         twapi::debuglog "Test message 1"
+        twapi::debuglog_enable
         twapi::debuglog "Test message 2"
-        lrange [twapi::debuglog] end-1 end
-    } -result {{Test message 1} {Test message 2}}
+        twapi::debuglog "Test message 3"
+        twapi::debuglog_disable
+        twapi::debuglog "Test message 4"
+        twapi::debuglog_get
+    } -result {{Test message 2} {Test message 3}}
 
     ################################################################
 
     test debuglog_clear-1.0 {
         Clear debug log messages
+    } -setup {
+        twapi::debuglog_clear
+        twapi::debuglog_enable
     } -body {
         twapi::debuglog "Test message 1"
         twapi::debuglog "Test message 2"
-        twapi::debuglog_clear
-        llength [twapi::debuglog]
-    } -result 0
+        list [twapi::debuglog_clear] [llength [twapi::debuglog_get]]
+    } -result {{{Test message 1} {Test message 2}} 0}
 
     ################################################################
 
