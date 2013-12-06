@@ -794,7 +794,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.type = TRT_GUID;
         break;
     case 1013:
-        return Twapi_AppendLog(interp, ObjToUnicode(objv[0]));
+        return Twapi_AppendObjLog(interp, objv[0]);
     case 1014: // GlobalAddAtom
         result.value.ival = GlobalAddAtomW(ObjToUnicode(objv[0]));
         result.type = result.value.ival ? TRT_LONG : TRT_GETLASTERROR;
