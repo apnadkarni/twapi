@@ -121,8 +121,12 @@ For handling errors, the command
 [para]
 For troubleshooting and debug purposes, TWAPI provides the
 [uri #debuglog [cmd debuglog]] command which writes to an internal log.
-Applications can use this command for their purposes. TWAPI uses it
-internally to log unexpected state and error conditions.
+This command is normally a no-op and must be enabled with
+[uri #debuglog_enable [cmd debuglog_enable]] for logging to have effect.
+It can be disabled again with
+[uri #debuglog_disable [cmd debuglog_disable]].
+The current contents of the debug log can be retrieved with
+[uri #debuglog_get [cmd debuglog_get]].
 
 [section "Utility commands"]
 [uri \#parseargs [cmd parseargs]] parses an argument list based on specified options.
@@ -248,13 +252,24 @@ See [uri #read_credentials [cmd read_credentials]].
 The command [uri #read_credentials [cmd read_credentials]] provides
 a console version of this command.
 
-
-
-[call [cmd debuglog] [opt [arg MESSAGE]] [opt [arg MESSAGE]] [arg ...]]
+[call [cmd debuglog] [opt [arg MESSAGE]]]
 Writes each specified argument as a message to an internal log.
-If no arguments are specified, returns the current contents of the log.
 There is an internal limit on the number of messages stored. Older messages
-are discarded once the log reaches this limit.
+are discarded once the log reaches this limit. 
+The command must be enabled with 
+[uri #debuglog_enable [cmd debuglog_enable]] for logging to have effect.
+
+[call [cmd debuglog_clear]]
+Returns the current content of the internal debug log and clears it.
+
+[call [cmd debuglog_disable]]
+Disables the [uri #debuglog [cmd debuglog]] command.
+
+[call [cmd debuglog_enable]]
+Enables the [uri #debuglog [cmd debuglog]] command.
+
+[call [cmd debuglog_get]]
+Returns the current content of the internal debug log.
 
 [call [cmd duplicate_handle] [arg HANDLE] [opt [arg options]]]
 Duplicates an operating system handle. [arg HANDLE] may be either in
