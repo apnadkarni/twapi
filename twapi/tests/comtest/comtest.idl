@@ -61,6 +61,7 @@ import "ocidl.idl";
                         [in, out] long* Warnings, 
 
                         [out, retval] IDispatch** Retval);
+		[id(21), helpstring("method JMPSetDataVector")] HRESULT JMPSetDataVector([in] VARIANT vec, [out, retval] int *pVT);
 	};
 
 [

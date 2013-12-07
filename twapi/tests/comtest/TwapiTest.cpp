@@ -292,6 +292,10 @@ STDMETHODIMP CTwapiTest::GetApplicationNames(VARIANT *varP)
     return S_OK;
 #endif
     // Clones interface method reported by Till Immanuel
+    // To invoke successfully
+    //   set var [tclcast list ""]
+    //   $obj GetApplicationNames var
+    //   puts $var
     if ((V_VT(varP) & VT_ARRAY) == 0)
 	return Error("Passed VARIANT is not a SAFEARRAY");
 
@@ -321,4 +325,16 @@ STDMETHODIMP CTwapiTest::OpenDoc6(BSTR FileName,long Type,long Options,
     *Retval = NULL;
     
     return S_OK;
+}
+
+STDMETHODIMP CTwapiTest::JMPSetDataVector(VARIANT vec, int *pVT)
+{
+	// Test for JMP application SetDataVector method
+	// The method expects passed variant to be SAFEARRAY of R8 or BSTR
+	// Test script should check return from this function as to
+	// whether safearray type heuristics are behaving as expected.
+
+	*pVT = vec.vt;
+
+	return S_OK;
 }
