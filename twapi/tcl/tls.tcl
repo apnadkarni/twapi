@@ -21,11 +21,14 @@ namespace eval twapi::tls {
     array set _channels {}
 
     namespace path [linsert [namespace path] 0 [namespace parent]]
+
 }
 
 interp alias {} twapi::tls_socket {} twapi::tls::_socket
 proc twapi::tls::_socket {args} {
     variable _channels
+
+    debuglog [info level 0]
 
     parseargs args {
         myaddr.arg
@@ -103,6 +106,8 @@ proc twapi::tls::_socket {args} {
 proc twapi::tls::_accept {listener so raddr raport} {
     variable _channels
 
+    debuglog [info level 0]
+
     trap {
         set chan [chan create {read write} [list [namespace current]]]
         _init $chan SERVER $so [dict get $_channels($listener) Credentials] "" [dict get $_channels($listener) Verifier] [linsert [dict get $_channels($listener) AcceptCallback] end $chan $raddr $raport]
@@ -121,16 +126,21 @@ proc twapi::tls::_accept {listener so raddr raport} {
 }
 
 proc twapi::tls::initialize {chan mode} {
+    debuglog [info level 0]
+
     # All init is done in chan creation routine after base socket is created
     return {initialize finalize watch blocking read write configure cget cgetall}
 }
 
 proc twapi::tls::finalize {chan} {
+    debuglog [info level 0]
     _cleanup $chan
     return
 }
 
 proc twapi::tls::blocking {chan mode} {
+    debuglog [info level 0]
+
     variable _channels
 
     # TBD - deal with closed channel and Socket not existing
@@ -152,6 +162,7 @@ proc twapi::tls::blocking {chan mode} {
 }
 
 proc twapi::tls::watch {chan watchmask} {
+    debuglog [info level 0]
     variable _channels
     dict with _channels($chan) {
         set WatchMask $watchmask
@@ -172,6 +183,7 @@ proc twapi::tls::watch {chan watchmask} {
 }
 
 proc twapi::tls::read {chan nbytes} {
+    debuglog [info level 0]
     variable _channels
 
     if {$nbytes == 0} {
@@ -266,6 +278,7 @@ proc twapi::tls::read {chan nbytes} {
 }
 
 proc twapi::tls::write {chan data} {
+    debuglog [info level 0]
     variable _channels
 
     # This is not inside the dict with because _negotiate will update the dict
@@ -309,6 +322,7 @@ proc twapi::tls::write {chan data} {
 }
 
 proc twapi::tls::configure {chan opt val} {
+    debuglog [info level 0]
     # Does not make sense to change creds and verifier after creation
     switch $opt {
         -context -
@@ -325,6 +339,7 @@ proc twapi::tls::configure {chan opt val} {
 }
 
 proc twapi::tls::cget {chan opt} {
+    debuglog [info level 0]
     variable _channels
 
     switch $opt {
@@ -344,6 +359,7 @@ proc twapi::tls::cget {chan opt} {
 }
 
 proc twapi::tls::cgetall {chan} {
+    debuglog [info level 0]
     variable _channels
     set so [_chansocket $chan]
     foreach opt {-peername -sockname} {
@@ -356,6 +372,7 @@ proc twapi::tls::cgetall {chan} {
 }
 
 proc twapi::tls::_chansocket {chan} {
+    debuglog [info level 0]
     variable _channels
     if {![info exists _channels($chan)]} {
         error "Channel $chan not found."
@@ -364,6 +381,7 @@ proc twapi::tls::_chansocket {chan} {
 }
 
 proc twapi::tls::_init {chan type so creds peersubject verifier {accept_callback {}}} {
+    debuglog [info level 0]
     variable _channels
 
     # TBD - verify that -buffering none is the right thing to do
@@ -394,6 +412,7 @@ proc twapi::tls::_init {chan type so creds peersubject verifier {accept_callback
 }
 
 proc twapi::tls::_cleanup {chan} {
+    debuglog [info level 0]
     variable _channels
     if {[info exists _channels($chan)]} {
         # Note _cleanup can be called in inconsistent state so not all
@@ -428,6 +447,7 @@ proc twapi::tls::_cleanup {chan} {
 }
 
 proc twapi::tls::_so_read_handler {chan} {
+    debuglog [info level 0]
     variable _channels
 
     if {[info exists _channels($chan)]} {
@@ -451,6 +471,7 @@ proc twapi::tls::_so_read_handler {chan} {
 }
 
 proc twapi::tls::_so_write_handler {chan} {
+    debuglog [info level 0]
     variable _channels
 
     if {[info exists _channels($chan)]} {
@@ -479,6 +500,7 @@ proc twapi::tls::_so_write_handler {chan} {
 }
 
 proc twapi::tls::_negotiate chan {
+    debuglog [info level 0]
     trap {
         _negotiate2 $chan
     } onerror {} {
@@ -493,6 +515,7 @@ proc twapi::tls::_negotiate chan {
 }
 
 proc twapi::tls::_negotiate2 {chan} {
+    debuglog [info level 0]
     variable _channels
         
     dict with _channels($chan) {}; # dict -> local vars
@@ -609,6 +632,7 @@ proc twapi::tls::_negotiate2 {chan} {
 }
 
 proc twapi::tls::_client_blocking_negotiate {chan} {
+    debuglog [info level 0]
     variable _channels
     dict with _channels($chan) {
         set State NEGOTIATING
@@ -618,6 +642,7 @@ proc twapi::tls::_client_blocking_negotiate {chan} {
 }
 
 proc twapi::tls::_server_blocking_negotiate {chan} {
+    debuglog [info level 0]
     variable _channels
     dict set _channels($chan) State NEGOTIATING
     set so [dict get $_channels($chan) Socket]
@@ -630,6 +655,7 @@ proc twapi::tls::_server_blocking_negotiate {chan} {
 }
 
 proc twapi::tls::_blocking_negotiate_loop {chan} {
+    debuglog [info level 0]
     variable _channels
 
     dict with _channels($chan) {}; # dict -> local vars
@@ -675,6 +701,7 @@ proc twapi::tls::_blocking_negotiate_loop {chan} {
 }
 
 proc twapi::tls::_blocking_read {so} {
+    debuglog [info level 0]
     # Read from a blocking socket. We do not know how much data is needed
     # so read a single byte and then read any pending
     set input [chan read $so 1]
@@ -688,6 +715,7 @@ proc twapi::tls::_blocking_read {so} {
 }
 
 proc twapi::tls::_open {chan} {
+    debuglog [info level 0]
     variable _channels
 
     dict with _channels($chan) {}; # dict -> local vars
