@@ -113,10 +113,12 @@ set initScript {
     # Set up the client and server credentials
     set clientCert [twapi::cert_store_find_certificate $certStore subject_substring twapitestclient]
     set serverCert [twapi::cert_store_find_certificate $certStore subject_substring twapitestserver]
+    set altserverCert [twapi::cert_store_find_certificate $certStore subject_substring twapitestaltserver]
     set caCert [twapi::cert_store_find_certificate $certStore subject_substring twapitestca]
     # TBD - check if certs can be released as soon as we obtain credentials
     set clientCreds [twapi::sspi_acquire_credentials -credentials [twapi::sspi_schannel_credentials -certificates [list $clientCert]] -package unisp -role client]
     set serverCreds [twapi::sspi_acquire_credentials -credentials [twapi::sspi_schannel_credentials -certificates [list $serverCert]] -package unisp -role server]
+    set altserverCreds [twapi::sspi_acquire_credentials -credentials [twapi::sspi_schannel_credentials -certificates [list $altserverCert]] -package unisp -role server]
 }
 # Set up certs in this process
 eval $initScript
@@ -345,38 +347,111 @@ test tlsIO-1.12 {arg parsing for socket command} {socket} {
 } {1 {expected integer but got "badport"}}
 
 
-test tlsIO-2.1 {tcp connection} {socket stdio} {
-    removeFile script
-    set f [open script w]
-    puts $f $initScript
-    puts $f {
-	set timer [after 2000 "set x timed_out"]
-    }
-    puts $f {set f [twapi::tls_socket -server accept -credentials $::serverCreds -verifier verifytrue 8828]}
-    puts $f {
-	proc accept {file addr port} {
-	    global x
-	    set count [gets $file x]
+#
+# Basic tests all use the same server script
+proc basicServerScript {server_port {creds_varname serverCreds}} {
+    return [format {
+        %1$s
+        proc accept {chan addr port} {
+            global x
+            set count [gets $chan x]
             if {$count >= 0} {
-                puts $file [string reverse $x]
+                switch $x {
+                    conninfo {set out [list [list $addr $port] [fconfigure $chan -sockname] [fconfigure $chan -peername]]}
+                    default {set out [string reverse $x]}
+                }
+                puts $chan $out ; flush $chan
             } else {
                 set x EOF
             }
-            close $file
-	}
-	puts ready
-	vwait x
-	after cancel $timer
-	close $f
-	puts $x
-    }
+            close $chan
+        }
+        set timer [after 5000 "set x timed_out"]
+        set f [twapi::tls_socket -server accept -credentials $::%3$s -verifier verifytrue %2$d]
+        puts ready
+        vwait x
+        after cancel $timer
+        close $f
+        puts $x
+    } $::initScript $server_port $creds_varname]
+}
+
+
+#
+# Async tests all use the same server script
+proc asyncServerScript {server_port {creds_varname serverCreds}} {
+    return [format {
+        %1$s
+        proc accept {chan addr port} {
+            set ::Remote [list $addr $port]
+            fconfigure $chan -blocking 0
+            fileevent $chan readable [list do $chan]
+	    fconfigure $chan -translation lf -buffering line
+        }
+        proc do {chan} {
+            after cancel $::Timer
+            set count [gets $chan in]
+            if {$count >= 0} {
+                lappend ::Received $in
+                switch $in {
+                    conninfo {puts $chan [list $::Remote [fconfigure $chan -sockname] [fconfigure $chan -peername]]}
+                    quit {set ::Gate quit}
+                    default {puts $chan [string reverse $in]}
+                }
+                set Timer [after 5000 "set ::Gate timed_out"]
+            } else {
+                if {[eof $chan]} {
+                    lappend ::Received EOF
+                    set ::Gate EOF
+                    close $chan
+                }
+            }
+        }
+        set Received {}
+        set Timer [after 5000 "set ::Gate timed_out"]
+        set listener [twapi::tls_socket -server accept -credentials $::%3$s -verifier verifytrue %2$d]
+        puts ready
+        vwait Gate
+        after cancel $Timer
+        close $listener
+        puts $Received
+    } $::initScript $server_port $creds_varname]
+}
+
+
+
+test tlsIO-2.1 {Validate server -verifier: success} {socket stdio} {
+    removeFile script
+    set f [open script w]
+    puts $f [basicServerScript 8828]
     close $f
     set f [open "|[list $::tcltest::tcltest script]" r]
     gets $f x
     if {[catch {twapi::tls_socket -credentials $::clientCreds \
                     -verifier [list verify twapitestserver] \
                     127.0.0.1 8828} msg]} {
-        set x [list "client side error:$msg"]
+        set x [list $msg]
+    } else {
+        puts $msg done; flush $msg
+        lappend x [gets $msg]
+        close $msg
+    }
+    lappend x [gets $f]
+    close $f
+    set x
+} {ready enod done}
+
+test tlsIO-2.1.1 {Validate server -verifier: name mismatch} {socket stdio} {
+    removeFile script
+    set f [open script w]
+    puts $f [basicServerScript 8828]
+    close $f
+    set f [open "|[list $::tcltest::tcltest script]" r]
+    gets $f x
+    if {[catch {twapi::tls_socket -credentials $::clientCreds \
+                    -verifier [list verify twapitestserverx] \
+                    127.0.0.1 8828} msg]} {
+        set x [list $msg]
     } else {
         puts $msg enod; flush $msg
         lappend x [gets $msg]
@@ -385,48 +460,207 @@ test tlsIO-2.1 {tcp connection} {socket stdio} {
     lappend x [gets $f]
     close $f
     set x
-} {ready done {}}
+} {{TLS negotiation aborted} EOF}
 
-
-test tlsIO-2.1.1 {tcp connection} {socket stdio} {
+test tlsIO-2.1.2 {Validate server altname -verifier: success} {socket stdio} {
     removeFile script
     set f [open script w]
-    puts $f $initScript
-    puts $f {
-	set timer [after 2000 "set x timed_out"]
+    puts $f [basicServerScript 8828 altserverCreds]
+    close $f
+    set f [open "|[list $::tcltest::tcltest script]" r]
+    gets $f x
+    if {[catch {twapi::tls_socket -credentials $::clientCreds \
+                    -verifier [list verify altserver.twapitest.com] \
+                    127.0.0.1 8828} msg]} {
+        set x [list "client side error:$msg"]
+    } else {
+        puts $msg done; flush $msg
+        lappend x [gets $msg]
+        close $msg
     }
-    puts $f {set f [twapi::tls_socket -server accept -credentials $::serverCreds -verifier verifytrue 8828]}
-    puts $f {
-	proc accept {file addr port} {
-	    global x
-	    set x done
-            read $file
-            lappend x [eof $file]
-            close $file
+    lappend x [gets $f]
+    close $f
+    set x
+} {ready enod done}
+
+test tlsIO-2.1.3 {Validate server altname -verifier: name mismatch} {socket stdio} {
+    removeFile script
+    set f [open script w]
+    puts $f [basicServerScript 8828 altserverCreds]
+    close $f
+    set f [open "|[list $::tcltest::tcltest script]" r]
+    gets $f x
+    if {[catch {twapi::tls_socket -credentials $::clientCreds \
+                    -verifier [list verify twapitestserver.twapitest.com] \
+                    127.0.0.1 8828} msg]} {
+        set x [list $msg]
+    } else {
+        puts $msg enod; flush $msg
+        lappend x [gets $msg]
+        close $msg
+    }
+    lappend x [gets $f]
+    close $f
+    set x
+} {{TLS negotiation aborted} EOF}
+
+if [info exists Port] {
+    incr Port
+} else {
+    set Port [expr {$tlsServerPort + [pid]%1024}]
+}
+
+test tlsIO-2.2 {Validate option -myport -myaddr: success} {socket stdio} {
+    removeFile script
+    set f [open script w]
+    puts $f [basicServerScript 8828]
+    close $f
+    set f [open "|[list $::tcltest::tcltest script]" r]
+    gets $f x
+    if {[catch {twapi::tls_socket -credentials $::clientCreds \
+                    -myport $Port -myaddr 127.0.0.2 \
+                    -verifier [list verify twapitestserver] \
+                    127.0.0.1 8828} msg]} {
+        set x [list $msg]
+    } else {
+        puts $msg conninfo; flush $msg
+        lappend x [gets $msg]
+        close $msg
+    }
+    lappend x [gets $f]
+    close $f
+    set x
+} [list ready [list [list 127.0.0.2 $Port] [list 127.0.0.1 [info hostname] 8828] [list 127.0.0.2 127.0.0.2 $Port]] conninfo]
+
+test tlsIO-2.6 {connection to nonexistent port} {socket} {
+    set status ok
+    if {![catch {set sock [twapi::tls_socket 127.0.0.1 8833]}]} {
+	if {![catch {gets $sock}]} {
+	    set status broken
 	}
-	puts ready
-	vwait x
-	after cancel $timer
-	close $f
-	puts $x
+	close $sock
     }
+    set status
+} ok
+
+test tlsIO-2.10 {close on accept, accepted socket lives} {socket} {
+    # Note for in-process tests, both sockets have to be nonblocking
+    # else deadlock occurs
+
+    set done 0
+    set timer [after 20000 "set done timed_out"]
+    set ss [twapi::tls_socket -server accept -credentials $serverCreds -verifier verifytrue 8830]
+    proc accept {s a p} {
+	global ss
+	close $ss
+	fileevent $s readable "readit $s"
+	fconfigure $s -trans lf -blocking 0
+    }
+    proc readit {s} {
+	global done
+	gets $s
+	close $s
+	set done 1
+    }
+
+    # Without -async blocks, so we know -async works
+    set cs [twapi::tls_socket -async -credentials $clientCreds -verifier verifytrue 127.0.0.1 8830]
+    fconfigure $cs -blocking 0
+    puts $cs 123 ; flush $cs
+    vwait done
+    close $cs
+    after cancel $timer
+    set done
+} 1
+
+
+test tlsIO-3.0 {Validate server non-blocking -verifier: success} {socket stdio} {
+    removeFile script
+    set f [open script w]
+    puts $f [asyncServerScript 8828]
+    close $f
+    set f [open "|[list $::tcltest::tcltest script]" r]
+    gets $f response
+    if {[catch {twapi::tls_socket -credentials $::clientCreds \
+                    -verifier [list verify twapitestserver] \
+                    127.0.0.1 8828} msg]} {
+        set response [list $msg]
+    } else {
+        fconfigure $msg -buffering line -translation lf
+        puts $msg done; flush $msg
+        lappend response [gets $msg]
+        close $msg
+    }
+    lappend response [gets $f]
+    close $f
+    set response
+} {ready enod {done EOF}}
+
+test tlsIO-3.1 {Validate server non-blocking -verifier: name mismatch} {socket stdio} {
+    removeFile script
+    set f [open script w]
+    puts $f [asyncServerScript 8828]
     close $f
     set f [open "|[list $::tcltest::tcltest script]" r]
     gets $f x
     if {[catch {twapi::tls_socket -credentials $::clientCreds \
                     -verifier [list verify twapitestserverx] \
                     127.0.0.1 8828} msg]} {
-        set x "client side error: $msg"
+        set x [list $msg]
     } else {
-        lappend x [gets $f]
+        puts $msg enod; flush $msg
+        lappend x [gets $msg]
         close $msg
     }
     lappend x [gets $f]
     close $f
     set x
-} {ready done {}}
+} {{TLS negotiation aborted} EOF}
 
+incr Port
+test tlsIO-3.2 {Validate server non-blocking -verifier altname: success} {socket stdio} {
+    removeFile script
+    set f [open script w]
+    puts $f [asyncServerScript 8828 altserverCreds]
+    close $f
+    set f [open "|[list $::tcltest::tcltest script]" r]
+    gets $f response
+    if {[catch {twapi::tls_socket -credentials $::clientCreds \
+                    -verifier [list verify altserver.twapitest.com] \
+                    -myport $Port -myaddr 127.0.0.2 \
+                    127.0.0.1 8828} msg]} {
+        set response [list $msg]
+    } else {
+        fconfigure $msg -buffering line -translation lf
+        puts $msg 123 ; puts $msg conninfo; puts $msg quit
+        lappend response [gets $msg] [gets $msg]
+        close $msg
+    }
+    lappend response [gets $f]
+    close $f
+    set response
+} [list ready 321 [list [list 127.0.0.2 $Port] [list 127.0.0.1 [info hostname] 8828] [list 127.0.0.2 127.0.0.2 $Port]] [list 123 conninfo quit]]
 
+test tlsIO-3.3 {Validate server -verifier: name mismatch} {socket stdio} {
+    removeFile script
+    set f [open script w]
+    puts $f [asyncServerScript 8828]
+    close $f
+    set f [open "|[list $::tcltest::tcltest script]" r]
+    gets $f x
+    if {[catch {twapi::tls_socket -credentials $::clientCreds \
+                    -verifier [list verify twapitestserverx] \
+                    127.0.0.1 8828} msg]} {
+        set x [list $msg]
+    } else {
+        puts $msg enod; flush $msg
+        lappend x [gets $msg]
+        close $msg
+    }
+    lappend x [gets $f]
+    close $f
+    set x
+} {{TLS negotiation aborted} EOF}
 
 #
 # Cleanup
