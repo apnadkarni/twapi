@@ -215,10 +215,9 @@ TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
         /* Should be a two element list */
         if (ObjGetElements(NULL, objP, &nobjs, &objs) != TCL_OK ||
             nobjs != 2) {
-            if (interp) {
+            if (interp)
                 Tcl_AppendResult(interp, "Invalid pointer or opaque value: '",
                                  s, "'.", NULL);
-            }
             return TCL_ERROR;
         }
         if (ObjToDWORD_PTR(NULL, objs[0], &dwp) != TCL_OK) {
@@ -1752,8 +1751,8 @@ TCL_RESULT ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char
             if (interp) {
                 Tcl_AppendResult(interp, "Unexpected type '", s, "', expected '",
                                  name, "'.", NULL);
-                return TCL_ERROR;
             }
+            return TCL_ERROR;
         }
     }
 
