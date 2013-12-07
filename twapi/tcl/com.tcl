@@ -2991,7 +2991,7 @@ twapi::class create ::twapi::Automation {
         } onerror {} {
             set erinfo $::errorInfo
             set ercode $::errorCode
-            set ermsg $::errorResult
+            set ermsg [trapresult]
         }
 
         # We plan on trying to get a IDispatchEx interface in case

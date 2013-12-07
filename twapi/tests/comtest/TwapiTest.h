@@ -41,6 +41,7 @@ END_COM_MAP()
 
 // ITwapiTest
 public:
+	STDMETHOD(JMPSetDataVector)(/*[in]*/ VARIANT vec, /*[out, retval]*/ BOOL *pBool);
 	STDMETHOD(OpenDoc6)(BSTR FileName,long Type,long Options, 
 	     BSTR Configuration, long* Errors, long* Warnings, IDispatch** Retval);
 	STDMETHOD(GetApplicationNames)(/*[in, out]*/ VARIANT *varPP);
