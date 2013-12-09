@@ -973,7 +973,7 @@ namespace eval twapi::com::test {
     } -result [list $::env(USERNAME) $::env(USERDOMAIN)]
 
     test define_dispatch_prototype-2.0 {
-        TBD
+        TBD - lower case guid, guid without {} etc.
     } -constraints {
         TBD
     } -result TBD
