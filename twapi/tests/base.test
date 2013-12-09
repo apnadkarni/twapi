@@ -1517,12 +1517,32 @@ namespace eval twapi::base::test {
         # Note casting a 32 bit int to a wide int will not result
         # in a wide int - Tcl optimizes it back to an int
         twapi::tcltype [twapi::tclcast wideInt "0x123456789abcd"]
-    } -result wideInt
+    } -result {Bad cast to "wideInt". Must be one of empty, null, int, boolean, double, string, list, dict} -returnCodes error
+
+    test tclcast-6.1 {
+        Test for wide integer type from integer
+    } -body {
+        twapi::tcltype [twapi::tclcast wideInt 1]
+    } -result {Bad cast to "wideInt". Must be one of empty, null, int, boolean, double, string, list, dict} -returnCodes error
 
     test tclcast-7.0 {
         Test for double type
     } -body {
-        twapi::tcltype [twapi::tclcast double "2.5"]
+        twapi::tcltype [twapi::tclcast double 2.5]
+    } -result double
+
+    test tclcast-7.1 {
+        Test for double type from integer
+    } -body {
+        # Make sure an integer also shows up as double. Bug pre-4.0b27
+        twapi::tcltype [twapi::tclcast double 1]
+    } -result double
+
+    test tclcast-7.1 {
+        Test for double type from integer
+    } -body {
+        # Make sure an wide integer also shows up as double. Bug pre-4.0b27
+        twapi::tcltype [twapi::tclcast double 0x123456789abcd]
     } -result double
 
     test tclcast-8.0 {
