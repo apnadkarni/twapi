@@ -2685,6 +2685,9 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
          * A list is usually a SAFEARRAY. However, it could be
          * an IDispatch or IUnknown in certain special cases.
          */
+#if 0 // Commented out because ObjToOpaque (via ObjToIDispatch) will shimmer type
+        // of first element even when it is not a Opaque pointer. We thus lose
+        // the typing info needed below
         if (ObjListLength(NULL, objP, &i) == TCL_OK && i == 2) {
             /* Possibly IUnknown or IDispatch */
             if (ObjToIDispatch(NULL, objP, &pv) == TCL_OK)
@@ -2692,7 +2695,8 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
             else if (ObjToIUnknown(NULL, objP, &pv) == TCL_OK)
                 return VT_UNKNOWN;
         }
-        
+#endif        
+
         /* We do not know the type of each SAFEARRAY element. Guess on element value */
         vt = VT_VARIANT;   /* In case we cannot tell */
         if (ObjListIndex(NULL, objP, 0, &elemObj) == TCL_OK && elemObj) {
