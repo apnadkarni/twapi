@@ -380,11 +380,25 @@ int Twapi_InternalCastObjCmd(
     }
         
     /*
+     * We special case double, because SetAnyFromProc will optimize to lowest
+     * compatible type, so for example casting 1 to double will result in an
+     * int object. We want to force it to double.
+     *
      * We special case "boolean" and "booleanString" because they will keep
      * numerics as numerics while we want to force to boolean Tcl_Obj type.
      * We do this even before GetObjType because "booleanString" is not
      * even a registered type in Tcl.
+     *
+     * We can't do anything about wideInt because Tcl_NewDoubleObj, Tcl_GetDoubleFromObj,
+     * SetDoubleFromAny, will also return an int Tcl_Obj if the vallue fits in the 32 bits.
      */
+    if (STREQ(typename, "double")) {
+        double dval;
+        if (ObjToDouble(interp, objv[2], &dval) == TCL_ERROR)
+            return TCL_ERROR;
+        return ObjSetResult(interp, ObjFromDouble(dval));
+    }
+
     if (STREQ(typename, "boolean") || STREQ(typename, "booleanString")) {
         if (ObjToBoolean(interp, objv[2], &i) == TCL_ERROR)
             return TCL_ERROR;
@@ -2651,6 +2665,8 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
     int i;
     void *pv;
     char *s;
+    Tcl_Obj *elemObj;
+    VARTYPE vt;
 
     switch (TwapiGetTclType(objP)) {
     case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
@@ -2677,11 +2693,20 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
                 return VT_UNKNOWN;
         }
         
-        /*
-         * A list is a SAFEARRAY. We do not know the type of each element
-           so assume mixed type.
-         */
-        return VT_VARIANT | VT_ARRAY;
+        /* We do not know the type of each SAFEARRAY element. Guess on element value */
+        vt = VT_VARIANT;   /* In case we cannot tell */
+        if (ObjListIndex(NULL, objP, 0, &elemObj) == TCL_OK && elemObj) {
+            switch (TwapiGetTclType(elemObj)) {
+            case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
+            case TWAPI_TCLTYPE_BOOLEANSTRING: vt = VT_BOOL; break;
+            case TWAPI_TCLTYPE_INT:           vt = VT_I4; break;
+            case TWAPI_TCLTYPE_WIDEINT:       vt = VT_I8; break;
+            case TWAPI_TCLTYPE_DOUBLE:        vt = VT_R8; break;
+            case TWAPI_TCLTYPE_STRING:        vt = VT_BSTR; break;
+            }            
+        }
+        return vt | VT_ARRAY;
+
     case TWAPI_TCLTYPE_DICT:
         /* Something that is constructed like a dictionary cannot
            really be a numeric or boolean. Since there is no

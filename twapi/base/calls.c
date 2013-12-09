@@ -2226,7 +2226,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(GetTwapiBuildInfo, Twapi_GetTwapiBuildInfo),
         DEFINE_TCL_CMD(Twapi_ReadMemory, Twapi_ReadMemoryObjCmd),
         DEFINE_TCL_CMD(Twapi_WriteMemory, Twapi_WriteMemoryObjCmd),
-        DEFINE_TCL_CMD(tclcast, Twapi_InternalCastObjCmd),
+        DEFINE_TCL_CMD(Twapi_InternalCast, Twapi_InternalCastObjCmd),
         DEFINE_TCL_CMD(tcltype, Twapi_GetTclTypeObjCmd),
         DEFINE_TCL_CMD(Twapi_EnumPrinters_Level4, Twapi_EnumPrintersLevel4ObjCmd),
         DEFINE_TCL_CMD(ReportEvent, Twapi_ReportEventObjCmd),
