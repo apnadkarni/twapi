@@ -1196,3 +1196,37 @@ proc twapi::_drivemask_to_drivelist {drivebits} {
     }
     return $drives
 }
+
+### Type casts
+
+proc twapi::tclcast {type val} {
+    # Only permit these because wideInt, for example, cannot be reliably
+    # converted -> it can return an int instead.
+    set types {empty null int boolean double string list dict}
+    if {$type ni $types} {
+        badargs! "Bad cast to \"$type\". Must be one of [join $types {, }]"
+    }
+    return [Twapi_InternalCast $type $val]
+}
+
+proc twapi::safearray {type val} {
+    if {[llength $val] == 0} {
+        return $val
+    }
+
+    # Set the first value type based on type of safearray. The C level
+    # code uses this as key to safearray type
+    lset val 0 [tclcast [dict! {
+        boolean boolean
+        bool boolean
+        int  int
+        i4   int
+        double double
+        r8   double
+        string string
+        bstr string
+    } $type] [lindex $val 0]]
+
+    return $val
+}
+

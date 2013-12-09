@@ -686,6 +686,12 @@ the error handler cannot handle the exception.
 [call [cmd reveal] [arg ENCRYPTED]]
 Decrypts a binary string that was encrypted by [uri #conceal [cmd conceal]].
 
+[call [cmd safearray] [arg TYPE] [arg LISTVALUE]]
+Returns [arg LISTVALUE] in a form that is interpreted by
+[uri com.html COM] related commands as a single-dimensioned safearray of 
+type [arg TYPE]. [arg TYPE] must be on of the COM types
+[const bool], [const int] or [const i4], [const double] or [const r8], or [const bstr].
+
 [call [cmd secs_since_1970_to_large_system_time] [arg SECONDS]]
 This command converts [arg SECONDS] which is the number of seconds since
 the epoch Jan 1, 1970 to the number of 100 nanoseconds since Jan 1, 1601.
