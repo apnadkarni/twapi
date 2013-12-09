@@ -1109,12 +1109,12 @@ proc twapi::_parse_dispatch_paramdef {paramdef} {
     return [list $paramflags $paramtype $paramname]
 }
 
-# TBD - document
-# define_dispatch_prototypes GUID int open 
 proc twapi::define_dispatch_prototypes {guid protos args} {
     array set opts [parseargs args {
         {lcid.int 0}
     } -maxleftover 0]
+
+    set guid [canonicalize_guid $guid]
 
     set defregx {^\s*(\w+)\s+(\d+)\s+(\w[^\(]*)\(([^\)]*)\)(.*)$}
     set parsed_protos {}
