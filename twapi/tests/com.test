@@ -6,6 +6,8 @@
 
 # This file contains tests for commands from the com.tcl
 
+# TBD - test property and method calls with wrong number of parameters
+
 package require tcltest
 eval tcltest::configure $argv
 
@@ -786,16 +788,25 @@ namespace eval twapi::com::test {
 
     ################################################################
 
-    test variant_param_passing-1.0 {
+    test variant_param_passing-int-1.0 {
         Test variant parameter of type int are passed correctly
     } -setup {
         set o [testobj]
     } -body {
-        $o LongProperty 1234
+        $o LongProperty 2147483647
         $o LongProperty
-    } -result 1234
+    } -result 2147483647
 
-    test variant_param_passing-1.1 {
+    test variant_param_passing-int-1.1 {
+        Test variant parameter of type int are passed correctly
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o LongProperty -2147483648
+        $o LongProperty
+    } -result -2147483648
+
+    test variant_param_passing-int-1.2 {
         Test variant parameter of type int are passed correctly
     } -setup {
         set sh [twapi::comobj Shell.Application]
@@ -809,22 +820,47 @@ namespace eval twapi::com::test {
         $sh -destroy
     } -result WINDOWS
 
-    test variant_param_passing-2.0 {
+    test variant_param_passing-int-2.0 {
+        Test variant parameter of type int, overflow
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o LongProperty 12344142432434
+    } -result {integer value too large to represent} -returnCodes error
+
+    test variant_param_passing-int-2.1 {
+        Test variant parameter of type int, syntax
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o LongProperty 123a
+    } -result {expected integer but got "123a"} -returnCodes error
+
+
+    test variant_param_passing-bool-1.0 {
         Test variant parameter of type bool are passed correctly
     } -setup {
         set o [testobj]
     } -body {
-        $o BoolProperty 1
+        $o BoolProperty true
         lappend result [$o BoolProperty]
         $o BoolProperty 0
         lappend result [$o BoolProperty]
         $o BoolProperty 1
         lappend result [$o BoolProperty]
-        $o BoolProperty 0
+        $o BoolProperty false
         lappend result [$o BoolProperty]
     } -result {1 0 1 0}
 
-    test variant_param_passing-3.0 {
+    test variant_param_passing-bool-2.0 {
+        Test variant parameter of type bool syntax error
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o BoolProperty abc
+    } -result {expected boolean value but got "abc"} -returnCodes error
+
+    test variant_param_passing-bstr-1.0 {
         Test variant parameter of type bstr are passed correctly
     } -setup {
         set o [testobj]
@@ -834,7 +870,7 @@ namespace eval twapi::com::test {
     } -result abc\0\u0100def
 
 
-    test variant_param_passing-1.1x {
+    test variant_param_passing-bstr-1.1 {
         Test variant parameter of type string are passed correctly
     } -setup {
         set sh [twapi::comobj Shell.Application]
@@ -846,7 +882,142 @@ namespace eval twapi::com::test {
         $sh -destroy
     } -result [file tail [pwd]]
 
-    test variant_param_passing-1.2 {
+
+    test variant_param_passing-short-1.0 {
+        Test variant parameter of type short are passed correctly
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o ShortProperty 32767
+        $o ShortProperty
+    } -result 32767
+
+    test variant_param_passing-short-1.1 {
+        Test variant parameter of type short are passed correctly
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o ShortProperty -32768
+        $o ShortProperty
+    } -result -32768
+
+    test variant_param_passing-short-2.0 {
+        Test variant parameter of type short, overflow
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o ShortProperty 32768
+    } -result {Value is out of range.} -returnCodes error
+
+    test variant_param_passing-short-2.1 {
+        Test variant parameter of type short, overflow
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o ShortProperty -32769
+    } -result {Value is out of range.} -returnCodes error
+
+    test variant_param_passing-short-2.2 {
+        Test variant parameter of type short, syntax
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o ShortProperty 123a
+    } -result {expected integer but got "123a"} -returnCodes error
+
+    test variant_param_passing-ui2-1.0 {
+        Test variant parameter of type UI2 are passed correctly
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o UI2Property 65535
+        $o UI2Property
+    } -result 65535
+
+    test variant_param_passing-ui2-1.1 {
+        Test variant parameter of type UI2 are passed correctly
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o UI2Property 0
+        $o UI2Property
+    } -result 0
+
+    test variant_param_passing-ui2-2.0 {
+        Test variant parameter of type UI2, overflow
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o UI2Property 65536
+    } -result {Value is out of range.} -returnCodes error
+
+    test variant_param_passing-ui2-2.1 {
+        Test variant parameter of type UI2, overflow
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o UI2Property -1
+    } -result {Value is out of range.} -returnCodes error
+
+    test variant_param_passing-ui2-2.2 {
+        Test variant parameter of type UI2, syntax
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o UI2Property 123a
+    } -result {expected integer but got "123a"} -returnCodes error
+
+    test variant_param_passing-ui1-1.0 {
+        Test variant parameter of type UI1 are passed correctly
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o UI1Property 255
+        $o UI1Property
+    } -result 255
+
+    test variant_param_passing-ui1-1.1 {
+        Test variant parameter of type UI1 are passed correctly
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o UI1Property 0
+        $o UI1Property
+    } -result 0
+
+    test variant_param_passing-ui1-2.0 {
+        Test variant parameter of type UI1, overflow
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o UI1Property 256
+    } -result {Value is out of range.} -returnCodes error
+
+    test variant_param_passing-ui1-2.1 {
+        Test variant parameter of type UI1, overflow
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o UI1Property -1
+    } -result {Value is out of range.} -returnCodes error
+
+    test variant_param_passing-ui1-2.2 {
+        Test variant parameter of type UI1, syntax
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o UI1Property 123a
+    } -result {expected integer but got "123a"} -returnCodes error
+
+
+    test variant_param_passing-dispatch-1.0 {
+        TBD - Test variant parameter of type dispatch using comtest
+    } -constraints {
+        TBD
+    } -body {
+    } -result {}
+
+    test variant_param_passing-dispatch-1.1 {
         Test variant parameter of type dispatch are passed correctly
     } -setup {
         set sh [twapi::comobj Shell.Application]
@@ -870,7 +1041,58 @@ namespace eval twapi::com::test {
         $sh -destroy
     } -result 1
 
-    test variant_param_passing-2.0x {
+
+    test variant_param_passing-double-1.0 {
+        TBD - Test variant parameter of type double using comtest
+    } -constraints {
+        TBD
+    } -body {
+    } -result {}
+
+    test variant_param_passing-float-1.0 {
+        TBD - Test variant parameter of type float using comtest
+    } -constraints {
+        TBD
+    } -body {
+    } -result {}
+
+    test variant_param_passing-currency-1.0 {
+        TBD - Test variant parameter of type currency using comtest
+    } -constraints {
+        TBD
+    } -body {
+    } -result {}
+
+    test variant_param_passing-date-1.0 {
+        TBD - Test variant parameter of type date using comtest
+    } -constraints {
+        TBD
+    } -body {
+    } -result {}
+
+    test variant_param_passing-scode-1.0 {
+        TBD - Test variant parameter of type scode using comtest
+    } -constraints {
+        TBD
+    } -body {
+    } -result {}
+
+    test variant_param_passing-safearray-1.0 {
+        TBD - Test variant parameter of type safearray using comtest
+    } -constraints {
+        TBD
+    } -body {
+    } -result {}
+
+    test variant_param_passing-variant-1.0 {
+        TBD - Test variant parameter of type VARIANT using comtest
+    } -constraints {
+        TBD
+    } -body {
+    } -result {}
+
+
+    test variant_param_passing-variant-2.0x {
         Test variant parameter of type variant*
     } -constraints {
         userInteraction
@@ -895,6 +1117,14 @@ namespace eval twapi::com::test {
             }
         }
     } -result 1
+
+    ################################################################
+
+    test com_exception-1.0 {
+        Test catching of COM exception
+    } -body {
+        list [catch {[testobj] ThrowException "Test exception"} msg] $msg $::errorCode
+    } -result {1 {Exception occurred. Test exception} {TWAPI_WIN32 -2147352567 {Exception occurred.} {bstrSource Twapi.Test.1 bstrDescription {Test exception} bstrHelpFile {} dwHelpContext 0 scode -2147352567 wCode 0}}}
 
     ################################################################
     
