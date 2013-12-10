@@ -935,13 +935,8 @@ int ObjToRangedInt(Tcl_Interp *interp, Tcl_Obj *obj, int low, int high, int *iP)
     if (ObjToInt(interp, obj, &i) != TCL_OK)
         return TCL_ERROR;
 
-    if (i < low || i > high) {
-        if (interp) {
-            ObjSetResult(interp,
-                             Tcl_ObjPrintf("Integer '%d' not within range %d-%d", i, low, high));
-        }
-        return TCL_ERROR;
-    }
+    if (i < low || i > high)
+        return TwapiReturnError(interp, TWAPI_OUT_OF_RANGE);
 
     if (iP)
         *iP = i;
@@ -1426,17 +1421,46 @@ Tcl_Obj *ObjFromMultiSz(LPCWSTR lpcw, int maxlen)
     return listPtr;
 }
 
-int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP)
+TCL_RESULT ObjToUCHAR(Tcl_Interp *interp, Tcl_Obj *obj, UCHAR *ucP)
 {
-    long lval;
-    if (ObjToLong(interp, obj, &lval) != TCL_OK)
+    int lval;
+
+    TWAPI_ASSERT(sizeof(UCHAR) == sizeof(unsigned char));
+    if (ObjToRangedInt(interp, obj, 0, SCHAR_MAX, &lval) != TCL_OK)
         return TCL_ERROR;
-    if (lval & 0xffff0000) {
-        if (interp)
-            ObjSetStaticResult(interp, "Integer value must be less than 65536");
+    *ucP = (UCHAR) lval;
+    return TCL_OK;
+}
+
+TCL_RESULT ObjToCHAR(Tcl_Interp *interp, Tcl_Obj *obj, CHAR *cP)
+{
+    int lval;
+
+    TWAPI_ASSERT(sizeof(CHAR) == sizeof(char));
+    if (ObjToRangedInt(interp, obj, SCHAR_MIN, SCHAR_MAX, &lval) != TCL_OK)
         return TCL_ERROR;
-    }
+    *cP = (CHAR) lval;
+    return TCL_OK;
+}
+
+TCL_RESULT ObjToUSHORT(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP)
+{
+    int lval;
+
+    TWAPI_ASSERT(sizeof(WORD) == sizeof(unsignd short));
+    if (ObjToRangedInt(interp, obj, 0, USHRT_MAX, &lval) != TCL_OK)
+        return TCL_ERROR;
     *wordP = (WORD) lval;
+    return TCL_OK;
+}
+
+TCL_RESULT ObjToSHORT(Tcl_Interp *interp, Tcl_Obj *obj, SHORT *shortP)
+{
+    int lval;
+    TWAPI_ASSERT(sizeof(WORD) == sizeof(short));
+    if (ObjToRangedInt(interp, obj, SHRT_MIN, SHRT_MAX, &lval) != TCL_OK)
+        return TCL_ERROR;
+    *shortP = (SHORT) lval;
     return TCL_OK;
 }
 
@@ -2758,27 +2782,25 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
         return TCL_OK;
     }
 
+    varP->vt = vt;
     switch (vt) {
     case VT_EMPTY:
     case VT_NULL:
-        varP->vt = vt;
         break;
-    case VT_I2:
+    case VT_I2:   return ObjToSHORT(interp, objP, &V_I2(varP));
+    case VT_UI2:  return ObjToUSHORT(interp, objP, &V_UI2(varP));
+    case VT_I1:   return ObjToCHAR(interp, objP, &V_I1(varP));
+    case VT_UI1:   return ObjToCHAR(interp, objP, &V_UI1(varP));
+
+    /* For compatibility reasons, allow interchangeable signed/unsigned ints */
     case VT_I4:
-    case VT_I1:
-    case VT_UI2:
     case VT_UI4:
-    case VT_UI1:
     case VT_INT:
     case VT_UINT:
     case VT_HRESULT:
         if (ObjToLong(interp, objP, &lval) != TCL_OK)
             return TCL_ERROR;
         switch (vt) {
-        case VT_I1:  V_I1(varP) = (char) lval; break;
-        case VT_UI1: V_UI1(varP) = (unsigned char) lval; break;
-        case VT_I2:  V_I2(varP) = (short) lval; break;
-        case VT_UI2: V_UI2(varP) = (unsigned short) lval; break;
         case VT_I4:
         case VT_INT:
         case VT_HRESULT:
@@ -2812,13 +2834,11 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
     case VT_CY:
         if (ObjToCY(interp, objP, & V_CY(varP)) != TCL_OK)
             return TCL_ERROR;
-        varP->vt = VT_CY;
         break;
 
     case VT_DATE:
         if (ObjToDouble(interp, objP, & V_DATE(varP)) != TCL_OK)
             return TCL_ERROR;
-        varP->vt = VT_DATE;
         break;
 
     case VT_VARIANT:
@@ -2853,16 +2873,11 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
         break;
 
     case VT_BSTR:
-        if (ObjToBSTR(interp, objP, &varP->bstrVal) != TCL_OK)
-            return TCL_ERROR;
-        varP->vt = VT_BSTR;
-        break;
+        return ObjToBSTR(interp, objP, &varP->bstrVal);
+
 
     case VT_DISPATCH:
-        if (ObjToIDispatch(interp, objP, (void **)&varP->pdispVal) != TCL_OK)
-            return TCL_ERROR;
-        varP->vt = VT_DISPATCH;
-        break;
+        return ObjToIDispatch(interp, objP, (void **)&varP->pdispVal);
 
     case VT_VOID: /* FALLTHRU */
     case VT_ERROR:
@@ -2879,23 +2894,15 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
         break;
 
     case VT_UNKNOWN:
-        if (ObjToIUnknown(interp, objP, (void **) &varP->punkVal) != TCL_OK)
-            return TCL_ERROR;
-        varP->vt = VT_UNKNOWN;
-        break;
+        return ObjToIUnknown(interp, objP, (void **) &varP->punkVal);
 
     case VT_DECIMAL:
-        if (ObjToDECIMAL(interp, objP, & V_DECIMAL(varP)) != TCL_OK)
-            return TCL_ERROR;
-        varP->vt = VT_DECIMAL;
-        break;
+        return ObjToDECIMAL(interp, objP, & V_DECIMAL(varP));
 
     case VT_I8:
     case VT_UI8:
-        if (ObjToWideInt(interp, objP, &varP->llVal) != TCL_OK)
-            return TCL_ERROR;
         varP->vt = VT_I8;
-        break;
+        return ObjToWideInt(interp, objP, &varP->llVal);
 
     default:
         ObjSetResult(interp,

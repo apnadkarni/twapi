@@ -29,8 +29,8 @@ import "ocidl.idl";
 		[propput, id(7), helpstring("property DateProperty")] HRESULT DateProperty([in] DATE newVal);
 		[propget, id(8), helpstring("property BstrProperty")] HRESULT BstrProperty([out, retval] BSTR *pVal);
 		[propput, id(8), helpstring("property BstrProperty")] HRESULT BstrProperty([in] BSTR newVal);
-		[propget, id(9), helpstring("property BoolProperty")] HRESULT BoolProperty([out, retval] BOOL *pVal);
-		[propput, id(9), helpstring("property BoolProperty")] HRESULT BoolProperty([in] BOOL newVal);
+		[propget, id(9), helpstring("property BoolProperty")] HRESULT BoolProperty([out, retval] VARIANT_BOOL *pVal);
+		[propput, id(9), helpstring("property BoolProperty")] HRESULT BoolProperty([in] VARIANT_BOOL newVal);
 		[propget, id(10), helpstring("property IDispatchProperty")] HRESULT IDispatchProperty([out, retval] IDispatch* *pVal);
 		[propput, id(10), helpstring("property IDispatchProperty")] HRESULT IDispatchProperty([in] IDispatch* newVal);
 		[propget, id(11), helpstring("property ScodeProperty")] HRESULT ScodeProperty([out, retval] SCODE *pVal);
@@ -62,6 +62,12 @@ import "ocidl.idl";
 
                         [out, retval] IDispatch** Retval);
 		[id(21), helpstring("method JMPSetDataVector")] HRESULT JMPSetDataVector([in] VARIANT vec, [out, retval] int *pVT);
+		[propget, id(22), helpstring("property UI2Property")] HRESULT UI2Property([out, retval] unsigned short *pVal);
+		[propput, id(22), helpstring("property UI2Property")] HRESULT UI2Property([in] unsigned short newVal);
+		[propget, id(23), helpstring("property UI1Property")] HRESULT UI1Property([out, retval] unsigned char *pVal);
+		[propput, id(23), helpstring("property UI1Property")] HRESULT UI1Property([in] unsigned char newVal);
+            /* NOTE: WE DO NOT HAVE TEST FOR VT_I1 because VC cannot handle
+               signed chars due to MIDL/C incompatibility */
 	};
 
 [

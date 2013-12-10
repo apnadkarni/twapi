@@ -108,15 +108,15 @@ STDMETHODIMP CTwapiTest::put_BstrProperty(BSTR newVal)
     return S_OK;
 }
 
-STDMETHODIMP CTwapiTest::get_BoolProperty(BOOL *pVal)
+STDMETHODIMP CTwapiTest::get_BoolProperty(VARIANT_BOOL *pVal)
 {
-    *pVal = bval ? 1 : 0;
+    *pVal = bval;
     return S_OK;
 }
 
-STDMETHODIMP CTwapiTest::put_BoolProperty(BOOL newVal)
+STDMETHODIMP CTwapiTest::put_BoolProperty(VARIANT_BOOL newVal)
 {
-    bval = newVal ? 1 : 0;
+    bval = newVal;
     return S_OK;
 }
 
@@ -338,3 +338,28 @@ STDMETHODIMP CTwapiTest::JMPSetDataVector(VARIANT vec, int *pVT)
 
 	return S_OK;
 }
+
+STDMETHODIMP CTwapiTest::get_UI2Property(unsigned short *pVal)
+{
+    *pVal = (unsigned short) ival; // TBD - generate error if does not fit
+    return S_OK;
+}
+
+STDMETHODIMP CTwapiTest::put_UI2Property(unsigned short newVal)
+{
+    ival = newVal;
+    return S_OK;
+}
+
+STDMETHODIMP CTwapiTest::get_UI1Property(unsigned char *pVal)
+{
+    *pVal = (unsigned char) ival; // TBD - generate error if does not fit
+    return S_OK;
+}
+
+STDMETHODIMP CTwapiTest::put_UI1Property(unsigned char newVal)
+{
+    ival = newVal;
+    return S_OK;
+}
+

@@ -41,6 +41,10 @@ END_COM_MAP()
 
 // ITwapiTest
 public:
+	STDMETHOD(get_UI1Property)(/*[out, retval]*/ unsigned char *pVal);
+	STDMETHOD(put_UI1Property)(/*[in]*/ unsigned char newVal);
+	STDMETHOD(get_UI2Property)(/*[out, retval]*/ unsigned short *pVal);
+	STDMETHOD(put_UI2Property)(/*[in]*/ unsigned short newVal);
 	STDMETHOD(JMPSetDataVector)(/*[in]*/ VARIANT vec, /*[out, retval]*/ int *pVt);
 	STDMETHOD(OpenDoc6)(BSTR FileName,long Type,long Options, 
 	     BSTR Configuration, long* Errors, long* Warnings, IDispatch** Retval);
@@ -59,8 +63,8 @@ public:
 	STDMETHOD(put_ScodeProperty)(/*[in]*/ SCODE newVal);
 	STDMETHOD(get_IDispatchProperty)(/*[out, retval]*/ IDispatch* *pVal);
 	STDMETHOD(put_IDispatchProperty)(/*[in]*/ IDispatch* newVal);
-	STDMETHOD(get_BoolProperty)(/*[out, retval]*/ BOOL *pVal);
-	STDMETHOD(put_BoolProperty)(/*[in]*/ BOOL newVal);
+	STDMETHOD(get_BoolProperty)(/*[out, retval]*/ VARIANT_BOOL *pVal);
+	STDMETHOD(put_BoolProperty)(/*[in]*/ VARIANT_BOOL newVal);
 	STDMETHOD(get_BstrProperty)(/*[out, retval]*/ BSTR *pVal);
 	STDMETHOD(put_BstrProperty)(/*[in]*/ BSTR newVal);
 	STDMETHOD(get_DateProperty)(/*[out, retval]*/ DATE *pVal);
@@ -79,7 +83,7 @@ private:
     int ival;
     double dval;
     BSTR  bstrval;
-    bool bval;
+    VARIANT_BOOL bval;
     VARIANT variantval;
     SAFEARRAY *saval;
 };

@@ -1301,7 +1301,11 @@ TWAPI_EXTERN TCL_RESULT ObjToDouble(Tcl_Interp *interp, Tcl_Obj *objP, double *)
 #define ObjFromULONG_PTR  ObjFromDWORD_PTR
 #define ObjFromSIZE_T     ObjFromDWORD_PTR
 
-TWAPI_EXTERN int ObjToWord(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP);
+TWAPI_EXTERN TCL_RESULT ObjToUCHAR(Tcl_Interp *interp, Tcl_Obj *obj, UCHAR *ucP);
+TWAPI_EXTERN TCL_RESULT ObjToCHAR(Tcl_Interp *interp, Tcl_Obj *obj, CHAR *ucP);
+TWAPI_EXTERN TCL_RESULT ObjToUSHORT(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP);
+#define ObjToWord ObjToUSHORT
+TWAPI_EXTERN TCL_RESULT ObjToSHORT(Tcl_Interp *interp, Tcl_Obj *obj, SHORT *wordP);
 
 #define ObjFromLARGE_INTEGER(val_) ObjFromWideInt((val_).QuadPart)
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONG(ULONGLONG ull);
