@@ -21,6 +21,18 @@ namespace eval twapi::com::test {
     variable ie_clsid {{0002DF01-0000-0000-C000-000000000046}}
     variable ie_quit_delay 100;   # Ms Delay before calling IE Quit to avoid hang
 
+    proc testobj {} {
+        variable testobj
+        if {![info exists testobj]} {
+            if {$::tcl_platform(pointerSize) == 4} {
+                set testobj [twapi::comobj Twapi.Test -model inprocserver]
+            } else {
+                set testobj [twapi::comobj Twapi.Test -model localserver]
+            }
+        }
+        return $testobj
+    }
+
     ################################################################
 
     test clsid_to_progid-1.0 {
@@ -163,8 +175,6 @@ namespace eval twapi::com::test {
 
     test comobj-5.1 {
         Create COM object with -model inprocserver
-    } -constraints {
-        nt
     } -body {
         [twapi::comobj $shell_clsid -model inprocserver] -destroy
     } -result ""
@@ -173,8 +183,6 @@ namespace eval twapi::com::test {
 
     test comobj-5.2 {
         Create COM object with -model localserver
-    } -constraints {
-        nt
     } -body {
         set ie [twapi::comobj $ie_clsid -model localserver]
         after $ie_quit_delay;        # Delay before quitting else IE 8 hangs
@@ -493,8 +501,6 @@ namespace eval twapi::com::test {
 
     test comobj-16.0 {
         Put comobj property using -put
-    } -constraints {
-        nt
     } -setup {
         set prevdir [pwd]
         set wscript [twapi::comobj wscript.shell]
@@ -509,7 +515,7 @@ namespace eval twapi::com::test {
     test comobj-16.1 {
         Put comobj property using -put when no type information is available
     } -constraints {
-        nt systemmodificationok TBD
+        systemmodificationok TBD
     } -setup {
         # ADSI does not support ITypeInfo so use it for the test
         set adsi_user [twapi::comobj_object "WinNT://./$::env(USERNAME),user"]
@@ -723,9 +729,6 @@ namespace eval twapi::com::test {
     } -cleanup {
     } -result TBD
 
-
-
-
     ################################################################
 
     test comobj_null-1.0 {
@@ -781,11 +784,18 @@ namespace eval twapi::com::test {
         twapi::timelist_to_variant_time  "1900 1 1 0 0 0 0"
     } -result 2.0
 
-
-
     ################################################################
 
     test variant_param_passing-1.0 {
+        Test variant parameter of type int are passed correctly
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o LongProperty 1234
+        $o LongProperty
+    } -result 1234
+
+    test variant_param_passing-1.1 {
         Test variant parameter of type int are passed correctly
     } -setup {
         set sh [twapi::comobj Shell.Application]
@@ -799,7 +809,32 @@ namespace eval twapi::com::test {
         $sh -destroy
     } -result WINDOWS
 
-    test variant_param_passing-1.1 {
+    test variant_param_passing-2.0 {
+        Test variant parameter of type bool are passed correctly
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o BoolProperty 1
+        lappend result [$o BoolProperty]
+        $o BoolProperty 0
+        lappend result [$o BoolProperty]
+        $o BoolProperty 1
+        lappend result [$o BoolProperty]
+        $o BoolProperty 0
+        lappend result [$o BoolProperty]
+    } -result {1 0 1 0}
+
+    test variant_param_passing-3.0 {
+        Test variant parameter of type bstr are passed correctly
+    } -setup {
+        set o [testobj]
+    } -body {
+        $o BstrProperty abc\0\u0100def
+        $o BstrProperty
+    } -result abc\0\u0100def
+
+
+    test variant_param_passing-1.1x {
         Test variant parameter of type string are passed correctly
     } -setup {
         set sh [twapi::comobj Shell.Application]
@@ -835,7 +870,7 @@ namespace eval twapi::com::test {
         $sh -destroy
     } -result 1
 
-    test variant_param_passing-2.0 {
+    test variant_param_passing-2.0x {
         Test variant parameter of type variant*
     } -constraints {
         userInteraction
@@ -980,6 +1015,9 @@ namespace eval twapi::com::test {
 
     ################################################################
 
+    if {[info exists testobj]} {
+        $testobj destroy
+    }
     ::tcltest::cleanupTests
 }
 
