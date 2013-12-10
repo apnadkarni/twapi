@@ -1,0 +1,68 @@
+To use comtest in the test script, it has to be registered on the system.
+comtest is a 32-bit component. Registration depends on whether running 
+32- or 64-bit Tcl and whether run inproc (32-bit only) or outproc.
+
+(These instructions are based on http://stackoverflow.com/questions/4043954/how-to-use-a-32-bit-com-object-on-windows-server-2008-works-on-2008-r2-but-non)
+
+Running inproc on 32-bit systems
+--------------------------------
+Run
+  regsvr32 comtest.dll
+
+To uninstall
+  regsvr32 /u comtest.dll
+
+Create a object
+  set o [comobj Twapi.Test]
+or
+  set o [comobj Twapi.Test -model inprocserver]
+
+Running outproc on 32-bit systems
+---------------------------------
+This will run comtest.dll inside of dllhost. See page 189 of Troelsen's
+Developers Workshop for COM and ATL 3.0 for details
+
+Run
+  regsvr32 comtest.dll
+Then run oleview, click on "All Objects", and select the Twapi.Test node.
+In the right hand pane, Select the Implementation->Inproc Server tab, and
+enable the "Use Surrogate Process" checkbox.
+
+Alternatively, see the registry editing instructions in Troelsen (similar
+to the 64-bit notes below)
+
+Create a object
+  set o [comobj Twapi.Test -model localserver]
+
+Verify that new dllhost process was started up. 
+
+Running inproc on 64-bit systems
+---------------------------------
+Not possible.
+
+Running outproc on 64-bit Tcl
+-----------------------------
+This will run comtest.dll inside of dllhost. Since comtest is a 32-bit
+component, the 32-bit registry must be used. Note the *paths* below
+
+Run
+  c:\windows\syswow64\regsvr32 comtest.dll
+
+1. Start the 32-bit regedit (c:\windows\syswow64\regedit)
+2. Locate the key HKey_Classes_Root\Wow6432Node\CLSID\[GUID] where [GUID]
+is the TwapiTest coclass guid (currently {310FEA61-BC62-4944-84BE-D9DB986701DC})
+NOTE presence of Wow6432Node in the path.
+3. Add a new REG_SZ (string) value called AppID to the key with [GUID] from
+above as the value (actually it can be any GUID, not necessarily the one above)
+4. Add a new key HKey_Classes_Root\Wow6432Node\AppID\[GUID] where [GUID] is
+the [GUID] from step 3 (may or may not be the TwapiTest GUID)
+5. Add a string Value entry DllSurrogate to this key, leaving its value empty
+6. (This step is optional I think - only necessary if running as admin with
+UAC disabled). Similar to above, add DllSurrogate to
+HKey_Local_Machine\Wow6432Node\Software\Classes\AppID\[GUID]
+
+Now when you create your COM object you should see DLLHost.exe*32 show
+up in task manager. Turn on the command-line column in task manager
+and you should see 
+C:\windows\syswow64\dllhost.exe /processid:{YourCOMGUIDHere}
+
