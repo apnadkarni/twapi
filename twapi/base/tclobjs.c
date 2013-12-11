@@ -2686,8 +2686,6 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *saP, int value_only)
 
 VARTYPE ObjTypeToVT(Tcl_Obj *objP)
 {
-    int i;
-    void *pv;
     char *s;
     Tcl_Obj *elemObj;
     VARTYPE vt;
