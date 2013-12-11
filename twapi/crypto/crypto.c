@@ -469,7 +469,6 @@ static TCL_RESULT ParseCERT_NAME_VALUE(
 {
     Tcl_Obj **objs;
     int nobjs;
-    TCL_RESULT res;
 
     if (ObjGetElements(NULL, namevalObj, &nobjs, &objs) == TCL_OK &&
         nobjs == 2 &&
@@ -488,7 +487,6 @@ static TCL_RESULT ParseCERT_NAME_VALUE_Unicode(
 {
     Tcl_Obj **objs;
     int nchars, nobjs;
-    TCL_RESULT res;
 
     if (ObjGetElements(NULL, namevalObj, &nobjs, &objs) == TCL_OK &&
         TwapiGetArgsEx(ticP, nobjs, objs, GETINT(cnvP->dwValueType),
@@ -1434,12 +1432,11 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     CERT_NAME_BLOB name_blob;
     CRYPT_KEY_PROV_INFO *kiP;
     CRYPT_ALGORITHM_IDENTIFIER algid, *algidP;
-    Tcl_Obj **objs;
     int       nobjs;
     SYSTEMTIME start, end, *startP, *endP;
     PCERT_CONTEXT certP;
     CERT_EXTENSIONS exts;
-    Tcl_Obj *algidObj, *startObj, *endObj, *extsObj, *provinfoObj, *provparaObj;
+    Tcl_Obj *algidObj, *startObj, *endObj, *extsObj, *provinfoObj;
     MemLifoMarkHandle mark;
 
     mark = MemLifoPushMark(&ticP->memlifo);
@@ -2029,7 +2026,7 @@ static TCL_RESULT Twapi_PFXImportCertStoreObjCmd(TwapiInterpContext *ticP, Tcl_I
     HCERTSTORE hstore;
     LPWSTR password = NULL;
     int password_len;
-    Tcl_Obj *objP, *passObj;
+    Tcl_Obj *passObj;
     CRYPT_DATA_BLOB blob;
     int flags;
     TCL_RESULT res;
@@ -2485,7 +2482,6 @@ static TCL_RESULT Twapi_CertVerifyChainPolicySSLObjCmd(TwapiInterpContext *ticP,
 static TCL_RESULT Twapi_CertChainContextsObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     CERT_CHAIN_CONTEXT *chainP;
-    MemLifoMarkHandle mark;
     Tcl_Obj *objs[2];
     DWORD dw;
 
@@ -2557,8 +2553,6 @@ static int Twapi_CertSetCertificateContextPropertyObjCmd(TwapiInterpContext *tic
     CRYPT_DATA_BLOB blob;
     TCL_RESULT res;
     MemLifoMarkHandle mark;
-    int nobjs;
-    Tcl_Obj **objs;
     CRYPT_KEY_PROV_INFO *kiP;
     CERT_CONTEXT *certP;
 
