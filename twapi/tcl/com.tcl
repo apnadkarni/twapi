@@ -1441,6 +1441,8 @@ twapi::class create ::twapi::IDispatchProxy {
                             set argtype [lindex $argtype 1]
                         }
                         if {[lindex $argtype 0] == 9 || [lindex $argtype 0] == 12} {
+                            # If a comobj was passed, need to extract the
+                            # dispatch pointer.
                             # We do not want change the internal type so
                             # save it since comobj? changes it to cmdProc.
                             # Moreover, do not check for some types that
@@ -1450,7 +1452,7 @@ twapi::class create ::twapi::IDispatchProxy {
                             # will result in nested list types being
                             # destroyed which affects safearray type detection
                             set orig_type [twapi::tcltype $arg]
-                            if {$orig_type ni {"" TwapiOpaque list int double bytearray dict wideInt booleanString}} {
+                            if {$orig_type ni {bytecode TwapiOpaque list int double bytearray dict wideInt booleanString}} {
                                 if {[twapi::comobj? $arg]} {
                                     # Note we do not addref when getting the interface
                                     # (last param 0) because not necessary for IN
@@ -1461,7 +1463,9 @@ twapi::class create ::twapi::IDispatchProxy {
                                     # Restore the original type
                                     # The [set arg ""] is to optimize refcounts
                                     # so a new Tcl_Obj is not allocated internally
-                                    set arg [twapi::tclcast $orig_type $arg[set arg ""]]
+                                    if {$orig_type ne ""} {
+                                        set arg [twapi::tclcast $orig_type $arg[set arg ""]]
+                                    }
                                 }
                             }
                         }
