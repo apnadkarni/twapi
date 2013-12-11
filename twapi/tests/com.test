@@ -1234,14 +1234,132 @@ namespace eval twapi::com::test {
         [testobj] IntSAProperty
     } -result {{0 1 2} {3 4 5}}
 
-    test variant_param_passing-safearray-1.x {
+    test variant_param_passing-safearray-2.0 {
+        Check type of safearray cast (int)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray int {1 2 3}]
+    } -result 8195
+
+    test variant_param_passing-safearray-2.1 {
+        Check type of safearray cast (int)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray int {1.0 2 3}]
+    } -result {expected integer but got "1.0"} -returnCodes error
+
+    test variant_param_passing-safearray-2.2 {
+        Check type of safearray cast (int)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray int {1 2.0 3}]
+    } -result {expected integer but got "2.0"} -returnCodes error
+
+    test variant_param_passing-safearray-2.3 {
+        Check type of safearray cast (double)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray double {1.0 2.0 3.0}]
+    } -result 8197
+
+    test variant_param_passing-safearray-2.4 {
+        Check type of safearray cast (double)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray double {-100 -200 -300}]
+    } -result 8197
+
+    test variant_param_passing-safearray-2.5 {
+        Check type of safearray cast (double)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray double {-2e-10 3e11 1.0}]
+    } -result 8197
+
+    test variant_param_passing-safearray-2.6 {
+        Check type of safearray cast (double)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray double [list [twapi::tclcast int 1] 2.0 3]]
+    } -result 8197
+                                              
+    test variant_param_passing-safearray-2.7 {
+        Check type of safearray cast (double)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray double {abc 1.0 2.0}]
+    } -result {expected floating-point number but got "abc"} -returnCodes error
+
+    test variant_param_passing-safearray-2.8 {
+        Check type of safearray cast (double)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray double {0.0 abc 1.0 2.0}]
+    } -result {expected floating-point number but got "abc"} -returnCodes error
+
+    test variant_param_passing-safearray-2.9 {
+        Check type of safearray cast (bstr)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray bstr {abc def ghi}]
+    } -result 8200
+
+    test variant_param_passing-safearray-2.10 {
+        Check type of safearray cast (bstr)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray bstr [list [twapi::tclcast int 1] 2.0 3]]
+    } -result 8200
+
+    test variant_param_passing-safearray-2.11 {
+        Check type of safearray cast (string)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray string [list [twapi::tclcast int 1] 2.0 3]]
+    } -result 8200
+
+    test variant_param_passing-safearray-2.12 {
+        Check type of safearray cast (string)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray string {{} abc def}]
+    } -result 8200
+
+    test variant_param_passing-safearray-2.13 {
+        Check type of safearray cast (i4)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray i4 {1 2 3}]
+    } -result 8195
+
+    test variant_param_passing-safearray-2.14 {
+        Check type of safearray cast (r8)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray r8 {1.0 2.0 3.0}]
+    } -result 8197
+
+    test variant_param_passing-safearray-2.15 {
+        Check type of safearray cast (bool)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray bool {1 false true 0}]
+    } -result 8203
+
+    test variant_param_passing-safearray-2.16 {
+        Check type of safearray cast (bool)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray bool {false true 0 1}]
+    } -result 8203
+
+    test variant_param_passing-safearray-2.17 {
+        Check type of safearray cast (boolean)
+    } -body {
+        [testobj] JMPSetDataVector [twapi::safearray boolean {1 false true 0}]
+    } -result 8203
+
+
+    test variant_param_passing-safearray-2.100 {
+        Check type of safearray cast when list is empty
+    } -body {
+        # This is expected to fail in the current implementation because
+        # there is no way to pass the type through if the safearray is
+        # empty
+        [testobj] JMPSetDataVector [twapi::safearray bstr {}]
+    } -result 8197
+
+    test variant_param_passing-safearray-2.x {
         TBD - Test variant parameter of type safearray using comtest
     } -constraints {
         TBD
     } -body {
     } -result {}
 
-    test variant_param_passing-variant-1.0 {
+    test variant_param_passing-variant-2.x {
         TBD - Test variant parameter of type VARIANT using comtest
     } -constraints {
         TBD
@@ -1249,7 +1367,16 @@ namespace eval twapi::com::test {
     } -result {}
 
 
-    test variant_param_passing-variant-2.0x {
+    test variant_param_passing-safearray_by_ref-1.0 {
+        Pass a variant safearray by reference
+    } -body {
+        set sa [twapi::tclcast list ""]
+        [testobj] GetApplicationNames sa
+        set sa
+    } -result {abc def ghi}
+
+
+    test variant_param_passing-variant-3.0 {
         Test variant parameter of type variant*
     } -constraints {
         userInteraction
@@ -1274,6 +1401,9 @@ namespace eval twapi::com::test {
             }
         }
     } -result 1
+
+
+
 
 
     ################################################################
