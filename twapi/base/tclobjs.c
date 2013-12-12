@@ -313,7 +313,7 @@ int TwapiInitTclTypes(void)
     /* Add our TWAPI types */
     gTclTypes[TWAPI_TCLTYPE_OPAQUE].typename = gOpaqueType.name;
     gTclTypes[TWAPI_TCLTYPE_OPAQUE].typeptr = &gOpaqueType;
-    gTclTypes[TWAPI_TCLTYPE_VARIANT].typename = gOpaqueType.name;
+    gTclTypes[TWAPI_TCLTYPE_VARIANT].typename = gVariantType.name;
     gTclTypes[TWAPI_TCLTYPE_VARIANT].typeptr = &gVariantType;
 
     return TCL_OK;
