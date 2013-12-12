@@ -271,7 +271,7 @@ proc twapi::get_typelib_path_from_guid {guid major minor args} {
     } -maxleftover 0 -nulldefault]
 
 
-    set path [QueryPathOfRegTypeLib $guid $major $minor $opts(lcid)]
+    set path [variant_value [QueryPathOfRegTypeLib $guid $major $minor $opts(lcid)]]
     # At least some versions have a bug in that there is an extra \0
     # at the end.
     if {[string equal [string index $path end] \0]} {
@@ -1647,7 +1647,7 @@ twapi::class create ::twapi::IDispatchProxy {
                                        $params $paramnames]
                     } else {
                         ::twapi::IUnknown_Release $ifc; # Don't need ifc but must release
-                        debuglog "IDispatchProxy::@Prototype: Unexpected Bind type: $type, data: $data"
+                        twapi::debuglog "IDispatchProxy::@Prototype: Unexpected Bind type: $type, data: $data"
                     }
                 }
             } onerror {} {
@@ -1718,6 +1718,7 @@ twapi::class create ::twapi::IDispatchProxy {
             # We do not raise an error because
             # even without the _typecomp we can try invoking
             # methods via IDispatch::GetIDsOfNames
+            twapi::debuglog "Could not ITypeInfo: [twapi::trapresult]"
             if {![info exists _guid]} {
                 # Do not overwrite if already set thru @SetGuid or constructor
                 # Set to empty otherwise so we know we tried and failed
@@ -1749,13 +1750,10 @@ twapi::class create ::twapi::IDispatchProxy {
                 set _guid [::twapi::kl_get [$ti GetTypeAttr] guid]
             }
             set _typecomp [$ti @GetTypeComp]; # ITypeComp
-
         } finally {
             $ti Release
         }
     }            
-
-
 
     # Some COM objects like MSI do not have TypeInfo interfaces from
     # where the GUID and TypeComp can be extracted. So we allow caller
@@ -2800,7 +2798,6 @@ twapi::class create ::twapi::ITypeLibProxy {
                         # Load up the properties
                         for {set j 0} {$j < $attrs(-varcount)} {incr j} {
                             array set vardata [$ti GetVarDesc $j]
-                            parray vardata
                             # We will add both propput and propget.
                             # propget:
                             dict set data "$attrs(-typekind)" \
