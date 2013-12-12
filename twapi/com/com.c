@@ -1104,8 +1104,8 @@ int TwapiMakeVariantParam(
     *paramflagsP = PARAMFLAG_FIN; // In case no paramflags
 
     if (paramc == 0) {
-        /* We did not have parameter info. Assume BSTR */
-        vt = VT_BSTR; // TBD - maybe make this VT_VARIANT and guess
+        /* We did not have parameter info. Assume VT_VARIANT and use heuristics */
+        vt = VT_VARIANT;
     }
     else if (paramc > 1) {
         /* If no value supplied as positional parameter, see if it is 
