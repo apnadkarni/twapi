@@ -260,7 +260,7 @@ The command must be enabled with
 [uri #debuglog_enable [cmd debuglog_enable]] for logging to have effect.
 
 [call [cmd debuglog_clear]]
-Returns the current content of the internal debug log and clears it.
+Clears the internal debug log.
 
 [call [cmd debuglog_disable]]
 Disables the [uri #debuglog [cmd debuglog]] command.

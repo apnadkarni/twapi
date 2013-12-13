@@ -1412,7 +1412,7 @@ namespace eval twapi::base::test {
         twapi::debuglog "Test message 1"
         twapi::debuglog "Test message 2"
         list [twapi::debuglog_clear] [llength [twapi::debuglog_get]]
-    } -result {{{Test message 1} {Test message 2}} 0}
+    } -result {{} 0}
 
     ################################################################
 

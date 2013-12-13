@@ -143,10 +143,16 @@ proc twapi::tls::blocking {chan mode} {
 
     variable _channels
 
-    # TBD - deal with closed channel and Socket not existing
-
     dict with _channels($chan) {
         set Blocking $mode
+
+        if {![info exists Socket]} {
+            # We do not currently generate an error because the Tcl socket
+            # command does not either on a fconfigure when remote has
+            # closed connection
+            return
+        }
+
         chan configure $Socket -blocking $mode
         if {$mode == 0} {
             # Since we need to negotiate TLS we always have socket event
@@ -254,8 +260,6 @@ proc twapi::tls::read {chan nbytes} {
             }
         }
 
-        # TBD - handle Socket key not existing
-
         # TBD - use inline K operator to make this faster? Probably no use
         # since Input is also referred to from _channels($chan)
         set ret [string range $Input 0 $nbytes-1]
@@ -265,13 +269,15 @@ proc twapi::tls::read {chan nbytes} {
         }
         if {$status ne "ok"} {
             # TBD - handle renegotiate
-            lassign [sspi_shutdown_context $SspiContext] _ outdata
-            if {[string length $outdata] && $status ne "eof"} {
-                puts -nonewline $Socket $outdata
-            }
             set State CLOSED
-            catch {close $Socket}
-            unset Socket
+            lassign [sspi_shutdown_context $SspiContext] _ outdata
+            if {[info exists Socket]} {
+                if {[string length $outdata] && $status ne "eof"} {
+                    puts -nonewline $Socket $outdata
+                }
+                catch {close $Socket}
+                unset Socket
+            }
         }
         return $ret;            # Note ret may be ""
     }
@@ -300,7 +306,8 @@ proc twapi::tls::write {chan data} {
     dict with _channels($chan) {
         switch $State {
             CLOSED {
-                # TBD - for now throw it away. Should we raise an error ?
+                # Just like a Tcl socket, we do not raise an error.
+                # Simply throw away the data
             }
             OPEN {
                 # There might be pending output if channel has just
@@ -361,13 +368,17 @@ proc twapi::tls::cget {chan opt} {
 proc twapi::tls::cgetall {chan} {
     debuglog [info level 0]
     variable _channels
-    set so [_chansocket $chan]
-    foreach opt {-peername -sockname} {
-        lappend config $opt [chan configure $so $opt]
-    }    
-    lappend config -credentials [dict get $_channels($chan) Credentials] \
-        -verifier [dict get $_channels($chan) Verifier] \
-        -context [dict get $_channels($chan) SspiContext]
+
+    dict with _channels($chan) {
+        if {[info exists Socket]} {
+            foreach opt {-peername -sockname} {
+                lappend config $opt [chan configure $Socket $opt]
+            }
+        }
+        lappend config -credentials $Credentials \
+        -verifier $Verifier \
+        -context $SspiContext
+    }
     return $config
 }
 
@@ -509,6 +520,10 @@ proc twapi::tls::_negotiate chan {
             dict set _channels($chan) State CLOSED
             dict set _channels($chan) ErrorOptions [trapoptions]
             dict set _channels($chan) ErrorResult [trapresult]
+            if {[dict exists $_channels($chan) Socket]} {
+                catch {close [dict get $_channels($chan) Socket]}
+                dict unset _channels($chan) Socket
+            }
         }
         rethrow
     }
@@ -554,6 +569,7 @@ proc twapi::tls::_negotiate2 {chan} {
                         # Keep waiting for next input
                     }
                     default {
+                        debuglog "sspi_step returned $status"
                         error "Unexpected status $status from sspi_step"
                     }
                 }
@@ -661,6 +677,7 @@ proc twapi::tls::_blocking_negotiate_loop {chan} {
     dict with _channels($chan) {}; # dict -> local vars
 
     lassign [sspi_step $SspiContext] status outdata
+    debuglog "sspi_step status $status"
     # Keep looping as long as the SSPI state machine tells us to 
     while {$status eq "continue"} {
         # If the previous step had any output, send it out
@@ -673,7 +690,15 @@ proc twapi::tls::_blocking_negotiate_loop {chan} {
         if {[chan eof $Socket]} {
             error "Unexpected EOF during TLS negotiation."
         }
-        lassign [sspi_step $SspiContext $indata] status outdata leftover
+        trap {
+            lassign [sspi_step $SspiContext $indata] status outdata leftover
+        } onerror {} {
+            debuglog "sspi_step returned error: [trapresult]"
+            close $Socket
+            unset Socket
+            rethrow
+        }
+        debuglog "sspi_step status $status"
     }
 
     # Send output irrespective of status
@@ -687,13 +712,15 @@ proc twapi::tls::_blocking_negotiate_loop {chan} {
             lassign [sspi_decrypt_stream $SspiContext $leftover] status plaintext
             dict append _channels($chan) Input $plaintext
             if {$status ne "ok"} {
-                # TBD - shut down channel
+                debuglog "Error status $status decrypting data"
+                error "Error status $status decrypting data"
             }
         }
         _open $chan
     } else {
         # Should not happen. Negotiation failures will raise an error,
         # not return a value
+        debuglog "TLS negotiation failed: status $status."
         error "TLS negotiation failed: status $status."
     }
 
@@ -727,7 +754,6 @@ proc twapi::tls::_open {chan} {
         # there is no verification of clients to be done by default
 
         # For compatibility with TLS we call accept callbacks AFTER verification
-        # TBD - what if accept callback closes channel ?
         dict set _channels($chan) State OPEN
         if {[info exists AcceptCallback]} {
             # Server sockets are set up to be non-blocking during negotiation
@@ -744,7 +770,6 @@ proc twapi::tls::_open {chan} {
         if {[{*}$Verifier $chan $SspiContext]} {
             dict set _channels($chan) State OPEN
             # For compatibility with TLS we call accept callbacks AFTER verification
-            # TBD - what if accept callback closes channel ?
             if {[info exists AcceptCallback]} {
                 # Server sockets are set up to be non-blocking during 
                 # negotiation. Change them back to blocking before notifying app
