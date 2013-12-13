@@ -461,7 +461,7 @@ proc twapi::tls::_so_read_handler {chan} {
             # We are not asked to generate read events, turn off the read
             # event handler unless we are negotiating
             if {[dict get $_channels($chan) State] ni {SERVERINIT CLIENTINIT NEGOTIATING}} {
-                if {[info exists Socket]} {
+                if {[dict exists $_channels($chan) Socket]} {
                     chan event [dict get $_channels($chan) Socket] readable {}
                 }
             }
