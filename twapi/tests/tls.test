@@ -662,6 +662,24 @@ test tlsIO-3.3 {Validate server -verifier: name mismatch} {socket stdio} {
     set x
 } {{TLS negotiation aborted} EOF}
 
+
+#
+# Tests against real servers
+test tls-1.0 {
+    Verify basic synchronous connection
+} -body {
+    set response ""
+    set so [twapi::tls_socket www.google.com 443]
+    # GET / HTTP/1.0 results in EOF (server does not like request)
+    # GET / HTTP/1.1 results in more complicated read as server does not close
+    # so use just GET /
+    puts $so "GET /"
+    flush $so
+    read $so
+} -cleanup {
+    catch {close $so}
+} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+
 #
 # Cleanup
 

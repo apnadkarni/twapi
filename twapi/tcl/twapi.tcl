@@ -78,7 +78,7 @@ set twapi::version(twapi) $::twapi::version(twapi_base)
 # log for tracing / debug messages.
 proc twapi::debuglog_clear {} {
     variable log_messages
-    return $log_messages[set log_messages {}]
+    set log_messages {}
 }
 
 proc twapi::debuglog_enable {} {
@@ -95,7 +95,7 @@ proc twapi::debuglog_get {} {
     return $log_messages
 }
 
-# Logging disable by default
+# Logging disabled by default
 twapi::debuglog_disable
 
 proc twapi::get_build_config {{key ""}} {
