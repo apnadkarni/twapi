@@ -1,6 +1,8 @@
 #ifndef TWAPI_BASE_H
 # define TWAPI_BASE_H
 
+extern OSVERSIONINFO gTwapiOSVersionInfo;
+
 /* Contains per-interp context specific to the base module. Hangs off
  * the module.pval field in a TwapiInterpContext.
  */
@@ -30,5 +32,6 @@ typedef struct _TwapiBaseSpecificContext {
 
 /* Stuff common to base module but not exported */
 TwapiInterpContext *TwapiGetBaseContext(Tcl_Interp *interp);
+int Twapi_GetVersionEx(Tcl_Interp *interp);
 
 #endif

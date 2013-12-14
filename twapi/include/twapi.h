@@ -1032,7 +1032,6 @@ extern "C" {
 #endif
 
 /* GLOBALS */
-extern OSVERSIONINFO gTwapiOSVersionInfo;
 extern HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
 #if defined(TWAPI_STATIC_BUILD) || defined(TWAPI_SINGLE_MODULE)
 #define MODULE_HANDLE gTwapiModuleHandle
@@ -1083,8 +1082,6 @@ TWAPI_EXTERN TCL_RESULT ObjAppendElement(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Obj
 TWAPI_EXTERN TCL_RESULT ObjGetElements(Tcl_Interp *interp, Tcl_Obj *l, int *objcP, Tcl_Obj ***objvP);
 
 #define Twapi_FreeNewTclObj(o_) do { if (o_) { ObjDecrRefs(o_); } } while (0)
-
-int Twapi_GetVersionEx(Tcl_Interp *interp);
 
 Tcl_Obj *TwapiAppendObjArray(Tcl_Obj *resultObj, int objc, Tcl_Obj **objv,
                          char *join_string);
@@ -1176,6 +1173,8 @@ int Twapi_MemLifoDump(Tcl_Interp *, MemLifo *l);
 /*
  * Exported functions
  */
+
+TWAPI_EXTERN int TwapiMinOSVersion(int major, int minor);
 
 /* Memory allocation */
 

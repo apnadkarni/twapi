@@ -5,8 +5,8 @@
  * See the file LICENSE for license
  */
 
-#include <twapi.h>
-
+#include "twapi.h"
+#include "twapi_base.h"
 
 /* Define glob matching functions that fit lstrcmp prototype - return
    0 if match, 1 if no match */
@@ -34,6 +34,15 @@ Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP)
     return resultObj;
 }
 
+
+int TwapiMinOSVersion(int major, int minor)
+{
+    if (gTwapiOSVersionInfo.dwMajorVersion > major)
+        return 1;
+    if (gTwapiOSVersionInfo.dwMajorVersion < major)
+        return 0;
+    return (gTwapiOSVersionInfo.dwMinorVersion >= minor);
+}
 
 /* Return the DLL version of the given dll. The version is returned as
  * 0 if the DLL does not support the given version
