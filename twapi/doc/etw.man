@@ -249,19 +249,44 @@ The GUID associated with the session.
 The name of the session.
 [list_end]
 
-[call [cmd etw_start_kernel_trace] [opt [arg options]]]
+[call [cmd etw_start_kernel_trace] [arg EVENTTYPES] [opt [arg options]]]
 Starts trace session with the Windows kernel provider. Windows only
 supports one such session so an error is generated if another
 application already has a kernel trace session open.
 [nl]
-The following options specify the kernel components that should be
-enabled for generating events. Note that kernel components cannot
+[arg EVENTTYPES] specifies the kernel components that should be
+enabled for generating events and should be a list containing elements
+from the table below. Note that kernel components cannot
 be enabled or disabled using the [uri #etw_enable_trace [cmd etw_enable_trace]]
 command.
 
 [list_begin opt]
-
+[opt_def [const alpc]] Advanced local procedure calls (Vista or later only)
+[opt_def [const contextswitch]] Thread context switches (Vista or later only)
+[opt_def [const dbgprint]] Kernel DbgPrint calls
+[opt_def [const diskfileio]] File I/O
+[opt_def [const diskio]] Disk I/O
+[opt_def [const dispatcher]] Thread transitions to ready state (Windows 7 or later only)
+[opt_def [const dpc]] Device deferred procedure calls (Vista or later only)
+[opt_def [const driver]] Device driver requests (Vista or later only)
+[opt_def [const hardfault]] Hard page faults
+[opt_def [const imageload]] Image loading
+[opt_def [const interrupt]] Interrupt service routines (Vista or later only)
+[opt_def [const pagefault]] Page faults
+[opt_def [const process]] Processes events
+[opt_def [const processcounter]] Process counters (Vista or later only)
+[opt_def [const profile]] Processor profiling samples (Vista or later only)
+[opt_def [const registry]] Registry access
+[opt_def [const splitio]] Split I/O events (Vista or later only)
+[opt_def [const systemcall]] System calls (Vista or later only)
+[opt_def [const tcpip]] TCP and UDP events
+[opt_def [const thread]] Thread events
+[opt_def [const virtualalloc]] Virtual memory allocation (Windows 7 or later only)
 [list_end]
+
+See
+[uri #etw_start_trace [cmd etw_start_trace]] for a description of the
+options that may be specified.
 
 [call [cmd etw_start_trace] [arg SESSIONNAME] [opt [arg options]]]
 
