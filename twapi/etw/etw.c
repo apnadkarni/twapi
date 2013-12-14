@@ -28,8 +28,8 @@
  * http://msdn.microsoft.com/en-us/library/windows/desktop/aa364089(v=vs.85).aspx
  * For now, treat both as invalid. TBD
  */
-#define INVALID_SESSIONTRACE_HANDLE(ht_) \
-    ((ht_) == 0 || (HANDLE) (ht_) == INVALID_HANDLE_VALUE)
+static TRACEHANDLE gInvalidTraceHandle;
+#define INVALID_SESSIONTRACE_HANDLE(ht_) ((ht_) == gInvalidTraceHandle)
 
 /* For efficiency reasons, when constructing many "records" each of which is
  * a keyed list or dictionary, we do not want to recreate the
@@ -235,6 +235,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
 /*
  * Functions
  */
+
 #ifdef NOTUSEDYET
 /* IMPORTANT : 
  * Do not change order without changing  ObjFromTRACE_LOGFILE_HEADER
@@ -333,7 +334,6 @@ static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
     return ObjNewList(ARRAYSIZE(objs), objs);
 }
 #endif
-
 
 TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     Tcl_Interp *interp,
@@ -1632,6 +1632,16 @@ static int TwapiETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
 static int ETWModuleOneTimeInit(Tcl_Interp *interp)
 {
+    /* Depends on OS - see documentation of OpenTrace in SDK */
+    if (sizeof(void*) == 8) {
+        gInvalidTraceHandle = 0xFFFFFFFFFFFFFFFF;
+    } else {
+        /* 32-bit */
+        if (TwapiMinOSVersion(6, 0))
+            gInvalidTraceHandle = 0x00000000FFFFFFFF;
+        else
+            gInvalidTraceHandle = 0xFFFFFFFFFFFFFFFF;
+    }
     InitializeCriticalSection(&gETWCS);
     return TCL_OK;
 }
