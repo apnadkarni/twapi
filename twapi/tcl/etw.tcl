@@ -787,49 +787,63 @@ er."
     return [StartTrace $session_name $params]
 }
 
-proc twapi::etw_start_kernel_trace {args} {
+proc twapi::etw_start_kernel_trace {events args} {
     
-    set optlist {
-        {process.bool 0 0x00000001}
-        {thread.bool 0 0x00000002}
-        {imageload.bool 0x00000004}
-        {diskio.bool 0 0x00000100}
-        {diskfileio.bool 0 0x00000200}
-        {pagefault.bool 0 0x00001000}
-        {hardfault.bool 0 0x00002000}
-        {tcpip.bool 0 0x00010000}
-        {registry.bool 0 0x00020000}
-        {dbgprint.bool 0 0x00040000}
+    set eventmap {
+        process 0x00000001
+        thread 0x00000002
+        imageload
+        diskio 0x00000100
+        diskfileio 0x00000200
+        pagefault 0x00001000
+        hardfault 0x00002000
+        tcpip 0x00010000
+        registry 0x00020000
+        dbgprint 0x00040000
+    }
+    if {"diskfileio" in $events} {
+        lappend events diskio;  # Required by diskfileio
     }
 
     if {[min_os_version 6]} {
-        lappend optlist {*}{
-            {processcounter.bool 0 0x00000008}
-            {contextswitch.bool 0 0x00000010}
-            {dpc.bool 0 0x00000020}
-            {interrupt.bool 0 0x00000040}
-            {systemcall.bool 0 0x00000080}
-            {diskioinit.bool 0 0x00000400}
-            {alpc.bool 0 0x00100000}
-            {splitio.bool 0 0x00200000}
-            {driver.bool 0 0x00800000}
-            {profile.bool 0 0x01000000}
-            {fileio.bool 0 0x02000000}
-            {fileioinit.bool 0 0x04000000}
+        lappend eventmap {*}{
+            processcounter 0x00000008
+            contextswitch 0x00000010
+            dpc 0x00000020
+            interrupt 0x00000040
+            systemcall 0x00000080
+            diskioinit 0x00000400
+            alpc 0x00100000
+            splitio 0x00200000
+            driver 0x00800000
+            profile 0x01000000
+            fileio 0x02000000
+            fileioinit 0x04000000
+        }
+
+        if {"diskio" in $events} {
+            lappend events diskioinit
+        }
+        if {"diskfileio" in $events} {
+            lappend events fileio fileioinit
         }
     }
 
-    if {[min_os_version 6]} {
-        lappend optlist {*}{
-            {dispatcher.bool 0 0x00000800}
-            {virtualalloc.bool 0 0x00004000}
+    if {[min_os_version 6 1]} {
+        lappend eventmap {*}{
+            dispatcher 0x00000800
+            virtualalloc 0x00004000
         }
     }
 
-    array set opts [parseargs args $optlist -ignoreunknown]
+
+    if {"diskio" in $events} {
+        
+    }
+
     set enableflags 0
-    foreach {opt val} [array get opts] {
-        incr enableflags $val
+    foreach event $events {
+        set enableflags [expr {$enableflags | [dict! $eventmap $event]}]
     }
 
     # Name "NT Kernel Logger" is hardcoded in Windows
