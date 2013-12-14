@@ -91,6 +91,7 @@ set initScript {
 
     proc verifytrue {chan ctx} {return 1}
     proc verifyfalse {chan ctx} {return 0}
+    proc verifyerror {chan ctx} {error "Verification error" "" [list TEST TLS VERIFYFAIL]}
     proc verify {remote_name chan ctx} {
         set remote_cert [twapi::sspi_remote_cert $ctx]
         twapi::trap {
@@ -395,7 +396,7 @@ proc asyncServerScript {server_port {creds_varname serverCreds}} {
                 lappend ::Received $in
                 switch $in {
                     conninfo {puts $chan [list $::Remote [fconfigure $chan -sockname] [fconfigure $chan -peername]]}
-                    quit {set ::Gate quit}
+                    quit {set ::Gate quit ; close $chan}
                     default {puts $chan [string reverse $in]}
                 }
                 set Timer [after 5000 "set ::Gate timed_out"]
@@ -460,7 +461,7 @@ test tlsIO-2.1.1 {Validate server -verifier: name mismatch} {socket stdio} {
     lappend x [gets $f]
     close $f
     set x
-} {{TLS negotiation aborted} EOF}
+} {{SSL/TLS negotiation failed. Verifier callback returned false.} EOF}
 
 test tlsIO-2.1.2 {Validate server altname -verifier: success} {socket stdio} {
     removeFile script
@@ -502,7 +503,7 @@ test tlsIO-2.1.3 {Validate server altname -verifier: name mismatch} {socket stdi
     lappend x [gets $f]
     close $f
     set x
-} {{TLS negotiation aborted} EOF}
+} {{SSL/TLS negotiation failed. Verifier callback returned false.} EOF}
 
 if [info exists Port] {
     incr Port
@@ -596,6 +597,30 @@ test tlsIO-3.0 {Validate server non-blocking -verifier: success} {socket stdio} 
     set response
 } {ready enod {done EOF}}
 
+test tlsIO-3.0.1 {Validate server non-blocking -verifier: success, loop} {socket stdio} {
+    removeFile script
+    set f [open script w]
+    puts $f [asyncServerScript 8828]
+    close $f
+    set f [open "|[list $::tcltest::tcltest script]" r]
+    gets $f;                    # Discard
+    set so [twapi::tls_socket -credentials $::clientCreds \
+                -verifier [list verify twapitestserver] \
+                127.0.0.1 8828]
+    fconfigure $so -buffering line -translation lf
+    for {set i 0} {$i < 5000} {incr i} {
+        puts $so $i; flush $so
+        set response [gets $so]
+        if {$response ne [string reverse $i]} break
+    }
+    puts $so quit; flush $so
+    gets $so;                   # discard
+    close $so
+    gets $f
+    close $f
+    set i
+} 5000
+
 test tlsIO-3.1 {Validate server non-blocking -verifier: name mismatch} {socket stdio} {
     removeFile script
     set f [open script w]
@@ -615,7 +640,7 @@ test tlsIO-3.1 {Validate server non-blocking -verifier: name mismatch} {socket s
     lappend x [gets $f]
     close $f
     set x
-} {{TLS negotiation aborted} EOF}
+} {{SSL/TLS negotiation failed. Verifier callback returned false.} EOF}
 
 incr Port
 test tlsIO-3.2 {Validate server non-blocking -verifier altname: success} {socket stdio} {
@@ -660,15 +685,14 @@ test tlsIO-3.3 {Validate server -verifier: name mismatch} {socket stdio} {
     lappend x [gets $f]
     close $f
     set x
-} {{TLS negotiation aborted} EOF}
+} {{SSL/TLS negotiation failed. Verifier callback returned false.} EOF}
 
 
 #
 # Tests against real servers
-test tls-1.0 {
+test tls_socket-client-1.0 {
     Verify basic synchronous connection
 } -body {
-    set response ""
     set so [twapi::tls_socket www.google.com 443]
     # GET / HTTP/1.0 results in EOF (server does not like request)
     # GET / HTTP/1.1 results in more complicated read as server does not close
@@ -679,6 +703,230 @@ test tls-1.0 {
 } -cleanup {
     catch {close $so}
 } -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+
+test tls_socket-client-1.1 {
+    Verify basic synchronous connection with wrong name
+} -body {
+    list [catch {twapi::tls_socket -peersubject www.google.com www.yahoo.com 443}] [lrange $::errorCode 0 1]
+} -result {1 {TWAPI_WIN32 -2146893022}}
+
+test tls_socket-client-1.2 {
+    Verify basic synchronous connection with unknown root certificate
+} -body {
+    list [catch {twapi::tls_socket www.mikestoolbox.org 443}] [lrange $::errorCode 0 1]
+} -result {1 {TWAPI_WIN32 -2146893019}}
+
+test tls_socket-client-1.3 {
+    Verify basic synchronous connection -verifier (ok)
+} -body {
+    set so [twapi::tls_socket -verifier verifytrue www.google.com 443]
+    # GET / HTTP/1.0 results in EOF (server does not like request)
+    # GET / HTTP/1.1 results in more complicated read as server does not close
+    # so use just GET /
+    puts $so "GET /"
+    flush $so
+    read $so
+} -cleanup {
+    catch {close $so}
+} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+
+test tls_socket-client-1.4 {
+    Verify basic synchronous connection -verifier (fail)
+} -body {
+    list [catch {twapi::tls_socket -verifier verifyfalse www.yahoo.com 443} msg] $msg $::errorCode
+} -result {1 {SSL/TLS negotiation failed. Verifier callback returned false.} {TWAPI TLS VERIFYFAIL}}
+
+test tls_socket-client-1.5 {
+    Verify basic synchronous connection -verifier (error)
+} -body {
+    list [catch {twapi::tls_socket -verifier verifyerror www.google.com 443} msg] $msg $::errorCode
+} -result {1 {Verification error} {TEST TLS VERIFYFAIL}}
+
+test tls_socket-client-1.6 {
+    Verify basic synchronous connection -verifier (ok)
+} -body {
+    set so [twapi::tls_socket -verifier [list verify www.google.com] www.google.com 443]
+    # GET / HTTP/1.0 results in EOF (server does not like request)
+    # GET / HTTP/1.1 results in more complicated read as server does not close
+    # so use just GET /
+    puts $so "GET /"
+    flush $so
+    read $so
+} -cleanup {
+    catch {close $so}
+} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+
+test tls_socket-client-1.7 {
+    Verify basic synchronous connection -verifier (fail)
+} -body {
+    list [catch {twapi::tls_socket -verifier [list verify www.yahoo.com] www.google.com 443} msg] $msg $::errorCode
+} -result {1 {SSL/TLS negotiation failed. Verifier callback returned false.} {TWAPI TLS VERIFYFAIL}}
+
+
+test tls_socket-client-2.0 {
+    Verify basic asynchronous connection
+} -body {
+    set so [twapi::tls_socket -async www.google.com 443]
+    # GET / HTTP/1.0 results in EOF (server does not like request)
+    # GET / HTTP/1.1 results in more complicated read as server does not close
+    # so use just GET /
+    puts $so "GET /"
+    flush $so
+    read $so
+} -cleanup {
+    catch {close $so}
+} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+
+test tls_socket-client-2.1 {
+    Verify basic asynchronous connection, wrong name (error on read)
+} -body {
+    set so [twapi::tls_socket -async -peersubject www.google.com  www.yahoo.com 443]
+    list [catch {read $so}] [lrange $errorCode 0 1]
+} -cleanup {
+    catch {close $so}
+} -result {1 {TWAPI_WIN32 -2146893022}}
+
+test tls_socket-client-2.2 {
+    Verify basic asynchronous connection, wrong name (error on flush)
+} -body {
+    set so [twapi::tls_socket -async -peersubject www.google.com  www.yahoo.com 443]
+    puts $so "GET /"
+    list [catch {flush $so}] [lrange $errorCode 0 1]
+} -cleanup {
+    catch {close $so}
+} -result {1 {TWAPI_WIN32 -2146893022}}
+
+test tls_socket-client-2.3 {
+    Verify basic asynchronous connection, untrusted root (error on read)
+} -body {
+    set so [twapi::tls_socket -async www.mikestoolbox.org 443]
+    list [catch {read $so}] [lrange $errorCode 0 1]
+} -cleanup {
+    catch {close $so}
+} -result {1 {TWAPI_WIN32 -2146893019}}
+
+test tls_socket-client-2.4 {
+    Verify basic asynchronous connection, untrusted root (error on flush)
+} -body {
+    set so [twapi::tls_socket -async www.mikestoolbox.org 443]
+    puts $so "GET /"
+    list [catch {flush $so}] [lrange $errorCode 0 1]
+} -cleanup {
+    catch {close $so}
+} -result {1 {TWAPI_WIN32 -2146893019}}
+
+test tls_socket-client-2.5 {
+    Verify basic asynchronous connection -verify (ok)
+} -body {
+    set so [twapi::tls_socket -async -verifier verifytrue www.yahoo.com 443]
+    # GET / HTTP/1.0 results in EOF (server does not like request)
+    # GET / HTTP/1.1 results in more complicated read as server does not close
+    # so use just GET /
+    puts $so "GET /"
+    flush $so
+    read $so
+} -cleanup {
+    catch {close $so}
+} -result {<HEAD>.*</HEAD>\s*<BODY.*</BODY>\s} -match regexp
+
+test tls_socket-client-2.6 {
+    Verify basic asynchronous connection, -verifier (fail)
+} -body {
+    set so [twapi::tls_socket -async -verifier verifyfalse www.yahoo.com 443]
+    list [catch {read $so} msg] $msg $::errorCode
+} -cleanup {
+    catch {close $so}
+} -result {1 {SSL/TLS negotiation failed. Verifier callback returned false.} {TWAPI TLS VERIFYFAIL}}
+
+test tls_socket-client-2.7 {
+    Verify basic asynchronous connection, -verifier (error)
+} -body {
+    set so [twapi::tls_socket -async -verifier verifyerror www.yahoo.com 443]
+    list [catch {puts $so "GET /" ; flush $so} msg] $msg $::errorCode
+} -cleanup {
+    catch {close $so}
+} -result {1 {Verification error} {TEST TLS VERIFYFAIL}}
+
+
+test tls_socket-client-3.0 {
+    Verify event driven client i/o
+} -body {
+    set so [twapi::tls_socket www.yahoo.com 443]
+    fconfigure $so -blocking 0 -translation binary -buffering none
+    set response ""
+    set reader [lambda {so} {
+        append ::response [read $so]
+        if {[eof $so]} {
+            set ::done eof
+        }
+    }]
+    fileevent $so readable "$reader $so"
+
+    # GET / HTTP/1.0 results in EOF (server does not like request)
+    # GET / HTTP/1.1 results in more complicated read as server does not close
+    # so use just GET /
+    puts $so "GET /\r\n\r\n"
+    set after_id [after 5000 set ::done timeout]
+    vwait ::done
+    after cancel $after_id
+    list $::done [regexp {<HEAD>.*</HEAD>\s*<BODY.*</BODY>\s} $response]
+} -result {eof 1}
+
+test tls_socket-client-3.1 {
+    Verify event driven client i/o
+} -body {
+    set response ""
+    set so [twapi::tls_socket -async www.google.com 443]
+    fconfigure $so -blocking 0 -translation binary -buffering none
+    fileevent $so writable "fileevent $so writable {}; set ::done open"
+    set after_id [after 5000 set ::done timeout]
+    vwait ::done
+    if {$::done eq "open"} {
+        # GET / HTTP/1.0 results in EOF (server does not like request)
+        # GET / HTTP/1.1 results in more complicated read as server does not
+        # close so use just GET /
+        puts $so "GET /\r\n\r\n"
+        set reader [lambda {so} {
+            append ::response [read $so]
+            if {[eof $so]} {
+                set ::done eof
+            }
+        }]
+        fileevent $so readable "$reader $so"
+        vwait ::done
+    }
+    list $::done [regexp {HTTP/1.0.*<HTML>.*</HTML>\s} $response]
+} -result {eof 1}
+
+test tls_socket-client-3.2 {
+    Verify event driven client i/o using gets
+} -body {
+    set response ""
+    set so [twapi::tls_socket -async www.google.com 443]
+    fconfigure $so -blocking 0 -translation lf -buffering none
+    fileevent $so writable "fileevent $so writable {}; set ::done open"
+    set after_id [after 5000 set ::done timeout]
+    vwait ::done
+    if {$::done eq "open"} {
+        # GET / HTTP/1.0 results in EOF (server does not like request)
+        # GET / HTTP/1.1 results in more complicated read as server does not
+        # close so use just GET /
+        puts $so "GET /\r\n\r\n"
+        set reader [lambda {so} {
+            set line [gets $so]
+            puts $line
+            puts EOF:[eof $so]
+            append ::response ${line}\n
+            if {[eof $so]} {
+                set ::done eof
+            }
+        }]
+        fileevent $so readable "$reader $so"
+        vwait ::done
+    }
+    list $::done [regexp {HTTP/1.0.*<HTML>.*</HTML>\s} $response]
+} -result {eof 1}
+
 
 #
 # Cleanup
