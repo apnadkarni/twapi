@@ -170,14 +170,23 @@ proc twapi::tls::blocking {chan mode} {
 proc twapi::tls::watch {chan watchmask} {
     debuglog [info level 0]
     variable _channels
+
     dict with _channels($chan) {
         set WatchMask $watchmask
         if {"read" in $watchmask} {
-            if {[string length $Input]} {
+            # Post a read even if we already have input or if the 
+            # underlying socket has gone away.
+            # TBD - do we have a mechanism for continuously posting
+            # events when socket has gone away ? Do we even post once
+            # when socket is closed (on error for example)
+            if {[string length $Input] || ![info exists Socket]} {
                 chan postevent read
             }
+            # Turn read handler back on in case it had been turned off.
+            chan event $Socket readable [list [namespace current]::_so_read_handler $chan]
         }
 
+        # TBD - do we need to turn write handler back on?
         if {"write" in $watchmask} {
             if {$State eq "OPEN"} {
                 chan postevent write
@@ -741,6 +750,8 @@ proc twapi::tls::_blocking_read {so} {
     return $input
 }
 
+# Transitions connection to OPEN or throws error if verifier returns false
+# or fails
 proc twapi::tls::_open {chan} {
     debuglog [info level 0]
     variable _channels
@@ -762,35 +773,24 @@ proc twapi::tls::_open {chan} {
             chan event $Socket readable {}
             after 0 $AcceptCallback
         }
-        return 1
+        return
     }
 
-    trap {
-        # TBD - what if verifier closes the channel
-        if {[{*}$Verifier $chan $SspiContext]} {
-            dict set _channels($chan) State OPEN
-            # For compatibility with TLS we call accept callbacks AFTER verification
-            if {[info exists AcceptCallback]} {
-                # Server sockets are set up to be non-blocking during 
-                # negotiation. Change them back to blocking before notifying app
-                chan configure $Socket -blocking 1
-                chan event $Socket readable {}
-                after 0 $AcceptCallback
-            }
-
-            return 1
-            
+    # TBD - what if verifier closes the channel
+    if {[{*}$Verifier $chan $SspiContext]} {
+        dict set _channels($chan) State OPEN
+        # For compatibility with TLS we call accept callbacks AFTER verification
+        if {[info exists AcceptCallback]} {
+            # Server sockets are set up to be non-blocking during 
+            # negotiation. Change them back to blocking before notifying app
+            chan configure $Socket -blocking 1
+            chan event $Socket readable {}
+            after 0 $AcceptCallback
         }
-    } onerror {} {
-        dict set _channels($chan) ErrorOptions [trapoptions]
-        dict set _channels($chan) ErrorResult [trapresult]
+        return
+    } else {
+        error "SSL/TLS negotiation failed. Verifier callback returned false." "" [list TWAPI TLS VERIFYFAIL]
     }
-
-    dict set _channels($chan) State CLOSED
-    catch {close [dict get $_channels($chan) Socket]}
-    dict unset _channels($chan) Socket
-    
-    return 0
 }
 
 
