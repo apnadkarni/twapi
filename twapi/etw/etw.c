@@ -265,6 +265,7 @@ static const char * g_trace_logfile_header_fields[] = {
     "-bufferslost",
     NULL,
 };
+
 static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
 {
     int i;
@@ -334,7 +335,7 @@ static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
     return ObjNewList(ARRAYSIZE(objs), objs);
 }
 #endif
-
+    
 TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     Tcl_Interp *interp,
     Tcl_Obj *objP,
@@ -528,7 +529,6 @@ error_handler: /* interp must already contain error msg */
         TwapiFree(etP);
     return TCL_ERROR;
 }
-
 
 static Tcl_Obj *ObjFromEVENT_TRACE_PROPERTIES(EVENT_TRACE_PROPERTIES *etP)
 {
@@ -868,6 +868,7 @@ void WINAPI TwapiETWEventCallback(
     if (gETWContext.errorObj)   /* If some previous error occurred, return */
         return;
 
+    /* TBD - create as a list - faster than as a dict */
     /* IMPORTANT: the order is tied to order of gETWEventKeys[] ! */
     evObj = Tcl_NewDictObj();
     Tcl_DictObjPut(interp, evObj, gETWEventKeys[0].keyObj, ObjFromInt(evP->Header.Class.Type));
@@ -939,6 +940,7 @@ ULONG WINAPI TwapiETWBufferCallback(
     } else
         objP = gETWContext.buffer_cmdObj;
 
+    /* TBD - create as a list - faster than as a dict */
     /* Build up the arguments */
     bufObj = Tcl_NewDictObj();
     Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[0].keyObj, ObjFromUnicode(etlP->LogFileName ? etlP->LogFileName : L""));
@@ -1048,7 +1050,7 @@ TCL_RESULT Twapi_OpenTrace(ClientData clientdata, Tcl_Interp *interp, int objc, 
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    s = ObjToUnicode(objv[0]);
+    s = ObjToUnicode(objv[1]);
     ZeroMemory(&etl, sizeof(etl));
     if (real_time) {
         etl.LoggerName = s;
@@ -1136,12 +1138,13 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
 
     gETWContext.traceH = htraces[0];
     gETWContext.buffer_cmdlen = buffer_cmdlen;
-    gETWContext.buffer_cmdObj = buffer_cmdlen ? objv[1] : NULL;
+    gETWContext.buffer_cmdObj = buffer_cmdlen ? objv[2] : NULL;
     gETWContext.eventsObj = ObjNewList(0, NULL);
     ObjIncrRefs(gETWContext.eventsObj);
     gETWContext.errorObj = NULL;
     gETWContext.interp = interp;
 
+    /* TBD - make these per interpreter keys */
     /*
      * Initialize the dictionary objects we will use as keys. These are
      * tied to interp so have to redo on every call since the interp
@@ -1217,6 +1220,9 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
     } u;
     short     port;
 
+    /* TBD - objv[1] and other objv[] may be samve and shimmer.
+       Fix by using TwapiGetArgsEx
+    */
     if (objc != 4)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
     
