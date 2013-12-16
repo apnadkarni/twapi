@@ -346,8 +346,8 @@ modified.
 Specifies the minimum number of buffers to allocate.
 [opt_def [cmd -minbuffers] [arg MAXBUFS]]
 Specifies the maximum number of buffers to allocate.
-[opt_def [cmd -maximumfilesize] [arg MAXSIZE]]
-The maximum size of the log file in bytes.
+[opt_def [cmd -maximumfilesize] [arg MAXMB]]
+The maximum size of the log file in megabytes.
 [opt_def [cmd -noperprocessorbuffering]]
 Normally, event buffers are allocated on a per-processor basis for
 performance reasons. This may cause events to appear out of order on

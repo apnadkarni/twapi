@@ -699,7 +699,7 @@ proc twapi::etw_start_trace {session_name args} {
         buffersize.int
         minbuffers.int
         maxbuffers.int
-        maximumfilesize.int
+        {maximumfilesize.int 1}
         flushtimer.int
         enableflags.int
         {clockresolution.arg 1}
@@ -721,18 +721,9 @@ proc twapi::etw_start_trace {session_name args} {
 
     set params {}
 
-    foreach opt {sessionguid logfile buffersize minbuffers maxbuffers flushtimer enableflags} {
+    foreach opt {sessionguid logfile buffersize minbuffers maxbuffers flushtimer enableflags maximumfilesize} {
         if {[info exists opts($opt)]} {
             lappend params -$opt $opts($opt)
-        }
-    }
-
-    if {[info exists opts(maximumfilesize)]} {
-        if {$opts(maximumfilesize) > (10*1048576)} {
-            lappend params -maximumfilesize [expr {$opts(-maximumfilesize)/1048576}]
-        } else {
-            # For smaller values specify in KB for better accuracy
-            lappend params -maximumfilesize [expr {$opts(-maximumfilesize)/1024}] -usekbytesforsize
         }
     }
 
@@ -836,19 +827,15 @@ proc twapi::etw_start_kernel_trace {events args} {
         }
     }
 
-
-    if {"diskio" in $events} {
-        
-    }
-
     set enableflags 0
     foreach event $events {
         set enableflags [expr {$enableflags | [dict! $eventmap $event]}]
     }
 
     # Name "NT Kernel Logger" is hardcoded in Windows
-    # GUID is 9e814aad-3204-11d2-9a82-006008a86939
-    # Note kernel logger cannot use paged memory
+    # GUID is 9e814aad-3204-11d2-9a82-006008a86939 but does not need to be
+    # specified. Note kernel logger cannot use paged memory so 
+    # -usepagedmemory 0 is required
     return [etw_start_trace "NT Kernel Logger" -enableflags $enableflags {*}$args -usepagedmemory 0]
 }
 
