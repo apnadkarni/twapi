@@ -412,14 +412,14 @@ each can be obtained through the
 [uri \#get_logon_session_info [cmd get_logon_session_info]] command.
 
 
-[section "Credentials"]
+[section "Windows Credentials"]
 
 The Windows credentials manager maintains a cache of credentials for
 a user account or logon session. The [cmd twapi_security] package
 provides some additional commands to those already
 present in the [cmd twapi_base] package.
 [para]
-The [uri #credentials [cmd credentials]] returns a list of credentials
+The [uri base.html#credentials [cmd credentials]] returns a list of credentials
 for the calling process.
 
 
