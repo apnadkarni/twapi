@@ -692,70 +692,88 @@ proc twapi::etw_dump_files {args} {
 }
 
 proc twapi::etw_start_trace {session_name args} {
-
+    
+    # Specialized for kernel debugging - {bufferingmode {} 0x400}
+    # Not supported until Win7 {noperprocessorbuffering {} 0x10000000}
+    # Not clear what conditions it can be used {usekbytesforsize {} 0x2000}
     array set opts [parseargs args {
         sessionguid.arg
         logfile.arg
         buffersize.int
         minbuffers.int
         maxbuffers.int
-        {maximumfilesize.int 1}
+        maxfilesize.int
         flushtimer.int
         enableflags.int
-        {clockresolution.arg 1}
-        {bufferingmode {} 0x400}
-        {filemodeappend {} 0x4}
-        {filemodecircular {} 0x2}
-        {filemodenewfile {} 0x8}
-        {filemodesequential {} 0x1}
-        {noperprocessorbuffering {} 0x10000000}
-        {privateloggermode {} 0x800}
-        {realtimemode {} 0x100}
-        {securemode {} 0x80}
-        {privateinproc {} 0x20000}
-        {useglobalsequence {} 0x4000}
-        {uselocalsequence {} 0x8000}
-        {usepagedmemory.bool 0x01000000 0x01000000}
+        {clockresolution.arg qpc}
+        {private.bool 0 0x800}
+        {realtime.bool 0 0x100}
+        {secure.bool 0 0x80}
+        {privateinproc.bool 0 0x20800}
+        {sequence.arg none {none local global}}
+        {paged.bool 0 0x01000000}
         {preallocate.bool 0 0x20}
     } -maxleftover 0]
 
-    set params {}
+    set logfilemode 0
 
-    foreach opt {sessionguid logfile buffersize minbuffers maxbuffers flushtimer enableflags maximumfilesize} {
+    switch -exact $opts(filemode) {
+        sequential {
+            if {[info exists opts(maxfilesize)]} {
+                # 1 -> EVENT_TRACE_FILE_MODE_SEQUENTIAL 
+                set logfilemode [expr {$logfilemode | 1}]
+            } else {
+                # 0 -> EVENT_TRACE_FILE_MODE_NONE
+                # set logfilemode [expr {$logfilemode | 0}]
+            }
+        }
+        circular {
+            # 2 -> EVENT_TRACE_FILE_MODE_CIRCULAR
+            set logfilemode [expr {$logfilemode | 2}]
+            if {![info exists opts(maxfilesize)]} {
+                set opts(maxfilesize) 1; # 1MB default
+            }
+        }
+        rotate {
+            if {$opts(private) || $opts(privateinproc)} {
+                if {![min_os_version 6 2]} {
+                    badargs! "Option -filemode must not be \"rotate\" for private traces"
+                }
+            }
+
+            # 8 -> EVENT_TRACE_FILE_MODE_NEWFILE
+            set logfilemode [expr {$logfilemode | 8}]
+            if {![info exists opts(maxfilesize)]} {
+                set opts(maxfilesize) 1; # 1MB default
+            }
+        }
+        append {
+            if {$opts(private) || $opts(privateinproc) || $opts(realtime)} {
+                badargs! "Option -filemode must not be \"append\" for private or realtime traces"
+            }
+            # 4 -> EVENT_TRACE_FILE_MODE_APPEND
+            # Not clear what to do about maxfilesize. Keep as is for now
+            set logfilemode [expr {$logfilemode | 4}]
+        }
+    }
+
+    if {![info exists opts(maxfilesize)]} {
+        set opts(maxfilesize) 0
+    }
+
+    if {$opts(realtime) && ($opts(private) || $opts(privateinproc))} {
+        badargs! "Option -realtime is incompatible with options -private and -privateinproc"
+    }
+
+    foreach opt {sessionguid logfile buffersize minbuffers maxbuffers flushtimer enableflags maxfilesize} {
         if {[info exists opts($opt)]} {
             lappend params -$opt $opts($opt)
         }
     }
 
-    # Check for all bad combinations. Note the pairings are not symmetrical
-    # to avoid needless double checks
-    set logfilemode 0
-    foreach {opt badopts} {
-        bufferingmode {}
-        filemodeappend {filemodecircular filemodenewfile privateloggermode}
-        filemodecircular {filemodenewfile filemodesequential}
-        filemodenewfile {filemodesequential privateloggermode}
-        filemodesequential {}
-        noperprocessorbuffering {} 
-        privateloggermode {}
-        realtimemode {bufferingmode privateloggermode filemodeappend}
-        securemode {}
-        privateinproc {}
-        useglobalsequence {uselocalsequence}
-        uselocalsequence {}
-        usepagedmemory {}
-        preallocate {}
-    } {
-        if {$opts($opt)} {
-            foreach badopt $badopts {
-                if {$opts($badopt)} {
-                    error "Options -$opt and -$badopt cannot be specified togeth
-er."
-                }
-            }
-            incr logfilemode $opts($opt)
-        }
-    }
+    set logfilemode [expr {$logfilemode | [dict! {none 0 local 0x8000 global 0x4000} $opts(sequence)]}]
+
+    set logfilemode [tcl::mathop::| $logfilemode $opts(realtime) $opts(private) $opts(privateinproc) $opts(secure) $opts(paged) $opts(preallocage)]
 
     lappend params -logfilemode $logfilemode
 
@@ -765,15 +783,11 @@ er."
     }
 
     if {($opts(filemodenewfile) || $opts(preallocate)) &&
-        ![info exists opts(maximumfilesize)]} {
-        error "Option -maximumfilesize must also be specified with -preallocate or -filemodenewfile."
+        ![info exists opts(maxfilesize)]} {
+        error "Option -maxfilesize must also be specified with -preallocate or -filemodenewfile."
     }
 
-    if {[string is integer $opts(clockresolution)]} {
-        lappend params -clockresolution $opts(clockresolution)
-    } else {
-        lappend params -clockresolution [dict get {qpc 1 system 2 cpucycle 3} $opts(clockresolution)]
-    }
+    lappend params -clockresolution [dict! {qpc 1 system 2 cpucycle 3} $opts(clockresolution)]
 
     return [StartTrace $session_name $params]
 }
@@ -835,8 +849,16 @@ proc twapi::etw_start_kernel_trace {events args} {
     # Name "NT Kernel Logger" is hardcoded in Windows
     # GUID is 9e814aad-3204-11d2-9a82-006008a86939 but does not need to be
     # specified. Note kernel logger cannot use paged memory so 
-    # -usepagedmemory 0 is required
-    return [etw_start_trace "NT Kernel Logger" -enableflags $enableflags {*}$args -usepagedmemory 0]
+    # -paged 0 is required
+    return [etw_start_trace "NT Kernel Logger" -enableflags $enableflags {*}$args -paged 0]
+}
+
+proc twapi::etw_enable_trace {hsession guid enableflags level} {
+    return [EnableTrace 1 $enableflags [dict* {critical 1 error 2 warning 3 information 4 verbose 5} $level] $guid $hsession]
+}
+
+proc twapi::etw_disable_trace {hsession guid enableflags level} {
+    return [EnableTrace 0 $enableflags [dict* {critical 1 error 2 warning 3 information 4 verbose 5} $level] $guid $hsession]
 }
 
 proc twapi::etw_control_trace {action args} {
@@ -856,7 +878,7 @@ proc twapi::etw_control_trace {action args} {
         maxbuffers.int
         flushtimer.int
         enableflags.int
-        realtimemode.bool
+        realtime.bool
     } -maxleftover 0]
 
     set params {}
@@ -866,8 +888,8 @@ proc twapi::etw_control_trace {action args} {
         error "One of -sessionhandle or -sessionname must be specified."
     }
 
-    if {[info exists opts(realtimemode)]} {
-        if {$opts(realtimemode)} {
+    if {[info exists opts(realtime)]} {
+        if {$opts(realtime)} {
             lappend params -logfilemode 0x100
         } else {
             lappend params -logfilemode 0
@@ -903,7 +925,7 @@ proc twapi::etw_query_trace {args} {
         dict set d -clockresolution $cr
     }
 
-    #TBD - check whether -maximumfilesize needs to be massaged
+    #TBD - check whether -maxfilesize needs to be massaged
 
     return $d
 }

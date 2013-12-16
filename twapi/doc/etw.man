@@ -131,7 +131,7 @@ command which can read events and write them in multiple output formats.
 Alternatively, call [uri #etw_open_file [cmd etw_open_file]]
 or [uri #etw_open_session [cmd etw_open_session]]
 to
-open each logfile or real time session of interest. Then invoke
+open each log file or real time session of interest. Then invoke
 the commands
 [uri #etw_process_events [cmd etw_process_events]] and
 [uri #etw_format_events [cmd etw_format_events]] to process the events.
@@ -196,6 +196,26 @@ an ETW controller.
 
 [list_begin definitions]
 
+[call [cmd etw_disable_trace] [arg SESSIONHANDLE] [arg GUID] [arg ENABLEFLAGS] [arg LEVEL]]
+Enables a provider identified by [arg GUID] 
+to log to the trace session specified by [arg SESSIONHANDLE].
+See [uti #etw_enable_trace [cmd etw_enable_trace]].
+
+[call [cmd etw_enable_trace] [arg SESSIONHANDLE] [arg GUID] [arg ENABLEFLAGS] [arg LEVEL]]
+Enables a provider identified by [arg GUID] 
+to log to the trace session specified by [arg SESSIONHANDLE].
+[nl]
+[arg ENABLEFLAGS] is an integer bitmask that indicates to the provider which
+classes of events are to be logged. The specific bits depend on the provider.
+Use the Windows command [cmd "wevtutil gp PROVIDERNAME"] to list the event
+classes and the corresponding bitmask for a specific provider.
+[nl]
+[arg LEVEL] is an integer between 0 and 255 that indicates the severity
+level at which events should be logged. The provider will log all events
+at [arg LEVEL] and below. Levels 1 through 5 can also be denoted as
+[const critical], [const error], [const warning], [const information]
+and [const verbose] respectively.
+
 [call [cmd etw_flush_trace] [opt [arg options]]]
 Flushes the buffers belonging to a tracing session.
 The session may be specified either by its name 
@@ -234,8 +254,8 @@ Bit flags indicating logging mode for the session.
 Thread doing the logging for the session.
 [opt_def [cmd -maxbuffers]]
 Maximum number of buffers that can be allocated for the session.
-[opt_def [cmd -maximumfilesize]]
-Maximum size specified for the file.
+[opt_def [cmd -maxfilesize]]
+Maximum size specified for the file in megabytes.
 [opt_def [cmd -minbuffers]]
 Minimum number of buffers that can be allocated for the session.
 [opt_def [cmd -numbuffers]]
@@ -286,7 +306,9 @@ command.
 
 See
 [uri #etw_start_trace [cmd etw_start_trace]] for a description of the
-options that may be specified.
+options that may be specified. However, note [const rotate]
+is not a valid value for [cmd -filemode] for kernel traces
+and the [cmd -usepagedmemory] option must not be specified.
 
 [call [cmd etw_start_trace] [arg SESSIONNAME] [opt [arg options]]]
 
@@ -298,7 +320,7 @@ following options may be specified:
 [opt_def [cmd -buffersize] [arg BUFFERSIZE]]
 Specifies the size in kilobytes of the buffers used in the session. This is only
 an requested size and will be adjusted by ETW.
-[opt_def [cmd -clockresolution.arg] [arg RESOLUTION]]
+[opt_def [cmd -clockresolution] [arg RESOLUTION]]
 The clock resolution to use when timestamping events in the session.
 Specify [arg RESOLUTION] as [const qpc] to use the query performance
 counter. This is the highest resolution and is the default. Specify
@@ -313,29 +335,38 @@ to force flushing of buffers every [arg SECONDS] seconds even when
 they are not full. However note that ETW flushes entire buffers to
 log files so flushing half empty buffers can greatly increase the log
 file size. Generally, use this option only for real time sessions.
-[opt_def [cmd -filemodeappend]]
-Normally, existing logfiles are overwritten. If this option is specified,
-events are appended to the logfile instead. The [cmd -clockresolution]
-option must be specified as [const system]. This option cannot be used
-with [cmd -realtimemode], [cmd -filemodecircular] or [cmd -filemodenewfile].
-[opt_def [cmd -filemodecircular]]
+[opt_def [cmd -filemode] [arg FILEMODE]]
+Specifies the file logging mode. [arg FILEMODE] must be one of the
+following values:
+[list_begin opt]
+[opt_def [const append]]
+Events are written sequentially to a log file. Unlike [const sequential]
+mode, existing log files are appended to instead of being overwritten.
+The [cmd -clockresolution] option must be [const system] and
+options [cmd -realtime], [cmd -private] or [cmd -privateinproc] must
+be false. Moreover, various configuration parameters like buffer size
+must be the same as those of the existing log file.
+[opt_def [const circular]]
 Events are written to the log file in circular fashion with newer events
 overwriting older events once the maximum file size is reached.
-This option cannot be used
-with [cmd -filemodeappend], [cmd -filemodesequential] or [cmd -filemodenewfile].
-[opt_def [cmd -filemodenewfile]]
-Automatically creates a new file when the maximum file size is reached.
+If option [cmd -maxfilesize] is not specified, it is defaulted to 1MB.
+[opt_def [const rotate]]
+Sequentially writes to the log file and automatically creates a new file
+when the maximum file size is reached.
 The path specified with the [cmd -logfile] option must contain the
 string [const %d] which is replaced with a incremented counter every time
 a new file is created.
-This option cannot be used
-with [cmd -filemodeappend], [cmd -filemodesequential]
-or [cmd -filemodecircular].
-[opt_def [cmd -filemodesequential]]
-Writes events sequentially to a log file and stops when the maximum size
-is reached.
-This option cannot be used
-with [cmd -filemodecircular] or [cmd -filemodenewfile].
+If option [cmd -maxfilesize] is not specified, it is defaulted to 1MB.
+On Windows versions prior to Windows 7 and Windows 2008 R2, the
+[cmd -private] and [cmd -privateinproc] options are not compatible with
+this mode.
+[opt_def [const sequential]]
+Writes events sequentially to a log file. Existing log files are overwritten.
+If option [cmd -maxfilesize] is specified,
+logging stops when the maximum size is reached. Otherwise, the file will
+grow as needed except for some system defined limits if it resides on the
+system drive.
+[list_end]
 [opt_def [cmd -logfile] [arg FILEPATH]]
 The name of the log file in which to write events. This option need
 not be specified if the session is only a real time session. [arg FILEPATH]
@@ -346,41 +377,61 @@ modified.
 Specifies the minimum number of buffers to allocate.
 [opt_def [cmd -minbuffers] [arg MAXBUFS]]
 Specifies the maximum number of buffers to allocate.
-[opt_def [cmd -maximumfilesize] [arg MAXMB]]
+[opt_def [cmd -maxfilesize] [arg MAXMB]]
 The maximum size of the log file in megabytes.
-[opt_def [cmd -noperprocessorbuffering]]
-Normally, event buffers are allocated on a per-processor basis for
-performance reasons. This may cause events to appear out of order on
-multiprocessor systems. Specifying this option forces writing to
-a common buffer to avoid these anomalies at a cost in tracing performance.
+[opt_def [cmd -paged] [arg BOOLEAN]]
+If [const true], paged memory is used for the session buffers.
+If [const false] (default), non-paged memory is used.
+Kernel-mode providers cannot log to paged buffers. If these are not
+used in the session, it is recommended to set this option to [const true]
+as non-paged memory is a limited resource.
+
 [opt_def [cmd -preallocate] [arg BOOLEAN]]
-[opt_def [cmd -privateloggermode]]
-Specifies a private trace session. This has the benefit of lower
-overhead but also several limitations as detailed in the
-[uri http://msdn.microsoft.com/en-us/library/aa363802(v=vs.85).aspx "Windows SDK ETW documentation"].
-[opt_def [cmd -privateinproc]]
-Specifies an in-process trace session and enforces that only the process
+If [const true], any required file space is preallocated. Default is 
+[const false].
+
+[opt_def [cmd -private] [const BOOLEAN]]
+If [const true], creates a private trace session to which only 
+threads within the provider's
+process can log events. There can be only one private session 
+per process.
+On Windows Vista and later, only processes running as LocalSystem and
+elevated processes can create private sessions. On earlier versions
+of Windows, processes in the [const "Performance Log Users"] group could
+also create private sessions.
+When multiple processes
+register the provider, any log files created are appended with the PID
+of the process except for the one created by the first process.
+This option cannot be used with [cmd -realtime]. On Windows versions
+prior to Windows 7, this option cannot be used if [cmd -filemode] is
+specified as [const rotate].
+[opt_def [cmd -privateinproc] [arg BOOLEAN]]
+If [const true], creates an in-process trace session
+and enforces that only the process
 that registered a provider guid can start a trace session with that guid.
-Requires Vista or later.
-[opt_def [cmd -realtimemode]]
-If specified, events are delivered to any subscribed consumers in real time
+Unlike the [cmd -private] option, processes need not be running in
+privileges accounts and up to three trace sessions can be created.
+Default is [const false]. Requires Vista or later.
+[opt_def [cmd -realtime] [arg BOOLEAN]]
+If [const true], events are delivered to any subscribed consumers in real time
 when event buffers are flushed. Certain guidelines have to be followed
 when real time mode is requested. Please refer to 
 [uri http://msdn.microsoft.com/en-us/library/aa363802(v=vs.85).aspx "Windows SDK ETW documentation"].
-[opt_def [cmd -securemode]]
-Specifies logging to the session requires the TRACELOG_LOG_EVENT permission.
-Requires Vista or later.
+This option cannot be used with [cmd -private] and [cmd -privateinproc].
+Default is [const false].
+[opt_def [cmd -secure] [arg BOOLEAN]]
+If [const true], logging to the session requires the TRACELOG_LOG_EVENT 
+permission. Default is [const false].Requires Vista or later.
+[opt_def [cmd -sequence] [arg SEQUENCETYPE]]
+Events logged with the [cmd TraceMessage] Windows API can contain a sequence
+number. If [arg SEQUENCETYPE] is [const none] (default), no sequence number
+is added to the event. If [arg SEQUENCETYPE] is [const global], the added
+sequence number is global across multiple sessions and if [const local],
+it is unique to a session.
 [opt_def [cmd -sessionguid] [arg GUID]] The GUID to assign to the session.
 If not specified, Windows will internally generate the GUID for the
 trace session. The primary purpose for specifying this is to allow
 for setting access control on the session.
-[opt_def [cmd -useglobalsequence]]
-Specifies use of sequence numbers that are global across multiple sessions.
-[opt_def [cmd -uselocalsequence]]
-Specifies use of sequence numbers that are unique to a session.
-[opt_def [cmd -usepagedmemory] [arg BOOLEAN]]
-If [const true] (default), paged memory is used for the session buffers.
-Otherwise nonpaged memory, of which there is a limited amount, is used.
 
 [list_end]
 For more details on the options, refer to the
