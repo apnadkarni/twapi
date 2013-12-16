@@ -9,6 +9,7 @@
  * TBD - replace use of string object cache with TwapiGetAtom
  * TBD - replace CALL_ with DEFINE_ALIAS_CMD oR DEFINE_FNCODE_CMD
  * TBD - replace dict ops with list ops if possible
+ * TBD - TraceMessage
  */
 
 #include "twapi.h"
@@ -52,7 +53,7 @@ static const char * g_event_trace_fields[] = {
     "-buffersize",
     "-minbuffers",
     "-maxbuffers",
-    "-maximumfilesize",
+    "-maxfilesize",
     "-logfilemode",
     "-flushtimer",
     "-enableflags",
@@ -82,7 +83,7 @@ static const char * g_trace_logfile_header_fields[] = {
     "-numberofprocessors",
     "-endtime",
     "-timerresolution",
-    "-maximumfilesize",
+    "-maxfilesize",
     "-logfilemode",
     "-bufferswritten",
     "-pointersize",
@@ -171,7 +172,7 @@ struct TwapiObjKeyCache gETWBufferKeys[] = {
     {"-hdr_numberofprocessors"},
     {"-hdr_endtime"},
     {"-hdr_timerresolution"},
-    {"-hdr_maximumfilesize"},
+    {"-hdr_maxfilesize"},
     {"-hdr_logfilemode"},
     {"-hdr_bufferswritten"},
     {"-hdr_pointersize"},
@@ -250,7 +251,7 @@ static const char * g_trace_logfile_header_fields[] = {
     "-numberofprocessors",
     "-endtime",
     "-timerresolution",
-    "-maximumfilesize",
+    "-maxfilesize",
     "-logfilemode",
     "-bufferswritten",
     "-pointersize",
@@ -1610,7 +1611,7 @@ static int TwapiETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     struct tcl_dispatch_s EtwDispatch[] = {
         DEFINE_TCL_CMD(StartTrace, Twapi_StartTrace),
         DEFINE_TCL_CMD(ControlTrace, Twapi_ControlTrace),
-        DEFINE_TCL_CMD(etw_enable_trace, Twapi_EnableTrace), //EnableTrace
+        DEFINE_TCL_CMD(EnableTrace, Twapi_EnableTrace),
         DEFINE_TCL_CMD(OpenTrace, Twapi_OpenTrace),
         DEFINE_TCL_CMD(CloseTrace, Twapi_CloseTrace),
         DEFINE_TCL_CMD(ProcessTrace, Twapi_ProcessTrace),
