@@ -1618,7 +1618,7 @@ static int TwapiETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(RegisterTraceGuids, Twapi_RegisterTraceGuids),
         DEFINE_TCL_CMD(etw_unregister_provider, Twapi_UnregisterTraceGuids), //UnregisterTraceGuids
         DEFINE_TCL_CMD(TraceEvent, Twapi_TraceEvent),
-        DEFINE_TCL_CMD(Twapi, Twapi_ParseEventMofData),
+        DEFINE_TCL_CMD(Twapi_ParseEventMofData, Twapi_ParseEventMofData),
     };
 
     struct fncode_dispatch_s EtwCallDispatch[] = {
