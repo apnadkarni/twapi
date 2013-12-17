@@ -572,7 +572,6 @@ proc twapi::etw_format_events {oswbemservices bufdesc events} {
     }
 
     if {[array size missing]} {
-parray missing
         etw_load_mof_event_classes $oswbemservices {*}[array names missing]
     }
 
@@ -620,7 +619,7 @@ parray missing
 
 proc twapi::etw_dump_files {args} {
 
-    package require wmi
+    package require twapi_wmi
     package require csv
 
     array set opts [parseargs args {
@@ -658,8 +657,9 @@ proc twapi::etw_dump_files {args} {
             lappend htraces [etw_open_file $arg]
         }
         set callback [list apply {
-            {lambda counter_varname max wmi bufd events}
+            {options outfd counter_varname max wmi bufd events}
             {
+                array set opts $options
                 foreach event [etw_format_events $wmi $bufd $events] {
                     if {$max >= 0 && [set $counter_varname] >= $max} { return -code break }
                     incr $counter_varname
@@ -669,10 +669,14 @@ proc twapi::etw_dump_files {args} {
                         binary scan [string range [dict get $event -mofdata] 0 31] H* hex
                         set fmtdata [dict create MofData [regsub -all (..) $hex {\1 }]]
                     }
-                    {*}$lambda [dict get $event -timestamp] [dict get $event -threadid] [dict get $event -processid] [dict get $event -classname] [dict get $event -mof -eventtypename] {*}$fmtdata
+                    if {$opts(format) eq "csv"} {
+                        puts $outfd [csv::join [list [dict get $event -timestamp] [dict get $event -threadid] [dict get $event -processid] [dict get $event -classname] [dict get $event -mof -eventtypename] {*}$fmtdata] $opts(separator)]
+                    } else {
+                        puts $outfd [list [dict get $event -timestamp] [dict get $event -threadid] [dict get $event -processid] [dict get $event -classname] [dict get $event -mof -eventtypename] $fmtdata]
+                    }
                 }
             }
-        } $lambda $varname $opts(limit) $wmi]
+        } [array get opts] $outfd $varname $opts(limit) $wmi]
 
         # Process the events using the callback
         etw_process_events -callback $callback {*}$htraces
