@@ -154,7 +154,7 @@ gain in performance by calling
 [para]
 In order for event consumers to correctly parse events, TWAPI also
 has to make the MOF definitions for its ETW events available.
-This is done by calling the [uri #etw_install_mof [cmd etw_install_mof]]
+This is done by calling the [uri #etw_install_twapi_mof [cmd etw_install_twapi_mof]]
 command. This must be done on the system where the event consumer runs.
 It is not required on the system where the events are generated.
 
@@ -167,6 +167,11 @@ through the [uri #etw_start_kernel_trace [cmd etw_start_kernel_trace]]
 command. The specific events to be logged are also specified as options
 to this command as the [uri #etw_enable_trace [cmd etw_enable_trace]]
 cannot be used with kernel logging sessions.
+[para]
+See [uri http://msdn.microsoft.com/en-us/library/windows/desktop/aa364083(v=vs.85).aspx MSDN]
+for the structure and description of the various events logged by the 
+Windows kernel. The corresponding field names are returned by
+[uri #etw_format_events [cmd etw_format_events]].
 
 [para]
 Note there is only one kernel trace session.
@@ -199,7 +204,7 @@ an ETW controller.
 [call [cmd etw_disable_trace] [arg SESSIONHANDLE] [arg GUID] [arg ENABLEFLAGS] [arg LEVEL]]
 Enables a provider identified by [arg GUID] 
 to log to the trace session specified by [arg SESSIONHANDLE].
-See [uti #etw_enable_trace [cmd etw_enable_trace]].
+See [uri #etw_enable_trace [cmd etw_enable_trace]].
 
 [call [cmd etw_enable_trace] [arg SESSIONHANDLE] [arg GUID] [arg ENABLEFLAGS] [arg LEVEL]]
 Enables a provider identified by [arg GUID] 
@@ -269,39 +274,44 @@ The GUID associated with the session.
 The name of the session.
 [list_end]
 
-[call [cmd etw_start_kernel_trace] [arg EVENTTYPES] [opt [arg options]]]
-Starts trace session with the Windows kernel provider. Windows only
+[call [cmd etw_start_kernel_trace] [arg EVENTCLASSES] [opt [arg options]]]
+Starts trace session with the Windows kernel provider. 
+Returns a pair consisting of a session handle and a dictionary containing
+the event trace properties.
+Windows only
 supports one such session so an error is generated if another
 application already has a kernel trace session open.
 [nl]
-[arg EVENTTYPES] specifies the kernel components that should be
-enabled for generating events and should be a list containing elements
-from the table below. Note that kernel components cannot
-be enabled or disabled using the [uri #etw_enable_trace [cmd etw_enable_trace]]
-command.
+[arg EVENTCLASSES] specifies the kernel events that are to be
+captured and should be a list containing elements
+from the table below. Note that the captured events may include
+other events that are not included in [arg EVENTCLASSES].
 
 [list_begin opt]
-[opt_def [const alpc]] Advanced local procedure calls (Vista or later only)
-[opt_def [const contextswitch]] Thread context switches (Vista or later only)
+[opt_def [const alpc]] Advanced local procedure calls (Vista and later)
+[opt_def [const contextswitch]] Thread context switches (Vista and later)
 [opt_def [const dbgprint]] Kernel DbgPrint calls
 [opt_def [const diskfileio]] File I/O
 [opt_def [const diskio]] Disk I/O
-[opt_def [const dispatcher]] Thread transitions to ready state (Windows 7 or later only)
-[opt_def [const dpc]] Device deferred procedure calls (Vista or later only)
-[opt_def [const driver]] Device driver requests (Vista or later only)
+[opt_def [const dispatcher]] Thread transitions to ready state (Windows 7 and later)
+[opt_def [const dpc]] Device deferred procedure calls (Vista and later)
+[opt_def [const driver]] Device driver requests (Vista and later)
 [opt_def [const hardfault]] Hard page faults
 [opt_def [const imageload]] Image loading
-[opt_def [const interrupt]] Interrupt service routines (Vista or later only)
+[opt_def [const interrupt]] Interrupt service routines (Vista and later)
 [opt_def [const pagefault]] Page faults
 [opt_def [const process]] Processes events
-[opt_def [const processcounter]] Process counters (Vista or later only)
-[opt_def [const profile]] Processor profiling samples (Vista or later only)
+[opt_def [const processcounter]] Process counters (Vista and later)
+[opt_def [const profile]] Processor profiling samples (Vista and later)
 [opt_def [const registry]] Registry access
-[opt_def [const splitio]] Split I/O events (Vista or later only)
-[opt_def [const systemcall]] System calls (Vista or later only)
+[opt_def [const splitio]] Split I/O events (Vista and later)
+[opt_def [const sysconfig]] Includes events describing system configuration.
+These are collected when the trace is stopped.
+[opt_def [const systemcall]] System calls (Vista and later)
 [opt_def [const tcpip]] TCP and UDP events
 [opt_def [const thread]] Thread events
-[opt_def [const virtualalloc]] Virtual memory allocation (Windows 7 or later only)
+[opt_def [const vamap]] Virtual address map and unmap events (Windows 8/Windows Server 2012 and later)
+[opt_def [const virtualalloc]] Virtual memory allocation (Windows 7/Windows Server 2008 R2 and later)
 [list_end]
 
 See
@@ -311,9 +321,11 @@ is not a valid value for [cmd -filemode] for kernel traces
 and the [cmd -usepagedmemory] option must not be specified.
 
 [call [cmd etw_start_trace] [arg SESSIONNAME] [opt [arg options]]]
-
-Starts a new ETW trace session with the name [arg SESSIONNAME]. The
-following options may be specified:
+Starts a new ETW trace session with the name [arg SESSIONNAME].
+Returns a pair consisting of a session handle and a dictionary containing
+the event trace properties.
+[nl]
+The following options may be specified:
 
 [list_begin opt]
 
@@ -443,6 +455,9 @@ its name
 or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]])
 through the options [cmd -sessionname] and [cmd -sessionhandle]
 respectively.
+[nl]
+The command returns a dictionary containing the properties of the stopped
+tracing session.
 
 [call [cmd etw_update_trace] [opt [arg options]]]
 Updates the attributes associated with a session. If the session is inactive
@@ -569,12 +584,12 @@ value. If the MOF definition is not available, the field name is
 [const MofData] and the corresponding value is a hexadecimal representation
 of the binary data.
 
-[call [cmd etw_install_mof]]
+[call [cmd etw_install_twapi_mof]]
 Installs the TWAPI Managed Object Format (MOF) definition for the event
 trace formats used by TWAPI. This command needs to be called on the
 system where a ETW consumer will be parsing TWAPI logged events.
 The definition can be removed by calling 
-[uri #etw_uninstall_mof [cmd etw_uninstall_mof]].
+[uri #etw_uninstall_twapi_mof [cmd etw_uninstall_twapi_mof]].
 
 [call [cmd etw_close_session] [arg HTRACE]]
 Closes a trace session previously opened by a call to
@@ -742,7 +757,7 @@ To terminate processing of events before all events from the traces are
 consumed, the callback can execute
 [example "return -code break"]
 
-[call [cmd etw_uninstall_mof]]
+[call [cmd etw_uninstall_twapi_mof]]
 Uninstalls the TWAPI Managed Object Format (MOF) definition for the event
 trace formats used by TWAPI.
 
