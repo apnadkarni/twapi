@@ -56,6 +56,7 @@ proc twapi::get_shell_folder {csidl args} {
             CSIDL_SYSTEM 0x25
             CSIDL_TEMPLATES 0x15
             CSIDL_WINDOWS 0x24
+            CSIDL_CDBURN_AREA 0x3b
         }
     }
 
