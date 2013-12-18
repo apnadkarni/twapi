@@ -97,6 +97,7 @@ values as defined in the Windows SDK:
 [const csidl_admintools],
 [const csidl_common_admintools],
 [const csidl_appdata],
+[const csidl_cdburn_area],
 [const csidl_common_appdata],
 [const csidl_common_desktopdirectory],
 [const csidl_common_documents],
