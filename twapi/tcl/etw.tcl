@@ -42,7 +42,7 @@ namespace eval twapi {
 }
 
 
-proc twapi::etw_install_mof {} {
+proc twapi::etw_install_twapi_mof {} {
     variable _etw_mof
     
     # MOF definition for our ETW trace event. This is loaded into
@@ -129,7 +129,7 @@ proc twapi::etw_install_mof {} {
     }
 }
 
-proc twapi::etw_uninstall_mof {} {
+proc twapi::etw_uninstall_twapi_mof {} {
     variable _etw_mof
 
     set wmi [twapi::_wmi wmi]
@@ -564,6 +564,9 @@ proc twapi::etw_process_events {args} {
 
 proc twapi::etw_format_events {oswbemservices bufdesc events} {
     variable _etw_event_defs
+
+    # TBD - it may be faster to special case NT kernel events as per
+    # the structures defined in http://msdn.microsoft.com/en-us/library/windows/desktop/aa364083(v=vs.85).aspx
     array set missing {}
     foreach event $events {
         if {! [dict exists $_etw_event_defs [dict get $event -guid]]} {
@@ -641,13 +644,6 @@ proc twapi::etw_dump_files {args} {
         set do_close 1
     }
 
-    if {$opts(format) eq "csv"} {
-        set lambda [list apply [list args "puts $outfd \[csv::join \$args \"$opts(separator)\"]"]]
-    } else {
-        set lambda [list apply [list args "puts $outfd \$args"]]
-    }
-
-
     trap {
         set varname ::twapi::_etw_dump_ctr[TwapiId]
         set $varname 0;         # Yes, set $varname, not set varname
@@ -709,6 +705,7 @@ proc twapi::etw_start_trace {session_name args} {
         maxfilesize.int
         flushtimer.int
         enableflags.int
+        {filemode.arg circular {sequential append rotate circular}}
         {clockresolution.arg qpc}
         {private.bool 0 0x800}
         {realtime.bool 0 0x100}
@@ -777,17 +774,16 @@ proc twapi::etw_start_trace {session_name args} {
 
     set logfilemode [expr {$logfilemode | [dict! {none 0 local 0x8000 global 0x4000} $opts(sequence)]}]
 
-    set logfilemode [tcl::mathop::| $logfilemode $opts(realtime) $opts(private) $opts(privateinproc) $opts(secure) $opts(paged) $opts(preallocage)]
+    set logfilemode [tcl::mathop::| $logfilemode $opts(realtime) $opts(private) $opts(privateinproc) $opts(secure) $opts(paged) $opts(preallocate)]
 
     lappend params -logfilemode $logfilemode
 
-    if {$opts(filemodeappend) &&
-        $opts(clockresolution) ni {2 system}} {
-        error "Option -clockresolution must be set to 'system' if -filemodeappend is specified"
+    if {$opts(filemode) eq "append" && $opts(clockresolution) ne "system"} {
+        error "Option -clockresolution must be set to 'system' if -filemode is append"
     }
 
-    if {($opts(filemodenewfile) || $opts(preallocate)) &&
-        ![info exists opts(maxfilesize)]} {
+    if {($opts(filemode) eq "rotate" || $opts(preallocate)) &&
+        $opts(maxfilesize) == 0} {
         error "Option -maxfilesize must also be specified with -preallocate or -filemodenewfile."
     }
 
@@ -798,10 +794,11 @@ proc twapi::etw_start_trace {session_name args} {
 
 proc twapi::etw_start_kernel_trace {events args} {
     
+    # Note sysconfig is a dummy event. It is always logged.
     set eventmap {
         process 0x00000001
         thread 0x00000002
-        imageload
+        imageload 0x00000004
         diskio 0x00000100
         diskfileio 0x00000200
         pagefault 0x00001000
@@ -809,6 +806,7 @@ proc twapi::etw_start_kernel_trace {events args} {
         tcpip 0x00010000
         registry 0x00020000
         dbgprint 0x00040000
+        sysconfig 0x00000000
     }
     if {"diskfileio" in $events} {
         lappend events diskio;  # Required by diskfileio
@@ -833,15 +831,22 @@ proc twapi::etw_start_kernel_trace {events args} {
         if {"diskio" in $events} {
             lappend events diskioinit
         }
-        if {"diskfileio" in $events} {
-            lappend events fileio fileioinit
-        }
     }
 
     if {[min_os_version 6 1]} {
         lappend eventmap {*}{
             dispatcher 0x00000800
             virtualalloc 0x00004000
+        }
+    }
+
+    if {[min_os_version 6 2]} {
+        lappend eventmap {*}{
+            vamap 0x00008000
+        }
+        if {"sysconfig" ni $events} {
+            # EVENT_TRACE_FLAG_NO_SYSCONFIG 
+            set enableflags [expr {$enableflags | 0x10000000}]
         }
     }
 
