@@ -1486,6 +1486,15 @@ namespace eval twapi::disk::test {
 
     ################################################################
 
+    test flush_channel-1.0 {
+        TBD - flush_channel
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 
