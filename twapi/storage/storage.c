@@ -264,6 +264,7 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     case 15:
     case 16:
     case 17:
+    case 18:
         if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
@@ -293,18 +294,11 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             } else
                 result.type = TRT_GETLASTERROR;
             break;
+        case 18:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = FlushFileBuffers(h);
+            break;
         }
-        break;
-    case 18:
-        CHECK_NARGS(interp, objc, 3);
-        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), ARGSKIP, ARGSKIP, ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival =
-            DefineDosDeviceW(dw, ObjToUnicode(objv[1]),
-                             ObjToLPWSTR_NULL_IF_EMPTY(objv[2]));
         break;
     case 19:
     case 20:
@@ -351,6 +345,18 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = SetFileTime(h, ftP[0], ftP[1], ftP[2]);
         break;
+    case 23:
+        CHECK_NARGS(interp, objc, 3);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETINT(dw), ARGSKIP, ARGSKIP, ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival =
+            DefineDosDeviceW(dw, ObjToUnicode(objv[1]),
+                             ObjToLPWSTR_NULL_IF_EMPTY(objv[2]));
+        break;
+
     }
 
     return TwapiSetResult(interp, &result);
@@ -377,11 +383,12 @@ static int TwapiStorageInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(FindNextVolumeMountPoint, 15),
         DEFINE_FNCODE_CMD(GetFileType, 16), // TBD - TCL 
         DEFINE_FNCODE_CMD(GetFileTime, 17),
-        DEFINE_FNCODE_CMD(DefineDosDevice, 18),
+        DEFINE_FNCODE_CMD(FlushFileBuffers, 18),
         DEFINE_FNCODE_CMD(MoveFileEx, 19),
         DEFINE_FNCODE_CMD(SetVolumeLabel, 20),
         DEFINE_FNCODE_CMD(SetVolumeMountPoint, 21),
         DEFINE_FNCODE_CMD(SetFileTime, 22),
+        DEFINE_FNCODE_CMD(DefineDosDevice, 23),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(StorDispatch), StorDispatch, Twapi_StorageCallObjCmd);
