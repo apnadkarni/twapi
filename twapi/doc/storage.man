@@ -70,6 +70,10 @@ The commands [uri \#get_file_times [cmd get_file_times]] and
 [uri \#set_file_times [cmd set_file_times]] and
 allow retrieval and setting of the times associated with a file.
 
+[para]
+The command [uri #flush_channel [cmd flush_channel]] flushes
+operating system buffers associated with a Tcl channel to disk.
+
 [section Commands]
 [list_begin definitions]
 
@@ -223,6 +227,9 @@ a trailing slash.
 [call [cmd find_volume_mount_points] [arg VOLNAME]]
 Returns the list of volume mount points on the volume whose
 name is [arg VOLNAME].
+
+[call [cmd flush_channel] [arg CHANNEL]]
+Flushes operating system buffers associated with a Tcl channel to disk.
 
 [call [cmd get_drive_info] [arg DRIVE] [opt [arg options]]]
 
