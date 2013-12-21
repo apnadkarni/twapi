@@ -323,10 +323,10 @@ proc twapi::etw_parse_mof_event_class {ocls} {
 
 proc twapi::_etw_decipher_mof_event_field_type {oprop oquals} {
     # Maps event field type strings to enums to pass to the C code
-    variable _etw_fieldtypes
     # 0 should be unmapped. Note some are duplicates because they
     # are the same format. Some are legacy formats not explicitly documented
     # in MSDN but found in the sample code.
+    # Reference - Event Tracing MOF Qualifiers http://msdn.microsoft.com/en-us/library/windows/desktop/aa363800(v=vs.85).aspx
     set etw_fieldtypes {
         string  1
         stringnullterminated 1
@@ -537,7 +537,7 @@ proc twapi::etw_open_session {sessionname} {
     return $htrace
 }
 
-proc twapi::etw_close_trace {htrace} {
+proc twapi::etw_close_session {htrace} {
     variable _etw_open_traces
 
     if {[info exists _etw_open_traces($htrace)]} {
@@ -567,6 +567,8 @@ proc twapi::etw_format_events {oswbemservices bufdesc events} {
 
     # TBD - it may be faster to special case NT kernel events as per
     # the structures defined in http://msdn.microsoft.com/en-us/library/windows/desktop/aa364083(v=vs.85).aspx
+    # However, the MSDN warns that structures should not be created from
+    # MOF classes as alignment restrictions might be different
     array set missing {}
     foreach event $events {
         if {! [dict exists $_etw_event_defs [dict get $event -guid]]} {
@@ -650,7 +652,11 @@ proc twapi::etw_dump_files {args} {
         set htraces {}
         set wmi [wmi_root -root wmi]
         foreach arg $args {
-            lappend htraces [etw_open_file $arg]
+            if {[file exists $arg]} {
+                lappend htraces [etw_open_file $arg]
+            } else {
+                lappend htraces [etw_open_session $arg]
+            }
         }
         set callback [list apply {
             {options outfd counter_varname max wmi bufd events}
@@ -680,7 +686,7 @@ proc twapi::etw_dump_files {args} {
     } finally {
         unset -nocomplain $varname
         foreach htrace $htraces {
-            etw_close_trace $htrace
+            etw_close_session $htrace
         }
         if {[info exists wmi]} {$wmi destroy}
         if {$do_close} {
@@ -794,6 +800,8 @@ proc twapi::etw_start_trace {session_name args} {
 
 proc twapi::etw_start_kernel_trace {events args} {
     
+    set enableflags 0
+
     # Note sysconfig is a dummy event. It is always logged.
     set eventmap {
         process 0x00000001
@@ -808,6 +816,7 @@ proc twapi::etw_start_kernel_trace {events args} {
         dbgprint 0x00040000
         sysconfig 0x00000000
     }
+
     if {"diskfileio" in $events} {
         lappend events diskio;  # Required by diskfileio
     }
@@ -850,7 +859,6 @@ proc twapi::etw_start_kernel_trace {events args} {
         }
     }
 
-    set enableflags 0
     foreach event $events {
         set enableflags [expr {$enableflags | [dict! $eventmap $event]}]
     }

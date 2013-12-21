@@ -463,7 +463,7 @@ proc twapi::normalize_device_rooted_path {path args} {
 
 proc twapi::flush_channel {chan} {
     flush $chan
-    FlushFileBuffers [get_tcl_channel_handle $chan]
+    FlushFileBuffers [get_tcl_channel_handle $chan write]
 }
 
 # Utility functions

@@ -136,7 +136,7 @@ the commands
 [uri #etw_process_events [cmd etw_process_events]] and
 [uri #etw_format_events [cmd etw_format_events]] to process the events.
 Trace sessions opened with [cmd etw_open_trace] should be closed
-with [uri #etw_close_trace [cmd etw_close_trace]] after processing.
+with [uri #etw_close_session [cmd etw_close_session]] after processing.
 
 [section "Event definitions"]
 [para]
@@ -697,13 +697,13 @@ The version of the event format.
 Opens a log file containing ETW events and returns a trace handle to it
 which can be passed to [uri #etw_process_events [cmd etw_process_events]].
 The handle must be closed later by passing it to
-[uri #etw_close_trace [cmd etw_close_trace]].
+[uri #etw_close_session [cmd etw_close_session]].
 
 [call [cmd etw_open_session] [arg SESSIONNAME]]
 Opens a real time ETW session and returns a trace handle to it
 which can be passed to [uri #etw_process_events [cmd etw_process_events]].
 The handle must be closed later by passing it to
-[uri #etw_close_trace [cmd etw_close_trace]].
+[uri #etw_close_session [cmd etw_close_session]].
 
 [call [cmd etw_process_events] [opt "[cmd -callback] [arg CALLBACK]"] [opt "[cmd -start] [arg STARTTIME]"] [opt "[cmd -end] [arg ENDTIME]"] [arg HTRACE] [opt [arg HTRACE...]]]
 Passes events recorded in one or more event traces to the callback
