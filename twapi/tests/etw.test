@@ -1,0 +1,228 @@
+#
+# Copyright (c) 2004-2012, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the eventlog.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi_package twapi_etw
+load_twapi_package twapi_process; # Needed for proc privileged
+
+namespace eval twapi::etw::test {
+    namespace import ::tcltest::test
+
+    variable logdir [tcltest::makeDirectory etwlogs]
+
+    proc privileged {} {
+        if {[twapi::min_os_version 6]} {
+            if {[twapi::process_in_administrators] &&
+                [twapi::get_process_elevation] eq "full"} {
+                return 1
+            } else {
+                return 0
+            }
+        } else {
+            return [twapi::process_in_administrators]
+        }
+    }
+    ::tcltest::testConstraint privileged [privileged]
+
+    test etw_install_mof-1.0 {
+        TBD - etw_install_mof
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_uninstall_mof-1.0 {
+        TBD - etw_uninstall_mof
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_register_provider-1.0 {
+        TBD - etw_register_provider
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_log_message-1.0 {
+        TBD - etw_log_message
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_variable_tracker-1.0 {
+        TBD - etw_variable_tracker
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_execution_tracker-1.0 {
+        TBD - etw_execution_tracker
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_command_tracker-1.0 {
+        TBD - etw_command_tracker
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_parse_mof_event_class-1.0 {
+        TBD - etw_parse_mof_event_class
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_find_mof_event_classes-1.0 {
+        TBD - etw_find_mof_event_classes
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_get_all_mof_event_classes-1.0 {
+        TBD - etw_get_all_mof_event_classes
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_load_mof_event_class_obj-1.0 {
+        TBD - etw_load_mof_event_class_obj
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_load_mof_event_classes-1.0 {
+        TBD - etw_load_mof_event_classes
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_open_file-1.0 {
+        TBD - etw_open_file
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_open_session-1.0 {
+        TBD - etw_open_session
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_close_session-1.0 {
+        TBD - etw_close_session
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_process_events-1.0 {
+        TBD - etw_process_events
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_format_events-1.0 {
+        TBD - etw_format_events
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_dump_files-1.0 {
+        TBD - etw_dump_files
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_start_trace-1.0 {
+        TBD - etw_start_trace
+    } -constraints {
+        TBD
+    } -body {
+        etw_start_trace "NT Kernel Logger" -logfile k.etl -filemodecircular -maximumfilesize 1
+    } -result TBD
+
+    test etw_start_kernel_trace-1.0 {
+        Start kernel trace (basic)
+    } -constraints {
+        privileged
+    } -body {
+        set etl [file join $logdir [clock microseconds].etl]
+        twapi::etw_start_kernel_trace {} -logfile $etl
+        twapi::etw_stop_trace -sessionname "NT Kernel Logger"
+        file exists $etl
+    } -result 1
+
+    test etw_start_kernel_trace-2.0 {
+        Start kernel trace (verify -filemode default is circular)
+    } -constraints {
+        privileged
+    } -body {
+        set etl [file join $logdir [clock microseconds].etl]
+        set etl x.etl
+        twapi::etw_start_kernel_trace {diskio diskfileio} -logfile $etl
+        set fd [open [tcltest::makeFile "" [clock microseconds]] a+]
+        close $fd
+        twapi::etw_stop_trace -sessionname "NT Kernel Logger"
+        file size $etl
+    } -result 1048576
+
+
+
+    test etw_enable_trace-1.0 {
+        TBD - etw_enable_trace
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_disable_trace-1.0 {
+        TBD - etw_disable_trace
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_control_trace-1.0 {
+        TBD - etw_control_trace
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
+    test etw_query_trace-1.0 {
+        TBD - etw_query_trace
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+}
+
+#
+# Clean up
+::tcltest::cleanupTests
+namespace delete ::twapi::etw::test
