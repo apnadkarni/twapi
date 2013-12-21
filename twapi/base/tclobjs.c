@@ -1974,12 +1974,33 @@ TCL_RESULT ObjToTIME_ZONE_INFORMATION(Tcl_Interp *interp,
 
 Tcl_Obj *ObjFromULONGHex(ULONG val)
 {
-    return Tcl_ObjPrintf("0x%8.8x", val);
+    char buf[20];
+    int i;
+    static char hexmap[] = "0123456789abcdef";
+
+    // Significantly faster than Tcl_ObjPrintf("0x%8.8x", val);
+
+    buf[0] = '0';
+    buf[1] = 'x';
+
+    buf[2] = hexmap[(val >> 28) & 0xf];
+    buf[3] = hexmap[(val >> 24) & 0xf];
+    buf[4] = hexmap[(val >> 20) & 0xf];
+    buf[5] = hexmap[(val >> 16) & 0xf];
+    buf[6] = hexmap[(val >> 12) & 0xf];
+    buf[7] = hexmap[(val >> 8) & 0xf];
+    buf[8] = hexmap[(val >> 4) & 0xf];
+    buf[9] = hexmap[val & 0xf];
+
+    return ObjFromStringN(buf, 10);
 }
 
 Tcl_Obj *ObjFromULONGLONGHex(ULONGLONG ull)
 {
     Tcl_Obj *objP;
+
+    /* TBD - look for a faster implementation */
+
     /* Unfortunately, Tcl_Objprintf does not handle 64 bits currently */
 #if defined(TWAPI_REPLACE_CRT) || defined(TWAPI_MINIMIZE_CRT)
     Tcl_Obj *wideObj;
@@ -1988,6 +2009,7 @@ Tcl_Obj *ObjFromULONGLONGHex(ULONGLONG ull)
     ObjDecrRefs(wideobj);
 #else
     char buf[40];
+    /* TBD - should this not be unsigned */
     _snprintf(buf, sizeof(buf), "0x%16.16I64x", ull);
     objP = ObjFromString(buf);
 #endif
