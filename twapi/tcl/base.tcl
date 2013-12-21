@@ -662,7 +662,7 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
         for {set i 0} {$i < 32} {incr i} {
             set x [expr {1 << $i}]
             if {$access_mask & $x} {
-                lappend rights [format 0x%.8X $x]
+                lappend rights [hex32 $x]
             }
         }
 

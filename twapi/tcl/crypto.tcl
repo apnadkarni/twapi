@@ -806,22 +806,22 @@ proc twapi::cert_tls_verify {hcert args} {
             0x00000000 ok
             0x80096004 signature
             0x80092010 revoked
-            0x800B0109 untrustedroot
-            0x800B010D untrustedtestroot
-            0x800B010A chaining
-            0x800B0110 wrongusage
-            0x800B0101 expired
-            0x800B0114 name
-            0x800B0113 policy
+            0x800b0109 untrustedroot
+            0x800b010d untrustedtestroot
+            0x800b010a chaining
+            0x800b0110 wrongusage
+            0x800b0101 expired
+            0x800b0114 name
+            0x800b0113 policy
             0x80096019 basicconstraints
-            0x800B0105 criticalextension
-            0x800B0102 validityperiodnesting
+            0x800b0105 criticalextension
+            0x800b0102 validityperiodnesting
             0x80092012 norevocationcheck
             0x80092013 revocationoffline
-            0x800B010F cnmatch
-            0x800B0106 purpose
-            0x800B0103 carole
-        } [format 0x%8.8X $status]]
+            0x800b010f cnmatch
+            0x800b0106 purpose
+            0x800b0103 carole
+        } [hex32 $status]]
     } finally {
         if {[info exists certs_in_chain]} {
             foreach cert_stat $certs_in_chain {
