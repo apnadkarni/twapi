@@ -159,6 +159,10 @@ are useful for manipulating internal Tcl value types. This is sometimes useful
 and required when dealing with external APIs and data formats like
 [uri com.html#controllingparametertypes "COM"].
 
+[uri #hex32] [cmd hex32]] and
+[uri #hex64] [cmd hex64]] format numbers as fixed length
+hexadecimal strings.
+
 [section Commands]
 [list_begin definitions]
 
@@ -424,6 +428,12 @@ similar to the Tcl [cmd "info patchlevel"] command, for example,
 [const 1.0.2] for final release of version 1.0 patch 2,
 [const 1.0b3] for the third beta release of version 1.0 and
 [const 1.0a3] for the third alpha release of version 1.0.
+
+[call [cmd hex32] [arg INT32VAL]]
+Returns [arg INT32VAL] as a fixed width hexadecimal string.
+
+[call [cmd hex64] [arg INT64VAL]]
+Returns [arg INT64VAL] as a fixed width hexadecimal string.
 
 [call [cmd import_commands]]
 Imports all public commands in the [cmd twapi::] namespace into the caller's
