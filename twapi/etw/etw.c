@@ -993,7 +993,7 @@ ULONG WINAPI TwapiETWBufferCallback(
      * refer to null terminated fields right after this struct.
      * HOWEVER, it is not clear what happens when the struct is 
      * embedded inside another so for now we just do not include them
-     * in the returned dictionary.
+     * in the returned dictionary. - TBD
     */
 
     Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[24].keyObj, ObjFromULONG(adjustedP->BuffersLost));
@@ -1264,7 +1264,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
             break;
         }
 
-        /* IMPORTANT: switch values are based on script _etw_typeenum defs */
+        /* IMPORTANT: switch values based on _etw_decipher_mof_event_field_type proc */
         switch (typeenum) {
         case 1: // string / stringnullterminated
             /* We cannot rely on event being formatted correctly with a \0
