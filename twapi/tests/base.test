@@ -2305,6 +2305,110 @@ namespace eval twapi::base::test {
 
     ################################################################
 
+    test hex32-1.0 {
+        hex32 0
+    } -body {
+        twapi::hex32 0
+    } -result 0x00000000
+
+    test hex32-1.1 {
+        hex32 1
+    } -body {
+        twapi::hex32 1
+    } -result 0x00000001
+
+    test hex32-1.2 {
+        hex32 -1
+    } -body {
+        twapi::hex32 -1
+    } -result 0xffffffff
+
+    test hex32-1.3 {
+        hex32 0XABCDEF
+    } -body {
+        twapi::hex32 0xABCDEF
+    } -result 0x00abcdef
+
+    test hex32-1.4 {
+        hex32 0XABCDEF
+    } -body {
+        twapi::hex32 0xABCDEF00
+    } -result 0xabcdef00
+
+    test hex32-2.0 {
+        hex32 overflow
+    } -body {
+        set x 0xffffffff
+        twapi::hex32 [incr x]
+    } -result {integer value too large to represent} -returnCodes error
+
+    test hex64-1.0 {
+        hex64 0
+    } -body {
+        twapi::hex64 0
+    } -result 0x0000000000000000
+
+    test hex64-1.1 {
+        hex64 1
+    } -body {
+        twapi::hex64 1
+    } -result 0x0000000000000001
+
+    test hex64-1.2 {
+        hex64 -1
+    } -body {
+        twapi::hex64 -1
+    } -result 0xffffffffffffffff
+
+    test hex64-1.3 {
+        hex64 0XABCDEF
+    } -body {
+        twapi::hex64 0xABCDEF
+    } -result 0x0000000000abcdef
+
+    test hex64-1.4 {
+        hex64 0XABCDEF
+    } -body {
+        twapi::hex64 0xABCDEF00
+    } -result 0x00000000abcdef00
+
+    test hex64-2.0 {
+        hex64 
+    } -body {
+        set x 0xffffffff
+        twapi::hex64 $x
+    } -result 0x00000000ffffffff
+
+    test hex64-2.1 {
+        hex64 
+    } -body {
+        twapi::hex64 0xffffffff00000000
+    } -result 0xffffffff00000000
+
+    test hex64-2.2 {
+        hex64 
+    } -body {
+        set x 0xffffffff
+        twapi::hex64 [incr x]
+    } -result 0x0000000100000000
+
+    test hex64-2.3 {
+        hex64 
+    } -body {
+        twapi::hex64 0x0123456789abcdef
+    } -result 0x0123456789abcdef
+
+    test hex64-3.0 {
+        hex64 
+    } -body {
+        set x 0xffffffffffffffff
+        twapi::hex64 [incr x]
+    } -result {integer value too large to represent} -returnCodes error
+
+
+
+    ################################################################
+
     #
     # Clean up
     ::tcltest::cleanupTests

@@ -699,6 +699,10 @@ static int Twapi_CallIntArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.value.ival = GetLastError();
         result.type = TRT_EXCEPTION_ON_ERROR;
         break;
+    case 7:
+        result.type = TRT_OBJ;
+        result.value.obj = ObjFromULONGHex(dw);
+        break;
 #ifdef NOTYET
     case NOTYET:
         result.value.ival = RegOpenCurrentUser(dw, &u.hkey);
@@ -733,6 +737,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             HWND hwnd2;
         };
         LSA_OBJECT_ATTRIBUTES lsa_oattr;
+        Tcl_WideInt wide;
     } u;
     DWORD dw, dw2;
     DWORD_PTR dwp;
@@ -750,6 +755,13 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     ++objv;;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
+    case 1005: // hex64
+        if (ObjToWideInt(interp, objv[0], &u.wide) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_OBJ;
+        result.value.obj = ObjFromULONGLONGHex(u.wide);
+        break;
+        
     case 1006: // reveal
         result.value.unicode.str = ObjDecryptUnicode(interp, objv[0],
                                                      &result.value.unicode.len);
@@ -2131,12 +2143,14 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_MapWindowsErrorToString, 4),
         DEFINE_FNCODE_CMD(Twapi_MemLifoInit, 5),
         DEFINE_FNCODE_CMD(GlobalDeleteAtom, 6), // TBD - tcl interface
+        DEFINE_FNCODE_CMD(hex32, 7),
 #ifdef NOTYET
         DEFINE_FNCODE_CMD(RegOpenCurrentUser, NOTYET), // TBD - tcl interface
 #endif
     };
 
     static struct fncode_dispatch_s CallOneArgDispatch[] = {
+        DEFINE_FNCODE_CMD(hex64, 1005),
         DEFINE_FNCODE_CMD(reveal, 1006),
         DEFINE_FNCODE_CMD(conceal, 1007),
         DEFINE_FNCODE_CMD(Twapi_AddressToPointer, 1008),
