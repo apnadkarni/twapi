@@ -163,6 +163,9 @@ and required when dealing with external APIs and data formats like
 [uri #hex64] [cmd hex64]] format numbers as fixed length
 hexadecimal strings.
 
+[uri #lambda [cmd lambda]] returns an anonymous proc definition
+based on the Tcl [cmd apply] command.
+
 [section Commands]
 [list_begin definitions]
 
@@ -443,6 +446,10 @@ namespace.
 Returns true or false depending on whether [arg sid] is a valid SID or not.
 Note this only checks the syntax of the SID, not whether it corresponds to
 a real account.
+
+[call [cmd lambda] [arg ARGLIST] [arg BODY] [opt [arg NAMESPACE]]]
+Simple wrapper that returns an anonymous
+proc definition based on the Tcl [cmd apply] command.
 
 [call [cmd large_system_time_to_secs_since_1970] [arg SYSTEMTIMEVALUE] [opt BOOLEAN]]
 Some Windows functions return time as the number of 100 nanosecond units
