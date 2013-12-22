@@ -854,7 +854,7 @@ test tls_socket-client-3.0 {
     set so [twapi::tls_socket www.yahoo.com 443]
     fconfigure $so -blocking 0 -translation binary -buffering none
     set response ""
-    set reader [lambda {so} {
+    set reader [twapi::lambda {so} {
         append ::response [read $so]
         if {[eof $so]} {
             set ::done eof
@@ -886,7 +886,7 @@ test tls_socket-client-3.1 {
         # GET / HTTP/1.1 results in more complicated read as server does not
         # close so use just GET /
         puts $so "GET /\r\n\r\n"
-        set reader [lambda {so} {
+        set reader [twapi::lambda {so} {
             append ::response [read $so]
             if {[eof $so]} {
                 set ::done eof
@@ -912,7 +912,7 @@ test tls_socket-client-3.2 {
         # GET / HTTP/1.1 results in more complicated read as server does not
         # close so use just GET /
         puts $so "GET /\r\n\r\n"
-        set reader [lambda {so} {
+        set reader [twapi::lambda {so} {
             set line [gets $so]
             puts $line
             puts EOF:[eof $so]

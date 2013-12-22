@@ -25,6 +25,10 @@ namespace eval twapi {
     ################################################################
     # Following procs are used early in init process so defined here
 
+    proc lambda {arglist body {ns {}}} {
+        list ::apply [list $arglist $body $ns]
+    }
+
     proc rethrow {} {
         return -code error -level 0 -options [twapi::trapoptions] [twapi::trapresult]
     }

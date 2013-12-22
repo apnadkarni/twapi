@@ -551,7 +551,7 @@ namespace eval twapi::parseargs::test {
         Verify -setvars large number of options
     } -body {
         # Do not want to pollute variable names so do in a lambda
-        apply {{} {
+        {*}[twapi::lambda {} {
             set largs {}
             set options {}
             set result {}
@@ -567,14 +567,14 @@ namespace eval twapi::parseargs::test {
                 }
             }
             return 1
-        }}
+        }]
     } -result 1
 
     test parseargs-10.1 {
         Verify -setvars vars not set
     } -body {
         # Do not want to pollute variable names so do in a lambda
-        apply {{} {
+        {*}[twapi::lambda {} {
             set largs {}
             twapi::parseargs largs {a.arg i.int b.bool s.switch o} -setvars
             foreach var {a i b} {
@@ -583,14 +583,14 @@ namespace eval twapi::parseargs::test {
                 }
             }
             return 1
-        }}
+        }]
     } -result 1
 
     test parseargs-10.2 {
         Verify -setvars -nulldefault
     } -body {
         # Do not want to pollute variable names so do in a lambda
-        apply {{} {
+        {*}[twapi::lambda {} {
             set largs {}
             twapi::parseargs largs {a.arg i.int b.bool s.switch o} -setvars -nulldefault
             foreach {var val} {a "" i 0 b 0 s 0 o 0} {
@@ -599,7 +599,7 @@ namespace eval twapi::parseargs::test {
                 }
             }
             return 1
-        }}
+        }]
     } -result 1
 
     ################################################################

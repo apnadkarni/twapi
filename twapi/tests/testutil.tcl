@@ -1604,10 +1604,6 @@ proc setops::equal {A B} {
 }
 tcltest::customMatch set setops::equal
 
-proc lambda {params body} {
-    return [list apply [list $params $body]]
-}
-
 # If this is the first argument to the shell and there are more arguments
 # execute them
 

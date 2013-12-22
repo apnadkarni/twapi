@@ -2060,7 +2060,6 @@ Tcl_Obj *IPAddrObjFromDWORD(DWORD addr)
 {
     struct in_addr inaddr;
     inaddr.S_un.S_addr = addr;
-    /* TBD - multithreading issues here? */
     return ObjFromString(inet_ntoa(inaddr));
 }
 

@@ -622,11 +622,10 @@ proc twapi::etw_format_events {oswbemservices bufdesc events} {
 }
 
 
-proc twapi::etw_dump_files {args} {
-
+twapi::proc* twapi::etw_dump {args} {
     package require twapi_wmi
     package require csv
-
+} {
     array set opts [parseargs args {
         {output.arg stdout}
         {limit.int -1}

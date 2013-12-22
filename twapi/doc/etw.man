@@ -126,7 +126,7 @@ a consumer to read events from multiple trace sessions and merges
 them as needed.
 
 [para]
-TWAPI provides the high-level [uri #etw_dump_files [cmd etw_dump_files]]
+TWAPI provides the high-level [uri #etw_dump [cmd etw_dump]]
 command which can read events and write them in multiple output formats.
 Alternatively, call [uri #etw_open_file [cmd etw_open_file]]
 or [uri #etw_open_session [cmd etw_open_session]]
@@ -557,9 +557,14 @@ This section describes the commands that deal with consuming events from ETW.
 
 [list_begin definitions]
 
-[call [cmd etw_dump_files] [opt [arg options]] [opt [arg "LOGFILE LOGFILE ..."]]]
-Extracts events from one or more ETW log files and writes them out in
-human readable form. The command takes the following options:
+[call [cmd etw_dump] [opt [arg options]] [opt [arg "LOGSOURCE LOGSOURCE ..."]]]
+Extracts events from one or more ETW log files or real time sessions
+and writes them out in
+human readable form. 
+Each [arg LOGSOURCE] argument must be the path to a ETW log file or
+the name of a ETW real time session.
+[nl]
+The command takes the following options:
 [list_begin opt]
 [opt_def [cmd -format] [arg FORMAT]]
 Specifies the output format. [arg FORMAT] must be [const list] or [const csv].
