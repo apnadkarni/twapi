@@ -558,11 +558,12 @@ This section describes the commands that deal with consuming events from ETW.
 [list_begin definitions]
 
 [call [cmd etw_dump] [opt [arg options]] [opt [arg "LOGSOURCE LOGSOURCE ..."]]]
-Extracts events from one or more ETW log files or real time sessions
+Extracts events from one or more ETW log files or real time session
 and writes them out in
 human readable form. 
 Each [arg LOGSOURCE] argument must be the path to a ETW log file or
-the name of a ETW real time session.
+the name of a ETW real time session. At most one real time session
+can be specified.
 [nl]
 The command takes the following options:
 [list_begin opt]
