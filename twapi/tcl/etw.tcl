@@ -562,7 +562,15 @@ proc twapi::etw_process_events {args} {
     return [ProcessTrace $args $opts(callback) $opts(start) $opts(end)]
 }
 
-proc twapi::etw_format_events {oswbemservices bufdesc events} {
+proc twapi::etw_format_events {oswbemservices args} {
+    set events {}
+    foreach {bufd rawevents} $args {
+        lappend events [_etw_format_events $oswbemservices $bufd $rawevents]
+    }
+    return [concat {*}$events]
+}
+
+proc twapi::_etw_format_events {oswbemservices bufdesc events} {
     variable _etw_event_defs
 
     # TBD - it may be faster to special case NT kernel events as per
@@ -622,7 +630,7 @@ proc twapi::etw_format_events {oswbemservices bufdesc events} {
 }
 
 
-twapi::proc* twapi::etw_dump {args} {
+twapi::proc* twapi::etw_dump_to_file {args} {
     package require twapi_wmi
     package require csv
 } {
@@ -692,6 +700,30 @@ twapi::proc* twapi::etw_dump {args} {
             close $outfd
         } else {
             flush $outfd
+        }
+    }
+}
+
+twapi::proc* twapi::etw_dump_to_list {args} {
+    package require twapi_wmi
+} {
+    set htraces {}
+    trap {
+        set wmi [wmi_root -root wmi]
+        foreach arg $args {
+            if {[file exists $arg]} {
+                lappend htraces [etw_open_file $arg]
+            } else {
+                lappend htraces [etw_open_session $arg]
+            }
+        }
+        return [etw_format_events $wmi {*}[etw_process_events {*}$htraces]]
+    } finally {
+        foreach htrace $htraces {
+            etw_close_session $htrace
+        }
+        if {[info exists wmi]} {
+            $wmi destroy
         }
     }
 }

@@ -104,7 +104,14 @@ static const char * g_trace_logfile_header_fields[] = {
 struct TwapiETWContext {
     Tcl_Interp *interp;
 
-    Tcl_Obj *buffer_cmdObj;     /* Callback for buffers */
+    /* If a callback is supplied, buffer_cmdObj holds it and buffer_cmdlen
+       is non-0. If no callback is supplied, we collect the buffer descriptor
+       and events list in buffer_listObj and return it to caller.
+    */
+    union {
+        Tcl_Obj *cmdObj;     /* Callback for buffers */
+        Tcl_Obj *listObj;    /* List of buffer descriptor, event list pairs */
+    } buffer;
 
     /*
      * When inside a ProcessTrace,
@@ -897,9 +904,6 @@ void WINAPI TwapiETWEventCallback(
         Tcl_DictObjPut(interp, evObj, gETWEventKeys[13].keyObj, ObjFromEmptyString());
     
     ObjAppendElement(interp, gETWContext.eventsObj, evObj);
-
-
-    return;
 }
 
 ULONG WINAPI TwapiETWBufferCallback(
@@ -924,22 +928,25 @@ ULONG WINAPI TwapiETWBufferCallback(
     if (gETWContext.errorObj)   /* If some previous error occurred, return */
         return FALSE;
 
-    if (gETWContext.buffer_cmdObj == NULL)
-        return TRUE;            /* No buffer callback specified */
-
     TWAPI_ASSERT(gETWContext.eventsObj); /* since errorObj not NULL at this point */
 
-    /*
-     * Construct a command to call with the event. gETWContext.buffer_cmdObj
-     * could be a shared object, either initially itself or result in a shared 
-     * object in the callback. So we need to check for that and Dup it
-     * if necessary
-     */
-    if (Tcl_IsShared(gETWContext.buffer_cmdObj)) {
-        objP = ObjDuplicate(gETWContext.buffer_cmdObj);
-        ObjIncrRefs(objP);
-    } else
-        objP = gETWContext.buffer_cmdObj;
+    if (gETWContext.buffer_cmdlen == 0) {
+        /* We are simply collecting events without invoking callback */
+        TWAPI_ASSERT(gETWContext.buffer.listObj != NULL);
+    } else {
+        /*
+         * Construct a command to call with the event. 
+         * gETWContext.buffer_cmdObj could be a shared object, either
+         * initially itself or result in a shared object in the callback.
+         * So we need to check for that and Dup it if necessary
+         */
+
+        if (Tcl_IsShared(gETWContext.buffer.cmdObj)) {
+            objP = ObjDuplicate(gETWContext.buffer.cmdObj);
+            ObjIncrRefs(objP);
+        } else
+            objP = gETWContext.buffer.cmdObj;
+    }
 
     /* TBD - create as a list - faster than as a dict */
     /* Build up the arguments */
@@ -1006,19 +1013,25 @@ ULONG WINAPI TwapiETWBufferCallback(
      * Note: Do not need to ObjIncrRefs bufObj[] because we are adding
      * it to the command list
      */
-    args[0] = bufObj;
-    args[1] = gETWContext.eventsObj;
-    Tcl_ListObjReplace(interp, objP, gETWContext.buffer_cmdlen, ARRAYSIZE(args), ARRAYSIZE(args), args);
-    ObjDecrRefs(gETWContext.eventsObj); /* AFTER we place on list */
+    if (gETWContext.buffer_cmdlen) {
+        args[0] = bufObj;
+        args[1] = gETWContext.eventsObj;
+        Tcl_ListObjReplace(interp, objP, gETWContext.buffer_cmdlen, ARRAYSIZE(args), ARRAYSIZE(args), args);
+        code = Tcl_EvalObjEx(gETWContext.interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
 
+        /* Get rid of the command obj if we created it */
+        if (objP != gETWContext.buffer.cmdObj)
+            ObjDecrRefs(objP);
+    } else {
+        /* No callback. Just collect */
+        ObjAppendElement(NULL, gETWContext.buffer.listObj, bufObj);
+        ObjAppendElement(NULL, gETWContext.buffer.listObj, gETWContext.eventsObj);
+        code = TCL_OK;
+    }
+
+    ObjDecrRefs(gETWContext.eventsObj);
     gETWContext.eventsObj = ObjNewList(0, NULL);/* For next set of events */
     ObjIncrRefs(gETWContext.eventsObj);
-
-    code = Tcl_EvalObjEx(gETWContext.interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
-
-    /* Get rid of the command obj if we created it */
-    if (objP != gETWContext.buffer_cmdObj)
-        ObjDecrRefs(objP);
 
     switch (code) {
     case TCL_BREAK:
@@ -1112,10 +1125,9 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
             return TCL_ERROR;
     }
 
-    /* Verify command prefix is a list. It's OK to be empty, we
-     * effectively drain the buffer without doing anything
+    /* Verify callback command prefix is a list. If empty, data
+     * is returned instead.
      */
-    buffer_cmdlen = 0;
     if (ObjListLength(interp, objv[2], &buffer_cmdlen) != TCL_OK)
         return TCL_ERROR;
 
@@ -1135,11 +1147,18 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
     
     EnterCriticalSection(&gETWCS);
     
-    TWAPI_ASSERT(gETWContext.interp == NULL);
+    if (gETWContext.interp != NULL) {
+        LeaveCriticalSection(&gETWCS);
+        ObjSetStaticResult(interp, "Recursive call to ProcessTrace");
+        return TCL_ERROR;
+    }
 
     gETWContext.traceH = htraces[0];
     gETWContext.buffer_cmdlen = buffer_cmdlen;
-    gETWContext.buffer_cmdObj = buffer_cmdlen ? objv[2] : NULL;
+    if (buffer_cmdlen)
+        gETWContext.buffer.cmdObj = objv[2];
+    else
+        gETWContext.buffer.listObj = ObjNewList(0, NULL);
     gETWContext.eventsObj = ObjNewList(0, NULL);
     ObjIncrRefs(gETWContext.eventsObj);
     gETWContext.errorObj = NULL;
@@ -1164,7 +1183,7 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
 
     /* Copy and reset context before unlocking */
     etwc = gETWContext;
-    gETWContext.buffer_cmdObj = NULL;
+    gETWContext.buffer.cmdObj = NULL;
     gETWContext.eventsObj = NULL;
     gETWContext.errorObj = NULL;
     gETWContext.interp = NULL;
@@ -1188,10 +1207,15 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
     if (etwc.errorObj) {
         code = Tcl_SetReturnOptions(interp, etwc.errorObj);
         ObjDecrRefs(etwc.errorObj); /* Match one in the event callback */
+        if (etwc.buffer_cmdlen == 0)
+            ObjDecrRefs(etwc.buffer.listObj);
         return code;
+    } else {
+        if (etwc.buffer_cmdlen)
+            Tcl_ResetResult(interp); /* For any holdover from callbacks */
+        else
+            ObjSetResult(interp, etwc.buffer.listObj);
     }
-
-    Tcl_ResetResult(interp); /* For any holdover from callbacks */
 
     /* A winerr of ERROR_CANCELLED means the callback returned TCL_BREAK
      * to terminate the processing. That is not treated as an error
