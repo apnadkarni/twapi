@@ -2746,6 +2746,7 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
 
         /* We do not know the type of each SAFEARRAY element. Guess on element value */
         vt = VT_VARIANT;   /* In case we cannot tell */
+#ifdef APN
         if (ObjListIndex(NULL, objP, 0, &elemObj) == TCL_OK && elemObj) {
             switch (TwapiGetTclType(elemObj)) {
             case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
@@ -2756,6 +2757,7 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
             case TWAPI_TCLTYPE_STRING:        vt = VT_BSTR; break;
             }            
         }
+#endif
         return vt | VT_ARRAY;
 
     case TWAPI_TCLTYPE_DICT:
@@ -2886,6 +2888,10 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
             varP->vt = VT_DISPATCH;
         } else if (ObjToIUnknown(NULL, objP, &varP->punkVal) == TCL_OK) {
             varP->vt = VT_UNKNOWN;
+#ifndef APN
+        } else if (ObjCharLength(objP) == 0) {
+            varP->vt = VT_NULL;
+#endif
         } else {
             /* Cannot guess type, just pass as a BSTR */
             if (ObjToBSTR(interp, objP, &varP->bstrVal) != TCL_OK)
