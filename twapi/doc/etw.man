@@ -126,12 +126,12 @@ a consumer to read events from multiple trace sessions and merges
 them as needed.
 
 [para]
-TWAPI provides the high-level [uri #etw_dump [cmd etw_dump]]
-command which can read events and write them in multiple output formats.
-Alternatively, call [uri #etw_open_file [cmd etw_open_file]]
+TWAPI provides the high-level [uri #etw_dump_to_file [cmd etw_dump_to_file]]
+and [uri #etw_dump_to_list [cmd etw_dump_to_list]]
+commands which can read and format events. For more sophisticated
+processing, call [uri #etw_open_file [cmd etw_open_file]]
 or [uri #etw_open_session [cmd etw_open_session]]
-to
-open each log file or real time session of interest. Then invoke
+to open each log file or real time session of interest. Then invoke
 the commands
 [uri #etw_process_events [cmd etw_process_events]] and
 [uri #etw_format_events [cmd etw_format_events]] to process the events.
@@ -557,7 +557,7 @@ This section describes the commands that deal with consuming events from ETW.
 
 [list_begin definitions]
 
-[call [cmd etw_dump] [opt [arg options]] [opt [arg "LOGSOURCE LOGSOURCE ..."]]]
+[call [cmd etw_dump_to_file] [opt [arg options]] [opt [arg "LOGSOURCE LOGSOURCE ..."]]]
 Extracts events from one or more ETW log files or real time session
 and writes them out in
 human readable form. 
@@ -581,7 +581,7 @@ Specifies the separator character to use. Only used for CSV format. Defaults
 to the comma character.
 [list_end]
 
-Each record written consistes of a fixed number of fields followed by
+Each record written consists of a fixed number of fields followed by
 event-specific data. The fixed fields include the time stamp, the
 thread id, the process id, the event's MOF class and the event name.
 The remaining fields are varying in number and consist of alternating
@@ -589,6 +589,16 @@ pairs of the field name from the event's MOF definition and the corresponding
 value. If the MOF definition is not available, the field name is
 [const MofData] and the corresponding value is a hexadecimal representation
 of the binary data.
+
+[call [cmd etw_dump_to_list] [arg "LOGSOURCE ?LOGSOURCE ...?"]]
+Extracts events from one or more ETW log files or real time session,
+formats them and returns them as a list.
+Each [arg LOGSOURCE] argument must be the path to a ETW log file or
+the name of a ETW real time session. At most one real time session
+can be specified.
+[nl]
+Each element of the list is in the form returned by
+[uri #etw_format_events [cmd etw_format_events]].
 
 [call [cmd etw_install_twapi_mof]]
 Installs the TWAPI Managed Object Format (MOF) definition for the event
@@ -604,11 +614,11 @@ Closes a trace session previously opened by a call to
 
 [call [cmd etw_format_events] [arg WMIOBJ] [arg BUFDESC] [arg EVENTLIST]]
 Processes the list of raw ETW events passed in [arg EVENTLIST] and 
-returns a list of formatted events. This command is intended to be
-called from the callback script passed to
-[uri #etw_process_events [cmd etw_process_events]].
+returns a list of formatted events.
 [arg BUFDESC] and [arg EVENTLIST] should be the last two arguments
-passed to the callback from [cmd etw_process_events].
+passed to the callback from [uri #etw_process_events [cmd etw_process_events]]
+or the elements of the return value of [cmd etw_process_events] when
+it is invoked without a callback.
 [nl]
 [arg WMIOBJ] should be a 
 [uri com.html#comobj COMOBJ] object returned by a call to
