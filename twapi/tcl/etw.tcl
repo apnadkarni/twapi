@@ -678,9 +678,9 @@ twapi::proc* twapi::etw_dump_to_file {args} {
                         set fmtdata [dict create MofData [regsub -all (..) $hex {\1 }]]
                     }
                     if {$opts(format) eq "csv"} {
-                        puts $outfd [csv::join [list [dict get $event -timestamp] [dict get $event -threadid] [dict get $event -processid] [dict get $event -classname] [dict get $event -mof -eventtypename] {*}$fmtdata] $opts(separator)]
+                        puts $outfd [csv::join [list [dict get $event -timestamp] [dict get $event -threadid] [dict get $event -processid] [dict get $event -classname] [dict get $event -eventtypename] {*}$fmtdata] $opts(separator)]
                     } else {
-                        puts $outfd [list [dict get $event -timestamp] [dict get $event -threadid] [dict get $event -processid] [dict get $event -classname] [dict get $event -mof -eventtypename] $fmtdata]
+                        puts $outfd [list [dict get $event -timestamp] [dict get $event -threadid] [dict get $event -processid] [dict get $event -classname] [dict get $event -eventtypename] $fmtdata]
                     }
                 }
             }
