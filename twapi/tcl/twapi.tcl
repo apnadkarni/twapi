@@ -26,9 +26,16 @@ namespace eval twapi {
     # Following procs are used early in init process so defined here
 
     proc lambda {arglist body {ns {}}} {
-        list ::apply [list $arglist $body $ns]
+        return [list ::apply [list $arglist $body $ns]]
     }
 
+    # Similar to lambda but takes additional parameters to be passed
+    # to the anonymous functin
+    proc lambda* {arglist body {ns {}} args} {
+        return [list ::apply [list $arglist $body $ns] {*}$args]
+    }
+
+    # Rethrow original exception from inside a trap
     proc rethrow {} {
         return -code error -level 0 -options [twapi::trapoptions] [twapi::trapresult]
     }

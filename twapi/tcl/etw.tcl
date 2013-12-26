@@ -444,24 +444,23 @@ proc twapi::etw_find_mof_event_classes {oswbemservices args} {
 
     foreach arg $args {
         if {[Twapi_IsValidGUID $arg]} {
-            lappend guids $arg
+            # GUID's can be multiple format, canonicalize for lsearch
+            lappend guids [canonicalize_guid $arg]
         } else {
             lappend names $arg
         }
     }
 
     # Note there can be multiple versions sharing a single guid so
-    # we cannot use the wmi_collect_classes "-first" option to stop the search when
-    # one is found.
+    # we cannot use the wmi_collect_classes "-first" option to stop the
+    # search when one is found.
 
-    set name_matcher [list apply {{names val} {::tcl::mathop::>= [lsearch -exact -nocase $names $val] 0}} $names]
-    # Note GUIDS can be specified in multiple format so we cannot just lsearch
-    set guid_matcher [list apply {{guids val} {
-        foreach guid $guids {
-            if {[twapi::IsEqualGUID $guid $val]} { return 1 }
-        }
-        return 0
-    }} $guids]
+    set name_matcher [lambda* {names val} {
+        ::tcl::mathop::>= [lsearch -exact -nocase $names $val] 0
+    } :: $names]
+    set guid_matcher [lambda* {guids val} {
+        ::tcl::mathop::>= [lsearch -exact -nocase $guids $val] 0
+    } :: $guids]
 
     set named_classes {}
     if {[llength $names]} {
@@ -580,7 +579,7 @@ proc twapi::_etw_format_events {oswbemservices bufdesc events} {
     array set missing {}
     foreach event $events {
         if {! [dict exists $_etw_event_defs [dict get $event -guid]]} {
-            set missing([dict get $event -guid]) 1
+            set missing([dict get $event -guid]) ""
         }
     }
 
@@ -607,7 +606,7 @@ proc twapi::_etw_format_events {oswbemservices bufdesc events} {
             dict set _etw_event_defs $guid {}
 
             # Nothing we can add to the event. Pass on with defaults
-            dict set event -mof [dict create -eventtypename [dict get $event -eventtype]]
+            dict set event -eventtypename [dict get $event -eventtype]
             # Try to get at least the class name
             if {[dict exists $_etw_event_defs $guid $vers -classname]} {
                 dict set event -classname [dict get $_etw_event_defs $guid $vers -classname]
@@ -620,7 +619,7 @@ proc twapi::_etw_format_events {oswbemservices bufdesc events} {
             continue
         }
 
-        dict set event -mof $mof
+        dict set event -eventtypename [dict get $mof -eventtypename]
         dict set event -classname $eventclass
         dict set event -mofformatteddata [Twapi_ParseEventMofData [dict get $event -mofdata] [dict get $mof -fieldtypes] [dict get $bufdesc -hdr_pointersize]]
         lappend formatted $event
