@@ -434,7 +434,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set storepath [file join [tcltest::temporaryDirectory] [clock microseconds].store]
     } -body {
-        list [catch {twapi::cert_file_store_open $storepath -readonly 1} msg] [lrange $::errorCode 0 1]
+        list [catch {twapi::cert_file_store_open $storepath -readonly 1} msg] [errorcode]
     } -result {1 {TWAPI_WIN32 2}}
 
     test cert_file_store_open-1.3 {
@@ -442,7 +442,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set storepath [file join [tcltest::temporaryDirectory] [clock microseconds].store]
     } -body {
-        list [catch {twapi::cert_file_store_open $storepath -existing 1}] [lrange $::errorCode 0 1]
+        list [catch {twapi::cert_file_store_open $storepath -existing 1}] [errorcode]
     } -result {1 {TWAPI_WIN32 2}}
 
     test cert_file_store_open-2.0 {
@@ -476,7 +476,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set storepath [temp_file_store_path]
     } -body {
-        list [catch {twapi::cert_file_store_open $storepath -create 1}] [lrange $::errorCode 0 1]
+        list [catch {twapi::cert_file_store_open $storepath -create 1}] [errorcode]
     } -result {1 {TWAPI_WIN32 80}}
 
     test cert_file_store_open-3.0 {
@@ -604,7 +604,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set storepath TwapiTest-[clock microseconds]
     } -body {
-        list [catch {twapi::cert_system_store_open $storepath user -existing 1}] [lrange $::errorCode 0 1]
+        list [catch {twapi::cert_system_store_open $storepath user -existing 1}] [errorcode]
     } -result {1 {TWAPI_WIN32 2}}
 
     test cert_system_store_open-2.0 {
@@ -651,7 +651,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set storepath [temp_system_store_path]
     } -body {
-        list [catch {twapi::cert_system_store_open $storepath user -create 1}] [lrange $::errorCode 0 1]
+        list [catch {twapi::cert_system_store_open $storepath user -create 1}] [errorcode]
     } -result {1 {TWAPI_WIN32 80}}
 
     test cert_system_store_open-3.0 {
@@ -710,7 +710,7 @@ namespace eval twapi::crypto::test {
         twapi::cert_store_release [twapi::cert_system_store_open $storepath user]
     } -body {
         twapi::cert_system_store_delete $storepath user
-        list [catch {twapi::cert_system_store_open $storepath user -existing 1}] [lrange $::errorCode 0 1]
+        list [catch {twapi::cert_system_store_open $storepath user -existing 1}] [errorcode]
     } -result {1 {TWAPI_WIN32 2}}
 
     ################################################################
@@ -1259,7 +1259,7 @@ namespace eval twapi::crypto::test {
         set cer [sampleencodedcert]
         twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
     } -body {
-        list [catch {twapi::cert_store_add_encoded_certificate $hstore $cer}] [lrange $::errorCode 0 1]
+        list [catch {twapi::cert_store_add_encoded_certificate $hstore $cer}] [errorcode]
     } -cleanup {
         twapi::cert_store_release $hstore
     } -result {1 {TWAPI_WIN32 -2146885627}}
@@ -1271,7 +1271,7 @@ namespace eval twapi::crypto::test {
         set cer [sampleencodedcert]
         twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition preserve]
     } -body {
-        list [catch {twapi::cert_store_add_encoded_certificate $hstore $cer -disposition preserve}] [lrange $::errorCode 0 1]
+        list [catch {twapi::cert_store_add_encoded_certificate $hstore $cer -disposition preserve}] [errorcode]
     } -cleanup {
         twapi::cert_store_release $hstore
     } -result {1 {TWAPI_WIN32 -2146885627}}
@@ -1319,7 +1319,7 @@ namespace eval twapi::crypto::test {
         set cer [sampleencodedcert]
         twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition update]
     } -body {
-        list [catch {twapi::cert_store_add_encoded_certificate $hstore $cer -disposition update}] [lrange $::errorCode 0 1]
+        list [catch {twapi::cert_store_add_encoded_certificate $hstore $cer -disposition update}] [errorcode]
     } -cleanup {
         twapi::cert_store_release $hstore
     } -result {1 {TWAPI_WIN32 -2146885627}}
