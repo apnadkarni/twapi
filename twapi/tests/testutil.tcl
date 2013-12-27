@@ -6,6 +6,9 @@ global psinfo;                    # Array storing process information
 
 global thrdinfo;                  # Array storing thread informations
 
+proc errorcode {} {
+    return [lrange $::errorCode 0 1]
+}
 
 proc getenv {envvar {default ""}} {
     if {[info exists ::env($envvar)]} {
