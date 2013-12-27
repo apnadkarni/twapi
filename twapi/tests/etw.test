@@ -46,7 +46,7 @@ namespace eval twapi::etw::test {
     } -body {
     } -result TBD
 
-    test etw_register_provider-1.0 {
+    test etw_twapi_provider_register-1.0 {
         TBD - etw_register_provider
     } -constraints {
         TBD
@@ -183,13 +183,62 @@ namespace eval twapi::etw::test {
         privileged
     } -body {
         set etl [file join $logdir [clock microseconds].etl]
-        set etl x.etl
-        twapi::etw_start_kernel_trace {diskio diskfileio} -logfile $etl
-        set fd [open [tcltest::makeFile "" [clock microseconds]] a+]
-        close $fd
+        twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl
+        after 1000
+        # Next command will fail if file mode was not circular as
+        # log would get full and the trace would have already stopped
         twapi::etw_stop_trace -sessionname "NT Kernel Logger"
         file size $etl
     } -result 1048576
+
+    test etw_start_kernel_trace-2.1 {
+        Start kernel trace (verify -filemode circular)
+    } -constraints {
+        privileged
+    } -body {
+        set etl [file join $logdir [clock microseconds].etl]
+        twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl
+        after 1000
+        # Next command will fail if file mode was not circular as
+        # log would get full and the trace would have already stopped
+        twapi::etw_stop_trace -sessionname "NT Kernel Logger"
+        file size $etl
+    } -result 1048576
+
+    test etw_start_kernel_trace-2.2 {
+        Start kernel trace (verify -filemode sequential)
+    } -constraints {
+        privileged
+    } -body {
+        set etl [file join $logdir [clock microseconds].etl]
+        twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode sequential
+        after 1000
+        twapi::etw_stop_trace -sessionname "NT Kernel Logger"
+        expr {[file size $etl] > 1048576}
+    } -result 1
+
+    test etw_start_kernel_trace-2.3 {
+        Start kernel trace (verify -filemode sequential -maxfilesize)
+    } -constraints {
+        privileged
+    } -body {
+        set etl [file join $logdir [clock microseconds].etl]
+        twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode sequential -maxfilesize 1
+        after 1000
+        # stop command should as file mode is sequential and
+        # log would get full and the trace would have already stopped
+        list [catch {twapi::etw_stop_trace -sessionname "NT Kernel Logger"}] \
+            [file size $etl]
+    } -result {1 1048576}
+
+    test etw_start_kernel_trace-2.4 {
+        Start kernel trace (verify -filemode rotate)
+    } -constraints {
+        privileged
+    } -body {
+        set etl [file join $logdir [clock microseconds]-%d.etl]
+        list [catch {twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode rotate}] [errorcode]
+    } -result {1 {TWAPI_WIN32 87}}
 
 
 
