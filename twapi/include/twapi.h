@@ -1292,9 +1292,13 @@ TWAPI_EXTERN TCL_RESULT ObjToDouble(Tcl_Interp *interp, Tcl_Obj *objP, double *)
 #ifdef _WIN64
 #define ObjToDWORD_PTR        ObjToWideInt
 #define ObjFromDWORD_PTR(p_)  ObjFromULONGLONG((ULONGLONG)(p_))
+#define ObjToLONG_PTR         ObjToWideInt
+#define ObjFromLONG_PTR       ObjFromWideInt
 #else  // ! _WIN64
 #define ObjToDWORD_PTR        ObjToLong
 #define ObjFromDWORD_PTR(p_)  ObjFromDWORD((DWORD_PTR)(p_))
+#define ObjToLONG_PTR         ObjToLong
+#define ObjFromLONG_PTR       ObjFromLong
 #endif // _WIN64
 #define ObjToULONG_PTR    ObjToDWORD_PTR
 #define ObjFromULONG_PTR  ObjFromDWORD_PTR
