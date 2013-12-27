@@ -602,6 +602,71 @@ namespace eval twapi::parseargs::test {
         }]
     } -result 1
 
+    test parseargs-11.0 {
+        Verify parsing termination with --
+    } -setup {
+        unset -nocomplain opts
+        set vargs {-- -b leftoverA leftoverB}
+    } -body {
+        array set opts [twapi::parseargs vargs {b}]
+        list $opts(b) $vargs
+    } -result [list 0 "-b leftoverA leftoverB"]
+
+    test parseargs-11.1 {
+        Verify parsing termination with -
+    } -setup {
+        unset -nocomplain opts
+        set vargs {- -b leftoverA leftoverB}
+    } -body {
+        array set opts [twapi::parseargs vargs {b}]
+        list $opts(b) $vargs
+    } -result [list 0 "-b leftoverA leftoverB"]
+
+    test parseargs-11.2 {
+        Verify parsing termination with -- and -maxleftover
+    } -setup {
+        unset -nocomplain opts
+        set vargs {-a 1 -- -b 2 leftoverA leftoverB}
+    } -body {
+        array set opts [twapi::parseargs vargs {a.bool b.int} -maxleftover 4]
+        list $opts(a) [info exists opts(b)] $vargs
+    } -result [list 1 0 "-b 2 leftoverA leftoverB"]
+
+    test parseargs-11.3 {
+        Verify parsing termination with -- and -maxleftover
+    } -setup {
+        unset -nocomplain opts
+        set vargs {-- -b 2 leftoverA leftoverB}
+    } -body {
+        array set opts [twapi::parseargs vargs {b.int} -maxleftover 3]
+    } -result "Command has extra arguments specified: -b 2 leftoverA leftoverB" -returnCodes error
+
+    test parseargs-11.4 {
+        Verify parsing of invalid options with --
+    } -body {
+        unset -nocomplain opts
+        set vargs {-b abc -- -a 2 extraarg}
+        array set opts [twapi::parseargs vargs {b.arg c.int}]
+        list $opts(b) [info exists opts(c)] $vargs
+    } -result [list abc 0 "-a 2 extraarg"]
+
+    test parseargs-11.5 {
+        Verify parsing of invalid options with --
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a 1 -- -b 2 extraarg}
+        array set opts [twapi::parseargs vargs {b.arg c.int}]
+    } -returnCodes {error} -result "Invalid option '-a'. Must be one of -b, -c"
+
+    test parseargs-11.6 {
+        Verify parsing of invalid options with -- -nulldefault
+    } -body {
+        unset -nocomplain opts
+        set vargs {-b abc -- -a 2 extraarg}
+        array set opts [twapi::parseargs vargs {b.arg c.int} -nulldefault]
+        list $opts(b) $opts(c) $vargs
+    } -result [list abc 0 "-a 2 extraarg"]
+
     ################################################################
 
     ::tcltest::cleanupTests
