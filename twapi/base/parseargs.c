@@ -400,10 +400,13 @@ int Twapi_ParseargsObjCmd(
         char *argp = ObjToStringN(argv[iarg], &argp_len);
 
         /* Non-option arg or a '-' or a "--" signals end of arguments */
-        if ((*argp != '-') ||
-            (argp[1] == 0) ||
-            (argp[1] == '-' && argp[2] == 0))
-            break;              /* No more options */
+        if (*argp != '-')
+            break;
+        if ((argp[1] == 0) ||
+            (argp[1] == '-' && argp[2] == 0)) {
+            ++iarg;             /* Skip the - or -- */
+            break;
+        }
 
         /* Check against each option in turn */
         for (j = 0; j < nopts; ++j) {
