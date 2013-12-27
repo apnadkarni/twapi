@@ -14,6 +14,13 @@ namespace eval twapi {
         eventclass_guid "{D5B52E95-8447-40C1-B316-539894449B36}"
     }
 
+    # So we don't pollute namespace with temp vars
+    apply { {defs} {
+        foreach {key val} $defs {
+            proc [namespace current]::etw_twapi_$key {} "return $val"
+        }
+    }} [array get _etw_mof]
+
     # Cache of event definitions for parsing event. Nested dictionary
     # with the following structure (uppercase keys are variables,
     # lower case are constant/tokens, "->" is nested dict, "-" is scalar):
@@ -144,9 +151,8 @@ proc twapi::etw_uninstall_twapi_mof {} {
     }
 }
 
-proc twapi::etw_register_provider {} {
+proc twapi::etw_twapi_provider_register {} {
     variable _etw_mof
-
     return [twapi::RegisterTraceGuids $_etw_mof(provider_guid) $_etw_mof(eventclass_guid)]
 }
 
@@ -825,7 +831,11 @@ proc twapi::etw_start_trace {session_name args} {
 
     lappend params -clockresolution [dict! {qpc 1 system 2 cpucycle 3} $opts(clockresolution)]
 
-    return [StartTrace $session_name $params]
+    trap {
+        return [StartTrace $session_name $params]
+    } onerror {TWAPI_WIN32 5} {
+        return -options [trapoptions] "Access denied. This may be because the process does not have permission to create the specified logfile or because it is not running under an account permitted to control ETW traces."
+    }
 }
 
 proc twapi::etw_start_kernel_trace {events args} {

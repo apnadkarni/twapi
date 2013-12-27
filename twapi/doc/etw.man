@@ -70,6 +70,13 @@ For example, trace sessions created with the Windows
 [cmd logman] or [cmd tracelog]
 command can be controlled with the above command and vice versa.
 
+[para]
+Note that only processes running with
+elevated administrative privileges, or under accounts in 
+the [const "Performance Log Users"]
+group, and services running as [const LocalSystem], [const LocalService],
+[const NetworkService] can start or control event tracing sessions.
+
 [section "Event providers"]
 
 [para]
@@ -101,8 +108,9 @@ severity level, but again, this is not mandated.
 
 [para]
 Before any controller can add a provider to a trace session, the provider
-has to register itself through the 
-[uri #etw_register_provider [cmd etw_register_provider]] call.
+has to register itself. TWAPI includes a predefined provider
+that can be registered through the 
+[uri #etw_twapi_provider_register [cmd etw_twapi_provider_register]] call.
 Correspondingly, the command 
 [uri #etw_unregister_provider [cmd etw_unregister_provider]] unregisters
 the provider. Note that this must be done after the provider is detached
@@ -112,7 +120,7 @@ but the provider is not notified of changes in the enable flags and level
 or when the trace session is stopped.
 
 [para]
-Once a provider is registered and attached to a trace session, events
+Once the TWAPI provider is registered and attached to a trace session, events
 can be logged to the session with the
 [uri #etw_log_message [cmd etw_log_message]] command.
 
@@ -173,10 +181,6 @@ for the structure and description of the various events logged by the
 Windows kernel. The corresponding field names are returned by
 [uri #etw_format_events [cmd etw_format_events]].
 
-[para]
-Note there is only one kernel trace session.
-If it is already in use by some other application the call will fail.
-
 [section "Tcl ETW traces"]
 [para]
 TWAPI includes commands
@@ -187,7 +191,7 @@ that aid in logging Tcl variable, command and execution traces, respectively,
 to an ETW session.
 
 [example_begin]
-set hprovider [lb]etw_register_provider[rb]
+set hprovider [lb]etw_twapi_provider_register[rb]
 # Assume provider is added to trace session by some other means
 
 # Add an execution trace to proc p
@@ -280,7 +284,9 @@ Returns a pair consisting of a session handle and a dictionary containing
 the event trace properties.
 Windows only
 supports one such session so an error is generated if another
-application already has a kernel trace session open.
+application already has a kernel trace session open. In addition, the
+process must be running under an account
+with administrative privileges or as a service running as LocalSystem.
 [nl]
 [arg EVENTCLASSES] specifies the kernel events that are to be
 captured and should be a list containing elements
@@ -322,10 +328,11 @@ and the [cmd -usepagedmemory] option must not be specified.
 
 [call [cmd etw_start_trace] [arg SESSIONNAME] [opt [arg options]]]
 Starts a new ETW trace session with the name [arg SESSIONNAME].
-Returns a pair consisting of a session handle and a dictionary containing
-the event trace properties.
+Returns a pair consisting of a session handle and a dictionary
+containing the event trace properties.
 [nl]
-The following options may be specified:
+The following
+options may be specified:
 
 [list_begin opt]
 
@@ -359,6 +366,7 @@ options [cmd -realtime], [cmd -private] or [cmd -privateinproc] must
 be false. Moreover, various configuration parameters like buffer size
 must be the same as those of the existing log file.
 [opt_def [const circular]]
+This is the default mode.
 Events are written to the log file in circular fashion with newer events
 overwriting older events once the maximum file size is reached.
 If option [cmd -maxfilesize] is not specified, it is defaulted to 1MB.
@@ -498,15 +506,10 @@ an ETW provider.
 
 [list_begin definitions]
 
-[call [cmd etw_log_message] [arg HPROVIDER] [arg MESSAGE]]
-Writes an event containing the [arg MESSAGE] string to the trace session
-attached to the provider handle [arg HPROVIDER] returned
-by [uri #etw_register_provider [cmd etw_register_provider]].
-
 [call [cmd etw_command_tracker] [arg HPROVIDER] [arg OLDNAME] [arg NEWNAME] [arg OP]]
 Writes a CommandTrace event to the trace session associated with
 the provider handle [arg HPROVIDER] returned
-by [uri #etw_register_provider [cmd etw_register_provider]].
+by [uri #etw_twapi_provider_register [cmd etw_twapi_provider_register]].
 The remaining arguments correspond to those passed to the callback
 function by Tcl's [cmd "trace add command"] command. 
 [cmd etw_command_tracker] can be used as the callback similar
@@ -515,27 +518,24 @@ to the example in [sectref "Tcl ETW traces"].
 [call [cmd etw_execution_tracker] [arg HPROVIDER] [arg ARGS...]]
 Writes a ExecutionTrace event to the trace session associated with
 the provider handle [arg HPROVIDER] returned
-by [uri #etw_register_provider [cmd etw_register_provider]].
+by [uri #etw_twapi_provider_register [cmd etw_twapi_provider_register]].
 The remaining arguments correspond to those passed to the callback
 function by Tcl's [cmd "trace add execution"] command. 
 [cmd etw_execution_tracker] can be used as the callback similar
 to the example in [sectref "Tcl ETW traces"].
 
-[call [cmd etw_variable_tracker] [arg HPROVIDER] [arg NAME1] [arg NAME2] [arg OP]]
-Writes a VariableTrace event to the trace session associated with
-the provider handle [arg HPROVIDER] returned
-by [uri #etw_register_provider [cmd etw_register_provider]].
-The remaining arguments correspond to those passed to the callback
-function by Tcl's [cmd "trace add variable"] command and this command
-can be used as the callback as in the example
-in [sectref "Tcl ETW traces"].
+[call [cmd etw_log_message] [arg HPROVIDER] [arg MESSAGE]]
+Writes an event containing the [arg MESSAGE] string to the trace session
+attached to the provider handle [arg HPROVIDER] returned
+by [uri #etw_twapi_provider_register [cmd etw_twapi_provider_register]].
 
-
-[call [cmd etw_register_provider]]
+[call [cmd etw_twapi_provider_register]]
 
 Registers the TWAPI ETW provider so that it can be added to a trace session.
-The GUID corresponding to the provider is defined in the variable
-[var twapi::_etw_mof(provider_guid)] and can be used in
+The name and GUID corresponding to the provider can be retrieved through
+[uri #etw_twapi_provider_name [cmd etw_twapi_provider_name]] and
+[uri #etw_twapi_provider_guid [cmd etw_twapi_provider_guid]].
+These can then be passed to
 [uri #etw_enable_trace [cmd etw_enable_trace]] or any ETW controller
 program to add the TWAPI provider to a trace session. Returns a handle
 to the registered provider.
@@ -543,10 +543,36 @@ to the registered provider.
 The provider can be unregistered by calling
 the [uri #etw_unregister_provider [cmd etw_unregister_provider]] command.
 
+[call [cmd etw_twapi_eventclass_name]]
+Returns the human readable name of the ETW event class used by
+[uri #etw_log_message [cmd etw_log_message]].
+
+[call [cmd etw_twapi_eventclass_guid]]
+Returns the GUID of the ETW event class used by
+[uri #etw_log_message [cmd etw_log_message]].
+
+[call [cmd etw_twapi_provider_guid]]
+Returns the GUID for the TWAPI ETW provider. This can be passed to
+[uri #etw_enable_trace [cmd etw_enable_trace]] or any ETW controller
+program to add the TWAPI provider to a trace session.
+
+[call [cmd etw_twapi_provider_name]]
+Returns the TWAPI ETW provider name.
+
+[call [cmd etw_variable_tracker] [arg HPROVIDER] [arg NAME1] [arg NAME2] [arg OP]]
+Writes a VariableTrace event to the trace session associated with
+the provider handle [arg HPROVIDER] returned
+by [uri #etw_twapi_provider_register [cmd etw_twapi_provider_register]].
+The remaining arguments correspond to those passed to the callback
+function by Tcl's [cmd "trace add variable"] command and this command
+can be used as the callback as in the example
+in [sectref "Tcl ETW traces"].
+
+
 [call [cmd etw_unregister_provider] [arg PROVIDERHANDLE]]
 Unregisters a previously registered provider. [arg PROVIDERHANDLE] is
 a handle returned by a previous call to
-[uri #etw_register_provider [cmd etw_register_provider]] command.
+[uri #etw_twapi_provider_register [cmd etw_twapi_provider_register]] command.
 
 
 [list_end]
@@ -634,8 +660,15 @@ and cannot be relied upon):
 [opt_def [cmd -classname]]
 The name of the parent MOF event class for the event. This may be the empty
 string if no MOF definition was found for the event.
+
 [opt_def [cmd -eventtype]]
 The numeric event type for the event.
+
+[opt_def [cmd -eventtypename]]
+The human readable event type for the event.
+If no MOF definition was found for the event,
+this will be same as the numeric event type.
+
 [opt_def [cmd -guid]]
 The GUID identifying the MOF event definition for the event.
 
@@ -651,13 +684,6 @@ The value of a single CPU time unit is given in the
 
 [opt_def [cmd -level]]
 The event level at which the event was logged.
-
-[opt_def [cmd -mof]]
-The MOF definition for the event. This is a dictionary with
-keys [cmd -classname] and [cmd -eventtypename] corresponding to the
-MOF event class and the human readable event type for the event.
-If no MOF definition was found for the event, the class name will
-be empty and the event type name will be the numeric event type.
 
 [opt_def [cmd -mofdata]]
 The event-specific data in the event in binary format. The key
