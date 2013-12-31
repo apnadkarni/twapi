@@ -34,4 +34,16 @@ typedef struct _TwapiBaseSpecificContext {
 TwapiInterpContext *TwapiGetBaseContext(Tcl_Interp *interp);
 int Twapi_GetVersionEx(Tcl_Interp *interp);
 
+TwapiTclObjCmd Twapi_ParseargsObjCmd;
+TwapiTclObjCmd Twapi_TrapObjCmd;
+TwapiTclObjCmd Twapi_KlGetObjCmd;
+TwapiTclObjCmd Twapi_TwineObjCmd;
+TwapiTclObjCmd Twapi_RecordArrayObjCmd;
+TwapiTclObjCmd Twapi_RecordObjCmd;
+TwapiTclObjCmd Twapi_GetTwapiBuildInfo;
+TwapiTclObjCmd Twapi_InternalCastObjCmd;
+TwapiTclObjCmd Twapi_GetTclTypeObjCmd;
+TwapiTclObjCmd Twapi_EnumPrintersLevel4ObjCmd;
+
+
 #endif

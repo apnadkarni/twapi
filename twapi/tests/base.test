@@ -2405,7 +2405,183 @@ namespace eval twapi::base::test {
         twapi::hex64 [incr x]
     } -result {integer value too large to represent} -returnCodes error
 
+    ################################################################
 
+    test record-1.0 {
+        record basic test
+    } -body {
+        set r [uplevel #0 [list twapi::record {a b c} reccmd]]
+    } -cleanup {
+        rename $r {}
+    } -result ::reccmd
+
+    test record-1.1 {
+        record basic test (unnamed)
+    } -body {
+        set r [uplevel #0 [list twapi::record {a b c}]]
+    } -cleanup {
+        rename $r {}
+    } -result ::record* -match glob
+
+    test record-1.2 {
+        record basic test namespace
+    } -body {
+        set r [twapi::record {a b c} reccmd]
+    } -cleanup {
+        rename $r {}
+    } -result ::twapi::base::test::reccmd
+
+    test record-1.3 {
+        record basic test (unnamed)
+    } -body {
+        set r [twapi::record {a b c}]
+    } -cleanup {
+        rename $r {}
+    } -result ::twapi::base::test::record* -match glob
+
+    test record-1.4 {
+        record basic test namespace
+    } -body {
+        set r [twapi::record {a b c} ::reccmd]
+    } -cleanup {
+        rename $r {}
+    } -result ::reccmd
+
+    test record-1.5 {
+        record basic test namespace empty definition
+    } -body {
+        twapi::record {} reccmd
+    } -returnCodes error -result "empty record definition"
+
+    test record-2.0 {
+        Record get first field
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r a {1 2 3}
+    } -cleanup {
+        rename $r {}
+    } -result 1
+
+    test record-2.1 {
+        Record get last field
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r c {1 2 3}
+    } -cleanup {
+        rename $r {}
+    } -result 3
+
+    test record-2.2 {
+        Record get non-existing field
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r d {1 2 3}
+    } -cleanup {
+        rename $r {}
+    } -returnCodes error -result "Invalid enum d"
+
+    test record-2.3 {
+        Record get field from truncated record
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r b {1 2}
+    } -cleanup {
+        rename $r {}
+    } -result 2
+
+    test record-2.4 {
+        Record get field from truncated record (fail)
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r c {1 2}
+    } -cleanup {
+        rename $r {}
+    } -returnCodes error -result "too few values in record"
+
+    test record-2.5 {
+        Record get field from empty record (fail)
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r a {}
+    } -cleanup {
+        rename $r {}
+    } -returnCodes error -result "too few values in record"
+
+    test record-3.0 {
+        Record get definition
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r
+    } -cleanup {
+        rename $r {}
+    } -result {a b c}
+
+    test record-4.0 {
+        Record get dict
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r {1 2 3}
+    } -cleanup {
+        rename $r {}
+    } -result {a 1 b 2 c 3}
+
+    test record-5.0 {
+        Record set first field
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r a {1 2 3} 4
+    } -cleanup {
+        rename $r {}
+    } -result {4 2 3}
+
+    test record-5.1 {
+        Record set last field
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r c {1 2 3} 0
+    } -cleanup {
+        rename $r {}
+    } -result {1 2 0}
+
+    test record-5.2 {
+        Record set non-existing field
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r d {1 2 3} 4
+    } -cleanup {
+        rename $r {}
+    } -returnCodes error -result "Invalid enum d"
+
+    test record-5.3 {
+        Record set field in truncated record
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r b {1 2} 0
+    } -cleanup {
+        rename $r {}
+    } -result {1 0}
+
+    test record-5.4 {
+        Record set field in truncated record (fail)
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r c {1 2} 4
+    } -cleanup {
+        rename $r {}
+    } -returnCodes error -result "too few values in record"
 
     ################################################################
 

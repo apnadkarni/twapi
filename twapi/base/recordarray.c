@@ -5,7 +5,8 @@
  * See the file LICENSE for license
  */
 
-#include <twapi.h>
+#include "twapi.h"
+#include "twapi_base.h"
 
 int Twapi_RecordArrayObjCmd(
     ClientData dummy,
@@ -98,6 +99,8 @@ int Twapi_RecordArrayObjCmd(
         Tcl_WrongNumArgs(interp, 1, objv, "COMMAND ?OPTIONS? RECORDARRAY ?ARGS?");
         return TCL_ERROR;
     }
+
+    /* TBD - use Tcl_GetObjIndex if possible for efficiency */
 
     keyindex = -1;
     cmdstr = ObjToString(objv[1]);
@@ -338,6 +341,7 @@ int Twapi_RecordArrayObjCmd(
 
     case RA_FIELD:
         /* Find position of the requested field as j */
+        /* TBD - use ObjToEnum ? */
         if (ObjGetElements(interp, raObj[0], &nfields, &fields) != TCL_OK)
             return TCL_ERROR;
         skey = ObjToString(objv[objc-1]); /* Field name we want */
@@ -407,6 +411,7 @@ int Twapi_RecordArrayObjCmd(
                 ObjSetStaticResult(interp, "Invalid slice field renaming entry.");
                 return TCL_ERROR;
             }
+            /* TBD - maybe use ObjToEnum ? */
             s = ObjToStringN(names[0], &slen);
             for (j = 0; j < nfields; ++j) {
                 char *f;
@@ -478,3 +483,121 @@ error_return:
     return TCL_ERROR;
 }
 
+static void RecordInstanceObjCmdDelete(ClientData fieldsObj)
+{
+    ObjDecrRefs(fieldsObj);
+}
+
+TCL_RESULT RecordInstanceObjCmd(
+    ClientData clientdata,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *CONST objv[])
+{
+    Tcl_Obj *fieldsObj = clientdata;
+    Tcl_Obj **fields;
+    Tcl_Obj **values;
+    Tcl_Obj *objP;
+    int field_index;
+    int i, j;
+
+    switch (objc) {
+    case 1:
+        objP = fieldsObj;
+        break;
+    case 2:
+        if (ObjListLength(interp, fieldsObj, &i) != TCL_OK ||
+            ObjListLength(interp, objv[1], &j) != TCL_OK)
+            return TCL_ERROR;
+        if (i != j) {
+            ObjSetStaticResult(interp, "Number of field values not equal to number of fields");
+            return TCL_ERROR;
+        }
+        objP = TwapiTwine(interp, fieldsObj, objv[1]);
+        if (objP == NULL)
+            return TCL_ERROR;   /* interp already has error */
+        break;
+    case 3:
+        if (ObjToEnum(interp, fieldsObj, objv[1], &field_index) != TCL_OK ||
+            ObjListIndex(interp, objv[2], field_index, &objP) != TCL_OK)
+            return TCL_ERROR;
+        if (objP == NULL) {
+            ObjSetStaticResult(interp, "too few values in record");
+            return TCL_ERROR;
+        }
+        break;
+    case 4:
+        objP = objv[2];
+        if (ObjToEnum(interp, fieldsObj, objv[1], &field_index) != TCL_OK ||
+            ObjListLength(interp, objP, &i) != TCL_OK)
+            return TCL_ERROR;
+        if (i <= field_index) {
+            ObjSetStaticResult(interp, "too few values in record");
+            return TCL_ERROR;
+        }
+        if (Tcl_IsShared(objP))
+            objP = ObjDuplicate(objP);
+        Tcl_ListObjReplace(interp, objP, field_index, 1, 1, &objv[3]);
+        break;
+
+    default:
+        Tcl_WrongNumArgs(interp, 1, objv, "?ENUM? ?FIELDNAME? ?FIELDVALUE?");
+        return TCL_ERROR;
+    }
+
+    ObjSetResult(interp, objP);
+    return TCL_OK;
+}
+
+
+/* TBD - document */
+TCL_RESULT Twapi_RecordObjCmd(
+    ClientData dummy,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *CONST objv[])
+{
+    int len;
+    TCL_RESULT res;
+    Tcl_Obj *nameObj;
+    Tcl_Namespace *nsP;
+    char *sep;
+
+    if (objc < 2 || objc > 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "FIELDS ?RECORDNAME?");
+        return TCL_ERROR;
+    }
+    
+    res = ObjListLength(interp, objv[1], &len); 
+    if (res != TCL_OK)
+        return res;
+    if (len == 0) {
+        ObjSetStaticResult(interp, "empty record definition");
+        return TCL_ERROR;
+    }
+
+    nsP = Tcl_GetCurrentNamespace(interp);
+    sep = nsP->parentPtr == NULL ? "" : "::";
+    if (objc < 3) 
+        nameObj = Tcl_ObjPrintf("%s%srecord%d", nsP->fullName, sep, Twapi_NewId());
+    else {
+        char *nameP = ObjToString(objv[2]);
+        if (nameP[0] == ':' && nameP[1] == ':')
+            nameObj = objv[2];
+        else
+            nameObj = Tcl_ObjPrintf("%s%s%s", nsP->fullName, sep, nameP);
+    }
+
+    /*
+     * The record instance command will be passed the fields object
+     * as clientdata so make sure it does not go away. Corresponding
+     * ObjDecrRefs is in RecordInstanceObjCmdDelete
+     */
+    ObjIncrRefs(objv[1]);
+
+    Tcl_CreateObjCommand(interp, ObjToString(nameObj), RecordInstanceObjCmd,
+                         objv[1], RecordInstanceObjCmdDelete);
+
+    ObjSetResult(interp, nameObj);
+    return TCL_OK;
+}
