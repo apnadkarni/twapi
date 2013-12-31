@@ -1147,16 +1147,6 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH);
 
 /* Built-in commands */
 
-TwapiTclObjCmd Twapi_ParseargsObjCmd;
-TwapiTclObjCmd Twapi_TrapObjCmd;
-TwapiTclObjCmd Twapi_KlGetObjCmd;
-TwapiTclObjCmd Twapi_TwineObjCmd;
-TwapiTclObjCmd Twapi_RecordArrayObjCmd;
-TwapiTclObjCmd Twapi_GetTwapiBuildInfo;
-TwapiTclObjCmd Twapi_InternalCastObjCmd;
-TwapiTclObjCmd Twapi_GetTclTypeObjCmd;
-TwapiTclObjCmd Twapi_EnumPrintersLevel4ObjCmd;
-
 /* Dispatcher routines */
 int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 
@@ -1246,6 +1236,8 @@ TWAPI_EXTERN int TwapiGetTclType(Tcl_Obj *objP);
 
 TWAPI_EXTERN void ObjIncrRefs(Tcl_Obj *);
 TWAPI_EXTERN void ObjDecrRefs(Tcl_Obj *);
+
+TWAPI_EXTERN TCL_RESULT ObjToEnum(Tcl_Interp *interp, Tcl_Obj *enumsObj, Tcl_Obj *nameObj, int *valP);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromOpaque(void *pv, char *name);
 #define ObjFromHANDLE(h) ObjFromOpaque((h), "HANDLE")

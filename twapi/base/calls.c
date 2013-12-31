@@ -2236,6 +2236,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(trap, Twapi_TrapObjCmd),
         DEFINE_TCL_CMD(kl_get, Twapi_KlGetObjCmd),
         DEFINE_TCL_CMD(twine, Twapi_TwineObjCmd),
+        DEFINE_TCL_CMD(record, Twapi_RecordObjCmd),
         DEFINE_TCL_CMD(recordarray, Twapi_RecordArrayObjCmd),
         DEFINE_TCL_CMD(GetTwapiBuildInfo, Twapi_GetTwapiBuildInfo),
         DEFINE_TCL_CMD(Twapi_ReadMemory, Twapi_ReadMemoryObjCmd),

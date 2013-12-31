@@ -101,6 +101,23 @@ static struct Tcl_ObjType gVariantType = {
     NULL,     /* jenglish says keep this NULL */
 };
 
+/*
+ * TwapiEnum is a Tcl "type" that maps strings to their positions in a
+ * string table. 
+ * The Tcl_Obj.internalRep.ptrAndLongRep.value holds the position
+ * and Tcl_Obj.internalRep.ptrAndLongRep.ptr holds the table as a Tcl_Obj
+ * of type list.
+ */
+static void DupEnumType(Tcl_Obj *srcP, Tcl_Obj *dstP);
+static void FreeEnumType(Tcl_Obj *objP);
+static void UpdateEnumTypeString(Tcl_Obj *objP);
+static struct Tcl_ObjType gEnumType = {
+    "TwapiEnum",
+    FreeEnumType,
+    DupEnumType,
+    UpdateEnumTypeString,
+    NULL,     /* jenglish says keep this NULL */
+};
 
 static void TwapiInvalidVariantTypeMessage(Tcl_Interp *interp, VARTYPE vt)
 {
@@ -4315,4 +4332,80 @@ void TwapiFreeDecryptedPassword(WCHAR *p, int len)
         SecureZeroMemory(p, len * sizeof(WCHAR));
         TwapiFree(p);
     }
+}
+
+static void DupEnumType(Tcl_Obj *srcP, Tcl_Obj *dstP)
+{
+    dstP->typePtr = srcP->typePtr;
+    dstP->internalRep = srcP->internalRep;
+    ObjIncrRefs(dstP->internalRep.ptrAndLongRep.ptr);
+}
+
+static void FreeEnumType(Tcl_Obj *objP)
+{
+    ObjDecrRefs(objP->internalRep.ptrAndLongRep.ptr);
+    objP->internalRep.ptrAndLongRep.ptr = NULL;
+    objP->internalRep.ptrAndLongRep.value = -1;
+    objP->typePtr = NULL;
+}
+
+static void UpdateEnumTypeString(Tcl_Obj *objP)
+{
+    Tcl_Obj *obj2P;
+    char *p;
+    int len;
+    TCL_RESULT res;
+
+    TWAPI_ASSERT(objP->bytes == NULL);
+    TWAPI_ASSERT(objP->typePtr == &gEnumType);
+    TWAPI_ASSERT(objP->internalRep.ptrAndLongRep.ptr);
+    
+    res = ObjListIndex(NULL, objP->internalRep.ptrAndLongRep.ptr, objP->internalRep.ptrAndLongRep.value, &obj2P);
+    TWAPI_ASSERT(res == TCL_OK);
+    TWAPI_ASSERT(obj2P);
+
+    p = ObjToStringN(obj2P, &len);
+    objP->bytes = ckalloc(len+1);
+    objP->length = len;
+    CopyMemory(objP->bytes, p, len+1);
+}
+
+TCL_RESULT ObjToEnum(Tcl_Interp *interp, Tcl_Obj *enumsObj, Tcl_Obj *nameObj,
+                     int *valP)
+{
+    TCL_RESULT res;
+
+    /* Reconstruct if not gEnumType or if it is one but for a different table */
+    if (nameObj->typePtr != &gEnumType ||
+        enumsObj != nameObj->internalRep.ptrAndLongRep.ptr) {
+        Tcl_Obj **objs;
+        int i, nobjs, name_len;
+        char *nameP;
+
+        if (nameObj->typePtr && nameObj->typePtr->freeIntRepProc) {
+            nameObj->typePtr->freeIntRepProc(nameObj);
+        }
+
+        if ((res = ObjGetElements(interp, enumsObj, &nobjs, &objs)) != TCL_OK)
+            return res;
+
+        nameP = ObjToString(nameObj);
+        for (i = 0; i < nobjs; ++i) {
+            if (STREQ(nameP, ObjToString(objs[i])))
+                break;
+        }
+        if (i == nobjs) {
+            if (interp)
+                ObjSetResult(interp, Tcl_ObjPrintf("Invalid enum %s", nameP));
+            return TCL_ERROR;
+        }
+
+        nameObj->typePtr = &gEnumType;
+        nameObj->internalRep.ptrAndLongRep.value = i;
+        nameObj->internalRep.ptrAndLongRep.ptr = enumsObj;
+        ObjIncrRefs(enumsObj);
+    }
+
+    *valP = nameObj->internalRep.ptrAndLongRep.value;
+    return TCL_OK;
 }

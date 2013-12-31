@@ -5,7 +5,8 @@
  * See the file LICENSE for license
  */
 
-#include <twapi.h>
+#include "twapi.h"
+#include "twapi_base.h"
 
 int Twapi_TwineObjCmd(
     ClientData dummy,
