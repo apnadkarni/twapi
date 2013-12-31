@@ -5,7 +5,8 @@
  * See the file LICENSE for license
  */
 
-#include <twapi.h>
+#include "twapi.h"
+#include "twapi_base.h"
 
 struct OptionDescriptor {
     Tcl_Obj    *name; // TBD - should this store name without the .type suffix?
@@ -352,6 +353,7 @@ int Twapi_ParseargsObjCmd(
     for (k = 0; k < nopts; ++k)
         valuesP[k] = NULL;      /* Values corresponding to each option */
 
+    /* TBD - use Tcl_GetIndexFromObj to parse parseargs options. Faster */
     for (j = 3 ; j < objc ; ++j) {
         char *s = ObjToString(objv[j]);
         if (STREQ("-nulldefault", s)) {
