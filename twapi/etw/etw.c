@@ -15,20 +15,225 @@
 #include "twapi.h"
 #include <evntrace.h>
 
+#include <ntverp.h>             /* Needed for VER_PRODUCTBUILD SDK version */
+
+#if (VER_PRODUCTBUILD < 7600) || (_WIN32_WINNT <= 0x600)
+# define RUNTIME_TDH_LOAD 1
+#else
+# include <tdh.h>
+#pragma comment(lib, "delayimp.lib") /* Prevents TDH from loading unless necessary */
+#pragma comment(lib, "tdh.lib")	 /* New TDH library for Vista and beyond */
+#endif
+
+#ifdef RUNTIME_TDH_LOAD
+
+#define EVENT_HEADER_FLAG_EXTENDED_INFO         0x0001
+#define EVENT_HEADER_FLAG_PRIVATE_SESSION       0x0002
+#define EVENT_HEADER_FLAG_STRING_ONLY           0x0004
+#define EVENT_HEADER_FLAG_TRACE_MESSAGE         0x0008
+#define EVENT_HEADER_FLAG_NO_CPUTIME            0x0010
+#define EVENT_HEADER_FLAG_32_BIT_HEADER         0x0020
+#define EVENT_HEADER_FLAG_64_BIT_HEADER         0x0040
+#define EVENT_HEADER_FLAG_CLASSIC_HEADER        0x0100
+
+#define EVENT_HEADER_EXT_TYPE_RELATED_ACTIVITYID   0x0001
+#define EVENT_HEADER_EXT_TYPE_SID                  0x0002
+#define EVENT_HEADER_EXT_TYPE_TS_ID                0x0003
+#define EVENT_HEADER_EXT_TYPE_INSTANCE_INFO        0x0004
+#define EVENT_HEADER_EXT_TYPE_STACK_TRACE32        0x0005
+#define EVENT_HEADER_EXT_TYPE_STACK_TRACE64        0x0006
+#define EVENT_HEADER_EXT_TYPE_MAX                  0x0007
+
+typedef struct _EVENT_DESCRIPTOR {
+
+    USHORT      Id;
+    UCHAR       Version;
+    UCHAR       Channel;
+    UCHAR       Level;
+    UCHAR       Opcode;
+    USHORT      Task;
+    ULONGLONG   Keyword;
+
+} EVENT_DESCRIPTOR, *PEVENT_DESCRIPTOR;
+
+typedef const EVENT_DESCRIPTOR *PCEVENT_DESCRIPTOR;
+
+typedef struct _EVENT_HEADER {
+    USHORT Size;
+    USHORT HeaderType;
+    USHORT Flags;
+    USHORT EventProperty;
+    ULONG ThreadId;
+    ULONG ProcessId;
+    LARGE_INTEGER TimeStamp;
+    GUID ProviderId;
+    EVENT_DESCRIPTOR EventDescriptor;
+    union {
+        struct {
+            ULONG KernelTime;
+            ULONG UserTime;
+        };
+        ULONG64 ProcessorTime;
+    };
+    GUID ActivityId;
+
+} EVENT_HEADER, *PEVENT_HEADER;
+
+typedef struct _ETW_BUFFER_CONTEXT {
+    UCHAR ProcessorNumber;
+    UCHAR Alignment;
+    USHORT LoggerId;
+} ETW_BUFFER_CONTEXT, *PETW_BUFFER_CONTEXT;
+
+typedef struct _EVENT_EXTENDED_ITEM_TS_ID {
+  ULONG SessionId;
+} EVENT_EXTENDED_ITEM_TS_ID, *PEVENT_EXTENDED_ITEM_TS_ID;
+
+typedef struct _EVENT_EXTENDED_ITEM_RELATED_ACTIVITYID {
+  GUID RelatedActivityId;
+} EVENT_EXTENDED_ITEM_RELATED_ACTIVITYID, *PEVENT_EXTENDED_ITEM_RELATED_ACTIVITYID;
+
+typedef struct _EVENT_EXTENDED_ITEM_INSTANCE {
+  ULONG InstanceId;
+  ULONG ParentInstanceId;
+  GUID  ParentGuid;
+} EVENT_EXTENDED_ITEM_INSTANCE, *PEVENT_EXTENDED_ITEM_INSTANCE;
+
+typedef struct _EVENT_HEADER_EXTENDED_DATA_ITEM {
+    USHORT Reserved1;
+    USHORT ExtType;
+    struct {
+        USHORT Linkage :  1;
+        USHORT Reserved2 : 15;
+    };
+    USHORT DataSize;
+    ULONGLONG  DataPtr;
+
+} EVENT_HEADER_EXTENDED_DATA_ITEM, *PEVENT_HEADER_EXTENDED_DATA_ITEM;
+
+typedef struct _EVENT_RECORD {
+
+    EVENT_HEADER EventHeader;
+    ETW_BUFFER_CONTEXT BufferContext;
+    USHORT ExtendedDataCount;
+    USHORT UserDataLength;
+    PEVENT_HEADER_EXTENDED_DATA_ITEM ExtendedData;
+    PVOID UserData;
+    PVOID UserContext;
+} EVENT_RECORD, *PEVENT_RECORD;
+
+#define EVENT_ENABLE_PROPERTY_SID                   0x00000001
+#define EVENT_ENABLE_PROPERTY_TS_ID                 0x00000002
+#define EVENT_ENABLE_PROPERTY_STACK_TRACE           0x00000004
+
+#define PROCESS_TRACE_MODE_REAL_TIME                0x00000100
+#define PROCESS_TRACE_MODE_RAW_TIMESTAMP            0x00001000
+#define PROCESS_TRACE_MODE_EVENT_RECORD             0x10000000
+
+typedef enum _TDH_CONTEXT_TYPE { 
+    TDH_CONTEXT_WPP_TMFFILE = 0,
+    TDH_CONTEXT_WPP_TMFSEARCHPATH = 1,
+    TDH_CONTEXT_WPP_GMT = 2,
+    TDH_CONTEXT_POINTERSIZE = 3,
+    TDH_CONTEXT_PDB_PATH = 4,
+    TDH_CONTEXT_MAXIMUM = 5
+} TDH_CONTEXT_TYPE;
+
+typedef struct _TDH_CONTEXT {
+    ULONGLONG ParameterValue;
+    TDH_CONTEXT_TYPE ParameterType;
+    ULONG ParameterSize;
+} TDH_CONTEXT;
+
+typedef enum _DECODING_SOURCE { 
+  DecodingSourceXMLFile  = 0,
+  DecodingSourceWbem     = 1,
+  DecodingSourceWPP      = 2
+} DECODING_SOURCE;
+
+typedef enum _TEMPLATE_FLAGS
+{
+    TEMPLATE_EVENT_DATA = 1,
+    TEMPLATE_USER_DATA = 2
+} TEMPLATE_FLAGS;
+
+typedef enum _PROPERTY_FLAGS
+{
+   PropertyStruct        = 0x1,      // Type is struct.
+   PropertyParamLength   = 0x2,      // Length field is index of param with length.
+   PropertyParamCount    = 0x4,      // Count file is index of param with count.
+   PropertyWBEMXmlFragment = 0x8,    // WBEM extension flag for property.
+   PropertyParamFixedLength = 0x10   // Length of the parameter is fixed.
+} PROPERTY_FLAGS;
+
+typedef struct _EVENT_PROPERTY_INFO {
+    PROPERTY_FLAGS Flags;
+    ULONG NameOffset;
+    union {
+        struct _nonStructType {
+            USHORT InType;
+            USHORT OutType;
+            ULONG MapNameOffset;
+        } nonStructType;
+        struct _structType {
+            USHORT StructStartIndex;
+            USHORT NumOfStructMembers;
+            ULONG padding;
+        } structType;
+    };
+    union {
+        USHORT count;
+        USHORT countPropertyIndex;
+    };
+    union {
+        USHORT length;
+        USHORT lengthPropertyIndex;
+    };
+    ULONG Reserved;
+} EVENT_PROPERTY_INFO;
+typedef EVENT_PROPERTY_INFO *PEVENT_PROPERTY_INFO;
+
+typedef struct _TRACE_EVENT_INFO {
+  GUID ProviderGuid;
+  GUID EventGuid;
+  EVENT_DESCRIPTOR EventDescriptor;
+  DECODING_SOURCE DecodingSource;
+  ULONG ProviderNameOffset;
+  ULONG LevelNameOffset;
+  ULONG ChannelNameOffset;
+  ULONG KeywordsNameOffset;
+  ULONG TaskNameOffset;
+  ULONG OpcodeNameOffset;
+  ULONG EventMessageOffset;
+  ULONG ProviderMessageOffset;
+  ULONG BinaryXMLOffset;
+  ULONG BinaryXMLSize;
+  ULONG ActivityIDNameOffset;
+  ULONG RelatedActivityIDNameOffset;
+  ULONG PropertyCount;
+  ULONG TopLevelPropertyCount;
+  TEMPLATE_FLAGS Flags;
+  EVENT_PROPERTY_INFO EventPropertyInfoArray[ANYSIZE_ARRAY];
+} TRACE_EVENT_INFO;
+
+typedef ULONG __stdcall TdhGetEventInformation_T(PEVENT_RECORD, ULONG, TDH_CONTEXT *, TRACE_EVENT_INFO *, ULONG *);
+static struct {
+    TdhGetEventInformation_T  *_TdhGetEventInformation;
+} gTdhStubs;
+
+#define TdhGetEventInformation gTdhStubs._TdhGetEventInformation
+
+int gTdhStatus;                 /* 0 - init, 1 - available, -1 - unavailable  */
+HANDLE gTdhDllHandle;
+
+#endif
+
 /* Max length of file and session name fields in a trace (documented in SDK) */
 #define MAX_TRACE_NAME_CHARS (1024+1)
 
 #define ObjFromTRACEHANDLE(val_) ObjFromWideInt(val_)
 #define ObjToTRACEHANDLE ObjToWideInt
 
-/*
- * The Microsoft docs are not clear about invalid trace session handles.
- * The sample code shows comparisons against INVALID_HANDLE_VALUE. On the
- * other hand, the StartTrace documentation warns that invalid session
- * handles are 0, NOT INVALID_HANDLE_VALUE. For more confusion, also see -
- * http://msdn.microsoft.com/en-us/library/windows/desktop/aa364089(v=vs.85).aspx
- * For now, treat both as invalid. TBD
- */
 static TRACEHANDLE gInvalidTraceHandle;
 #define INVALID_SESSIONTRACE_HANDLE(ht_) ((ht_) == gInvalidTraceHandle)
 
@@ -102,7 +307,7 @@ static const char * g_trace_logfile_header_fields[] = {
 
 /* Event Trace Consumer Support */
 struct TwapiETWContext {
-    Tcl_Interp *interp;
+    TwapiInterpContext *ticP;
 
     /* If a callback is supplied, buffer_cmdObj holds it and buffer_cmdlen
        is non-0. If no callback is supplied, we collect the buffer descriptor
@@ -114,10 +319,8 @@ struct TwapiETWContext {
     } buffer;
 
     /*
-     * When inside a ProcessTrace,
-     * EXACTLY ONE of eventsObj and errorObj must be non-NULL. Moreover,
-     * when non-NULL, an ObjIncrRefs must have been done on it
-     * with a corresponding ObjDecrRefs when setting to NULL
+     * when non-NULL, an ObjIncrRefs must have been done on eventsObj
+     * and errorObj with a corresponding ObjDecrRefs when setting to NULL
       */
     Tcl_Obj *eventsObj;
     Tcl_Obj *errorObj;
@@ -870,8 +1073,9 @@ void WINAPI TwapiETWEventCallback(
     Tcl_Obj *evObj;
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
-    TWAPI_ASSERT(gETWContext.interp != NULL);
-    interp = gETWContext.interp;
+    TWAPI_ASSERT(gETWContext.ticP != NULL);
+    TWAPI_ASSERT(gETWContext.ticP->interp != NULL);
+    interp = gETWContext.ticP->interp;
 
     if (gETWContext.errorObj)   /* If some previous error occurred, return */
         return;
@@ -906,6 +1110,188 @@ void WINAPI TwapiETWEventCallback(
     ObjAppendElement(interp, gETWContext.eventsObj, evObj);
 }
 
+/* Uses memlifo frame. Caller responsible for cleanup */
+static DWORD TwapiTdhGetEventInformation(TwapiInterpContext *ticP, PEVENT_RECORD recP, TRACE_EVENT_INFO **teiPP)
+{
+    DWORD sz, winerr;
+    TRACE_EVENT_INFO *teiP;
+
+    /* TBD - instrument how much to try for initially */
+    teiP = MemLifoAlloc(&ticP->memlifo, 1000, &sz);
+
+    /* TBD - initialize TDH_CONTEXT param to include pointer size indicator */
+    winerr = TdhGetEventInformation(recP, 0, NULL, teiP, &sz);
+    if (winerr == ERROR_INSUFFICIENT_BUFFER) {
+        teiP = MemLifoAlloc(&ticP->memlifo, sz, &sz);
+        winerr = TdhGetEventInformation(recP, 0, NULL, teiP, &sz);
+    }
+    
+    /* We may have over allocated so shrink down before returning */
+    if (winerr == ERROR_SUCCESS) {
+        *teiPP = MemLifoResizeLast(&ticP->memlifo, sz, 1);
+    }
+
+    return winerr;
+}
+
+static Tcl_Obj *TwapiTEIUnicodeObj(TRACE_EVENT_INFO *teiP, int offset)
+{
+    if (offset == 0)
+        return ObjFromEmptyString();
+    else
+        return ObjFromUnicode((WCHAR*) (offset + (char*)teiP));
+}
+
+static Tcl_Obj *ObjFromEVENT_DESCRIPTOR(EVENT_DESCRIPTOR *evdP)
+{
+    Tcl_Obj *objs[7];
+
+    objs[0] = ObjFromLong(evdP->Id);
+    objs[1] = ObjFromLong(evdP->Version);
+    objs[2] = ObjFromLong(evdP->Channel);
+    objs[3] = ObjFromLong(evdP->Level);
+    objs[4] = ObjFromLong(evdP->Opcode);
+    objs[5] = ObjFromLong(evdP->Task);
+    objs[6] = ObjFromULONGLONG(evdP->Keyword);
+
+    return ObjNewList(ARRAYSIZE(objs), objs);
+}
+
+static Tcl_Obj *ObjFromEVENT_HEADER(EVENT_HEADER *evhP)
+{
+    Tcl_Obj *objs[11];
+
+    objs[0] = ObjFromLong(evhP->Flags);
+    objs[1] = ObjFromLong(evhP->EventProperty);
+    objs[2] = ObjFromLong(evhP->ThreadId);
+    objs[3] = ObjFromLong(evhP->ProcessId);
+    objs[4] = ObjFromLARGE_INTEGER(evhP->TimeStamp);
+    objs[5] = ObjFromGUID(&evhP->ProviderId);
+    objs[6] = ObjFromEVENT_DESCRIPTOR(&evhP->EventDescriptor);
+
+    /*
+     * Note - for user mode sessions, KernelTime/UserTime are not valid
+     * and the ProcessorTime member has to be used instead. However,
+     * we do not know the type of session at this point so we leave it
+     * to the app to figure out what to use
+     */
+    objs[7] = ObjFromULONG(evhP->KernelTime);
+    objs[8] = ObjFromULONG(evhP->UserTime);
+    objs[9] = ObjFromULONGLONG(evhP->ProcessorTime);
+
+    objs[10] = ObjFromGUID(&evhP->ActivityId);
+    
+    return ObjNewList(ARRAYSIZE(objs), objs);
+}
+
+static Tcl_Obj *ObjFromTRACE_EVENT_INFO(TRACE_EVENT_INFO *teiP)
+{
+    Tcl_Obj *objs[16];
+
+    objs[0] = ObjFromGUID(&teiP->ProviderGuid);
+    objs[1] = ObjFromGUID(&teiP->EventGuid);
+    /* TBD - does this duplicate EventDescriptor struct in event header ? */
+    objs[2] = ObjFromEVENT_DESCRIPTOR(&teiP->EventDescriptor);
+
+    objs[3] = ObjFromLong(teiP->DecodingSource);
+    objs[4] = TwapiTEIUnicodeObj(teiP, teiP->ProviderNameOffset);
+    objs[5] = TwapiTEIUnicodeObj(teiP, teiP->LevelNameOffset);
+    objs[6] = TwapiTEIUnicodeObj(teiP, teiP->ChannelNameOffset);
+    objs[7] = TwapiTEIUnicodeObj(teiP, teiP->KeywordsNameOffset);
+    objs[8] = TwapiTEIUnicodeObj(teiP, teiP->TaskNameOffset);
+    objs[9] = TwapiTEIUnicodeObj(teiP, teiP->OpcodeNameOffset);
+    objs[10] = TwapiTEIUnicodeObj(teiP, teiP->EventMessageOffset);
+    objs[11] = TwapiTEIUnicodeObj(teiP, teiP->ProviderMessageOffset);
+    objs[12] = TwapiTEIUnicodeObj(teiP, teiP->ActivityIDNameOffset);
+    objs[13] = TwapiTEIUnicodeObj(teiP, teiP->RelatedActivityIDNameOffset);
+    objs[14] = ObjFromLong(teiP->PropertyCount);
+    objs[15] = ObjFromLong(teiP->TopLevelPropertyCount);
+
+    return ObjNewList(ARRAYSIZE(objs), objs);
+}
+
+
+static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD recP)
+{
+    TwapiInterpContext *ticP;
+    int i;
+    Tcl_Obj *recObjs[4];
+    Tcl_Obj *objs[20];
+    TRACE_EVENT_INFO *teiP;
+    DWORD winerr;
+    MemLifoMarkHandle mark;
+
+    /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
+    TWAPI_ASSERT(gETWContext.ticP != NULL);
+    TWAPI_ASSERT(gETWContext.ticP->interp != NULL);
+    ticP = gETWContext.ticP;
+
+    if (gETWContext.errorObj)   /* If some previous error occurred, return */
+        return;
+
+    if ((recP->EventHeader.Flags & EVENT_HEADER_FLAG_TRACE_MESSAGE) != 0)
+        return; // Ignore WPP events. - TBD
+    
+    mark = MemLifoPushMark(&ticP->memlifo);
+
+    winerr = TwapiTdhGetEventInformation(ticP, recP, &teiP);
+    if (winerr != ERROR_SUCCESS) {
+        gETWContext.errorObj = Twapi_MakeWindowsErrorCodeObj(winerr, NULL);
+        ObjIncrRefs(gETWContext.errorObj);
+        MemLifoPopMark(mark);
+        return;
+    }
+
+    recObjs[0] = ObjFromEVENT_HEADER(&recP->EventHeader);
+
+    /* Buffer Context */
+    objs[0] = ObjFromLong(recP->BufferContext.ProcessorNumber);
+    objs[1] = ObjFromLong(recP->BufferContext.Alignment);
+    objs[2] = ObjFromLong(recP->BufferContext.LoggerId);
+    recObjs[1] = ObjNewList(3, objs);
+    
+    /* Extended Data */
+    recObjs[2] = ObjNewList(0, NULL);
+    for (i = 0; i < recP->ExtendedDataCount; ++i) {
+        EVENT_HEADER_EXTENDED_DATA_ITEM *ehdrP = &recP->ExtendedData[i];
+        if (ehdrP->DataPtr == 0)
+            continue;
+        switch (ehdrP->ExtType) {
+        case EVENT_HEADER_EXT_TYPE_RELATED_ACTIVITYID:
+            ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("-relatedactivity"));
+            ObjAppendElement(NULL, recObjs[2], ObjFromGUID(&((PEVENT_EXTENDED_ITEM_RELATED_ACTIVITYID)ehdrP->DataPtr)->RelatedActivityId));
+            break;
+        case EVENT_HEADER_EXT_TYPE_SID:
+            ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("-sid"));
+            ObjAppendElement(NULL, recObjs[2], ObjFromSIDNoFail((SID *)(ehdrP->DataPtr)));
+            break;
+        case EVENT_HEADER_EXT_TYPE_TS_ID:
+            ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("-tssession"));
+            ObjAppendElement(NULL, recObjs[2], ObjFromULONG(((PEVENT_EXTENDED_ITEM_TS_ID)ehdrP->DataPtr)->SessionId));
+            break;
+        case EVENT_HEADER_EXT_TYPE_INSTANCE_INFO:
+            ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("-iteminstance"));
+            objs[0] = ObjFromULONG(((PEVENT_EXTENDED_ITEM_INSTANCE)ehdrP->DataPtr)->InstanceId);
+            objs[1] = ObjFromULONG(((PEVENT_EXTENDED_ITEM_INSTANCE)ehdrP->DataPtr)->ParentInstanceId);
+            objs[2] = ObjFromGUID(&((PEVENT_EXTENDED_ITEM_INSTANCE)ehdrP->DataPtr)->ParentGuid);
+            ObjAppendElement(NULL, recObjs[2], ObjNewList(3, objs));
+            break;
+
+        case EVENT_HEADER_EXT_TYPE_STACK_TRACE32:
+        case EVENT_HEADER_EXT_TYPE_STACK_TRACE64:
+        default:
+            break;              /* Skip/ignore */
+        }
+    }
+    
+    recObjs[3] = ObjFromTRACE_EVENT_INFO(teiP);
+    ObjAppendElement(ticP->interp, gETWContext.eventsObj, ObjNewList(ARRAYSIZE(recObjs), recObjs));
+
+    MemLifoPopMark(mark);
+    return;
+}
+
+
 ULONG WINAPI TwapiETWBufferCallback(
   PEVENT_TRACE_LOGFILEW etlP
 )
@@ -919,8 +1305,9 @@ ULONG WINAPI TwapiETWBufferCallback(
     int code;
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
-    TWAPI_ASSERT(gETWContext.interp != NULL);
-    interp = gETWContext.interp;
+    TWAPI_ASSERT(gETWContext.ticP != NULL);
+    TWAPI_ASSERT(gETWContext.ticP->interp != NULL);
+    interp = gETWContext.ticP->interp;
 
     if (Tcl_InterpDeleted(interp))
         return FALSE;
@@ -1017,7 +1404,7 @@ ULONG WINAPI TwapiETWBufferCallback(
         args[0] = bufObj;
         args[1] = gETWContext.eventsObj;
         Tcl_ListObjReplace(interp, objP, gETWContext.buffer_cmdlen, ARRAYSIZE(args), ARRAYSIZE(args), args);
-        code = Tcl_EvalObjEx(gETWContext.interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
+        code = Tcl_EvalObjEx(gETWContext.ticP->interp, objP, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
 
         /* Get rid of the command obj if we created it */
         if (objP != gETWContext.buffer.cmdObj)
@@ -1038,8 +1425,7 @@ ULONG WINAPI TwapiETWBufferCallback(
         /* Any other value - not an error, but stop processing */
         return FALSE;
     case TCL_ERROR:
-        gETWContext.errorObj = Tcl_GetReturnOptions(gETWContext.interp,
-                                                    code);
+        gETWContext.errorObj = Tcl_GetReturnOptions(interp, code);
         ObjIncrRefs(gETWContext.errorObj);
         ObjDecrRefs(gETWContext.eventsObj);
         gETWContext.eventsObj = NULL;
@@ -1049,8 +1435,6 @@ ULONG WINAPI TwapiETWBufferCallback(
         return TRUE;
     }
 }
-
-
 
 TCL_RESULT Twapi_OpenTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -1066,14 +1450,26 @@ TCL_RESULT Twapi_OpenTrace(ClientData clientdata, Tcl_Interp *interp, int objc, 
 
     s = ObjToUnicode(objv[1]);
     ZeroMemory(&etl, sizeof(etl));
+    etl.BufferCallback = TwapiETWBufferCallback;
+    /*
+     * To support older compilers/SDK's, we use
+     *   EventCallback instead of EventRecordCallback
+     *   LogFileMode instead of ProcessTraceMode
+     *   EVENT_TRACE_REAL_TIME_MODE instead of PROCESS_TRACE_MODE_REAL_TIME
+     * They are either the same field in the union, or have the same #define value
+     */
+    if (gTdhStatus > 0) {
+        etl.LogFileMode = PROCESS_TRACE_MODE_EVENT_RECORD; /* etl.ProcessTraceMode = */
+        etl.EventCallback = (PEVENT_CALLBACK) TwapiETWEventRecordCallback;   /* etl.EventRecordCallback = */
+    } else
+        etl.EventCallback = TwapiETWEventCallback;
+
     if (real_time) {
         etl.LoggerName = s;
-        etl.LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
-    } else 
+        etl.LogFileMode |= EVENT_TRACE_REAL_TIME_MODE; /* or etl.ProcessTraceMode |= PROCESS_TRACE_MODE_REAL_TIME */
+    } else
         etl.LogFileName = s;
 
-    etl.BufferCallback = TwapiETWBufferCallback;
-    etl.EventCallback = TwapiETWEventCallback;
 
     htrace = OpenTraceW(&etl);
     if (INVALID_SESSIONTRACE_HANDLE(htrace))
@@ -1102,7 +1498,7 @@ TCL_RESULT Twapi_CloseTrace(ClientData clientdata, Tcl_Interp *interp, int objc,
 }
 
 
-TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int i;
     FILETIME start, end, *startP, *endP;
@@ -1147,7 +1543,7 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
     
     EnterCriticalSection(&gETWCS);
     
-    if (gETWContext.interp != NULL) {
+    if (gETWContext.ticP != NULL) {
         LeaveCriticalSection(&gETWCS);
         ObjSetStaticResult(interp, "Recursive call to ProcessTrace");
         return TCL_ERROR;
@@ -1162,7 +1558,7 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
     gETWContext.eventsObj = ObjNewList(0, NULL);
     ObjIncrRefs(gETWContext.eventsObj);
     gETWContext.errorObj = NULL;
-    gETWContext.interp = interp;
+    gETWContext.ticP = ticP;
 
     /* TBD - make these per interpreter keys */
     /*
@@ -1186,7 +1582,7 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
     gETWContext.buffer.cmdObj = NULL;
     gETWContext.eventsObj = NULL;
     gETWContext.errorObj = NULL;
-    gETWContext.interp = NULL;
+    gETWContext.ticP = NULL;
 
     LeaveCriticalSection(&gETWCS);
 
@@ -1210,11 +1606,6 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
         if (etwc.buffer_cmdlen == 0)
             ObjDecrRefs(etwc.buffer.listObj);
         return code;
-    } else {
-        if (etwc.buffer_cmdlen)
-            Tcl_ResetResult(interp); /* For any holdover from callbacks */
-        else
-            ObjSetResult(interp, etwc.buffer.listObj);
     }
 
     /* A winerr of ERROR_CANCELLED means the callback returned TCL_BREAK
@@ -1222,6 +1613,12 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
      */
     if (winerr && winerr != ERROR_CANCELLED)
         return Twapi_AppendSystemError(interp, winerr);
+
+    if (etwc.buffer_cmdlen == 0) {
+        /* No callback so return collected events */
+        ObjSetResult(interp, etwc.buffer.listObj);
+    } else
+        Tcl_ResetResult(interp); /* For any holdover from callbacks */
 
     return TCL_OK;
 }
@@ -1651,7 +2048,7 @@ static int TwapiETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(etw_provider_enabled, 3),          /* TBD docs */
     };
 
-    TwapiDefineTclCmds(interp, ARRAYSIZE(EtwDispatch), EtwDispatch, NULL);
+    TwapiDefineTclCmds(interp, ARRAYSIZE(EtwDispatch), EtwDispatch, ticP);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(EtwCallDispatch), EtwCallDispatch, Twapi_ETWCallObjCmd);
 
 
@@ -1661,8 +2058,50 @@ static int TwapiETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     return TCL_OK;
 }
 
+void TwapiInitTdhStubs(Tcl_Interp *interp)
+{
+#ifdef RUNTIME_TDH_LOAD
+    UINT len;
+    WCHAR path[MAX_PATH+1];
+
+    if (gTdhStatus)
+        return;                 /* Already called */
+
+    /* Assume failure */
+    gTdhStatus = -1;
+
+    len = GetSystemDirectoryW(path, ARRAYSIZE(path));
+    if (len == 0)
+        return; /* Error ignored. Functions will simply not be available */
+
+#define TDHDLLNAME L"\\tdh.dll"
+    if (len > (ARRAYSIZE(path) - ARRAYSIZE(TDHDLLNAME)))
+        return;
+
+    lstrcpynW(&path[len], TDHDLLNAME, ARRAYSIZE(TDHDLLNAME));
+
+    /* Initialize the Evt stubs */
+    gTdhDllHandle = LoadLibraryW(path);
+    if (gTdhDllHandle == NULL)
+        return;                 /* DLL not available */
+    
+#define INIT_TDH_STUB(fn) \
+    do { \
+      if (((gTdhStubs._ ## fn) = (void *)GetProcAddress(gTdhDllHandle, #fn)) == NULL) \
+            return;                                                     \
+    } while (0)
+
+    INIT_TDH_STUB(TdhGetEventInformation);
+
+#endif
+
+    gTdhStatus = 1;
+}
+
 static int ETWModuleOneTimeInit(Tcl_Interp *interp)
 {
+    TwapiInitTdhStubs(interp);
+
     /* Depends on OS - see documentation of OpenTrace in SDK */
     if (sizeof(void*) == 8) {
         gInvalidTraceHandle = 0xFFFFFFFFFFFFFFFF;
@@ -1673,7 +2112,9 @@ static int ETWModuleOneTimeInit(Tcl_Interp *interp)
         else
             gInvalidTraceHandle = 0xFFFFFFFFFFFFFFFF;
     }
+
     InitializeCriticalSection(&gETWCS);
+
     return TCL_OK;
 }
 
