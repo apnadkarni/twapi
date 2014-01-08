@@ -333,6 +333,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_NULL_POINTER 18
 #define TWAPI_REGISTERED_POINTER_IS_NOT_COUNTED 19
 #define TWAPI_INVALID_COMMAND_SCOPE 20
+#define TWAPI_SCRIPT_ERROR 21
 
 /*
  * Map TWAPI error codes into Win32 error code format.
@@ -1236,6 +1237,7 @@ TWAPI_EXTERN int TwapiGetTclType(Tcl_Obj *objP);
 
 TWAPI_EXTERN void ObjIncrRefs(Tcl_Obj *);
 TWAPI_EXTERN void ObjDecrRefs(Tcl_Obj *);
+TWAPI_EXTERN void ObjDecrArrayRefs(int, Tcl_Obj *objv[]);
 
 TWAPI_EXTERN TCL_RESULT ObjToEnum(Tcl_Interp *interp, Tcl_Obj *enumsObj, Tcl_Obj *nameObj, int *valP);
 
