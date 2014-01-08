@@ -890,7 +890,7 @@ Tcl_Obj *ObjFromBSTR (BSTR bstr)
 
 Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remainP)
 {
-    int len;
+    char *p, *endP;
 
     if (max < 0) {
         if (remainP)
@@ -898,25 +898,24 @@ Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remainP)
         return ObjFromString(strP);
     }        
 
-    for (len = 0; len < max && strP[len]; ++len)
-        ;
-        
-    /* We have to be careful about setting *remainP since the loop may
-       terminate because of max exceeded or because \0 encountered.
-    */
-    if (remainP) {
-        if ((len+1) <= max)
-            *remainP = (max - (len+1)); /* \0 case */
-        else
-            *remainP = 0;       /* max reached case */
-    }        
+    p = strP;
+    endP = max + strP;
+    while (p < endP && *p)
+        ++p;
 
-    return ObjFromStringN(strP, len);
+    if (remainP) {
+        if (p == endP)
+            *remainP = 0;
+        else
+            *remainP = (endP-p)-1; /* -1 to skip over \0 */
+    }
+
+    return ObjFromStringN(strP, (p-strP));
 }
 
 Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *strP, int max, int *remainP)
 {
-    int len;
+    WCHAR *p, *endP;
 
     if (max < 0) {
         if (remainP)
@@ -924,22 +923,20 @@ Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *strP, int max, int *remainP)
         return ObjFromUnicode(strP);
     }        
 
-    for (len = 0; len < max && strP[len]; ++len)
-        ;
-        
-    /* We have to be careful about setting *remainP since the loop may
-       terminate because of max exceeded or because \0 encountered.
-    */
+    p = strP;
+    endP = max + strP;
+    while (p < endP && *p)
+        ++p;
+
     if (remainP) {
-        if ((len+1) <= max)
-            *remainP = (max - (len+1)); /* \0 case */
+        if (p == endP)
+            *remainP = 0;
         else
-            *remainP = 0;       /* max reached case */
-    }        
+            *remainP = (endP-p)-1; /* -1 to skip over \0 */
+    }
 
-    return ObjFromUnicodeN(strP, len);
+    return ObjFromUnicodeN(strP, (p-strP));
 }
-
 
 
 /*
@@ -4020,6 +4017,14 @@ void ObjDecrRefs(Tcl_Obj *objP)
 {
     Tcl_DecrRefCount(objP);
 }
+
+void ObjDecrArrayRefs(int objc, Tcl_Obj *objv[])
+{
+    int i;
+    for (i = 0; i < objc; ++i)
+        ObjDecrRefs(objv[i]);
+}
+
 
 Tcl_UniChar *ObjToUnicode(Tcl_Obj *objP)
 {
