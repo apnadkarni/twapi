@@ -239,12 +239,14 @@ namespace eval twapi::osinfo::test {
 
     test get_os_version-1.0 {
         get operating system version
-    } -constraints {
-        nt
     } -body {
-        set ver [twapi::get_os_version]
-        format "%d.%d" [lindex $ver 0] [lindex $ver 1]
-    } -result $::tcl_platform(osVersion)
+        # Do not use tcl_platform(osVersion) as apparently that
+        # has a bug for Win 8.1
+        set ver [exec {*}[auto_execok ver]]
+        regexp {Version (\d+)\.(\d+)} $ver _ maj min
+        lassign [twapi::get_os_version] major minor spmajor spminor
+        list [expr {$major == $maj}] [expr {$minor == $min}] [string is integer -strict $spmajor] [string is integer -strict $spminor]
+    } -result {1 1 1 1}
 
 
     ################################################################
@@ -359,8 +361,8 @@ namespace eval twapi::osinfo::test {
     } -body {
         catch {unset osinfo}
         array set osinfo [twapi::get_os_info]
-        format "%d.%d" $osinfo(os_major_version) $osinfo(os_minor_version)
-    } -result $::tcl_platform(osVersion)
+        list $osinfo(os_major_version) $osinfo(os_minor_version) $osinfo(sp_major_version) $osinfo(sp_minor_version)
+    } -result [twapi::get_os_version]
 
     ###
     test get_os_info-3.0 {
