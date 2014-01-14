@@ -34,6 +34,23 @@ Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP)
     return resultObj;
 }
 
+/*
+ * The following is a drop-in replacement for the GetVersionEx Win32 API
+ * which is completely borked (by design!) in Win 8.1 to always return
+ * 6.2 if the app has no appropriate manifest
+ */
+MAKE_DYNLOAD_FUNC(RtlGetVersion, ntdll, FARPROC)
+BOOL TwapiRtlGetVersion(LPOSVERSIONINFO verP)
+{
+    FARPROC func = Twapi_GetProc_RtlGetVersion();
+    if (func) {
+        if ((*func)(verP) == STATUS_SUCCESS)
+            return 1;
+    }
+
+    /* Either function was not found or it failed. Use documented one */
+    return GetVersionEx(verP);
+}
 
 int TwapiMinOSVersion(int major, int minor)
 {
