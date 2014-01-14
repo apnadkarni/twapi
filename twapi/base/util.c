@@ -433,6 +433,22 @@ TCL_RESULT TwapiDictLookupString(Tcl_Interp *interp, Tcl_Obj *dictObj, const cha
     return res;
 }
 
+/* This function is not fool proof. The Win32 API makes it impossible to
+   write one */
+TCL_RESULT TwapiValidateSID(Tcl_Interp *interp, SID *sidP, int len)
+{
+    /* GetSidLengthRequired assumes subauthorities are a certain size
+       which may not hold. But there is no other alternative to check
+       what an SID length should be */
+    if (sizeof(SID) > len ||
+        GetSidLengthRequired(sidP->SubAuthorityCount) > len ||
+        ! IsValidSid(sidP) ) {
+        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "Truncated or invalid SID.");
+    }
+
+    return TCL_OK;
+}
+
 
 #ifdef TWAPI_REPLACE_CRT
 /* 

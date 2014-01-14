@@ -890,7 +890,7 @@ Tcl_Obj *ObjFromBSTR (BSTR bstr)
 
 Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remainP)
 {
-    char *p, *endP;
+    const char *p, *endP;
 
     if (max < 0) {
         if (remainP)
@@ -915,7 +915,7 @@ Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remainP)
 
 Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *strP, int max, int *remainP)
 {
-    WCHAR *p, *endP;
+    const WCHAR *p, *endP;
 
     if (max < 0) {
         if (remainP)
@@ -1299,7 +1299,7 @@ void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP)
 
 
 /* interp may be NULL */
-int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP)
+TCL_RESULT ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP)
 {
     char *strP;
 
@@ -1988,9 +1988,42 @@ TCL_RESULT ObjToTIME_ZONE_INFORMATION(Tcl_Interp *interp,
 
 static char hexmap[] = "0123456789abcdef";
 
+Tcl_Obj *ObjFromUCHARHex(UCHAR val)
+{
+    char buf[4];
+
+    // Significantly faster than Tcl_ObjPrintf
+
+    buf[0] = '0';
+    buf[1] = 'x';
+
+    buf[2] = hexmap[(val >> 4) & 0xf];
+    buf[3] = hexmap[val & 0xf];
+
+    return ObjFromStringN(buf, 4);
+}
+
+
+Tcl_Obj *ObjFromUSHORTHex(USHORT val)
+{
+    char buf[6];
+
+    // Significantly faster than Tcl_ObjPrintf
+
+    buf[0] = '0';
+    buf[1] = 'x';
+
+    buf[2] = hexmap[(val >> 12) & 0xf];
+    buf[3] = hexmap[(val >> 8) & 0xf];
+    buf[4] = hexmap[(val >> 4) & 0xf];
+    buf[5] = hexmap[val & 0xf];
+
+    return ObjFromStringN(buf, 6);
+}
+
 Tcl_Obj *ObjFromULONGHex(ULONG val)
 {
-    char buf[20];
+    char buf[10];
 
     // Significantly faster than Tcl_ObjPrintf("0x%8.8x", val);
 
@@ -2074,6 +2107,7 @@ Tcl_Obj *IPAddrObjFromDWORD(DWORD addr)
 {
     struct in_addr inaddr;
     inaddr.S_un.S_addr = addr;
+    /* Note inet_ntoa is thread safe on Windows */
     return ObjFromString(inet_ntoa(inaddr));
 }
 
@@ -2121,7 +2155,7 @@ Tcl_Obj *ObjFromIP_ADDR_STRING (
 }
 
 
-/* Note - port is not returned - only address */
+/* Note - port is not returned - only address. Can return NULL */
 Tcl_Obj *ObjFromSOCKADDR_address(SOCKADDR *saP)
 {
     char buf[50];
@@ -2171,6 +2205,7 @@ Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP)
 }
 
 
+/* Can return NULL */
 Tcl_Obj *ObjFromIPv6Addr(const char *addrP, DWORD scope_id)
 {
     SOCKADDR_IN6 si;
