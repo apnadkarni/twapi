@@ -17,7 +17,6 @@ TCL_RESULT Twapi_GlobalMemoryStatus(Tcl_Interp *interp);
 TCL_RESULT Twapi_GetPerformanceInformation(Tcl_Interp *interp);
 int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP);
 int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
-int Twapi_GetVersionEx(Tcl_Interp *interp);
 
 static MAKE_DYNLOAD_FUNC(NtQuerySystemInformation, ntdll, NtQuerySystemInformation_t)
 static MAKE_DYNLOAD_FUNC(GetProductInfo, kernel32, FARPROC)
