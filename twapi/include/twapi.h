@@ -1166,6 +1166,7 @@ int Twapi_MemLifoDump(Tcl_Interp *, MemLifo *l);
  * Exported functions
  */
 
+TWAPI_EXTERN BOOL TwapiRtlGetVersion(LPOSVERSIONINFO verP);
 TWAPI_EXTERN int TwapiMinOSVersion(int major, int minor);
 
 /* Memory allocation */

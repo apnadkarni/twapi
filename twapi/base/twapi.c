@@ -605,7 +605,7 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
         TwapiInitTclTypes();
         gTwapiOSVersionInfo.dwOSVersionInfoSize =
             sizeof(gTwapiOSVersionInfo);
-        if (GetVersionEx(&gTwapiOSVersionInfo)) {
+        if (TwapiRtlGetVersion(&gTwapiOSVersionInfo)) {
             /* Sockets */
             if (WSAStartup(ws_ver, &ws_data) == 0) {
                 Tcl_CreateExitHandler(Twapi_Cleanup, NULL);
@@ -730,7 +730,7 @@ int Twapi_GetVersionEx(Tcl_Interp *interp)
     Tcl_Obj *objP;
 
     vi.dwOSVersionInfoSize = sizeof(vi);
-    if (GetVersionExW((OSVERSIONINFOW *)&vi) == 0) {
+    if (TwapiRtlGetVersion((OSVERSIONINFOW *)&vi) == 0) {
         return TwapiReturnSystemError(interp);
     }
 

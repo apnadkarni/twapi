@@ -1354,7 +1354,7 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     {
         OSVERSIONINFO osver;
         osver.dwOSVersionInfoSize = sizeof(osver);
-        if (! GetVersionEx(&osver))
+        if (! TwapiRtlGetVersion(&osver))
             return TwapiReturnSystemError(interp);
         if (osver.dwMajorVersion < 6) {
             /* Do not initialize evt_* commands */
