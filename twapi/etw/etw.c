@@ -1796,6 +1796,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
                 if (epiP->nonStructType.MapNameOffset == 0)
                     mapP = NULL;
                 else {
+                    map_size = 0;
                     winerr = TdhGetEventMapInformation(evrP, (LPWSTR) (epiP->nonStructType.MapNameOffset + (char *)teiP), NULL, &map_size);
                     if (winerr == ERROR_INSUFFICIENT_BUFFER) {
                         mapP = MemLifoAlloc(memlifoP, map_size, NULL);
