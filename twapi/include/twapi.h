@@ -334,6 +334,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_REGISTERED_POINTER_IS_NOT_COUNTED 19
 #define TWAPI_INVALID_COMMAND_SCOPE 20
 #define TWAPI_SCRIPT_ERROR 21
+#define TWAPI_INVALID_DATA 22
 
 /*
  * Map TWAPI error codes into Win32 error code format.
@@ -1306,6 +1307,9 @@ TWAPI_EXTERN TCL_RESULT ObjToSHORT(Tcl_Interp *interp, Tcl_Obj *obj, SHORT *word
 
 #define ObjFromLARGE_INTEGER(val_) ObjFromWideInt((val_).QuadPart)
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONG(ULONGLONG ull);
+
+TWAPI_EXTERN Tcl_Obj *ObjFromUCHARHex(UCHAR);
+TWAPI_EXTERN Tcl_Obj *ObjFromUSHORTHex(USHORT);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGHex(ULONG ull);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONGHex(ULONGLONG ull);
 
@@ -1411,7 +1415,8 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP);
 
 
 /* Security stuff */
-#define TWAPI_SID_LENGTH(sid_) (8 + (4 * ((SID *)sid_)->SubAuthorityCount))
+#define TWAPI_SID_LENGTH(sid_) GetSidLengthRequired((sid_)->SubAuthorityCount)
+TWAPI_EXTERN TCL_RESULT TwapiValidateSID(Tcl_Interp *interp, SID *sidP, int len);
 TWAPI_EXTERN int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP);
 TWAPI_EXTERN int ObjToPSECURITY_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *secattrObj,
                                  SECURITY_ATTRIBUTES **secattrPP);
