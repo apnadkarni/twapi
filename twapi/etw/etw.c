@@ -157,6 +157,7 @@ typedef enum _TEMPLATE_FLAGS
     TEMPLATE_USER_DATA = 2
 } TEMPLATE_FLAGS;
 
+
 typedef enum _PROPERTY_FLAGS
 {
    PropertyStruct        = 0x1,      // Type is struct.
@@ -216,12 +217,140 @@ typedef struct _TRACE_EVENT_INFO {
   EVENT_PROPERTY_INFO EventPropertyInfoArray[ANYSIZE_ARRAY];
 } TRACE_EVENT_INFO;
 
+typedef struct _PROPERTY_DATA_DESCRIPTOR {
+    ULONGLONG PropertyName;
+    ULONG ArrayIndex;
+    ULONG Reserved;
+} PROPERTY_DATA_DESCRIPTOR;
+typedef PROPERTY_DATA_DESCRIPTOR *PPROPERTY_DATA_DESCRIPTOR;
+
+typedef struct _EVENT_MAP_ENTRY {
+    ULONG OutputOffset;
+    union {
+        ULONG Value;
+        ULONG InputOffset;
+    };
+} EVENT_MAP_ENTRY;
+typedef EVENT_MAP_ENTRY *PEVENT_MAP_ENTRY;
+
+typedef enum _MAP_FLAGS {
+    EVENTMAP_INFO_FLAG_MANIFEST_VALUEMAP   = 0x1,
+    EVENTMAP_INFO_FLAG_MANIFEST_BITMAP     = 0x2,
+    EVENTMAP_INFO_FLAG_MANIFEST_PATTERNMAP = 0x4,
+    EVENTMAP_INFO_FLAG_WBEM_VALUEMAP       = 0x8,
+    EVENTMAP_INFO_FLAG_WBEM_BITMAP         = 0x10,
+    EVENTMAP_INFO_FLAG_WBEM_FLAG           = 0x20,
+    EVENTMAP_INFO_FLAG_WBEM_NO_MAP         = 0x40
+} MAP_FLAGS;
+
+typedef enum _MAP_VALUETYPE {
+    EVENTMAP_ENTRY_VALUETYPE_ULONG,
+    EVENTMAP_ENTRY_VALUETYPE_STRING
+}  MAP_VALUETYPE;
+
+typedef struct _EVENT_MAP_INFO {
+    ULONG NameOffset;
+    MAP_FLAGS Flag;
+    ULONG EntryCount;
+    union {
+        MAP_VALUETYPE MapEntryValueType;
+        ULONG FormatStringOffset;
+    };
+    EVENT_MAP_ENTRY MapEntryArray[ANYSIZE_ARRAY];
+} EVENT_MAP_INFO;
+typedef EVENT_MAP_INFO *PEVENT_MAP_INFO;
+
+enum _TDH_IN_TYPE {
+    TDH_INTYPE_NULL,
+    TDH_INTYPE_UNICODESTRING,
+    TDH_INTYPE_ANSISTRING,
+    TDH_INTYPE_INT8,
+    TDH_INTYPE_UINT8,
+    TDH_INTYPE_INT16,
+    TDH_INTYPE_UINT16,
+    TDH_INTYPE_INT32,
+    TDH_INTYPE_UINT32,
+    TDH_INTYPE_INT64,
+    TDH_INTYPE_UINT64,
+    TDH_INTYPE_FLOAT,
+    TDH_INTYPE_DOUBLE,
+    TDH_INTYPE_BOOLEAN,
+    TDH_INTYPE_BINARY,
+    TDH_INTYPE_GUID,
+    TDH_INTYPE_POINTER,
+    TDH_INTYPE_FILETIME,
+    TDH_INTYPE_SYSTEMTIME,
+    TDH_INTYPE_SID,
+    TDH_INTYPE_HEXINT32,
+    TDH_INTYPE_HEXINT64,                    // End of winmeta intypes.
+    TDH_INTYPE_COUNTEDSTRING = 300,         // Start of TDH intypes for WBEM.
+    TDH_INTYPE_COUNTEDANSISTRING,
+    TDH_INTYPE_REVERSEDCOUNTEDSTRING,
+    TDH_INTYPE_REVERSEDCOUNTEDANSISTRING,
+    TDH_INTYPE_NONNULLTERMINATEDSTRING,
+    TDH_INTYPE_NONNULLTERMINATEDANSISTRING,
+    TDH_INTYPE_UNICODECHAR,
+    TDH_INTYPE_ANSICHAR,
+    TDH_INTYPE_SIZET,
+    TDH_INTYPE_HEXDUMP,
+    TDH_INTYPE_WBEMSID
+};
+
+enum _TDH_OUT_TYPE {
+    TDH_OUTTYPE_NULL,
+    TDH_OUTTYPE_STRING,
+    TDH_OUTTYPE_DATETIME,
+    TDH_OUTTYPE_BYTE,
+    TDH_OUTTYPE_UNSIGNEDBYTE,
+    TDH_OUTTYPE_SHORT,
+    TDH_OUTTYPE_UNSIGNEDSHORT,
+    TDH_OUTTYPE_INT,
+    TDH_OUTTYPE_UNSIGNEDINT,
+    TDH_OUTTYPE_LONG,
+    TDH_OUTTYPE_UNSIGNEDLONG,
+    TDH_OUTTYPE_FLOAT,
+    TDH_OUTTYPE_DOUBLE,
+    TDH_OUTTYPE_BOOLEAN,
+    TDH_OUTTYPE_GUID,
+    TDH_OUTTYPE_HEXBINARY,
+    TDH_OUTTYPE_HEXINT8,
+    TDH_OUTTYPE_HEXINT16,
+    TDH_OUTTYPE_HEXINT32,
+    TDH_OUTTYPE_HEXINT64,
+    TDH_OUTTYPE_PID,
+    TDH_OUTTYPE_TID,
+    TDH_OUTTYPE_PORT,
+    TDH_OUTTYPE_IPV4,
+    TDH_OUTTYPE_IPV6,
+    TDH_OUTTYPE_SOCKETADDRESS,
+    TDH_OUTTYPE_CIMDATETIME,
+    TDH_OUTTYPE_ETWTIME,
+    TDH_OUTTYPE_XML,
+    TDH_OUTTYPE_ERRORCODE,
+    TDH_OUTTYPE_WIN32ERROR,
+    TDH_OUTTYPE_NTSTATUS,
+    TDH_OUTTYPE_HRESULT,             // End of winmeta outtypes.
+    TDH_OUTTYPE_CULTURE_INSENSITIVE_DATETIME, //Culture neutral datetime string.
+    TDH_OUTTYPE_REDUCEDSTRING = 300, // Start of TDH outtypes for WBEM.
+    TDH_OUTTYPE_NOPRINT
+};
+
+
 typedef ULONG __stdcall TdhGetEventInformation_T(PEVENT_RECORD, ULONG, TDH_CONTEXT *, TRACE_EVENT_INFO *, ULONG *);
+typedef ULONG __stdcall TdhGetProperty_T(PEVENT_RECORD pEvent, ULONG TdhContextCount, TDH_CONTEXT *pTdhContext, ULONG PropertyDataCount, PPROPERTY_DATA_DESCRIPTOR pPropertyData, ULONG BufferSize, PBYTE pBuffer);
+typedef ULONG __stdcall TdhGetPropertySize_T(PEVENT_RECORD pEvent, ULONG TdhContextCount, TDH_CONTEXT *pTdhContext, ULONG PropertyDataCount, PPROPERTY_DATA_DESCRIPTOR pPropertyData, ULONG *pPropertySize);
+typedef ULONG __stdcall TdhGetEventMapInformation_T(PEVENT_RECORD pEvent, LPWSTR pMapName, PEVENT_MAP_INFO pBuffer, ULONG *pBufferSize);
 static struct {
     TdhGetEventInformation_T  *_TdhGetEventInformation;
+    TdhGetProperty_T *_TdhGetProperty;
+    TdhGetPropertySize_T *_TdhGetPropertySize;
+    TdhGetEventMapInformation_T *_TdhGetEventMapInformation;
 } gTdhStubs;
 
 #define TdhGetEventInformation gTdhStubs._TdhGetEventInformation
+#define TdhGetProperty gTdhStubs._TdhGetProperty
+#define TdhGetPropertySize gTdhStubs._TdhGetPropertySize
+#define TdhGetEventMapInformation gTdhStubs._TdhGetEventMapInformation
 
 int gTdhStatus;                 /* 0 - init, 1 - available, -1 - unavailable  */
 HANDLE gTdhDllHandle;
@@ -1249,7 +1378,6 @@ static TCL_RESULT TwapiTdhRenderSimpleType(TwapiTDHContext *tdhP, USHORT iprop)
 
 }
                                       
-
 /* Caller responsible for cleaning up memlifo stack */
 static WCHAR **TwapiTdhRenderProperties(TwapiTDHContext *tdhP)
 {
@@ -1272,12 +1400,447 @@ static WCHAR **TwapiTdhRenderProperties(TwapiTDHContext *tdhP)
 }
 #endif
 
+static TCL_RESULT TwapiTdhPropertyArraySize(struct TwapiTDHContext *tdhP,
+                                            TRACE_EVENT_INFO *teiP,
+                                            USHORT prop_index, USHORT *countP)
+{
+    EVENT_PROPERTY_INFO *epiP;
+    DWORD count, winerr;
+    USHORT ref_index;
+    union {
+        USHORT ushort_val;
+        ULONG ulong_val;
+    } ref_value;
+    ULONG ref_value_size;
+    PROPERTY_DATA_DESCRIPTOR pdd;
+
+    epiP = &teiP->EventPropertyInfoArray[prop_index];
+    if ((epiP->Flags & PropertyParamCount) == 0) {
+        *countP = epiP->count; /* Size of array is directly specified */
+        return TCL_OK;
+    }
+
+    /* Size of array is indirectly specified through some other property */
+    TWAPI_ASSERT(epiP->NameOffset != 0);
+
+    ref_index = epiP->countPropertyIndex;
+    pdd.PropertyName = (ULONGLONG)(teiP->EventPropertyInfoArray[ref_index].NameOffset + (char*) teiP);
+    pdd.ArrayIndex = ULONG_MAX; /* Since index property is not an array */
+    pdd.Reserved = 0;
+    winerr = TdhGetPropertySize(tdhP->evrP, 0, NULL, 1, &pdd, &ref_value_size);
+    if (winerr == ERROR_SUCCESS) {
+        if (ref_value_size != 2 && ref_value_size != 4)
+            return TwapiReturnErrorMsg(tdhP->ticP->interp, TWAPI_INVALID_DATA, "Indirect property index size is not 2 or 4.");
+        winerr = TdhGetProperty(tdhP->evrP, 0, NULL, 1, &pdd, ref_value_size, (PBYTE)&ref_value);
+    }
+    if (winerr != ERROR_SUCCESS)
+        return Twapi_AppendSystemError(tdhP->ticP->interp, winerr);
+
+    if (ref_value_size == 2)
+        *countP = ref_value.ushort_val;
+    else {
+        if (ref_value.ulong_val > teiP->PropertyCount)
+            return TwapiReturnErrorEx(tdhP->ticP->interp, TWAPI_INVALID_DATA,
+                                      Tcl_ObjPrintf("Property index %d out of bounds.", ref_value.ulong_val));
+
+        *countP = (USHORT) ref_value.ulong_val;
+    }
+
+    return TCL_OK;
+}
+
+
+/* Given the raw bytes for a TDH property, return the Tcl_Obj */
+static TCL_RESULT TwapiTdhPropertyValue(
+    struct TwapiTDHContext *tdhP,
+    EVENT_PROPERTY_INFO *epiP,
+    void *bytesP,               /* Raw bytes */
+    ULONG prop_size,            /* Number of bytes */
+    EVENT_MAP_INFO *emiP,       /*  */
+    Tcl_Obj **valueObjP
+    )
+{
+    union {
+        __int64 i64;
+        unsigned __int64 ui64;
+        double dbl;
+        struct {
+            void *s;
+            int   len;
+        } string;
+        GUID guid;
+        FILETIME ftime;
+        SYSTEMTIME stime;
+        char *bin;
+    } u;
+    ULONG remain = prop_size;
+    DWORD dw;
+    Tcl_Interp *interp = tdhP->ticP->interp;
+
+
+#define EXTRACT(var_, type_) \
+    do { \
+        if (prop_size < sizeof(type_)) goto size_error;        \
+        var_ = *(type_ UNALIGNED *) bytesP; \
+    } while (0)
+    switch (epiP->nonStructType.InType) {
+    case TDH_INTYPE_NULL:
+        *valueObjP = ObjFromEmptyString(); /* TBD */
+        return TCL_OK;
+    case TDH_INTYPE_UNICODESTRING:
+        u.string.s = bytesP;
+        u.string.len = -1;
+        break;
+    case TDH_INTYPE_ANSISTRING:
+        u.string.s = bytesP;
+        u.string.len = -1;
+        break;
+
+    case TDH_INTYPE_INT8:  EXTRACT(u.i64, char); break;
+    case TDH_INTYPE_UINT8: EXTRACT(u.i64, unsigned char); break;
+    case TDH_INTYPE_INT16: EXTRACT(u.i64, short); break;
+    case TDH_INTYPE_UINT16: EXTRACT(u.i64, unsigned short); break;
+    case TDH_INTYPE_INT32:  EXTRACT(u.i64, int); break;
+    case TDH_INTYPE_UINT32: EXTRACT(u.i64, unsigned int); break;
+    case TDH_INTYPE_INT64:  EXTRACT(u.i64, __int64); break;
+    case TDH_INTYPE_UINT64: EXTRACT(u.i64, unsigned __int64); break;
+    case TDH_INTYPE_FLOAT:  EXTRACT(u.dbl, float); break;
+    case TDH_INTYPE_DOUBLE: EXTRACT(u.dbl, double); break;
+
+    case TDH_INTYPE_BOOLEAN:
+        EXTRACT(u.i64, int);
+        *valueObjP = ObjFromBoolean(u.i64);
+        return TCL_OK;
+
+    case TDH_INTYPE_BINARY:
+        u.bin = bytesP;
+        break;
+    case TDH_INTYPE_GUID:
+        if (prop_size < sizeof(GUID))
+            goto size_error;
+        *valueObjP = ObjFromGUID(bytesP);
+        return TCL_OK;
+    case TDH_INTYPE_POINTER:
+    case TDH_INTYPE_HEXINT32:
+    case TDH_INTYPE_HEXINT64:
+        if (prop_size == 4)
+            *valueObjP = ObjFromULONGHex(*(unsigned int UNALIGNED *)bytesP);
+        else if (prop_size == 8)
+            *valueObjP = ObjFromULONGLONGHex(*(unsigned __int64 UNALIGNED *)bytesP);
+        else
+            goto size_error;
+        return TCL_OK;
+    case TDH_INTYPE_FILETIME:
+        EXTRACT(u.ftime, FILETIME);
+        *valueObjP = ObjFromFILETIME(&u.ftime);
+        return TCL_OK;
+    case TDH_INTYPE_SYSTEMTIME:
+        EXTRACT(u.stime, SYSTEMTIME);
+        *valueObjP = ObjFromSYSTEMTIME(&u.stime);
+        return TCL_OK;
+    case TDH_INTYPE_SID:
+        if (TwapiValidateSID(interp, bytesP, prop_size) != TCL_OK)
+            return TCL_ERROR;
+        return ObjFromSID(interp, bytesP, valueObjP);
+
+    case TDH_INTYPE_COUNTEDSTRING:
+    case TDH_INTYPE_REVERSEDCOUNTEDSTRING:
+    case TDH_INTYPE_COUNTEDANSISTRING:
+    case TDH_INTYPE_REVERSEDCOUNTEDANSISTRING:
+        EXTRACT(u.string.len, unsigned short);
+        if (epiP->nonStructType.InType == TDH_INTYPE_REVERSEDCOUNTEDSTRING ||
+            epiP->nonStructType.InType == TDH_INTYPE_REVERSEDCOUNTEDANSISTRING)
+            u.string.len = ((0xff & u.string.len) << 8) | (u.string.len >> 8);
+        remain -= sizeof(unsigned short);
+        u.string.s = (WCHAR *)(sizeof(unsigned short) + (char *)bytesP);
+        break;
+    case TDH_INTYPE_NONNULLTERMINATEDSTRING:
+        u.string.s = bytesP;
+        u.string.len = prop_size/sizeof(WCHAR);
+        break;
+    case TDH_INTYPE_UNICODECHAR:
+    case TDH_INTYPE_ANSICHAR:
+        u.string.s = bytesP;
+        u.string.len = 1;
+        break;
+    case TDH_INTYPE_NONNULLTERMINATEDANSISTRING:
+        u.string.s = bytesP;
+        u.string.len = prop_size;
+        break;
+
+    TDH_INTYPE_SIZET:
+        if (prop_size == 4)
+            *valueObjP = ObjFromULONG(*(unsigned int UNALIGNED *)bytesP);
+        else if (prop_size == 8)
+            *valueObjP = ObjFromULONGLONG(*(unsigned __int64 UNALIGNED *)bytesP);
+        else
+            goto size_error;
+        return TCL_OK;
+
+    TDH_INTYPE_HEXDUMP:
+        EXTRACT(dw, DWORD);
+        remain -= sizeof(DWORD);
+        *valueObjP = ObjFromByteArray(sizeof(DWORD)+(char*)bytesP,
+                                      remain < dw ? remain : dw);
+        return TCL_OK;
+
+    TDH_INTYPE_WBEMSID:
+        /* TOKEN_USER structure followed by SID. Sizeof TOKEN_USER
+           depends on 32/64 bittedness of event stream. */
+        /* FALLTHRU - TBD */
+    default:
+        return TwapiReturnErrorEx(interp, TWAPI_UNSUPPORTED_TYPE,
+                                  Tcl_ObjPrintf("Unsupported TDH type %d.", epiP->nonStructType.InType));
+    }
+
+    
+    /* Now format based on output type */
+    switch (epiP->nonStructType.InType) {
+    case TDH_INTYPE_UNICODESTRING:
+    case TDH_INTYPE_COUNTEDSTRING:
+    case TDH_INTYPE_REVERSEDCOUNTEDSTRING:
+    case TDH_INTYPE_NONNULLTERMINATEDSTRING:
+    case TDH_INTYPE_UNICODECHAR:
+        if (u.string.len == -1) {
+            *valueObjP = ObjFromUnicodeLimited((WCHAR*)u.string.s,
+                                               remain/sizeof(WCHAR), NULL);
+        } else {
+            remain /= sizeof(WCHAR);
+            if (remain < u.string.len)
+                u.string.len = remain;
+            *valueObjP = ObjFromUnicodeN((WCHAR*)u.string.s, u.string.len);
+        }
+        break;
+
+    case TDH_INTYPE_ANSISTRING:
+    case TDH_INTYPE_COUNTEDANSISTRING:
+    case TDH_INTYPE_REVERSEDCOUNTEDANSISTRING:
+    case TDH_INTYPE_ANSICHAR:
+    case TDH_INTYPE_NONNULLTERMINATEDANSISTRING:
+        /* TBD do we need to check that string really is ASCII ? */
+        if (u.string.len == -1)
+            *valueObjP = ObjFromStringLimited((char*)u.string.s, remain, NULL);
+        else
+            *valueObjP = ObjFromStringN((char*)u.string.s,
+                                        remain < u.string.len ? remain : u.string.len);
+        break;
+
+    case TDH_INTYPE_INT8:
+    case TDH_INTYPE_UINT8:
+    case TDH_INTYPE_INT16:
+    case TDH_INTYPE_UINT16:
+    case TDH_INTYPE_INT32:
+    case TDH_INTYPE_UINT32:
+    case TDH_INTYPE_INT64:
+    case TDH_INTYPE_UINT64:
+        switch (epiP->nonStructType.OutType) {
+        case TDH_OUTTYPE_HEXINT8:
+            *valueObjP = ObjFromUCHARHex((unsigned char)u.i64);
+            break;
+        case TDH_OUTTYPE_HEXINT16:
+            *valueObjP = ObjFromUSHORTHex((USHORT)u.i64);
+            break;
+        case TDH_OUTTYPE_HRESULT:
+        case TDH_OUTTYPE_WIN32ERROR:
+        case TDH_OUTTYPE_NTSTATUS:
+        case TDH_OUTTYPE_HEXINT32:
+            *valueObjP = ObjFromULONGHex((ULONG)u.i64);
+            break;
+        case TDH_OUTTYPE_HEXINT64:
+            *valueObjP = ObjFromULONGLONGHex(u.i64);
+            break;
+        case TDH_OUTTYPE_IPV4:
+            *valueObjP = IPAddrObjFromDWORD((DWORD) u.i64);
+            break;
+        case TDH_OUTTYPE_PORT:
+            *valueObjP = ObjFromLong((USHORT)ntohs((USHORT)u.i64));
+            break;
+        default:
+            /* TBD - Check map values */
+            if (epiP->nonStructType.InType == TDH_INTYPE_UINT64)
+                *valueObjP = ObjFromULONGLONG(u.ui64);
+            else
+                *valueObjP = ObjFromWideInt(u.i64);
+            break;
+        }
+        break;
+
+    case TDH_INTYPE_FLOAT:
+    case TDH_INTYPE_DOUBLE:
+        *valueObjP = ObjFromDouble(u.dbl);
+        break;
+
+    case TDH_INTYPE_BINARY:
+        if (epiP->nonStructType.OutType == TDH_OUTTYPE_IPV6) {
+            if (remain != 16)
+                goto size_error;
+            *valueObjP = ObjFromIPv6Addr(u.bin, 0);
+            if (*valueObjP == NULL)
+                return TwapiReturnSystemError(interp);
+        } else {
+            *valueObjP = ObjFromByteArray(u.bin, remain);
+        }
+        break;
+
+    default:
+        return TwapiReturnErrorEx(interp, TWAPI_UNSUPPORTED_TYPE,
+                                  Tcl_ObjPrintf("Unsupported TDH type %d.", epiP->nonStructType.InType));
+    }
+
+    return TCL_OK;
+
+size_error:
+    return TwapiReturnErrorEx(interp, TWAPI_INVALID_DATA,
+                              Tcl_ObjPrintf("TDH property field of type %d trucated or wrong size", epiP->nonStructType.InType));
+}
+
+
+/* Uses ticP->memlifo, caller responsible for memory management always */
+static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
+    struct TwapiTDHContext *tdhP,
+    TRACE_EVENT_INFO *teiP,
+    int prop_index,
+    LPWSTR struct_name,         /* If non-NULL, property is actually member
+                                   of a struct of this name */
+    USHORT struct_index,        /* Index of owning struct property when
+                                   prop_index is a struct member
+                                 */
+    Tcl_Obj **propObjP
+    )
+{
+    Tcl_Obj *propObjs[2];
+    EVENT_RECORD *evrP = tdhP->evrP;
+    EVENT_PROPERTY_INFO *epiP;
+    Tcl_Obj **valueObjs;
+    USHORT nvalues, array_index;
+    TCL_RESULT res;
+    DWORD winerr;
+    Tcl_Interp *interp = tdhP->ticP->interp;
+    MemLifo *memlifoP = &tdhP->ticP->memlifo;
+
+    epiP = &teiP->EventPropertyInfoArray[prop_index];
+
+    if (epiP->NameOffset == 0) {
+        /* Should not happen. */
+        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "NameOffset field is 0 for property in event record.");
+    }
+
+    res = TwapiTdhPropertyArraySize(tdhP, teiP, prop_index, &nvalues);
+    if (res != TCL_OK)
+        return res;
+    
+    valueObjs = nvalues ?
+        MemLifoAlloc(memlifoP, nvalues * sizeof(*valueObjs), NULL)
+        : NULL;
+
+    for (array_index = 0; array_index < nvalues; ++array_index) {
+        Tcl_Obj *valueObj = NULL;
+        if (epiP->Flags & PropertyStruct) {
+            /* Property is a struct */
+            USHORT member_index     = epiP->structType.StructStartIndex;
+            ULONG member_index_bound = member_index + epiP->structType.NumOfStructMembers;
+            valueObj = ObjNewList(epiP->structType.NumOfStructMembers, NULL);
+            if (member_index_bound > teiP->TopLevelPropertyCount) {
+                res = TwapiReturnErrorEx(interp,
+                                         TWAPI_INVALID_DATA,
+                                         Tcl_ObjPrintf("Property index %d out of bounds.", member_index_bound));
+            } else {
+                while (member_index < member_index_bound) {
+                    Tcl_Obj *memberObj;
+                    res = TwapiDecodeEVENT_PROPERTY_INFO(tdhP, teiP, member_index, (LPWSTR)(epiP->NameOffset + (char *) teiP), array_index, &memberObj);
+                    if (res != TCL_OK)
+                        break;
+                    ObjAppendElement(NULL, valueObj, memberObj);
+                    ++member_index;
+                }
+            }
+        } else {
+            /* Property is a scalar */
+            PROPERTY_DATA_DESCRIPTOR pdd[2];
+            int pdd_count;
+            ULONG prop_size;
+
+            if (struct_name) {
+                pdd_count = 2;
+                pdd[0].PropertyName = (ULONGLONG)struct_name;
+                pdd[0].ArrayIndex = struct_index;
+                pdd[0].Reserved = 0;
+                pdd[1].PropertyName = (ULONGLONG)(epiP->NameOffset + (char*) teiP);
+                pdd[1].ArrayIndex = array_index; /* TBD - not clear what this should be */
+                pdd[1].Reserved = 0;
+
+            } else {
+                /* Top level scalar, not part of a struct */
+                pdd_count = 1;
+                pdd[0].PropertyName = (ULONGLONG)(epiP->NameOffset + (char*) teiP);
+                pdd[0].ArrayIndex = array_index;
+                pdd[0].Reserved = 0;
+
+                /* TBD - sample in MSDN docs (not sdk sample) says tdh
+                   cannot handle IPv6 data and skips event. Check on this */
+                /*TBD - set context array for both calls TdhGetProperty
+                  and TdhGetPropertySize to set TDH_CONTEXT_POINTERSIZE*/
+            }            
+            winerr = TdhGetPropertySize(evrP, 0, NULL, pdd_count, pdd, &prop_size);
+            if (winerr == ERROR_SUCCESS) {
+                ULONG map_size;
+                EVENT_MAP_INFO *mapP;
+                void *pv;
+
+                /* Since we might be looping, alloc and release memory in 
+                   every iteration.
+                   Not necessary for correctness since caller will pop memlifo
+                   frame anyway so in error case, we don't bother to pop
+                   the frame */
+                pv = MemLifoPushFrame(memlifoP, prop_size, NULL);
+                if (epiP->nonStructType.MapNameOffset == 0)
+                    mapP = NULL;
+                else {
+                    winerr = TdhGetEventMapInformation(evrP, (LPWSTR) (epiP->nonStructType.MapNameOffset + (char *)teiP), NULL, &map_size);
+                    if (winerr == ERROR_INSUFFICIENT_BUFFER) {
+                        mapP = MemLifoAlloc(memlifoP, map_size, NULL);
+                        winerr = TdhGetEventMapInformation(evrP, (LPWSTR) (epiP->nonStructType.MapNameOffset + (char *)teiP), mapP, &map_size);
+                        
+                    }
+                }
+                if (winerr == ERROR_SUCCESS) {
+                    winerr = TdhGetProperty(evrP, 0, NULL, pdd_count, pdd, prop_size, pv);
+                    if (winerr == ERROR_SUCCESS)
+                        res = TwapiTdhPropertyValue(tdhP, epiP, pv, prop_size, mapP, &valueObj);
+                }
+                MemLifoPopFrame(memlifoP);
+            }
+            if (winerr != ERROR_SUCCESS)
+                res = Twapi_AppendSystemError(interp, winerr);                
+        }
+
+        if (res != TCL_OK) {
+            if (valueObj)
+                ObjDecrRefs(valueObj);
+            ObjDecrArrayRefs(array_index, valueObjs);
+            return res;
+        }
+        valueObjs[array_index] = valueObj;
+    }
+
+    propObjs[1] = ObjNewList(nvalues, valueObjs);
+
+    /* Property name */
+    propObjs[0] = ObjFromUnicode((WCHAR *)(epiP->NameOffset + (char*)teiP));
+
+    *propObjP = ObjNewList(2, propObjs);
+    return TCL_OK;
+}
+
+
 /* Uses memlifo frame. Caller responsible for cleanup */
 static TCL_RESULT TwapiTdhGetEventInformation(struct TwapiTDHContext *tdhP, Tcl_Obj **teiObjP)
 {
     DWORD sz, winerr;
+    Tcl_Obj *objs[15];
+    Tcl_Obj *propObjs[2];
+    TCL_RESULT status;
     TRACE_EVENT_INFO *teiP;
-    Tcl_Obj *objs[14];
 
     /* TBD - instrument how much to try for initially */
     teiP = MemLifoAlloc(&tdhP->ticP->memlifo, 1000, &sz);
@@ -1312,19 +1875,29 @@ static TCL_RESULT TwapiTdhGetEventInformation(struct TwapiTDHContext *tdhP, Tcl_
     objs[12] = TwapiTEIUnicodeObj(teiP, teiP->ActivityIDNameOffset);
     objs[13] = TwapiTEIUnicodeObj(teiP, teiP->RelatedActivityIDNameOffset);
 
-    *teiObjP = ObjNewList(ARRAYSIZE(objs), objs);
-
-#if 0
-    if (recP->EventHeader.Flags & EVENT_HEADER_FLAG_STRING_ONLY) {
-        objs[0] = STRING_LITERAL_OBJ("stringdata");
-        objs[1] = ObjFromUnicodeLimited(recP->UserData, recP->UserDataLength/sizeof(WCHAR), NULL);
+    if (tdhP->evrP->EventHeader.Flags & EVENT_HEADER_FLAG_STRING_ONLY) {
+        propObjs[0] = STRING_LITERAL_OBJ("stringdata");
+        propObjs[1] = ObjFromUnicodeLimited(tdhP->evrP->UserData,
+                                            tdhP->evrP->UserDataLength/sizeof(WCHAR), NULL);
     } else {
-        objs[0] = STRING_LITERAL_OBJ("properties");
-        objs[1] = TBD;
-        TBD - error handling;
+        int i;
+
+        propObjs[1] = ObjNewList(teiP->TopLevelPropertyCount, NULL);
+        for (i = 0; i < teiP->TopLevelPropertyCount; ++i) {
+            Tcl_Obj *propObj;
+            status = TwapiDecodeEVENT_PROPERTY_INFO(tdhP, teiP, i, NULL, 0, &propObj);
+            if (status != TCL_OK) {
+                ObjDecrRefs(propObjs[1]);
+                return TCL_ERROR;
+            }
+            ObjAppendElement(NULL, propObjs[1], propObj);
+        }
+        propObjs[0] = STRING_LITERAL_OBJ("properties");
     }
-    recObjs[4] = ObjNewList(2, objs);
-#endif
+
+    objs[14] = ObjNewList(2, propObjs);
+
+    *teiObjP = ObjNewList(ARRAYSIZE(objs), objs);
 
     return TCL_OK;
 }
@@ -1335,8 +1908,8 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD recP)
     int i;
     Tcl_Obj *recObjs[4];
     Tcl_Obj *objs[3];
-    MemLifoMarkHandle mark;
     DWORD winerr;
+    MemLifoMarkHandle mark;
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
     TWAPI_ASSERT(gETWContext.ticP != NULL);
@@ -1348,13 +1921,13 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD recP)
     if ((recP->EventHeader.Flags & EVENT_HEADER_FLAG_TRACE_MESSAGE) != 0)
         return; // Ignore WPP events. - TBD
     
+
     tdh.ticP = gETWContext.ticP;
     tdh.evrP = recP;
     tdh.propvals = NULL;
     tdh.proprefs = NULL;
 
     mark = MemLifoPushMark(&tdh.ticP->memlifo);
-
 
     recObjs[0] = ObjFromEVENT_HEADER(&recP->EventHeader);
 
@@ -2207,6 +2780,9 @@ void TwapiInitTdhStubs(Tcl_Interp *interp)
     } while (0)
 
     INIT_TDH_STUB(TdhGetEventInformation);
+    INIT_TDH_STUB(TdhGetProperty);
+    INIT_TDH_STUB(TdhGetPropertySize);
+    INIT_TDH_STUB(TdhGetEventMapInformation);
 
 #endif
 
