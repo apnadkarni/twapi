@@ -1323,82 +1323,6 @@ static Tcl_Obj *ObjFromEVENT_HEADER(EVENT_HEADER *evhP)
     return ObjNewList(ARRAYSIZE(objs), objs);
 }
 
-#ifdef OBSOLETE
-/* Note this does not include the Properties values from teiP */
-static Tcl_Obj *ObjFromTRACE_EVENT_INFO(TRACE_EVENT_INFO *teiP)
-{
-    Tcl_Obj *objs[14];
-
-    objs[0] = ObjFromGUID(&teiP->ProviderGuid);
-    objs[1] = ObjFromGUID(&teiP->EventGuid);
-    /* TBD - does this duplicate EventDescriptor struct in event header ? */
-    objs[2] = ObjFromEVENT_DESCRIPTOR(&teiP->EventDescriptor);
-
-    objs[3] = ObjFromLong(teiP->DecodingSource);
-    objs[4] = TwapiTEIUnicodeObj(teiP, teiP->ProviderNameOffset);
-    objs[5] = TwapiTEIUnicodeObj(teiP, teiP->LevelNameOffset);
-    objs[6] = TwapiTEIUnicodeObj(teiP, teiP->ChannelNameOffset);
-    objs[7] = TwapiTEIUnicodeObj(teiP, teiP->KeywordsNameOffset);
-    objs[8] = TwapiTEIUnicodeObj(teiP, teiP->TaskNameOffset);
-    objs[9] = TwapiTEIUnicodeObj(teiP, teiP->OpcodeNameOffset);
-    objs[10] = TwapiTEIUnicodeObj(teiP, teiP->EventMessageOffset);
-    objs[11] = TwapiTEIUnicodeObj(teiP, teiP->ProviderMessageOffset);
-    objs[12] = TwapiTEIUnicodeObj(teiP, teiP->ActivityIDNameOffset);
-    objs[13] = TwapiTEIUnicodeObj(teiP, teiP->RelatedActivityIDNameOffset);
-
-    return ObjNewList(ARRAYSIZE(objs), objs);
-}
-#endif
-
-
-#if 0
-/* Caller responsible for cleaning up memlifo stack */
-static TCL_RESULT TwapiTdhRenderSimpleType(TwapiTDHContext *tdhP, USHORT iprop)
-{
-    EVENT_PROPERTY_INFO *propP;
-    ULONG count;
-
-    propP = &tdhP->teiP->EventPropertyInfoArray[iprop];
-    
-    if (propP->Flags & PropertyParamCount) {
-        /* Actual count is stored as another property */
-        if (propP->countPropertyIndex >= propP->PropertyCount) {
-            return TwapiReturnErrorEx(gETWContext.ticP->interp, TWAPI_BAD_DATA,
-                                      Tcl_ObjPrintf("Indirect property reference index %d is not less than number of properties %d", propP->countPropertyIndex, propP->PropertyCount));
-        }
-        count = tdhP->proprefs[propP->countPropertyIndex];
-
-    } else {
-        count = propP->count;
-    }
-        
-    if (count > propP->PropertyCount)
-        error?;
-
-
-}
-                                      
-/* Caller responsible for cleaning up memlifo stack */
-static WCHAR **TwapiTdhRenderProperties(TwapiTDHContext *tdhP)
-{
-    USHORT us;
-    TRACE_EVENT_INFO *teiP = tdhP->teiP;
-
-    tdhP->propvals = MemLifoAlloc(&tdhP->ticP->memlifo,
-                                  teiP->TopLevelPropertyCount * sizeof(*tdhP->propvals), NULL);
-    tdhP->proprefs = MemLifoAlloc(&tdhP->ticP->memlifo, teiP->PropertyCount * sizeof(*tdhP->proprefs), NULL);
-    /* Init to -1 to catch uninitialized errors on indirect references */
-    for (us = teiP->PropertyCount; us > 0; --us)
-        tdhP->proprefs[us] = -1;
-
-    
-    for (i = 0; i < teiP->TopLevelPropertyCount; ++i) {
-        TBD;
-    }
-
-
-}
-#endif
 
 static TCL_RESULT TwapiTdhPropertyArraySize(struct TwapiTDHContext *tdhP,
                                             TRACE_EVENT_INFO *teiP,
@@ -1814,10 +1738,10 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
     USHORT struct_index,        /* Index of owning struct property when
                                    prop_index is a struct member
                                  */
-    Tcl_Obj **propObjP
+    Tcl_Obj **propnameObjP,
+    Tcl_Obj **propvalObjP
     )
 {
-    Tcl_Obj *propObjs[2];
     EVENT_RECORD *evrP = tdhP->evrP;
     EVENT_PROPERTY_INFO *epiP;
     Tcl_Obj **valueObjs;
@@ -1848,18 +1772,19 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
             /* Property is a struct */
             USHORT member_index     = epiP->structType.StructStartIndex;
             ULONG member_index_bound = member_index + epiP->structType.NumOfStructMembers;
-            valueObj = ObjNewList(epiP->structType.NumOfStructMembers, NULL);
+            valueObj = ObjNewList(2 * epiP->structType.NumOfStructMembers, NULL);
             if (member_index_bound > teiP->TopLevelPropertyCount) {
                 res = TwapiReturnErrorEx(interp,
                                          TWAPI_INVALID_DATA,
                                          Tcl_ObjPrintf("Property index %d out of bounds.", member_index_bound));
             } else {
                 while (member_index < member_index_bound) {
-                    Tcl_Obj *memberObj;
-                    res = TwapiDecodeEVENT_PROPERTY_INFO(tdhP, teiP, member_index, (LPWSTR)(epiP->NameOffset + (char *) teiP), array_index, &memberObj);
+                    Tcl_Obj *membernameObj, *membervalObj;
+                    res = TwapiDecodeEVENT_PROPERTY_INFO(tdhP, teiP, member_index, (LPWSTR)(epiP->NameOffset + (char *) teiP), array_index, &membernameObj, &membervalObj);
                     if (res != TCL_OK)
                         break;
-                    ObjAppendElement(NULL, valueObj, memberObj);
+                    ObjAppendElement(NULL, valueObj, membernameObj);
+                    ObjAppendElement(NULL, valueObj, membervalObj);
                     ++member_index;
                 }
             }
@@ -1933,12 +1858,8 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
         valueObjs[array_index] = valueObj;
     }
 
-    propObjs[1] = ObjNewList(nvalues, valueObjs);
-
-    /* Property name */
-    propObjs[0] = ObjFromUnicode((WCHAR *)(epiP->NameOffset + (char*)teiP));
-
-    *propObjP = ObjNewList(2, propObjs);
+    *propvalObjP  = ObjNewList(nvalues, valueObjs);
+    *propnameObjP = ObjFromUnicode((WCHAR *)(epiP->NameOffset + (char*)teiP));
     return TCL_OK;
 }
 
@@ -1986,25 +1907,28 @@ static TCL_RESULT TwapiTdhGetEventInformation(struct TwapiTDHContext *tdhP, Tcl_
     objs[13] = TwapiTEIUnicodeObj(teiP, teiP->RelatedActivityIDNameOffset);
 
     if (tdhP->evrP->EventHeader.Flags & EVENT_HEADER_FLAG_STRING_ONLY) {
-        propObjs[0] = STRING_LITERAL_OBJ("stringdata");
-        propObjs[1] = ObjFromUnicodeLimited(tdhP->evrP->UserData,
-                                            tdhP->evrP->UserDataLength/sizeof(WCHAR), NULL);
+        propObjs[1] = ObjNewList(2, NULL);
+        ObjAppendElement(NULL, propObjs[1], STRING_LITERAL_OBJ("stringdata"));
+        ObjAppendElement(NULL, propObjs[1],
+                         ObjFromUnicodeLimited(tdhP->evrP->UserData,
+                                               tdhP->evrP->UserDataLength/sizeof(WCHAR), NULL));
     } else {
         int i;
 
         propObjs[1] = ObjNewList(teiP->TopLevelPropertyCount, NULL);
         for (i = 0; i < teiP->TopLevelPropertyCount; ++i) {
-            Tcl_Obj *propObj;
-            status = TwapiDecodeEVENT_PROPERTY_INFO(tdhP, teiP, i, NULL, 0, &propObj);
+            Tcl_Obj *propnameObj, *propvalObj;
+            status = TwapiDecodeEVENT_PROPERTY_INFO(tdhP, teiP, i, NULL, 0, &propnameObj, &propvalObj);
             if (status != TCL_OK) {
                 ObjDecrRefs(propObjs[1]);
                 return TCL_ERROR;
             }
-            ObjAppendElement(NULL, propObjs[1], propObj);
+            ObjAppendElement(NULL, propObjs[1], propnameObj);
+            ObjAppendElement(NULL, propObjs[1], propvalObj);
         }
-        propObjs[0] = STRING_LITERAL_OBJ("properties");
     }
 
+    propObjs[0] = STRING_LITERAL_OBJ("properties");
     objs[14] = ObjNewList(2, propObjs);
 
     *teiObjP = ObjNewList(ARRAYSIZE(objs), objs);
