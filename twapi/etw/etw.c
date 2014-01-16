@@ -370,8 +370,6 @@ static TRACEHANDLE gInvalidTraceHandle;
 struct TwapiTDHContext {
     TwapiInterpContext *ticP;
     EVENT_RECORD *evrP;
-    Tcl_Obj **propvals;         /* Rendered property values */
-    ULONG *proprefs;            /* Indirect property indices */
 };
 
 /* For efficiency reasons, when constructing many "records" each of which is
@@ -1248,30 +1246,6 @@ void WINAPI TwapiETWEventCallback(
 }
 
 
-/* Uses memlifo frame. Caller responsible for cleanup */
-#ifdef OBSOLETE
-static DWORD OBSOLETETwapiTdhGetEventInformation(struct TwapiTDHContext *tdhP)
-{
-    DWORD sz, winerr;
-    TRACE_EVENT_INFO *teiP;
-
-    /* TBD - instrument how much to try for initially */
-    teiP = MemLifoAlloc(&tdhP->ticP->memlifo, 1000, &sz);
-
-    /* TBD - initialize TDH_CONTEXT param to include pointer size indicator */
-    winerr = TdhGetEventInformation(tdhP->evrP, 0, NULL, teiP, &sz);
-    if (winerr == ERROR_INSUFFICIENT_BUFFER) {
-        teiP = MemLifoAlloc(&tdhP->ticP->memlifo, sz, &sz);
-        winerr = TdhGetEventInformation(tdhP->evrP, 0, NULL, teiP, &sz);
-    }
-    
-    /* We may have over allocated so shrink down before returning */
-    if (winerr == ERROR_SUCCESS) {
-        tdhP->teiP = MemLifoResizeLast(&tdhP->ticP->memlifo, sz, 1);
-    }
-    return winerr;
-}
-#endif
 
 static Tcl_Obj *TwapiTEIUnicodeObj(TRACE_EVENT_INFO *teiP, int offset)
 {
@@ -1324,7 +1298,8 @@ static Tcl_Obj *ObjFromEVENT_HEADER(EVENT_HEADER *evhP)
 }
 
 
-static TCL_RESULT TwapiTdhPropertyArraySize(struct TwapiTDHContext *tdhP,
+static TCL_RESULT TwapiTdhPropertyArraySize(TwapiInterpContext *ticP,
+                                            EVENT_RECORD *evrP,
                                             TRACE_EVENT_INFO *teiP,
                                             USHORT prop_index, USHORT *countP)
 {
@@ -1351,20 +1326,20 @@ static TCL_RESULT TwapiTdhPropertyArraySize(struct TwapiTDHContext *tdhP,
     pdd.PropertyName = (ULONGLONG)(teiP->EventPropertyInfoArray[ref_index].NameOffset + (char*) teiP);
     pdd.ArrayIndex = ULONG_MAX; /* Since index property is not an array */
     pdd.Reserved = 0;
-    winerr = TdhGetPropertySize(tdhP->evrP, 0, NULL, 1, &pdd, &ref_value_size);
+    winerr = TdhGetPropertySize(evrP, 0, NULL, 1, &pdd, &ref_value_size);
     if (winerr == ERROR_SUCCESS) {
         if (ref_value_size != 2 && ref_value_size != 4)
-            return TwapiReturnErrorMsg(tdhP->ticP->interp, TWAPI_INVALID_DATA, "Indirect property index size is not 2 or 4.");
-        winerr = TdhGetProperty(tdhP->evrP, 0, NULL, 1, &pdd, ref_value_size, (PBYTE)&ref_value);
+            return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_DATA, "Indirect property index size is not 2 or 4.");
+        winerr = TdhGetProperty(evrP, 0, NULL, 1, &pdd, ref_value_size, (PBYTE)&ref_value);
     }
     if (winerr != ERROR_SUCCESS)
-        return Twapi_AppendSystemError(tdhP->ticP->interp, winerr);
+        return Twapi_AppendSystemError(ticP->interp, winerr);
 
     if (ref_value_size == 2)
         *countP = ref_value.ushort_val;
     else {
         if (ref_value.ulong_val > teiP->PropertyCount)
-            return TwapiReturnErrorEx(tdhP->ticP->interp, TWAPI_INVALID_DATA,
+            return TwapiReturnErrorEx(ticP->interp, TWAPI_INVALID_DATA,
                                       Tcl_ObjPrintf("Property index %d out of bounds.", ref_value.ulong_val));
 
         *countP = (USHORT) ref_value.ulong_val;
@@ -1482,7 +1457,8 @@ static Tcl_Obj *TwapiMapTDHProperty(EVENT_MAP_INFO *emiP, ULONG val)
 
 /* Given the raw bytes for a TDH property, return the Tcl_Obj */
 static TCL_RESULT TwapiTdhPropertyValue(
-    struct TwapiTDHContext *tdhP,
+    TwapiInterpContext *ticP,
+    EVENT_RECORD *evrP,
     EVENT_PROPERTY_INFO *epiP,
     void *bytesP,               /* Raw bytes */
     ULONG prop_size,            /* Number of bytes */
@@ -1505,7 +1481,7 @@ static TCL_RESULT TwapiTdhPropertyValue(
     } u;
     ULONG remain = prop_size;
     DWORD dw;
-    Tcl_Interp *interp = tdhP->ticP->interp;
+    Tcl_Interp *interp = ticP->interp;
 
 
 #define EXTRACT(var_, type_) \
@@ -1730,7 +1706,8 @@ size_error:
 
 /* Uses ticP->memlifo, caller responsible for memory management always */
 static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
-    struct TwapiTDHContext *tdhP,
+    TwapiInterpContext *ticP,
+    EVENT_RECORD *evrP,
     TRACE_EVENT_INFO *teiP,
     int prop_index,
     LPWSTR struct_name,         /* If non-NULL, property is actually member
@@ -1742,14 +1719,13 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
     Tcl_Obj **propvalObjP
     )
 {
-    EVENT_RECORD *evrP = tdhP->evrP;
     EVENT_PROPERTY_INFO *epiP;
     Tcl_Obj **valueObjs;
     USHORT nvalues, array_index;
     TCL_RESULT res;
     DWORD winerr;
-    Tcl_Interp *interp = tdhP->ticP->interp;
-    MemLifo *memlifoP = &tdhP->ticP->memlifo;
+    Tcl_Interp *interp = ticP->interp;
+    MemLifo *memlifoP = &ticP->memlifo;
 
     epiP = &teiP->EventPropertyInfoArray[prop_index];
 
@@ -1758,7 +1734,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "NameOffset field is 0 for property in event record.");
     }
 
-    res = TwapiTdhPropertyArraySize(tdhP, teiP, prop_index, &nvalues);
+    res = TwapiTdhPropertyArraySize(ticP, evrP, teiP, prop_index, &nvalues);
     if (res != TCL_OK)
         return res;
     
@@ -1780,7 +1756,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
             } else {
                 while (member_index < member_index_bound) {
                     Tcl_Obj *membernameObj, *membervalObj;
-                    res = TwapiDecodeEVENT_PROPERTY_INFO(tdhP, teiP, member_index, (LPWSTR)(epiP->NameOffset + (char *) teiP), array_index, &membernameObj, &membervalObj);
+                    res = TwapiDecodeEVENT_PROPERTY_INFO(ticP, evrP, teiP, member_index, (LPWSTR)(epiP->NameOffset + (char *) teiP), array_index, &membernameObj, &membervalObj);
                     if (res != TCL_OK)
                         break;
                     ObjAppendElement(NULL, valueObj, membernameObj);
@@ -1841,7 +1817,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
                 if (winerr == ERROR_SUCCESS) {
                     winerr = TdhGetProperty(evrP, 0, NULL, pdd_count, pdd, prop_size, pv);
                     if (winerr == ERROR_SUCCESS)
-                        res = TwapiTdhPropertyValue(tdhP, epiP, pv, prop_size, mapP, &valueObj);
+                        res = TwapiTdhPropertyValue(ticP, evrP, epiP, pv, prop_size, mapP, &valueObj);
                 }
                 MemLifoPopFrame(memlifoP);
             }
@@ -1865,7 +1841,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
 
 
 /* Uses memlifo frame. Caller responsible for cleanup */
-static TCL_RESULT TwapiTdhGetEventInformation(struct TwapiTDHContext *tdhP, Tcl_Obj **teiObjP)
+static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RECORD *evrP, Tcl_Obj **teiObjP)
 {
     DWORD sz, winerr;
     Tcl_Obj *objs[15];
@@ -1874,20 +1850,20 @@ static TCL_RESULT TwapiTdhGetEventInformation(struct TwapiTDHContext *tdhP, Tcl_
     TRACE_EVENT_INFO *teiP;
 
     /* TBD - instrument how much to try for initially */
-    teiP = MemLifoAlloc(&tdhP->ticP->memlifo, 1000, &sz);
+    teiP = MemLifoAlloc(&ticP->memlifo, 1000, &sz);
 
     /* TBD - initialize TDH_CONTEXT param to include pointer size indicator */
-    winerr = TdhGetEventInformation(tdhP->evrP, 0, NULL, teiP, &sz);
+    winerr = TdhGetEventInformation(evrP, 0, NULL, teiP, &sz);
     if (winerr == ERROR_INSUFFICIENT_BUFFER) {
-        teiP = MemLifoAlloc(&tdhP->ticP->memlifo, sz, &sz);
-        winerr = TdhGetEventInformation(tdhP->evrP, 0, NULL, teiP, &sz);
+        teiP = MemLifoAlloc(&ticP->memlifo, sz, &sz);
+        winerr = TdhGetEventInformation(evrP, 0, NULL, teiP, &sz);
     }
     
     if (winerr != ERROR_SUCCESS)
-        return Twapi_AppendSystemError(tdhP->ticP->interp, winerr);
+        return Twapi_AppendSystemError(ticP->interp, winerr);
 
     /* We may have over allocated so shrink down before returning */
-    teiP = MemLifoResizeLast(&tdhP->ticP->memlifo, sz, 1);
+    teiP = MemLifoResizeLast(&ticP->memlifo, sz, 1);
 
     objs[0] = ObjFromGUID(&teiP->ProviderGuid);
     objs[1] = ObjFromGUID(&teiP->EventGuid);
@@ -1906,19 +1882,19 @@ static TCL_RESULT TwapiTdhGetEventInformation(struct TwapiTDHContext *tdhP, Tcl_
     objs[12] = TwapiTEIUnicodeObj(teiP, teiP->ActivityIDNameOffset);
     objs[13] = TwapiTEIUnicodeObj(teiP, teiP->RelatedActivityIDNameOffset);
 
-    if (tdhP->evrP->EventHeader.Flags & EVENT_HEADER_FLAG_STRING_ONLY) {
+    if (evrP->EventHeader.Flags & EVENT_HEADER_FLAG_STRING_ONLY) {
         propObjs[1] = ObjNewList(2, NULL);
         ObjAppendElement(NULL, propObjs[1], STRING_LITERAL_OBJ("stringdata"));
         ObjAppendElement(NULL, propObjs[1],
-                         ObjFromUnicodeLimited(tdhP->evrP->UserData,
-                                               tdhP->evrP->UserDataLength/sizeof(WCHAR), NULL));
+                         ObjFromUnicodeLimited(evrP->UserData,
+                                               evrP->UserDataLength/sizeof(WCHAR), NULL));
     } else {
         int i;
 
         propObjs[1] = ObjNewList(teiP->TopLevelPropertyCount, NULL);
         for (i = 0; i < teiP->TopLevelPropertyCount; ++i) {
             Tcl_Obj *propnameObj, *propvalObj;
-            status = TwapiDecodeEVENT_PROPERTY_INFO(tdhP, teiP, i, NULL, 0, &propnameObj, &propvalObj);
+            status = TwapiDecodeEVENT_PROPERTY_INFO(ticP, evrP, teiP, i, NULL, 0, &propnameObj, &propvalObj);
             if (status != TCL_OK) {
                 ObjDecrRefs(propObjs[1]);
                 return TCL_ERROR;
@@ -1938,12 +1914,12 @@ static TCL_RESULT TwapiTdhGetEventInformation(struct TwapiTDHContext *tdhP, Tcl_
 
 static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD recP)
 {
-    struct TwapiTDHContext tdh;
     int i;
     Tcl_Obj *recObjs[4];
     Tcl_Obj *objs[3];
     DWORD winerr;
     MemLifoMarkHandle mark;
+    TwapiInterpContext *ticP;
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
     TWAPI_ASSERT(gETWContext.ticP != NULL);
@@ -1955,13 +1931,8 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD recP)
     if ((recP->EventHeader.Flags & EVENT_HEADER_FLAG_TRACE_MESSAGE) != 0)
         return; // Ignore WPP events. - TBD
     
-
-    tdh.ticP = gETWContext.ticP;
-    tdh.evrP = recP;
-    tdh.propvals = NULL;
-    tdh.proprefs = NULL;
-
-    mark = MemLifoPushMark(&tdh.ticP->memlifo);
+    ticP = gETWContext.ticP;
+    mark = MemLifoPushMark(&ticP->memlifo);
 
     recObjs[0] = ObjFromEVENT_HEADER(&recP->EventHeader);
 
@@ -2006,9 +1977,9 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD recP)
         }
     }
     
-    gETWContext.status = TwapiTdhGetEventInformation(&tdh, &recObjs[3]);
+    gETWContext.status = TwapiTdhGetEventInformation(ticP, recP, &recObjs[3]);
     if (gETWContext.status == TCL_OK)
-        ObjAppendElement(tdh.ticP->interp, gETWContext.eventsObj, ObjNewList(ARRAYSIZE(recObjs), recObjs));
+        ObjAppendElement(ticP->interp, gETWContext.eventsObj, ObjNewList(ARRAYSIZE(recObjs), recObjs));
     else
         ObjDecrArrayRefs(3, objs);
 
