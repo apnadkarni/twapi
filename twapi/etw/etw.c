@@ -1450,13 +1450,119 @@ static TCL_RESULT TwapiTdhPropertyArraySize(struct TwapiTDHContext *tdhP,
 }
 
 
+static Tcl_Obj *TwapiMapTDHProperty(EVENT_MAP_INFO *emiP, ULONG val)
+{
+    ULONG i, bitmask;
+    Tcl_Obj *objP;
+
+    if (emiP->Flag == EVENTMAP_INFO_FLAG_MANIFEST_PATTERNMAP ||
+        emiP->MapEntryValueType != EVENTMAP_ENTRY_VALUETYPE_ULONG) {
+        /* SHould not happen since this routine is called only for
+         * numerics and I assume these should not occur for numerics.
+         * But still, to be safe, check and punt.
+         */
+        return ObjFromDWORD(val);
+    }
+
+    /*
+     * We can map the following combinations based on emiP->Flag
+     * (exactly these bits are set and no others)
+     * EVENTMAP_INFO_FLAG_MANIFEST_VALUEMAP
+     *   - integer to string value using a mapping array (manifest based)
+     * EVENTMAP_INFO_FLAG_WBEM_VALUEMAP
+     *   - integer to string value using a mapping array (MOF based)
+     * EVENTMAP_INFO_FLAG_WBEM_VALUEMAP | EVENTMAP_INFO_FLAG_WBEM_NO_MAP
+     *   - integer to string value using 0-based indexing (MOF based)
+     * EVENTMAP_INFO_FLAG_WBEM_VALUEMAP | EVENTMAP_INFO_FLAG_WBEM_FLAG
+     *   - bit flags to list of string values using a mapping array (MOF based)
+     * EVENTMAP_INFO_FLAG_WBEM_VALUEMAP | EVENTMAP_INFO_FLAG_WBEM_FLAG | EVENTMAP_INFO_FLAG_WBEM_NO_MAP
+     *   - not clear this is valid and makes sense 
+     * EVENTMAP_INFO_FLAG_MANIFEST_BITMAP
+     *   - bit map to list of strings using a mapping array (manifest based)
+     * EVENTMAP_INFO_FLAG_WBEM_BITMAP
+     *   - bit map to list of strings using a mapping array (MOF based)
+     * EVENTMAP_INFO_FLAG_WBEM_BITMAP | EVENTMAP_INFO_FLAG_WBEM_NO_MAP
+     *   - maps 0-based bit positions to list of string values (MOF based)
+     */
+     
+    switch (emiP->Flag) {
+    case EVENTMAP_INFO_FLAG_MANIFEST_VALUEMAP:
+    case EVENTMAP_INFO_FLAG_WBEM_VALUEMAP:
+        for (i = 0; i < emiP->EntryCount; ++i) {
+            if (emiP->MapEntryArray[i].Value == val)
+                return ObjFromUnicode((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP));
+        }
+        break;
+    case EVENTMAP_INFO_FLAG_WBEM_VALUEMAP | EVENTMAP_INFO_FLAG_WBEM_NO_MAP:
+        if (val < emiP->EntryCount)
+            return ObjFromUnicode((WCHAR *) (emiP->MapEntryArray[val].OutputOffset + (char*)emiP));
+        break;
+    case EVENTMAP_INFO_FLAG_WBEM_VALUEMAP | EVENTMAP_INFO_FLAG_WBEM_FLAG:
+        objP = ObjNewList(0, NULL);
+        /* TBD - we ignore bits in val that are set but don't have a matching entry */
+        for (i = 0; i < emiP->EntryCount; ++i) {
+            if ((emiP->MapEntryArray[i].Value & val) == emiP->MapEntryArray[i].Value)
+                ObjAppendElement(NULL, objP, ObjFromUnicode((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP)));
+        }
+        return objP;
+
+
+    case EVENTMAP_INFO_FLAG_MANIFEST_BITMAP:
+        objP = ObjNewList(0, NULL);
+        for (i = 0; val != 0 && i < emiP->EntryCount; ++i) {
+            /* Value field is the bit mask. Match with any bit means match */
+            bitmask = emiP->MapEntryArray[i].Value;
+            if (bitmask & val) {
+                ObjAppendElement(NULL, objP, ObjFromUnicode((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP)));
+                val &= ~ bitmask;
+            }
+        }
+        return objP;
+
+    case EVENTMAP_INFO_FLAG_WBEM_BITMAP:
+        objP = ObjNewList(0, NULL);
+        for (i = 0; val != 0 && i < emiP->EntryCount; ++i) {
+            if (emiP->MapEntryArray[i].Value > 31)
+                continue;
+            /* Value field is the bit position to check */
+            bitmask = (1 << emiP->MapEntryArray[i].Value);
+            if (bitmask & val) {
+                ObjAppendElement(NULL, objP, ObjFromUnicode((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP)));
+                /* Reset the bit both for efficiency as well as so we only
+                   include one element even in the MapEntryArray[] contains
+                   duplicate values */
+                val &= ~bitmask;
+            }
+        }
+        return objP;
+
+    case EVENTMAP_INFO_FLAG_WBEM_BITMAP | EVENTMAP_INFO_FLAG_WBEM_NO_MAP:
+        objP = ObjNewList(0, NULL);
+        for (i = 0; val != 0 && i < emiP->EntryCount && i < 32; ++i) {
+            bitmask = (1 << i);
+            if (val & bitmask) {
+                ObjAppendElement(NULL, objP, ObjFromUnicode((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP)));
+                val &= ~bitmask;
+            }
+        }
+        return objP;
+
+    case EVENTMAP_INFO_FLAG_WBEM_VALUEMAP | EVENTMAP_INFO_FLAG_WBEM_FLAG | EVENTMAP_INFO_FLAG_WBEM_NO_MAP:
+        break;                  /* TBD */
+    }
+
+    /* No map value, return as integer */
+    return ObjFromDWORD(val);
+}
+
+
 /* Given the raw bytes for a TDH property, return the Tcl_Obj */
 static TCL_RESULT TwapiTdhPropertyValue(
     struct TwapiTDHContext *tdhP,
     EVENT_PROPERTY_INFO *epiP,
     void *bytesP,               /* Raw bytes */
     ULONG prop_size,            /* Number of bytes */
-    EVENT_MAP_INFO *emiP,       /*  */
+    EVENT_MAP_INFO *emiP,       /* Value map, may be NULL */
     Tcl_Obj **valueObjP
     )
 {
@@ -1656,11 +1762,14 @@ static TCL_RESULT TwapiTdhPropertyValue(
             *valueObjP = ObjFromLong((USHORT)ntohs((USHORT)u.i64));
             break;
         default:
-            /* TBD - Check map values */
-            if (epiP->nonStructType.InType == TDH_INTYPE_UINT64)
-                *valueObjP = ObjFromULONGLONG(u.ui64);
-            else
-                *valueObjP = ObjFromWideInt(u.i64);
+            if (emiP && u.i64 < ULONG_MAX && u.i64 >= 0) {
+                *valueObjP = TwapiMapTDHProperty(emiP, (ULONG) u.i64); 
+            } else {
+                if (epiP->nonStructType.InType == TDH_INTYPE_UINT64)
+                    *valueObjP = ObjFromULONGLONG(u.ui64);
+                else
+                    *valueObjP = ObjFromWideInt(u.i64);
+            }
             break;
         }
         break;
