@@ -938,6 +938,17 @@ Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *strP, int max, int *remainP)
     return ObjFromUnicodeN(strP, (p-strP));
 }
 
+/* Some Win32 APIs, ETW in particular return strings with a trailing space.
+   Return a Tcl_Obj without this single trailing space if present */
+Tcl_Obj *ObjFromUnicodeNoTrailingSpace(const WCHAR *strP)
+{
+    int len;
+
+    len = lstrlenW(strP);
+    if (len && strP[len-1] == L' ')
+        --len;
+    return ObjFromUnicodeN(strP, len);
+}
 
 /*
  * Gets an integer from an object within the specified range

@@ -1278,7 +1278,7 @@ static Tcl_Obj *TwapiTEIUnicodeObj(TRACE_EVENT_INFO *teiP, int offset)
     if (offset == 0)
         return ObjFromEmptyString();
     else
-        return ObjFromUnicode((WCHAR*) (offset + (char*)teiP));
+        return ObjFromUnicodeNoTrailingSpace((WCHAR*) (offset + (char*)teiP));
 }
 
 static Tcl_Obj *ObjFromEVENT_DESCRIPTOR(EVENT_DESCRIPTOR *evdP)
