@@ -20,12 +20,24 @@
 #if (VER_PRODUCTBUILD < 7600) || (_WIN32_WINNT <= 0x600)
 # define RUNTIME_TDH_LOAD 1
 #else
+#define INITGUID // To get EventTraceGuid defined
 # include <tdh.h>
 #pragma comment(lib, "delayimp.lib") /* Prevents TDH from loading unless necessary */
 #pragma comment(lib, "tdh.lib")	 /* New TDH library for Vista and beyond */
 #endif
 
 #ifdef RUNTIME_TDH_LOAD
+
+#define INITGUID // To get EventTraceGuid defined
+#include <guiddef.h>
+DEFINE_GUID ( /* 68fdd900-4a3e-11d1-84f4-0000f80464e3 */
+    EventTraceGuid,
+    0x68fdd900,
+    0x4a3e,
+    0x11d1,
+    0x84, 0xf4, 0x00, 0x00, 0xf8, 0x04, 0x64, 0xe3
+  );
+
 
 #define EVENT_HEADER_FLAG_EXTENDED_INFO         0x0001
 #define EVENT_HEADER_FLAG_PRIVATE_SESSION       0x0002
@@ -357,6 +369,11 @@ HANDLE gTdhDllHandle;
 
 #endif
 
+#ifndef EVENT_HEADER_FLAG_PROCESSOR_INDEX
+# define EVENT_HEADER_FLAG_PROCESSOR_INDEX 0x0200 /* Win 8, not in older SDKs */
+#endif
+
+
 /* Max length of file and session name fields in a trace (documented in SDK) */
 #define MAX_TRACE_NAME_CHARS (1024+1)
 
@@ -365,12 +382,6 @@ HANDLE gTdhDllHandle;
 
 static TRACEHANDLE gInvalidTraceHandle;
 #define INVALID_SESSIONTRACE_HANDLE(ht_) ((ht_) == gInvalidTraceHandle)
-
-/* Struct used to hold context when parsing EVENT_RECORD using TDS calls */
-struct TwapiTDHContext {
-    TwapiInterpContext *ticP;
-    EVENT_RECORD *evrP;
-};
 
 /* For efficiency reasons, when constructing many "records" each of which is
  * a keyed list or dictionary, we do not want to recreate the
@@ -463,7 +474,7 @@ struct TwapiETWContext {
     TRACEHANDLE traceH;
 
     int   buffer_cmdlen;        /* length of buffer_cmdObj */
-    ULONG pointer_size;
+    ULONG pointer_size;         /* Used if event itself does not specify */
     ULONG timer_resolution;
     ULONG user_mode;
 } gETWContext;                  /* IMPORTANT : Sync access via gETWCS */
@@ -582,6 +593,17 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
  * Functions
  */
 
+static int TwapiCalcPointerSize(EVENT_RECORD *evrP)
+{
+    if (evrP->EventHeader.Flags & EVENT_HEADER_FLAG_32_BIT_HEADER)
+        return 4;
+    else if (evrP->EventHeader.Flags & EVENT_HEADER_FLAG_64_BIT_HEADER)
+        return 8;
+    else
+        return gETWContext.pointer_size;
+}
+
+
 #ifdef NOTUSEDYET
 /* IMPORTANT : 
  * Do not change order without changing  ObjFromTRACE_LOGFILE_HEADER
@@ -611,6 +633,7 @@ static const char * g_trace_logfile_header_fields[] = {
     "-bufferslost",
     NULL,
 };
+
 
 static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
 {
@@ -1215,6 +1238,13 @@ void WINAPI TwapiETWEventCallback(
     if (gETWContext.status != TCL_OK)   /* If some previous error occurred, return */
         return;
 
+    if (evP->Header.Class.Type == EVENT_TRACE_TYPE_INFO &&
+        IsEqualGUID(&evP->Header.Guid, &EventTraceGuid)) {
+        /* If further events do not indicate pointer size, we will use this size*/
+        gETWContext.pointer_size = ((TRACE_LOGFILE_HEADER *) evP->MofData)->PointerSize;
+    }
+
+
     /* TBD - create as a list - faster than as a dict */
     /* IMPORTANT: the order is tied to order of gETWEventKeys[] ! */
     evObj = Tcl_NewDictObj();
@@ -1244,8 +1274,6 @@ void WINAPI TwapiETWEventCallback(
     
     ObjAppendElement(interp, gETWContext.eventsObj, evObj);
 }
-
-
 
 static Tcl_Obj *TwapiTEIUnicodeObj(TRACE_EVENT_INFO *teiP, int offset)
 {
@@ -1398,7 +1426,7 @@ static Tcl_Obj *TwapiMapTDHProperty(EVENT_MAP_INFO *emiP, ULONG val)
         break;
     case EVENTMAP_INFO_FLAG_WBEM_VALUEMAP | EVENTMAP_INFO_FLAG_WBEM_FLAG:
         objP = ObjNewList(0, NULL);
-        /* TBD - we ignore bits in val that are set but don't have a matching entry */
+        /* We ignore bits in val that are set but don't have a matching entry */
         for (i = 0; i < emiP->EntryCount; ++i) {
             if ((emiP->MapEntryArray[i].Value & val) == emiP->MapEntryArray[i].Value)
                 ObjAppendElement(NULL, objP, ObjFromUnicode((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP)));
@@ -1491,7 +1519,7 @@ static TCL_RESULT TwapiTdhPropertyValue(
     } while (0)
     switch (epiP->nonStructType.InType) {
     case TDH_INTYPE_NULL:
-        *valueObjP = ObjFromEmptyString(); /* TBD */
+        *valueObjP = ObjFromEmptyString(); /* TBD - use a NULL obj type*/
         return TCL_OK;
     case TDH_INTYPE_UNICODESTRING:
         u.string.s = bytesP;
@@ -1544,10 +1572,6 @@ static TCL_RESULT TwapiTdhPropertyValue(
         EXTRACT(u.stime, SYSTEMTIME);
         *valueObjP = ObjFromSYSTEMTIME(&u.stime);
         return TCL_OK;
-    case TDH_INTYPE_SID:
-        if (TwapiValidateSID(interp, bytesP, prop_size) != TCL_OK)
-            return TCL_ERROR;
-        return ObjFromSID(interp, bytesP, valueObjP);
 
     case TDH_INTYPE_COUNTEDSTRING:
     case TDH_INTYPE_REVERSEDCOUNTEDSTRING:
@@ -1593,7 +1617,25 @@ static TCL_RESULT TwapiTdhPropertyValue(
     TDH_INTYPE_WBEMSID:
         /* TOKEN_USER structure followed by SID. Sizeof TOKEN_USER
            depends on 32/64 bittedness of event stream. */
-        /* FALLTHRU - TBD */
+        if (evrP->EventHeader.Flags & EVENT_HEADER_FLAG_32_BIT_HEADER)
+            dw = 4;
+        else if (evrP->EventHeader.Flags & EVENT_HEADER_FLAG_64_BIT_HEADER)
+            dw = 8;
+        else
+            dw = gETWContext.pointer_size;
+        dw *= 2; /* sizeof(TOKEN_USER) == 16 on 64bit arch, 8 on 32bit */
+        if (prop_size <= (dw+sizeof(SID)))
+            goto size_error;
+        bytesP = dw + (char*) bytesP;
+        prop_size -= dw;
+        /* FALLTHROUGH */
+
+    case TDH_INTYPE_SID:
+        if (TwapiValidateSID(interp, bytesP, prop_size) != TCL_OK)
+            return TCL_ERROR;
+        return ObjFromSID(interp, bytesP, valueObjP);
+
+
     default:
         return TwapiReturnErrorEx(interp, TWAPI_UNSUPPORTED_TYPE,
                                   Tcl_ObjPrintf("Unsupported TDH type %d.", epiP->nonStructType.InType));
@@ -1848,15 +1890,20 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
     Tcl_Obj *propObjs[2];
     TCL_RESULT status;
     TRACE_EVENT_INFO *teiP;
+    TDH_CONTEXT tdhctx;
 
     /* TBD - instrument how much to try for initially */
     teiP = MemLifoAlloc(&ticP->memlifo, 1000, &sz);
 
+    tdhctx.ParameterValue = TwapiCalcPointerSize(evrP);
+    tdhctx.ParameterType = TDH_CONTEXT_POINTERSIZE;
+    tdhctx.ParameterSize = 0;   /* Reserved value */
+
     /* TBD - initialize TDH_CONTEXT param to include pointer size indicator */
-    winerr = TdhGetEventInformation(evrP, 0, NULL, teiP, &sz);
+    winerr = TdhGetEventInformation(evrP, 1, &tdhctx, teiP, &sz);
     if (winerr == ERROR_INSUFFICIENT_BUFFER) {
         teiP = MemLifoAlloc(&ticP->memlifo, sz, &sz);
-        winerr = TdhGetEventInformation(evrP, 0, NULL, teiP, &sz);
+        winerr = TdhGetEventInformation(evrP, 1, &tdhctx, teiP, &sz);
     }
     
     if (winerr != ERROR_SUCCESS)
@@ -1912,7 +1959,7 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
     return TCL_OK;
 }
 
-static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD recP)
+static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD evrP)
 {
     int i;
     Tcl_Obj *recObjs[4];
@@ -1928,25 +1975,38 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD recP)
     if (gETWContext.status != TCL_OK) /* If some previous error occurred, return */
         return;
 
-    if ((recP->EventHeader.Flags & EVENT_HEADER_FLAG_TRACE_MESSAGE) != 0)
+    if ((evrP->EventHeader.Flags & EVENT_HEADER_FLAG_TRACE_MESSAGE) != 0)
         return; // Ignore WPP events. - TBD
     
+    if (evrP->EventHeader.EventDescriptor.Opcode == EVENT_TRACE_TYPE_INFO &&
+        IsEqualGUID(&evrP->EventHeader.ProviderId, &EventTraceGuid)) {
+        /*
+         * This event is generated per log file. If an individual event do not
+         * indicate pointer size, we will use this size.
+         */
+        gETWContext.pointer_size = ((TRACE_LOGFILE_HEADER *) evrP->UserData)->PointerSize;
+    }
+
     ticP = gETWContext.ticP;
     mark = MemLifoPushMark(&ticP->memlifo);
 
-    recObjs[0] = ObjFromEVENT_HEADER(&recP->EventHeader);
+    recObjs[0] = ObjFromEVENT_HEADER(&evrP->EventHeader);
 
     /* Buffer Context */
-    objs[0] = ObjFromLong(recP->BufferContext.ProcessorNumber);
-    objs[1] = ObjFromLong(recP->BufferContext.Alignment);
-    objs[2] = ObjFromLong(recP->BufferContext.LoggerId);
-    recObjs[1] = ObjNewList(3, objs);
+    if (evrP->EventHeader.Flags & EVENT_HEADER_FLAG_PROCESSOR_INDEX) {
+        /* Win 8 defines as a USHORT (field ProcessorIndex in new sdk) */
+        objs[0] = ObjFromLong(*(USHORT *)&evrP->BufferContext.ProcessorNumber);
+    } else {
+        objs[0] = ObjFromLong(evrP->BufferContext.ProcessorNumber);
+    }
+    objs[1] = ObjFromLong(evrP->BufferContext.LoggerId);
+    recObjs[1] = ObjNewList(2, objs);
     
     /* Extended Data */
-    /* TBD - do we need to check the recP->EventHeader.Flags EVENT_HEADER_FLAG_EXTENDED_INFO bit ? */
+    /* TBD - do we need to check the evrP->EventHeader.Flags EVENT_HEADER_FLAG_EXTENDED_INFO bit ? */
     recObjs[2] = ObjNewList(0, NULL);
-    for (i = 0; i < recP->ExtendedDataCount; ++i) {
-        EVENT_HEADER_EXTENDED_DATA_ITEM *ehdrP = &recP->ExtendedData[i];
+    for (i = 0; i < evrP->ExtendedDataCount; ++i) {
+        EVENT_HEADER_EXTENDED_DATA_ITEM *ehdrP = &evrP->ExtendedData[i];
         if (ehdrP->DataPtr == 0)
             continue;
         switch (ehdrP->ExtType) {
@@ -1977,7 +2037,7 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD recP)
         }
     }
     
-    gETWContext.status = TwapiTdhGetEventInformation(ticP, recP, &recObjs[3]);
+    gETWContext.status = TwapiTdhGetEventInformation(ticP, evrP, &recObjs[3]);
     if (gETWContext.status == TCL_OK)
         ObjAppendElement(ticP->interp, gETWContext.eventsObj, ObjNewList(ARRAYSIZE(recObjs), recObjs));
     else
@@ -2083,7 +2143,8 @@ ULONG WINAPI TwapiETWBufferCallback(
      * refer to null terminated fields right after this struct.
      * HOWEVER, it is not clear what happens when the struct is 
      * embedded inside another so for now we just do not include them
-     * in the returned dictionary. - TBD
+     * in the returned dictionary. Also the newer SDK's document these
+     * fields as "do not use".
     */
 
     Tcl_DictObjPut(interp, bufObj, gETWBufferKeys[24].keyObj, ObjFromULONG(adjustedP->BuffersLost));
@@ -2154,8 +2215,8 @@ TCL_RESULT Twapi_OpenTrace(ClientData clientdata, Tcl_Interp *interp, int objc, 
      * They are either the same field in the union, or have the same #define value
      */
     if (gTdhStatus > 0) {
-        etl.LogFileMode = PROCESS_TRACE_MODE_EVENT_RECORD; /* etl.ProcessTraceMode = */
-        etl.EventCallback = (PEVENT_CALLBACK) TwapiETWEventRecordCallback;   /* etl.EventRecordCallback = */
+        etl.LogFileMode = PROCESS_TRACE_MODE_EVENT_RECORD; /* Actually etl.ProcessTraceMode */
+        etl.EventCallback = (PEVENT_CALLBACK) TwapiETWEventRecordCallback;   /* Actually etl.EventRecordCallback */
     } else
         etl.EventCallback = TwapiETWEventCallback;
 
@@ -2254,6 +2315,7 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     ObjIncrRefs(gETWContext.eventsObj);
     gETWContext.status = TCL_OK;
     gETWContext.ticP = ticP;
+    gETWContext.pointer_size = sizeof(void*); /* Default unless otherwise indicated */
 
     /* TBD - make these per interpreter keys */
     /*
