@@ -1141,13 +1141,15 @@ TCL_RESULT Twapi_StartTrace(ClientData clientdata, Tcl_Interp *interp, int objc,
 {
     EVENT_TRACE_PROPERTIES *etP;
     TRACEHANDLE htrace;
-    Tcl_Obj *objs[2];
+    TCL_RESULT res;
     
     if (objc != 3)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[2], &etP) != TCL_OK)
         return TCL_ERROR;
+
+    /* Note etP has to be freed */
 
     /* If no log file specified, set logfilenameoffset to 0 
        since ObjToPEVENT_TRACE_PROPERTIES does not do that as it
@@ -1157,17 +1159,14 @@ TCL_RESULT Twapi_StartTrace(ClientData clientdata, Tcl_Interp *interp, int objc,
 
     if (StartTraceW(&htrace,
                     ObjToUnicode(objv[1]),
-                    etP) != ERROR_SUCCESS) {
-        Twapi_AppendSystemError(interp, GetLastError());
-        TwapiFree(etP);
-        return TCL_ERROR;
-    }
+                    etP) == ERROR_SUCCESS) {
+        ObjSetResult(interp, ObjFromTRACEHANDLE(htrace));
+        res = TCL_OK;
+    } else
+        res = Twapi_AppendSystemError(interp, GetLastError());
 
-    objs[0] = ObjFromTRACEHANDLE(htrace);
-    objs[1] = ObjFromEVENT_TRACE_PROPERTIES(etP);
     TwapiFree(etP);
-    ObjSetResult(interp, ObjNewList(2, objs));
-    return TCL_OK;
+    return res;
 }
 
 TCL_RESULT Twapi_ControlTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
@@ -1335,7 +1334,7 @@ static TCL_RESULT TwapiTdhPropertyArraySize(TwapiInterpContext *ticP,
                                             USHORT prop_index, USHORT *countP)
 {
     EVENT_PROPERTY_INFO *epiP;
-    DWORD count, winerr;
+    DWORD winerr;
     USHORT ref_index;
     union {
         USHORT ushort_val;
@@ -1503,7 +1502,7 @@ static TCL_RESULT TwapiTdhPropertyValue(
         double dbl;
         struct {
             void *s;
-            int   len;
+            ULONG   len;
         } string;
         GUID guid;
         FILETIME ftime;
@@ -1546,7 +1545,7 @@ static TCL_RESULT TwapiTdhPropertyValue(
 
     case TDH_INTYPE_BOOLEAN:
         EXTRACT(u.i64, int);
-        *valueObjP = ObjFromBoolean(u.i64);
+        *valueObjP = ObjFromBoolean(u.i64 != 0);
         return TCL_OK;
 
     case TDH_INTYPE_BINARY:
@@ -1601,7 +1600,7 @@ static TCL_RESULT TwapiTdhPropertyValue(
         u.string.len = prop_size;
         break;
 
-    TDH_INTYPE_SIZET:
+    case TDH_INTYPE_SIZET:
         if (prop_size == 4)
             *valueObjP = ObjFromULONG(*(unsigned int UNALIGNED *)bytesP);
         else if (prop_size == 8)
@@ -1610,14 +1609,14 @@ static TCL_RESULT TwapiTdhPropertyValue(
             goto size_error;
         return TCL_OK;
 
-    TDH_INTYPE_HEXDUMP:
+    case TDH_INTYPE_HEXDUMP:
         EXTRACT(dw, DWORD);
         remain -= sizeof(DWORD);
         *valueObjP = ObjFromByteArray(sizeof(DWORD)+(char*)bytesP,
                                       remain < dw ? remain : dw);
         return TCL_OK;
 
-    TDH_INTYPE_WBEMSID:
+    case TDH_INTYPE_WBEMSID:
         /* TOKEN_USER structure followed by SID. Sizeof TOKEN_USER
            depends on 32/64 bittedness of event stream. */
         if (evrP->EventHeader.Flags & EVENT_HEADER_FLAG_32_BIT_HEADER)
@@ -1627,7 +1626,7 @@ static TCL_RESULT TwapiTdhPropertyValue(
         else
             dw = gETWContext.pointer_size;
         dw *= 2; /* sizeof(TOKEN_USER) == 16 on 64bit arch, 8 on 32bit */
-        if (prop_size <= (dw+sizeof(SID)))
+        if (prop_size < (dw+sizeof(SID)))
             goto size_error;
         bytesP = dw + (char*) bytesP;
         prop_size -= dw;
@@ -1960,7 +1959,7 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
                          ObjFromUnicodeLimited(evrP->UserData,
                                                evrP->UserDataLength/sizeof(WCHAR), NULL));
     } else {
-        int i;
+        ULONG i;
 
         propObjs[1] = ObjNewList(teiP->TopLevelPropertyCount, NULL);
         for (i = 0; i < teiP->TopLevelPropertyCount; ++i) {
@@ -1992,7 +1991,6 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD evrP)
     int i;
     Tcl_Obj *recObjs[4];
     Tcl_Obj *objs[3];
-    DWORD winerr;
     MemLifoMarkHandle mark;
     TwapiInterpContext *ticP;
 
@@ -2288,7 +2286,6 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     FILETIME start, end, *startP, *endP;
     struct TwapiETWContext etwc;
     int buffer_cmdlen;
-    int code;
     DWORD winerr;
     Tcl_Obj **htraceObjs;
     TRACEHANDLE htraces[8];
