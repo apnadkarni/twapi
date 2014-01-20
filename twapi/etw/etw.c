@@ -1342,12 +1342,17 @@ static TCL_RESULT TwapiTdhPropertyArraySize(TwapiInterpContext *ticP,
     } ref_value;
     ULONG ref_value_size;
     PROPERTY_DATA_DESCRIPTOR pdd;
+    TDH_CONTEXT tdhctx;
 
     epiP = &teiP->EventPropertyInfoArray[prop_index];
     if ((epiP->Flags & PropertyParamCount) == 0) {
         *countP = epiP->count; /* Size of array is directly specified */
         return TCL_OK;
     }
+
+    tdhctx.ParameterValue = TwapiCalcPointerSize(evrP);
+    tdhctx.ParameterType = TDH_CONTEXT_POINTERSIZE;
+    tdhctx.ParameterSize = 0;   /* Reserved value */
 
     /* Size of array is indirectly specified through some other property */
     TWAPI_ASSERT(epiP->NameOffset != 0);
@@ -1356,11 +1361,11 @@ static TCL_RESULT TwapiTdhPropertyArraySize(TwapiInterpContext *ticP,
     pdd.PropertyName = (ULONGLONG)(teiP->EventPropertyInfoArray[ref_index].NameOffset + (char*) teiP);
     pdd.ArrayIndex = ULONG_MAX; /* Since index property is not an array */
     pdd.Reserved = 0;
-    winerr = TdhGetPropertySize(evrP, 0, NULL, 1, &pdd, &ref_value_size);
+    winerr = TdhGetPropertySize(evrP, 1, &tdhctx, 1, &pdd, &ref_value_size);
     if (winerr == ERROR_SUCCESS) {
         if (ref_value_size != 2 && ref_value_size != 4)
             return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_DATA, "Indirect property index size is not 2 or 4.");
-        winerr = TdhGetProperty(evrP, 0, NULL, 1, &pdd, ref_value_size, (PBYTE)&ref_value);
+        winerr = TdhGetProperty(evrP, 1, &tdhctx, 1, &pdd, ref_value_size, (PBYTE)&ref_value);
     }
     if (winerr != ERROR_SUCCESS)
         return Twapi_AppendSystemError(ticP->interp, winerr);
@@ -1813,6 +1818,11 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
             PROPERTY_DATA_DESCRIPTOR pdd[2];
             int pdd_count;
             ULONG prop_size;
+            TDH_CONTEXT tdhctx;
+
+            tdhctx.ParameterValue = TwapiCalcPointerSize(evrP);
+            tdhctx.ParameterType = TDH_CONTEXT_POINTERSIZE;
+            tdhctx.ParameterSize = 0;   /* Reserved value */
 
             if (struct_name) {
                 pdd_count = 2;
@@ -1832,10 +1842,8 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
 
                 /* TBD - sample in MSDN docs (not sdk sample) says tdh
                    cannot handle IPv6 data and skips event. Check on this */
-                /*TBD - set context array for both calls TdhGetProperty
-                  and TdhGetPropertySize to set TDH_CONTEXT_POINTERSIZE*/
             }            
-            winerr = TdhGetPropertySize(evrP, 0, NULL, pdd_count, pdd, &prop_size);
+            winerr = TdhGetPropertySize(evrP, 1, &tdhctx, pdd_count, pdd, &prop_size);
             if (winerr == ERROR_SUCCESS) {
                 ULONG map_size;
                 EVENT_MAP_INFO *mapP;
@@ -1859,7 +1867,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
                     }
                 }
                 if (winerr == ERROR_SUCCESS) {
-                    winerr = TdhGetProperty(evrP, 0, NULL, pdd_count, pdd, prop_size, pv);
+                    winerr = TdhGetProperty(evrP, 1, &tdhctx, pdd_count, pdd, prop_size, pv);
                     if (winerr == ERROR_SUCCESS)
                         res = TwapiTdhPropertyValue(ticP, evrP, epiP, pv, prop_size, mapP, &valueObj);
                 }
