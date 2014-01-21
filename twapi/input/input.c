@@ -73,7 +73,7 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
         return TCL_ERROR;
     }
 
-    input = MemLifoPushFrame(&ticP->memlifo, num_inputs * sizeof(*input), NULL);
+    input = MemLifoPushFrame(ticP->memlifoP, num_inputs * sizeof(*input), NULL);
     /* Loop through each element, parsing it and storing its descriptor */
     for (i = 0; i < num_inputs; ++i) {
         Tcl_Obj *event_obj;
@@ -189,7 +189,7 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
 
  done:
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return result;
 }
@@ -210,7 +210,7 @@ int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
 
     /* NUmber of events is twice number of chars (keydown + keyup) */
     max_input_records = 2 * num_chars;
-    input = MemLifoAlloc(&ticP->memlifo, max_input_records * sizeof(*input), NULL);
+    input = MemLifoAlloc(ticP->memlifoP, max_input_records * sizeof(*input), NULL);
     for (i = 0, j = 0; i < num_chars; ++i) {
         WCHAR wch;
             
@@ -247,7 +247,7 @@ int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
     result = TCL_OK;
 
  done:
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return result;
 }

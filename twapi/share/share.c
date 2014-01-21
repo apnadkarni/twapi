@@ -581,12 +581,12 @@ static TCL_RESULT Twapi_WNetGetUniversalNameObjCmd(TwapiInterpContext *ticP, Tcl
 
     localpathP = ObjToUnicode(objv[1]);
 
-    buf = MemLifoPushFrame(&ticP->memlifo, MAX_PATH+1, &buf_sz);
+    buf = MemLifoPushFrame(ticP->memlifoP, MAX_PATH+1, &buf_sz);
     error = WNetGetUniversalNameW(localpathP, REMOTE_NAME_INFO_LEVEL,
                                   buf, &buf_sz);
     if (error = ERROR_MORE_DATA) {
         /* Retry with larger buffer */
-        buf = MemLifoAlloc(&ticP->memlifo, buf_sz, NULL);
+        buf = MemLifoAlloc(ticP->memlifoP, buf_sz, NULL);
         error = WNetGetUniversalNameW(localpathP, REMOTE_NAME_INFO_LEVEL,
                                       buf, &buf_sz);
     }
@@ -601,7 +601,7 @@ static TCL_RESULT Twapi_WNetGetUniversalNameObjCmd(TwapiInterpContext *ticP, Tcl
         result = TCL_ERROR;
     }
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return result;
 }
@@ -617,7 +617,7 @@ static TCL_RESULT Twapi_WNetGetResourceInformationObjCmd(TwapiInterpContext *tic
     MemLifoMarkHandle mark;
     TCL_RESULT res;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
 
     /* TBD - check if GETNULLIFEMPTY is ok */
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
@@ -626,11 +626,11 @@ static TCL_RESULT Twapi_WNetGetResourceInformationObjCmd(TwapiInterpContext *tic
                          GETINT(in.dwType),
                          ARGEND);
     if (res == TCL_OK) {
-        outP = MemLifoAlloc(&ticP->memlifo, 4000, &outsz);
+        outP = MemLifoAlloc(ticP->memlifoP, 4000, &outsz);
         error = WNetGetResourceInformationW(&in, outP, &outsz, &systempart);
         if (error == ERROR_MORE_DATA) {
             /* Retry with larger buffer */
-            outP = MemLifoAlloc(&ticP->memlifo, outsz, NULL);
+            outP = MemLifoAlloc(ticP->memlifoP, outsz, NULL);
             error = WNetGetResourceInformationW(&in, outP, &outsz, &systempart);
         }
         if (error == ERROR_SUCCESS) {

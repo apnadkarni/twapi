@@ -1759,12 +1759,12 @@ LPWSTR *ObjToMemLifoArgvW(TwapiInterpContext *ticP, Tcl_Obj *objP, int *argcP)
     if (ObjGetElements(ticP->interp, objP, &objc, &objv) != TCL_OK)
         return NULL;
 
-    argv = MemLifoAlloc(&ticP->memlifo, (objc+1) * sizeof(LPCWSTR), NULL);
+    argv = MemLifoAlloc(ticP->memlifoP, (objc+1) * sizeof(LPCWSTR), NULL);
     for (j = 0; j < objc; ++j) {
         WCHAR *s;
         int slen;
         s = ObjToUnicodeN(objv[j], &slen);
-        argv[j] = MemLifoCopy(&ticP->memlifo, s, sizeof(WCHAR)*(slen+1));
+        argv[j] = MemLifoCopy(ticP->memlifoP, s, sizeof(WCHAR)*(slen+1));
     }
     argv[j] = NULL;
     *argcP = objc;

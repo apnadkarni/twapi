@@ -362,7 +362,7 @@ static TCL_RESULT ParseCRYPT_BLOB(
     int   len;
     pv = ObjToByteArray(objP, &len);
     if (len)
-        blobP->pbData = MemLifoCopy(&ticP->memlifo, pv, len);
+        blobP->pbData = MemLifoCopy(ticP->memlifoP, pv, len);
     else
         blobP->pbData = NULL;
     blobP->cbData = len;
@@ -424,27 +424,27 @@ static TCL_RESULT ParseCERT_ALT_NAME_ENTRY(
     case CERT_ALT_NAME_DNS_NAME: /* FALLTHROUGH */
     case CERT_ALT_NAME_URL:
         pv = ObjToUnicodeN(objs[1], &n);
-        caneP->pwszRfc822Name = MemLifoCopy(&ticP->memlifo, pv, sizeof(WCHAR) * (n+1));
+        caneP->pwszRfc822Name = MemLifoCopy(ticP->memlifoP, pv, sizeof(WCHAR) * (n+1));
         break;
     case CERT_ALT_NAME_REGISTERED_ID:
         pv = ObjToStringN(objs[1], &n);
-        caneP->pszRegisteredID = MemLifoCopy(&ticP->memlifo, pv, n+1);
+        caneP->pszRegisteredID = MemLifoCopy(ticP->memlifoP, pv, n+1);
         break;
     case CERT_ALT_NAME_OTHER_NAME:
-        caneP->pOtherName = MemLifoAlloc(&ticP->memlifo, sizeof(CERT_OTHER_NAME), NULL);
+        caneP->pOtherName = MemLifoAlloc(ticP->memlifoP, sizeof(CERT_OTHER_NAME), NULL);
         if (ObjGetElements(NULL, objs[1], &n, &otherObjs) != TCL_OK ||
             n != 2)
             goto format_error;
         pv = ObjToStringN(otherObjs[0], &n);
-        caneP->pOtherName->pszObjId = MemLifoCopy(&ticP->memlifo, pv, n+1);
+        caneP->pOtherName->pszObjId = MemLifoCopy(ticP->memlifoP, pv, n+1);
         pv = ObjToByteArray(otherObjs[1], &n);
-        caneP->pOtherName->Value.pbData = MemLifoCopy(&ticP->memlifo, pv, n);
+        caneP->pOtherName->Value.pbData = MemLifoCopy(ticP->memlifoP, pv, n);
         caneP->pOtherName->Value.cbData = n;
         break;
     case CERT_ALT_NAME_DIRECTORY_NAME: /* FALLTHRU */
     case CERT_ALT_NAME_IP_ADDRESS: /* FALLTHRU */
         pv = ObjToByteArray(objs[1], &n);
-        caneP->IPAddress.pbData = MemLifoCopy(&ticP->memlifo, pv, n);
+        caneP->IPAddress.pbData = MemLifoCopy(ticP->memlifoP, pv, n);
         caneP->IPAddress.cbData = n;
         break;
         
@@ -526,7 +526,7 @@ static TCL_RESULT ParseCERT_ALT_NAME_INFO(
         return TCL_OK;
     }
 
-    entriesP = MemLifoAlloc(&ticP->memlifo, nnames * sizeof(*entriesP), NULL);
+    entriesP = MemLifoAlloc(ticP->memlifoP, nnames * sizeof(*entriesP), NULL);
 
     for (i = 0; i < nnames; ++i) {
         res = ParseCERT_ALT_NAME_ENTRY(ticP, nameObjs[i], &entriesP[i]);
@@ -560,12 +560,12 @@ static TCL_RESULT ParseCERT_ENHKEY_USAGE(
         return res;
 
     cekuP->cUsageIdentifier = nobjs;
-    cekuP->rgpszUsageIdentifier = MemLifoAlloc(&ticP->memlifo,
+    cekuP->rgpszUsageIdentifier = MemLifoAlloc(ticP->memlifoP,
                                                nobjs * sizeof(cekuP->rgpszUsageIdentifier[0]),
                                                NULL);
     for (i = 0; i < nobjs; ++i) {
         p = ObjToStringN(objs[i], &n);
-        cekuP->rgpszUsageIdentifier[i] = MemLifoCopy(&ticP->memlifo, p, n+1);
+        cekuP->rgpszUsageIdentifier[i] = MemLifoCopy(ticP->memlifoP, p, n+1);
     }
 
     return TCL_OK;
@@ -630,7 +630,7 @@ static TCL_RESULT ParseCERT_CHAIN_POLICY_PARA_SSL(
         ObjToInt(NULL, objs[0], &flags) != TCL_OK)
         return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid CERT_CHAIN_POLICY_PARA");
 
-    policy_paramP = MemLifoAlloc(&ticP->memlifo, sizeof(*policy_paramP), NULL);
+    policy_paramP = MemLifoAlloc(ticP->memlifoP, sizeof(*policy_paramP), NULL);
     ZeroMemory(policy_paramP, sizeof(*policy_paramP));
     policy_paramP->cbSize = sizeof(*policy_paramP);
     policy_paramP->dwFlags = flags;
@@ -642,7 +642,7 @@ static TCL_RESULT ParseCERT_CHAIN_POLICY_PARA_SSL(
         /* Parse the SSL_EXTRA_CERT_CHAIN_POLICY_PARA */
         if (ObjGetElements(NULL, objs[1], &n, &objs) != TCL_OK)
             goto error_return;
-        sslP = MemLifoAlloc(&ticP->memlifo, sizeof(*sslP), NULL);
+        sslP = MemLifoAlloc(ticP->memlifoP, sizeof(*sslP), NULL);
         sslP->cbSize = sizeof(*sslP);
         if (TwapiGetArgsEx(ticP, n, objs,
                            GETINT(sslP->dwAuthType),
@@ -690,13 +690,13 @@ static TCL_RESULT ParseCRYPT_ALGORITHM_IDENTIFIER(
     }
 
     p = ObjToStringN(objs[0], &n);
-    algidP->pszObjId = MemLifoCopy(&ticP->memlifo, p, n+1);
+    algidP->pszObjId = MemLifoCopy(ticP->memlifoP, p, n+1);
     if (nobjs == 1) {
         algidP->Parameters.cbData = 0;
         algidP->Parameters.pbData = 0;
     } else {
         p = ObjToByteArray(objs[1], &n);
-        algidP->Parameters.pbData = MemLifoCopy(&ticP->memlifo, p, n);
+        algidP->Parameters.pbData = MemLifoCopy(ticP->memlifoP, p, n);
         algidP->Parameters.cbData = n;
     }
     return TCL_OK;
@@ -749,7 +749,7 @@ static TCL_RESULT ParseCRYPT_KEY_PROV_INFO(
         return TCL_OK;
     }
 
-    kiP = MemLifoAlloc(&ticP->memlifo, sizeof(*kiP), NULL);
+    kiP = MemLifoAlloc(ticP->memlifoP, sizeof(*kiP), NULL);
     if (TwapiGetArgsEx(ticP, nobjs, objs,
                        GETWSTR(kiP->pwszContainerName),
                        GETWSTR(kiP->pwszProvName),
@@ -767,7 +767,7 @@ static TCL_RESULT ParseCRYPT_KEY_PROV_INFO(
         kiP->cProvParam = 0;
     } else {
         kiP->cProvParam = nobjs;
-        kiP->rgProvParam = MemLifoAlloc(&ticP->memlifo,
+        kiP->rgProvParam = MemLifoAlloc(ticP->memlifoP,
                                         kiP->cProvParam * sizeof(*kiP->rgProvParam),
                                         NULL);
         for (i = 0; i < nobjs; ++i) {
@@ -1152,14 +1152,14 @@ static TCL_RESULT TwapiCryptEncodeObject(
     }
 
     /* Assume 1000 bytes enough but get as much as we can */
-    penc = MemLifoAlloc(&ticP->memlifo, 1000, &nenc);
+    penc = MemLifoAlloc(ticP->memlifoP, 1000, &nenc);
     if (CryptEncodeObjectEx(PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
                             oid, &u, 
                             0, NULL, penc, &nenc) == 0) {
         if (GetLastError() != ERROR_MORE_DATA)
             return TwapiReturnSystemError(interp);
         /* Retry with specified buffer size */
-        penc = MemLifoAlloc(&ticP->memlifo, nenc, &nenc);
+        penc = MemLifoAlloc(ticP->memlifoP, nenc, &nenc);
         if (CryptEncodeObjectEx(PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
                                 oid, &u, 0, NULL, penc, &nenc) == 0)
             return TwapiReturnSystemError(interp);
@@ -1228,7 +1228,7 @@ static TCL_RESULT ParseCERT_EXTENSION(
         return res;
 
     pv = ObjToStringN(objs[0], &n);
-    extP->pszObjId = MemLifoCopy(&ticP->memlifo, pv, n+1);
+    extP->pszObjId = MemLifoCopy(ticP->memlifoP, pv, n+1);
     extP->fCritical = (BOOL) bval;
     if (nobjs == 3) {
         res = TwapiCryptEncodeObject(ticP,
@@ -1271,7 +1271,7 @@ static TCL_RESULT ParseCERT_EXTENSIONS(
         return TCL_OK;
     }
 
-    extsP = MemLifoAlloc(&ticP->memlifo, nobjs * sizeof(CERT_EXTENSION), NULL);
+    extsP = MemLifoAlloc(ticP->memlifoP, nobjs * sizeof(CERT_EXTENSION), NULL);
     for (i = 0; i < nobjs; ++i) {
         if ((res = ParseCERT_EXTENSION(ticP, objs[i], &extsP[i])) != TCL_OK)
             return res;
@@ -1336,10 +1336,10 @@ static TCL_RESULT ParseCRYPT_ATTRIBUTE(
         nobjs == 2) {
         Tcl_Obj **valObjs;
         pv = ObjToStringN(objs[0], &n);
-        attrP->pszObjId = MemLifoCopy(&ticP->memlifo, pv, n+1);
+        attrP->pszObjId = MemLifoCopy(ticP->memlifoP, pv, n+1);
         if (ObjGetElements(NULL, objs[1], &nobjs, &valObjs) == TCL_OK) {
             attrP->cValue = nobjs;
-            attrP->rgValue = MemLifoAlloc(&ticP->memlifo, nobjs*sizeof(*(attrP->rgValue)), NULL);
+            attrP->rgValue = MemLifoAlloc(ticP->memlifoP, nobjs*sizeof(*(attrP->rgValue)), NULL);
             for (n = 0; n < nobjs; ++n) {
                 if (TwapiCryptEncodeObject(ticP, objs[0], valObjs[n], &attrP->rgValue[n]) != TCL_OK)
                     goto error_return;
@@ -1379,7 +1379,7 @@ static TCL_RESULT ParseCERT_REQUEST_INFO(
         } else {
             int i;
             criP->cAttribute = nobjs;
-            criP->rgAttribute = MemLifoAlloc(&ticP->memlifo, nobjs * sizeof(*(criP->rgAttribute)), NULL);
+            criP->rgAttribute = MemLifoAlloc(ticP->memlifoP, nobjs * sizeof(*(criP->rgAttribute)), NULL);
             for (i = 0; i < nobjs; ++i) {
                 if (ParseCRYPT_ATTRIBUTE(ticP, objs[i], &criP->rgAttribute[i]) != TCL_OK)
                     goto error_return;
@@ -1439,7 +1439,7 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     Tcl_Obj *algidObj, *startObj, *endObj, *extsObj, *provinfoObj;
     MemLifoMarkHandle mark;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
 
     if ((status = TwapiGetArgsEx(ticP, objc-1, objv+1,
                                  GETHANDLET(pv, HCRYPTPROV),
@@ -2100,7 +2100,7 @@ static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
         break;
     case CERT_FIND_SUBJECT_CERT:
         pv = &cinfo;
-        mark = MemLifoPushMark(&ticP->memlifo);
+        mark = MemLifoPushMark(ticP->memlifoP);
         res = ParseCERT_INFO(ticP, findObj, &cinfo);
         break;
     case CERT_FIND_KEY_IDENTIFIER: /* FALLTHRU */
@@ -2124,7 +2124,7 @@ static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
         break;
     case CERT_FIND_PUBLIC_KEY:
         pv = &pki;
-        mark = MemLifoPushMark(&ticP->memlifo);
+        mark = MemLifoPushMark(ticP->memlifoP);
         res = ParseCERT_PUBLIC_KEY_INFO(ticP, findObj, &pki);
         break;
     default:
@@ -2186,7 +2186,7 @@ static TCL_RESULT Twapi_CryptSignAndEncodeCertObjCmd(
     DWORD nbytes;
     DWORD structtype;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETHANDLET(hprov, HCRYPTPROV),
                          GETINT(keyspec), GETINT(enctype),
                          GETINT(structtype),
@@ -2334,7 +2334,7 @@ static TCL_RESULT Twapi_CertGetCertificateChainObjCmd(TwapiInterpContext *ticP, 
         ftP = NULL;
     }
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     res = ParseCERT_CHAIN_PARA(ticP, paramObj, &chain_params);
     if (res == TCL_OK) {
         if (CertGetCertificateChain(hce, certP, ftP, hstore, &chain_params, flags, NULL, &chainP)) {
@@ -2358,7 +2358,7 @@ static TCL_RESULT  Twapi_HashPublicKeyInfoObjCmd(TwapiInterpContext *ticP, Tcl_I
 
     CHECK_NARGS(interp, objc, 2);
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     if ((res = ParseCERT_PUBLIC_KEY_INFO(ticP, objv[1], &ckpi)) == TCL_OK) {
         objP = ObjFromByteArray(NULL, 20);
         if (CryptHashPublicKeyInfo(0, CALG_SHA1, 0,
@@ -2387,13 +2387,13 @@ static TCL_RESULT Twapi_CryptFormatObjectObjCmd(TwapiInterpContext *ticP, Tcl_In
     MemLifoMarkHandle mark;
     char *oid;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
                          GETINT(encoding), ARGSKIP, GETINT(flags), ARGSKIP,
                          GETASTR(oid), GETBA(encP, enclen), ARGEND);
     if (res == TCL_OK) {
         /* First try a buffer size guess */
-        bufP = MemLifoAlloc(&ticP->memlifo, enclen, &buflen);
+        bufP = MemLifoAlloc(ticP->memlifoP, enclen, &buflen);
         if (CryptFormatObject(encoding, 0, flags, NULL, oid, encP, enclen,
                               bufP, &buflen))
             ObjSetResult(interp, ObjFromUnicodeN(bufP, buflen/sizeof(WCHAR)));
@@ -2412,7 +2412,7 @@ static TCL_RESULT Twapi_CryptEncodeObjectExObjCmd(TwapiInterpContext *ticP, Tcl_
     CRYPT_OBJID_BLOB blob;
     MemLifoMarkHandle mark;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETOBJ(typeObj),
                          GETOBJ(valObj), ARGEND);
     if (res == TCL_OK) {
@@ -2434,7 +2434,7 @@ static TCL_RESULT Twapi_CryptDecodeObjectExObjCmd(TwapiInterpContext *ticP, Tcl_
     TCL_RESULT res;
     MemLifoMarkHandle mark;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETOBJ(typeObj),
                          GETBA(encP, enc_len), ARGEND);
     if (res == TCL_OK) {
@@ -2461,7 +2461,7 @@ static TCL_RESULT Twapi_CertVerifyChainPolicySSLObjCmd(TwapiInterpContext *ticP,
                      GETOBJ(paramObj), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     res = ParseCERT_CHAIN_POLICY_PARA_SSL(ticP, paramObj, &policy_paramP);
     if (res == TCL_OK) {
         ZeroMemory(&policy_status, sizeof(policy_status));
@@ -2556,7 +2556,7 @@ static int Twapi_CertSetCertificateContextPropertyObjCmd(TwapiInterpContext *tic
     CRYPT_KEY_PROV_INFO *kiP;
     CERT_CONTEXT *certP;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
                          GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),

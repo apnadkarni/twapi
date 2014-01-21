@@ -1073,7 +1073,7 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
      * size can keep changing so we try multiple times.
      */
     bufsz = 4000;
-    bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, &bufsz);
+    bufP = MemLifoPushFrame(ticP->memlifoP, bufsz, &bufsz);
     for (tries=0; tries < 10 ; ++tries) {
         if (sortable)
             error = (*fn)(bufP, &bufsz, sort);
@@ -1087,8 +1087,8 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
         
         /* Retry with bigger buffer */
         /* bufsz contains required size as returned by the functions */
-        MemLifoPopFrame(&ticP->memlifo);
-        bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, &bufsz);
+        MemLifoPopFrame(ticP->memlifoP);
+        bufP = MemLifoPushFrame(ticP->memlifoP, bufsz, &bufsz);
     }
 
     if (error == NO_ERROR) {
@@ -1097,7 +1097,7 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
         Twapi_AppendSystemError(ticP->interp, error);
     }
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return error == NO_ERROR ? TCL_OK : TCL_ERROR;
 }
@@ -1111,12 +1111,12 @@ int Twapi_GetNetworkParams(TwapiInterpContext *ticP)
     Tcl_Obj *objv[8];
 
     /* TBD - maybe allocate bigger space to start with ? */
-    netinfoP = MemLifoPushFrame(&ticP->memlifo, sizeof(*netinfoP), &netinfo_size);
+    netinfoP = MemLifoPushFrame(ticP->memlifoP, sizeof(*netinfoP), &netinfo_size);
     error = GetNetworkParams(netinfoP, &netinfo_size);
     if (error == ERROR_BUFFER_OVERFLOW) {
         /* Allocate a bigger buffer of the required size. */
-        MemLifoPopFrame(&ticP->memlifo);
-        netinfoP = MemLifoPushFrame(&ticP->memlifo, netinfo_size, NULL);
+        MemLifoPopFrame(ticP->memlifoP);
+        netinfoP = MemLifoPushFrame(ticP->memlifoP, netinfo_size, NULL);
         error = GetNetworkParams(netinfoP, &netinfo_size);
     }
 
@@ -1135,7 +1135,7 @@ int Twapi_GetNetworkParams(TwapiInterpContext *ticP)
         Twapi_AppendSystemError(ticP->interp, error);
     }
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }
@@ -1170,7 +1170,7 @@ int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
      * Latest MSDN recommends starting with 15K buffer.
      */
     bufsz = 16000;
-    iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(&ticP->memlifo,
+    iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(ticP->memlifoP,
                                                      bufsz, &bufsz);
     for (tries=0; tries < 10 ; ++tries) {
         error = GetAdaptersAddresses(family, flags, NULL, iaaP, &bufsz);
@@ -1180,8 +1180,8 @@ int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
         }
         
         /* realloc - bufsz contains required size as returned by the functions */
-        MemLifoPopFrame(&ticP->memlifo);
-        iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(&ticP->memlifo,
+        MemLifoPopFrame(ticP->memlifoP);
+        iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(ticP->memlifoP,
                                                          bufsz, &bufsz);
     }
 
@@ -1196,7 +1196,7 @@ int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
         ObjSetResult(ticP->interp, resultObj);
     }
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }
@@ -1211,14 +1211,14 @@ int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index)
     Tcl_Obj             *objv[3];
 
     /* Make first allocation assuming two ip addresses */
-    ainfoP = MemLifoPushFrame(&ticP->memlifo,
+    ainfoP = MemLifoPushFrame(ticP->memlifoP,
                               sizeof(*ainfoP)+2*sizeof(IP_ADDR_STRING),
                               &ainfo_size);
     error = GetPerAdapterInfo(adapter_index, ainfoP, &ainfo_size);
     if (error == ERROR_BUFFER_OVERFLOW) {
         /* Retry with indicated size */
-        MemLifoPopFrame(&ticP->memlifo);
-        ainfoP = MemLifoPushFrame(&ticP->memlifo, ainfo_size, NULL);
+        MemLifoPopFrame(ticP->memlifoP);
+        ainfoP = MemLifoPushFrame(ticP->memlifoP, ainfo_size, NULL);
         error = GetPerAdapterInfo(adapter_index, ainfoP, &ainfo_size);
     }
 
@@ -1230,7 +1230,7 @@ int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index)
     } else
         Twapi_AppendSystemError(ticP->interp, error);
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }

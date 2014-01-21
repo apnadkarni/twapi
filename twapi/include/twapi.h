@@ -63,7 +63,15 @@
 #   define TWAPI_EXTERN extern TWAPI_STORAGE_CLASS
 #endif
 
-
+#ifndef TWAPI_INLINE
+# ifdef _MSC_VER
+#  define TWAPI_INLINE __inline  /* Because VC++ 6 only accepts "inline" in C++  */
+# elif __GNUC__ && !__GNUC_STDC_INLINE__
+#  define TWAPI_INLINE extern inline
+# else
+#  define TWAPI_INLINE inline
+# endif
+#endif
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -897,13 +905,25 @@ typedef struct _TwapiCallback {
 
 
 /*
- * Thread local storage area
+ * Thread local storage area. This is initialized when the extension
+ * is loaded in the thread by an interpreter if no other interpreter
+ * in that thread has already done so. It is deallocated when the
+ * thread terminates.
  */
 typedef struct _TwapiTls {
     Tcl_ThreadId thread;
+
+    /*
+     * Every thread will have a memlifo to be used as a software stack.
+     * This is initialized when the TwapiTls blob is allocated and
+     * released when the thread terminates.
+     */
+    MemLifo memlifo;
+
 #define TWAPI_TLS_SLOTS 8
     DWORD_PTR slots[TWAPI_TLS_SLOTS];
-#define TWAPI_TLS_SLOT(slot_) (Twapi_GetTls()->slots[slot_])
+/* Unsafe access to a slot */
+#define TWAPI_TLS_SLOT_UNSAFE(slot_) (Twapi_GetTls()->slots[slot_])
 } TwapiTls;
 
 /*
@@ -953,8 +973,8 @@ typedef struct _TwapiInterpContext {
     ZLIST_DECL(TwapiCallback) pending;
 
     /*
-     * List of handles registered with the Windows thread pool. To be accessed
-     * only from the interp thread.
+     * List of handles registered with the Windows thread pool. 
+     * NOTE: TO BE ACCESSED ONLY FROM THE INTERP THREAD.
      */
     ZLIST_DECL(TwapiThreadPoolRegistration) threadpool_registrations; 
 
@@ -977,7 +997,17 @@ typedef struct _TwapiInterpContext {
 
     Tcl_ThreadId thread;     /* Id of interp thread */
 
-    MemLifo memlifo;            /* Must ONLY be used in interp thread */
+    /*
+     * Every thread will have a memlifo to be used as a software stack
+     * stored in the thread local storage (TLS) blob.
+     * This caches a pointer to it so if a TwapiInterpContext is
+     * available, we do not need to look up the TLS.
+     * The memlifo is cleaned up only when the thread exits at which
+     * point this context and the attached interp will no longer exist.
+     *
+     * NOTE:THIS FIELD MUST ONLY BE ACCESSED IN THE INTERP THREAD.
+     */
+    MemLifo *memlifoP;
 
     /*
      * A single lock that is shared among multiple lists attached to this
@@ -1467,10 +1497,23 @@ TWAPI_EXTERN void TwapiGetDllVersion(char *dll, DLLVERSIONINFO *verP);
 #define TwapiInterpContextRef(ticP_, incr_) InterlockedExchangeAdd(&(ticP_)->nrefs, (incr_))
 TWAPI_EXTERN void TwapiInterpContextUnref(TwapiInterpContext *ticP, int);
 TWAPI_EXTERN TwapiTls *Twapi_GetTls();
-TWAPI_EXTERN int Twapi_AssignTlsSlot();
+TWAPI_EXTERN int Twapi_AssignTlsSubSlot();
 TWAPI_EXTERN Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key);
 TWAPI_EXTERN void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *code);
 TWAPI_EXTERN TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp);
+
+/* Wrappers for memlifo based s/w stack */
+TWAPI_INLINE MemLifo *TwapiMemLifo() {
+    TwapiTls *tlsP = Twapi_GetTls();
+    return &tlsP->memlifo;
+}
+
+TWAPI_INLINE MemLifoMarkHandle TwapiPushMark(void) {
+    return MemLifoPushMark(TwapiMemLifo());
+}
+TWAPI_INLINE void TwapiPopMark(MemLifoMarkHandle mark) {
+    MemLifoPopMark(mark);
+}
 
 TWAPI_EXTERN TwapiInterpContext *TwapiRegisterModule(
     Tcl_Interp *interp,

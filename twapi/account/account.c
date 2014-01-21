@@ -855,7 +855,7 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
     TCL_RESULT res;
     MemLifoMarkHandle mark;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     naccts = 0;
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETINT(func),
                          GETEMPTYASNULL(servername),
@@ -868,7 +868,7 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
         goto vamoose;
 
     if (level == 0) {
-        u.lgmi0P = MemLifoAlloc(&ticP->memlifo, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_0), NULL);
+        u.lgmi0P = MemLifoAlloc(ticP->memlifoP, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_0), NULL);
         for (i = 0; i < naccts; ++i) {
             /* For efficiency reasons we do not use ObjToPSID */
             if (ConvertStringSidToSidW(ObjToUnicode(accts[i]), &u.lgmi0P[0].lgrmi0_sid) == 0) {
@@ -878,7 +878,7 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
             }
         }
     } else if (level == 3) {
-        u.lgmi3P = MemLifoAlloc(&ticP->memlifo, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_3), NULL);
+        u.lgmi3P = MemLifoAlloc(ticP->memlifoP, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_3), NULL);
         for (i = 0; i < naccts; ++i) {
             u.lgmi3P[i].lgrmi3_domainandname = ObjToUnicode(accts[i]);
         }

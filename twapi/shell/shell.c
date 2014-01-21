@@ -148,7 +148,7 @@ static TCL_RESULT Twapi_WriteShortcutObjCmd(
     psldl = NULL;
     itemIds = NULL;
     ppf = NULL;
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
  
     res = TwapiGetArgsEx(ticP, objc, objv,
                          GETWSTR(linkPath), GETEMPTYASNULL(objPath),
@@ -633,7 +633,7 @@ static TCL_RESULT Twapi_ShellExecuteExObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     SHELLEXECUTEINFOW sei;
     MemLifoMarkHandle mark;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     
     TwapiZeroMemory(&sei, sizeof(sei)); /* Also sets sei.lpIDList = NULL -
                                      Need to track if it needs freeing */

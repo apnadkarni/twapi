@@ -327,7 +327,7 @@ TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
                     ptrval = ObjToByteArray(objP, &len);
             }
             if (p)
-                *(unsigned char **)p = MemLifoCopy(&ticP->memlifo, ptrval, len);
+                *(unsigned char **)p = MemLifoCopy(ticP->memlifoP, ptrval, len);
             if (lenP)
                 *lenP = len;
             break;
@@ -425,7 +425,7 @@ TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
                     (fmtch == ARGTOKENNULL && lstrcmpW(uval, NULL_TOKEN_L) == 0)) {
                     *(WCHAR **)p = NULL;
                 } else {
-                    *(WCHAR **)p = MemLifoCopy(&ticP->memlifo, uval, sizeof(WCHAR)*(len+1));
+                    *(WCHAR **)p = MemLifoCopy(ticP->memlifoP, uval, sizeof(WCHAR)*(len+1));
                 }
             }
             break;
@@ -437,7 +437,7 @@ TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
             if (objP)
                 uval = ObjToUnicodeN(objP, &len);
             if (p)
-                *(WCHAR **)p = MemLifoCopy(&ticP->memlifo, uval, sizeof(WCHAR)*(len+1));
+                *(WCHAR **)p = MemLifoCopy(ticP->memlifoP, uval, sizeof(WCHAR)*(len+1));
             if (lenP)
                 *lenP = len;
             break;
@@ -482,22 +482,22 @@ TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
                     *iP = nargvobjs;
                 if (p) {
                     if (fmtch == ARGVA) {
-                        char **argv = MemLifoAlloc(&ticP->memlifo, sizeof(*argv)*(nargvobjs+1), NULL);
+                        char **argv = MemLifoAlloc(ticP->memlifoP, sizeof(*argv)*(nargvobjs+1), NULL);
                         for (j = 0; j < nargvobjs; ++j) {
                             char *s;
                             int slen;
                             s = ObjToStringN(argvobjs[j], &slen);
-                            argv[j] = MemLifoCopy(&ticP->memlifo, s, slen+1);
+                            argv[j] = MemLifoCopy(ticP->memlifoP, s, slen+1);
                         }
                         argv[j] = NULL;
                         *(char ***)p = argv;
                     } else {
-                        WCHAR **argv = MemLifoAlloc(&ticP->memlifo, sizeof(*argv)*(nargvobjs+1), NULL);
+                        WCHAR **argv = MemLifoAlloc(ticP->memlifoP, sizeof(*argv)*(nargvobjs+1), NULL);
                         for (j = 0; j < nargvobjs; ++j) {
                             WCHAR *s;
                             int slen;
                             s = ObjToUnicodeN(argvobjs[j], &slen);
-                            argv[j] = MemLifoCopy(&ticP->memlifo, s, sizeof(WCHAR)*(slen+1));
+                            argv[j] = MemLifoCopy(ticP->memlifoP, s, sizeof(WCHAR)*(slen+1));
                         }
                         argv[j] = NULL;
                         *(WCHAR ***)p = argv;
@@ -1625,7 +1625,7 @@ static int Twapi_TranslateNameObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inter
     WCHAR *bufP, *nameP;
     DWORD sz, nbytes, fmt, desired_fmt;
 
-    bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*MAX_PATH, &nbytes);
+    bufP = MemLifoPushFrame(ticP->memlifoP, sizeof(WCHAR)*MAX_PATH, &nbytes);
     sz = nbytes/sizeof(WCHAR);
     res = TwapiGetArgs(interp, objc-1, objv+1,
                        GETOBJ(nameObj), GETINT(fmt), GETINT(desired_fmt),
@@ -1636,7 +1636,7 @@ static int Twapi_TranslateNameObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inter
         nameP = ObjToUnicode(nameObj);
         if (! TranslateNameW(nameP, fmt, desired_fmt, bufP, &sz)) {
             if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
-                bufP = MemLifoAlloc(&ticP->memlifo, sizeof(WCHAR)*sz, NULL);
+                bufP = MemLifoAlloc(ticP->memlifoP, sizeof(WCHAR)*sz, NULL);
                 if (! TranslateNameW(nameP, fmt, desired_fmt, bufP, &sz))
                     res = TwapiReturnSystemError(interp);
             } else {
@@ -1646,7 +1646,7 @@ static int Twapi_TranslateNameObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inter
         if (res == TCL_OK)
             ObjSetResult(interp, ObjFromUnicodeN(bufP, sz-1));
     }
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
     return res;
 }
 
@@ -1659,7 +1659,7 @@ static int Twapi_FormatMessageFromStringObjCmd(TwapiInterpContext *ticP, Tcl_Int
     DWORD flags;
     MemLifoMarkHandle mark;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETINT(flags), GETOBJ(fmtObj),
                          GETARGVW(argv, argc), ARGEND);
     if (res == TCL_OK) {
@@ -1684,7 +1684,7 @@ static int Twapi_FormatMessageFromModuleObjCmd(TwapiInterpContext *ticP, Tcl_Int
     MemLifoMarkHandle mark;
     HANDLE hmod;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
                          GETINT(flags), GETHANDLE(hmod), GETINT(msgid),
                          GETINT(langid),
@@ -1716,7 +1716,7 @@ static int Twapi_ReportEventObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     MemLifoMarkHandle mark;
     TCL_RESULT res;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
                          GETHANDLE(hEventLog), GETWORD(wType), GETWORD(wCategory),
                          GETINT(dwEventID), GETVAR(lpUserSid, ObjToPSID),
@@ -1895,7 +1895,7 @@ static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int
     Tcl_Interp *interp = ticP->interp;
     MemLifoMarkHandle mark;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     user_buf = NULL;
     password_buf = NULL;
 
@@ -1937,7 +1937,7 @@ static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int
         }
     }
 
-    password_buf = MemLifoAlloc(&ticP->memlifo, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH + 1), NULL);
+    password_buf = MemLifoAlloc(ticP->memlifoP, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH + 1), NULL);
     if (ObjCharLength(passwordObj) == 0) {
         password_buf[0] = 0;
     } else {
@@ -1957,7 +1957,7 @@ static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int
         res = TwapiReturnError(interp, TWAPI_BUFFER_OVERRUN);
         goto vamoose;
     }
-    user_buf = MemLifoAlloc(&ticP->memlifo, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH + 1), NULL);
+    user_buf = MemLifoAlloc(ticP->memlifoP, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH + 1), NULL);
     CopyMemory(user_buf, user, sizeof(WCHAR) * (user_len+1));
 
     /* Zero out the decrypted password */

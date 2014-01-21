@@ -199,7 +199,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *ticP, int objc, T
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    bufP = MemLifoPushFrame(&ticP->memlifo, 256, &buf_sz);
+    bufP = MemLifoPushFrame(ticP->memlifoP, 256, &buf_sz);
     if (! SetupDiGetDeviceRegistryPropertyW(
             hdi, &sdd, regprop, &regtype, bufP, buf_sz, &buf_sz)) {
         /* Unsuccessful call. See if we need a larger buffer */
@@ -211,7 +211,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *ticP, int objc, T
 
         /* Try again with larger buffer, don't realloc as that will
            unnecessarily copy */
-        bufP = MemLifoAlloc(&ticP->memlifo, buf_sz, NULL);
+        bufP = MemLifoAlloc(ticP->memlifoP, buf_sz, NULL);
         /* Retry the call */
         if (! SetupDiGetDeviceRegistryPropertyW(
                 hdi, &sdd, regprop, &regtype, bufP, buf_sz, &buf_sz)) {
@@ -228,7 +228,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *ticP, int objc, T
     }
 
 vamoose:
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
     return tcl_status;
 }
 
@@ -251,7 +251,7 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tc
                      ARGEND) != TCL_OK)
             return TCL_ERROR;
 
-    sdiddP = MemLifoPushFrame(&ticP->memlifo, sizeof(*sdiddP)+MAX_PATH, &buf_sz);
+    sdiddP = MemLifoPushFrame(ticP->memlifoP, sizeof(*sdiddP)+MAX_PATH, &buf_sz);
     /* To be safe against bugs, ours or the driver's limit to 5 attempts */
     for (i = 0; i < 5; ++i) {
         sdiddP->cbSize = sizeof(*sdiddP); /* NOT size of entire buffer */
@@ -260,7 +260,7 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tc
         if (success || (winerr = GetLastError()) != ERROR_INSUFFICIENT_BUFFER)
             break;
         /* Retry with larger buffer size as returned in call */
-        sdiddP = MemLifoAlloc(&ticP->memlifo, buf_sz, NULL);
+        sdiddP = MemLifoAlloc(ticP->memlifoP, buf_sz, NULL);
     }
 
     if (success) {
@@ -270,7 +270,7 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tc
     } else
         Twapi_AppendSystemError(ticP->interp, winerr);
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return success ? TCL_OK : TCL_ERROR;
 }
@@ -288,7 +288,7 @@ int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Ob
     DWORD buf_sz;
     MemLifoMarkHandle mark;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
 
     success = 0;
     if (TwapiGetArgsEx(ticP, objc, objv,
@@ -298,7 +298,7 @@ int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Ob
                        GETVOIDP(reserved),
                        ARGEND) == TCL_OK) {
 
-        guidP = MemLifoAlloc(&ticP->memlifo, 10 * sizeof(*guidP), &buf_sz);
+        guidP = MemLifoAlloc(ticP->memlifoP, 10 * sizeof(*guidP), &buf_sz);
         allocated = buf_sz / sizeof(*guidP);
 
         /*
@@ -314,7 +314,7 @@ int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Ob
             }
             /* Retry with larger buffer size as returned in call */
             allocated = needed;
-            MemLifoAlloc(&ticP->memlifo, allocated * sizeof(*guidP), NULL);
+            MemLifoAlloc(ticP->memlifoP, allocated * sizeof(*guidP), NULL);
         }
 
         if (success) {

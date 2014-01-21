@@ -1774,7 +1774,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
     TCL_RESULT res;
     DWORD winerr;
     Tcl_Interp *interp = ticP->interp;
-    MemLifo *memlifoP = &ticP->memlifo;
+    MemLifo *memlifoP = ticP->memlifoP;
     void *pv;
     TDH_CONTEXT tdhctx;
     PROPERTY_DATA_DESCRIPTOR pdd[2];
@@ -1940,7 +1940,7 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
     Tcl_Obj *emptyObj;
 
     /* TBD - instrument how much to try for initially */
-    teiP = MemLifoAlloc(&ticP->memlifo, 1000, &sz);
+    teiP = MemLifoAlloc(ticP->memlifoP, 1000, &sz);
 
     tdhctx.ParameterValue = TwapiCalcPointerSize(evrP);
     tdhctx.ParameterType = TDH_CONTEXT_POINTERSIZE;
@@ -1948,7 +1948,7 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
 
     winerr = TdhGetEventInformation(evrP, 1, &tdhctx, teiP, &sz);
     if (winerr == ERROR_INSUFFICIENT_BUFFER) {
-        teiP = MemLifoAlloc(&ticP->memlifo, sz, NULL);
+        teiP = MemLifoAlloc(ticP->memlifoP, sz, NULL);
         winerr = TdhGetEventInformation(evrP, 1, &tdhctx, teiP, &sz);
     }
     
@@ -2056,7 +2056,7 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD evrP)
     }
 
     ticP = gETWContext.ticP;
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
 
     recObjs[0] = ObjFromEVENT_HEADER(&evrP->EventHeader);
 

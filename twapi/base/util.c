@@ -40,7 +40,7 @@ Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP)
  * 6.2 if the app has no appropriate manifest
  */
 MAKE_DYNLOAD_FUNC(RtlGetVersion, ntdll, FARPROC)
-BOOL TwapiRtlGetVersion(LPOSVERSIONINFO verP)
+BOOL TwapiRtlGetVersion(LPOSVERSIONINFOW verP)
 {
     FARPROC func = Twapi_GetProc_RtlGetVersion();
     if (func) {

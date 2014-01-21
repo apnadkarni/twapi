@@ -343,8 +343,8 @@ int Twapi_ParseargsObjCmd(
     nopts = objv[2]->internalRep.ptrAndLongRep.value;
 
     if (nopts > TWAPI_PARSEARGS_STATIC) {
-        valuesP = MemLifoPushFrame(&ticP->memlifo, nopts * sizeof(*valuesP), NULL);
-        retP = MemLifoAlloc(&ticP->memlifo, 2*nopts*sizeof(Tcl_Obj*), NULL);
+        valuesP = MemLifoPushFrame(ticP->memlifoP, nopts * sizeof(*valuesP), NULL);
+        retP = MemLifoAlloc(ticP->memlifoP, 2*nopts*sizeof(Tcl_Obj*), NULL);
     } else {
         valuesP = values;
         retP = retObjs;
@@ -647,7 +647,7 @@ int Twapi_ParseargsObjCmd(
     }
 
     if (valuesP && valuesP != values)
-        MemLifoPopFrame(&ticP->memlifo);
+        MemLifoPopFrame(ticP->memlifoP);
 
     return TCL_OK;
 
@@ -670,7 +670,7 @@ error_return:
         }
     }
     if (valuesP && valuesP != values)
-        MemLifoPopFrame(&ticP->memlifo);
+        MemLifoPopFrame(ticP->memlifoP);
 
     return TCL_ERROR;
 }
