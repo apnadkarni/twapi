@@ -1758,7 +1758,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
     TwapiInterpContext *ticP,
     EVENT_RECORD *evrP,
     TRACE_EVENT_INFO *teiP,
-    int prop_index,
+    USHORT prop_index,
     LPWSTR struct_name,         /* If non-NULL, property is actually member
                                    of a struct of this name */
     USHORT struct_index,        /* Index of owning struct property when
@@ -2001,7 +2001,7 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
                          ObjFromUnicodeLimited(evrP->UserData,
                                                evrP->UserDataLength/sizeof(WCHAR), NULL));
     } else {
-        ULONG i;
+        USHORT i;
 
         propObjs[1] = ObjNewList(teiP->TopLevelPropertyCount, NULL);
         for (i = 0; i < teiP->TopLevelPropertyCount; ++i) {

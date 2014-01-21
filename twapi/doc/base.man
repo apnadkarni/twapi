@@ -731,7 +731,7 @@ for a use case. [arg TYPE] must be one of [const empty], [const null]
 (corresponding to COM VARIANT types VT_EMPTY and VT_NULL), or one
 of the Tcl internal types
 [const int], [const boolean], [const double], [const string],
-[const list], or [const dict].
+[const list], or [const dict]. 
 
 [call [cmd tcltype] [arg VALUE]]
 Returns the internal Tcl type for a value.
