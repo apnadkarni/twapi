@@ -101,7 +101,7 @@ int Twapi_PdhEnumObjects(
      * as 0, as we want to get the data we already asked about else
      * the buffer size may be invalid
     */
-    buf = MemLifoPushFrame(&ticP->memlifo, (1+buf_sz)*sizeof(WCHAR), NULL);
+    buf = MemLifoPushFrame(ticP->memlifoP, (1+buf_sz)*sizeof(WCHAR), NULL);
     status = PdhEnumObjectsW(szDataSource, szMachineName, buf, &buf_sz,
                             dwDetailLevel, 0);
     if (status == ERROR_SUCCESS)
@@ -109,7 +109,7 @@ int Twapi_PdhEnumObjects(
     else
         Twapi_AppendSystemError(ticP->interp, status);
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return status == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }
@@ -147,10 +147,10 @@ int Twapi_PdhEnumObjectItems(TwapiInterpContext *ticP,
         return Twapi_AppendSystemError(ticP->interp, pdh_status);
     }
 
-    counter_buf = MemLifoPushFrame(&ticP->memlifo, counter_buf_size*sizeof(*counter_buf), NULL);
+    counter_buf = MemLifoPushFrame(ticP->memlifoP, counter_buf_size*sizeof(*counter_buf), NULL);
     /* Note instance_buf_size may be 0 if no instances - see SDK */
     if (instance_buf_size)
-        instance_buf = MemLifoAlloc(&ticP->memlifo,
+        instance_buf = MemLifoAlloc(ticP->memlifoP,
                                     instance_buf_size*sizeof(*instance_buf),
                                     NULL);
 
@@ -173,7 +173,7 @@ int Twapi_PdhEnumObjectItems(TwapiInterpContext *ticP,
                          ObjNewList((instance_buf_size ? 2 : 1), objs));
     }
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
     return pdh_status == ERROR_SUCCESS ?
         TCL_OK : Twapi_AppendSystemError(ticP->interp, pdh_status);
 }
@@ -190,7 +190,7 @@ int Twapi_PdhMakeCounterPath (TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     TCL_RESULT  result;
     MemLifoMarkHandle mark;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
 
     result = TwapiGetArgsEx(ticP, objc, objv,
                             GETEMPTYASNULL(pdh_elements.szMachineName),
@@ -208,7 +208,7 @@ int Twapi_PdhMakeCounterPath (TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
         if ((pdh_status != ERROR_SUCCESS) && (pdh_status != PDH_MORE_DATA)) {
             result = Twapi_AppendSystemError(ticP->interp, pdh_status);
         } else {
-            path_buf = MemLifoAlloc(&ticP->memlifo,
+            path_buf = MemLifoAlloc(ticP->memlifoP,
                                     path_buf_size*sizeof(*path_buf), NULL);
             pdh_status = PdhMakeCounterPathW(&pdh_elements, path_buf,
                                              &path_buf_size, dwFlags);
@@ -243,7 +243,7 @@ int Twapi_PdhParseCounterPath(
         result = TCL_ERROR;
     }
     else {
-        pdh_elems = MemLifoPushFrame(&ticP->memlifo, buf_size, NULL);
+        pdh_elems = MemLifoPushFrame(ticP->memlifoP, buf_size, NULL);
         pdh_status = PdhParseCounterPathW(szFullPathBuffer, pdh_elems,
                                           &buf_size, dwFlags);
     
@@ -267,7 +267,7 @@ int Twapi_PdhParseCounterPath(
             ObjSetResult(ticP->interp, ObjNewList(12, objs));
             result = TCL_OK;
         }
-        MemLifoPopFrame(&ticP->memlifo);
+        MemLifoPopFrame(ticP->memlifoP);
     }
 
     return result;

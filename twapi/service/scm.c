@@ -103,7 +103,7 @@ int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
     const char *cP;
 
     /* Ask for 1000 bytes alloc, will get more if available */
-    qbuf = (QUERY_SERVICE_CONFIGW *) MemLifoPushFrame(&ticP->memlifo,
+    qbuf = (QUERY_SERVICE_CONFIGW *) MemLifoPushFrame(ticP->memlifoP,
                                                       1000, &buf_sz);
 
     if (! QueryServiceConfigW(hService, qbuf, buf_sz, &buf_sz)) {
@@ -118,7 +118,7 @@ int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
          * We allocated max in current memlifo chunk above anyways. Also,
          * remember MemLifoResize will do unnecessary copy so we don't use it.
          */
-        qbuf = (QUERY_SERVICE_CONFIGW *) MemLifoAlloc(&ticP->memlifo, buf_sz, NULL);
+        qbuf = (QUERY_SERVICE_CONFIGW *) MemLifoAlloc(ticP->memlifoP, buf_sz, NULL);
 
         /* Get the configuration information.  */
         if (! QueryServiceConfigW(hService, qbuf, buf_sz, &buf_sz)) {
@@ -152,7 +152,7 @@ int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
     tcl_result = TCL_OK;
 
 vamoose:
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
     if (tcl_result != TCL_OK)
         Twapi_AppendSystemError(ticP->interp, winerr);
 
@@ -171,7 +171,7 @@ int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWOR
         return TwapiReturnError(ticP->interp, TWAPI_INVALID_OPTION);
 
     /* Ask for 256 bytes alloc, will get more if available */
-    bufP = (LPSERVICE_DESCRIPTIONW) MemLifoPushFrame(&ticP->memlifo,
+    bufP = (LPSERVICE_DESCRIPTIONW) MemLifoPushFrame(ticP->memlifoP,
                                                       256, &buf_sz);
 
     if (! QueryServiceConfig2W(hService, level, (LPBYTE) bufP, buf_sz, &buf_sz)) {
@@ -186,7 +186,7 @@ int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWOR
          * We allocated max in current memlifo chunk above anyways. Also,
          * remember MemLifoResize will do unnecessary copy so we don't use it.
          */
-        bufP = (LPSERVICE_DESCRIPTIONW) MemLifoAlloc(&ticP->memlifo, buf_sz, NULL);
+        bufP = (LPSERVICE_DESCRIPTIONW) MemLifoAlloc(ticP->memlifoP, buf_sz, NULL);
 
         /* Get the configuration information.  */
         if (! QueryServiceConfig2W(hService, level, (LPBYTE) bufP, buf_sz, &buf_sz)) {
@@ -201,7 +201,7 @@ int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWOR
     tcl_result = TCL_OK;
 
 vamoose:
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
     if (tcl_result != TCL_OK)
         Twapi_AppendSystemError(ticP->interp, winerr);
 
@@ -234,11 +234,11 @@ int  Twapi_QueryServiceLockStatus(
     }
 
     /* Allocate it */
-    sbuf = MemLifoPushFrame(&ticP->memlifo, buf_sz, NULL);
+    sbuf = MemLifoPushFrame(ticP->memlifoP, buf_sz, NULL);
     /* Get the configuration information.  */
     if (! QueryServiceLockStatusW(hService, sbuf, buf_sz, &buf_sz)) {
         TwapiReturnSystemError(interp); // Store before call to free
-        MemLifoPopFrame(&ticP->memlifo);
+        MemLifoPopFrame(ticP->memlifoP);
         return TCL_ERROR;
     }
 
@@ -247,7 +247,7 @@ int  Twapi_QueryServiceLockStatus(
     Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, obj, sbuf, lpLockOwner);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, obj, sbuf, dwLockDuration);
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     ObjSetResult(interp, obj);
 
@@ -293,7 +293,7 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     }
 
     /* 32000 - Initial estimate based on my system - TBD */
-    sbuf = MemLifoPushFrame(&ticP->memlifo, 32000, &buf_sz);
+    sbuf = MemLifoPushFrame(ticP->memlifoP, 32000, &buf_sz);
 
     /* NOTE - the returned Tcl_Obj from TwapiGetAtom must not be freed */
 
@@ -395,7 +395,7 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
 
 pop_and_vamoose:
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
     return status;
 }
 
@@ -420,7 +420,7 @@ int Twapi_EnumDependentServices(
     Tcl_Obj *resultObj;
 
 
-    sbuf = MemLifoPushFrame(&ticP->memlifo, 4000, &buf_sz);
+    sbuf = MemLifoPushFrame(ticP->memlifoP, 4000, &buf_sz);
 
     /* NOTE - the returned Tcl_Obj from TwapiGetAtom must not be freed */
 
@@ -453,8 +453,8 @@ int Twapi_EnumDependentServices(
         }
 
         /* Need a bigger buffer */
-        MemLifoPopFrame(&ticP->memlifo);
-        sbuf = MemLifoPushFrame(&ticP->memlifo, buf_sz, NULL);
+        MemLifoPopFrame(ticP->memlifoP);
+        sbuf = MemLifoPushFrame(ticP->memlifoP, buf_sz, NULL);
     } while (1);
 
     /* Note order of names should be same as order of values below */
@@ -507,7 +507,7 @@ int Twapi_EnumDependentServices(
     status = TCL_OK;
 
 pop_and_vamoose:
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
     return status;
 }
 
@@ -527,7 +527,7 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     MemLifoMarkHandle mark;
     Tcl_Obj *tagObj, *depObj, *passwordObj;
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
 
     res = TwapiGetArgsEx(ticP, objc, objv,
                          GETHANDLET(h, SC_HANDLE),
@@ -556,7 +556,7 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     if (lstrcmpW(dependencies, NULL_TOKEN_L) == 0) {
         dependencies = NULL;
     } else {
-        res = ObjToMultiSzEx(interp, depObj, (LPCWSTR*) &dependencies, &ticP->memlifo);
+        res = ObjToMultiSzEx(interp, depObj, (LPCWSTR*) &dependencies, ticP->memlifoP);
         if (res != TCL_OK)
             goto vamoose;
     }
@@ -602,7 +602,7 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
     Tcl_Obj *tagObj, *depObj, *passwordObj;
 
     dependencies = NULL;
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
 
     res = TwapiGetArgsEx(ticP, objc, objv,
                          GETHANDLET(scmH, SC_HANDLE),
@@ -630,7 +630,7 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
     if (lstrcmpW(dependencies, NULL_TOKEN_L) == 0) {
         dependencies = NULL;
     } else {
-        res = ObjToMultiSzEx(interp, depObj, (LPCWSTR*) &dependencies, &ticP->memlifo);
+        res = ObjToMultiSzEx(interp, depObj, (LPCWSTR*) &dependencies, ticP->memlifoP);
         if (res == TCL_ERROR)
             goto vamoose;
     }

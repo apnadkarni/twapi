@@ -135,9 +135,9 @@ static TCL_RESULT Twapi_SystemProcessorTimesObjCmd(TwapiInterpContext *ticP, Tcl
        larger than required. So do not update bufsz to actual allocated
        size, just use exact size as below
     */
-    bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, &bufsz);
+    bufP = MemLifoPushFrame(ticP->memlifoP, bufsz, &bufsz);
 #else
-    bufP = MemLifoPushFrame(&ticP->memlifo, bufsz, NULL);
+    bufP = MemLifoPushFrame(ticP->memlifoP, bufsz, NULL);
 #endif
     status = (*NtQuerySystemInformationPtr)(8, bufP, bufsz, &dummy);
 
@@ -159,7 +159,7 @@ static TCL_RESULT Twapi_SystemProcessorTimesObjCmd(TwapiInterpContext *ticP, Tcl
         ObjSetResult(interp, resultObj);
     }
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
     return status ?
         Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status))
         : TCL_OK;

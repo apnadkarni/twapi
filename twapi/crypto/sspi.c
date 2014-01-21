@@ -554,7 +554,7 @@ static TCL_RESULT ParseSEC_WINNT_AUTH_IDENTITY (
         return TCL_OK;
     }
 
-    swaiP = MemLifoAlloc(&ticP->memlifo, sizeof(*swaiP), NULL);
+    swaiP = MemLifoAlloc(ticP->memlifoP, sizeof(*swaiP), NULL);
     swaiP->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
     res = TwapiGetArgsEx(ticP, objc, objv,
                          GETWSTRN(swaiP->User, swaiP->UserLength),
@@ -565,7 +565,7 @@ static TCL_RESULT ParseSEC_WINNT_AUTH_IDENTITY (
         return res;
 
     password = ObjDecryptPassword(passwordObj, &swaiP->PasswordLength);
-    swaiP->Password = MemLifoCopy(&ticP->memlifo, password, sizeof(WCHAR)*(swaiP->PasswordLength+1));
+    swaiP->Password = MemLifoCopy(ticP->memlifoP, password, sizeof(WCHAR)*(swaiP->PasswordLength+1));
     TwapiFreeDecryptedPassword(password, swaiP->PasswordLength);
 
     *swaiPP = swaiP;
@@ -593,7 +593,7 @@ static TCL_RESULT ParseSCHANNEL_CRED (
         return TCL_OK;
     }
 
-    credP = MemLifoAlloc(&ticP->memlifo, sizeof(*credP), NULL);
+    credP = MemLifoAlloc(ticP->memlifoP, sizeof(*credP), NULL);
     res = TwapiGetArgsEx(ticP, objc, objv,
                          GETINT(credP->dwVersion),
                          GETOBJ(certsObj),
@@ -618,7 +618,7 @@ static TCL_RESULT ParseSCHANNEL_CRED (
 
     res = ObjGetElements(ticP->interp, certsObj, &objc, &objv);
     credP->cCreds = objc;
-    credP->paCred = MemLifoAlloc(&ticP->memlifo, objc * sizeof(*credP->paCred), NULL);
+    credP->paCred = MemLifoAlloc(ticP->memlifoP, objc * sizeof(*credP->paCred), NULL);
     while (objc--) {
         res = ObjToVerifiedPointer(ticP->interp, objv[objc],
                                    (void **)&credP->paCred[objc],
@@ -983,7 +983,7 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
         ObjToByteArray(objv[i], &enclen);
         sbufs[0].cbBuffer += enclen;
     }
-    sbufs[0].pvBuffer = MemLifoPushFrame(&ticP->memlifo,
+    sbufs[0].pvBuffer = MemLifoPushFrame(ticP->memlifoP,
                                          sbufs[0].cbBuffer, NULL);
     p = sbufs[0].pvBuffer;
     for (i = 2; i < objc; ++i) {
@@ -1069,7 +1069,7 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
         break;
     }
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
     return res;
 }
 
@@ -1090,7 +1090,7 @@ static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_In
     void *pv;
 
     pv = NULL;
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     luidP = &luid;
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
                        GETEMPTYASNULL(principalP), GETWSTR(packageP),

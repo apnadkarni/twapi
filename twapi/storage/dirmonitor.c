@@ -44,7 +44,7 @@ TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(TwapiInterpContext *ticP, Tcl_In
 
     ERROR_IF_UNTHREADED(interp);
 
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
                      GETWSTRN(pathP, path_len), GETBOOL(include_subtree),
                      GETINT(filter),

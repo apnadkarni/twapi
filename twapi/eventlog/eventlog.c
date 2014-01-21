@@ -52,7 +52,7 @@ static int Twapi_ReadEventLogObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
         return TCL_ERROR;
 
     /* Ask for 1000 bytes alloc, will get more if available. TBD - instrument */
-    bufP = MemLifoPushFrame(&ticP->memlifo, 1000, &buf_sz);
+    bufP = MemLifoPushFrame(ticP->memlifoP, 1000, &buf_sz);
 
     if (! ReadEventLogW(evlH, flags, offset,
                         bufP, buf_sz, &num_read, &buf_sz)) {
@@ -65,7 +65,7 @@ static int Twapi_ReadEventLogObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
          * We allocated max in current memlifo chunk above anyways. Also,
          * remember MemLifoResize will do unnecessary copy so we don't use it.
          */
-        bufP = MemLifoAlloc(&ticP->memlifo, buf_sz, NULL);
+        bufP = MemLifoAlloc(ticP->memlifoP, buf_sz, NULL);
         /* Retry */
         if (! ReadEventLogW(evlH, flags, offset,
                             bufP, buf_sz, &num_read, &buf_sz)) {
@@ -141,7 +141,7 @@ static int Twapi_ReadEventLogObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
     }
 
 vamoose:
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
     if (winerr == ERROR_SUCCESS) {
         ObjSetResult(interp, resultObj);
         return TCL_OK;

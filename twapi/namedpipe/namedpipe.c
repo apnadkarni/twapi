@@ -126,10 +126,10 @@ typedef struct _NPipeTls {
     
 } NPipeTls;
 
-static int gNPipeTlsSlot;
+static int gNPipeTlsSlot = -1;
 /* Use only when sure that module and thread init has been done */
-#define GET_NPIPE_TLS() ((NPipeTls *) TWAPI_TLS_SLOT(gNPipeTlsSlot))
-#define SET_NPIPE_TLS(p_) do {TWAPI_TLS_SLOT(gNPipeTlsSlot) = (DWORD_PTR) (p_);} while (0)
+#define GET_NPIPE_TLS() ((NPipeTls *) TWAPI_TLS_SLOT_UNSAFE(gNPipeTlsSlot))
+#define SET_NPIPE_TLS(p_) do {TWAPI_TLS_SLOT_UNSAFE(gNPipeTlsSlot) = (DWORD_PTR) (p_);} while (0)
 
 typedef struct _NPipeEvent {
     Tcl_Event header;
@@ -189,7 +189,7 @@ static int NPipeSetTclErrnoFromWin32Error(WIN32_ERROR winerr)
 
 static int NPipeModuleInit(Tcl_Interp *interp)
 {
-    gNPipeTlsSlot = Twapi_AssignTlsSlot();
+    gNPipeTlsSlot = Twapi_AssignTlsSubSlot();
     if (gNPipeTlsSlot < 0) {
         ObjSetStaticResult(interp, "Could not assign private TLS slot");
         return TCL_ERROR;
@@ -201,12 +201,16 @@ static int NPipeModuleInit(Tcl_Interp *interp)
 
 void NPipeThreadFinalize(void)
 {
-    NPipeTls *tlsP = GET_NPIPE_TLS();
-    if (tlsP == NULL)
-        return;
-
-    //TBD - release all channels, events etc.
-    // TBD - Tcl_DeleteEventSource(NPipeSetupProc, NPipeCheckProc, NULL);
+    if (gNPipeTlsSlot > 0) {
+        TwapiTls *tlsP;
+        /* Do not use GET_NPIPE_TLS directly here since TLS may be gone */
+        tlsP = Twapi_GetTls();
+        if (tlsP) {
+            NPipeTls *pipetlsP = GET_NPIPE_TLS();
+            //TBD - release all channels, events etc.
+            // TBD - Tcl_DeleteEventSource(NPipeSetupProc, NPipeCheckProc, NULL);
+        }
+    }
         
     return;
 }
@@ -1090,8 +1094,6 @@ static void NPipeThreadActionProc(
  */
 static void NPipeShutdown(Tcl_Interp *interp, NPipeChannel *pcP, int unrefs)
 {
-    NPipeTls *tlsP = GET_NPIPE_TLS();
-
     TWAPI_ASSERT(pcP->thread == NULL || pcP->thread == Tcl_GetCurrentThread());
 
     /*
