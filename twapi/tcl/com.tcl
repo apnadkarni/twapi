@@ -965,6 +965,8 @@ namespace eval twapi {
             uplevel 1 export [info class methods [lindex [info level -1] 1] -private]
         }
         proc comobj? {cobj} {
+            # TBD - would it be faster to keep explicit track through
+            # a dictionary ?
             set cobj [uplevel 1 [list namespace which -command $cobj]]
             if {[info object isa object $cobj] &&
                 [info object isa typeof $cobj ::twapi::Automation]} {
