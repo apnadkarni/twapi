@@ -22,22 +22,22 @@ int Twapi_EnumPrintersLevel4ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
     CHECK_INTEGER_OBJ(interp, flags, objv[1]);
 
-    buf = MemLifoPushFrame(&ticP->memlifo, sz, &sz);
+    buf = MemLifoPushFrame(ticP->memlifoP, sz, &sz);
 
     if (EnumPrintersW(flags, NULL, 4, buf, sz, &needed_sz, &num_printers) == FALSE) {
         DWORD err = GetLastError();
         if (err != ERROR_INSUFFICIENT_BUFFER) {
-            MemLifoPopFrame(&ticP->memlifo);
+            MemLifoPopFrame(ticP->memlifoP);
             return Twapi_AppendSystemError(interp, err);
         }
     }
 
     if (needed_sz > sz) {
         /* Note - No need to free previous alloc. Will all get freed together */
-        buf = MemLifoAlloc(&ticP->memlifo, needed_sz, &sz); 
+        buf = MemLifoAlloc(ticP->memlifoP, needed_sz, &sz); 
         if (EnumPrintersW(flags, NULL, 4, buf, sz, &needed_sz, &num_printers) == FALSE) {
             TwapiReturnSystemError(interp); /* Store before calling free */
-            MemLifoPopFrame(&ticP->memlifo);
+            MemLifoPopFrame(ticP->memlifoP);
             return TCL_ERROR;
         }
     }
@@ -53,7 +53,7 @@ int Twapi_EnumPrintersLevel4ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     }
 
     ObjSetResult(interp, resultObj);
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return TCL_OK;
 }

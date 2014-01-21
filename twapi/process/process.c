@@ -337,7 +337,7 @@ static int Twapi_EnumProcessesModulesObjCmd(
      */
     
     /* TBD - instrument buffer size */
-    bufP = MemLifoPushFrame(&ticP->memlifo, 2000, &buf_size);
+    bufP = MemLifoPushFrame(ticP->memlifoP, 2000, &buf_size);
     result = TCL_ERROR;
     do {
         switch (type) {
@@ -372,8 +372,8 @@ static int Twapi_EnumProcessesModulesObjCmd(
 
         /* Loop with bigger buffer */
         buf_size *= 2;
-        MemLifoPopFrame(&ticP->memlifo);
-        bufP = MemLifoPushFrame(&ticP->memlifo, buf_size, NULL);
+        MemLifoPopFrame(ticP->memlifoP);
+        bufP = MemLifoPushFrame(ticP->memlifoP, buf_size, NULL);
     }  while (1);
 
 
@@ -384,21 +384,21 @@ static int Twapi_EnumProcessesModulesObjCmd(
         if (type == 0) {
             /* PID's - DWORDS */
             num = buf_filled/sizeof(DWORD);
-            objvP = MemLifoAlloc(&ticP->memlifo, num * sizeof(objvP[0]), NULL);
+            objvP = MemLifoAlloc(ticP->memlifoP, num * sizeof(objvP[0]), NULL);
             for (i = 0; i < num; ++i) {
                 objvP[i] = ObjFromLong(((DWORD *)bufP)[i]);
             }
         } else if (type == 1) {
             /* Module handles */
             num = buf_filled/sizeof(HMODULE);
-            objvP = MemLifoAlloc(&ticP->memlifo, num * sizeof(objvP[0]), NULL);
+            objvP = MemLifoAlloc(ticP->memlifoP, num * sizeof(objvP[0]), NULL);
             for (i = 0; i < num; ++i) {
                 objvP[i] = ObjFromOpaque(((HMODULE *)bufP)[i], "HMODULE");
             }
         } else {
             /* device handles - pointers, again not real handles */
             num = buf_filled/sizeof(LPVOID);
-            objvP = MemLifoAlloc(&ticP->memlifo, num * sizeof(objvP[0]), NULL);
+            objvP = MemLifoAlloc(ticP->memlifoP, num * sizeof(objvP[0]), NULL);
             for (i = 0; i < num; ++i) {
                 objvP[i] = ObjFromOpaque(((HMODULE *)bufP)[i], "HMODULE");
             }
@@ -407,7 +407,7 @@ static int Twapi_EnumProcessesModulesObjCmd(
         ObjSetResult(ticP->interp, ObjNewList(num, objvP));
     }
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return result;
 }
@@ -697,7 +697,7 @@ static int TwapiCreateProcessHelper(TwapiInterpContext *ticP, int asuser, int ob
             return TCL_ERROR;
     }
         
-    mark = MemLifoPushMark(&ticP->memlifo);
+    mark = MemLifoPushMark(ticP->memlifoP);
 
     pattrP = NULL;              /* May be alloc'ed even on error */
     tattrP = NULL;              /* May be alloc'ed even on error */
@@ -713,7 +713,7 @@ static int TwapiCreateProcessHelper(TwapiInterpContext *ticP, int asuser, int ob
 
     envP = ObjToLPWSTR_WITH_NULL(envObj);
     if (envP) {
-        if (ObjToMultiSzEx(interp, envObj, (LPWSTR*) &envP, &ticP->memlifo) == TCL_ERROR)
+        if (ObjToMultiSzEx(interp, envObj, (LPWSTR*) &envP, ticP->memlifoP) == TCL_ERROR)
             goto vamoose;
         /* Note envP is allocated from ticP->memlifo */
     }

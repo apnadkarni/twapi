@@ -42,7 +42,7 @@ OSVERSIONINFO gTwapiOSVersionInfo;
 GUID gTwapiNullGuid;             /* Initialized to all zeroes */
 struct TwapiTclVersion gTclVersion;
 static int gTclIsThreaded;
-static DWORD gTlsIndex;         /* As returned by TlsAlloc */
+static DWORD gTlsIndex = TLS_OUT_OF_INDEXES; /* As returned by TlsAlloc */
 static ULONG volatile gTlsNextSlot;  /* Index into private slots in Tls area. */
 
 /* List of allocated interpreter - used primarily for unnotified cleanup */
@@ -86,6 +86,66 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
     return TRUE;
 }
 #endif
+
+static void TwapiTlsFinalizeThread(ClientData token)
+{
+    if (gTlsIndex != TLS_OUT_OF_INDEXES) {
+        TwapiTls *tlsP = TlsGetValue(gTlsIndex);
+        TWAPI_ASSERT(tlsP == token);
+        if (tlsP) {
+            MemLifoClose(&tlsP->memlifo);
+            TwapiFree(tlsP);
+            TlsSetValue(gTlsIndex, NULL);
+        }
+    }
+}
+
+static TCL_RESULT TwapiTlsInitThread()
+{
+    TwapiTls *tlsP;
+
+    TWAPI_ASSERT(gTlsIndex != TLS_OUT_OF_INDEXES);
+    tlsP = TlsGetValue(gTlsIndex);
+    if (tlsP == NULL) {
+        tlsP = (TwapiTls *) TwapiAllocZero(sizeof(*tlsP));
+        tlsP->thread = Tcl_GetCurrentThread();
+        /* TBD - should we raise alloc from 8000 ? Too small ? */
+        if (MemLifoInit(&tlsP->memlifo, NULL, NULL, NULL, 8000,
+                             MEMLIFO_F_PANIC_ON_FAIL) != ERROR_SUCCESS) {
+            TwapiFree(tlsP);
+            return TCL_ERROR;
+        }
+        if (! TlsSetValue(gTlsIndex, tlsP))
+            return TCL_ERROR;
+        Tcl_CreateThreadExitHandler(TwapiTlsFinalizeThread, tlsP);
+    }
+    return TCL_OK;
+}
+
+int Twapi_AssignTlsSubSlot()
+{
+    DWORD slot;
+    slot = InterlockedIncrement(&gTlsNextSlot);
+    if (slot > TWAPI_TLS_SLOTS) {
+        InterlockedDecrement(&gTlsNextSlot); /* So it does not grow unbounded */
+        return -1;
+    }
+    return slot-1;
+}
+
+/* TBD - make inline */
+TwapiTls *Twapi_GetTls()
+{
+    TwapiTls *tlsP;
+
+    tlsP = (TwapiTls *) TlsGetValue(gTlsIndex);
+    if (tlsP == NULL)
+        Tcl_Panic("TLS pointer is NULL");
+    return tlsP;
+}
+
+/* TBD - make inline */
+
 
 int TwapiLoadStaticModules(Tcl_Interp *interp)
 {
@@ -141,6 +201,10 @@ int Twapi_base_Init(Tcl_Interp *interp)
     /*
      * Per interp initialization
      */
+
+    if (TwapiTlsInitThread() != TCL_OK)
+        return TCL_ERROR;
+
     /*
      * Single-threaded COM model - note some Shell extensions
      * require this if functions such as ShellExecute are
@@ -400,14 +464,6 @@ static TwapiInterpContext *TwapiInterpContextNew(
     DWORD winerr;
     TwapiInterpContext* ticP = TwapiAlloc(sizeof(*ticP));
 
-    /* TBD - should we raise alloc from 8000 ? Too small ? */
-    winerr = MemLifoInit(&ticP->memlifo, NULL, NULL, NULL, 8000,
-                         MEMLIFO_F_PANIC_ON_FAIL);
-    if (winerr != ERROR_SUCCESS) {
-        Twapi_AppendSystemError(interp, winerr);
-        return NULL;
-    }
-
     ticP->nrefs = 0;
     ticP->interp = interp;
     ticP->thread = Tcl_GetCurrentThread();
@@ -444,6 +500,8 @@ TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmod
     if (ticP == NULL)
         return NULL;
 
+    /* Cache a pointer to the TLS memlifo */
+    ticP->memlifoP = TwapiMemLifo();
 
     /* For all the commands we register with the Tcl interp, we add a single
      * ref for the context, not one per command. This is sufficient since
@@ -472,8 +530,6 @@ TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmod
     return ticP;
 }
 
-
-
 static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
 {
 
@@ -489,8 +545,6 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
 
 
     // TBD - what about pipes ?
-
-    MemLifoClose(&ticP->memlifo);
 
     // TBD - what about freeing the memory?
 }
@@ -543,8 +597,6 @@ static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
         TwapiThreadPoolRegistrationShutdown(tprP);
     }
 
-
-    /* TBD - call other callback module clean up procedures */
     /* TBD - terminate device notification thread; */
     
     /* Unref for unlinking interp, +1 for removal from gTwapiInterpContexts */
@@ -565,11 +617,12 @@ TwapiInterpContext *TwapiGetBaseContext(Tcl_Interp *interp)
 }
 
 
-/* One time (per process) initialization */
+/* One time (per process) initialization for base module */
 static int TwapiOneTimeInit(Tcl_Interp *interp)
 {
     WSADATA ws_data;
     WORD    ws_ver = MAKEWORD(1,1);
+    TwapiTls *tlsP;
 
     gTlsIndex = TlsAlloc();
     if (gTlsIndex == TLS_OUT_OF_INDEXES)
@@ -615,32 +668,6 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
     }
 
     return TCL_ERROR;
-}
-
-int Twapi_AssignTlsSlot()
-{
-    DWORD slot;
-    slot = InterlockedIncrement(&gTlsNextSlot);
-    if (slot > TWAPI_TLS_SLOTS) {
-        InterlockedDecrement(&gTlsNextSlot); /* So it does not grow unbounded */
-        return -1;
-    }
-    return slot-1;
-}
-
-TwapiTls *Twapi_GetTls()
-{
-    TwapiTls *tlsP;
-
-    tlsP = (TwapiTls *) TlsGetValue(gTlsIndex);
-    if (tlsP)
-        return tlsP;
-
-    /* TLS for this thread not initialized yet */
-    tlsP = (TwapiTls *) TwapiAllocZero(sizeof(*tlsP));
-    tlsP->thread = Tcl_GetCurrentThread();
-    TlsSetValue(gTlsIndex, tlsP);
-    return tlsP;
 }
 
 TwapiId Twapi_NewId(TwapiInterpContext *ticP)

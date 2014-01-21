@@ -618,10 +618,10 @@ int Twapi_IDispatch_InvokeObjCmd(
      * where the param is by reference.
      */
     nargalloc = (1+(2*nparams));
-    dispargP = MemLifoPushFrame(&ticP->memlifo,
+    dispargP = MemLifoPushFrame(ticP->memlifoP,
                                 nargalloc * sizeof(*dispargP),
                                 NULL);
-    paramflagsP = MemLifoAlloc(&ticP->memlifo,
+    paramflagsP = MemLifoAlloc(ticP->memlifoP,
                                (nparams+1)*sizeof(*paramflagsP),
                                NULL);
 
@@ -839,7 +839,7 @@ int Twapi_IDispatch_InvokeObjCmd(
     }
 
     if (dispargP || paramflagsP)
-        MemLifoPopFrame(&ticP->memlifo);
+        MemLifoPopFrame(ticP->memlifoP);
 
     return status;
 }
@@ -865,13 +865,13 @@ static int TwapiGetIDsOfNamesHelper(
     if (ObjGetElements(interp, namesObj, &nitems, &items) == TCL_ERROR)
         return TCL_ERROR;
 
-    names = MemLifoPushFrame(&ticP->memlifo, nitems*sizeof(*names), NULL);
+    names = MemLifoPushFrame(ticP->memlifoP, nitems*sizeof(*names), NULL);
 
     for (i = 0; i < nitems; i++)
         names[i] = ObjToUnicode(items[i]);
 
     /* Allocate an array to hold returned ids */
-    ids = MemLifoAlloc(&ticP->memlifo, nitems * sizeof(*ids), NULL);
+    ids = MemLifoAlloc(ticP->memlifoP, nitems * sizeof(*ids), NULL);
 
     /* Map the names to ids */
     switch (ifc_type) {
@@ -904,7 +904,7 @@ static int TwapiGetIDsOfNamesHelper(
         status = TCL_ERROR;
     }
 vamoose:
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return status;
 }
@@ -1545,7 +1545,7 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
         
     }
 
-    u.pv = MemLifoPushFrame(&ticP->memlifo, (DWORD) (count * elem_size), NULL);
+    u.pv = MemLifoPushFrame(ticP->memlifoP, (DWORD) (count * elem_size), NULL);
 
     /*
      * Note, although these are output parameters, some COM objects expect
@@ -1583,7 +1583,7 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
      *      else error
      */
     if (hr != S_OK && hr != S_FALSE) {
-        MemLifoPopFrame(&ticP->memlifo);
+        MemLifoPopFrame(ticP->memlifoP);
         return Twapi_AppendSystemError(interp, hr);
     }
 
@@ -1609,7 +1609,7 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
         }
     }
         
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
     ObjSetResult(interp, ObjNewList(2, objv));
     return TCL_OK;
 }

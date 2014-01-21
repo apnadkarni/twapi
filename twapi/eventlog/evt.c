@@ -371,7 +371,7 @@ static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP,
         if (count == 0 || varP->BooleanArr == NULL)
             break;
 
-        objPP = MemLifoPushFrame(&ticP->memlifo,
+        objPP = MemLifoPushFrame(ticP->memlifoP,
                                  count * sizeof(objPP[0]), NULL);
 
         switch (varP->Type & EVT_VARIANT_TYPE_MASK) {
@@ -489,7 +489,7 @@ static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP,
         }
         TWAPI_ASSERT(count > 0 && objPP);
         objP = ObjNewList(count, objPP);
-        MemLifoPopFrame(&ticP->memlifo);
+        MemLifoPopFrame(ticP->memlifoP);
         break;
     }
 
@@ -513,14 +513,14 @@ static Tcl_Obj *ObjFromEVT_VARIANT_ARRAY(TwapiInterpContext *ticP, EVT_VARIANT *
     Tcl_Obj **objPP;
     Tcl_Obj *objP;
 
-    objPP = MemLifoPushFrame(&ticP->memlifo, count * sizeof (objPP[0]), NULL);
+    objPP = MemLifoPushFrame(ticP->memlifoP, count * sizeof (objPP[0]), NULL);
 
     for (i = 0; i < count; ++i) {
         objPP[i] = ObjFromEVT_VARIANT(ticP, &varP[i], 0);
     }
 
     objP = ObjNewList(count, objPP);
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return objP;
 }
@@ -692,13 +692,13 @@ static TCL_RESULT Twapi_EvtRenderUnicodeObjCmd(TwapiInterpContext *ticP, Tcl_Int
 
     /* TBD - instrument reallocation needs */
     sz = 256;
-    bufP = MemLifoPushFrame(&ticP->memlifo, sz, &sz);
+    bufP = MemLifoPushFrame(ticP->memlifoP, sz, &sz);
     status = ERROR_SUCCESS;
     if (EvtRender(hevt, hevt2, flags, sz, bufP, &sz, &count) == FALSE) {
         status = GetLastError();
         if (status == ERROR_INSUFFICIENT_BUFFER) {
             /* Note no need to MemlifoPopFrame before allocating more */
-            bufP = MemLifoAlloc(&ticP->memlifo, sz, &sz);
+            bufP = MemLifoAlloc(ticP->memlifoP, sz, &sz);
             if (EvtRender(hevt, hevt2, flags, sz, bufP, &sz, &count) == FALSE)
                 status = GetLastError();
             else
@@ -707,13 +707,13 @@ static TCL_RESULT Twapi_EvtRenderUnicodeObjCmd(TwapiInterpContext *ticP, Tcl_Int
     }
 
     if (status != ERROR_SUCCESS) {
-        MemLifoPopFrame(&ticP->memlifo);
+        MemLifoPopFrame(ticP->memlifoP);
         return Twapi_AppendSystemError(interp, status);
     }
 
     /* Unicode string. Should we use sz/2 instead of -1 ? TBD */
     objP = ObjFromUnicode(bufP);
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
     ObjSetResult(ticP->interp, objP);
     return TCL_OK;
 }
@@ -762,10 +762,10 @@ static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
 
     if (count > 1024) // TBD
         return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
-    hevtP = MemLifoPushFrame(&ticP->memlifo, count*sizeof(*hevtP), NULL);
+    hevtP = MemLifoPushFrame(ticP->memlifoP, count*sizeof(*hevtP), NULL);
     if (EvtNext(hevt, count, hevtP, timeout, dw, &count) != FALSE) {
         if (count) {
-            objPP = MemLifoAlloc(&ticP->memlifo, count*sizeof(*objPP), NULL);
+            objPP = MemLifoAlloc(ticP->memlifoP, count*sizeof(*objPP), NULL);
             for (i = 0; i < count; ++i) {
                 objPP[i] = ObjFromEVT_HANDLE(hevtP[i]);
             }
@@ -804,7 +804,7 @@ static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
     }
 
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
     return result;
 }
 
@@ -824,7 +824,7 @@ static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(TwapiInterpContext *ticP, T
         xpathsP = NULL;
     } else {
         /* Note ObjToArgvW needs an extra entry for terminating NULL */
-        xpathsP = MemLifoPushFrame(&ticP->memlifo, (count+1) * sizeof(xpathsP[0]), NULL);
+        xpathsP = MemLifoPushFrame(ticP->memlifoP, (count+1) * sizeof(xpathsP[0]), NULL);
         if (ObjToArgvW(interp, objv[1], xpathsP, count+1, &count) != TCL_OK)
             goto vamoose;
     }
@@ -840,7 +840,7 @@ static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(TwapiInterpContext *ticP, T
 
 vamoose:
     if (xpathsP)
-        MemLifoPopFrame(&ticP->memlifo);
+        MemLifoPopFrame(ticP->memlifoP);
     return ret;
 }
 
@@ -887,7 +887,7 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
         winerr = GetLastError();
         if (winerr == ERROR_INSUFFICIENT_BUFFER) {
             buf_sz = used;
-            bufP = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*buf_sz, NULL);
+            bufP = MemLifoPushFrame(ticP->memlifoP, sizeof(WCHAR)*buf_sz, NULL);
             if (EvtFormatMessage(hpub, hev, msgid, nvalues, valuesP, flags, buf_sz, bufP, &used) == FALSE) {
                 winerr = GetLastError();
             } else {
@@ -953,7 +953,7 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
     }
 
     if (bufP != buf)
-        MemLifoPopFrame(&ticP->memlifo);
+        MemLifoPopFrame(ticP->memlifoP);
 
     return status;
 }
@@ -975,7 +975,7 @@ static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(TwapiInterpContext *ticP, Tcl_In
                      GETINT(dw3), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    varP = MemLifoPushFrame(&ticP->memlifo, sizeof(EVT_VARIANT), &sz);
+    varP = MemLifoPushFrame(ticP->memlifoP, sizeof(EVT_VARIANT), &sz);
     while (1) {
         switch (func) {
         case 2:
@@ -1003,13 +1003,13 @@ static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(TwapiInterpContext *ticP, Tcl_In
             break;
 
         default:
-            MemLifoPopFrame(&ticP->memlifo);
+            MemLifoPopFrame(ticP->memlifoP);
             return TwapiReturnError(interp, TWAPI_INVALID_FUNCTION_CODE);
         }        
         if (status != FALSE || GetLastError() != ERROR_INSUFFICIENT_BUFFER)
             break;
         /* Loop to retry larger buffer. No need to free previous alloc first */
-        varP = MemLifoAlloc(&ticP->memlifo, sz, NULL);
+        varP = MemLifoAlloc(ticP->memlifoP, sz, NULL);
     }
 
     if (status == FALSE) {
@@ -1018,7 +1018,7 @@ static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(TwapiInterpContext *ticP, Tcl_In
     } else {
         ObjSetResult(interp, ObjFromEVT_VARIANT(ticP, varP, 0));
     }
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return status == FALSE ? TCL_ERROR : TCL_OK;
 }

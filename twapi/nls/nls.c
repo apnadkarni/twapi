@@ -59,7 +59,7 @@ int Twapi_GetNumberFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
         return TwapiReturnSystemError(ticP->interp);
     }
 
-    buf = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*(numchars+1), NULL);
+    buf = MemLifoPushFrame(ticP->memlifoP, sizeof(WCHAR)*(numchars+1), NULL);
 
     numchars = GetNumberFormatW(loc, flags, number_string, fmtP, buf, numchars);
     if (numchars == 0)
@@ -67,7 +67,7 @@ int Twapi_GetNumberFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
     else
         ObjSetResult(ticP->interp, ObjFromUnicodeN(buf, numchars-1));
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return numchars ? TCL_OK : TCL_ERROR;
 }
@@ -123,7 +123,7 @@ int Twapi_GetCurrencyFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     if (numchars == 0) {
         return TwapiReturnSystemError(ticP->interp);
     }
-    buf = MemLifoPushFrame(&ticP->memlifo, sizeof(WCHAR)*(numchars+1), NULL);
+    buf = MemLifoPushFrame(ticP->memlifoP, sizeof(WCHAR)*(numchars+1), NULL);
 
     numchars = GetCurrencyFormatW(loc, flags, number_string, fmtP, buf, numchars);
     if (numchars == 0)
@@ -131,7 +131,7 @@ int Twapi_GetCurrencyFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     else
         ObjSetResult(ticP->interp, ObjFromUnicodeN(buf, numchars-1));
 
-    MemLifoPopFrame(&ticP->memlifo);
+    MemLifoPopFrame(ticP->memlifoP);
 
     return numchars ? TCL_OK : TCL_ERROR;
 }
