@@ -87,10 +87,8 @@ typedef struct Twapi_EventSink {
     interface IDispatch idispP; /* Must be first field */
     IID iid;                    /* IID for this event sink interface */
     int refc;                   /* Ref count */
-    Tcl_Interp *interp;
-#define  MAX_EVENTSINK_CMDARGS 16
+    TwapiInterpContext *ticP;   /* Interpreter and related context */
     Tcl_Obj *cmd;               /* Stores the callback command arg list */
-
 } Twapi_EventSink;
 
 
@@ -332,8 +330,8 @@ static ULONG STDMETHODCALLTYPE Twapi_EventSink_Release(IDispatch *this)
 
     me->refc -= 1;
     if (((Twapi_EventSink *)this)->refc == 0) {
-        if (me->interp)
-            Tcl_Release(me->interp);
+        if (me->ticP)
+            TwapiInterpContextUnref(me->ticP, 1);
         if (me->cmd)
             ObjDecrRefs(me->cmd);
         TwapiFree(this);
@@ -393,8 +391,16 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
     Tcl_Obj **cmdprefixv;
     int     cmdobjc;
     Tcl_InterpState savedState;
+    Tcl_Interp *interp;
 
-    if (me == NULL)
+    if (me == NULL || me->ticP == NULL || me->ticP->interp == NULL)
+        return E_POINTER;
+
+    if (me->ticP->thread != Tcl_GetCurrentThread())
+        Tcl_Panic("Twapi_EventSink_Invoke called from non-interpreter thread");
+
+    interp = me->ticP->interp;
+    if (Tcl_InterpDeleted(interp))
         return E_POINTER;
 
     if (ObjGetElements(NULL, me->cmd, &cmdobjc, &cmdprefixv) != TCL_OK) {
@@ -404,7 +410,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
 
     /* Note we  will tack on 3 additional fixed arguments plus dispparms */
     /* TBD - where is this freed ? */
-    cmdobjv = TwapiAlloc((cmdobjc+4) * sizeof(*cmdobjv));
+    cmdobjv = MemLifoPushFrame(me->ticP->memlifoP, (cmdobjc+4) * sizeof(*cmdobjv), NULL);
     
     for (i = 0; i < cmdobjc; ++i) {
         cmdobjv[i] = cmdprefixv[i];
@@ -429,7 +435,6 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
     }
     ++cmdobjc;
                  
-
     for (i = 0; i < cmdobjc; ++i) {
         ObjIncrRefs(cmdobjv[i]); /* Protect while we are using it.
                                          Required by Tcl_EvalObjv */
@@ -449,11 +454,11 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
        Note tclWinDde also evals in this fashion.
     */
     /* If hr is not TCL_OK, it is a HRESULT error code */
-    savedState = Tcl_SaveInterpState(me->interp, TCL_OK);
-    Tcl_ResetResult (me->interp);
-    hr = Tcl_EvalObjv(me->interp, cmdobjc, cmdobjv, TCL_EVAL_GLOBAL);
+    savedState = Tcl_SaveInterpState(interp, TCL_OK);
+    Tcl_ResetResult (interp);
+    hr = Tcl_EvalObjv(interp, cmdobjc, cmdobjv, TCL_EVAL_GLOBAL);
     if (hr != TCL_OK) {
-        Tcl_BackgroundError(me->interp);
+        Tcl_BackgroundError(interp);
         if (excepP) {
             TwapiZeroMemory(excepP, sizeof(*excepP));
             excepP->scode = hr;
@@ -466,18 +471,18 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
             VariantInit(retvarP);
         hr = S_OK;
     }
-    Tcl_RestoreInterpState(me->interp, savedState);
+    Tcl_RestoreInterpState(interp, savedState);
 
     /* Free the objects we allocated */
     for (i = 0; i < cmdobjc; ++i) {
         ObjDecrRefs(cmdobjv[i]);
     }
 
+    MemLifoPopFrame(me->ticP->memlifoP);
+
     /* Undo the AddRef we did before */
     this->lpVtbl->Release(this);
     /* this/me may be invalid at this point! Make sure we don't access them */
-    this = NULL;
-    me = NULL;
 
     return hr;
 }
@@ -488,7 +493,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
  * 
  */
 int Twapi_ComEventSinkObjCmd(
-    ClientData dummy,
+    TwapiInterpContext *ticP,
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
@@ -496,6 +501,8 @@ int Twapi_ComEventSinkObjCmd(
     Twapi_EventSink *sinkP;
     IID iid;
     HRESULT hr;
+
+    TWAPI_ASSERT(ticP->interp == interp);
 
     if (objc != 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "IID CMD");
@@ -514,20 +521,16 @@ int Twapi_ComEventSinkObjCmd(
     /* Fill in the cmdargs slots from the arguments */
     sinkP->idispP.lpVtbl = &Twapi_EventSink_Vtbl;
     sinkP->iid = iid;
-    Tcl_Preserve(interp);   /* TBD - inappropriate use of interp, use ticP */
-    sinkP->interp = interp;
+    TwapiInterpContextRef(ticP, 1);
+    sinkP->ticP = ticP;
     sinkP->refc = 1;
     ObjIncrRefs(objv[2]);
     sinkP->cmd = objv[2];
 
     ObjSetResult(interp, ObjFromIUnknown(sinkP));
 
-
     return TCL_OK;
 }
-
-
-
 
 int Twapi_IDispatch_InvokeObjCmd(
     TwapiInterpContext *ticP,

@@ -530,6 +530,8 @@ TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmod
     return ticP;
 }
 
+/* Note CALLER MAY BE SOME OTHER THREAD, NOT NECESSARILY THE INTERP ONE */
+/* Most cleanup should have happened via Twapi_InterpCleanup */
 static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
 {
 
@@ -543,13 +545,11 @@ static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
         ticP->notification_win = 0;
     }
 
-
-    // TBD - what about pipes ?
-
     // TBD - what about freeing the memory?
 }
 
 /* Decrement ref count and free if 0 */
+/* Note CALLER MAY BE SOME OTHER THREAD, NOT NECESSARILY THE INTERP ONE */
 void TwapiInterpContextUnref(TwapiInterpContext *ticP, int decr)
 {
     if (InterlockedExchangeAdd(&ticP->nrefs, -decr) <= decr)
