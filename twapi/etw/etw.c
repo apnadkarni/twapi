@@ -1775,6 +1775,12 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
     DWORD winerr;
     Tcl_Interp *interp = ticP->interp;
     MemLifo *memlifoP = &ticP->memlifo;
+    void *pv;
+    TDH_CONTEXT tdhctx;
+    PROPERTY_DATA_DESCRIPTOR pdd[2];
+    int pdd_count;
+    ULONG prop_size;
+    ULONGLONG prop_name;
 
     epiP = &teiP->EventPropertyInfoArray[prop_index];
 
@@ -1783,10 +1789,44 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "NameOffset field is 0 for property in event record.");
     }
 
+    tdhctx.ParameterValue = TwapiCalcPointerSize(evrP);
+    tdhctx.ParameterType = TDH_CONTEXT_POINTERSIZE;
+    tdhctx.ParameterSize = 0;   /* Reserved value */
+
     res = TwapiTdhPropertyArraySize(ticP, evrP, teiP, prop_index, &nvalues);
     if (res != TCL_OK)
         return res;
     
+    prop_name = (ULONGLONG)(epiP->NameOffset + (char*) teiP);
+
+    /* Special case arrays of UNICHAR and ANSICHAR. These are actually strings*/
+    if ((epiP->Flags & PropertyStruct) == 0 &&
+        epiP->nonStructType.OutType == TDH_OUTTYPE_STRING &&
+        (epiP->nonStructType.InType == TDH_INTYPE_UNICODECHAR ||
+         epiP->nonStructType.InType == TDH_INTYPE_ANSICHAR)) {
+        pdd[0].PropertyName = prop_name;
+        pdd[0].ArrayIndex = ULONG_MAX; /* We want size of whole array */
+        pdd[0].Reserved = 0;
+        winerr = TdhGetPropertySize(evrP, 1, &tdhctx, 1, pdd, &prop_size);
+        if (winerr == ERROR_SUCCESS) {
+            /* Do we need to check for presence of map info here ? */
+            pv = MemLifoPushFrame(memlifoP, prop_size, NULL);
+            winerr = TdhGetProperty(evrP, 1, &tdhctx, 1, pdd, prop_size, pv);
+            if (winerr == ERROR_SUCCESS) {
+                *propvalObjP  = ObjNewList(1, NULL);
+                *propnameObjP = ObjFromUnicode((WCHAR *)(epiP->NameOffset + (char*)teiP));
+                if (epiP->nonStructType.InType == TDH_INTYPE_UNICODECHAR)
+                    ObjAppendElement(NULL, *propvalObjP,
+                                     ObjFromUnicodeLimited(pv, prop_size/sizeof(WCHAR), NULL));
+                else
+                    ObjAppendElement(NULL, *propvalObjP,
+                                     ObjFromStringLimited(pv, prop_size, NULL));
+            }
+            MemLifoPopFrame(memlifoP);
+        }
+        return winerr == ERROR_SUCCESS ? TCL_OK : Twapi_AppendSystemError(interp, winerr);
+    }
+
     valueObjs = nvalues ?
         MemLifoAlloc(memlifoP, nvalues * sizeof(*valueObjs), NULL)
         : NULL;
@@ -1815,39 +1855,33 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
             }
         } else {
             /* Property is a scalar */
-            PROPERTY_DATA_DESCRIPTOR pdd[2];
-            int pdd_count;
-            ULONG prop_size;
-            TDH_CONTEXT tdhctx;
-
-            tdhctx.ParameterValue = TwapiCalcPointerSize(evrP);
-            tdhctx.ParameterType = TDH_CONTEXT_POINTERSIZE;
-            tdhctx.ParameterSize = 0;   /* Reserved value */
-
             if (struct_name) {
                 pdd_count = 2;
                 pdd[0].PropertyName = (ULONGLONG)struct_name;
                 pdd[0].ArrayIndex = struct_index;
                 pdd[0].Reserved = 0;
-                pdd[1].PropertyName = (ULONGLONG)(epiP->NameOffset + (char*) teiP);
+                pdd[1].PropertyName = prop_name;
                 pdd[1].ArrayIndex = array_index; /* TBD - not clear what this should be */
                 pdd[1].Reserved = 0;
 
             } else {
                 /* Top level scalar, not part of a struct */
                 pdd_count = 1;
-                pdd[0].PropertyName = (ULONGLONG)(epiP->NameOffset + (char*) teiP);
+                pdd[0].PropertyName = prop_name;
                 pdd[0].ArrayIndex = array_index;
                 pdd[0].Reserved = 0;
 
                 /* TBD - sample in MSDN docs (not sdk sample) says tdh
                    cannot handle IPv6 data and skips event. Check on this */
             }            
+            /* TBD - see GetPropertyLength in SDK doc article
+               "Using TdhFormatProperty to Consume Event Data". More involved
+               than just calling TdhGetPropertySize. Do we need to copy
+               that code ? */
             winerr = TdhGetPropertySize(evrP, 1, &tdhctx, pdd_count, pdd, &prop_size);
             if (winerr == ERROR_SUCCESS) {
                 ULONG map_size;
                 EVENT_MAP_INFO *mapP;
-                void *pv;
 
                 /* Since we might be looping, alloc and release memory in 
                    every iteration.
