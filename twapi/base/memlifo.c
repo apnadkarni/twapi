@@ -7,8 +7,7 @@
 
 #include "twapi.h"
 
-/* MAX alloc is mainly to catch errors */
-#define MEMLIFO_MAX_ALLOC 1000000
+#define MEMLIFO_MAX_ALLOC INT_MAX
 
 typedef struct _MemLifoChunk MemLifoChunk;
 

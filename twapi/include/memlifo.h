@@ -118,7 +118,7 @@ MEMLIFO_EXTERN void* MemLifoAlloc
 Allocate memory from LIFO memory pool and copies data to it
 
 Allocates memory from a LIFO memory pool and returns a pointer to it
-after copy the data pointed to by srcP.
+after copying the data pointed to by srcP.
 If memory cannot be allocated, returns NULL unless MEMLIFO_F_PANIC_ON_FAIL
 is set for the pool, in which case it panics.
 
@@ -131,6 +131,17 @@ MEMLIFO_EXTERN void* MemLifoCopy
      DWORD nbytes      /* Number of bytes to copy */
     );
 
+
+/*f
+Allocate zeroed memory from LIFO memory pool
+
+Allocates zeroed memory from a LIFO memory pool and returns a pointer to it.
+If memory cannot be allocated, returns NULL unless MEMLIFO_F_PANIC_ON_FAIL
+is set for the pool, in which case it panics.
+
+Returns pointer to allocated memory on success, a null pointer on failure.
+*/
+MEMLIFO_EXTERN void* MemLifoZeroes(MemLifo *l, DWORD nbytes);
 
 /*f
 Allocate a software stack frame in a LIFO memory pool
