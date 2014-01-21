@@ -380,6 +380,9 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hevl [twapi::eventlog_open]
         set recs [twapi::eventlog_read $hevl]
+        if {[llength $recs] < 2} {
+            lappend recs {*}[twapi::eventlog_read $hevl]
+        }
         twapi::eventlog_close $hevl
         expr {[twapi::kl_get [lindex $recs 0] -recordnum] < [twapi::kl_get [lindex $recs 1] -recordnum]}
     } -result 1
@@ -393,6 +396,9 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hevl [twapi::eventlog_open]
         set recs [twapi::eventlog_read $hevl -direction forward]
+        if {[llength $recs] < 2} {
+            lappend recs {*}[twapi::eventlog_read $hevl]
+        }
         twapi::eventlog_close $hevl
         expr {[twapi::kl_get [lindex $recs 0] -recordnum] < [twapi::kl_get [lindex $recs 1] -recordnum]}
     } -result 1
