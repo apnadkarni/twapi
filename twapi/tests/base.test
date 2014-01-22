@@ -2410,7 +2410,7 @@ namespace eval twapi::base::test {
     test record-1.0 {
         record basic test
     } -body {
-        set r [uplevel #0 [list twapi::record {a b c} reccmd]]
+        set r [uplevel #0 [list twapi::record reccmd {a b c}]]
     } -cleanup {
         rename $r {}
     } -result ::reccmd
@@ -2426,7 +2426,7 @@ namespace eval twapi::base::test {
     test record-1.2 {
         record basic test namespace
     } -body {
-        set r [twapi::record {a b c} reccmd]
+        set r [twapi::record reccmd {a b c}]
     } -cleanup {
         rename $r {}
     } -result ::twapi::base::test::reccmd
@@ -2442,7 +2442,7 @@ namespace eval twapi::base::test {
     test record-1.4 {
         record basic test namespace
     } -body {
-        set r [twapi::record {a b c} ::reccmd]
+        set r [twapi::record ::reccmd {a b c} ]
     } -cleanup {
         rename $r {}
     } -result ::reccmd
@@ -2450,7 +2450,7 @@ namespace eval twapi::base::test {
     test record-1.5 {
         record basic test namespace empty definition
     } -body {
-        twapi::record {} reccmd
+        twapi::record reccmd {}
     } -returnCodes error -result "empty record definition"
 
     test record-2.0 {
