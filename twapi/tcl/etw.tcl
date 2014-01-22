@@ -46,6 +46,87 @@ namespace eval twapi {
     # Keeps track of open trace handles
     variable _etw_open_traces
     array set _etw_open_traces {}
+
+    #
+    # These record definitions match the lists constructed in the ETW C code
+    # Definitions for EVENT_RECORD
+    record tdh_event {
+        header
+        buffer_context
+        extended_data
+        data
+    }
+
+    record tdh_event_header {
+        flags
+        event_property
+        tid
+        pid
+        timestamp
+        kernel_time
+        user_time
+        processor_time
+        activity_id
+    }
+
+    record tdh_event_buffer_context {
+        processor
+        logger_id
+    }
+
+    record tdh_event_data {
+        provider_guid
+        event_guid
+        descriptor
+        decoder
+        provider_name
+        level_name
+        channel_name
+        keywords
+        task_name
+        opcode_name
+        message
+        localized_provider_name
+        activity_id
+        related_activity_id
+        properties
+    }
+
+    # Definitions for EVENT_TRACE_LOGFILE
+    record tdh_buffer {
+        logfile
+        logger
+        current_time
+        buffers_read
+        header
+        buffer_size
+        filled
+        kernel_trace
+    }
+
+    record tdh_logfile_header {
+        size
+        major_version
+        minor_version
+        sub_version
+        subminor_version
+        provider_version
+        processor_count
+        end_time
+        resolution
+        max_file_size
+        logfile_mode
+        buffers_written
+        pointer_size
+        events_lost
+        cpu_mhz
+        timezone
+        boot_time
+        perf_frequency
+        start_time
+        reserved_flags
+        buffers_lost
+    }
 }
 
 
@@ -566,6 +647,7 @@ proc twapi::etw_process_events {args} {
 
     return [ProcessTrace $args $opts(callback) $opts(start) $opts(end)]
 }
+
 
 proc twapi::etw_format_events {oswbemservices args} {
     set events {}
