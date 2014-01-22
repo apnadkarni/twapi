@@ -29,12 +29,6 @@ This is noted where applicable.
 [section Commands]
 [list_begin definitions]
 
-[call [cmd address_to_hostname] [arg IPADDRESS] [opt "[cmd -async] [arg SCRIPT]"] [opt [cmd -flushcache]]]
-
-This command is deprecated in favor of
-[uri network.html#resolve_address [cmd resolve_address]]. It only returns
-IPv4 addresses.
-
 [call [cmd flush_arp_tables] [opt "[arg INTERFACEINDEX]..."]]
 [emph "Note: This command only affects IPv4 tables"]
 [nl]
