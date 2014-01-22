@@ -1969,7 +1969,7 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
     emptyObj = ObjFromEmptyString();
     ObjIncrRefs(emptyObj);  /* Since we DecrRefs it for error handling */
 
-#define OFFSET_TO_OBJ(field_) (teiP->field_ ? ObjFromUnicode((LPWSTR)(teiP->field_ + (char*)teiP)) : emptyObj)
+#define OFFSET_TO_OBJ(field_) (teiP->field_ ? ObjFromUnicodeNoTrailingSpace((LPWSTR)(teiP->field_ + (char*)teiP)) : emptyObj)
 
     objs[0] = ObjFromGUID(&teiP->ProviderGuid);
     objs[1] = classic ? ObjFromGUID(&teiP->EventGuid) : emptyObj;
