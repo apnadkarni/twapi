@@ -1200,17 +1200,11 @@ proc twapi::_drivemask_to_drivelist {drivebits} {
 ### Type casts
 
 proc twapi::tclcast {type val} {
-    if {0} {
-        # Commented out because COM code sometimes shimmers types
-        # and then has to try and make a best effort at reverting types
-        # no matter what they are
-
-        # Only permit these because wideInt, for example, cannot be reliably
-        # converted -> it can return an int instead.
-        set types {empty null int boolean double string list dict}
-        if {$type ni $types} {
-            badargs! "Bad cast to \"$type\". Must be one of [join $types {, }]"
-        }
+    # Only permit these because wideInt, for example, cannot be reliably
+    # converted -> it can return an int instead.
+    set types {empty null int boolean double string list dict}
+    if {$type ni $types} {
+        badargs! "Bad cast to \"$type\". Must be one of [join $types {, }]"
     }
     return [Twapi_InternalCast $type $val]
 }
