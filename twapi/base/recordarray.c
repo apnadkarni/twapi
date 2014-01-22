@@ -559,16 +559,19 @@ TCL_RESULT Twapi_RecordObjCmd(
 {
     int len;
     TCL_RESULT res;
-    Tcl_Obj *nameObj;
+    Tcl_Obj *nameObj, *fieldsObj;
     Tcl_Namespace *nsP;
     char *sep;
 
-    if (objc < 2 || objc > 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "FIELDS ?RECORDNAME?");
+    switch (objc) {
+    case 2: fieldsObj = objv[1]; break;
+    case 3: fieldsObj = objv[2]; break;
+    default:
+        Tcl_WrongNumArgs(interp, 1, objv, "?RECORDNAME? FIELDS");
         return TCL_ERROR;
     }
     
-    res = ObjListLength(interp, objv[1], &len); 
+    res = ObjListLength(interp, fieldsObj, &len); 
     if (res != TCL_OK)
         return res;
     if (len == 0) {
@@ -581,9 +584,9 @@ TCL_RESULT Twapi_RecordObjCmd(
     if (objc < 3) 
         nameObj = Tcl_ObjPrintf("%s%srecord%d", nsP->fullName, sep, Twapi_NewId());
     else {
-        char *nameP = ObjToString(objv[2]);
+        char *nameP = ObjToString(objv[1]);
         if (nameP[0] == ':' && nameP[1] == ':')
-            nameObj = objv[2];
+            nameObj = objv[1];
         else
             nameObj = Tcl_ObjPrintf("%s%s%s", nsP->fullName, sep, nameP);
     }
@@ -593,10 +596,10 @@ TCL_RESULT Twapi_RecordObjCmd(
      * as clientdata so make sure it does not go away. Corresponding
      * ObjDecrRefs is in RecordInstanceObjCmdDelete
      */
-    ObjIncrRefs(objv[1]);
+    ObjIncrRefs(fieldsObj);
 
     Tcl_CreateObjCommand(interp, ObjToString(nameObj), RecordInstanceObjCmd,
-                         objv[1], RecordInstanceObjCmdDelete);
+                         fieldsObj, RecordInstanceObjCmdDelete);
 
     ObjSetResult(interp, nameObj);
     return TCL_OK;
