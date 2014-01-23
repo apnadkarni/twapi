@@ -392,8 +392,6 @@ struct TwapiObjKeyCache {
     Tcl_Obj *keyObj;
 };
 
-
-
 /* Event Trace Consumer Support */
 struct TwapiETWContext {
     TwapiInterpContext *ticP;
@@ -422,38 +420,14 @@ struct TwapiETWContext {
     ULONG user_mode;
 } gETWContext;                  /* IMPORTANT : Sync access via gETWCS */
 
-/* IMPORTANT : 
- * Used for events recieved in TwapiETWEventCallback.
- * Do not change order without changing the code there.
- */
-/* IMPORTANT : Sync access via gETWCS */
-struct TwapiObjKeyCache gETWEventKeys[] = {
-    {"-eventtype"},
-    {"-level"},
-    {"-version"},
-    {"-threadid"},
-    {"-processid"},
-    {"-timestamp"},
-    {"-guid"},
-    {"-kerneltime"},
-    {"-usertime"},
-    {"-processortime"},
-    {"-instanceid"},
-    {"-parentinstanceid"},
-    {"-parentguid"},
-    {"-mofdata"},
-};
 
-/* IMPORTANT : 
- * Used for events recieved in TwapiETWBufferCallback.
- * Do not change order without changing the code there.
- */
 /* IMPORTANT : Sync access via gETWCS */
 
 
-CRITICAL_SECTION gETWCS; /* Access to gETWContext, gETWEventKeys */
+CRITICAL_SECTION gETWCS; /* Access to gETWContext */
 
-
+/* Used for testing old MOF based APIs on newer Windows OS'es */
+static int gForceMofAPI = 0;
 
 /*
  * Event Trace Provider Support
@@ -1144,7 +1118,6 @@ void WINAPI TwapiETWEventCallback(
 
 
     /* TBD - create as a list - faster than as a dict */
-    /* IMPORTANT: the order is tied to order of gETWEventKeys[] ! */
     objs[0] = ObjFromEVENT_TRACE_HEADER(&evP->Header);
     objs[1] = ObjFromULONG(evP->InstanceId);
     objs[2] = ObjFromULONG(evP->ParentInstanceId);
@@ -2111,8 +2084,9 @@ TCL_RESULT Twapi_OpenTrace(ClientData clientdata, Tcl_Interp *interp, int objc, 
      *   LogFileMode instead of ProcessTraceMode
      *   EVENT_TRACE_REAL_TIME_MODE instead of PROCESS_TRACE_MODE_REAL_TIME
      * They are either the same field in the union, or have the same #define value
+     * The gForceMofAPI setting is primarily to test old APIs on newer OS'es
      */
-    if (gTdhStatus > 0) {
+    if (gTdhStatus > 0 && ! gForceMofAPI) {
         etl.LogFileMode = PROCESS_TRACE_MODE_EVENT_RECORD; /* Actually etl.ProcessTraceMode */
         etl.EventCallback = (PEVENT_CALLBACK) TwapiETWEventRecordCallback;   /* Actually etl.EventRecordCallback */
     } else
@@ -2214,16 +2188,6 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     gETWContext.ticP = ticP;
     gETWContext.pointer_size = sizeof(void*); /* Default unless otherwise indicated */
 
-    /* TBD - make these per interpreter keys */
-    /*
-     * Initialize the dictionary objects we will use as keys. These are
-     * tied to interp so have to redo on every call since the interp
-     * may not be the same.
-     */
-    for (i = 0; i < ARRAYSIZE(gETWEventKeys); ++i) {
-        gETWEventKeys[i].keyObj = ObjFromString(gETWEventKeys[i].keystring);
-        ObjIncrRefs(gETWEventKeys[i].keyObj);
-    }
 
     winerr = ProcessTrace(htraces, ntraces, startP, endP);
 
@@ -2235,12 +2199,6 @@ TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     gETWContext.ticP = NULL;
 
     LeaveCriticalSection(&gETWCS);
-
-    /* Deallocated the cached key objects */
-    for (i = 0; i < ARRAYSIZE(gETWEventKeys); ++i) {
-        ObjDecrRefs(gETWEventKeys[i].keyObj);
-        gETWEventKeys[i].keyObj = NULL; /* Just to catch bad access */
-    }
 
     if (etwc.eventsObj)
         ObjDecrRefs(etwc.eventsObj);
@@ -2662,11 +2620,19 @@ static int Twapi_ETWCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     case 3: // etw_provider_enabled
         objP = ObjFromBoolean((HANDLE)gETWProviderSessionHandle != INVALID_HANDLE_VALUE);
         break;
+    case 4:
+        CHECK_NARGS_RANGE(interp, objc, 1, 2);
+        if (objc == 2) {
+            CHECK_INTEGER_OBJ(interp, gForceMofAPI, objv[1]);
+        }
+        objP = ObjFromLong(gForceMofAPI);
+        break;
     default:
         return TwapiReturnError(interp, TWAPI_INVALID_FUNCTION_CODE);
     }
 
-    ObjSetResult(interp, objP);
+    if (objP)
+        ObjSetResult(interp, objP);
     return TCL_OK;
 }
 
@@ -2690,6 +2656,7 @@ static int TwapiETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(etw_provider_enable_flags, 1),     /* TBD docs */
         DEFINE_FNCODE_CMD(etw_provider_enable_level, 2),     /* TBD docs */
         DEFINE_FNCODE_CMD(etw_provider_enabled, 3),          /* TBD docs */
+        DEFINE_FNCODE_CMD(etw_force_mof, 4),
     };
 
     TwapiDefineTclCmds(interp, ARRAYSIZE(EtwDispatch), EtwDispatch, ticP);
