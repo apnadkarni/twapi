@@ -483,12 +483,21 @@ error_return:
     return TCL_ERROR;
 }
 
-static void RecordInstanceObjCmdDelete(ClientData fieldsObj)
+static Tcl_Obj *RecordGetField(Tcl_Interp *interp, Tcl_Obj *fieldsObj, Tcl_Obj *recObj, Tcl_Obj *fieldObj)
 {
-    ObjDecrRefs(fieldsObj);
+    int field_index;
+    Tcl_Obj *objP;
+
+    if (ObjToEnum(interp, fieldsObj, fieldObj, &field_index) == TCL_OK &&
+        ObjListIndex(interp, recObj, field_index, &objP) == TCL_OK) {
+        if (objP)
+            return objP;
+        ObjSetStaticResult(interp, "too few values in record");
+    }
+    return NULL;
 }
 
-TCL_RESULT RecordInstanceObjCmd(
+static TCL_RESULT RecordInstanceObjCmd(
     ClientData clientdata,
     Tcl_Interp *interp,
     int objc,
@@ -499,8 +508,15 @@ TCL_RESULT RecordInstanceObjCmd(
     Tcl_Obj **values;
     Tcl_Obj *objP;
     int field_index;
-    int i, j;
+    int i, j, cmd;
+    static const char *cmds[] = {
+        "get",
+        "set",
+        "select",
+        NULL,
+    };
 
+    objP = NULL;
     switch (objc) {
     case 1:
         objP = fieldsObj;
@@ -508,45 +524,75 @@ TCL_RESULT RecordInstanceObjCmd(
     case 2:
         if (ObjListLength(interp, fieldsObj, &i) != TCL_OK ||
             ObjListLength(interp, objv[1], &j) != TCL_OK)
-            return TCL_ERROR;
+            break;
         if (i != j) {
             ObjSetStaticResult(interp, "Number of field values not equal to number of fields");
-            return TCL_ERROR;
+            break;
         }
         objP = TwapiTwine(interp, fieldsObj, objv[1]);
-        if (objP == NULL)
-            return TCL_ERROR;   /* interp already has error */
         break;
     case 3:
-        if (ObjToEnum(interp, fieldsObj, objv[1], &field_index) != TCL_OK ||
-            ObjListIndex(interp, objv[2], field_index, &objP) != TCL_OK)
-            return TCL_ERROR;
-        if (objP == NULL) {
-            ObjSetStaticResult(interp, "too few values in record");
-            return TCL_ERROR;
-        }
+        objP = RecordGetField(interp, fieldsObj, objv[2], objv[1]);
         break;
-    case 4:
-        objP = objv[2];
-        if (ObjToEnum(interp, fieldsObj, objv[1], &field_index) != TCL_OK ||
-            ObjListLength(interp, objP, &i) != TCL_OK)
-            return TCL_ERROR;
-        if (i <= field_index) {
-            ObjSetStaticResult(interp, "too few values in record");
-            return TCL_ERROR;
-        }
-        if (Tcl_IsShared(objP))
-            objP = ObjDuplicate(objP);
-        Tcl_ListObjReplace(interp, objP, field_index, 1, 1, &objv[3]);
-        break;
-
     default:
-        Tcl_WrongNumArgs(interp, 1, objv, "?ENUM? ?FIELDNAME? ?FIELDVALUE?");
-        return TCL_ERROR;
+        if (Tcl_GetIndexFromObj(interp, objv[1], cmds, "command", TCL_EXACT, &cmd) != TCL_OK)
+            break;
+        switch (cmd) {
+        case 0: // get RECORD FIELD
+            if (objc != 4)
+                goto nargs_error;
+            objP = RecordGetField(interp, fieldsObj, objv[2], objv[3]);
+            break;
+        case 1: // set RECORD FIELD VALUE
+            if (objc != 5)
+                goto nargs_error;
+            if (ObjToEnum(interp, fieldsObj, objv[3], &field_index) != TCL_OK ||
+                ObjListLength(interp, objv[2], &i) != TCL_OK)
+                break;
+            if (i <= field_index) {
+                ObjSetStaticResult(interp, "too few values in record");
+                break;
+            }
+            if (Tcl_IsShared(objv[2]))
+                objP = ObjDuplicate(objv[2]);
+            else
+                objP = objv[2];
+            Tcl_ListObjReplace(interp, objP, field_index, 1, 1, &objv[4]);
+            break;
+        case 2: // select RECORD FIELDLIST
+            if (objc != 4)
+                goto nargs_error;
+            if (ObjGetElements(interp, objv[3], &j, &fields) != TCL_OK)
+                break;
+            objP = ObjNewList(j, NULL);
+            for (i = 0; i < j; ++i) {
+                Tcl_Obj *obj2P = RecordGetField(interp, fieldsObj, objv[2], fields[i]);
+                if (obj2P == NULL) {
+                    ObjDecrRefs(objP);
+                    objP = NULL;
+                    break;
+                }
+                ObjAppendElement(NULL, objP, obj2P);
+            }
+            break;
+        }
+        break;
     }
 
-    ObjSetResult(interp, objP);
-    return TCL_OK;
+    if (objP) {
+        ObjSetResult(interp, objP);
+        return TCL_OK;;
+    } else
+        return TCL_ERROR;       /* interp should already hold error */
+
+nargs_error:
+    Tcl_WrongNumArgs(interp, 1, objv, "command RECORD PARAM ?PARAM ...?");
+    return TCL_ERROR;
+}
+
+static void RecordInstanceObjCmdDelete(ClientData fieldsObj)
+{
+    ObjDecrRefs(fieldsObj);
 }
 
 
