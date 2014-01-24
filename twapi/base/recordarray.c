@@ -50,6 +50,7 @@ int Twapi_RecordArrayObjCmd(
     Tcl_Obj **fields;            /* Contents of recsObj */
     int      nfields;            /* Number of fields in record */
     int select_pos;              /* Position of field to use for compares */
+    int keyfield_pos;            /* Position of the key field */
     int first = 0;               /* If true, only first match returned */
     union {
         Tcl_WideInt wide;
@@ -59,8 +60,8 @@ int Twapi_RecordArrayObjCmd(
     TCL_RESULT res;
 
     Tcl_Obj *new_rec;
-    Tcl_Obj **new_recs = &new_rec;
-    int new_count;
+    Tcl_Obj **output = &new_rec;
+    int output_count;
 
     Tcl_Obj **slice_fields = NULL;   /* Names of the fields to retrieve */
     int       *slice_fieldindices = NULL; /* Positions of the fields to retrieve */
@@ -131,7 +132,15 @@ int Twapi_RecordArrayObjCmd(
         return TCL_OK;
     }
 
+    keyfield_pos = -1;
+    /* Key field is ignored unless output is RA_LIST or RA_DICT */
+    if (keyfieldObj && format != RA_LIST && format != RA_DICT) {
+        if ((res=ObjToEnum(interp, raObj[0], keyfieldObj, &keyfield_pos)) != TCL_OK)
+            return res;
+    }
+
     /* If selection criteria are given, find index of field to match on */
+    select_pos = -1;
     if (selectObj) {
         if ((res=ObjToEnum(interp, raObj[0], selectObj, &select_pos)) != TCL_OK
             ||
@@ -221,14 +230,16 @@ int Twapi_RecordArrayObjCmd(
     raObj = NULL;              /* So we do not inadvertently use it */
 
     if (first)
-        new_recs = &new_rec;
-    else
-        new_recs = MemLifoAlloc(ticP->memlifoP,
-                                nrecs * sizeof(Tcl_Obj*),
-                                NULL);
+        output = &new_rec;
+    else {
+        i = nrecs * sizeof(Tcl_Obj*);
+        if (keyfield_pos >= 0)
+            i *= 2; /* Need twice the space for a dictionary output */
+        output = MemLifoAlloc(ticP->memlifoP, i , NULL);
+    }
 
-    for (new_count = 0, i = 0; i < nrecs; ++i) {
-        if (selectObj) {
+    for (output_count = 0, i = 0; i < nrecs; ++i) {
+        if (select_pos >= 0) {
             Tcl_Obj *valueObj;
             /* select_pos gives position of field to match */
             res = ObjListIndex(interp, recs[i], select_pos, &valueObj);
@@ -252,12 +263,26 @@ int Twapi_RecordArrayObjCmd(
             }
         }
         /* We have a match */
+
+        /* Add in the dictionary key if so specified */
+        if (keyfield_pos >= 0) {
+            Tcl_Obj *keyObj;
+            TWAPI_ASSERT(format == RA_DICT || format == RA_LIST);
+            res = ObjListIndex(interp, recs[i], keyfield_pos, &keyObj);
+            if (res != TCL_OK)
+                break;
+            if (keyObj == NULL) {
+                res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "too few values in record");
+                break;
+            }
+            output[output_count++] = keyObj;
+        }
         if (sliceObj == NULL) {
             if (format == RA_DICT) {
-                new_recs[new_count++] = TwapiTwine(NULL, fieldsObj, recs[i]);
-                TWAPI_ASSERT(new_recs[new_count]);
+                output[output_count++] = TwapiTwine(NULL, fieldsObj, recs[i]);
+                TWAPI_ASSERT(output[output_count]);
             } else
-                new_recs[new_count++] = recs[i];
+                output[output_count++] = recs[i];
         } else {
             /* Make a new obj based on slice. recs[] contains source records.
                slice_fieldindices[] contains the field position in the source
@@ -277,24 +302,24 @@ int Twapi_RecordArrayObjCmd(
                 slice_values[j] = values[slice_fieldindices[j]];
             }
             if (format == RA_DICT)
-                new_recs[new_count++] = TwapiTwineObjv(slice_newfields, slice_values, nslice_fields);
+                output[output_count++] = TwapiTwineObjv(slice_newfields, slice_values, nslice_fields);
             else
-                new_recs[new_count++] = ObjNewList(nslice_fields, slice_values);;
+                output[output_count++] = ObjNewList(nslice_fields, slice_values);;
         }
         if (first) break;
     }
 
     if (res != TCL_OK) {
         if (sliceObj)
-            ObjDecrArrayRefs(new_count, new_recs);
+            ObjDecrArrayRefs(output_count, output);
         goto vamoose;
     }
 
-    /* new_recs[] contains new_count records to be returned */
+    /* output[] contains output_count records to be returned */
     /* Figure out output format */
     if (first) {
-        TWAPI_ASSERT(new_recs == &new_rec);
-        if (new_count)
+        TWAPI_ASSERT(output == &new_rec);
+        if (output_count)
             ObjSetResult(interp, new_rec);
         /* else empty result */
     } else {
@@ -302,13 +327,14 @@ int Twapi_RecordArrayObjCmd(
         Tcl_Obj *resultObj;
         switch (format) {
         case RA_FLAT:
-            resultObj = ObjNewList(new_count * (sliceObj ? nslice_fields : nfields), NULL);
-            for (i = 0; i < new_count; ++i)
-                Tcl_ListObjAppendList(NULL, resultObj, new_recs[i]);
+            resultObj = ObjNewList(output_count * (sliceObj ? nslice_fields : nfields), NULL);
+            for (i = 0; i < output_count; ++i)
+                Tcl_ListObjAppendList(NULL, resultObj, output[i]);
             break;
-        case RA_DICT: /* FALLTHRU as new_recs constructed for RA_DICT above */
+        case RA_DICT: /* FALLTHRU as output constructed for RA_DICT above */
         case RA_LIST:
-            resultObj = ObjNewList(new_count, new_recs);
+            /* Note output includes key fields also if so specified earlier */
+            resultObj = ObjNewList(output_count, output);
             break;
         case RA_ARRAY:
         default:
@@ -317,7 +343,7 @@ int Twapi_RecordArrayObjCmd(
                 resultObjs[0] = newfieldsObj;
             } else
                 resultObjs[0] = fieldsObj;
-            resultObjs[1] = ObjNewList(new_count, new_recs);
+            resultObjs[1] = ObjNewList(output_count, output);
             resultObj = ObjNewList(2, resultObjs);
             break;
         }
