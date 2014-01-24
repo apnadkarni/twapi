@@ -814,9 +814,6 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
             /* NULL SID pointer. */
             objv[3] = STRING_LITERAL_OBJ("");
         }
-#ifdef OBSOLETE
-        ObjAppendElement(interp, records, ObjFromLong(processP[i].ProcessId));
-#endif
         records[i] = ObjNewList(4, objv);
     }
 
@@ -832,6 +829,7 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
     /* Put field names and records to make up the recordarray */
     objv[0] = fields;
     objv[1] = ObjNewList(count, records);
+    MemLifoPopFrame(memlifoP);
     return ObjSetResult(interp, ObjNewList(2, objv));
 }
 
