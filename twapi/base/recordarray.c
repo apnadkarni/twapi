@@ -134,7 +134,7 @@ int Twapi_RecordArrayObjCmd(
 
     keyfield_pos = -1;
     /* Key field is ignored unless output is RA_LIST or RA_DICT */
-    if (keyfieldObj && format != RA_LIST && format != RA_DICT) {
+    if (keyfieldObj && (format == RA_LIST || format == RA_DICT)) {
         if ((res=ObjToEnum(interp, raObj[0], keyfieldObj, &keyfield_pos)) != TCL_OK)
             return res;
     }
