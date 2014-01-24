@@ -107,10 +107,10 @@ static TCL_RESULT Twapi_GetProcessList(
         /* Only include this process if we want all or pid matches */
         if (pid == (ULONG_PTR) (LONG_PTR) -1 || pid == this_pid) {
             /* List contains PID, Process info list pairs (flat list) */
-            ObjAppendElement(interp, resultObj,
-                                     ObjFromULONG_PTR(processP->ProcessId));
-
-            if (flags) {
+            if (!flags) {
+                ObjAppendElement(interp, resultObj,
+                                 ObjFromULONG_PTR(processP->ProcessId));
+            } else {
                 if (first_iteration)
                     process_fields[0] = STRING_LITERAL_OBJ("ProcessId");
                 process[0] = ObjFromULONG_PTR(processP->ProcessId);
@@ -215,10 +215,11 @@ static TCL_RESULT Twapi_GetProcessList(
 
                     threadP = &processP->Threads[0];
                     for (i=0; i < processP->ThreadCount; ++i, ++threadP) {
+#ifdef OBSOLETE
                         ObjAppendElement(interp,
                                                  threadlistObj,
                                                  ObjFromDWORD_PTR(threadP->ClientId.UniqueThread));
-
+#endif
                         if (first_iteration) {
                             thread_fields[0] = STRING_LITERAL_OBJ("ClientId.UniqueProcess");
                             thread_fields[1] = STRING_LITERAL_OBJ("ClientId.UniqueThread");

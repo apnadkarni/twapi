@@ -297,9 +297,9 @@ proc twapi::get_process_ids {args} {
     }
 
     if {$opts(glob)} {
-        set match_op "-glob"
+        set match_op ~
     } else {
-        set match_op "-string"
+        set match_op eq
     }
 
     # If we do not care about user or path, Twapi_GetProcessList
@@ -311,7 +311,7 @@ proc twapi::get_process_ids {args} {
             return [Twapi_GetProcessList -1 0]
         }
         # We need to match against the name
-        return [recordarray keys [recordarray filter $match_op -nocase [Twapi_GetProcessList -1 2] ProcessName $opts(name)]]
+        return [recordarray -select ProcessName $match_op $opts(name) -nocase -slice ProcessId -format flat [Twapi_GetProcessList -1 2]]
     }
 
 
@@ -332,11 +332,11 @@ proc twapi::get_process_ids {args} {
             return [list ]
         }
 
-        if {! [catch {recordarray filter [WTSEnumerateProcesses NULL] pUserSid $sid} wtslist]} {
+        if {! [catch {recordarray -select pUserSid eq $sid [WTSEnumerateProcesses NULL]} wtslist]} {
             if {[info exists opts(name)]} {
-                return [recordarray keys [recordarray filter $match_op $wtslist pProcessName $opts(name)]]
+                return [recordarray -select pProcessName $match_op $opts(name) -slice ProcessId -format flat $wtslist]
             } else {
-                return [recordarray keys $wtslist]
+                return [recordarray -slice ProcessId -format flat $wtslist]
             }
         }
     }
@@ -357,7 +357,7 @@ proc twapi::get_process_ids {args} {
     set process_pids [list ]
     if {[info exists opts(name)]} {
         # Note we may reach here if the WTS call above failed
-        set all_pids [recordarray keys [recordarray filter $match_op [Twapi_GetProcessList -1 2] ProcessName $opts(name)]]
+        set all_pids [recordarray -select ProcessName $match_op $opts(name) -nocase -slice ProcessId -format flat [Twapi_GetProcessList -1 2]]
     } else {
         set all_pids [Twapi_GetProcessList -1 0]
     }
@@ -649,7 +649,7 @@ proc twapi::process_exists {pid args} {
         if {[llength $pidlist] == 0} {
             return 0
         }
-        return [string $string_cmd -nocase $opts(name) [recordarray field -integer $pidlist $pid ProcessName]]
+        return [string $string_cmd -nocase $opts(name) [lindex $pidlist 1 0 1]]
     }
 
     # Need to match on the path
@@ -881,10 +881,10 @@ proc twapi::get_multiple_process_info {args} {
         set pidarg [expr {[llength $pids] == 1 ? [lindex $pids 0] : -1}]
         set data [twapi::Twapi_GetProcessList $pidarg $baseflags]
         if {$opts(all) || $opts(elapsedtime) || $opts(tids)} {
-            array set baserawdata [recordarray get $data]
+            array set baserawdata [recordarray -key ProcessId -format dict $data]
         }
         if {[info exists basefields]} {
-            array set results [recordarray get [recordarray slice $data $basefields]]
+            array set results [recordarray -key ProcessId -slice $basefields -format dict $data]
         }
     } else {
         array set results {}
@@ -935,7 +935,7 @@ proc twapi::get_multiple_process_info {args} {
 
         if {$opts(tids) || $opts(all)} {
             if {[info exists baserawdata($pid)]} {
-                set tids [recordarray keys [kl_get $baserawdata($pid) Threads]]
+                set tids [recordarray -slice ClientId.UniqueThread -format flat [kl_get $baserawdata($pid) Threads]]
                 lappend results($pid) -tids $tids
             } else {
                 lappend results($pid) -tids $opts(noexist)
@@ -1179,17 +1179,17 @@ proc twapi::get_thread_info {tid args} {
 
     if {$flags} {
         # We need at least one of the base options
-        foreach {pid tlist} [recordarray field [twapi::Twapi_GetProcessList -1 $flags] Threads] {
-            # piddata is a keyed list with thread info in the Threads field
-            # The value of the field is also in recordarray format
-            set threaddata [recordarray get -integer $tlist $tid]
-            if {[llength $threaddata]} {
-                # Found it!
-                array set threadinfo $threaddata
-                break
+        foreach tdata [recordarray -slice Threads -format flat [twapi::Twapi_GetProcessList -1 $flags]] {
+            foreach {tid2 threaddata} [recordarray -key ClientId.UniqueThread -format dict $tdata] {
+                if {$tid2 == $tid} {
+                    # Found it!
+                    array set threadinfo $threaddata
+                    break
+                }
             }
+            if {[info exists threadinfo]} break
         }
-        # It is possible that we looped through all the processs without
+        # It is possible that we looped through all the processes without
         # a thread match. Hence we check again that we have threadinfo for
         # each option value
         foreach {opt field} {
@@ -1729,8 +1729,9 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
     # Try the quicker way if looking for a name
     if {$type eq "name" &&
         ![catch {
-            twapi::recordarray field [twapi::Twapi_GetProcessList $pid 2] $pid ProcessName} name]} {
-        # recordarray returns empty, not error if key/field not found - TBD
+            Twapi_GetProcessList $pid 2
+        } plist]} {
+        set name [lindex $plist 1 0 1]
         if {$name ne ""} {
             return $name
         }
@@ -1773,7 +1774,7 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
 
         if {[string equal $type "name"]} {
             if {! [catch {WTSEnumerateProcesses NULL} precords]} {
-                return [recordarray field $precords $pid pProcessName]
+                return [lindex [recordarray -select ProcessId == $pid -slice pProcessName -format flat $precords] 0]
             }
 
             # That failed as well, try PDH. TBD - get rid of PDH
@@ -1825,8 +1826,8 @@ proc twapi::_get_wts_pids {v_sids v_names} {
     if {! [catch {WTSEnumerateProcesses NULL} precords]} {
         upvar $v_sids wtssids
         upvar $v_names wtsnames
-        array set wtssids [recordarray field $precords pUserSid]
-        array set wtsnames [recordarray field $precords pProcessName]
+        array set wtssids [recordarray -slice {ProcessId pUserSid} -format flat $precords]
+        array set wtsnames [recordarray -slice {ProcessId pUserSid} -format flat $precords]
     }
 }
 

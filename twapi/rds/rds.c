@@ -16,24 +16,24 @@ int Twapi_WTSEnumerateSessions(Tcl_Interp *interp, HANDLE wtsH)
     WTS_SESSION_INFOW *sessP = NULL;
     DWORD count;
     DWORD i;
-    Tcl_Obj *records = NULL;
+    Tcl_Obj **records;
     Tcl_Obj *fields = NULL;
     Tcl_Obj *objv[3];
+    MemLifo *memlifoP;
 
     /* Note wtsH == NULL means current server */
     if (! (BOOL) (WTSEnumerateSessionsW)(wtsH, 0, 1, &sessP, &count)) {
         return TwapiReturnSystemError(interp);
     }
 
-    records = ObjEmptyList();
+    memlifoP = TwapiMemLifo();
+    records = MemLifoPushFrame(memlifoP, count * sizeof(Tcl_Obj*), NULL);
     for (i = 0; i < count; ++i) {
         objv[0] = ObjFromLong(sessP[i].SessionId);
         objv[1] = ObjFromUnicode(sessP[i].pWinStationName);
         objv[2] = ObjFromLong(sessP[i].State);
 
-        /* Attach the session id as key and record to the result */
-        ObjAppendElement(interp, records, objv[0]);
-        ObjAppendElement(interp, records, ObjNewList(3, objv));
+        records[i] = ObjNewList(3, objv);
     }
 
     Twapi_WTSFreeMemory(sessP);
@@ -45,8 +45,9 @@ int Twapi_WTSEnumerateSessions(Tcl_Interp *interp, HANDLE wtsH)
     fields = ObjNewList(3, objv);
 
     objv[0] = fields;
-    objv[1] = records;
+    objv[1] = ObjNewList(count, records);
     ObjSetResult(interp, ObjNewList(2, objv));
+    MemLifoPopFrame(memlifoP);
     return TCL_OK;
 }
 

@@ -29,11 +29,11 @@ proc twapi::rds_enumerate_sessions {args} {
     set sessions [WTSEnumerateSessions $opts(hserver)]
 
     if {[info exists state]} {
-        set sessions [recordarray filter -integer $sessions State $state]
+        set sessions [recordarray -select State == $state $sessions]
     }
 
     set result {}
-    foreach {sess rec} [recordarray get $sessions] {
+    foreach {sess rec} [recordarray -key SessionId -format dict $sessions] {
         set state [lindex $states [kl_get $rec State]]
         if {$state eq ""} {
             set state [kl_get $rec State]
