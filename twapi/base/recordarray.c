@@ -28,9 +28,9 @@ int Twapi_RecordArrayObjCmd(
     enum opts_enum {RA_FORMAT, RA_SLICE, RA_SELECT, RA_KEY, RA_FIRST, RA_NOCASE};
     int opt;
     static const char *formats[] = {
-        "recordarray", "flat", "nested", "dict", "index", NULL
+        "recordarray", "flat", "list", "dict", "index", NULL
     };
-    enum format_enum {RA_ARRAY, RA_FLAT, RA_NESTED, RA_DICT, RA_INDEX};
+    enum format_enum {RA_ARRAY, RA_FLAT, RA_LIST, RA_DICT, RA_INDEX};
     int format = RA_ARRAY;
     static const char *select_ops[] = {
         "eq", "ne", "==", "!=", "~", "!~", NULL
@@ -156,21 +156,6 @@ int Twapi_RecordArrayObjCmd(
         }
     }
 
-    if (ObjGetElements(interp, objv[objc-1], &i, &raObj) != TCL_OK)
-        return TCL_ERROR;
-
-    if (i == 0)
-        return TCL_OK; /* TBD - check  empty result is valid for all commands */
-
-    if (i != 2)
-        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "Invalid recordarray format");
-
-    /* No commands -> return values */
-    if (objc == 2) {
-        ObjSetResult(interp, raObj[1]);
-        return TCL_OK;
-    }
-
     /* Any exits hereon must MemLifoPopFrame */
     mark = MemLifoPushMark(ticP->memlifoP);
 
@@ -200,7 +185,7 @@ int Twapi_RecordArrayObjCmd(
                 /* Should be just 1 or 2 elements in renaming entry */
                 res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid slice field renaming entry.");
             }
-            /* Note use raObj[0] here, as (a) fieldObj not init'ed yet,
+            /* Note use raObj[0] here, as (a) fieldsObj not init'ed yet,
                AND we want to pass the original, not dup, to ObjToEnum
                for performance reasons (it checks for cached values)
             */
@@ -220,8 +205,9 @@ int Twapi_RecordArrayObjCmd(
         ObjIncrRefs(newfieldsObj); /* NEEDED for correct vamoosing! */
     }
 
+    
     /*
-     * From this point, do not want recs[] and fields shimmering so dup first
+     * We do not want recs[] and fields shimmering so dup first
      * and then only access via dups, not originals.
      */
     recsObj = ObjDuplicate(raObj[1]);
@@ -233,7 +219,7 @@ int Twapi_RecordArrayObjCmd(
     if ((res = ObjGetElements(interp, fieldsObj, &nfields, &fields)) != TCL_OK)
         goto vamoose;
     raObj = NULL;              /* So we do not inadvertently use it */
-    
+
     if (first)
         new_recs = &new_rec;
     else
@@ -266,9 +252,13 @@ int Twapi_RecordArrayObjCmd(
             }
         }
         /* We have a match */
-        if (sliceObj == NULL)
-            new_recs[new_count++] = recs[i];
-        else {
+        if (sliceObj == NULL) {
+            if (format == RA_DICT) {
+                new_recs[new_count++] = TwapiTwine(NULL, fieldsObj, recs[i]);
+                TWAPI_ASSERT(new_recs[new_count]);
+            } else
+                new_recs[new_count++] = recs[i];
+        } else {
             /* Make a new obj based on slice. recs[] contains source records.
                slice_fieldindices[] contains the field position in the source
                records to be picked up.
@@ -286,7 +276,10 @@ int Twapi_RecordArrayObjCmd(
                 TWAPI_ASSERT(slice_fieldsindices[j] < nvalues); /* Follows from prior checks */
                 slice_values[j] = values[slice_fieldindices[j]];
             }
-            new_recs[new_count++] = ObjNewList(nslice_fields, slice_values);
+            if (format == RA_DICT)
+                new_recs[new_count++] = TwapiTwineObjv(slice_newfields, slice_values, nslice_fields);
+            else
+                new_recs[new_count++] = ObjNewList(nslice_fields, slice_values);;
         }
         if (first) break;
     }
@@ -306,13 +299,29 @@ int Twapi_RecordArrayObjCmd(
         /* else empty result */
     } else {
         Tcl_Obj *resultObjs[2];
-        if (sliceObj) {
-            TWAPI_ASSERT(newfieldsObj);
-            resultObjs[0] = newfieldsObj;
-        } else
-            resultObjs[0] = fieldsObj;
-        resultObjs[1] = ObjNewList(new_count, new_recs);
-        ObjSetResult(interp, ObjNewList(2, resultObjs));
+        Tcl_Obj *resultObj;
+        switch (format) {
+        case RA_FLAT:
+            resultObj = ObjNewList(new_count * (sliceObj ? nslice_fields : nfields), NULL);
+            for (i = 0; i < new_count; ++i)
+                Tcl_ListObjAppendList(NULL, resultObj, new_recs[i]);
+            break;
+        case RA_DICT: /* FALLTHRU as new_recs constructed for RA_DICT above */
+        case RA_LIST:
+            resultObj = ObjNewList(new_count, new_recs);
+            break;
+        case RA_ARRAY:
+        default:
+            if (sliceObj) {
+                TWAPI_ASSERT(newfieldsObj);
+                resultObjs[0] = newfieldsObj;
+            } else
+                resultObjs[0] = fieldsObj;
+            resultObjs[1] = ObjNewList(new_count, new_recs);
+            resultObj = ObjNewList(2, resultObjs);
+            break;
+        }
+        ObjSetResult(interp, resultObj);
     }
 
 vamoose:
