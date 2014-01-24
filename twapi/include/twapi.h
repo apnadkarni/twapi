@@ -1503,7 +1503,7 @@ TWAPI_EXTERN void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcm
 TWAPI_EXTERN TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp);
 
 /* Wrappers for memlifo based s/w stack */
-TWAPI_INLINE MemLifo *TwapiMemLifo() {
+TWAPI_INLINE MemLifo *TwapiMemLifo(void) {
     TwapiTls *tlsP = Twapi_GetTls();
     return &tlsP->memlifo;
 }
@@ -1511,10 +1511,22 @@ TWAPI_INLINE MemLifo *TwapiMemLifo() {
 TWAPI_INLINE MemLifoMarkHandle TwapiPushMark(void) {
     return MemLifoPushMark(TwapiMemLifo());
 }
+
 TWAPI_INLINE void TwapiPopMark(MemLifoMarkHandle mark) {
     MemLifoPopMark(mark);
 }
 
+TWAPI_INLINE void *TwapiPushFrame(DWORD sz, DWORD *szP) {
+    return MemLifoPushFrame(TwapiMemLifo(), sz, szP);
+}
+
+TWAPI_INLINE void TwapiPopFrame(void) {
+    MemLifoPopFrame(TwapiMemLifo());
+}
+
+
+
+/* Module management */
 TWAPI_EXTERN TwapiInterpContext *TwapiRegisterModule(
     Tcl_Interp *interp,
     HMODULE hmod,
@@ -1527,6 +1539,7 @@ TWAPI_EXTERN TwapiInterpContext *TwapiRegisterModule(
 #define NEW_TIC     1
     );
 
+/* Pointer management */
 TWAPI_EXTERN TCL_RESULT TwapiRegisterPointerTic(TwapiInterpContext *, const void *p, void *typetag);
 TWAPI_EXTERN TCL_RESULT TwapiRegisterCountedPointerTic(TwapiInterpContext *, const void *p, void *typetag);
 TWAPI_EXTERN int TwapiUnregisterPointerTic(TwapiInterpContext *, const void *p, void *typetag);
