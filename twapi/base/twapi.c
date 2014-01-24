@@ -782,18 +782,18 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
     WTS_PROCESS_INFOW *processP = NULL;
     DWORD count;
     DWORD i;
-    Tcl_Obj *records = NULL;
+    Tcl_Obj **records;
     Tcl_Obj *fields = NULL;
     Tcl_Obj *objv[4];
+    MemLifo *memlifoP;
 
     /* Note wtsH == NULL means current server */
     if (! (BOOL) (WTSEnumerateProcessesW)(wtsH, 0, 1, &processP, &count)) {
         return Twapi_AppendSystemError(interp, GetLastError());
     }
 
-
-    /* Now create the data records */
-    records = ObjNewList(0, NULL);
+    memlifoP = TwapiMemLifo();
+    records = MemLifoPushFrame(memlifoP, count * sizeof(Tcl_Obj*), NULL);
     for (i = 0; i < count; ++i) {
         Tcl_Obj *sidObj;
 
@@ -804,7 +804,8 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
         if (processP[i].pUserSid) {
             if (ObjFromSID(interp, processP[i].pUserSid, &sidObj) != TCL_OK) {
                 Twapi_WTSFreeMemory(processP);
-                Twapi_FreeNewTclObj(records);
+                ObjDecrArrayRefs(i, records);
+                MemLifoPopFrame(memlifoP);
                 return TCL_ERROR;
             }
             objv[3] = sidObj;
@@ -813,9 +814,10 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
             /* NULL SID pointer. */
             objv[3] = STRING_LITERAL_OBJ("");
         }
-
+#ifdef OBSOLETE
         ObjAppendElement(interp, records, ObjFromLong(processP[i].ProcessId));
-        ObjAppendElement(interp, records, ObjNewList(4, objv));
+#endif
+        records[i] = ObjNewList(4, objv);
     }
 
     Twapi_WTSFreeMemory(processP);
@@ -829,7 +831,7 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
 
     /* Put field names and records to make up the recordarray */
     objv[0] = fields;
-    objv[1] = records;
+    objv[1] = ObjNewList(count, records);
     return ObjSetResult(interp, ObjNewList(2, objv));
 }
 
