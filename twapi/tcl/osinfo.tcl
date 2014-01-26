@@ -201,6 +201,10 @@ proc twapi::get_os_description {} {
 #  $processor should be processor number or "" for "total"
 proc twapi::get_processor_info {processor args} {
 
+    if {![string is integer $processor]} {
+        error "Invalid processor number \"$processor\". Should be a processor identifier or the empty string to signify all processors"
+    }
+
     if {![info exists ::twapi::get_processor_info_base_opts]} {
         array set ::twapi::get_processor_info_base_opts {
             idletime    IdleTime
@@ -241,7 +245,7 @@ proc twapi::get_processor_info {processor args} {
                                      currentprocessorspeed \
                                      [list interval.int 100]] \
                              [array names ::twapi::get_processor_info_base_opts] \
-                             $pdh_opts $sysinfo_opts]]
+                             $pdh_opts $sysinfo_opts] -maxleftover 0]
 
     # Registry lookup for processor description
     # If no processor specified, use 0 under the assumption all processors
@@ -296,7 +300,6 @@ proc twapi::get_processor_info {processor args} {
         }
     }
 
-
     if {[llength $requested_opts]} {
         package require twapi_pdh
         set counter_list [get_perf_processor_counter_paths $processor {*}$requested_opts]
@@ -309,14 +312,14 @@ proc twapi::get_processor_info {processor args} {
     if {$opts(all) || $opts(arch) || $opts(processorlevel) || $opts(processorrev)} {
         set sysinfo [GetSystemInfo]
         if {$opts(all) || $opts(arch)} {
-            switch -exact -- [lindex $sysinfo 0] {
-                0 {set arch intel}
-                6 {set arch ia64}
-                9 {set arch amd64}
-                10 {set arch ia32_win64}
-                default {set arch unknown}
-            }
-            lappend results -arch $arch
+            lappend results -arch [dict* {
+                0 intel
+                5 arm
+                6 ia64
+                9 amd64
+                10 ia32_win64
+                65535 unknown
+            } [lindex $sysinfo 0]]
         }
 
         if {$opts(all) || $opts(processorlevel)} {
@@ -386,7 +389,7 @@ proc twapi::get_memory_info {args} {
         totalcommit
         totalphysical
         usedcommit
-    }]
+    } -maxleftover 0]
 
 
     set results [list ]
