@@ -20,6 +20,305 @@ int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
 
 static MAKE_DYNLOAD_FUNC(NtQuerySystemInformation, ntdll, NtQuerySystemInformation_t)
 static MAKE_DYNLOAD_FUNC(GetProductInfo, kernel32, FARPROC)
+static MAKE_DYNLOAD_FUNC(GetLogicalProcessorInformation, kernel32, FARPROC)
+static MAKE_DYNLOAD_FUNC(GetLogicalProcessorInformationEx, kernel32, FARPROC)
+
+
+/*
+ * Different SDK's have different versions of the following structures.
+ * We define our own equivalents. Currently these correspond to the 8.1 SDK
+ */
+typedef struct _TWAPI_PROCESSOR_NUMBER {
+    WORD   Group;
+    BYTE  Number;
+    BYTE  Reserved;
+} TWAPI_PROCESSOR_NUMBER;
+
+//
+// Structure to represent a group-specific affinity, such as that of a
+// thread.  Specifies the group number and the affinity within that group.
+//
+
+typedef struct _TWAPI_GROUP_AFFINITY {
+    KAFFINITY Mask;
+    WORD   Group;
+    WORD   Reserved[3];
+} TWAPI_GROUP_AFFINITY;
+
+typedef enum _TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP {
+    TwapiRelationProcessorCore,
+    TwapiRelationNumaNode,
+    TwapiRelationCache,
+    TwapiRelationProcessorPackage,
+    TwapiRelationGroup,
+    TwapiRelationAll = 0xffff
+} TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP;
+
+#ifndef LTP_PC_SMT
+#define LTP_PC_SMT 0x1
+#endif
+
+typedef enum _TWAPI_PROCESSOR_CACHE_TYPE {
+    TwapiCacheUnified,
+    TwapiCacheInstruction,
+    TwapiCacheData,
+    TwapiCacheTrace
+} TWAPI_PROCESSOR_CACHE_TYPE;
+
+#define TWAPI_CACHE_FULLY_ASSOCIATIVE 0xFF
+
+typedef struct _TWAPI_CACHE_DESCRIPTOR {
+    BYTE   Level;
+    BYTE   Associativity;
+    WORD   LineSize;
+    DWORD  Size;
+    TWAPI_PROCESSOR_CACHE_TYPE Type;
+} TWAPI_CACHE_DESCRIPTOR;
+
+typedef struct _TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION {
+    ULONG_PTR   ProcessorMask;
+    TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP Relationship;
+    union {
+        struct {
+            BYTE  Flags;
+        } ProcessorCore;
+        struct {
+            DWORD NodeNumber;
+        } NumaNode;
+        TWAPI_CACHE_DESCRIPTOR Cache;
+        ULONGLONG  Reserved[2];
+    } DUMMYUNIONNAME;
+} TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION;
+
+typedef struct _TWAPI_PROCESSOR_RELATIONSHIP {
+    BYTE  Flags;
+    BYTE  Reserved[21];
+    WORD   GroupCount;
+    TWAPI_GROUP_AFFINITY GroupMask[ANYSIZE_ARRAY];
+} TWAPI_PROCESSOR_RELATIONSHIP;
+
+typedef struct _TWAPI_NUMA_NODE_RELATIONSHIP {
+    DWORD NodeNumber;
+    BYTE  Reserved[20];
+    TWAPI_GROUP_AFFINITY GroupMask;
+} TWAPI_NUMA_NODE_RELATIONSHIP;
+
+typedef struct _TWAPI_CACHE_RELATIONSHIP {
+    BYTE  Level;
+    BYTE  Associativity;
+    WORD   LineSize;
+    DWORD CacheSize;
+    TWAPI_PROCESSOR_CACHE_TYPE Type;
+    BYTE  Reserved[20];
+    TWAPI_GROUP_AFFINITY GroupMask;
+} TWAPI_CACHE_RELATIONSHIP;
+
+typedef struct _TWAPI_PROCESSOR_GROUP_INFO {
+    BYTE  MaximumProcessorCount;
+    BYTE  ActiveProcessorCount;
+    BYTE  Reserved[38];
+    KAFFINITY ActiveProcessorMask;
+} TWAPI_PROCESSOR_GROUP_INFO;
+
+typedef struct _TWAPI_GROUP_RELATIONSHIP {
+    WORD   MaximumGroupCount;
+    WORD   ActiveGroupCount;
+    BYTE  Reserved[20];
+    TWAPI_PROCESSOR_GROUP_INFO GroupInfo[ANYSIZE_ARRAY];
+} TWAPI_GROUP_RELATIONSHIP;
+
+typedef struct _TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX {
+    TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP Relationship;
+    DWORD Size;
+    union {
+        TWAPI_PROCESSOR_RELATIONSHIP Processor;
+        TWAPI_NUMA_NODE_RELATIONSHIP NumaNode;
+        TWAPI_CACHE_RELATIONSHIP Cache;
+        TWAPI_GROUP_RELATIONSHIP Group;
+    } DUMMYUNIONNAME;
+} TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX;
+
+static TWAPI_INLINE Tcl_Obj *ObjFromKAFFINITY(KAFFINITY kaffinity) {
+    return ObjFromULONG_PTR(kaffinity);
+}
+
+static Tcl_Obj *ObjFromGROUP_AFFINITY(TWAPI_GROUP_AFFINITY *gaP)
+{
+    Tcl_Obj *objs[2];
+    objs[0] = ObjFromKAFFINITY(gaP->Mask);
+    objs[1] = ObjFromLong(gaP->Group);
+    return ObjNewList(2, objs);
+}
+
+static Tcl_Obj *ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX(
+    TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiexP
+    )
+{
+    Tcl_Obj *objs[2];
+    Tcl_Obj *elems[6];
+    Tcl_Obj *elems2[3];
+    int i, nelems;
+
+    objs[0] = ObjFromLong(slpiexP->Relationship);
+    switch (slpiexP->Relationship) {
+    case TwapiRelationCache:
+        elems[0] = ObjFromLong(slpiexP->Cache.Level);
+        elems[1] = ObjFromLong(slpiexP->Cache.Associativity);
+        elems[2] = ObjFromLong(slpiexP->Cache.LineSize);
+        elems[3] = ObjFromDWORD(slpiexP->Cache.CacheSize);
+        elems[4] = ObjFromLong(slpiexP->Cache.Type);
+        elems[5] = ObjFromGROUP_AFFINITY(&slpiexP->Cache.GroupMask);
+        nelems = 6;
+        break;
+    case TwapiRelationGroup:
+        elems[0] = ObjFromLong(slpiexP->Group.MaximumGroupCount);
+        elems[1] = ObjNewList(slpiexP->Group.ActiveGroupCount, NULL);
+        for (i = 0; i < slpiexP->Group.ActiveGroupCount; ++i) {
+            elems2[0] = ObjFromLong(slpiexP->Group.GroupInfo[i].MaximumProcessorCount);
+            elems2[1] = ObjFromLong(slpiexP->Group.GroupInfo[i].ActiveProcessorCount);      
+            elems2[2] = ObjFromKAFFINITY(slpiexP->Group.GroupInfo[i].ActiveProcessorMask);
+            ObjAppendElement(NULL, elems[1], ObjNewList(3, elems2));
+        }
+        nelems = 2;
+        break;
+    case TwapiRelationNumaNode:
+        elems[0] = ObjFromLong(slpiexP->NumaNode.NodeNumber);
+        elems[1] = ObjFromGROUP_AFFINITY(&slpiexP->NumaNode.GroupMask);
+        nelems = 2;
+        break;
+    case TwapiRelationProcessorCore:
+    case TwapiRelationProcessorPackage:
+        elems[0] = ObjFromLong(slpiexP->Processor.Flags);
+        elems[1] = ObjNewList(slpiexP->Processor.GroupCount, NULL);
+        for (i = 0; i < slpiexP->Processor.GroupCount; ++i)
+            ObjAppendElement(NULL, elems[1], ObjFromGROUP_AFFINITY(&slpiexP->Processor.GroupMask[i]));
+        nelems = 2;
+        break;
+    }
+
+    objs[1] = ObjNewList(nelems, elems);
+    return ObjNewList(2, objs);
+
+}
+
+static Tcl_Obj *ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION(
+    TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION *slpiP
+    )
+{
+    Tcl_Obj *objs[3];
+    Tcl_Obj *elems[5];
+    Tcl_Obj *elems2[3];
+
+    objs[0] = ObjFromULONG_PTR(slpiP->ProcessorMask);
+    objs[1] = ObjFromLong(slpiP->Relationship);
+    
+    switch (slpiP->Relationship) {
+    case TwapiRelationCache:
+        elems[0] = ObjFromLong(slpiP->Cache.Level);
+        elems[1] = ObjFromLong(slpiP->Cache.Associativity);
+        elems[2] = ObjFromLong(slpiP->Cache.LineSize);
+        elems[3] = ObjFromDWORD(slpiP->Cache.Size);
+        elems[4] = ObjFromLong(slpiP->Cache.Type);
+        objs[2] = ObjNewList(5, elems);
+        break;
+    case TwapiRelationNumaNode:
+        objs[2] = ObjFromLong(slpiP->NumaNode.NodeNumber);
+        break;
+    case TwapiRelationProcessorCore:
+        objs[2] = ObjFromLong(slpiP->ProcessorCore.Flags);
+        break;
+    case TwapiRelationProcessorPackage:
+        objs[2] = ObjFromEmptyString();
+        break;
+    }
+
+    return ObjNewList(3, objs);
+}
+
+
+TCL_RESULT Twapi_GetLogicalProcessorInformationEx(
+    Tcl_Interp *interp,
+    TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP rel
+    )
+{
+    FARPROC fn;
+    MemLifo *memlifoP;
+    DWORD sz = 0, winerr;
+    TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiexP;
+
+    fn = Twapi_GetProc_GetLogicalProcessorInformationEx();
+    if (fn == NULL)
+        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+
+    memlifoP = TwapiMemLifo();
+    slpiexP = MemLifoPushFrame(memlifoP, 1000, &sz);
+    winerr = ERROR_SUCCESS;
+    if (fn(rel, slpiexP, &sz) == 0) {
+        winerr = GetLastError();
+        if (winerr == ERROR_INSUFFICIENT_BUFFER) {
+            winerr = ERROR_SUCCESS;
+            slpiexP = MemLifoAlloc(memlifoP, sz, NULL);
+            if (fn(rel, slpiexP, &sz) == 0)
+                winerr = GetLastError();
+        }
+    }
+    if (winerr == ERROR_SUCCESS) {
+        Tcl_Obj *objP = ObjNewList(0, NULL);
+        int used;
+        /* NOTE - TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
+           is actually a variable size structure even if
+           the C struct is not defined as such. So we cannot
+           just advance the pointer. We have to add the explicit
+           size of the current structure */
+        used = 0;
+        while (used < sz) {
+            ObjAppendElement(NULL, objP, ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX(slpiexP));
+            used += slpiexP->Size;
+            slpiexP = ADDPTR(slpiexP, slpiexP->Size, TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*);
+        }
+        ObjSetResult(interp, objP);
+    }
+    MemLifoPopFrame(memlifoP);
+    return winerr == ERROR_SUCCESS ? TCL_OK : Twapi_AppendSystemError(interp, winerr);
+}
+
+TCL_RESULT Twapi_GetLogicalProcessorInformation(Tcl_Interp *interp)
+{
+    FARPROC fn;
+    MemLifo *memlifoP;
+    DWORD sz = 0, winerr;
+    TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION *slpiP;
+
+    fn = Twapi_GetProc_GetLogicalProcessorInformation();
+    if (fn == NULL)
+        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+
+    memlifoP = TwapiMemLifo();
+    slpiP = MemLifoPushFrame(memlifoP, 1000, &sz);
+    winerr = ERROR_SUCCESS;
+    if (fn(slpiP, &sz) == 0) {
+        winerr = GetLastError();
+        if (winerr == ERROR_INSUFFICIENT_BUFFER) {
+            winerr = ERROR_SUCCESS;
+            slpiP = MemLifoAlloc(memlifoP, sz, NULL);
+            if (fn(slpiP, &sz) == 0)
+                winerr = GetLastError();
+        }
+    }
+    if (winerr == ERROR_SUCCESS) {
+        Tcl_Obj *objP = ObjNewList(0, NULL);
+        int used;
+        used = 0;
+        while ((used + sizeof(*slpiP)) < sz) {
+            ObjAppendElement(NULL, objP, ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION(slpiP));
+            used += sizeof(*slpiP);
+            ++slpiP;
+        }
+        ObjSetResult(interp, objP);
+    }
+    MemLifoPopFrame(memlifoP);
+    return winerr == ERROR_SUCCESS ? TCL_OK : Twapi_AppendSystemError(interp, winerr);
+}
 
 int Twapi_GetSystemInfo(Tcl_Interp *interp)
 {
@@ -259,6 +558,8 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
         if (objc != 0)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         switch (func) {
+        case 32:
+            return Twapi_GetLogicalProcessorInformation(interp);
         case 33:
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
             if (GetComputerNameW(u.buf, &result.value.unicode.len)) {
@@ -316,6 +617,8 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
             result.type = TRT_EMPTY;
             Sleep(dw);
             break;
+        case 204:
+            return Twapi_GetLogicalProcessorInformationEx(interp, dw);
         }
     } else {
         switch (func) {
@@ -387,6 +690,7 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
 static int TwapiOsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s OsDispatch[] = {
+        DEFINE_FNCODE_CMD(GetLogicalProcessorInformation, 32),
         DEFINE_FNCODE_CMD(GetComputerName, 33),
         DEFINE_FNCODE_CMD(GetSystemInfo, 34),
         DEFINE_FNCODE_CMD(GlobalMemoryStatus, 35),
@@ -397,6 +701,7 @@ static int TwapiOsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(GetComputerNameEx, 201),
         DEFINE_FNCODE_CMD(GetSystemMetrics, 202),
         DEFINE_FNCODE_CMD(Sleep, 203),
+        DEFINE_FNCODE_CMD(GetLogicalProcessorInformationEx, 204),
         DEFINE_FNCODE_CMD(ExitWindowsEx, 1001),
         DEFINE_FNCODE_CMD(AbortSystemShutdown, 1002),
         DEFINE_FNCODE_CMD(InitiateSystemShutdown, 1003),
