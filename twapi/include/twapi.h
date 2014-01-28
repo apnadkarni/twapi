@@ -241,6 +241,8 @@ typedef int TCL_RESULT;
     { \
         static HINSTANCE dllname ## _H; \
         static FARPROC   fnname ## dllname ## _F; \
+        static int load_attempted; \
+        if (load_attempted) return fnname ## dllname ## _F; \
         if ((fnname ## dllname ## _F) == NULL) { \
             if ((dllname ## _H) == NULL) { \
                 dllname ## _H = LoadLibraryA(#dllname ".dll"); \
@@ -250,7 +252,7 @@ typedef int TCL_RESULT;
                     (FARPROC) GetProcAddress( dllname ## _H, #fnname); \
             } \
         } \
- \
+        load_attempted = 1; \
         return fnname ## dllname ## _F; \
     }
 
@@ -259,6 +261,8 @@ typedef int TCL_RESULT;
     { \
         static HINSTANCE dllname ## _H; \
         static FARPROC   ord_ ## ord ## dllname ## _F; \
+        static int load_attempted; \
+        if (load_attempted) return ord_ ## ord ## dllname ## _F; \
         if ((ord_ ## ord ## dllname ## _F) == NULL) { \
             if ((dllname ## _H) == NULL) { \
                 dllname ## _H = LoadLibraryA(#dllname ".dll"); \
@@ -268,7 +272,7 @@ typedef int TCL_RESULT;
                     (FARPROC) GetProcAddress( dllname ## _H, (LPCSTR) ord); \
             } \
         } \
- \
+        load_attempted = 1; \
         return ord_ ## ord ## dllname ## _F; \
     }
 
