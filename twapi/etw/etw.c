@@ -1932,19 +1932,19 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD evrP)
             continue;
         switch (ehdrP->ExtType) {
         case EVENT_HEADER_EXT_TYPE_RELATED_ACTIVITYID:
-            ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("-relatedactivity"));
+            ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("relatedactivity"));
             ObjAppendElement(NULL, recObjs[2], ObjFromGUID(&((PEVENT_EXTENDED_ITEM_RELATED_ACTIVITYID)ehdrP->DataPtr)->RelatedActivityId));
             break;
         case EVENT_HEADER_EXT_TYPE_SID:
-            ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("-sid"));
+            ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("sid"));
             ObjAppendElement(NULL, recObjs[2], ObjFromSIDNoFail((SID *)(ehdrP->DataPtr)));
             break;
         case EVENT_HEADER_EXT_TYPE_TS_ID:
-            ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("-tssession"));
+            ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("tssession"));
             ObjAppendElement(NULL, recObjs[2], ObjFromULONG(((PEVENT_EXTENDED_ITEM_TS_ID)ehdrP->DataPtr)->SessionId));
             break;
         case EVENT_HEADER_EXT_TYPE_INSTANCE_INFO:
-            ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("-iteminstance"));
+            ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("iteminstance"));
             objs[0] = ObjFromULONG(((PEVENT_EXTENDED_ITEM_INSTANCE)ehdrP->DataPtr)->InstanceId);
             objs[1] = ObjFromULONG(((PEVENT_EXTENDED_ITEM_INSTANCE)ehdrP->DataPtr)->ParentInstanceId);
             objs[2] = ObjFromGUID(&((PEVENT_EXTENDED_ITEM_INSTANCE)ehdrP->DataPtr)->ParentGuid);
