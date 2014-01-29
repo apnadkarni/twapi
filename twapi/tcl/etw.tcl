@@ -49,84 +49,51 @@ namespace eval twapi {
 
     #
     # These record definitions match the lists constructed in the ETW C code
-    # Definitions for EVENT_RECORD
-    record tdh_event {
-        header
-        buffer_context
-        extended_data
-        data
-    }
+    # TDH based event definitions
 
-    record tdh_event_header {
-        flags
-        event_property
-        tid
-        pid
-        timestamp
-        kernel_time
-        user_time
-        processor_time
-        activity_id
-    }
+    record tdh_event { header buffer_context extended_data data }
 
-    record tdh_event_buffer_context {
-        processor
-        logger_id
-    }
+    record tdh_event_header { flags event_property tid pid timestamp
+        kernel_time user_time processor_time activity_id }
 
-    record tdh_event_data {
-        provider_guid
-        event_guid
-        descriptor
-        decoder
-        provider_name
-        level_name
-        channel_name
-        keywords
-        task_name
-        opcode_name
-        message
-        localized_provider_name
-        activity_id
-        related_activity_id
-        properties
-    }
+    record tdh_event_buffer_context { processor logger_id }
+
+    record tdh_event_data { provider_guid event_guid descriptor
+        decoder provider_name level_name channel_name keywords
+        task_name opcode_name message localized_provider_name
+        activity_id related_activity_id properties }
 
     # Definitions for EVENT_TRACE_LOGFILE
-    record tdh_buffer {
-        logfile
-        logger
-        current_time
-        buffers_read
-        header
-        buffer_size
-        filled
-        kernel_trace
+    record tdh_buffer { logfile logger current_time buffers_read
+        header buffer_size filled kernel_trace }
+
+    record tdh_logfile_header { size major_version minor_version
+        sub_version subminor_version provider_version processor_count
+        end_time resolution max_file_size logfile_mode buffers_written
+        pointer_size events_lost cpu_mhz timezone boot_time
+        perf_frequency start_time reserved_flags buffers_lost }
+
+    # MOF based event definitions
+    record mof_event {header instance_id parent_instance_id parent_guid mofdata}
+    record mof_event_header {type level version tid pid timestamp guid
+        kernel_time user_time processor_time}
+
+    # Standard app visible event definitions
+    record etw_event {timestamp info names properties provider performance
+        activity process item_instance message
     }
 
-    record tdh_logfile_header {
-        size
-        major_version
-        minor_version
-        sub_version
-        subminor_version
-        provider_version
-        processor_count
-        end_time
-        resolution
-        max_file_size
-        logfile_mode
-        buffers_written
-        pointer_size
-        events_lost
-        cpu_mhz
-        timezone
-        boot_time
-        perf_frequency
-        start_time
-        reserved_flags
-        buffers_lost
-    }
+    record etw_event_info {guid id version decoder channel level opcode task keywords}
+
+    record etw_event_names {channel level opcode task keywords}
+
+    record etw_event_provider {guid name localized_name}
+
+    record etw_event_performance {kernel_time user_time}
+
+    record etw_event_activity {id related_id name related_name}
+
+    record etw_event_process {pid tid sid tssession}
 }
 
 
@@ -657,7 +624,7 @@ proc twapi::etw_format_events {oswbemservices args} {
     return [concat {*}$events]
 }
 
-proc twapi::_etw_format_events {oswbemservices bufdesc events} {
+proc twapi::_etw_format_mof_events {oswbemservices bufdesc events} {
     variable _etw_event_defs
 
     # TBD - it may be faster to special case NT kernel events as per
@@ -677,9 +644,10 @@ proc twapi::_etw_format_events {oswbemservices bufdesc events} {
 
     set formatted {}
     foreach event $events {
-        set guid [dict get $event -guid]
-        set vers [dict get $event -version]
-        set type [dict get $event -eventtype]
+        set hdr [mof_event header $event]
+        set guid [mof_event_header $hdr guid]
+        set vers [mof_event_header $hdr version]
+        set type [mof_event_header $hdr type]
         if {[dict exists $_etw_event_defs $guid $vers -definitions $type]} {
             set mof [dict get $_etw_event_defs $guid $vers -definitions $type]
             set eventclass [dict get $_etw_event_defs $guid $vers -classname]
@@ -694,7 +662,7 @@ proc twapi::_etw_format_events {oswbemservices bufdesc events} {
             dict set _etw_event_defs $guid {}
 
             # Nothing we can add to the event. Pass on with defaults
-            dict set event -eventtypename [dict get $event -eventtype]
+            dict set event -eventtypename $type
             # Try to get at least the class name
             if {[dict exists $_etw_event_defs $guid $vers -classname]} {
                 dict set event -classname [dict get $_etw_event_defs $guid $vers -classname]
