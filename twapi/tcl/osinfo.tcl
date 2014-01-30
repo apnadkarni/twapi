@@ -131,6 +131,36 @@ proc twapi::get_os_description {} {
                 set osname "Windows Server 2008 R2"
             }
         }
+        "6.2" {
+            if {$osinfo(system_type) eq "workstation"} {
+                # Win8 does not follow the systype table below
+                switch -exact -- [format %x [GetProductInfo]] {
+                    3 {set systype ""}
+                    6 {set systype Pro}
+                    default {set systype Enterprise}
+                }
+                set osname "Windows 8"
+            } else {
+                set prodtype [GetProductInfo]
+
+                set osname "Windows Server 2012"
+            }
+            
+        }
+        "6.3" {
+            if {$osinfo(system_type) eq "workstation"} {
+                # Win8.1 probably (TBD) does not follow the systype table below
+                switch -exact -- [format %x [GetProductInfo]] {
+                    3 {set systype ""}
+                    6 {set systype Pro}
+                    default {set systype Enterprise}
+                }
+                set osname "Windows 8.1"
+            } else {
+                set prodtype [GetProductInfo]
+                set osname "Windows Server 2012 R2"
+            }
+        }
         default {
             # Future release - can't really name, just make something up
             catch {set prodtype [GetProductInfo]}
@@ -141,44 +171,108 @@ proc twapi::get_os_description {} {
     if {[info exists prodtype] && $prodtype} {
         catch {
             set systype [dict get {
-                6 Business
-                10 "Business N"
-                12 "HPC Edition"
-                8 "Server Datacenter"
-                c "Server Datacenter Core"
-                27 "Server Datacenter Core without Hyper-V"
-                25 "Server Datacenter without Hyper-V"
-                4 Enterprise
-                1b "Enterprise N"
-                a "Server Enterprise"
-                e "Server Enterprise Core"
-                29 "Server Enterprise Core without Hyper-V"
-                26 "Server Enterprise without Hyper-V"
-                2  "Home Basic"
-                5 "Home Basic N"
+                1 "Ultimate"
+                2 "Home Basic"
                 3 "Home Premium"
-                1a "Home Premium N"
-                2a "Hyper-V Server"
-                1e "Essential Business Server Management Server"
-                20 "Essential Business Server Messaging Server"
-                1f "Essential Business Server Security Server"
-                18 "Essential Server Solutions"
-                23 "Essential Server Solutions without Hyper-V"
-                21 "Server Foundation"
-                9 "Small Business Server"
+                4 "Enterprise"
+                5 "Home Basic N"
+                6 "Business"
                 7 "Standard"
-                d "Standard Core"
-                28 "Standard Core without Hyper-V"
-                24 "Standard without Hyper-V"
+                8 "Datacenter"
+                9 "Small Business Server"
+                a "Enterprise Server"
                 b "Starter"
-                17 "Storage Server Enterprise"
+                c "Datacenter Server Core"
+                d "Standard Server Core"
+                e "Enterprise Server Core"
+                f "Enterprise Server Ia64"
+                10 "Business N"
+                11 "Web Server"
+                12 "HPC Edition"
+                13 "Home Server"
                 14 "Storage Server Express"
                 15 "Storage Server Standard"
                 16 "Storage Server Workgroup"
-                1 Ultimate
+                17 "Storage Server Enterprise"
+                18 "Essential Server Solutions"
+                19 "Small Business Server Premium"
+                1a "Home Premium N"
+                1b "Enterprise N"
                 1c "Ultimate N"
-                11 "Web Server"
                 1d "Web Server Core"
+                1e "Essential Business Server Management Server"
+                1f "Essential Business Server Security Server"
+                20 "Essential Business Server Messaging Server"
+                21 "Server Foundation"
+                22 "Home Premium Server"
+                23 "Essential Server Solutions without Hyper-V"
+                24 "Standard without Hyper-V"
+                25 "Datacenter without Hyper-V"
+                26 "Enterprise without Hyper-V"
+                26 "Enterprise Server V"
+                27 "Datacenter Server Core without Hyper-V"
+                28 "Standard Core without Hyper-V"
+                29 "Enterprise Server Core without Hyper-V"
+                2a "Hyper-V Server"
+                2b "Storage Express Server Core"
+                2c "Storage Standard Server Core"
+                2d "Storage Workgroup Server Core"
+                2e "Storage Enterprise Server Core"
+                2f "Starter N"
+                30 "Professional"
+                31 "Professional N"
+                32 "Small Business Server 2011 Essentials"
+                33 "Server For SB Solutions"
+                34 "Standard Server Solutions"
+                35 "Standard Server Solutions Core"
+                36 "Server For SB Solutions EM"
+                37 "Server For SB Solutions EM"
+                38 "Windows MultiPoint Server"
+                39 "Solution Embeddedserver Core"
+                3a "Professional Embedded"
+                3b "Windows Essential Server Solution Management"
+                3c "Windows Essential Server Solution Additional"
+                3d "Windows Essential Server Solution SVC"
+                3e "Windows Essential Server Solution Additional SVC"
+                3f "Small Business Premium Server Core"
+                40 "Hyper Core V"
+                41 "Embedded"
+                42 "Starter E"
+                43 "Home Basic E"
+                44 "Home Premium E"
+                45 "Professional E"
+                46 "Enterprise E"
+                47 "Ultimate E"
+                48 "Enterprise Evaluation"
+                4c "Multipoint Standard Server"
+                4d "Multipoint Premium Server"
+                4f "Standard Evaluation Server"
+                50 "Datacenter Evaluation"
+                54 "Enterprise N Evaluation"
+                55 "Embedded Automotive"
+                56 "Embedded Industry A"
+                57 "Thin PC"
+                58 "Embedded A"
+                59 "Embedded Industry"
+                5a "Embedded E"
+                5b "Embedded Industry E"
+                5c "Embedded Industry A E"
+                5f "Storage Workgroup Evaluation Server"
+                60 "Storage Standard Evaluation Server"
+                61 "Core Arm"
+                62 "N"
+                63 "China"
+                64 "Single Language"
+                65 ""
+                67 "Professional Wmc"
+                68 "Mobile Core"
+                69 "Embedded Industry Eval"
+                6a "Embedded Industry E Eval"
+                6b "Embedded Eval"
+                6c "Embedded E Eval"
+                6d "Core Server"
+                6e "Cloud Storage Server"
+                abcdabcd "unlicensed"
             } [format %x $prodtype]]
         }
     }
@@ -194,7 +288,11 @@ proc twapi::get_os_description {} {
         set spver ""
     }
 
-    return "$osname $systype ${osversion} (Build $osinfo(os_build_number))${spver}${tserver}"
+    if {$systype ne ""} {
+        return "$osname $systype ${osversion} (Build $osinfo(os_build_number))${spver}${tserver}"
+    } else {
+        return "$osname ${osversion} (Build $osinfo(os_build_number))${spver}${tserver}"
+    }
 }
 
 #
