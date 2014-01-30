@@ -197,6 +197,57 @@ proc twapi::get_os_description {} {
     return "$osname $systype ${osversion} (Build $osinfo(os_build_number))${spver}${tserver}"
 }
 
+#
+# TBD - document
+proc twapi::get_logical_processor_groups {} {
+    trap {
+        set info [GetLogicalProcessorInformationEx 4]
+        if {[llength $info]} {
+            set maxgroupcount [lindex $info 0 1 0]
+            set groups {}
+            set num -1
+            foreach group [lindex $info 0 1 1] {
+                lappend groups [incr num] [twine {-maxprocessorcount -activeprocessorcount -processormask} $group]
+            }
+        }
+        return [list -maxgroupcount $maxgroupcount -activegroups $groups]
+    } onerror {TWAPI_WIN32 127} {
+        # Just try older APIs
+        set processor_count [lindex [GetSystemInfo] 5]
+        return [list -maxgroupcount 1 -activegroups [list 0 [list -maxprocessorcount $processor_count -activeprocessorcount $processor_count -processormask [expr {(1 << $processor_count) - 1}]]]]
+    }
+
+}
+
+# TBD - document
+proc twapi::get_numa_nodes {} {
+    trap {
+        set result {}
+        foreach rec [GetLogicalProcessorInformationEx 1] {
+            lappend result [lindex $rec 1 0] [twine {-processormask -group} [lindex $rec 1 1]]
+        }
+        return $result
+    } onerror {TWAPI_WIN32 127} {
+        # Use older APIs below
+    }
+
+    # If GetLogicalProcessorInformation is available, records of type "1"
+    # indicate NUMA information. Use it.
+    trap {
+        set result {}
+        foreach rec [GetLogicalProcessorInformation] {
+            if {[lindex $rec 1] == 1} {
+                lappend result [lindex $rec 2] [list -processormask [lindex $rec 0] -group 0]
+            }
+        }
+        return $result
+    } onerror {TWAPI_WIN32 127} {
+        # API not present, fake it
+    }
+
+    return $result
+}
+
 # Returns proc information
 #  $processor should be processor number or "" for "total"
 proc twapi::get_processor_info {processor args} {
@@ -357,7 +408,20 @@ proc twapi::get_processor_info {processor args} {
 
 # Get number of active processors
 proc twapi::get_processor_count {} {
-    return [lindex [GetSystemInfo] 5]
+    trap {
+        set info [GetLogicalProcessorInformationEx 4]
+        if {[llength $info]} {
+            set count 0
+            foreach group [lindex $info 0 1 1] {
+                incr count [lindex $group 1]
+            }
+        }
+        return $count
+    } onerror {TWAPI_WIN32 127} {
+        # GetLogicalProcessorInformationEx call does not exist
+        # so system does not support processor groups
+        return [lindex [GetSystemInfo] 5]
+    }
 }
 
 # Get mask of active processors
