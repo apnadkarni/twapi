@@ -180,8 +180,6 @@ int Twapi_RecordArrayObjCmd(
 
         /* Figure out which columns go into the slice, and their names */
         for (i=0; i < nslice_fields; ++i) {
-            int slen;
-            char *s;
             Tcl_Obj **names;
             res = ObjGetElements(interp, slice_fields[i], &j, &names);
             if (res != TCL_OK)
@@ -384,7 +382,6 @@ static TCL_RESULT RecordInstanceObjCmd(
 {
     Tcl_Obj *fieldsObj = clientdata;
     Tcl_Obj **fields;
-    Tcl_Obj **values;
     Tcl_Obj *objP;
     int field_index;
     int i, j, cmd;

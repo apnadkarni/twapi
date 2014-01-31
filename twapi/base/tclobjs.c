@@ -907,10 +907,10 @@ Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remainP)
         if (p == endP)
             *remainP = 0;
         else
-            *remainP = (endP-p)-1; /* -1 to skip over \0 */
+            *remainP = (int) (endP-p)-1; /* -1 to skip over \0 */
     }
 
-    return ObjFromStringN(strP, (p-strP));
+    return ObjFromStringN(strP, (int) (p-strP));
 }
 
 Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *strP, int max, int *remainP)
@@ -932,10 +932,10 @@ Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *strP, int max, int *remainP)
         if (p == endP)
             *remainP = 0;
         else
-            *remainP = (endP-p)-1; /* -1 to skip over \0 */
+            *remainP = (int) (endP-p)-1; /* -1 to skip over \0 */
     }
 
-    return ObjFromUnicodeN(strP, (p-strP));
+    return ObjFromUnicodeN(strP, (int) (p-strP));
 }
 
 /* Some Win32 APIs, ETW in particular return strings with a trailing space.
@@ -2772,7 +2772,6 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *saP, int value_only)
 VARTYPE ObjTypeToVT(Tcl_Obj *objP)
 {
     char *s;
-    Tcl_Obj *elemObj;
     VARTYPE vt;
 
     switch (TwapiGetTclType(objP)) {
@@ -4430,7 +4429,7 @@ TCL_RESULT ObjToEnum(Tcl_Interp *interp, Tcl_Obj *enumsObj, Tcl_Obj *nameObj,
     if (nameObj->typePtr != &gEnumType ||
         enumsObj != nameObj->internalRep.ptrAndLongRep.ptr) {
         Tcl_Obj **objs;
-        int i, nobjs, name_len;
+        int i, nobjs;
         char *nameP;
 
         if (nameObj->typePtr && nameObj->typePtr->freeIntRepProc) {

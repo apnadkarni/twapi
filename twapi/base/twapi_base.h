@@ -1,7 +1,7 @@
 #ifndef TWAPI_BASE_H
 # define TWAPI_BASE_H
 
-extern OSVERSIONINFO gTwapiOSVersionInfo;
+extern OSVERSIONINFOW gTwapiOSVersionInfo;
 
 /* Contains per-interp context specific to the base module. Hangs off
  * the module.pval field in a TwapiInterpContext.
