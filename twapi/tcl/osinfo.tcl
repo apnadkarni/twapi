@@ -377,8 +377,6 @@ proc twapi::get_processor_info {processor args} {
         dpcqueuerate
         interruptrate
     }
-    # apcbypassrate - does not exist on XP
-    # dpcbypassrate - does not exist on XP
 
     set sysinfo_opts {
         arch
@@ -1281,3 +1279,23 @@ proc twapi::set_system_parameters_info {uiaction val args} {
 }
 
 
+proc twapi::start_processor_utilization {} {
+    set counter_name {\Processor Information(*)\% Processor Time}
+    set q [open_perf_query]
+    set h [add_perf_counter $q $counter_name]
+    collect_perf_query_data $q
+    return [list $q $h]
+}
+
+proc twapi::get_processor_utilization {hperf} {
+    lassign $hperf q h
+    collect_perf_query_data $q
+    # 0x200 -> format as double
+    set result [PdhGetFormattedCounterArray $h 0x200]
+    return $result
+}
+
+proc twapi::stop_processor_utilization {hperf} {
+    remove_perf_counter [lindex $hperf 1]
+    close_perf_query [lindex $hperf 0]
+}

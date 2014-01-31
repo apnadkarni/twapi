@@ -1200,8 +1200,8 @@ int Twapi_MemLifoDump(Tcl_Interp *, MemLifo *l);
  * Exported functions
  */
 
-TWAPI_EXTERN BOOL TwapiRtlGetVersion(LPOSVERSIONINFO verP);
-TWAPI_EXTERN int TwapiMinOSVersion(int major, int minor);
+TWAPI_EXTERN BOOL TwapiRtlGetVersion(LPOSVERSIONINFOW verP);
+TWAPI_EXTERN int TwapiMinOSVersion(DWORD major, DWORD minor);
 
 /* Memory allocation */
 
@@ -1452,7 +1452,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP);
 
 /* Security stuff */
 #define TWAPI_SID_LENGTH(sid_) GetSidLengthRequired((sid_)->SubAuthorityCount)
-TWAPI_EXTERN TCL_RESULT TwapiValidateSID(Tcl_Interp *interp, SID *sidP, int len);
+TWAPI_EXTERN TCL_RESULT TwapiValidateSID(Tcl_Interp *interp, SID *sidP, DWORD len);
 TWAPI_EXTERN int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP);
 TWAPI_EXTERN int ObjToPSECURITY_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *secattrObj,
                                  SECURITY_ATTRIBUTES **secattrPP);

@@ -49,10 +49,10 @@ BOOL TwapiRtlGetVersion(LPOSVERSIONINFOW verP)
     }
 
     /* Either function was not found or it failed. Use documented one */
-    return GetVersionEx(verP);
+    return GetVersionExW(verP);
 }
 
-int TwapiMinOSVersion(int major, int minor)
+int TwapiMinOSVersion(DWORD major, DWORD minor)
 {
     if (gTwapiOSVersionInfo.dwMajorVersion > major)
         return 1;
@@ -452,7 +452,7 @@ TCL_RESULT TwapiDictLookupString(Tcl_Interp *interp, Tcl_Obj *dictObj, const cha
 
 /* This function is not fool proof. The Win32 API makes it impossible to
    write one */
-TCL_RESULT TwapiValidateSID(Tcl_Interp *interp, SID *sidP, int len)
+TCL_RESULT TwapiValidateSID(Tcl_Interp *interp, SID *sidP, DWORD len)
 {
     /* GetSidLengthRequired assumes subauthorities are a certain size
        which may not hold. But there is no other alternative to check

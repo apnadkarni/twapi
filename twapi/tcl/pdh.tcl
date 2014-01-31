@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003, Ashok P. Nadkarni
+# Copyright (c) 2003-2014, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -53,12 +53,6 @@ proc twapi::get_perf_object_items {objname args} {
 }
 
 #
-# Connect to the specified machine
-proc twapi::connect_perf {machine} {
-    PdhConnectMachine $machine
-}
-
-#
 # Construct a counter path
 proc twapi::make_perf_counter_path {object counter args} {
     array set opts [parseargs args {
@@ -103,12 +97,6 @@ proc twapi::parse_perf_counter_path {counter_path} {
 }
 
 #
-# Validate a counter path - error if invalid
-proc twapi::validate_perf_counter_path {counter_path} {
-    PdhValidatePath $counter_path
-}
-
-#
 # Open a query that will be used as a container for counters
 proc twapi::open_perf_query {args} {
 
@@ -117,22 +105,11 @@ proc twapi::open_perf_query {args} {
         cookie.int
     } -nulldefault]
     
-    # NT 4.0 requires datasource to be null
-    if {[string length $opts(datasource)] && ![min_os_version 5 0]} {
-        error "Option -datasource is invalid on Windows NT 4.0 platforms"
-    }
-    
     if {! [string is integer -strict $opts(cookie)]} {
         error "Non-integer value '$opts(cookie)' specified for -cookie option"
     }
     
     return [PdhOpenQuery $opts(datasource) $opts(cookie)]
-}
-
-#
-# Close a query - all related counter handles will also be closed
-proc twapi::close_perf_query {hquery} {
-    PdhCloseQuery $hquery
 }
 
 #
@@ -144,19 +121,6 @@ proc twapi::add_perf_counter {hquery counter_path args} {
     
     set hcounter [PdhAddCounter $hquery $counter_path $opts(cookie)]
     return $hcounter
-}
-
-#
-# Remove a counter
-proc twapi::remove_perf_counter {hcounter} {
-    PdhRemoveCounter $hcounter
-}
-
-
-#
-# Get snapshot of counters in a query
-proc twapi::collect_perf_query_data {hquery} {
-    PdhCollectQueryData $hquery
 }
 
 #
@@ -506,8 +470,6 @@ proc twapi::get_perf_processor_counter_paths {processor args} {
             privilegedutilization {"% Privileged Time"       double 1}
             processorutilization  {"% Processor Time"        double 1}
             userutilization       {"% User Time"             double 1}
-            apcbypassrate         {"APC Bypasses/sec"        double 1}
-            dpcbypassrate         {"DPC Bypasses/sec"        double 1}
             dpcrate               {"DPC Rate"                double 1}
             dpcqueuerate          {"DPCs Queued/sec"         double 1}
             interruptrate         {"Interrupts/sec"          double 1}

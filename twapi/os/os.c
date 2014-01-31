@@ -207,7 +207,6 @@ static Tcl_Obj *ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION(
 {
     Tcl_Obj *objs[3];
     Tcl_Obj *elems[5];
-    Tcl_Obj *elems2[3];
 
     objs[0] = ObjFromULONG_PTR(slpiP->ProcessorMask);
     objs[1] = ObjFromLong(slpiP->Relationship);
@@ -264,7 +263,7 @@ TCL_RESULT Twapi_GetLogicalProcessorInformationEx(
     }
     if (winerr == ERROR_SUCCESS) {
         Tcl_Obj *objP = ObjNewList(0, NULL);
-        int used;
+        DWORD used;
         /* NOTE - TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
            is actually a variable size structure even if
            the C struct is not defined as such. So we cannot

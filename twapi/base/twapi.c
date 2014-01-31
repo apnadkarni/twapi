@@ -38,7 +38,7 @@ typedef struct _TwapiRegisteredPointer {
 /*
  * Globals
  */
-OSVERSIONINFO gTwapiOSVersionInfo;
+OSVERSIONINFOW gTwapiOSVersionInfo;
 GUID gTwapiNullGuid;             /* Initialized to all zeroes */
 struct TwapiTclVersion gTclVersion;
 static int gTclIsThreaded;
@@ -461,7 +461,6 @@ static void Twapi_Cleanup(ClientData clientdata)
 static TwapiInterpContext *TwapiInterpContextNew(
     Tcl_Interp *interp, HMODULE hmodule, TwapiModuleDef *modP)
 {
-    DWORD winerr;
     TwapiInterpContext* ticP = TwapiAlloc(sizeof(*ticP));
 
     ticP->nrefs = 0;
@@ -622,7 +621,6 @@ static int TwapiOneTimeInit(Tcl_Interp *interp)
 {
     WSADATA ws_data;
     WORD    ws_ver = MAKEWORD(1,1);
-    TwapiTls *tlsP;
 
     gTlsIndex = TlsAlloc();
     if (gTlsIndex == TLS_OUT_OF_INDEXES)
