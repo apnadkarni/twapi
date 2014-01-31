@@ -489,7 +489,6 @@ static int TwapiCalcPointerSize(EVENT_RECORD *evrP)
 
 static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
 {
-    int i;
     Tcl_Obj *objs[21];
     TRACE_LOGFILE_HEADER *adjustedP;
 
@@ -759,7 +758,6 @@ error_handler: /* interp must already contain error msg */
 
 static Tcl_Obj *ObjFromEVENT_TRACE_PROPERTIES(EVENT_TRACE_PROPERTIES *etP)
 {
-    int i;
     Tcl_Obj *objs[19];
 
     if (etP->LogFileNameOffset)
@@ -1973,8 +1971,6 @@ ULONG WINAPI TwapiETWBufferCallback(
   PEVENT_TRACE_LOGFILEW etlP
 )
 {
-    TRACE_LOGFILE_HEADER *tlhP;
-    TRACE_LOGFILE_HEADER *adjustedP;
     Tcl_Obj *evalObj;
     Tcl_Obj *bufObj;
     Tcl_Obj *args[2];

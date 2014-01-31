@@ -311,7 +311,7 @@ TCL_RESULT Twapi_PdhGetFormattedCounterArray(
     DWORD sz, nitems;
     PDH_FMT_COUNTERVALUE_ITEM_W *itemP;
     TCL_RESULT res;
-    int i;
+    DWORD i;
     MemLifo *memlifoP;
     MemLifoMarkHandle mark;
 
@@ -669,14 +669,14 @@ static int TwapiPdhInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(PdhGetDllVersion, 1),
         DEFINE_ALIAS_CMD(PdhBrowseCounters, 2),
         DEFINE_ALIAS_CMD(PdhSetDefaultRealTimeDataSource, 101),
-        DEFINE_ALIAS_CMD(PdhConnectMachine, 102),
-        DEFINE_ALIAS_CMD(PdhValidatePath, 103),
+        DEFINE_ALIAS_CMD(connect_perf, 102),
+        DEFINE_ALIAS_CMD(validate_perf_counter_path, 103),
         DEFINE_ALIAS_CMD(PdhParseCounterPath, 201),
         DEFINE_ALIAS_CMD(PdhLookupPerfNameByIndex, 202),
         DEFINE_ALIAS_CMD(PdhOpenQuery, 203),
-        DEFINE_ALIAS_CMD(PdhRemoveCounter, 301),
-        DEFINE_ALIAS_CMD(PdhCollectQueryData, 302),
-        DEFINE_ALIAS_CMD(PdhCloseQuery, 303),
+        DEFINE_ALIAS_CMD(remove_perf_counter, 301),
+        DEFINE_ALIAS_CMD(collect_perf_query_data, 302),
+        DEFINE_ALIAS_CMD(close_perf_query, 303),
         DEFINE_ALIAS_CMD(PdhGetFormattedCounterValue, 1001),
         DEFINE_ALIAS_CMD(PdhAddCounter, 1002),
         DEFINE_ALIAS_CMD(PdhMakeCounterPath, 1003),
