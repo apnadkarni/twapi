@@ -435,9 +435,6 @@ int Twapi_PdhBrowseCounters(Tcl_Interp *interp)
     PDH_BROWSE_DLG_CONFIG_W browse_dlg;
     PDH_STATUS pdh_status;
 
-
-
-
     /* 
      * This function is not documented because of the following bugs
      * See http://helgeklein.com/blog/2009/10/found-my-first-bug-in-windows-7-apis-pdhbrowsecounters-requires-elevation/
@@ -669,14 +666,14 @@ static int TwapiPdhInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(PdhGetDllVersion, 1),
         DEFINE_ALIAS_CMD(PdhBrowseCounters, 2),
         DEFINE_ALIAS_CMD(PdhSetDefaultRealTimeDataSource, 101),
-        DEFINE_ALIAS_CMD(connect_perf, 102),
+        DEFINE_ALIAS_CMD(pdh_connect, 102),
         DEFINE_ALIAS_CMD(validate_perf_counter_path, 103),
         DEFINE_ALIAS_CMD(PdhParseCounterPath, 201),
         DEFINE_ALIAS_CMD(PdhLookupPerfNameByIndex, 202),
         DEFINE_ALIAS_CMD(PdhOpenQuery, 203),
-        DEFINE_ALIAS_CMD(remove_perf_counter, 301),
-        DEFINE_ALIAS_CMD(collect_perf_query_data, 302),
-        DEFINE_ALIAS_CMD(close_perf_query, 303),
+        DEFINE_ALIAS_CMD(pdh_remove_counter, 301),
+        DEFINE_ALIAS_CMD(PdhCollectQueryData, 302),
+        DEFINE_ALIAS_CMD(PdhCloseQuery, 303),
         DEFINE_ALIAS_CMD(PdhGetFormattedCounterValue, 1001),
         DEFINE_ALIAS_CMD(PdhAddCounter, 1002),
         DEFINE_ALIAS_CMD(PdhMakeCounterPath, 1003),
