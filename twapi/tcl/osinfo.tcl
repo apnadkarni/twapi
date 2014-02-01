@@ -346,6 +346,71 @@ proc twapi::get_numa_nodes {} {
     return $result
 }
 
+# TBD - document
+proc twapi::start_processor_utilization {args} {
+    variable _processor_utilization_queries
+
+    set ctr_names {
+        interrupt "% Interrupt Time"
+        privileged "% Privileged Time"
+        processor "% Processor Time"
+        user "% User Time"
+        idle "% Idle Time"
+    }
+    
+    array set opts [parseargs args [dict keys $ctr_names] -maxleftover 0]
+
+    if {[min_os_version 6 1]} {
+        set obj_name "Processor Information"
+    } else {
+        set obj_name "Processor"
+    }
+    set ctrs {}
+    set qid [pdh_query_open]
+    trap {
+        dict for {opt ctr_name} $ctr_names {
+            if {$opts($opt)} {
+                set ctr_path [lindex [_make_counter_path_list "Processor Information" [list *] [list $ctr_name]] 0]
+                dict set ctrs -$opt ctr_path $ctr_path
+                dict set ctrs -$opt handle [pdh_add_counter $qid $ctr_path]
+            }
+        }
+        pdh_query_start $qid
+    } onerror {} {
+        pdh_query_close $qid
+        rethrow
+    }
+
+    set _processor_utilization_queries($qid) $ctrs
+    return $qid
+}
+
+proc twapi::stop_processor_utilization qid {
+    variable _processor_utilization_queries
+    unset -nocomplain _processor_utilization_queries($qid)
+    pdh_query_close $qid
+}
+
+proc twapi::get_processor_utilization qid {
+    variable _processor_utilization_queries
+
+    if {![info exists _processor_utilization_queries($qid)]} {
+        badargs! "Unknown performance query handle $qid"
+    }
+
+    pdh_query_update $qid
+
+    set result {}
+    dict for {opt ctr} $_processor_utilization_queries($qid) {
+        # 0x200 -> format as double
+        foreach rec [PdhGetFormattedCounterArray [dict get $ctr handle] 0x200] {
+            dict set result [lindex $rec 0] $opt [lindex $rec 1]
+        }
+    }
+
+    return $result
+}
+
 # Returns proc information
 #  $processor should be processor number or "" for "total"
 proc twapi::get_processor_info {processor args} {
@@ -430,7 +495,7 @@ proc twapi::get_processor_info {processor args} {
         # This might fail if counter is not present. We return
         # the rated setting in that case
         if {[catch {
-            set ctr_path [make_perf_counter_path ProcessorPerformance "Processor Frequency" -instance Processor_Number_$processor -localize true]
+            set ctr_path [pdh_make_counter_path ProcessorPerformance "Processor Frequency" -instance Processor_Number_$processor -localize true]
             lappend results -currentprocessorspeed [get_counter_path_value $ctr_path -interval $opts(interval)]
         }]} {
             if {[catch {registry get $reg_hwkey "~MHz"} val]} {
@@ -684,7 +749,7 @@ proc twapi::get_system_uptime {} {
     variable _system_start_time
     set now [clock seconds]
     if {![info exists _system_start_time]} {
-        set ctr_path [make_perf_counter_path System "System Up Time" -localize true]
+        set ctr_path [pdh_make_counter_path System "System Up Time" -localize true]
         set uptime [get_counter_path_value $ctr_path -interval 0 -format double]
         set _system_start_time [expr {$now - round($uptime+0.5)}]
     }
@@ -750,11 +815,11 @@ proc twapi::get_system_info {args} {
             semaphorecount Semaphores
         } {
             if {$opts(all) || $opts($opt)} {
-                set ${opt}_ctr [add_perf_counter $hquery [make_perf_counter_path Objects $ctrname -localize true]]
+                set ${opt}_ctr [add_perf_counter $hquery [pdh_make_counter_path Objects $ctrname -localize true]]
             }
         }
         # Collect the data
-        collect_perf_query_data $hquery
+        PdhCollectQueryData $hquery
 
         foreach opt {
             eventcount
@@ -774,10 +839,10 @@ proc twapi::get_system_info {args} {
             semaphorecount
         } {
             if {[info exists ${opt}_ctr]} {
-                remove_perf_counter [set ${opt}_ctr]
+                pdh_remove_counter [set ${opt}_ctr]
             }
         }
-        close_perf_query $hquery
+        PdhCloseQuery $hquery
     }
     return $result
 }
@@ -1279,23 +1344,23 @@ proc twapi::set_system_parameters_info {uiaction val args} {
 }
 
 
-proc twapi::start_processor_utilization {} {
+proc twapi::xxstart_processor_utilization {} {
     set counter_name {\Processor Information(*)\% Processor Time}
     set q [open_perf_query]
     set h [add_perf_counter $q $counter_name]
-    collect_perf_query_data $q
+    PdhCollectQueryData $q
     return [list $q $h]
 }
 
-proc twapi::get_processor_utilization {hperf} {
+proc twapi::xxget_processor_utilization {hperf} {
     lassign $hperf q h
-    collect_perf_query_data $q
+    PdhCollectQueryData $q
     # 0x200 -> format as double
     set result [PdhGetFormattedCounterArray $h 0x200]
     return $result
 }
 
-proc twapi::stop_processor_utilization {hperf} {
-    remove_perf_counter [lindex $hperf 1]
-    close_perf_query [lindex $hperf 0]
+proc twapi::xxstop_processor_utilization {hperf} {
+    pdh_remove_counter [lindex $hperf 1]
+    pdh_close_query [lindex $hperf 0]
 }
