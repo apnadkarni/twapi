@@ -1779,7 +1779,7 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
 
             # That failed as well, try PDH. TBD - get rid of PDH
             set pdh_path [lindex [lindex [twapi::get_perf_process_counter_paths [list $pid] -pid] 0] 3]
-            array set pdhinfo [parse_perf_counter_path $pdh_path]
+            array set pdhinfo [pdh_parse_counter_path $pdh_path]
             return $pdhinfo(instance)
         }
         return $opts(noaccess)

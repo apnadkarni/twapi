@@ -54,7 +54,7 @@ proc twapi::get_perf_object_items {objname args} {
 
 #
 # Construct a counter path
-proc twapi::make_perf_counter_path {object counter args} {
+proc twapi::pdh_make_counter_path {object counter args} {
     array set opts [parseargs args {
         machine.arg
         instance.arg
@@ -76,6 +76,7 @@ proc twapi::make_perf_counter_path {object counter args} {
         set opts(parent) [_localize_perf_counter $opts(parent)]
     }
 
+    # TBD - add options PDH_PATH_WBEM as documented in PdhMakeCounterPath
     return [PdhMakeCounterPath $opts(machine) $object $opts(instance) \
                 $opts(parent) $opts(instanceindex) $counter 0]
 
@@ -83,7 +84,7 @@ proc twapi::make_perf_counter_path {object counter args} {
 
 #
 # Parse a counter path and return the individual elements
-proc twapi::parse_perf_counter_path {counter_path} {
+proc twapi::pdh_parse_counter_path {counter_path} {
     array set counter_elems [PdhParseCounterPath $counter_path 0]
 
     lappend result machine       $counter_elems(szMachineName)
@@ -104,10 +105,6 @@ proc twapi::open_perf_query {args} {
         datasource.arg
         cookie.int
     } -nulldefault]
-    
-    if {! [string is integer -strict $opts(cookie)]} {
-        error "Non-integer value '$opts(cookie)' specified for -cookie option"
-    }
     
     return [PdhOpenQuery $opts(datasource) $opts(cookie)]
 }
@@ -175,6 +172,7 @@ proc twapi::get_hcounter_value {hcounter args} {
 
 #
 # Get the value of a counter identified by the path
+
 proc twapi::get_counter_path_value {counter_path args} {
 
     array set opts [parseargs args {
@@ -194,10 +192,10 @@ proc twapi::get_counter_path_value {counter_path args} {
     set hquery [open_perf_query -datasource $opts(datasource)]
     trap {
         set hcounter [add_perf_counter $hquery $counter_path]
-        collect_perf_query_data $hquery
+        PdhCollectQueryData $hquery
         if {$opts(interval)} {
             after $opts(interval)
-            collect_perf_query_data $hquery
+            PdhCollectQueryData $hquery
         }
         if {[string length $opts(var)]} {
             # Need to pass up value in a variable if so requested
@@ -209,9 +207,9 @@ proc twapi::get_counter_path_value {counter_path args} {
                        -var $opts(var)]
     } finally {
         if {[info exists hcounter]} {
-            remove_perf_counter $hcounter
+            pdh_remove_counter $hcounter
         }
-        close_perf_query $hquery
+        PdhCloseQuery $hquery
     }
 
     return $value
@@ -313,14 +311,14 @@ proc twapi::get_perf_process_counter_paths {pids args} {
         }
 
         # Break it down into components and store in array
-        array set path_components [parse_perf_counter_path $pid_path]
+        array set path_components [pdh_parse_counter_path $pid_path]
 
         # Construct counter paths for this pid
         foreach {opt counter_info} [array get _process_counter_opt_map] {
             if {$opts(all) || $opts($opt)} {
                 lappend counter_paths \
                     [list -$opt $pid [lindex $counter_info 1] \
-                         [make_perf_counter_path $path_components(object) \
+                         [pdh_make_counter_path $path_components(object) \
                               [_localize_perf_counter [lindex $counter_info 0]] \
                               -machine $path_components(machine) \
                               -parent $path_components(parent) \
@@ -416,12 +414,12 @@ proc twapi::get_perf_thread_counter_paths {tids args} {
     set counter_paths [list ]
     foreach {tid tid_path} $tid_paths {
         # Break it down into components and store in array
-        array set path_components [parse_perf_counter_path $tid_path]
+        array set path_components [pdh_parse_counter_path $tid_path]
         foreach {opt counter_info} [array get _thread_counter_opt_map] {
             if {$opts(all) || $opts($opt)} {
                 lappend counter_paths \
                     [list -$opt $tid [lindex $counter_info 1] \
-                         [make_perf_counter_path $path_components(object) \
+                         [pdh_make_counter_path $path_components(object) \
                               [_localize_perf_counter [lindex $counter_info 0]] \
                               -machine $path_components(machine) \
                               -parent $path_components(parent) \
@@ -507,7 +505,7 @@ proc twapi::get_perf_processor_counter_paths {processor args} {
         if {$opts(all) || $opts($opt)} {
             lappend counter_paths \
                 [list $opt $processor [lindex $counter_info 1] \
-                     [make_perf_counter_path \
+                     [pdh_make_counter_path \
                           [_localize_perf_counter "Processor"] \
                           [_localize_perf_counter [lindex $counter_info 0]] \
                           -machine $opts(machine) \
@@ -558,12 +556,12 @@ proc twapi::get_perf_instance_counter_paths {object counters
     array set counter_paths {}
     foreach {key_counter_value instance_path} $instance_paths {
         # Break it down into components and store in array
-        array set path_components [parse_perf_counter_path $instance_path]
+        array set path_components [pdh_parse_counter_path $instance_path]
 
         # Now construct the requested counter paths
         foreach counter $counters {
             set counter_path \
-                [make_perf_counter_path $path_components(object) \
+                [pdh_make_counter_path $path_components(object) \
                      $counter \
                      -machine $path_components(machine) \
                      -parent $path_components(parent) \
@@ -617,7 +615,7 @@ proc twapi::get_perf_counter_paths {object counters counter_values args} {
         }
 
         # Now collect the info
-        collect_perf_query_data $hquery
+        PdhCollectQueryData $hquery
         
         # Now lookup each counter value to find a matching one
         foreach hcounter [array names lookup] {
@@ -639,9 +637,9 @@ proc twapi::get_perf_counter_paths {object counters counter_values args} {
     } finally {
         # TBD - should we have a catch to throw errors?
         foreach hcounter [array names lookup] {
-            remove_perf_counter $hcounter
+            pdh_remove_counter $hcounter
         }
-        close_perf_query $hquery
+        PdhCloseQuery $hquery
     }
 
     return $result_paths
@@ -682,12 +680,6 @@ proc twapi::_localize_perf_counter {name} {
     # If we already have a translation, return it
     if {[info exists _localized_perf_counter_names($name_index)]} {
         return $_localized_perf_counter_names($name_index)
-    }
-
-    # TBD - windows NT 4.0 does not have the PdhLookup* functions
-    if {! [min_os_version 5]} {
-        set _localized_perf_counter_names($name_index) $name
-        return $name
     }
 
     # Didn't already have it. Go generate the mappings
@@ -746,7 +738,7 @@ proc twapi::_make_counter_path_list {object instance_list counter_list args} {
         while {$count} {
             incr count -1
             foreach counter $counter_list {
-                lappend counter_paths [make_perf_counter_path \
+                lappend counter_paths [pdh_make_counter_path \
                                            $object $counter \
                                            -machine $opts(machine) \
                                            -instance $instance \
@@ -781,10 +773,10 @@ proc twapi::get_perf_values_from_metacounter_info {metacounters args} {
                 lappend counter_info $pdh_opt $key $counter_path $data_type $hcounter
             }
             
-            collect_perf_query_data $hquery
+            PdhCollectQueryData $hquery
             if {$need_wait} {
                 after $opts(interval)
-                collect_perf_query_data $hquery
+                PdhCollectQueryData $hquery
             }
             
             foreach {pdh_opt key counter_path data_type hcounter} $counter_info {
@@ -796,14 +788,79 @@ proc twapi::get_perf_values_from_metacounter_info {metacounters args} {
             #puts "Error: $msg"
         } finally {
             foreach hcounter $counters {
-                remove_perf_counter $hcounter
+                pdh_remove_counter $hcounter
             }
-            close_perf_query $hquery
+            PdhCloseQuery $hquery
         }
     }
 
     return $result
 
+}
+
+
+proc twapi::pdh_query_open {args} {
+    variable _pdh_queries
+
+    array set opts [parseargs args {
+        datasource.arg
+        cookie.int
+    } -nulldefault]
+
+    set qh [PdhOpenQuery $opts(datasource) $opts(cookie)]
+    set id pdh#[TwapiId]
+    dict set _pdh_queries($id) query $qh
+    dict set _pdh_queries($id) counters {}
+    return $id
+}
+
+proc twapi::pdh_query_start {qid} {
+    variable _pdh_queries
+    _pdh_query_check $qid
+    pdh_query_update $qid
+    return
+}
+
+proc twapi::pdh_query_update {qid args} {
+    variable _pdh_queries
+    _pdh_query_check $qid
+    PdhCollectQueryData [dict get $_pdh_queries($qid) query]
+    return
+}
+
+proc twapi::pdh_query_close {qid} {
+    variable _pdh_queries
+    _pdh_query_check $qid
+
+    dict for {ctr_path ctrh} [dict get $_pdh_queries($qid) counters] {
+        pdh_remove_counter $ctrh
+    }
+
+    PdhCloseQuery [dict get $_pdh_queries($qid) query]
+    unset _pdh_queries($qid)
+}
+
+proc twapi::pdh_add_counter {qid ctr_path args} {
+    variable _pdh_queries
+
+    _pdh_query_check $qid
+
+    array set opts [parseargs args {
+        cookie.int
+    } -nulldefault]
+    
+    set hctr [PdhAddCounter [dict get $_pdh_queries($qid) query] $ctr_path $opts(cookie)]
+    dict set _pdh_queries($qid) counters $ctr_path $hctr
+    return $hctr
+}
+
+
+proc twapi::_pdh_query_check {qid} {
+    variable _pdh_queries 
+
+    if {![info exists _pdh_queries($qid)]} {
+        error "Invalid query id $qid"
+    }
 }
 
 proc twapi::_perf_detail_sym_to_val {sym} {
