@@ -54,7 +54,7 @@ proc twapi::get_perf_object_items {objname args} {
 
 #
 # Construct a counter path
-proc twapi::pdh_make_counter_path {object counter args} {
+proc twapi::pdh_counter_path {object counter args} {
     array set opts [parseargs args {
         machine.arg
         instance.arg
@@ -316,8 +316,9 @@ proc twapi::get_perf_process_counter_paths {pids args} {
             if {$opts(all) || $opts($opt)} {
                 lappend counter_paths \
                     [list -$opt $pid [lindex $counter_info 1] \
-                         [pdh_make_counter_path $path_components(object) \
+                         [pdh_counter_path $path_components(object) \
                               [_localize_perf_counter [lindex $counter_info 0]] \
+                              -localize false \
                               -machine $path_components(machine) \
                               -parent $path_components(parent) \
                               -instance $path_components(instance) \
@@ -417,8 +418,9 @@ proc twapi::get_perf_thread_counter_paths {tids args} {
             if {$opts(all) || $opts($opt)} {
                 lappend counter_paths \
                     [list -$opt $tid [lindex $counter_info 1] \
-                         [pdh_make_counter_path $path_components(object) \
+                         [pdh_counter_path $path_components(object) \
                               [_localize_perf_counter [lindex $counter_info 0]] \
+                              -localize false \
                               -machine $path_components(machine) \
                               -parent $path_components(parent) \
                               -instance $path_components(instance) \
@@ -503,9 +505,10 @@ proc twapi::get_perf_processor_counter_paths {processor args} {
         if {$opts(all) || $opts($opt)} {
             lappend counter_paths \
                 [list $opt $processor [lindex $counter_info 1] \
-                     [pdh_make_counter_path \
+                     [pdh_counter_path \
                           [_localize_perf_counter "Processor"] \
                           [_localize_perf_counter [lindex $counter_info 0]] \
+                          -localize false \
                           -machine $opts(machine) \
                           -instance $processor] \
                      [lindex $counter_info 2] \
@@ -557,10 +560,12 @@ proc twapi::get_perf_instance_counter_paths {object counters
         array set path_components [pdh_parse_counter_path $instance_path]
 
         # Now construct the requested counter paths
+        # TBD - what should -localize be here ?
         foreach counter $counters {
             set counter_path \
-                [pdh_make_counter_path $path_components(object) \
+                [pdh_counter_path $path_components(object) \
                      $counter \
+                     -localize false \
                      -machine $path_components(machine) \
                      -parent $path_components(parent) \
                      -instance $path_components(instance) \
@@ -709,6 +714,7 @@ proc twapi::_localize_perf_counter {name} {
 
 # Given a list of instances and counters, return a cross product of the 
 # corresponding counter paths.
+# The list is expected to be already localized
 # Example: _make_counter_path_list "Process" (instance list) {{ID Process} {...}}
 # TBD - bug - does not handle -parent in counter path
 proc twapi::_make_counter_path_list {object instance_list counter_list args} {
@@ -736,8 +742,9 @@ proc twapi::_make_counter_path_list {object instance_list counter_list args} {
         while {$count} {
             incr count -1
             foreach counter $counter_list {
-                lappend counter_paths [pdh_make_counter_path \
+                lappend counter_paths [pdh_counter_path \
                                            $object $counter \
+                                           -localize false \
                                            -machine $opts(machine) \
                                            -instance $instance \
                                            -instanceindex $count]
@@ -810,13 +817,6 @@ proc twapi::pdh_query_open {args} {
     dict set _pdh_queries($id) query $qh
     dict set _pdh_queries($id) counters {}
     return $id
-}
-
-proc twapi::pdh_query_start {qid} {
-    variable _pdh_queries
-    _pdh_query_check $qid
-    pdh_query_update $qid
-    return
 }
 
 proc twapi::pdh_query_update {qid args} {
@@ -900,7 +900,4 @@ proc twapi::_pdh_fmt_sym_to_val {sym} {
         nocap100 0x00008000
         nocap 0x00008000
     } $sym]
-
-
-
 }
