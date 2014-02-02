@@ -290,15 +290,17 @@ static Tcl_Obj *ObjFromPDH_FMT_COUNTERVALUE(Tcl_Interp *interp, PDH_FMT_COUNTERV
     return NULL;
 }
 
-static Tcl_Obj *ObjFromPDH_COUNTER_VALUE_ITEM(Tcl_Interp *interp, PDH_FMT_COUNTERVALUE_ITEM_W *itemP, DWORD dwFormat)
+static TCL_RESULT ObjFromPDH_COUNTER_VALUE_ITEM(Tcl_Interp *interp, PDH_FMT_COUNTERVALUE_ITEM_W *itemP, DWORD dwFormat, Tcl_Obj **nameObjP, Tcl_Obj **valObjP)
 {
-    Tcl_Obj *objs[2];
-    objs[1] = ObjFromPDH_FMT_COUNTERVALUE(interp, &itemP->FmtValue, dwFormat);
-    if (objs[1] == NULL)
-        return NULL;            /* interp already holds error */
+    Tcl_Obj *valObj;
+
+    valObj = ObjFromPDH_FMT_COUNTERVALUE(interp, &itemP->FmtValue, dwFormat);
+    if (valObj == NULL)
+        return TCL_ERROR;            /* interp already holds error */
         
-    objs[0] = ObjFromUnicode(itemP->szName);
-    return ObjNewList(ARRAYSIZE(objs), objs);
+    *nameObjP = ObjFromUnicode(itemP->szName);
+    *valObjP = valObj;
+    return TCL_OK;
 }
 
 TCL_RESULT Twapi_PdhGetFormattedCounterArray(
@@ -331,18 +333,18 @@ TCL_RESULT Twapi_PdhGetFormattedCounterArray(
     if (pdh_status != ERROR_SUCCESS)
         res = Twapi_AppendSystemError(interp, pdh_status);
     else {
-        Tcl_Obj **itemObjs = MemLifoAlloc(memlifoP, nitems * sizeof(*itemObjs), NULL);
+        Tcl_Obj **itemObjs = MemLifoAlloc(memlifoP, 2 * nitems * sizeof(*itemObjs), NULL);
+        Tcl_Obj **objPP;
         res = TCL_OK;
-        for (i = 0; i < nitems; ++i) {
-            itemObjs[i] = ObjFromPDH_COUNTER_VALUE_ITEM(interp, &itemP[i], dwFormat);
-            if (itemObjs[i] == NULL) {
-                ObjDecrArrayRefs(i, itemObjs);
-                res = TCL_ERROR;
+        for (i = 0, objPP = &itemObjs[0]; i < nitems; ++i, objPP += 2) {
+            res = ObjFromPDH_COUNTER_VALUE_ITEM(interp, &itemP[i], dwFormat, objPP, objPP+1);
+            if (res != TCL_OK) {
+                ObjDecrArrayRefs(2*i, itemObjs);
                 break;
             }
         }
         if (res == TCL_OK)
-            ObjSetResult(interp, ObjNewList(nitems, itemObjs));
+            ObjSetResult(interp, ObjNewList(2*nitems, itemObjs));
     }
     MemLifoPopMark(mark);
     return res;

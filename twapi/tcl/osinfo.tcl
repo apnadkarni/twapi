@@ -403,8 +403,8 @@ proc twapi::get_processor_utilization qid {
     set result {}
     dict for {opt ctr} $_processor_utilization_queries($qid) {
         # 0x200 -> format as double
-        foreach rec [PdhGetFormattedCounterArray [dict get $ctr handle] 0x200] {
-            dict set result [lindex $rec 0] $opt [lindex $rec 1]
+        foreach {key val} [PdhGetFormattedCounterArray [dict get $ctr handle] 0x200] {
+            dict set result $key $opt $val
         }
     }
 
@@ -828,7 +828,7 @@ proc twapi::get_system_info {args} {
             semaphorecount
         } {
             if {[info exists ${opt}_ctr]} {
-                lappend result -$opt [get_hcounter_value [set ${opt}_ctr] -format long -scale "" -full 0]
+                lappend result -$opt [pdh_get_scalar [set ${opt}_ctr] -format long -scale "" -full 0]
             }
         }
     } finally {
