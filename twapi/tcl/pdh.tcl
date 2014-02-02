@@ -120,17 +120,16 @@ proc twapi::add_perf_counter {hquery counter_path args} {
     return $hcounter
 }
 
-#
-# Get the value of a counter in a query
-# TBD - add some way of getting the cookie associated with the counter
-proc twapi::get_hcounter_value {hcounter args} {
+interp alias {} twapi::pdh_get_scalar {} twapi::_pdh_get 1
+interp alias {} twapi::pdh_get_array {} twapi::_pdh_get 0
+
+proc twapi::_pdh_get {scalar hcounter args} {
 
     array set opts [parseargs args {
         {format.arg long {long large double}}
         scale.arg
         var.arg
-        full.bool
-    } -nulldefault]
+    } -ignoreunknown -nulldefault]
     
     set format [_pdh_fmt_sym_to_val $opts(format)]
 
@@ -145,7 +144,11 @@ proc twapi::get_hcounter_value {hcounter args} {
     set status 1
     set result ""
     trap {
-        set result [PdhGetFormattedCounterValue $hcounter $flags]
+        if {$scalar} {
+            set result [lindex [PdhGetFormattedCounterValue $hcounter $flags] 0]
+        } else {
+            set result [PdhGetFormattedCounterArray $hcounter $flags]
+        }
     } onerror {TWAPI_WIN32 0x800007d1} {
         # Error is that no such instance exists.
         # If result is being returned in a variable, then
@@ -156,10 +159,6 @@ proc twapi::get_hcounter_value {hcounter args} {
         }
         set status 0
     }
-    if {! $opts(full)} {
-        # Only care about the value, not type
-        set result [lindex $result 0]
-    }
     
     if {[string length $opts(var)]} {
         uplevel [list set $opts(var) $result]
@@ -168,7 +167,6 @@ proc twapi::get_hcounter_value {hcounter args} {
         return $result
     }
 }
-
 
 #
 # Get the value of a counter identified by the path
@@ -202,7 +200,7 @@ proc twapi::get_counter_path_value {counter_path args} {
             upvar $opts(var) myvar
             set opts(var) myvar
         }
-        set value [get_hcounter_value $hcounter -format $opts(format) \
+        set value [pdh_get_scalar $hcounter -format $opts(format) \
                        -scale $opts(scale) -full $opts(full) \
                        -var $opts(var)]
     } finally {
@@ -619,7 +617,7 @@ proc twapi::get_perf_counter_paths {object counters counter_values args} {
         
         # Now lookup each counter value to find a matching one
         foreach hcounter [array names lookup] {
-            if {! [get_hcounter_value $hcounter -var value]} {
+            if {! [pdh_get_scalar $hcounter -var value]} {
                 # Counter or instance no longer exists
                 continue
             }
@@ -780,7 +778,7 @@ proc twapi::get_perf_values_from_metacounter_info {metacounters args} {
             }
             
             foreach {pdh_opt key counter_path data_type hcounter} $counter_info {
-                if {[get_hcounter_value $hcounter -format $data_type -var value]} {
+                if {[pdh_get_scalar $hcounter -format $data_type -var value]} {
                     lappend result $pdh_opt $key $value
                 }
             }
