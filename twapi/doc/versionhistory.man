@@ -9,12 +9,16 @@ Summarizes the list of changes for each version of TWAPI.
 
 [section "Version 4.0.26 Beta"]
 Major changes in this release are support for Windows event tracing,
-new Windows event logging API,
+new Windows event logging API, SSL/TLS sockets,
 greatly enhanced support for CryptoAPI including certificate handling,
+access to performance counters,
 enhancements to the COM module and architectural changes for modularity
 and run-time performance.
 
 [list_begin bullet]
+
+[bullet]
+Added support for reading [uri pdh.html "performance counters"].
 
 [bullet]
 Added [uri crypto.html CryptoAPI] support for creation and manipulation
