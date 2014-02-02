@@ -62,6 +62,7 @@ MANFILES= \
 	resource.man \
 	msi.man \
 	nls.man \
+	pdh.man \
 	printer.man \
 	device.man \
 	synch.man \
