@@ -370,12 +370,12 @@ proc twapi::start_processor_utilization {args} {
     trap {
         dict for {opt ctr_name} $ctr_names {
             if {$opts($opt)} {
-                set ctr_path [lindex [_make_counter_path_list "Processor Information" [list *] [list $ctr_name]] 0]
+                set ctr_path [pdh_counter_path $obj_name $ctr_name -instance *]
                 dict set ctrs -$opt ctr_path $ctr_path
                 dict set ctrs -$opt handle [pdh_add_counter $qid $ctr_path]
             }
         }
-        pdh_query_start $qid
+        pdh_query_update $qid
     } onerror {} {
         pdh_query_close $qid
         rethrow
@@ -495,7 +495,7 @@ proc twapi::get_processor_info {processor args} {
         # This might fail if counter is not present. We return
         # the rated setting in that case
         if {[catch {
-            set ctr_path [pdh_make_counter_path ProcessorPerformance "Processor Frequency" -instance Processor_Number_$processor -localize true]
+            set ctr_path [pdh_counter_path ProcessorPerformance "Processor Frequency" -instance Processor_Number_$processor -localize true]
             lappend results -currentprocessorspeed [get_counter_path_value $ctr_path -interval $opts(interval)]
         }]} {
             if {[catch {registry get $reg_hwkey "~MHz"} val]} {
@@ -749,7 +749,7 @@ proc twapi::get_system_uptime {} {
     variable _system_start_time
     set now [clock seconds]
     if {![info exists _system_start_time]} {
-        set ctr_path [pdh_make_counter_path System "System Up Time" -localize true]
+        set ctr_path [pdh_counter_path System "System Up Time" -localize true]
         set uptime [get_counter_path_value $ctr_path -interval 0 -format double]
         set _system_start_time [expr {$now - round($uptime+0.5)}]
     }
@@ -815,7 +815,7 @@ proc twapi::get_system_info {args} {
             semaphorecount Semaphores
         } {
             if {$opts(all) || $opts($opt)} {
-                set ${opt}_ctr [add_perf_counter $hquery [pdh_make_counter_path Objects $ctrname -localize true]]
+                set ${opt}_ctr [add_perf_counter $hquery [pdh_counter_path Objects $ctrname -localize true]]
             }
         }
         # Collect the data
