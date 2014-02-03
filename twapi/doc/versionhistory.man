@@ -18,17 +18,17 @@ and run-time performance.
 [list_begin bullet]
 
 [bullet]
+Enhanced [uri sspi.html SSPI] module including stream support.
+
+[bullet]
+Added [uri tls.html SSL/TLS] socket channels.
+
+[bullet]
 Added support for reading [uri pdh.html "performance counters"].
 
 [bullet]
-Added [uri crypto.html CryptoAPI] support for creation and manipulation
-of certificates and certificate stores.
-
-[bullet] [emph "INCOMPATIBILITY"]
-The experimental 
-[uri sspi.html SSPI] interface has been completely redone (post-4.0b23)
-and commands in older versions are no longer present.
-Enhancements include support for stream interfaces and SSL/TLS.
+Added [uri crypto.html CryptoAPI] support for creation, verification
+and management of certificates and certificate stores.
 
 [bullet]
 Added [uri base.html#read_credentials [cmd read_credentials]],
@@ -39,16 +39,6 @@ Added [uri base.html#read_credentials [cmd read_credentials]],
 [bullet]
 Added [uri base.html#conceal [cmd conceal]] and
 [uri base.html#reveal [cmd reveal]].
-
-[bullet] [emph "POTENTIAL INCOMPATIBILITY"]
-Many commands which take a password as an argument now expect it to be
-passed in encrypted form as returned by 
-[uri base.html#read_credentials [cmd read_credentials]],
-[uri base.html#credentials_dialog [cmd credentials_dialog]] and
-[uri base.html#conceal [cmd conceal]]. Unencrypted
-forms of passwords are still accepted by existing but are deprecated and 
-support will be dropped in a future release. Commands new in 4.0 will
-only work with the new encrypted form.
 
 [bullet]
 Added support for the [uri eventlog.html "new event logging infrastructure"]
@@ -124,57 +114,81 @@ Added [cmd -setvars] option to [uri base.html#parseargs [cmd parseargs]].
 [bullet]
 Added the [cmd rethrow], [cmd trapresult] and [cmd trapoptions]
 commands to [uri base.html#trap [cmd trap]].
+[list_end]
 
-[bullet] [emph "INCOMPATIBILITY"]
-The [cmd get_system_info] command has been removed. Equivalent
-functionality is available through the
-[uri pdh.html#pdh_system_performance_query [cmd pdh_system_performance_query]],
-[uri osinfo.html#get_system_sid [cmd get_system_sid]] and
-[uri osinfo.html#get_system_uptime [cmd get_system_uptime]] commands.
+[emph "INCOMPATIBLE CHANGES"]
+[para]
+The following table lists incompatibilities and potential incompatibilities
+with respect to TWAPI 3.1.
+[list_begin opt]
 
-[bullet] [emph "INCOMPATIBILITY"]
-The [cmd try] command, deprecated in previous versions, has been removed
-to prevent conflicts with the [cmd try] command in Tcl 8.6.
-Use [uri base.man#trap [cmd trap]] instead. The [var errorCode], [var errorResult] and
-[var errorInfo] variables are no longer brought into scope
-automatically in onerror clauses.
+[opt_def [cmd address_to_hostname]] Removed. Use
+the [uri network.html#resolve_address [cmd resolve_address]] command instead.
 
-[bullet] [emph "INCOMPATIBILITY"]
-Format and content of [uri base.html#get_build_config [cmd get_build_config]]
-has changed.
+[opt_def "COM SAFEARRAY"]
+Multidimensional arrays are returned as nested lists. In 3.1, they
+were returned as a single flat list.
 
-[bullet] [emph "INCOMPATIBILITY"]
-The [cmd -toplevels] option of the [cmd get_process_info] command
+[opt_def [uri base.html#debuglog [cmd debuglog]]]
+Calling interface has changed.
+
+[opt_def [cmd file_properties_dialog]]. Removed.
+Use [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]] instead.
+
+[opt_def [uri base.html#get_build_config [cmd get_build_config]]]
+Return value format and content has changed.
+
+[opt_def [uri process.html#get_process_info [cmd get_process_info]]]
+The [cmd -toplevels] option
 is no longer available. Also the [cmd -pid] no longer accepts a process name
 as argument. Both these can be replaced by a combination of
 [uri ui.html#get_toplevel_windows [cmd "get_toplevel_windows -pids"]]
 and [uri process.html#get_process_ids [cmd "get_process_ids -name"]].
 
-[bullet] [emph "INCOMPATIBILITY"]
-The command [cmd TwapiThemeDefineValue] has been removed.
+[opt_def [cmd get_system_info]]
+Removed. Equivalent
+functionality is available through the
+[uri pdh.html#pdh_system_performance_query [cmd pdh_system_performance_query]],
+[uri osinfo.html#get_system_sid [cmd get_system_sid]] and
+[uri osinfo.html#get_system_uptime [cmd get_system_uptime]] commands.
 
-[bullet] [emph "INCOMPATIBILITY"]
-The deprecated command [cmd address_to_hostname] has been removed. Use
-the [uri network.html#resolve_address [cmd resolve_address]] command instead.
+[opt_def [uri base.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]]]
+Returns an additional element - the day of the week.
 
-[bullet] [emph "INCOMPATIBILITY"]
-The commands [cmd file_properties_dialog], [cmd volume_properties_dialog]
-and [cmd printer_properties_dialog] have been removed. Use the
-[uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]]
-instead.
+[opt_def "Password handling"]
+Many commands which take a password as an argument now expect it to be
+passed in encrypted form as returned by 
+[uri base.html#read_credentials [cmd read_credentials]],
+[uri base.html#credentials_dialog [cmd credentials_dialog]] and
+[uri base.html#conceal [cmd conceal]]. Unencrypted
+forms of passwords are still accepted by existing commands
+but are deprecated and support will be dropped in a future release.
+Commands new in 4.0 will only work with the new encrypted password forms.
 
-[bullet] [emph "POTENTIAL INCOMPATIBILITY"]
-The command [uri base.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]]
-now returns an additional element - the day of the week.
+[opt_def [cmd printer_properties_dialog]] Removed.
+Use [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]] instead.
 
-[bullet] [emph "POTENTIAL INCOMPATIBILITY"]
-The command [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]]
-defaults the object type [const file] instead of attempting to guess the type.
+[opt_def [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]]]
+Defaults the object type to [const file]
+instead of attempting to guess the type.
 
-[bullet] [emph "POTENTIAL INCOMPATIBILITY"]
-Changed the interface to [uri base.html#debuglog [cmd debuglog]].
+[opt_def "[uri sspi.html SSPI] interface"] API has been completely redone (post-4.0b23)
+and commands in older versions are no longer present.
+
+[opt_def [cmd try]] Removed
+to prevent conflicts with the [cmd try] command in Tcl 8.6.
+Use [uri base.man#trap [cmd trap]] instead.
+The [var errorCode], [var errorResult] and
+[var errorInfo] variables are no longer brought into scope
+automatically in onerror clauses.
+
+[opt_def [cmd TwapiThemeDefineValue]] Removed.
+
+[opt_def [cmd volume_properties_dialog]] Removed.
+Use [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]] instead.
 
 [list_end]
+
 
 [section "Version 3.1"]
 
