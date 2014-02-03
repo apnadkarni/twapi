@@ -14,7 +14,7 @@ namespace eval twapi {
 
 #
 # Return list of toplevel performance objects
-proc twapi::get_perf_objects {args} {
+proc twapi::pdh_enumerate_objects {args} {
 
     array set opts [parseargs args {
         datasource.arg
@@ -34,7 +34,7 @@ proc twapi::get_perf_objects {args} {
 
 #
 # Return list of items within a performance object
-proc twapi::get_perf_object_items {objname args} {
+proc twapi::pdh_get_object_items {objname args} {
     array set opts [parseargs args {
         datasource.arg
         machine.arg
@@ -85,40 +85,9 @@ proc twapi::pdh_counter_path {object counter args} {
 #
 # Parse a counter path and return the individual elements
 proc twapi::pdh_parse_counter_path {counter_path} {
-    array set counter_elems [PdhParseCounterPath $counter_path 0]
-
-    lappend result machine       $counter_elems(szMachineName)
-    lappend result object        $counter_elems(szObjectName)
-    lappend result instance      $counter_elems(szInstanceName)
-    lappend result instanceindex $counter_elems(dwInstanceIndex)
-    lappend result parent        $counter_elems(szParentInstance)
-    lappend result counter       $counter_elems(szCounterName)
-
-    return $result
+    return [twine {machine object instance instanceindex parent counter} [PdhParseCounterPath $counter_path 0]]
 }
 
-#
-# Open a query that will be used as a container for counters
-proc twapi::open_perf_query {args} {
-
-    array set opts [parseargs args {
-        datasource.arg
-        cookie.int
-    } -nulldefault]
-    
-    return [PdhOpenQuery $opts(datasource) $opts(cookie)]
-}
-
-#
-# Add a counter to a query
-proc twapi::add_perf_counter {hquery counter_path args} {
-    array set opts [parseargs args {
-        cookie.int
-    } -nulldefault]
-    
-    set hcounter [PdhAddCounter $hquery $counter_path $opts(cookie)]
-    return $hcounter
-}
 
 interp alias {} twapi::pdh_get_scalar {} twapi::_pdh_get 1
 interp alias {} twapi::pdh_get_array {} twapi::_pdh_get 0
@@ -187,13 +156,13 @@ proc twapi::get_counter_path_value {counter_path args} {
     }
 
     # Open the query
-    set hquery [open_perf_query -datasource $opts(datasource)]
+    set hquery [pdh_query_open -datasource $opts(datasource)]
     trap {
-        set hcounter [add_perf_counter $hquery $counter_path]
-        PdhCollectQueryData $hquery
+        set hcounter [pdh_add_counter $hquery $counter_path]
+        pdh_query_update $hquery
         if {$opts(interval)} {
             after $opts(interval)
-            PdhCollectQueryData $hquery
+            pdh_query_update $hquery
         }
         if {[string length $opts(var)]} {
             # Need to pass up value in a variable if so requested
@@ -204,10 +173,7 @@ proc twapi::get_counter_path_value {counter_path args} {
                        -scale $opts(scale) -full $opts(full) \
                        -var $opts(var)]
     } finally {
-        if {[info exists hcounter]} {
-            pdh_remove_counter $hcounter
-        }
-        PdhCloseQuery $hquery
+        pdh_query_close $hquery
     }
 
     return $value
@@ -597,7 +563,7 @@ proc twapi::get_perf_counter_paths {object counters counter_values args} {
         _refresh_perf_objects $opts(machine) $opts(datasource)
     }
 
-    set items [get_perf_object_items $object \
+    set items [pdh_enum_object_items $object \
                    -machine $opts(machine) \
                    -datasource $opts(datasource)]
     lassign $items object_counters object_instances
@@ -611,14 +577,14 @@ proc twapi::get_perf_counter_paths {object counters counter_values args} {
     set result_paths [list ]
     trap {
         # Set up the query with the process id for all processes
-        set hquery [open_perf_query -datasource $opts(datasource)]
+        set hquery [pdh_query_open -datasource $opts(datasource)]
         foreach path $paths {
-            set hcounter [add_perf_counter $hquery $path]
+            set hcounter [pdh_add_counter $hquery $path]
             set lookup($hcounter) $path
         }
 
         # Now collect the info
-        PdhCollectQueryData $hquery
+        pdh_query_update $hquery
         
         # Now lookup each counter value to find a matching one
         foreach hcounter [array names lookup] {
@@ -627,7 +593,6 @@ proc twapi::get_perf_counter_paths {object counters counter_values args} {
                 continue
             }
 
-            #puts "$lookup($hcounter): $value"
             set match_pos [lsearch -$opts(matchop) $counter_values $value]
             if {$match_pos >= 0} {
                 lappend result_paths \
@@ -639,10 +604,7 @@ proc twapi::get_perf_counter_paths {object counters counter_values args} {
         }
     } finally {
         # TBD - should we have a catch to throw errors?
-        foreach hcounter [array names lookup] {
-            pdh_remove_counter $hcounter
-        }
-        PdhCloseQuery $hquery
+        pdh_query_close $hquery
     }
 
     return $result_paths
@@ -766,22 +728,22 @@ proc twapi::get_perf_values_from_metacounter_info {metacounters args} {
     set result [list ]
     set counters [list ]
     if {[llength $metacounters]} {
-        set hquery [open_perf_query]
+        set hquery [pdh_query_open]
         trap {
             set counter_info [list ]
             set need_wait 0
             foreach counter_elem $metacounters {
                 lassign $counter_elem pdh_opt key data_type counter_path wait
                 incr need_wait $wait
-                set hcounter [add_perf_counter $hquery $counter_path]
+                set hcounter [pdh_add_counter $hquery $counter_path]
                 lappend counters $hcounter
                 lappend counter_info $pdh_opt $key $counter_path $data_type $hcounter
             }
             
-            PdhCollectQueryData $hquery
+            pdh_query_update $hquery
             if {$need_wait} {
                 after $opts(interval)
-                PdhCollectQueryData $hquery
+                pdh_query_update $hquery
             }
             
             foreach {pdh_opt key counter_path data_type hcounter} $counter_info {
@@ -792,17 +754,13 @@ proc twapi::get_perf_values_from_metacounter_info {metacounters args} {
         } onerror {} {
             #puts "Error: $msg"
         } finally {
-            foreach hcounter $counters {
-                pdh_remove_counter $hcounter
-            }
-            PdhCloseQuery $hquery
+            pdh_query_close $hquery
         }
     }
 
     return $result
 
 }
-
 
 proc twapi::pdh_query_open {args} {
     variable _pdh_queries

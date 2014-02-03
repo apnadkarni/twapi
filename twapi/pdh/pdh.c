@@ -250,20 +250,14 @@ int Twapi_PdhParseCounterPath(
             Twapi_AppendSystemError(ticP->interp, pdh_status);
             result = TCL_ERROR;
         } else {
-            Tcl_Obj *objs[12];
-            objs[0] = STRING_LITERAL_OBJ("szMachineName");
-            objs[1] = ObjFromUnicode(pdh_elems->szMachineName);
-            objs[2] = STRING_LITERAL_OBJ("szObjectName");
-            objs[3] = ObjFromUnicode(pdh_elems->szObjectName);
-            objs[4] = STRING_LITERAL_OBJ("szInstanceName");
-            objs[5] = ObjFromUnicode(pdh_elems->szInstanceName);
-            objs[6] = STRING_LITERAL_OBJ("szParentInstance");
-            objs[7] = ObjFromUnicode(pdh_elems->szParentInstance);
-            objs[8] = STRING_LITERAL_OBJ("dwInstanceIndex");
-            objs[9] = ObjFromLong(pdh_elems->dwInstanceIndex);
-            objs[10] = STRING_LITERAL_OBJ("szCounterName");
-            objs[11] = ObjFromUnicode(pdh_elems->szCounterName);
-            ObjSetResult(ticP->interp, ObjNewList(12, objs));
+            Tcl_Obj *objs[6];
+            objs[0] = ObjFromUnicode(pdh_elems->szMachineName);
+            objs[1] = ObjFromUnicode(pdh_elems->szObjectName);
+            objs[2] = ObjFromUnicode(pdh_elems->szInstanceName);
+            objs[3] = ObjFromUnicode(pdh_elems->szParentInstance);
+            objs[4] = ObjFromLong(pdh_elems->dwInstanceIndex);
+            objs[5] = ObjFromUnicode(pdh_elems->szCounterName);
+            ObjSetResult(ticP->interp, ObjNewList(ARRAYSIZE(objs), objs));
             result = TCL_OK;
         }
         MemLifoPopFrame(ticP->memlifoP);

@@ -10,6 +10,13 @@
 This package provides procedures related to retrieving Windows
 performance counters.
 
+[section "Performance Objects"]
+To get a list of performance objects on a system, call
+[uri #pdh_enumerate_objects [cmd pdh_enumerate_objects]].
+The specific counters supported by an object and the list of its instances
+is returned by
+[uri #pdh_enumerate_object_items [cmd pdh_enumerate_object_items]].
+
 [section "Counter Paths"]
 
 Similar to files in a file system, performance counters are identified
@@ -20,6 +27,12 @@ Not all components in a counter path need to be specified.
 See [uri "http://msdn.microsoft.com/en-us/library/windows/desktop/aa373193(v=vs.85).aspx" "Windows SDK documentation"]
 for a detailed description and examples.
 [emph {Note that \ and / are not interchangeable in a counter path}]
+
+[para]
+To construct a counter path, call 
+[uri #pdh_counter_path [cmd pdh_counter_path]]. The break down a 
+counter path into its components, call
+[uri #pdh_parse_counter_path [cmd pdh_parse_counter_path]].
 
 [section "Retrieving Counter Values"]
 To retrieve values for a counter, use the following sequence of commands
@@ -105,6 +118,41 @@ Returns a flat list of instance name and value pairs for a counter
 that covers multiple objects, such as one containing wildcards.
 Refer to [uri #pdh_get_scalar [cmd pdh_get_scalar]] for options.
 
+[call [cmd pdh_get_objects] [opt [arg options]]]
+Returns a list of the names of the performance objects on a system.
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -wizard] [arg DETAILLEVEL]]
+Controls which detail levels are to be returned. [arg DETAILLEVEL]
+may be one of [const novice], [const advanced], [const expert] and
+[const wizard] (default) which return performance objects at
+an increasing level of detail.
+[opt_def [cmd -refresh]]
+The list of performance objects is returned from a cache.
+Performance objects may be added by any application at any time.
+Specifying [cmd -refresh] causes the cache to be refreshed
+before being returned.
+[list_end]
+
+[call [cmd pdh_get_object_items] [arg PERFOBJ] [opt [arg options]]]
+Returns a list of two elements, the first being a list of counter names
+for the performance object [arg PERFOBJ] and the second being the
+list of instance names for object.
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -wizard] [arg DETAILLEVEL]]
+Controls which detail levels are to be returned. [arg DETAILLEVEL]
+may be one of [const novice], [const advanced], [const expert] and
+[const wizard] (default) which return performance objects at
+an increasing level of detail.
+[opt_def [cmd -refresh]]
+The list of performance objects is returned from a cache.
+Performance objects may be added by any application at any time.
+The command will fail if [arg PERFOBJ] is not in the cache.
+Specifying [cmd -refresh] causes the cache to be refreshed
+before attempting to access the information for [arg PERFOBJ].
+[list_end]
+
 [call [cmd pdh_get_scalar] [arg HCOUNTER] [opt [arg options]]]
 Returns the value of the specified counter as of the last call
 to [uri #pdh_query_update [cmd pdh_query_update]]. [arg HCOUNTER]
@@ -120,7 +168,28 @@ The following options may be specified:
 Specifies how the counter value should be formatted. [arg FORMAT]
 may be on of [const long], [const large] or [const double]
 for a 32-bit integer, a 64-bit integer or a floating point double.
+[opt_def [cmd -scale] SCALE]
+By default, each counter has a default scaling factor.
+If [arg SCALE] is [const none], the counter value is
+returned without the default scaling. If [arg SCALE] is [const 1000],
+the returned value is scaled up by a factor of 1000. If [arg SCALE]
+is [const nocap], the counter value is not capped at 100 as is the scale
+for some counters like processor utilization.
+[opt_def [cmd -var] [arg VARNAME]]
+Specifies [arg VARNAME] as the name of a variable in the caller's
+context where the counter value is stored instead of being returned
+as the result of the command. If specified, the return value of
+the command is [const 1] on success and [const 0] if the counter
+does not exist. Without this option, the command will raise an error
+if the counter does not exist.
 [list_end]
+
+[call [cmd pdh_parse_counter_path] [arg CTRPATH]]
+Returns a dictionary containing the components of the
+counter path [arg CTRPATH]. The dictionary contains the following
+keys corresponding to each component of the path: [const machine],
+[const object], [const instance], [const instanceindex], [const parent]
+and [const counter].
 
 [call [cmd pdh_query_close] [arg HPERF]]
 Closes a performance counter query. All counters added to the query
