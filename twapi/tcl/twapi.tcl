@@ -25,6 +25,12 @@ namespace eval twapi {
     ################################################################
     # Following procs are used early in init process so defined here
 
+    # Throws a bad argument error that appears to come from caller's invocation
+    # (if default level is 2)
+    proc badargs! {msg {level 2}} {
+        return -level $level -code error -errorcode [list TWAPI BADARGS $msg] $msg
+    }
+
     proc lambda {arglist body {ns {}}} {
         return [list ::apply [list $arglist $body $ns]]
     }
@@ -760,12 +766,6 @@ apply {{filelist} {
 # TBD - document
 proc twapi::true {args} {
     return true
-}
-
-# Throws a bad argument error that appears to come from caller's invocation
-# (if default level is 2)
-proc twapi::badargs! {msg {level 2}} {
-    return -level $level -code error -errorcode [list TWAPI BADARGS $msg] $msg
 }
 
 

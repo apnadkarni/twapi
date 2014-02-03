@@ -95,26 +95,22 @@ interp alias {} twapi::pdh_get_array {} twapi::_pdh_get 0
 proc twapi::_pdh_get {scalar hcounter args} {
 
     array set opts [parseargs args {
-        {format.arg long {long large double}}
-        scale.arg
+        {format.arg large {long large double}}
+        {scale.arg {} {{} none x1000 nocap100}}
         var.arg
     } -ignoreunknown -nulldefault]
     
-    set format [_pdh_fmt_sym_to_val $opts(format)]
+    set flags [_pdh_fmt_sym_to_val $opts(format)]
 
-    if {$opts(scale) eq ""} {
-        set scale 0
-    } else {
-        set scale [_pdh_fmt_sym_to_val $opts(scale)]
+    if {$opts(scale) ne ""} {
+        set flags [expr {$flags | [_pdh_fmt_sym_to_val $opts(scale)]}]
     }
-
-    set flags [expr {$format | $scale}]
 
     set status 1
     set result ""
     trap {
         if {$scalar} {
-            set result [lindex [PdhGetFormattedCounterValue $hcounter $flags] 0]
+            set result [PdhGetFormattedCounterValue $hcounter $flags]
         } else {
             set result [PdhGetFormattedCounterArray $hcounter $flags]
         }
@@ -772,15 +768,16 @@ proc twapi::pdh_query_open {args} {
 
     set qh [PdhOpenQuery $opts(datasource) $opts(cookie)]
     set id pdh#[TwapiId]
-    dict set _pdh_queries($id) query $qh
-    dict set _pdh_queries($id) counters {}
+    dict set _pdh_queries($id) Qh $qh
+    dict set _pdh_queries($id) Counters {}
+    dict set _pdh_queries($id) Meta {}
     return $id
 }
 
 proc twapi::pdh_query_update {qid args} {
     variable _pdh_queries
     _pdh_query_check $qid
-    PdhCollectQueryData [dict get $_pdh_queries($qid) query]
+    PdhCollectQueryData [dict get $_pdh_queries($qid) Qh]
     return
 }
 
@@ -788,11 +785,11 @@ proc twapi::pdh_query_close {qid} {
     variable _pdh_queries
     _pdh_query_check $qid
 
-    dict for {ctr_path ctrh} [dict get $_pdh_queries($qid) counters] {
+    foreach ctrh [dict get $_pdh_queries($qid) Counters] {
         pdh_remove_counter $ctrh
     }
 
-    PdhCloseQuery [dict get $_pdh_queries($qid) query]
+    PdhCloseQuery [dict get $_pdh_queries($qid) Qh]
     unset _pdh_queries($qid)
 }
 
@@ -801,16 +798,116 @@ proc twapi::pdh_add_counter {qid ctr_path args} {
 
     _pdh_query_check $qid
 
-    array set opts [parseargs args {
+    parseargs args {
+        {format.arg large {long large double}}
+        {scale.arg {} {{} none x1000 nocap100}}
+        name.arg
         cookie.int
-    } -nulldefault]
+        array.bool
+    } -nulldefault -maxleftover 0 -setvars
     
-    set hctr [PdhAddCounter [dict get $_pdh_queries($qid) query] $ctr_path $opts(cookie)]
-    dict set _pdh_queries($qid) counters $ctr_path $hctr
+    if {$name eq ""} {
+        set name $ctr_path
+    }
+
+    set flags [_pdh_fmt_sym_to_val $format]
+
+    if {$scale ne ""} {
+        set flags [expr {$flags | [_pdh_fmt_sym_to_val $scale]}]
+    }
+
+
+    set hctr [PdhAddCounter [dict get $_pdh_queries($qid) Qh] $ctr_path $flags]
+    dict lappend _pdh_queries($qid) Counters $hctr
+    dict set _pdh_queries($qid) Meta $name [list Counter $hctr FmtFlags $flags Array $array]
+
     return $hctr
 }
 
+proc twapi::pdh_query_get {qid args} {
+    variable _pdh_queries
+    _pdh_query_check $qid
 
+    set meta [dict get $_pdh_queries($qid) Meta]
+    if {[llength $args]} {
+        set names $args
+    } else {
+        set names [dict keys $meta]
+    }        
+
+    set result {}
+    foreach name $names {
+        if {[dict get $meta $name Array]} {
+		lappend result $name [PdhGetFormattedCounterArray [dict get $meta $name Counter] [dict get $meta $name FmtFlags]]
+	} else {
+		lappend result $name [PdhGetFormattedCounterValue [dict get $meta $name Counter] [dict get $meta $name FmtFlags]]
+	}
+    }
+
+    return $result
+}
+
+
+# TBD - document
+proc twapi::start_system_performance_monitor {args} {
+    variable _sysperf_queries
+
+    set optdefs {
+        interruptutilization {{Processor "% Interrupt Time" -instance _Total} double}
+        privilegedutilization {{Processor "% Privileged Time" -instance _Total} double}
+        processorutilization {{Processor "% Processor Time" -instance _Total} double}
+        userutilization {{Processor "% User Time" -instance _Total} double}
+        idleutilization {{Processor "% Idle Time" -instance _Total} double}
+    }
+
+    array set opts [parseargs args [dict keys $optdefs] -maxleftover 0]
+
+    set ctrs {}
+    set qid [pdh_query_open]
+    trap {
+        dict for {opt def} $optdefs {
+            if {$opts($opt)} {
+                set ctr_path [pdh_counter_path {*}[lindex $def 0]]
+                #dict set ctrs -$opt ctr_path $ctr_path
+                dict set ctrs -$opt handle [pdh_add_counter $qid $ctr_path]
+                dict set ctrs -$opt format [lindex $def 1]
+            }
+        }
+        pdh_query_update $qid
+    } onerror {} {
+        pdh_query_close $qid
+        rethrow
+    }
+
+    set _sysperf_queries($qid) $ctrs
+    return $qid
+}
+
+proc twapi::stop_system_performance_monitor qid {
+    variable _sysperf_queries
+    unset -nocomplain _sysperf_queries($qid)
+    pdh_query_close $qid
+}
+
+proc twapi::get_system_performance qid {
+    variable _sysperf_queries
+
+    if {![info exists _sysperf_queries($qid)]} {
+        badargs! "Unknown performance query handle $qid"
+    }
+
+    pdh_query_update $qid
+
+    set result {}
+    dict for {opt ctr} $_sysperf_queries($qid) {
+        lappend result $opt [pdh_get_scalar [dict get $ctr handle] -format [dict get $ctr format]]
+    }
+
+    return $result
+}
+
+#
+# Internal utility procedures
 proc twapi::_pdh_query_check {qid} {
     variable _pdh_queries 
 

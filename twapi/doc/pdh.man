@@ -63,7 +63,7 @@ with a query once the contained counters are no longer required.
 
 [list_begin definitions]
 
-[call [cmd pdh_add_counter] [arg HPERF] [arg CTRPATH]]
+[call [cmd pdh_add_counter] [arg HPERF] [arg CTRPATH] [opt [arg options]]]
 Adds a counter specified by its path [arg CTRPATH] to a performance query.
 [arg HPERF] is a query handle previously returned by
 [uri #pdh_query_open [cmd pdh_query_open]].
@@ -74,9 +74,36 @@ for that query will update the counter.
 [nl]
 The command returns a handle to the counter which can then
 be passed to [uri #pdh_get_scalar [cmd pdh_get_scalar]] or
-[uri #pdh_get_array [cmd pdh_get_array]] to retrieve its value.
+[uri #pdh_get_array [cmd pdh_get_array]] to retrieve its value. Alternatively,
+the [uri #pdh_query_get [cmd pdh_query_get]] command can be used
+to get values of multiple counters from a query.
 [nl]
 The counter is automatically released when the query is closed.
+[nl]
+The following options may be specified with the command. They impact
+how values from the counter are returned from the
+[uri #pdh_query_get [cmd pdh_query_get]] command.
+[list_begin opt]
+[opt_def [cmd -array] [arg BOOLEAN]] If [const true] ,the counter is treated as
+an array of values. If [const false] (default), it will be returned as a scalar.
+[opt_def [cmd -format] [arg FORMAT]]
+Specifies how the counter value should be formatted. [arg FORMAT]
+may be on of [const long], [const large] or [const double]
+for a 32-bit integer, a 64-bit integer or a floating point double.
+[opt_def [cmd -name] [arg NAME]]
+Specifies the name by which the counter will be identified when
+multiple counter values are retrieved with
+[uri #pdh_query_get [cmd pdh_query_get]]. If unspecified, defaults
+to the full counter path [arg CTRPATH].
+[opt_def [cmd -scale] [arg SCALE]]
+By default, each counter has a default scaling factor.
+If [arg SCALE] is [const none], the counter value is
+returned without the default scaling. If [arg SCALE] is [const x1000],
+the returned value is scaled up by a factor of 1000. If [arg SCALE]
+is [const nocap100], the counter value is not capped at 100 as is the scale
+for some counters like processor utilization.
+
+[list_end]
 
 [call [cmd pdh_counter_path] [arg PERFOBJ] [arg CTRNAME] [opt [arg options]]]
 Returns a path to a performance counter that can then be passed to
@@ -171,9 +198,9 @@ for a 32-bit integer, a 64-bit integer or a floating point double.
 [opt_def [cmd -scale] SCALE]
 By default, each counter has a default scaling factor.
 If [arg SCALE] is [const none], the counter value is
-returned without the default scaling. If [arg SCALE] is [const 1000],
+returned without the default scaling. If [arg SCALE] is [const x1000],
 the returned value is scaled up by a factor of 1000. If [arg SCALE]
-is [const nocap], the counter value is not capped at 100 as is the scale
+is [const nocap100], the counter value is not capped at 100 as is the scale
 for some counters like processor utilization.
 [opt_def [cmd -var] [arg VARNAME]]
 Specifies [arg VARNAME] as the name of a variable in the caller's
@@ -196,6 +223,20 @@ Closes a performance counter query. All counters added to the query
 are also released. 
 [arg HPERF] is a query handle previously returned by
 [uri #pdh_query_open [cmd pdh_query_open]].
+
+[call [cmd pdh_query_get] [arg HPERF] [opt [arg "NAME1 NAME2...."]]]
+Returns the values for one or more counters added to the query
+with [uri #pdh_add_counter [cmd pdh_add_counter]]. If no arguments
+are specified, values for all counters added to the query are returned.
+Otherwise, each argument must be the name associated with the counter
+with the [cmd -name] option to the [cmd pdh_add_counter] command.
+[nl]
+The returned value is a dictionary, each key of which is the name
+associated with the abovementioned [cmd -name] option of [cmd pdh_add_counter].
+The corresponding value in the dictionary may be a scalar or an array
+(as returned by the [uri #pdh_get_array [cmd pdh_get_array]] command)
+depending on whether the [cmd -array] option was specified as true
+in the corresponding [cmd pdh_add_counter] call.
 
 [call [cmd pdh_query_open]]
 Open a new performance counter query and returns a handle to it.
