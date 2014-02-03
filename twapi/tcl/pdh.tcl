@@ -852,23 +852,23 @@ proc twapi::pdh_query_get {qid args} {
 twapi::proc* twapi::pdh_system_performance_query args {
     variable _sysperf_defs
     set _sysperf_defs {
-        interruptutilization {
+        interruptcpu% {
             {Processor "% Interrupt Time" -instance _Total}
             {-format double}
         }
-        privilegedutilization {
+        privilegedcpu% {
             {Processor "% Privileged Time" -instance _Total}
             {-format double}
         }
-        processorutilization {
+        processorcpu% {
             {Processor "% Processor Time" -instance _Total}
             {-format double}
         }
-        userutilization {
+        usercpu% {
             {Processor "% User Time" -instance _Total}
             {-format double}
         }
-        idleutilization {
+        idlecpu% {
             {Processor "% Idle Time" -instance _Total}
             {-format double}
         }
@@ -879,12 +879,24 @@ twapi::proc* twapi::pdh_system_performance_query args {
     set obj_name [expr {[min_os_version 6 1] ? "Processor Information" : "Processor"}]
     dict for {key val} $_sysperf_defs {
         lassign $val ctrdef fmtdef
-        lappend _sysperf_defs ${key}percpu \
+        lappend _sysperf_defs percpu${key} \
             [list \
                  [list $obj_name [lindex $ctrdef 1] -instance *] \
                  [linsert $fmtdef end -array 1] \
                 ]
     }
+
+    lappend _sysperf_defs {*}{
+        #events { {Objects Events} {-format large} }
+        #mutexes { {Objects Mutexes} {-format large} }
+        #processes { {Objects Processes} {-format large} }
+        #sections { {Objects Sections} {-format large} }
+        #semaphores { {Objects Semaphores} {-format large} }
+        #threads { {Objects Threads} {-format large} }
+        #handles { {Process "Handle Count" -instance _Total} {-format long} }
+    }
+
+
 } {
     variable _sysperf_defs
 

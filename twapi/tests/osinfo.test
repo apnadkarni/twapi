@@ -1014,64 +1014,11 @@ namespace eval twapi::osinfo::test {
 
     ################################################################
 
-    test get_system_info-1.0 {
-        Get system info with no parameters
-    } -constraints {
-        nt
-    } -body {
-        twapi::get_system_info
-    } -result ""
-
-    ###
-
-
-    test get_system_info-1.1 {
-        Get system info -all
-    } -constraints {
-        nt
-    } -body {
-        verify_kl_fields [twapi::get_system_info -all] {
-            -sid
-            -eventcount
-            -handlecount
-            -mutexcount
-            -processcount
-            -sectioncount
-            -semaphorecount
-            -threadcount
-            -uptime
-        }
-    } -result ""
-
-    ###
-
-    test get_system_info-1.2 {
+    test get_system_sid-1.0 {
         Get system SID
-    } -constraints {
-        nt
     } -body {
-        foreach {fld val} [twapi::get_system_info -sid] break
-        expr {$fld eq "-sid" && [string match S-1-* $val]}
-    } -result 1
-
-    set testnum 2
-
-    foreach opt {
-        -eventcount
-        -handlecount
-        -mutexcount
-        -processcount
-        -sectioncount
-        -semaphorecount
-        -threadcount
-        -uptime
-    } {
-        test get_system_info-1.[incr testnum] "Get system info $opt" \
-        -constraints {
-            nt
-        } -body "foreach {fld val} \[twapi::get_system_info $opt\] break ; expr \"\[string equal \$fld $opt\] && \[string is integer \$val\] \" " \
-        -result 1
-    }
+        twapi::get_system_sid
+    } -result S-1-* -match glob
 
     ################################################################
 
