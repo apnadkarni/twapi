@@ -849,29 +849,51 @@ proc twapi::pdh_query_get {qid args} {
 
 
 # TBD - document
-proc twapi::start_system_performance_monitor {args} {
-    variable _sysperf_queries
-
-    set optdefs {
-        interruptutilization {{Processor "% Interrupt Time" -instance _Total} double}
-        privilegedutilization {{Processor "% Privileged Time" -instance _Total} double}
-        processorutilization {{Processor "% Processor Time" -instance _Total} double}
-        userutilization {{Processor "% User Time" -instance _Total} double}
-        idleutilization {{Processor "% Idle Time" -instance _Total} double}
+twapi::proc* twapi::pdh_system_performance_query args {
+    variable _sysperf_defs
+    set _sysperf_defs {
+        interruptutilization {
+            {Processor "% Interrupt Time" -instance _Total}
+            {-format double}
+        }
+        privilegedutilization {
+            {Processor "% Privileged Time" -instance _Total}
+            {-format double}
+        }
+        processorutilization {
+            {Processor "% Processor Time" -instance _Total}
+            {-format double}
+        }
+        userutilization {
+            {Processor "% User Time" -instance _Total}
+            {-format double}
+        }
+        idleutilization {
+            {Processor "% Idle Time" -instance _Total}
+            {-format double}
+        }
     }
 
-    array set opts [parseargs args [dict keys $optdefs] -maxleftover 0]
+    # Per-processor counters are based on above but the object name depends
+    # on the system in order to support > 64 processors
+    set obj_name [expr {[min_os_version 6 1] ? "Processor Information" : "Processor"}]
+    dict for {key val} $_sysperf_defs {
+        lassign $val ctrdef fmtdef
+        lappend _sysperf_defs ${key}percpu \
+            [list \
+                 [list $obj_name [lindex $ctrdef 1] -instance *] \
+                 [linsert $fmtdef end -array 1] \
+                ]
+    }
+} {
+    variable _sysperf_defs
 
-    set ctrs {}
     set qid [pdh_query_open]
     trap {
-        dict for {opt def} $optdefs {
-            if {$opts($opt)} {
-                set ctr_path [pdh_counter_path {*}[lindex $def 0]]
-                #dict set ctrs -$opt ctr_path $ctr_path
-                dict set ctrs -$opt handle [pdh_add_counter $qid $ctr_path]
-                dict set ctrs -$opt format [lindex $def 1]
-            }
+        foreach arg $args {
+            set def [dict! $_sysperf_defs $arg]
+            set ctr_path [pdh_counter_path {*}[lindex $def 0]]
+            pdh_add_counter $qid $ctr_path -name $arg {*}[lindex $def 1]
         }
         pdh_query_update $qid
     } onerror {} {
@@ -879,31 +901,7 @@ proc twapi::start_system_performance_monitor {args} {
         rethrow
     }
 
-    set _sysperf_queries($qid) $ctrs
     return $qid
-}
-
-proc twapi::stop_system_performance_monitor qid {
-    variable _sysperf_queries
-    unset -nocomplain _sysperf_queries($qid)
-    pdh_query_close $qid
-}
-
-proc twapi::get_system_performance qid {
-    variable _sysperf_queries
-
-    if {![info exists _sysperf_queries($qid)]} {
-        badargs! "Unknown performance query handle $qid"
-    }
-
-    pdh_query_update $qid
-
-    set result {}
-    dict for {opt ctr} $_sysperf_queries($qid) {
-        lappend result $opt [pdh_get_scalar [dict get $ctr handle] -format [dict get $ctr format]]
-    }
-
-    return $result
 }
 
 #
