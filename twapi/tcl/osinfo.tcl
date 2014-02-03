@@ -347,18 +347,20 @@ proc twapi::get_numa_nodes {} {
 }
 
 # TBD - document
-proc twapi::start_processor_utilization {args} {
+twapi::proc* twapi::start_processor_utilization_monitor {args} {
+    package require twapi_pdh
+} {
     variable _processor_utilization_queries
 
     set ctr_names {
-        interrupt "% Interrupt Time"
-        privileged "% Privileged Time"
-        processor "% Processor Time"
-        user "% User Time"
-        idle "% Idle Time"
+        -interrupt "% Interrupt Time"
+        -privileged "% Privileged Time"
+        -processor "% Processor Time"
+        -user "% User Time"
+        -idle "% Idle Time"
     }
     
-    array set opts [parseargs args [dict keys $ctr_names] -maxleftover 0]
+    array set opts [parseargs args {interrupt privileged processor user idle}  -maxleftover 0 -hyphenated]
 
     if {[min_os_version 6 1]} {
         set obj_name "Processor Information"
@@ -371,8 +373,8 @@ proc twapi::start_processor_utilization {args} {
         dict for {opt ctr_name} $ctr_names {
             if {$opts($opt)} {
                 set ctr_path [pdh_counter_path $obj_name $ctr_name -instance *]
-                dict set ctrs -$opt ctr_path $ctr_path
-                dict set ctrs -$opt handle [pdh_add_counter $qid $ctr_path]
+                dict set ctrs $opt ctr_path $ctr_path
+                dict set ctrs $opt handle [pdh_add_counter $qid $ctr_path -format double -name $opt -array 1]
             }
         }
         pdh_query_update $qid
@@ -385,7 +387,7 @@ proc twapi::start_processor_utilization {args} {
     return $qid
 }
 
-proc twapi::stop_processor_utilization qid {
+proc twapi::stop_processor_utilization_monitor qid {
     variable _processor_utilization_queries
     unset -nocomplain _processor_utilization_queries($qid)
     pdh_query_close $qid
@@ -400,6 +402,7 @@ proc twapi::get_processor_utilization qid {
 
     pdh_query_update $qid
 
+    return [pdh_query_get $qid]
     set result {}
     dict for {opt ctr} $_processor_utilization_queries($qid) {
         # 0x200 -> format as double
@@ -413,6 +416,7 @@ proc twapi::get_processor_utilization qid {
 
 # Returns proc information
 #  $processor should be processor number or "" for "total"
+# TBD - rework for new pdh and processor groups issues
 proc twapi::get_processor_info {processor args} {
 
     if {![string is integer $processor]} {
@@ -586,6 +590,7 @@ proc twapi::get_processor_count {} {
 }
 
 # Get mask of active processors
+# TBD - handle processor groups
 proc twapi::get_active_processor_mask {} {
     return [format 0x%x [lindex [GetSystemInfo] 4]]
 }

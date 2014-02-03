@@ -352,10 +352,9 @@ int Twapi_PdhGetFormattedCounterValue(
 )
 {
     PDH_STATUS           pdh_status;
-    DWORD                value_type;
     DWORD                counter_type;
     PDH_FMT_COUNTERVALUE counter_value;
-    Tcl_Obj             *objs[2]; /* Holds type and value, result list */
+    Tcl_Obj             *objP;
     
     pdh_status = PdhGetFormattedCounterValue(hCounter, dwFormat,
                                              &counter_type, &counter_value);
@@ -369,21 +368,17 @@ int Twapi_PdhGetFormattedCounterValue(
                                         counter_value.CStatus : pdh_status));
     }
 
-    objs[0] = NULL;
-    objs[1] = NULL;
-
-    value_type = dwFormat & (PDH_FMT_LARGE | PDH_FMT_DOUBLE | PDH_FMT_LONG);
-    switch (value_type) {
+    switch (dwFormat & (PDH_FMT_LARGE | PDH_FMT_DOUBLE | PDH_FMT_LONG)) {
     case PDH_FMT_LONG:
-        objs[0] = ObjFromLong(counter_value.longValue);
+        objP = ObjFromLong(counter_value.longValue);
         break;
 
     case PDH_FMT_LARGE:
-        objs[0] = ObjFromWideInt(counter_value.largeValue);
+        objP = ObjFromWideInt(counter_value.largeValue);
         break;
 
     case PDH_FMT_DOUBLE:
-        objs[0] = Tcl_NewDoubleObj(counter_value.doubleValue);
+        objP = Tcl_NewDoubleObj(counter_value.doubleValue);
         break;
 
     default:
@@ -393,10 +388,7 @@ int Twapi_PdhGetFormattedCounterValue(
         return  TCL_ERROR;
     }
     
-    objs[1] = Tcl_ObjPrintf("0x%x", counter_type);
-
-    /* Create the result list consisting of type and value */
-    ObjSetResult(interp, ObjNewList(2, objs));
+    ObjSetResult(interp, objP);
     return TCL_OK;
 }
 
