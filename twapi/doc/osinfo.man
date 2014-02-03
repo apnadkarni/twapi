@@ -22,9 +22,6 @@ operating system information than the standard Tcl commands which
 do not distinguish between service packs, Professional versus Server
 versions and so on.
 [para]
-The command [uri \#get_system_info [cmd get_system_info]]
-returns information about the current system.
-[para]
 The command [uri \#get_computer_name [cmd get_computer_name]]
 returns one of several forms of the system name.
 The command [uri \#get_computer_netbios_name [cmd get_computer_netbios_name]]
@@ -500,36 +497,6 @@ that this processor has spent executing a non-idle thread
 in user mode during the measured interval.
 [list_end]
 
-[call [cmd get_system_info] [opt [arg options]]]
-
-Returns various pieces of information related to the system.
-The information returned is in the form of a flat list of
-the form "[arg field1] [arg value1] [arg field2] [arg value2] ...".
-One of more of the following options may be specified with the command
-to control what information is returned:
-
-[list_begin opt]
-[opt_def [const -all]] Returns all fields listed below.
-[opt_def [const -eventcount]]
-Returns the number of synchronization events in use.
-[opt_def [const -handlecount]]
-Returns the number of handles that are currently open.
-[opt_def [const -mutexcount]]
-Returns the number of synchronization mutexes in use.
-[opt_def [const -processcount]]
-Returns the number of processes that are currently running.
-[opt_def [const -sectioncount]]
-Returns the number of sections in use.
-[opt_def [const -semaphorecount]]
-Returns the number of synchronization semaphores in use.
-[opt_def [const -sid]]
-Returns the SID of the system.
-[opt_def [const -threadcount]]
-Returns the number of threads that are currently running.
-[opt_def [const -uptime]]
-Returns the number of seconds elapsed since the system was booted.
-[list_end]
-
 [call [cmd get_system_parameters_info] [arg PARAMETER]]
 This command wraps the Windows [cmd SystemParametersInfo] function
 and allows retrieval of various user interface settings such as screensaver
@@ -538,6 +505,8 @@ timeout, mouse speed etc. The information retrieved depends on the
 in the [cmd SystemParametersInfo]
 [uri http://msdn.microsoft.com/library/default.asp?url=/library/en-us/sysinfo/base/systemparametersinfo.asp documentation].
 
+[call [cmd get_system_sid]]
+Returns the SID of the system.
 
 [call [cmd get_system_time]]
 Returns the current system time in UTC as the number of 100 nanosecond units
