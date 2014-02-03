@@ -126,6 +126,13 @@ Added the [cmd rethrow], [cmd trapresult] and [cmd trapoptions]
 commands to [uri base.html#trap [cmd trap]].
 
 [bullet] [emph "INCOMPATIBILITY"]
+The [cmd get_system_info] command has been removed. Equivalent
+functionality is available through the
+[uri pdh.html#pdh_system_performance_query [cmd pdh_system_performance_query]],
+[uri osinfo.html#get_system_sid [cmd get_system_sid]] and
+[uri osinfo.html#get_system_uptime [cmd get_system_uptime]] commands.
+
+[bullet] [emph "INCOMPATIBILITY"]
 The [cmd try] command, deprecated in previous versions, has been removed
 to prevent conflicts with the [cmd try] command in Tcl 8.6.
 Use [uri base.man#trap [cmd trap]] instead. The [var errorCode], [var errorResult] and

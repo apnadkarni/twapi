@@ -681,7 +681,6 @@ proc twapi::abort_system_shutdown {args} {
     } SeShutdownPrivilege
 }
 
-# Get system uptime
 proc twapi::get_system_uptime {} {
     variable _system_start_time
     set now [clock seconds]
@@ -693,88 +692,14 @@ proc twapi::get_system_uptime {} {
     return [expr {$now - $_system_start_time}]
 }
 
-# Get system information
-proc twapi::get_system_info {args} {
-    array set opts [parseargs args {
-        all
-        sid
-        uptime
-        handlecount
-        eventcount
-        mutexcount
-        processcount
-        sectioncount
-        semaphorecount
-        threadcount
-    } -maxleftover 0]
-
-    set result [list ]
-    if {$opts(all) || $opts(uptime)} {
-        lappend result -uptime [get_system_uptime]
-    }
-
-    if {$opts(all) || $opts(sid)} {
-        set lsah [get_lsa_policy_handle -access policy_view_local_information]
-        trap {
-            lappend result -sid [lindex [LsaQueryInformationPolicy $lsah 5] 1]
-        } finally {
-            close_lsa_policy_handle $lsah
-        }
-    }
-
-    if {$opts(all) || $opts(handlecount) || $opts(processcount) || $opts(threadcount)} {
-        set kl [twapi::GetPerformanceInformation]
-        if {$opts(all) || $opts(handlecount)} {
-            lappend result -handlecount [kl_get $kl HandleCount]
-        }
-        if {$opts(all) || $opts(processcount)} {
-            lappend result -processcount [kl_get $kl ProcessCount]
-        }
-        if {$opts(all) || $opts(threadcount)} {
-            lappend result -threadcount [kl_get $kl ThreadCount]
-        }
-    }
-
-    # If we don't need any PDH based values, return
-    # TBD - many of these are available without PDH ? Check and replace
-    if {! ($opts(all) || $opts(eventcount) || $opts(mutexcount) || $opts(sectioncount) || $opts(semaphorecount))} {
-        return $result
-    }
-
-    package require twapi_pdh
-    set hquery [pdh_query_open]
+proc twapi::get_system_sid {} {
+    set lsah [get_lsa_policy_handle -access policy_view_local_information]
     trap {
-        # Create the counters
-        foreach {opt ctrname} {
-            eventcount   Events
-            mutexcount   Mutexes
-            sectioncount Sections
-            semaphorecount Semaphores
-        } {
-            if {$opts(all) || $opts($opt)} {
-                set ${opt}_ctr [pdh_add_counter $hquery [pdh_counter_path Objects $ctrname -localize true]]
-            }
-        }
-        # Collect the data
-        pdh_query_update $hquery
-
-        foreach opt {
-            eventcount
-            mutexcount
-            sectioncount
-            semaphorecount
-        } {
-            if {[info exists ${opt}_ctr]} {
-                lappend result -$opt [pdh_get_scalar [set ${opt}_ctr] -format long -scale "" -full 0]
-            }
-        }
+        return [lindex [LsaQueryInformationPolicy $lsah 5] 1]
     } finally {
-        pdh_query_close $hquery
+        close_lsa_policy_handle $lsah
     }
-    return $result
 }
-
-
 
 # Get the primary domain controller
 proc twapi::get_primary_domain_controller {args} {
