@@ -805,7 +805,7 @@ proc twapi::get_system_info {args} {
     }
 
     package require twapi_pdh
-    set hquery [open_perf_query]
+    set hquery [pdh_query_open]
     trap {
         # Create the counters
         foreach {opt ctrname} {
@@ -815,11 +815,11 @@ proc twapi::get_system_info {args} {
             semaphorecount Semaphores
         } {
             if {$opts(all) || $opts($opt)} {
-                set ${opt}_ctr [add_perf_counter $hquery [pdh_counter_path Objects $ctrname -localize true]]
+                set ${opt}_ctr [pdh_add_counter $hquery [pdh_counter_path Objects $ctrname -localize true]]
             }
         }
         # Collect the data
-        PdhCollectQueryData $hquery
+        pdh_query_update $hquery
 
         foreach opt {
             eventcount
@@ -832,17 +832,7 @@ proc twapi::get_system_info {args} {
             }
         }
     } finally {
-        foreach opt {
-            eventcount
-            mutexcount
-            sectioncount
-            semaphorecount
-        } {
-            if {[info exists ${opt}_ctr]} {
-                pdh_remove_counter [set ${opt}_ctr]
-            }
-        }
-        PdhCloseQuery $hquery
+        pdh_query_close $hquery
     }
     return $result
 }
@@ -1341,26 +1331,4 @@ proc twapi::set_system_parameters_info {uiaction val args} {
     }
 
     return
-}
-
-
-proc twapi::xxstart_processor_utilization {} {
-    set counter_name {\Processor Information(*)\% Processor Time}
-    set q [open_perf_query]
-    set h [add_perf_counter $q $counter_name]
-    PdhCollectQueryData $q
-    return [list $q $h]
-}
-
-proc twapi::xxget_processor_utilization {hperf} {
-    lassign $hperf q h
-    PdhCollectQueryData $q
-    # 0x200 -> format as double
-    set result [PdhGetFormattedCounterArray $h 0x200]
-    return $result
-}
-
-proc twapi::xxstop_processor_utilization {hperf} {
-    pdh_remove_counter [lindex $hperf 1]
-    pdh_close_query [lindex $hperf 0]
 }
