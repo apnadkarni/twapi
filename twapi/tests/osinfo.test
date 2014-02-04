@@ -1675,6 +1675,48 @@ namespace eval twapi::osinfo::test {
 
     ################################################################
 
+    test get_processor_group_config-1.0 {
+        Test processor group config
+    } -body {
+        set c [twapi::get_processor_group_config]
+        list [dict exists $c -maxgroupcount] \
+            [dict exists $c -activegroups 0 -maxprocessorcount] \
+            [dict exists $c -activegroups 0 -activeprocessorcount] \
+            [dict exists $c -activegroups 0 -processormask]
+    } -result {1 1 1 1}
+
+    test get_processor_group_config-1.1 {
+        Test processor group config
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "The processor group configuration will be displayed. Please verify it."
+        puts "Processor group config: [twapi::get_processor_group_config]\n"
+        yesno "Was the displayed processor group configuration correct?"
+    } -result 1
+
+    ################################################################
+
+    test get_numa_config-1.0 {
+        Test NUMA config
+    } -body {
+        set c [twapi::get_numa_config]
+        expr {[dict size $c] == 0 ||
+              ([dict exists $c 0 -group] && [dict exists $c 0 -processormask])}
+    } -result 1
+
+    test get_numa_config-1.1 {
+        Test NUMA config
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "The NUMA configuration will be displayed. Please verify it."
+        puts "NUMA: [twapi::get_numa_config]\n"
+        yesno "Was the displayed NUMA configuration correct?"
+    } -result 1
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 

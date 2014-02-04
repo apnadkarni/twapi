@@ -295,9 +295,7 @@ proc twapi::get_os_description {} {
     }
 }
 
-#
-# TBD - document
-proc twapi::get_logical_processor_groups {} {
+proc twapi::get_processor_group_config {} {
     trap {
         set info [GetLogicalProcessorInformationEx 4]
         if {[llength $info]} {
@@ -317,8 +315,7 @@ proc twapi::get_logical_processor_groups {} {
 
 }
 
-# TBD - document
-proc twapi::get_numa_nodes {} {
+proc twapi::get_numa_config {} {
     trap {
         set result {}
         foreach rec [GetLogicalProcessorInformationEx 1] {
@@ -348,7 +345,6 @@ proc twapi::get_numa_nodes {} {
 
 # Returns proc information
 #  $processor should be processor number or "" for "total"
-# TBD - rework for new pdh and processor groups issues
 proc twapi::get_processor_info {processor args} {
 
     if {![string is integer $processor]} {
@@ -458,6 +454,13 @@ proc twapi::get_processor_info {processor args} {
     return $results
 }
 
+# Get mask of active processors
+# TBD - handle processor groups
+proc twapi::get_active_processor_mask {} {
+    return [format 0x%x [lindex [GetSystemInfo] 4]]
+}
+
+
 # Get number of active processors
 proc twapi::get_processor_count {} {
     trap {
@@ -474,12 +477,6 @@ proc twapi::get_processor_count {} {
         # so system does not support processor groups
         return [lindex [GetSystemInfo] 5]
     }
-}
-
-# Get mask of active processors
-# TBD - handle processor groups
-proc twapi::get_active_processor_mask {} {
-    return [format 0x%x [lindex [GetSystemInfo] 4]]
 }
 
 # Get system memory information
