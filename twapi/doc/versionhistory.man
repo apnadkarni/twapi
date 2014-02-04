@@ -115,6 +115,10 @@ Added [cmd -setvars] option to [uri base.html#parseargs [cmd parseargs]].
 [bullet]
 Added the [cmd rethrow], [cmd trapresult] and [cmd trapoptions]
 commands to [uri base.html#trap [cmd trap]].
+
+[bullet]
+Added [uri #get_processor_group_config [cmd get_processor_group_config]]
+and [uri #get_numa_config [cmd get_numa_config]].
 [list_end]
 
 [emph "INCOMPATIBLE CHANGES"]
@@ -133,8 +137,11 @@ were returned as a single flat list.
 [opt_def [uri base.html#debuglog [cmd debuglog]]]
 Calling interface has changed.
 
-[opt_def [cmd file_properties_dialog]]. Removed.
+[opt_def [cmd file_properties_dialog]]
 Use [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]] instead.
+
+[opt_def [cmd get_active_processor_mask]]
+Removed. Use [uri #get_processor_group_configuration [cmd get_processor_group_configuration]] instead.
 
 [opt_def [uri base.html#get_build_config [cmd get_build_config]]]
 Return value format and content has changed.

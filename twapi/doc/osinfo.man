@@ -36,10 +36,10 @@ returns the name
 of the primary domain controller of the computer.
 [para]
 The commands [uri \#get_processor_count [cmd get_processor_count]],
-[uri \#get_active_processor_mask [cmd get_active_processor_mask]]
+[uri \#get_processor_group_configuration [cmd get_processor_group_configuration]]
 and [uri \#get_processor_info [cmd get_processor_info]]
 retrieve information about the
-processors in the system including type and utilization.
+processors in the system.
 
 [para]
 The command [uri \#get_memory_info [cmd get_memory_info]]
@@ -208,9 +208,6 @@ domain),
 Note that any of these fields may have empty string values if the information
 is not relevant or cannot be found.
 
-[call [cmd get_active_processor_mask]]Returns a mask representing the
-processors configured into the system.
-
 [call [cmd get_computer_name] [opt [arg NAMETYPE]]]
 Returns the name of the computer. [arg NAMETYPE] must be one of the
 following:
@@ -290,6 +287,14 @@ can be committed without extending the swap files.
 installed in the system.
 [opt_def [cmd -usedcommit]]Returns the current size of memory committed.
 [list_end]
+
+[call [cmd get_numa_config]]
+Returns the NUMA configuration of the system as
+a dictionary keyed by the NUMA node number. The corresponding value
+is a nested dictionary with keys [const -group] and [const -processormask]
+which processors in a processor group comprise that NUMA node.
+[nl]
+Returns an empty string if the Windows version does not support NUMA.
 
 [call [cmd get_primary_domain_controller] [opt [arg options]]]
 Returns the primary domain controller (PDC) for a domain.
@@ -405,6 +410,22 @@ system minor version number, the service pack major version number,
 the service pack minor version number.
 
 [call [cmd get_processor_count]]Returns the number of processors in the system.
+
+[call [cmd get_processor_group_config]]
+Newer versions of Windows partition processors into processor groups
+when there more than 64 processors in the system.
+This command returns information about how the groups are configured.
+The return value is a dictionary with two keys, [const -maxgroupcount]
+which is the maximum number of processor groups that can be configured
+in the system, and [const -activegroups] which is a dictionary keyed
+by the processor group number. The corresponding value is a nested
+dictionary with keys [const -maxprocessorcount], [const -activeprocessorcount]
+and [const -processormask] which contains the maximum number of processors
+that can be configured in the group, the number of currently active
+processors and the group's processor mask.
+[nl]
+On older versions of Windows, the information returned will contain
+the single processor group 0.
 
 [call [cmd get_processor_info] [arg PROCESSOR] [opt [arg options]]]
 
@@ -555,6 +576,7 @@ they are disabled.
      "idle time" "interrupt time" \
      "performance" "operating system components" "computer name" "reboot" \
      "shutdown" "shutdown abort" "processor model" "processor speed" \
+     "processor groups" "numa"
      "physical memory" "memory" "virtual memory" "swap files" \
      "memory commit charge" "domain" "primary domain" workgroup \
      "domain controller" "primary domain controller" \
