@@ -134,12 +134,13 @@ proc twapi::_pdh_get {scalar hcounter args} {
 }
 
 #
-# Get the value of a counter identified by the path
-
-proc twapi::get_counter_path_value {counter_path args} {
+# Get the value of a counter identified by the path.
+# Should not be used to collect
+# rate based options.
+# TBD - document
+proc twapi::pdh_counter_path_value {counter_path args} {
 
     array set opts [parseargs args {
-        interval.int
         {format.arg long}
         scale.arg
         datasource.arg
@@ -147,19 +148,11 @@ proc twapi::get_counter_path_value {counter_path args} {
         full.bool
     } -nulldefault]
     
-    if {$opts(interval) < 0} {
-        error "Negative value '$opts(interval)' specified for option -interval"
-    }
-
     # Open the query
     set hquery [pdh_query_open -datasource $opts(datasource)]
     trap {
         set hcounter [pdh_add_counter $hquery $counter_path]
         pdh_query_update $hquery
-        if {$opts(interval)} {
-            after $opts(interval)
-            pdh_query_update $hquery
-        }
         if {[string length $opts(var)]} {
             # Need to pass up value in a variable if so requested
             upvar $opts(var) myvar

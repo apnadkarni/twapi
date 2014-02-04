@@ -640,7 +640,7 @@ twapi::proc* twapi::get_system_uptime {} {
     package require twapi_pdh
     variable _system_start_time    
     set ctr_path [pdh_counter_path System "System Up Time" -localize true]
-    set uptime [get_counter_path_value $ctr_path -interval 0 -format double]
+    set uptime [pdh_counter_path_value $ctr_path -format double]
     set now [clock seconds]
     set _system_start_time [expr {$now - round($uptime+0.5)}]
 } {
