@@ -27,7 +27,8 @@ Added [uri tls.html SSL/TLS] socket channels.
 Added support for reading [uri pdh.html "performance counters"].
 
 [bullet]
-Added [uri crypto.html CryptoAPI] support for creation, verification
+Added [uri crypto.html "certificate commands"] 
+for creation, verification
 and management of certificates and certificate stores.
 
 [bullet]
@@ -144,6 +145,13 @@ is no longer available. Also the [cmd -pid] no longer accepts a process name
 as argument. Both these can be replaced by a combination of
 [uri ui.html#get_toplevel_windows [cmd "get_toplevel_windows -pids"]]
 and [uri process.html#get_process_ids [cmd "get_process_ids -name"]].
+
+[opt_def [uri osinfo.html#get_processor_info [cmd get_processor_info]]]
+Performance related options have been removed.
+Equivalent functionality is available through
+[uri pdh.html#pdh_system_performance_query [cmd pdh_system_performance_query]].
+Remaining options return information about the current processor group,
+not the whole system.
 
 [opt_def [cmd get_system_info]]
 Removed. Equivalent

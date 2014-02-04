@@ -18,12 +18,8 @@ namespace eval twapi::osinfo::test {
     namespace import ::tcltest::test
 
     variable get_processor_info_fields {
-        -processorutilization -dpcqueuerate -interruptutilization
-        -interruptrate -dpcutilization
-        -privilegedutilization -userutilization -dpcrate
         -processormodel -processorname -processorspeed
         -processorrev -arch -processorlevel
-        -currentprocessorspeed
         -interrupts -usertime -privilegedtime -dpctime -interrupttime
         -idletime
     }
@@ -541,65 +537,6 @@ namespace eval twapi::osinfo::test {
         expr {[verify_kl_fields $data -interrupttime] == "" &&
              [string is digit [lindex $data 1]]}
     } -result 1
-
-
-    set vernum 11
-
-    # Define tests for each utilization type over a default and a specific period
-    foreach utype {
-        processorutilization interruptutilization dpcutilization
-        privilegedutilization userutilization
-    } {
-        set testnum -1
-        # Measure over default period - specific processor
-        test get_processor_info-${vernum}.[incr testnum] "Get $utype over default interval for a specific processor" -constraints {
-            nt
-        } -body {
-            catch {unset utilization}
-            array set utilization [twapi::get_processor_info 0 -${utype}]
-            expr {$utilization(-$utype) >= 0 && $utilization(-$utype) <= 100}
-        } -result 1
-
-        # Measure over specific interval - all processors
-        test get_processor_info-${vernum}.[incr testnum] "Get $utype over a specific interval for all processors" -constraints {
-            nt
-        } -body {
-            set elapsed [lindex [time {
-                twapi::get_processor_info "" -$utype -interval 500
-            }] 0]
-            expr {$elapsed >= (500*1000)}
-        } -result 1
-
-        incr vernum
-    }
-
-    # Define tests for each rate type over a default and a specific period
-    foreach rtype {
-        dpcqueuerate interruptrate dpcrate
-    } {
-        set testnum -1
-
-        # Measure over default period - specific processor
-        test get_processor_info-${vernum}.[incr testnum] "Get $rtype over default interval for a specific processor" -constraints {
-            nt
-        } -body {
-            catch {unset rate}
-            array set rate [twapi::get_processor_info 0 -${rtype}]
-            expr {$rate(-$rtype) >= 0}
-        } -result 1
-
-        # Measure over specific interval - all processors
-        test get_processor_info-${vernum}.[incr testnum] "Get $rtype over a specific interval for all processors" -constraints {
-            nt
-        } -body {
-            set elapsed [lindex [time {
-                twapi::get_processor_info "" -$rtype -interval 500
-            }] 0]
-            expr {$elapsed >= (500*1000)}
-        } -result 1
-
-        incr vernum
-    }
 
     ################################################################
 

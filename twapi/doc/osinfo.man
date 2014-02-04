@@ -411,67 +411,31 @@ the service pack minor version number.
 Returns various pieces of information related to the processors in
 the system. [arg PROCESSOR] identifies the processor whose information
 is to be retrieved. If specified as an empty string, information across
-all processors in the system is returned.
-The information returned is in the form of a flat list of
-the form "[arg field1] [arg value1] [arg field2] [arg value2] ...".
-The fields returned depend on the specified options and their values may
-be scalars (e.g. [const -name]) or rate based measured over an interval
-(e.g. [const -processorutilization]). The option [const -interval] may be
-used to indicate the interval over which the rate based fields are measured.
-
-One of more of the following options may be specified with the command:
-
+all processors in the processor group for the current process is returned.
+Note this is different from processors across the entire system when
+it has more than 64 processors.
+[nl]
+The return value is a dictionary keyed by the specified options:
 [list_begin opt]
 [opt_def [const -all]] Returns all fields listed below.
-[opt_def [const -apcbypassrate]] Returns the field
-[const apcbypassrate] which is the rate (per second) that
-kernel APC interrupts were bypassed as computed over the measured interval.
 [opt_def [const -arch]] Returns the processor architecture.
-[opt_def [const -dpcbypassrate]] Returns the field
-[const dpcbypassrate] which is the rate (per second) that
-deferred procedure calls were avoided as computed over the measured interval.
-[opt_def [const -dpcqueuerate]] Returns the field [const dpcqueuerate]
-containing
-the rate at which deferred procedure calls are being added to the DPC queue
-as measured over the specified interval.
-[opt_def [const -dpcrate]] Returns the field [const dpcrate] containing
-the rate at which deferred procedure calls are being added to the DPC queue.
-This rate is based on the observed value over the last two timer ticks of the
-processor clock, and [emph not] that over the measured interval.
 [opt_def [cmd -dpctime]]
 The amount of CPU time in 100ns units spent in servicing deferred
 procedure calls. Note this value is included in the [cmd -privilegedtime]
 value.
-[opt_def [const -dpcutilization]] Returns the
-field [const dpcutilization] containing the percentage of time
-that this processor has spent servicing deferred procedure calls
-over the measured interval. This is included in the
-[const privilegedutilization] value.
 [opt_def [cmd -idletime]]
 The amount of idle CPU time in 100ns units since system start.
 Note this value is included in the [cmd -privilegedtime] value.
 [opt_def [const -interrupts]] Returns the total number of interrupts
 serviced since system start.
-[opt_def [const -interruptrate]] Returns the field [const interruptrate]
-containing the number of hardware interrupts being processed per second
-over the measured interval.
 [opt_def [cmd -interrupttime]]
 The amount of CPU time in 100ns units spent in servicing interrupts.
 Note this value is included in the [cmd -privilegedtime]
 value.
-[opt_def [const -interruptutilization]] Returns the
-field [const interruptutilization] containing the percentage of time
-that this processor has spent servicing interrupts
-over the measured interval. This is included in the
-[const privilegedutilization] value.
 [opt_def [cmd -privilegedtime]]
 The amount of privileged (kernel) context CPU time since system start
 in 100ns units. Note
 this includes the DPC, interrupt and idle CPU cycles.
-[opt_def [const -privilegedutilization]] Returns the
-field [const privilegedutilization] containing the percentage of time
-that this processor has spent executing a non-idle thread
-in privileged mode during the measured interval.
 [opt_def [const -processormodel]] Returns the processor model.
 [arg PROCESSOR] must not be an empty string if this option is specified.
 [opt_def [const -processorname]] Returns a human readable form of the processor
@@ -483,18 +447,11 @@ the CPU manufacturer.
 [opt_def [const -processorspeed]] Returns the nominal speed in Mhz of the
 processor
 [arg PROCESSOR] must not be an empty string if this option is specified.
-[opt_def [const -processorutilization]] Returns the field
-[const processorutilization] containing the percentage of CPU time that
-this processor has been executing a non-idle thread over the measured interval.
 [opt_def [const -processorlevel]] Returns the processor level as defined by
 the CPU manufacturer.
 [opt_def [cmd -usertime]]
 The amount of user context CPU time in 100ns units since the system was
 started.
-[opt_def [const -userutilization]] Returns the
-field [const userutilization] containing the percentage of time
-that this processor has spent executing a non-idle thread
-in user mode during the measured interval.
 [list_end]
 
 [call [cmd get_system_parameters_info] [arg PARAMETER]]

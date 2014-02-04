@@ -366,19 +366,6 @@ proc twapi::get_processor_info {processor args} {
         }
     }
 
-    # Note the PDH options match those of
-    # twapi::get_processor_perf_counter_paths
-    set pdh_opts {
-        dpcutilization
-        interruptutilization
-        privilegedutilization
-        processorutilization
-        userutilization
-        dpcrate
-        dpcqueuerate
-        interruptrate
-    }
-
     set sysinfo_opts {
         arch
         processorlevel
@@ -389,11 +376,9 @@ proc twapi::get_processor_info {processor args} {
     }
 
     array set opts [parseargs args \
-                        [concat [list all \
-                                     currentprocessorspeed \
-                                     [list interval.int 100]] \
+                        [concat all \
                              [array names ::twapi::get_processor_info_base_opts] \
-                             $pdh_opts $sysinfo_opts] -maxleftover 0]
+                             $sysinfo_opts] -maxleftover 0]
 
     # Registry lookup for processor description
     # If no processor specified, use 0 under the assumption all processors
@@ -425,36 +410,6 @@ proc twapi::get_processor_info {processor args} {
                 }
             }
         }
-    }
-
-    if {$opts(all) || $opts(currentprocessorspeed)} {
-        # This might fail if counter is not present. We return
-        # the rated setting in that case
-        if {[catch {
-            set ctr_path [pdh_counter_path ProcessorPerformance "Processor Frequency" -instance Processor_Number_$processor -localize true]
-            lappend results -currentprocessorspeed [get_counter_path_value $ctr_path -interval $opts(interval)]
-        }]} {
-            if {[catch {registry get $reg_hwkey "~MHz"} val]} {
-                set val "unknown"
-            }
-            lappend results -currentprocessorspeed $val
-        }
-    }
-    # Now retrieve each PDH counter
-    set requested_opts [list ]
-    foreach pdh_opt $pdh_opts {
-        if {$opts(all) || $opts($pdh_opt)} {
-            lappend requested_opts "-$pdh_opt"
-        }
-    }
-
-    if {[llength $requested_opts]} {
-        package require twapi_pdh
-        set counter_list [get_perf_processor_counter_paths $processor {*}$requested_opts]
-        foreach {opt processor value} [get_perf_values_from_metacounter_info $counter_list -interval $opts(interval)] {
-            lappend results -$opt $value
-        }
-
     }
 
     if {$opts(all) || $opts(arch) || $opts(processorlevel) || $opts(processorrev)} {
@@ -681,15 +636,16 @@ proc twapi::abort_system_shutdown {args} {
     } SeShutdownPrivilege
 }
 
-proc twapi::get_system_uptime {} {
-    variable _system_start_time
+twapi::proc* twapi::get_system_uptime {} {
+    package require twapi_pdh
+    variable _system_start_time    
+    set ctr_path [pdh_counter_path System "System Up Time" -localize true]
+    set uptime [get_counter_path_value $ctr_path -interval 0 -format double]
     set now [clock seconds]
-    if {![info exists _system_start_time]} {
-        set ctr_path [pdh_counter_path System "System Up Time" -localize true]
-        set uptime [get_counter_path_value $ctr_path -interval 0 -format double]
-        set _system_start_time [expr {$now - round($uptime+0.5)}]
-    }
-    return [expr {$now - $_system_start_time}]
+    set _system_start_time [expr {$now - round($uptime+0.5)}]
+} {
+    variable _system_start_time
+    return [expr {[clock seconds] - $_system_start_time}]
 }
 
 proc twapi::get_system_sid {} {
