@@ -763,27 +763,6 @@ proc twapi::get_multiple_process_info {args} {
         }
     }
 
-    # TBD - get rid of PDH where possible
-    # Note the PDH options match those of twapi::get_process_perf_counter_paths
-    set pdh_opts {
-        privatebytes
-    }
-
-    set pdh_rate_opts {
-        privilegedutilization
-        processorutilization
-        userutilization
-        iodatabytesrate
-        iodataopsrate
-        iootherbytesrate
-        iootheropsrate
-        ioreadbytesrate
-        ioreadopsrate
-        iowritebytesrate
-        iowriteopsrate
-        pagefaultrate
-    }
-
     # Note -user is also a potential token opt but not listed above
     # because it can be gotten by other means
     set token_opts {
@@ -811,12 +790,9 @@ proc twapi::get_multiple_process_info {args} {
                                      priorityclass \
                                      [list noexist.arg "(no such process)"] \
                                      [list noaccess.arg "(unknown)"] \
-                                     matchpids.arg \
-                                     [list interval.int 100]] \
+                                     matchpids.arg] \
                              [array names ::twapi::get_multiple_process_info_base_opts] \
-                             $token_opts \
-                             $pdh_opts \
-                             $pdh_rate_opts] -maxleftover 0]
+                             $token_opts] -maxleftover 0]
 
     if {[info exists opts(matchpids)]} {
         set pids $opts(matchpids)
@@ -892,7 +868,7 @@ proc twapi::get_multiple_process_info {args} {
     # If all we need are baseline options, and no massaging is required
     # (as for elapsedtime, for example), we can return what we have
     # without looping through below. Saves significant time.
-    if {[llength [_array_non_zero_switches opts [concat $pdh_opts $pdh_rate_opts $token_opts [list user elapsedtime tids path commandline priorityclass]] $opts(all)]] == 0} {
+    if {[llength [_array_non_zero_switches opts [concat $token_opts [list user elapsedtime tids path commandline priorityclass]] $opts(all)]] == 0} {
         set return_data {}
         foreach pid $pids {
             if {[info exists results($pid)]} {
@@ -1039,48 +1015,6 @@ proc twapi::get_multiple_process_info {args} {
         }
     }
 
-    # Now deal with the PDH stuff. We need to track what data we managed
-    # to get
-    array set gotdata {}
-
-    # Now retrieve each PDH non-rate related counter which do not
-    # require an interval of measurement
-    set wanted_pdh_opts [_array_non_zero_switches opts $pdh_opts $opts(all)]
-    if {[llength $wanted_pdh_opts] != 0} {
-        package require twapi_pdh
-        set counters [get_perf_process_counter_paths $pids {*}$wanted_pdh_opts]
-        foreach {opt pid val} [get_perf_values_from_metacounter_info $counters -interval 0] {
-            lappend results($pid) $opt $val
-            set gotdata($pid,$opt) 1; # Since we have the data
-        }
-    }
-
-    # NOw do the rate related counter. Again, we need to track missing data
-    set wanted_pdh_rate_opts [_array_non_zero_switches opts $pdh_rate_opts $opts(all)]
-    foreach pid $pids {
-        foreach opt $wanted_pdh_rate_opts {
-            set missingdata($pid,$opt) 1
-        }
-    }
-    if {[llength $wanted_pdh_rate_opts] != 0} {
-        package require twapi_pdh
-        set counters [get_perf_process_counter_paths $pids {*}$wanted_pdh_rate_opts]
-        foreach {opt pid val} [get_perf_values_from_metacounter_info $counters -interval $opts(interval)] {
-            lappend results($pid) $opt $val
-            set gotdata($pid,$opt) 1; # Since we have the data
-        }
-    }
-
-    # For data that we could not get from PDH assume the process does not exist
-    foreach pid $pids {
-        foreach opt [concat $wanted_pdh_opts $wanted_pdh_rate_opts] {
-            if {![info exists gotdata($pid,$opt)]} {
-                # Could not get this combination. Assume missing process
-                lappend results($pid) $opt $opts(noexist)
-            }
-        }
-    }
-
     return [array get results]
 }
 
@@ -1109,17 +1043,6 @@ proc twapi::get_thread_info {tid args} {
         }
     }
 
-    # Note the PDH options match those of twapi::get_thread_perf_counter_paths
-    # Right now, we don't need any PDH non-rate options
-    set pdh_opts {
-    }
-    set pdh_rate_opts {
-        privilegedutilization
-        processorutilization
-        userutilization
-        contextswitchrate
-    }
-
     set token_opts {
         user
         primarygroup
@@ -1138,10 +1061,9 @@ proc twapi::get_thread_info {tid args} {
                                      relativepriority \
                                      tid \
                                      [list noexist.arg "(no such thread)"] \
-                                     [list noaccess.arg "(unknown)"] \
-                                     [list interval.int 100]] \
+                                     [list noaccess.arg "(unknown)"]] \
                              [array names ::twapi::get_thread_info_base_opts] \
-                             $token_opts $pdh_opts $pdh_rate_opts]]
+                             $token_opts ]]
 
     set requested_opts [_array_non_zero_switches opts $token_opts $opts(all)]
     # Now get token info, if any
@@ -1223,46 +1145,6 @@ proc twapi::get_thread_info {tid args} {
         }
     }
 
-    # Now retrieve each PDH non-rate related counter which do not
-    # require an interval of measurement
-    set requested_opts [_array_non_zero_switches opts $pdh_opts $opts(all)]
-    array set pdhdata {}
-    if {[llength $requested_opts] != 0} {
-        package require twapi_pdh
-
-        set counter_list [get_perf_thread_counter_paths [list $tid] {*}$requested_opts]
-        foreach {opt tid value} [get_perf_values_from_metacounter_info $counter_list -interval 0] {
-            set pdhdata($opt) $value
-        }
-        foreach opt $requested_opts {
-            if {[info exists pdhdata($opt)]} {
-                lappend results $opt $pdhdata($opt)
-            } else {
-                # Assume does not exist
-                lappend results $opt $opts(noexist)
-            }
-        }
-    }
-
-
-    # Now do the same for any interval based counters
-    set requested_opts [_array_non_zero_switches opts $pdh_rate_opts $opts(all)]
-    if {[llength $requested_opts] != 0} {
-        package require twapi_pdh
-
-        set counter_list [get_perf_thread_counter_paths [list $tid] {*}$requested_opts]
-        foreach {opt tid value} [get_perf_values_from_metacounter_info $counter_list -interval $opts(interval)] {
-            set pdhdata($opt) $value
-        }
-        foreach opt $requested_opts {
-            if {[info exists pdhdata($opt)]} {
-                lappend results $opt $pdhdata($opt)
-            } else {
-                # Assume does not exist
-                lappend results $opt $opts(noexist)
-            }
-        }
-    }
 
     if {$opts(all) || $opts(relativepriority)} {
         trap {

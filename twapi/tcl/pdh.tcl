@@ -684,7 +684,6 @@ proc twapi::_make_counter_path_list {object instance_list counter_list args} {
     }
 
     if {$opts(skiptotal)} {
-        # TBD - does this need to be localized
         catch {array unset instances "*_Total"}
     }
 
