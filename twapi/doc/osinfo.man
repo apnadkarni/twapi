@@ -576,7 +576,7 @@ they are disabled.
      "idle time" "interrupt time" \
      "performance" "operating system components" "computer name" "reboot" \
      "shutdown" "shutdown abort" "processor model" "processor speed" \
-     "processor groups" "numa"
+     "processor groups" "numa" \
      "physical memory" "memory" "virtual memory" "swap files" \
      "memory commit charge" "domain" "primary domain" workgroup \
      "domain controller" "primary domain controller" \

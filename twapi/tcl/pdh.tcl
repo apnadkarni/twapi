@@ -34,7 +34,7 @@ proc twapi::pdh_enumerate_objects {args} {
 
 #
 # Return list of items within a performance object
-proc twapi::pdh_get_object_items {objname args} {
+proc twapi::pdh_enumerate_object_items {objname args} {
     array set opts [parseargs args {
         datasource.arg
         machine.arg
@@ -839,58 +839,52 @@ proc twapi::pdh_query_get {qid args} {
     return $result
 }
 
-
-# TBD - document
 twapi::proc* twapi::pdh_system_performance_query args {
     variable _sysperf_defs
+
     set _sysperf_defs {
-        interruptcpu% {
-            {Processor "% Interrupt Time" -instance _Total}
-            {-format double}
-        }
-        privilegedcpu% {
-            {Processor "% Privileged Time" -instance _Total}
-            {-format double}
-        }
-        processorcpu% {
-            {Processor "% Processor Time" -instance _Total}
-            {-format double}
-        }
-        usercpu% {
-            {Processor "% User Time" -instance _Total}
-            {-format double}
-        }
-        idlecpu% {
-            {Processor "% Idle Time" -instance _Total}
-            {-format double}
-        }
+        event_count { {Objects Events} {-format large} }
+        mutex_count { {Objects Mutexes} {-format large} }
+        process_count { {Objects Processes} {-format large} }
+        section_count { {Objects Sections} {-format large} }
+        semaphore_count { {Objects Semaphores} {-format large} }
+        thread_count { {Objects Threads} {-format large} }
+        handle_count { {Process "Handle Count" -instance _Total} {-format long} }
+        commit_limit { {Memory "Commit Limit"} {-format large} }
+        committed_bytes { {Memory "Committed Bytes"} {-format large} }
+        committed_percent { {Memory "% Committed Bytes In Use"} {-format double} }
+        memory_free_kb { {Memory "Available KBytes"} {-format large} }
+        page_fault_rate { {Memory "Page Faults/sec"} {-format double} }
+        page_input_rate { {Memory "Pages Input/sec"} {-format double} }
+        page_output_rate { {Memory "Pages Output/sec"} {-format double} }
     }
 
     # Per-processor counters are based on above but the object name depends
     # on the system in order to support > 64 processors
     set obj_name [expr {[min_os_version 6 1] ? "Processor Information" : "Processor"}]
-    dict for {key val} $_sysperf_defs {
-        lassign $val ctrdef fmtdef
-        lappend _sysperf_defs percpu${key} \
+    dict for {key ctr_name} {
+        interrupt_utilization "% Interrupt Time"
+        privileged_utilization "% Privileged Time"
+        processor_utilization  "% Processor Time"
+        user_utilization "% User Time"
+        idle_utilization "% Idle Time"
+    } {
+        lappend _sysperf_defs $key \
             [list \
-                 [list $obj_name [lindex $ctrdef 1] -instance *] \
-                 [linsert $fmtdef end -array 1] \
-                ]
+                 [list $obj_name $ctr_name -instance _Total] \
+                 [list -format double]]
+
+        lappend _sysperf_defs ${key}_per_cpu \
+            [list \
+                 [list $obj_name $ctr_name -instance *] \
+                 [list -format double -array 1]]
     }
-
-    lappend _sysperf_defs {*}{
-        #events { {Objects Events} {-format large} }
-        #mutexes { {Objects Mutexes} {-format large} }
-        #processes { {Objects Processes} {-format large} }
-        #sections { {Objects Sections} {-format large} }
-        #semaphores { {Objects Semaphores} {-format large} }
-        #threads { {Objects Threads} {-format large} }
-        #handles { {Process "Handle Count" -instance _Total} {-format long} }
-    }
-
-
 } {
     variable _sysperf_defs
+
+    if {[llength $args] == 0} {
+        return [dict keys $_sysperf_defs]
+    }
 
     set qid [pdh_query_open]
     trap {
