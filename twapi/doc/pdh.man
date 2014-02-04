@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Performance Counters" n ""]
-[copyright "2014Ashok P. Nadkarni"]
+[copyright "2014 Ashok P. Nadkarni"]
 [moddesc "Performance Counters"]
 [titledesc "Commands related to retrieving performance counters"]
 [require twapi_pdh]
@@ -46,7 +46,9 @@ of interest. Call for each counter of interest.
 Adds a counter (specified by its counter path as returned in the previous step)
 to a query and returns a handle to it. Call for each counter of interest.
 [opt_def [uri #pdh_query_update [cmd pdh_query_update]]]
-Updates all counters in the query to their current values.
+Updates all counters in the query to their current values. For rate
+based counters, this must be called at least twice before retrieving
+the value of a counter.
 [opt_def [uri #pdh_get_scalar [cmd pdh_get_scalar]]]
 Returns the scalar value of a counter as updated in the last
 call to [uri #pdh_query_update [cmd pdh_query_update]].
@@ -58,6 +60,20 @@ Closes a query. This should be called to release resources associated
 with a query once the contained counters are no longer required.
 [list_end]
 
+The [uri #pdh_system_performance_query [cmd pdh_system_performance_query]]
+is a wrapper around [uri #pdh_query_open [cmd pdh_query_open]] that
+includes some commonly used system counters.
+
+[example_begin]
+set queryh [lb]pdh_system_performance_query processor_utilization memory_free_kb[rb]
+proc print_counters {queryh} {
+    pdh_query_update $queryh
+    puts [lb]pdh_query_get $queryh[rb]
+    after 1000 [lb]info level 0[rb]
+}
+print_counters $queryh
+vwait forever
+[example_end]
 
 [section Commands]
 
@@ -91,7 +107,7 @@ Specifies how the counter value should be formatted. [arg FORMAT]
 may be on of [const long], [const large] or [const double]
 for a 32-bit integer, a 64-bit integer or a floating point double.
 [opt_def [cmd -name] [arg NAME]]
-Specifies the name by which the counter will be identified when
+Specifies the mnemonic name by which the counter will be identified when
 multiple counter values are retrieved with
 [uri #pdh_query_get [cmd pdh_query_get]]. If unspecified, defaults
 to the full counter path [arg CTRPATH].
@@ -145,11 +161,11 @@ Returns a flat list of instance name and value pairs for a counter
 that covers multiple objects, such as one containing wildcards.
 Refer to [uri #pdh_get_scalar [cmd pdh_get_scalar]] for options.
 
-[call [cmd pdh_get_objects] [opt [arg options]]]
+[call [cmd pdh_enumerate_objects] [opt [arg options]]]
 Returns a list of the names of the performance objects on a system.
 The following options may be specified:
 [list_begin opt]
-[opt_def [cmd -wizard] [arg DETAILLEVEL]]
+[opt_def [cmd -detail] [arg DETAILLEVEL]]
 Controls which detail levels are to be returned. [arg DETAILLEVEL]
 may be one of [const novice], [const advanced], [const expert] and
 [const wizard] (default) which return performance objects at
@@ -161,13 +177,13 @@ Specifying [cmd -refresh] causes the cache to be refreshed
 before being returned.
 [list_end]
 
-[call [cmd pdh_get_object_items] [arg PERFOBJ] [opt [arg options]]]
+[call [cmd pdh_enumerate_object_items] [arg PERFOBJ] [opt [arg options]]]
 Returns a list of two elements, the first being a list of counter names
 for the performance object [arg PERFOBJ] and the second being the
 list of instance names for object.
 The following options may be specified:
 [list_begin opt]
-[opt_def [cmd -wizard] [arg DETAILLEVEL]]
+[opt_def [cmd -detail] [arg DETAILLEVEL]]
 Controls which detail levels are to be returned. [arg DETAILLEVEL]
 may be one of [const novice], [const advanced], [const expert] and
 [const wizard] (default) which return performance objects at
@@ -231,7 +247,7 @@ are specified, values for all counters added to the query are returned.
 Otherwise, each argument must be the name associated with the counter
 with the [cmd -name] option to the [cmd pdh_add_counter] command.
 [nl]
-The returned value is a dictionary, each key of which is the name
+The returned value is a dictionary, each key of which is the mnemonic name
 associated with the abovementioned [cmd -name] option of [cmd pdh_add_counter].
 The corresponding value in the dictionary may be a scalar or an array
 (as returned by the [uri #pdh_get_array [cmd pdh_get_array]] command)
@@ -254,8 +270,24 @@ like processor utilization, the first call only serves to
 initialize the counters. Valid data is collected only from the second
 call onwards. Microsoft recommends calls be at least one second apart.
 
-
-
+[call [cmd pdh_system_performance_query] [opt [arg "CTRNAME ...."]]]
+The [uri #pdh_system_performance_query [cmd pdh_system_performance_query]]
+is a wrapper around [uri #pdh_query_open [cmd pdh_query_open]] that
+includes some commonly used system counters.
+[nl]
+Calling the command without any arguments will return a list of 
+counter mnemonics that the command understands.
+[nl]
+If called with arguments, each argument must be the name of a counter
+mnemonic. The command then returns a handle to a performance query with
+those counters already added. The command also internally
+calls [uri #pdh_query_update [cmd pdh_query_update]].
+[nl]
+The returned query handle can be used
+exactly as a handle from [uri #pdh_query_open [cmd pdh_query_open]]
+including addition of more counters, retrieving counter values etc.
+It must also be closed in the same manner by calling
+[uri #pdh_query_close [cmd pdh_query_close]].
 
 [list_end]
 

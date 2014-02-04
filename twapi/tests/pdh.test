@@ -27,14 +27,436 @@ namespace eval twapi::pdh::test {
         nt
     } -body {
         # Force loading of twapi_pdh
-        catch {twapi::connect_perf}
+        twapi::pdh_connect ""
         # Verify expr works and PDH did not change the locale
         # (Needs to be tested on non-English systems where decimal separator is not .)
         expr {1.0*1.0}
     } -result 1.0
     
 
+    test pdh_enumerate_objects-1.0 {
+        Enumerate objects
+    } -body {
+        set l [twapi::pdh_enumerate_objects]
+        expr {[llength $l] > 20 && "Processor" in $l}
+    } -result 1
+
+    test pdh_enumerate_objects-1.1 {
+        Enumerate objects -refresh
+    } -body {
+        set l [twapi::pdh_enumerate_objects -refresh]
+        expr {[llength $l] > 20 && "Processor" in $l}
+    } -result 1
+
+    test pdh_enumerate_objects-2.0 {
+        Enumerate objects -detail wizard
+    } -body {
+        set l [twapi::pdh_enumerate_objects]
+        set l2 [twapi::pdh_enumerate_objects -detail wizard]
+        setops::equal $l $l2
+    } -result 1
+
+    test pdh_enumerate_objects-3.0 {
+        Enumerate objects -detail novice
+    } -body {
+        set l [twapi::pdh_enumerate_objects]
+        set l2 [twapi::pdh_enumerate_objects -detail novice]
+        set l_l2 [setops::diff $l $l2]
+        set l2_l [setops::diff $l2 $l]
+        list [expr {[llength $l_l2] > 0}] $l2_l
+    } -result {1 {}}
+
+    test pdh_enumerate_objects-4.0 {
+        Enumerate objects -detail advanced
+    } -body {
+        set l [twapi::pdh_enumerate_objects]
+        set l2 [twapi::pdh_enumerate_objects -detail advanced]
+        set l_l2 [setops::diff $l $l2]
+        set l2_l [setops::diff $l2 $l]
+        list [expr {[llength $l_l2] > 0}] $l2_l
+    } -result {1 {}}
+
+    test pdh_enumerate_objects-4.1 {
+        Enumerate objects -detail advanced novice
+    } -body {
+        set l [twapi::pdh_enumerate_objects -detail advanced]
+        set l2 [twapi::pdh_enumerate_objects -detail novice]
+        set l_l2 [setops::diff $l $l2]
+        set l2_l [setops::diff $l2 $l]
+        list [expr {[llength $l_l2] > 0}] $l2_l
+    } -result {1 {}}
+
+    test pdh_enumerate_objects-5.0 {
+        Enumerate objects -detail expert
+    } -body {
+        set l [twapi::pdh_enumerate_objects]
+        set l2 [twapi::pdh_enumerate_objects -detail expert]
+        set l_l2 [setops::diff $l $l2]
+        set l2_l [setops::diff $l2 $l]
+        # Expert seems to be same as wizard
+        list [expr {[llength $l_l2] >= 0}] $l2_l
+    } -result {1 {}}
+
+    test pdh_enumerate_objects-5.1 {
+        Enumerate objects -detail expert advanced
+    } -body {
+        set l [twapi::pdh_enumerate_objects -detail expert]
+        set l2 [twapi::pdh_enumerate_objects -detail advanced]
+        set l_l2 [setops::diff $l $l2]
+        set l2_l [setops::diff $l2 $l]
+        list [expr {[llength $l_l2] > 0}] $l2_l
+    } -result {1 {}}
+
+    test pdh_enumerate_object_items-1.0 {
+        TBD
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test pdh_counter_path-1.0 {
+        TBD
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test pdh_parse_counter_path-1.0 {
+        TBD
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test pdh_get_scalar-1.0 {
+        TBD
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test pdh_get_array-1.0 {
+        TBD
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test pdh_query_open-1.0 {
+        TBD
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test pdh_query_close-1.0 {
+        TBD
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test pdh_add_counter-1.0 {
+        TBD
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test pdh_query_get-1.0 {
+        TBD
+    } -constraints {
+        TBD
+    } -body {
+    } -result ""
+
+    test pdh_system_performance_query-1.0 {
+        pdh_system_performance_query with no args
+    } -body {
+        lsort [twapi::pdh_system_performance_query]
+    } -result {commit_limit committed_bytes committed_percent event_count handle_count idle_utilization idle_utilization_per_cpu interrupt_utilization interrupt_utilization_per_cpu memory_free_kb mutex_count page_fault_rate page_input_rate page_output_rate privileged_utilization privileged_utilization_per_cpu process_count processor_utilization processor_utilization_per_cpu section_count semaphore_count thread_count user_utilization user_utilization_per_cpu}
+
+    test pdh_system_performance_query-2.0 {
+        pdh_system_performance_query with all args
+    } -body {
+        set qh [twapi::pdh_system_performance_query {*}[twapi::pdh_system_performance_query]]
+        after 1000
+        twapi::pdh_query_update $qh
+        lsort [dict keys [twapi::pdh_query_get $qh]]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {commit_limit committed_bytes committed_percent event_count handle_count idle_utilization idle_utilization_per_cpu interrupt_utilization interrupt_utilization_per_cpu memory_free_kb mutex_count page_fault_rate page_input_rate page_output_rate privileged_utilization privileged_utilization_per_cpu process_count processor_utilization processor_utilization_per_cpu section_count semaphore_count thread_count user_utilization user_utilization_per_cpu}
+
+    test pdh_system_performance_query-3.0 {
+        pdh_system_performance_query -commit_limit
+    } -body {
+        set qh [twapi::pdh_system_performance_query commit_limit]
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal commit_limit $key] [string is wide $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-4.0 {
+        pdh_system_performance_query -committed_bytes
+    } -body {
+        set qh [twapi::pdh_system_performance_query committed_bytes]
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal committed_bytes $key] [string is wide $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-5.0 {
+        pdh_system_performance_query -committed_percent
+    } -body {
+        set qh [twapi::pdh_system_performance_query committed_percent]
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal committed_percent $key] [string is double $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-6.0 {
+        pdh_system_performance_query -event_count
+    } -body {
+        set qh [twapi::pdh_system_performance_query event_count]
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal event_count $key] [string is wide $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-7.0 {
+        pdh_system_performance_query -handle_count
+    } -body {
+        set qh [twapi::pdh_system_performance_query handle_count]
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal handle_count $key] [string is wide $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-8.0 {
+        pdh_system_performance_query -idle_utilization
+    } -body {
+        set qh [twapi::pdh_system_performance_query idle_utilization]
+        after 1000
+        twapi::pdh_query_update $qh
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal idle_utilization $key] [string is double $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-9.0 {
+        pdh_system_performance_query -interrupt_utilization
+    } -body {
+        set qh [twapi::pdh_system_performance_query interrupt_utilization]
+        after 1000
+        twapi::pdh_query_update $qh
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal interrupt_utilization $key] [string is double $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-10.0 {
+        pdh_system_performance_query -memory_free_kb
+    } -body {
+        set qh [twapi::pdh_system_performance_query memory_free_kb]
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal memory_free_kb $key] [string is wide $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-11.0 {
+        pdh_system_performance_query -mutex_count
+    } -body {
+        set qh [twapi::pdh_system_performance_query mutex_count]
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal mutex_count $key] [string is wide $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-12.0 {
+        pdh_system_performance_query -page_fault_rate
+    } -body {
+        set qh [twapi::pdh_system_performance_query page_fault_rate]
+        after 1000
+        twapi::pdh_query_update $qh
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal page_fault_rate $key] [string is double $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-13.0 {
+        pdh_system_performance_query -page_input_rate
+    } -body {
+        set qh [twapi::pdh_system_performance_query page_input_rate]
+        after 1000
+        twapi::pdh_query_update $qh
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal page_input_rate $key] [string is double $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+
+    test pdh_system_performance_query-14.0 {
+        pdh_system_performance_query -page_output_rate
+    } -body {
+        set qh [twapi::pdh_system_performance_query page_output_rate]
+        after 1000
+        twapi::pdh_query_update $qh
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal page_output_rate $key] [string is double $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-15.0 {
+        pdh_system_performance_query -privileged_utilization
+    } -body {
+        set qh [twapi::pdh_system_performance_query privileged_utilization]
+        after 1000
+        twapi::pdh_query_update $qh
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal privileged_utilization $key] [string is double $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-16.0 {
+        pdh_system_performance_query -process_count
+    } -body {
+        set qh [twapi::pdh_system_performance_query process_count]
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal process_count $key] [string is wide $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-17.0 {
+        pdh_system_performance_query -processor_utilization
+    } -body {
+        set qh [twapi::pdh_system_performance_query processor_utilization]
+        after 1000
+        twapi::pdh_query_update $qh
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal processor_utilization $key] [string is double $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-18.0 {
+        pdh_system_performance_query -section_count
+    } -body {
+        set qh [twapi::pdh_system_performance_query section_count]
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal section_count $key] [string is wide $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-19.0 {
+        pdh_system_performance_query -semaphore_count
+    } -body {
+        set qh [twapi::pdh_system_performance_query semaphore_count]
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal semaphore_count $key] [string is wide $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-20.0 {
+        pdh_system_performance_query -thread_count
+    } -body {
+        set qh [twapi::pdh_system_performance_query thread_count]
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal thread_count $key] [string is wide $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-21.0 {
+        pdh_system_performance_query -user_utilization
+    } -body {
+        set qh [twapi::pdh_system_performance_query user_utilization]
+        after 1000
+        twapi::pdh_query_update $qh
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal user_utilization $key] [string is double $val]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_system_performance_query-22.0 {
+        pdh_system_performance_query idle_utilization_per_cpu
+    } -body {
+        set qh [twapi::pdh_system_performance_query idle_utilization_per_cpu]
+        after 1000
+        twapi::pdh_query_update $qh
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal idle_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1 1 1}
+
+    test pdh_system_performance_query-23.0 {
+        pdh_system_performance_query processor_utilization_per_cpu
+    } -body {
+        set qh [twapi::pdh_system_performance_query processor_utilization_per_cpu]
+        after 1000
+        twapi::pdh_query_update $qh
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal processor_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1 1 1}
+
+    test pdh_system_performance_query-24.0 {
+        pdh_system_performance_query interrupt_utilization_per_cpu
+    } -body {
+        set qh [twapi::pdh_system_performance_query interrupt_utilization_per_cpu]
+        after 1000
+        twapi::pdh_query_update $qh
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal interrupt_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1 1 1}
+
+    test pdh_system_performance_query-25.0 {
+        pdh_system_performance_query privileged_utilization_per_cpu
+    } -body {
+        set qh [twapi::pdh_system_performance_query privileged_utilization_per_cpu]
+        after 1000
+        twapi::pdh_query_update $qh
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal privileged_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1 1 1}
+
+    test pdh_system_performance_query-26.0 {
+        pdh_system_performance_query user_utilization_per_cpu
+    } -body {
+        set qh [twapi::pdh_system_performance_query user_utilization_per_cpu]
+        after 1000
+        twapi::pdh_query_update $qh
+        lassign [twapi::pdh_query_get $qh] key val
+        list [string equal user_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1 1 1}
+
+
     ################################################################
+
 
     #
     # Clean up
