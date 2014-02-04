@@ -696,7 +696,7 @@ proc twapi::get_thread_parent_process_id {tid} {
         return ""
     }
 
-    if {[get_counter_path_value [lindex [lindex $pid_paths 0] 3] -var pid]} {
+    if {[pdh_counter_path_value [lindex [lindex $pid_paths 0] 3] -var pid]} {
         return $pid
     } else {
         return ""
