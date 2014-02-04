@@ -108,11 +108,56 @@ namespace eval twapi::pdh::test {
     } -result {1 {}}
 
     test pdh_enumerate_object_items-1.0 {
-        TBD
-    } -constraints {
-        TBD
+        pdh_enumerate_object_items
     } -body {
-    } -result ""
+        set l [twapi::pdh_enumerate_object_items process]
+        list [llength $l] [expr {"Thread Count" in [lindex $l 0]}] [expr {"svchost" in [lindex $l 1]}]
+    } -result {2 1 1}
+
+    test pdh_enumerate_object_items-1.1 {
+        pdh_enumerate_object_items -refresh
+    } -body {
+        set l [twapi::pdh_enumerate_object_items process -refresh]
+        list [llength $l] [expr {"Thread Count" in [lindex $l 0]}] [expr {"svchost" in [lindex $l 1]}]
+    } -result {2 1 1}
+
+    test pdh_enumerate_object_items-2.0 {
+        pdh_enumerate_object_items wizard
+    } -body {
+        set l [twapi::pdh_enumerate_object_items process]
+        set l2 [twapi::pdh_enumerate_object_items process -detail wizard]
+        list [llength $l2] [setops::diff $l $l2] [setops::diff $l2 $l]
+    } -result {2 {} {}}
+
+    test pdh_enumerate_object_items-3.0 {
+        pdh_enumerate_object_items expert
+    } -body {
+        set l [twapi::pdh_enumerate_object_items process]
+        set l2 [twapi::pdh_enumerate_object_items process -detail expert]
+        set l_l2 [setops::diff [lindex $l 0] [lindex $l2 0]]
+        set l2_l [setops::diff [lindex $l2 0] [lindex $l 0]]
+        list [llength $l2] [expr {[llength $l_l2] >= 0}] $l2_l
+    } -result {2 1 {}}
+
+    test pdh_enumerate_object_items-4.0 {
+        pdh_enumerate_object_items 
+    } -body {
+        set l [twapi::pdh_enumerate_object_items process -detail expert]
+        set l2 [twapi::pdh_enumerate_object_items process -detail advanced]
+        set l_l2 [setops::diff [lindex $l 0] [lindex $l2 0]]
+        set l2_l [setops::diff [lindex $l2 0] [lindex $l 0]]
+        list [llength $l2] [expr {[llength $l_l2] >= 0}] $l2_l
+    } -result {2 1 {}}
+
+    test pdh_enumerate_object_items-5.0 {
+        pdh_enumerate_object_items 
+    } -body {
+        set l [twapi::pdh_enumerate_object_items process -detail advanced]
+        set l2 [twapi::pdh_enumerate_object_items process -detail novice]
+        set l_l2 [setops::diff [lindex $l 0] [lindex $l2 0]]
+        set l2_l [setops::diff [lindex $l2 0] [lindex $l 0]]
+        list [llength $l2] [expr {[llength $l_l2] >= 0}] $l2_l
+    } -result {2 1 {}}
 
     test pdh_counter_path-1.0 {
         TBD
