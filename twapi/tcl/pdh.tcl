@@ -617,7 +617,7 @@ proc twapi::get_unique_counter_path {object counter value args} {
 # Utilities
 # 
 proc twapi::_refresh_perf_objects {machine datasource} {
-    get_perf_objects -refresh
+    pdh_enumerate_objects -refresh
     return
 }
 
