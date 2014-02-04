@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003-2012, Ashok P. Nadkarni
+# Copyright (c) 2003-2014, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -71,19 +71,6 @@ namespace eval ::twapi::process::test {
             -ioreadbytes
             -iowritebytes
             -iootherbytes
-            -privatebytes
-            -privilegedutilization
-            -processorutilization
-            -userutilization
-            -iodatabytesrate
-            -iodataopsrate
-            -iootherbytesrate
-            -iootheropsrate
-            -ioreadbytesrate
-            -ioreadopsrate
-            -iowritebytesrate
-            -iowriteopsrate
-            -pagefaultrate
             -user
             -groups
             -groupattrs
@@ -163,7 +150,7 @@ namespace eval ::twapi::process::test {
             foreach field {-handlecount
                 -pagefilebytes -pagefilebytespeak
                 -poolnonpagedbytes -poolpagedbytes
-                -privatebytes -threadcount
+                -threadcount
                 -virtualbytes -virtualbytespeak
                 -workingset -workingsetpeak} {
                 if {![approx [get_process_field $pid $field] $procinfo($field)]} {
@@ -1270,7 +1257,6 @@ namespace eval ::twapi::process::test {
     foreach field { -handlecount
         -pagefilebytes -pagefilebytespeak
         -poolnonpagedbytes -poolpagedbytes
-        -privatebytes
         -virtualbytes -virtualbytespeak -workingset -workingsetpeak} {
         test get_process_info-[incr testnum].0 "Verify get_process_info $field for another process" -constraints {
             nt
@@ -1298,20 +1284,7 @@ namespace eval ::twapi::process::test {
         -ioreadbytes       integer
         -iowritebytes      integer
         -iootherbytes      integer
-        -iodatabytesrate   integer
-        -iodataopsrate     integer
-        -iootherbytesrate  integer
-        -iootheropsrate    integer
-        -ioreadbytesrate   integer
-        -ioreadopsrate     integer
-        -iowritebytesrate  integer
-        -iowriteopsrate    integer
-        -pagefaultrate     integer
         -priorityclass     integer
-        -privilegedutilization double
-        -processorutilization  double
-        -userutilization       double
-
     } {
         test get_process_info-[incr testnum].0 "Verify get_process_info $field for another process" -constraints {
             nt
@@ -1377,9 +1350,6 @@ namespace eval ::twapi::process::test {
         -elapsedtime      integer
         -contextswitches  integer
         -relativepriority integer
-        -privilegedutilization double
-        -processorutilization double
-        -userutilization double
     } {
         test get_thread_info-3.$testnum "Verify get_thread_info $field" -constraints {
             nt

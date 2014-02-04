@@ -437,15 +437,9 @@ be either a user name or its SID.
 [call [cmd get_process_info] [arg PID] [opt [arg options]]]
 
 Returns various pieces of information related to the process whose id is
-[arg PID]. The information returned
-depends on the options specified and is in the form of a flat list of
-the form "[arg option1] [arg value1] ...".
-The values returned  may
-be scalars (e.g. [const -name]) or rate based measured over an interval
-(e.g. [cmd -processorutilization]). The option [cmd -interval] may be
-used to indicate the interval over which the rate based fields are measured.
-
-One of more of the following options may be specified with the command:
+[arg PID]. The information returned is dictionary whose keys are
+one or more of the following options that specify the information to be 
+returned:
 
 [list_begin opt]
 [opt_def [cmd -all]] Returns all values except those for unsupported options.
@@ -477,56 +471,26 @@ For domain accounts, an error is raised if the
 domain is unreachable. Use [cmd -groupattrs] to avoid this.
 [opt_def [cmd -handlecount]]
 Returns the number of handles that the process currently has open.
-[opt_def [cmd -handles]]
-Returns the list of open handles in the process as a list of lists. Each
-sublist contains three elements - the handle value, the type of
-the handle, and name of the corresponding resource.
-[emph "This an unsupported option that uses undocumented Windows functions
-and should not be used for production systems."]
 [opt_def [cmd -integrity]] Returns the numeric integrity level of the process
 (see [uri #get_process_integrity [cmd get_process_integrity]]).
 [opt_def [cmd -integritylabel]] Returns the label for
 the integrity level range of the process
 (see [uri #get_process_integrity [cmd get_process_integrity]]).
-[opt_def [cmd -interval] [arg INTERVAL]] Specifies the number of
-milliseconds over which rate based fields are to be measured. The command
-will not return until this time has elapsed. By default this is 100ms.
-If none of the fields requested is a rate based field, this option
-is ignored and the command returns immediately.
-[opt_def [cmd -iodatabytesrate]]
-Returns the rate at which the process is reading and writing bytes.
-[opt_def [cmd -iodataopsrate]]
-Returns the rate at which the process is issuing I/O operation.
 [opt_def [cmd -iootherbytes]]
 Returns number of non-data bytes the process has read or written through I/O
 operations.
-[opt_def [cmd -iootherbytesrate]]
-Returns the rate at which the process is reading and writing non-data
-bytes (such as control bytes).
 [opt_def [cmd -iootherops]]
 Returns number of non-data I/O operations the process has executed.
-[opt_def [cmd -iootheropsrate]]
-Returns the rate at which the process is issuing non-data I/O operations.
 [opt_def [cmd -ioreadbytes]]
 Returns number of data bytes the process has read through I/O
 operations.
-[opt_def [cmd -ioreadbytesrate]]
-Returns the rate at which the process is reading bytes through I/O
-operations.
 [opt_def [cmd -ioreadops]]
 Returns number of data read I/O operations the process has executed.
-[opt_def [cmd -ioreadopsrate]]
-Returns the rate at which the process is issuing read I/O operations.
 [opt_def [cmd -iowritebytes]]
 Returns number of data bytes the process has written through I/O
 operations.
-[opt_def [cmd -iowritebytesrate]]
-Returns the rate at which the process is writing bytes through I/O
-operations. All types of I/O operations are including in this rate.
 [opt_def [cmd -iowriteops]]
 Returns number of data write I/O operations the process has executed.
-[opt_def [cmd -iowriteopsrate]]
-Returns the rate at which the process is issuing write I/O operations.
 [opt_def [cmd -logonsession]]
 Returns the [uri security.html\#uniqueidentifiers LUID] of the
 [uri security.html\#logonsessions "logon session"] for the process.
@@ -541,8 +505,6 @@ be used to specify a different string to be returned in such cases.
 command returns the string [const "\"(no such process)\""]. This option may
 be used to specify a different string to be returned for non-existent
 processes.
-[opt_def [cmd -pagefaultrate]]
-Returns the rate at which the process is generating page faults.
 [opt_def [cmd -pagefilebytes]]
 Returns total number of bytes in use for this process in all the
 system paging files.
@@ -571,20 +533,13 @@ domain is unreachable. Use [cmd -primarygroupsid] to avoid this.
 [opt_def [cmd -primarygroupsid]] Returns the SID of primary group that the
 process belongs to.
 [opt_def [cmd -priorityclass]] Returns the priority class of the process.
-[opt_def [cmd -privatebytes]]
-Returns the number of bytes allocated for this process' private use.
 [opt_def [cmd -privilegedtime]]
 The amount of privileged context CPU time used by the process in 100ns units.
-[opt_def [cmd -privilegedutilization]]
-Returns the percentage of elapsed time
-that this process has spent executing in privileged mode.
 [opt_def [cmd -privileges]] Returns the list of enabled and disabled
 process privileges in the same format as
 [uri security.html\#get_token_privileges [cmd get_token_privileges]].
 Deprecated, use [cmd -enabledprivileges] and [cmd -disabledprivileges]
 instead.
-[opt_def [cmd -processorutilization]]
-Returns the percentage of CPU time that this process has used.
 [opt_def [cmd -restrictedgroupattrs]] Returns the list of restricted group
 SIDs and attributes in
 the process security token. See
@@ -604,9 +559,6 @@ Returns the terminal server session id of the process.
 Returns the user account under which the process is running.
 [opt_def [cmd -usertime]]
 The amount of user context CPU time used by the process in 100ns units.
-[opt_def [cmd -userutilization]]
-Returns the percentage of elapsed time
-that this process has spent executing in user mode.
 [opt_def [cmd -virtualbytes]]
 Returns the current size of the process' virtual address space.
 [opt_def [cmd -virtualbytespeak]]
@@ -730,15 +682,9 @@ handle cannot be inherited by child processes.
 [call [cmd get_thread_info] [arg TID] [opt [arg options]]]
 
 Returns various pieces of information related to the thread whose id is
-[arg TID]. The information returned
-depends on the options specified and is in the form of a flat list of
-the form "[arg option1] [arg value1] ...".
-The values returned  may
-be scalars (e.g. [const -name]) or rate based measured over an interval
-(e.g. [cmd -processorutilization]). The option [cmd -interval] may be
-used to indicate the interval over which the rate based fields are measured.
-
-One of more of the following options may be specified with the command:
+[arg TID]. The return value is a dictionary whose keys are one or
+more of the following options that specify what information is to
+be returned:
 
 [list_begin opt]
 [opt_def [cmd -all]] Returns all values.
@@ -746,8 +692,6 @@ One of more of the following options may be specified with the command:
 Returns the base priority of the thread.
 [opt_def [cmd -contextswitches]]
 Returns the number of context switches done by the thread.
-[opt_def [cmd -contextswitchrate]]
-Returns the rate of context switches for the thread.
 [opt_def [cmd -createtime]]
 Returns the time the thread was created as the number of 100ns units
 since Jan 1, 1601. This can be converted to a date and time string
@@ -792,14 +736,9 @@ process belongs to.
 Returns the current priority of the thread.
 [opt_def [cmd -privilegedtime]]
 The amount of privileged context CPU time used by the thread in 100ns units.
-[opt_def [cmd -privilegedutilization]]
-Returns the percentage of elapsed time
-that this process has spent executing in privileged mode.
 [opt_def [cmd -privileges]] Returns the list of the current thread privileges.
 Deprecated, use [cmd -enabledprivileges] and [cmd -disabledprivileges]
 instead.
-[opt_def [cmd -processorutilization]]
-Returns the percentage of CPU time that this process has used.
 [opt_def [cmd -relativepriority]] Returns the priority level of the thread
 relative to the priority class of the containing process.
 [opt_def [cmd -restrictedgroupattrs]] Returns the list of restricted group
@@ -821,9 +760,6 @@ identical to that passed in as the [arg TID] argument.
 running.
 [opt_def [cmd -usertime]]
 The amount of user context CPU time used by the thread in 100ns units.
-[opt_def [cmd -userutilization]]
-Returns the percentage of elapsed time
-that this process has spent executing in user mode.
 [opt_def [cmd -waitreason]]
 Returns the reason a thread is in wait state. This is only valid when
 the [cmd state] field is 5 indicating the thread is in a wait state.
