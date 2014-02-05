@@ -28,7 +28,7 @@
   <a href="http://www.tcl.tk">Tcl</a>, TWAPI makes it possible
   to write a wide variety of Windows applications ranging from
   desktop applications to web servers running as Windows services.
-  See <a href="http://wits.magicsplat.com">Windows
+  See <a href="http://windowstoolset.sourceforge.net">Windows
   Inspection Tool Set</a> for an example of Tcl/TWAPI based application.
 </p>
 <p>
@@ -40,12 +40,12 @@
   <li>Visit the <a href="http://sourceforge.net/projects/twapi">SourceFourge</a> project</li>
   <li>Browse the <a href="http://twapi.hg.sourceforge.net/hgweb/twapi/">source repository</a></li>
   <li>Documentation for older versions: 
-    <a href="http://twapi.magicsplat.com/v3.1">3.1</a>
-    <a href="http://twapi.magicsplat.com/v3.0">3.0</a>
-    <a href="http://twapi.magicsplat.com/v2.2">2.2</a>
-    <a href="http://twapi.magicsplat.com/v2.1">2.1</a>
-    <a href="http://twapi.magicsplat.com/v2.0">2.0</a>
-    <a href="http://twapi.magicsplat.com/v1.1">1.1</a>
+    <a href="http://twapi.sourceforge.net/v3.1">3.1</a>
+    <a href="http://twapi.sourceforge.net/v3.0">3.0</a>
+    <a href="http://twapi.sourceforge.net/v2.2">2.2</a>
+    <a href="http://twapi.sourceforge.net/v2.1">2.1</a>
+    <a href="http://twapi.sourceforge.net/v2.0">2.0</a>
+    <a href="http://twapi.sourceforge.net/v1.1">1.1</a>
   </li>
 </ul>
 
