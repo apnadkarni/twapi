@@ -16,7 +16,7 @@
 #+LINK_UP:   
 #+LINK_HOME: 
 
-#+LINK: twapiman http://twapi.magicsplat.com/
+#+LINK: twapiman http://twapi.sourceforge.net/
 #+LINK: wiki  http://wiki.tcl.tk/
 #+LINK: tclman http://www.tcl.tk/man/tcl8.6/
 

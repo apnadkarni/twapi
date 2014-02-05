@@ -39,12 +39,13 @@ proc transform_file {infile {navfile ""} {adfile ""} {adfile2 ""} {outfile ""}} 
     # Put the page header
     puts $outfd "<div id='hd'>"
 
-    # TBD - remove hardcoding once we know we want it
-    set fd [open google-searchbox.js r]
-    set searchbox [read $fd]
-    close $fd
+    if {0} {
+        set fd [open google-searchbox.js r]
+        set searchbox [read $fd]
+        close $fd
 
-    puts "<div class='searchbox'>$searchbox</div>"
+        puts "<div class='searchbox'>$searchbox</div>"
+    }
 
     puts $outfd {
         <div class='headingbar'>
@@ -122,8 +123,9 @@ proc transform_file {infile {navfile ""} {adfile ""} {adfile2 ""} {outfile ""}} 
         <div class='copyright'>
           &copy; 2002-2011 Ashok P. Nadkarni
         </div>
-        <a href='http://www.magicsplat.com/privacy.html'>Privacy policy</a>
     }
+    # <a href='http://www.magicsplat.com/privacy.html'>Privacy policy</a>
+
     puts $outfd "</div>"
 
 
