@@ -276,18 +276,223 @@ namespace eval twapi::pdh::test {
     } -result {1 {TWAPI_WIN32 -1073738812}}
 
     test pdh_get_scalar-1.0 {
-        TBD
-    } -constraints {
-        TBD
+        pdh_get_scalar
+    } -setup {
+        set qh [twapi::pdh_query_open]
     } -body {
-    } -result ""
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
+        twapi::pdh_query_update $qh
+        twapi::pdh_get_scalar $h
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {^\d+$} -match regexp
+
+    test pdh_get_scalar-2.0 {
+        pdh_get_scalar -scale none
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
+        twapi::pdh_query_update $qh
+        twapi::pdh_get_scalar $h -scale none
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {^\d+$} -match regexp
+
+    test pdh_get_scalar-2.1 {
+        pdh_get_scalar -scale x1000
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
+        twapi::pdh_query_update $qh
+        twapi::pdh_get_scalar $h -scale x1000
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {^\d+000$} -match regexp
+
+    test pdh_get_scalar-2.2 {
+        pdh_get_scalar -scale nocap100
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
+        twapi::pdh_query_update $qh
+        twapi::pdh_get_scalar $h -scale nocap100
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {^\d+$} -match regexp
+
+    test pdh_get_scalar-3.0 {
+        pdh_get_scalar -format long
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
+        twapi::pdh_query_update $qh
+        twapi::pdh_get_scalar $h -format long
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {^\d+$} -match regexp
+
+    test pdh_get_scalar-3.1 {
+        pdh_get_scalar -format large
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
+        twapi::pdh_query_update $qh
+        twapi::pdh_get_scalar $h -format large
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {^\d+$} -match regexp
+
+    test pdh_get_scalar-3.2 {
+        pdh_get_scalar -format double
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
+        twapi::pdh_query_update $qh
+        twapi::pdh_get_scalar $h -format double
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {^\d+\.0$} -match regexp
+
+    test pdh_get_scalar-4.0 {
+        pdh_get_scalar -var
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
+        twapi::pdh_query_update $qh
+        list [twapi::pdh_get_scalar $h -var v] [string is integer -strict $v]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1}
+
+    test pdh_get_scalar-4.1 {
+        pdh_get_scalar -var (fail)
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        # Specify an counter instance that does not exist
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "ID Process" -instance nosuchprocess]]
+        # Add one more valid counter else pdh_query_update will fail
+        # without at least one valid counter
+        twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "ID Process" -instance Idle]
+        twapi::pdh_query_update $qh
+        twapi::pdh_get_scalar $h -var v
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result 0
 
     test pdh_get_array-1.0 {
-        TBD
-    } -constraints {
-        TBD
+        pdh_get_array
+    } -setup {
+        set qh [twapi::pdh_query_open]
     } -body {
-    } -result ""
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "ID Process" -instance *] -array 1]
+        twapi::pdh_query_update $qh
+        set d [twapi::pdh_get_array $h]
+        list [dict get $d Idle] [dict get $d System]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {0 4}
+
+    test pdh_get_array-2.0 {
+        pdh_get_array -scale none
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "Handle Count" -instance *]]
+        twapi::pdh_query_update $qh
+        set d [twapi::pdh_get_array $h -scale none]
+        list [dict get $d Idle] [dict get $d System]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {^\d+ \d+$} -match regexp
+
+    test pdh_get_array-2.1 {
+        pdh_get_array -scale x1000
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "Handle Count" -instance *]]
+        twapi::pdh_query_update $qh
+        set d [twapi::pdh_get_array $h -scale x1000]
+        list [dict get $d Idle] [dict get $d System]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {^\d*0 \d+000+$} -match regexp
+
+    test pdh_get_array-2.2 {
+        pdh_get_array -scale nocap100
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "Handle Count" -instance *]]
+        twapi::pdh_query_update $qh
+        set d [twapi::pdh_get_array $h -scale nocap100]
+        list [dict get $d Idle] [dict get $d System]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {^\d+ \d+$} -match regexp
+
+
+    test pdh_get_array-3.0 {
+        pdh_get_array -format long
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "Handle Count" -instance *]]
+        twapi::pdh_query_update $qh
+        set d [twapi::pdh_get_array $h -format long]
+        list [dict get $d Idle] [dict get $d System]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {^\d+ \d+$} -match regexp
+
+    test pdh_get_array-3.1 {
+        pdh_get_array -format large
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "Handle Count" -instance *]]
+        twapi::pdh_query_update $qh
+        set d [twapi::pdh_get_array $h -format large]
+        list [dict get $d Idle] [dict get $d System]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {^\d+ \d+$} -match regexp
+
+    test pdh_get_array-3.2 {
+        pdh_get_array -format double
+    } -setup {
+        set qh [twapi::pdh_query_open]
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "Handle Count" -instance *]]
+        twapi::pdh_query_update $qh
+        set d [twapi::pdh_get_array $h -format double]
+        list [dict get $d Idle] [dict get $d System]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {^0.0 \d+.0$} -match regexp
+
+    test pdh_get_array-4.0 {
+        pdh_get_array -var
+    } -setup {
+        set qh [twapi::pdh_query_open]
+        unset -nocomplain v
+    } -body {
+        set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "ID Process" -instance *]]
+        twapi::pdh_query_update $qh
+        list [twapi::pdh_get_array $h -var v] [dict get $v Idle] [dict get $v System]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 0 4}
+
+    #############################################################
 
     test pdh_query_open-1.0 {
         Open a PDH query
@@ -500,13 +705,31 @@ namespace eval twapi::pdh::test {
     } -result 1
 
 
-
     test pdh_query_get-1.0 {
-        TBD
-    } -constraints {
-        TBD
+        pdh_query_get
+    } -setup {
+        set qh [twapi::pdh_system_performance_query commit_limit idle_utilization]
+        after 1000
+        twapi::pdh_query_update $qh
     } -body {
-    } -result ""
+        set d [twapi::pdh_query_get $qh]
+        list [dict size $d] [string is wide [dict get $d commit_limit]] [string is double [dict get $d idle_utilization]]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {2 1 1}
+
+    test pdh_query_get-1.1 {
+        pdh_query_get subset
+    } -setup {
+        set qh [twapi::pdh_system_performance_query section_count commit_limit idle_utilization]
+        after 1000
+        twapi::pdh_query_update $qh 
+    } -body {
+        set d [twapi::pdh_query_get $qh section_count idle_utilization]
+        list [dict size $d] [string is wide [dict get $d section_count]] [string is double [dict get $d idle_utilization]]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {2 1 1}
 
     test pdh_system_performance_query-1.0 {
         pdh_system_performance_query with no args
