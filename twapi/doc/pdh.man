@@ -156,11 +156,6 @@ the target object.
 See [uri "http://msdn.microsoft.com/en-us/library/windows/desktop/aa373193(v=vs.85).aspx" "Windows SDK documentation"]
 for more details on counter path syntax and components.
 
-[call [cmd pdh_get_array] [arg HCOUNTER] [opt [arg options]]]
-Returns a flat list of instance name and value pairs for a counter
-that covers multiple objects, such as one containing wildcards.
-Refer to [uri #pdh_get_scalar [cmd pdh_get_scalar]] for options.
-
 [call [cmd pdh_enumerate_objects] [opt [arg options]]]
 Returns a list of the names of the performance objects on a system.
 The following options may be specified:
@@ -195,6 +190,11 @@ The command will fail if [arg PERFOBJ] is not in the cache.
 Specifying [cmd -refresh] causes the cache to be refreshed
 before attempting to access the information for [arg PERFOBJ].
 [list_end]
+
+[call [cmd pdh_get_array] [arg HCOUNTER] [opt [arg options]]]
+Returns a flat list of instance name and value pairs for a counter
+that covers multiple objects, such as one containing wildcards.
+Refer to [uri #pdh_get_scalar [cmd pdh_get_scalar]] for options.
 
 [call [cmd pdh_get_scalar] [arg HCOUNTER] [opt [arg options]]]
 Returns the value of the specified counter as of the last call
