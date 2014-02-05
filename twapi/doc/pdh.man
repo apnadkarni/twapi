@@ -55,6 +55,8 @@ call to [uri #pdh_query_update [cmd pdh_query_update]].
 [opt_def [uri #pdh_get_array [cmd pdh_get_array]]]
 Returns a counter that is an array of values, for example, one
 for each process.
+[opt_def [uri #pdh_query_get [cmd pdh_query_get]]]
+Returns values for multiple counters from a query.
 [opt_def [uri #pdh_query_close [cmd pdh_query_close]]]
 Closes a query. This should be called to release resources associated
 with a query once the contained counters are no longer required.
