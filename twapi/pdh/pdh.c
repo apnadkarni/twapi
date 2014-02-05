@@ -363,9 +363,9 @@ int Twapi_PdhGetFormattedCounterValue(
         || (counter_value.CStatus != ERROR_SUCCESS)) {
         ObjSetResult(interp,
                          Tcl_ObjPrintf("Error (0x%x/0x%x) retrieving counter value: ", pdh_status, counter_value.CStatus));
-        return Twapi_AppendSystemError(interp,
-                                       (counter_value.CStatus != ERROR_SUCCESS ?
-                                        counter_value.CStatus : pdh_status));
+        if (pdh_status == ERROR_SUCCESS)
+            pdh_status = counter_value.CStatus;
+        return Twapi_AppendSystemError(interp, pdh_status);
     }
 
     switch (dwFormat & (PDH_FMT_LARGE | PDH_FMT_DOUBLE | PDH_FMT_LONG)) {

@@ -70,10 +70,10 @@ proc twapi::pdh_counter_path {object counter args} {
 
     if {$opts(localize)} {
         # Need to localize the counter names
-        set object [_localize_perf_counter $object]
-        set counter [_localize_perf_counter $counter]
+        set object [_pdh_localize $object]
+        set counter [_pdh_localize $counter]
         # TBD - not sure we need to localize parent
-        set opts(parent) [_localize_perf_counter $opts(parent)]
+        set opts(parent) [_pdh_localize $opts(parent)]
     }
 
     # TBD - add options PDH_PATH_WBEM as documented in PdhMakeCounterPath
@@ -85,7 +85,7 @@ proc twapi::pdh_counter_path {object counter args} {
 #
 # Parse a counter path and return the individual elements
 proc twapi::pdh_parse_counter_path {counter_path} {
-    return [twine {machine object instance instanceindex parent counter} [PdhParseCounterPath $counter_path 0]]
+    return [twine {machine object instance parent instanceindex counter} [PdhParseCounterPath $counter_path 0]]
 }
 
 
@@ -241,8 +241,8 @@ proc twapi::get_perf_process_counter_paths {pids args} {
 
     # Get the path to the process.
     set pid_paths [get_perf_counter_paths \
-                       [_localize_perf_counter "Process"] \
-                       [list [_localize_perf_counter "ID Process"]] \
+                       [_pdh_localize "Process"] \
+                       [list [_pdh_localize "ID Process"]] \
                        $pids \
                        -machine $opts(machine) -datasource $opts(datasource) \
                        -all]
@@ -272,7 +272,7 @@ proc twapi::get_perf_process_counter_paths {pids args} {
                 lappend counter_paths \
                     [list -$opt $pid [lindex $counter_info 1] \
                          [pdh_counter_path $path_components(object) \
-                              [_localize_perf_counter [lindex $counter_info 0]] \
+                              [_pdh_localize [lindex $counter_info 0]] \
                               -localize false \
                               -machine $path_components(machine) \
                               -parent $path_components(parent) \
@@ -292,8 +292,8 @@ proc twapi::get_perf_process_counter_paths {pids args} {
 # the pid counter path element
 proc twapi::get_perf_process_id_path {pid args} {
     return [get_unique_counter_path \
-                [_localize_perf_counter "Process"] \
-                [_localize_perf_counter "ID Process"] $pid]
+                [_pdh_localize "Process"] \
+                [_pdh_localize "ID Process"] $pid]
 }
 
 
@@ -353,8 +353,8 @@ proc twapi::get_perf_thread_counter_paths {tids args} {
 
     # Get the path to the thread
     set tid_paths [get_perf_counter_paths \
-                       [_localize_perf_counter "Thread"] \
-                       [list [_localize_perf_counter "ID Thread"]] \
+                       [_pdh_localize "Thread"] \
+                       [list [_pdh_localize "ID Thread"]] \
                        $tids \
                       -machine $opts(machine) -datasource $opts(datasource) \
                       -all]
@@ -374,7 +374,7 @@ proc twapi::get_perf_thread_counter_paths {tids args} {
                 lappend counter_paths \
                     [list -$opt $tid [lindex $counter_info 1] \
                          [pdh_counter_path $path_components(object) \
-                              [_localize_perf_counter [lindex $counter_info 0]] \
+                              [_pdh_localize [lindex $counter_info 0]] \
                               -localize false \
                               -machine $path_components(machine) \
                               -parent $path_components(parent) \
@@ -394,7 +394,7 @@ proc twapi::get_perf_thread_counter_paths {tids args} {
 # the tid counter path element
 proc twapi::get_perf_thread_id_path {tid args} {
 
-    return [get_unique_counter_path [_localize_perf_counter"Thread"] [_localize_perf_counter "ID Thread"] $tid]
+    return [get_unique_counter_path [_pdh_localize"Thread"] [_pdh_localize "ID Thread"] $tid]
 }
 
 
@@ -461,8 +461,8 @@ proc twapi::get_perf_processor_counter_paths {processor args} {
             lappend counter_paths \
                 [list $opt $processor [lindex $counter_info 1] \
                      [pdh_counter_path \
-                          [_localize_perf_counter "Processor"] \
-                          [_localize_perf_counter [lindex $counter_info 0]] \
+                          [_pdh_localize "Processor"] \
+                          [_pdh_localize [lindex $counter_info 0]] \
                           -localize false \
                           -machine $opts(machine) \
                           -instance $processor] \
@@ -625,7 +625,7 @@ proc twapi::_refresh_perf_objects {machine datasource} {
 #
 # Return the localized form of a counter name
 # TBD - assumes machine is local machine!
-proc twapi::_localize_perf_counter {name} {
+proc twapi::_pdh_localize {name} {
     variable _perf_counter_ids
     variable _localized_perf_counter_names
     
@@ -800,6 +800,10 @@ proc twapi::pdh_add_counter {qid ctr_path args} {
     
     if {$name eq ""} {
         set name $ctr_path
+    }
+
+    if {[dict exists $_pdh_queries($qid) Meta $name]} {
+        error "A counter with name \"$name\" already present in the query."
     }
 
     set flags [_pdh_fmt_sym_to_val $format]
