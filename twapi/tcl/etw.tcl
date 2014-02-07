@@ -687,6 +687,29 @@ proc twapi::etw_format_events {formatter args} {
     return [concat {*}$events]
 }
 
+proc twapi::_etw_format_tdh_events {bufdesc events} {
+    
+    set bufhdr [etw_event_trace_logfile trace_logfile_header $bufdesc]
+    set timer_resolution [etw_trace_logfile_header timer_resolution $bufhdr]
+    set private_session [expr {0x800 & [etw_trace_logfile_header logfile_mode $bufhdr]}]
+    set pointer_size [etw_trace_logfile_header pointer_size $bufhdr]
+
+    set formatted_events {}
+    foreach event $events {
+        array set fields [tdh_event $event]
+        set formatted_event [tdh_event_data descriptor $fields(data)]
+        lappend formatted_event {*}[tdh_event_header select $fields(header) {timestamp tid pid}]
+        if {$private_session} {
+            lappend formatted_event [expr {[tdh_event_header processor_time $fields(header)] * $timer_resolution}] 0
+        } else {
+            lappend formatted_event [expr {[tdh_event_header user_time $fields(header)] * $timer_resolution}] [expr {[tdh_event_header kernel_time $fields(header)] * $timer_resolution}]
+        }
+        lappend formatted_event {*}[tdh_event_data select $fields(data) {provider_guid provider_name event_guid task_name channel_name level_name opcode_name task_name keyword_names properties message}]
+        lappend formatted_events $formatted_event
+    }
+    return $formatted_events
+}
+
 proc twapi::_etw_format_mof_events {oswbemservices bufdesc events} {
     variable _etw_event_defs
 
@@ -776,6 +799,20 @@ proc twapi::_etw_format_mof_events {oswbemservices bufdesc events} {
     return $formatted_events
 }
 
+proc twapi::etw_format_event_message {message properties} {
+    if {$message ne ""} {
+        set params {}
+        foreach {propname propval} $properties {
+            # Properties are always a list, even when scalars because
+            # there is no way of distinguishing between a scalar and
+            # an array of size 1 in the return values from TDH
+            lappend params [join $propval {, }]
+        }
+        catch {set message [format_message -fmtstring $message -params $params]}
+    }
+    return $message
+}
+
 
 twapi::proc* twapi::etw_dump_to_file {args} {
     package require twapi_wmi
@@ -822,21 +859,14 @@ twapi::proc* twapi::etw_dump_to_file {args} {
                     incr $counter_varname
 
                     array set fields [etw_event $event]
-                    set message $fields(message)
-                    if {$message ne ""} {
-                        set params {}
-                        foreach {propname propval} $fields(properties) {
-                            lappend params $propval
-                        }
-                        catch {set message [format_message -fmtstring $message -params $params]}
-                    }
+                    set message [etw_format_event_message $fields(message) $fields(properties)]
                     set fmtdata $fields(properties)
                     if {[dict exists $fmtdata mofdata]} {
                         # Only show 32 bytes
                         binary scan [string range [dict get $fmtdata mofdata] 0 31] H* hex
                         dict set fmtdata mofdata [regsub -all (..) $hex {\1 }]
                     }
-                    set fmtlist [list $fields(timestamp) $fields(pid) $fields(tid) $fields(provider_name) $fields(event_name) {*}$fmtdata]
+                    set fmtlist [list $fields(timestamp) $fields(pid) $fields(tid) $fields(provider_name) $fields(event_name) {*}$fmtdata $message]
                     if {$opts(format) eq "csv"} {
                         puts $outfd [csv::join $fmtlist $opts(separator)]
                     } else {
