@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2012 Ashok P. Nadkarni
+# Copyright (c) 2012-2014 Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -628,12 +628,62 @@ proc twapi::etw_process_events {args} {
     return [ProcessTrace $args $opts(callback) $opts(start) $opts(end)]
 }
 
+proc twapi::etw_formatter_open {} {
+    variable _etw_formatters
 
-proc twapi::etw_format_events {oswbemservices args} {
-    set events {}
-    foreach {bufd rawevents} $args {
-        lappend events [_etw_format_events $oswbemservices $bufd $rawevents]
+    if {[etw_force_mof] || ![twapi::min_os_version 6 0]} {
+        # Need WMI MOF definitions
+        set id mof[TwapiId]
+        dict set _etw_formatters $id OSWBemServices [wmi_root -root wmi]
+    } else {
+        # Just a dummy if using a TDH based api
+        set id tdh[TwapiId]
+        # Nothing to set as yet but for consistency with MOF implementation
+        dict set _etw_formatters $id {}
     }
+    return $id
+}
+
+proc twapi::etw_formatter_close {formatter} {
+    variable _etw_formatters
+    if {[dict exists $_etw_formatters $formatter OSWBemServices]} {
+        [dict get $_etw_formatters $formatter OSWBemServices] -destroy
+    }
+
+    dict unset _etw_formatters $formatter
+    if {[dict size $_etw_formatters] == 0} {
+        variable _etw_event_defs
+        # No more formatters
+        # Clear out event defs cache which can be quite large
+        # Really only needed for mof but doesn't matter
+        set _etw_event_defs {}
+    }
+
+    return
+}
+
+proc twapi::etw_format_events {formatter args} {
+    variable _etw_formatters
+
+    if {![dict exists $_etw_formatters $formatter]} {
+        # We could actually just init ourselves but we want to force
+        # consistency and caller to release wmi COM object
+        badargs! "Invalid ETW formatter id \"$formatter\""
+    }
+
+    set events {}
+    if {[dict exists $_etw_formatters $formatter OSWBemServices]} {
+        set oswbemservices [dict get $_etw_formatters $formatter OSWBemServices]
+        foreach {bufd rawevents} $args {
+            lappend events [_etw_format_mof_events $oswbemservices $bufd $rawevents]
+        }
+    } else {
+        foreach {bufd rawevents} $args {
+            lappend events [_etw_format_tdh_events $bufd $rawevents]
+        }
+    }
+
+    # TBD - is concat the best way to do this ?
     return [concat {*}$events]
 }
 
@@ -750,11 +800,11 @@ twapi::proc* twapi::etw_dump_to_file {args} {
         set do_close 1
     }
 
+    set formatter [etw_formatter_open]
     trap {
         set varname ::twapi::_etw_dump_ctr[TwapiId]
         set $varname 0;         # Yes, set $varname, not set varname
         set htraces {}
-        set wmi [wmi_root -root wmi]
         foreach arg $args {
             if {[file exists $arg]} {
                 lappend htraces [etw_open_file $arg]
@@ -762,27 +812,39 @@ twapi::proc* twapi::etw_dump_to_file {args} {
                 lappend htraces [etw_open_session $arg]
             }
         }
+        # This is written using a callback to basically test the callback path
         set callback [list apply {
-            {options outfd counter_varname max wmi bufd events}
+            {options outfd counter_varname max formatter bufd events}
             {
                 array set opts $options
-                foreach event [etw_format_events $wmi $bufd $events] {
+                foreach event [etw_format_events $formatter $bufd $events] {
                     if {$max >= 0 && [set $counter_varname] >= $max} { return -code break }
                     incr $counter_varname
-                    if {[dict exists $event -mofformatteddata]} {
-                        set fmtdata [dict get $event -mofformatteddata]
-                    } else {
-                        binary scan [string range [dict get $event -mofdata] 0 31] H* hex
-                        set fmtdata [dict create MofData [regsub -all (..) $hex {\1 }]]
+
+                    array set fields [etw_event $event]
+                    set message $fields(message)
+                    if {$message ne ""} {
+                        set params {}
+                        foreach {propname propval} $fields(properties) {
+                            lappend params $propval
+                        }
+                        catch {set message [format_message -fmtstring $message -params $params]}
                     }
+                    set fmtdata $fields(properties)
+                    if {[dict exists $fmtdata mofdata]} {
+                        # Only show 32 bytes
+                        binary scan [string range [dict get $fmtdata mofdata] 0 31] H* hex
+                        dict set fmtdata mofdata [regsub -all (..) $hex {\1 }]
+                    }
+                    set fmtlist [list $fields(timestamp) $fields(pid) $fields(tid) $fields(provider_name) $fields(event_name) {*}$fmtdata]
                     if {$opts(format) eq "csv"} {
-                        puts $outfd [csv::join [list [dict get $event -timestamp] [dict get $event -threadid] [dict get $event -processid] [dict get $event -classname] [dict get $event -eventtypename] {*}$fmtdata] $opts(separator)]
+                        puts $outfd [csv::join $fmtlist $opts(separator)]
                     } else {
-                        puts $outfd [list [dict get $event -timestamp] [dict get $event -threadid] [dict get $event -processid] [dict get $event -classname] [dict get $event -eventtypename] $fmtdata]
+                        puts $outfd $fmtlist
                     }
                 }
             }
-        } [array get opts] $outfd $varname $opts(limit) $wmi]
+        } [array get opts] $outfd $varname $opts(limit) $formatter]
 
         # Process the events using the callback
         etw_process_events -callback $callback {*}$htraces
@@ -792,12 +854,12 @@ twapi::proc* twapi::etw_dump_to_file {args} {
         foreach htrace $htraces {
             etw_close_session $htrace
         }
-        if {[info exists wmi]} {$wmi destroy}
         if {$do_close} {
             close $outfd
         } else {
             flush $outfd
         }
+        etw_formatter_close $formatter
     }
 }
 
@@ -805,6 +867,7 @@ twapi::proc* twapi::etw_dump_to_list {args} {
     package require twapi_wmi
 } {
     set htraces {}
+    set formatter [etw_formatter_open]
     trap {
         set wmi [wmi_root -root wmi]
         foreach arg $args {
@@ -814,14 +877,12 @@ twapi::proc* twapi::etw_dump_to_list {args} {
                 lappend htraces [etw_open_session $arg]
             }
         }
-        return [etw_format_events $wmi {*}[etw_process_events {*}$htraces]]
+        return [etw_format_events $formatter {*}[etw_process_events {*}$htraces]]
     } finally {
         foreach htrace $htraces {
             etw_close_session $htrace
         }
-        if {[info exists wmi]} {
-            $wmi destroy
-        }
+        etw_formatter_close $formatter
     }
 }
 
