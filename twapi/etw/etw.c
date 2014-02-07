@@ -1080,8 +1080,8 @@ static Tcl_Obj *ObjFromEVENT_TRACE_HEADER(EVENT_TRACE_HEADER *ethP)
     objs[0] = ObjFromInt(ethP->Class.Type);
     objs[1] = ObjFromInt(ethP->Class.Level);
     objs[2] = ObjFromInt(ethP->Class.Version);
-    objs[3] = ObjFromULONG(ethP->ThreadId);
-    objs[4] = ObjFromULONG(ethP->ProcessId);
+    objs[3] = ObjFromLong(ethP->ThreadId);
+    objs[4] = ObjFromLong(ethP->ProcessId);
     objs[5] = ObjFromLARGE_INTEGER(ethP->TimeStamp);
     objs[6] = ObjFromGUID(&ethP->Guid);
     /*
