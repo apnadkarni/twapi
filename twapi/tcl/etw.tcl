@@ -21,7 +21,7 @@ namespace eval twapi {
         }
     }} [array get _etw_mof]
 
-    # Cache of event definitions for parsing event. Nested dictionary
+    # Cache of event definitions for parsing MOF  events. Nested dictionary
     # with the following structure (uppercase keys are variables,
     # lower case are constant/tokens, "->" is nested dict, "-" is scalar):
     #  EVENTCLASSGUID ->
@@ -47,8 +47,26 @@ namespace eval twapi {
     variable _etw_open_traces
     array set _etw_open_traces {}
 
+
     #
     # These record definitions match the lists constructed in the ETW C code
+
+    # Buffer header (EVENT_TRACE_LOGFILE)
+    record etw_event_trace_logfile {
+        logfile logger_name current_time buffers_read trace_logfile_header
+        buffer_size filled kernel_trace
+    }
+
+    # TRACE_LOGFILE_HEADER
+    record etw_trace_logfile_header {
+        buffer_size
+        version_major version_minor version_submajor version_subminor
+        provider_version processor_count end_time timer_resolution 
+        max_file_size logfile_mode buffers_written pointer_size events_lost
+        cpu_mhz time_zone boot_time perf_frequency start_time reserved_flags
+        buffers_lost
+    }
+
     # TDH based event definitions
 
     record tdh_event { header buffer_context extended_data data }
@@ -59,9 +77,11 @@ namespace eval twapi {
     record tdh_event_buffer_context { processor logger_id }
 
     record tdh_event_data { provider_guid event_guid descriptor
-        decoder provider_name level_name channel_name keywords
+        decoder provider_name level_name channel_name keyword_names
         task_name opcode_name message localized_provider_name
         activity_id related_activity_id properties }
+
+    record tdh_event_data_descriptor {id version channel level opcode task keywords}
 
     # Definitions for EVENT_TRACE_LOGFILE
     record tdh_buffer { logfile logger current_time buffers_read
@@ -74,26 +94,19 @@ namespace eval twapi {
         perf_frequency start_time reserved_flags buffers_lost }
 
     # MOF based event definitions
-    record mof_event {header instance_id parent_instance_id parent_guid mofdata}
+    record mof_event {header instance_id parent_instance_id parent_guid data}
     record mof_event_header {type level version tid pid timestamp guid
         kernel_time user_time processor_time}
 
     # Standard app visible event definitions
-    record etw_event {timestamp info names properties provider performance
-        activity process item_instance message
+    record etw_event {id version channel level opcode task keywords
+        timestamp tid pid 
+        user_time kernel_time
+        provider_guid provider_name event_guid event_name
+        channel_name level_name opcode_name task_name keyword_names
+        properties
+        message
     }
-
-    record etw_event_info {guid id version decoder channel level opcode task keywords}
-
-    record etw_event_names {channel level opcode task keywords}
-
-    record etw_event_provider {guid name localized_name}
-
-    record etw_event_performance {kernel_time user_time}
-
-    record etw_event_activity {id related_id name related_name}
-
-    record etw_event_process {pid tid sid tssession}
 }
 
 
@@ -633,8 +646,9 @@ proc twapi::_etw_format_mof_events {oswbemservices bufdesc events} {
     # MOF classes as alignment restrictions might be different
     array set missing {}
     foreach event $events {
-        if {! [dict exists $_etw_event_defs [dict get $event -guid]]} {
-            set missing([dict get $event -guid]) ""
+        set guid [mof_event_header guid [mof_event header $event]]
+        if {! [dict exists $_etw_event_defs $guid]} {
+            set missing($guid) ""
         }
     }
 
@@ -642,46 +656,74 @@ proc twapi::_etw_format_mof_events {oswbemservices bufdesc events} {
         etw_load_mof_event_classes $oswbemservices {*}[array names missing]
     }
 
-    set formatted {}
+    set bufhdr [etw_event_trace_logfile trace_logfile_header $bufdesc]
+    set timer_resolution [etw_trace_logfile_header timer_resolution $bufhdr]
+    set private_session [expr {0x800 & [etw_trace_logfile_header logfile_mode $bufhdr]}]
+    set pointer_size [etw_trace_logfile_header pointer_size $bufhdr]
+
+    set formatted_events {}
     foreach event $events {
-        set hdr [mof_event header $event]
-        set guid [mof_event_header $hdr guid]
-        set vers [mof_event_header $hdr version]
-        set type [mof_event_header $hdr type]
-        if {[dict exists $_etw_event_defs $guid $vers -definitions $type]} {
-            set mof [dict get $_etw_event_defs $guid $vers -definitions $type]
-            set eventclass [dict get $_etw_event_defs $guid $vers -classname]
-        } elseif {[dict exists $_etw_event_defs $guid "" -definitions $type]} {
+        array set hdr [mof_event_header [mof_event header $event]]
+        
+        # Formatted event must match field sequence in etw_event record
+        set formatted_event [list 0 $hdr(version) 0 $hdr(level) $hdr(type) 0 0 \
+                                 $hdr(timestamp) $hdr(tid) $hdr(pid)]
+        
+        if {$private_session} {
+            lappend formatted_event [expr {$hdr(processor_time) * $timer_resolution}] 0
+        } else {
+            lappend formatted_event [expr {$hdr(user_time) * $timer_resolution}] [expr {$hdr(kernel_time) * $timer_resolution}]
+        }
+
+        if {[dict exists $_etw_event_defs $hdr(guid) $hdr(version) -definitions $hdr(type)]} {
+            set eventclass [dict get $_etw_event_defs $hdr(guid) $hdr(version) -classname]
+            set mof [dict get $_etw_event_defs $hdr(guid) $hdr(version) -definitions $hdr(type)]
+            set eventtypename [dict get $mof -eventtypename]
+            set properties [Twapi_ParseEventMofData \
+                                [mof_event data $event] \
+                                [dict get $mof -fieldtypes] \
+                                $pointer_size]
+        } elseif {[dict exists $_etw_event_defs $hdr(guid) "" -definitions $hdr(type)]} {
             # If exact version not present, use one without
             # a version
-            set mof [dict get $_etw_event_defs $guid "" -definitions $type]
-            set eventclass [dict get $_etw_event_defs $guid "" -classname]
+            set eventclass [dict get $_etw_event_defs $hdr(guid) "" -classname]
+            set mof [dict get $_etw_event_defs $hdr(guid) "" -definitions $hdr(type)]
+            set eventtypename [dict get $mof -eventtypename]
+            set properties [Twapi_ParseEventMofData \
+                                [mof_event data $event] \
+                                [dict get $mof -fieldtypes] \
+                                $pointer_size]
         } else {
             # No definition. Create an entry so we know we already tried
             # looking this up and don't keep retrying later
-            dict set _etw_event_defs $guid {}
+            dict set _etw_event_defs $hdr(guid) {}
 
             # Nothing we can add to the event. Pass on with defaults
-            dict set event -eventtypename $type
+            set eventtypename $hdr(type)
             # Try to get at least the class name
-            if {[dict exists $_etw_event_defs $guid $vers -classname]} {
-                dict set event -classname [dict get $_etw_event_defs $guid $vers -classname]
-            } elseif {[dict exists $_etw_event_defs $guid "" -classname]} {
-                dict set event -classname [dict get $_etw_event_defs $guid "" -classname]
+            if {[dict exists $_etw_event_defs $hdr(guid) $hdr(version) -classname]} {
+                set eventclass [dict get $_etw_event_defs $hdr(guid) $hdr(version) -classname]
+            } elseif {[dict exists $_etw_event_defs $hdr(guid) "" -classname]} {
+                set eventclass [dict get $_etw_event_defs $hdr(guid) "" -classname]
             } else {
-                dict set event -classname ""
+                set eventclass ""
             }
-            lappend formatted $event
-            continue
+            set properties [list mofdata [mof_event data $event]]
         }
 
-        dict set event -eventtypename [dict get $mof -eventtypename]
-        dict set event -classname $eventclass
-        dict set event -mofformatteddata [Twapi_ParseEventMofData [dict get $event -mofdata] [dict get $mof -fieldtypes] [dict get $bufdesc -hdr_pointersize]]
-        lappend formatted $event
+        # eventclass -> provider_name
+        # TBD - should we get the Provider qualifier from Mof as provider_name?
+        # TBD - what should provider_guid be ?
+        set provider_guid ""
+        # mofformatteddata -> properties
+        # TBD - construct dummy level
+        set level_name ""
+        lappend formatted_event $provider_guid $eventclass $hdr(guid) $eventclass "" $level_name $eventtypename "" "" $properties ""
+
+        lappend formatted_events $formatted_event
     }
 
-    return $formatted
+    return $formatted_events
 }
 
 
