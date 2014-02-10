@@ -633,6 +633,7 @@ proc twapi::etw_open_formatter {} {
     variable _etw_formatters
 
     if {[etw_force_mof] || ![twapi::min_os_version 6 0]} {
+        uplevel #0 package require twapi_wmi
         # Need WMI MOF definitions
         set id mof[TwapiId]
         dict set _etw_formatters $id OSWBemServices [wmi_root -root wmi]
@@ -816,9 +817,7 @@ proc twapi::etw_format_event_message {message properties} {
 }
 
 
-twapi::proc* twapi::etw_dump_to_file {args} {
-    package require twapi_wmi
-} {
+proc twapi::etw_dump_to_file {args} {
     array set opts [parseargs args {
         {output.arg stdout}
         {limit.int -1}
@@ -853,6 +852,8 @@ twapi::proc* twapi::etw_dump_to_file {args} {
                 lappend htraces [etw_open_session $arg]
             }
         }
+
+        puts $outfd [csv::join [etw_event] $opts(separator)]
         # This is written using a callback to basically test the callback path
         set callback [list apply {
             {options outfd counter_varname max formatter bufd events}
@@ -870,7 +871,7 @@ twapi::proc* twapi::etw_dump_to_file {args} {
                         binary scan [string range [dict get $fmtdata mofdata] 0 31] H* hex
                         dict set fmtdata mofdata [regsub -all (..) $hex {\1 }]
                     }
-                    set fmtlist [list $fields(timestamp) $fields(pid) $fields(tid) $fields(provider_name) $fields(event_name) {*}$fmtdata $message]
+                    set fmtlist [list $fields(timestamp) $fields(pid) $fields(tid) $fields(provider_name) {*}$fmtdata $message]
                     if {$opts(format) eq "csv"} {
                         puts $outfd [csv::join $fmtlist $opts(separator)]
                     } else {
