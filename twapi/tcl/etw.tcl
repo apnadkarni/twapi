@@ -628,7 +628,7 @@ proc twapi::etw_process_events {args} {
     return [ProcessTrace $args $opts(callback) $opts(start) $opts(end)]
 }
 
-proc twapi::etw_formatter_open {} {
+proc twapi::etw_open_formatter {} {
     variable _etw_formatters
 
     if {[etw_force_mof] || ![twapi::min_os_version 6 0]} {
@@ -644,7 +644,7 @@ proc twapi::etw_formatter_open {} {
     return $id
 }
 
-proc twapi::etw_formatter_close {formatter} {
+proc twapi::etw_close_formatter {formatter} {
     variable _etw_formatters
     if {[dict exists $_etw_formatters $formatter OSWBemServices]} {
         [dict get $_etw_formatters $formatter OSWBemServices] -destroy
@@ -816,7 +816,6 @@ proc twapi::etw_format_event_message {message properties} {
 
 twapi::proc* twapi::etw_dump_to_file {args} {
     package require twapi_wmi
-    package require csv
 } {
     array set opts [parseargs args {
         {output.arg stdout}
@@ -825,6 +824,9 @@ twapi::proc* twapi::etw_dump_to_file {args} {
         {separator.arg ,}
     }]
 
+    if {$opts(format) eq "csv"} {
+        package require csv
+    }
     if {$opts(output) in [chan names]} {
         # Writing to a channel
         set outfd $opts(output)
@@ -837,7 +839,7 @@ twapi::proc* twapi::etw_dump_to_file {args} {
         set do_close 1
     }
 
-    set formatter [etw_formatter_open]
+    set formatter [etw_open_formatter]
     trap {
         set varname ::twapi::_etw_dump_ctr[TwapiId]
         set $varname 0;         # Yes, set $varname, not set varname
@@ -889,7 +891,7 @@ twapi::proc* twapi::etw_dump_to_file {args} {
         } else {
             flush $outfd
         }
-        etw_formatter_close $formatter
+        etw_close_formatter $formatter
     }
 }
 
@@ -897,7 +899,7 @@ twapi::proc* twapi::etw_dump_to_list {args} {
     package require twapi_wmi
 } {
     set htraces {}
-    set formatter [etw_formatter_open]
+    set formatter [etw_open_formatter]
     trap {
         set wmi [wmi_root -root wmi]
         foreach arg $args {
@@ -912,7 +914,7 @@ twapi::proc* twapi::etw_dump_to_list {args} {
         foreach htrace $htraces {
             etw_close_session $htrace
         }
-        etw_formatter_close $formatter
+        etw_close_formatter $formatter
     }
 }
 
