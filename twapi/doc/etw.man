@@ -783,27 +783,6 @@ When ETW begins processing events, the callback is invoked repeatedly until
 there are no more unread events in the trace. On each invocation, two
 additional arguments are appended to the callback command prefix - the
 event buffer descriptor, and a list of raw event records. 
-[nl]
-The buffer descriptor is a dictionary that should be treated as opaque except
-for the following keys
-[list_begin opt]
-[opt_def [cmd -hdr_timerresolution]]
-Number of 100ns corresponding to one CPU clock tick. See
-[uri #etw_format_events [cmd etw_format_events]] for its use.
-[opt_def [cmd -hdr_majorversion]]
-The major version of the operating system on which events were recorded.
-[opt_def [cmd -hdr_minorversion]]
-The minor version of the operating system on which events were recorded.
-[opt_def [cmd -hdr_providerversion]]
-The build number of the operating system on which events were recorded.
-[opt_def [cmd -iskerneltrace]]
-A boolean value which is true id the events were from Windows
-kernel provider and false otherwise.
-[opt_def [cmd -logfilename]]
-The log file, if any, from which the events were read.
-[opt_def [cmd -loggername]]
-The name of the trace session.
-[list_end]
 
 The callback should pass both
 these arguments to [uri #etw_format_events [cmd etw_format_events]] which
