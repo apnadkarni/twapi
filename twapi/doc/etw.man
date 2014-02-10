@@ -136,14 +136,18 @@ them as needed.
 [para]
 TWAPI provides the high-level [uri #etw_dump_to_file [cmd etw_dump_to_file]]
 and [uri #etw_dump_to_list [cmd etw_dump_to_list]]
-commands which can read and format events. For more sophisticated
-processing, call [uri #etw_open_file [cmd etw_open_file]]
+commands which can read and format events. 
+
+[para]
+For more control over the processing,
+call [uri #etw_open_file [cmd etw_open_file]]
 or [uri #etw_open_session [cmd etw_open_session]]
 to open each log file or real time session of interest. Then invoke
 the commands
 [uri #etw_process_events [cmd etw_process_events]] and
 [uri #etw_format_events [cmd etw_format_events]] to process the events.
-Trace sessions opened with [cmd etw_open_trace] should be closed
+[para]
+Trace sessions opened with [cmd etw_open_session] should be closed
 with [uri #etw_close_session [cmd etw_close_session]] after processing.
 
 [section "Event definitions"]
@@ -152,13 +156,9 @@ Events written via ETW can have arbitrary binary formats. In order
 for consumers to be able to parse and extract data, they need to
 know the event definition. Providers use either Managed Object Format
 or XML manifests (Vista and later) to provide consumers with this
-information. TWAPI currently supports only the former for both
-reading and writing events.
-[para]
-When reading events, TWAPI will automatically look up MOF definitions
-as needed. Applications can preload these definitions for a slight
-gain in performance by calling
-[uri #etw_load_mof_event_classes [cmd etw_load_mof_event_classes]].
+information.
+When reading events, TWAPI will automatically look up event definitions
+as needed.
 [para]
 In order for event consumers to correctly parse events, TWAPI also
 has to make the MOF definitions for its ETW events available.
@@ -583,6 +583,11 @@ This section describes the commands that deal with consuming events from ETW.
 
 [list_begin definitions]
 
+[call [cmd etw_close_formatter] [arg FORMATTER]]
+Closes and releases resources associated with a ETW formatter handle
+returned by a previous call to
+[uri #etw_open_formatter [cmd etw_open_formatter]].
+
 [call [cmd etw_dump_to_file] [opt [arg options]] [opt [arg "LOGSOURCE LOGSOURCE ..."]]]
 Extracts events from one or more ETW log files or real time session
 and writes them out in
@@ -626,19 +631,95 @@ can be specified.
 Each element of the list is in the form returned by
 [uri #etw_format_events [cmd etw_format_events]].
 
-[call [cmd etw_install_twapi_mof]]
-Installs the TWAPI Managed Object Format (MOF) definition for the event
-trace formats used by TWAPI. This command needs to be called on the
-system where a ETW consumer will be parsing TWAPI logged events.
-The definition can be removed by calling 
-[uri #etw_uninstall_twapi_mof [cmd etw_uninstall_twapi_mof]].
-
 [call [cmd etw_close_session] [arg HTRACE]]
 Closes a trace session previously opened by a call to
 [uri #etw_open_file [cmd etw_open_file]] or 
 [uri #etw_open_session [cmd etw_open_session]].
 
-[call [cmd etw_format_events] [arg WMIOBJ] [arg BUFDESC] [arg EVENTLIST]]
+[call [cmd etw_event] [arg FORMATTED_EVENT]]
+[call [cmd etw_event] [arg FORMATTED_EVENT] [arg EVENTFIELD]]
+[call [cmd etw_event] [cmd get] [arg FORMATTED_EVENT] [arg FIELDLIST]]
+In the first form,
+returns a dictionary with keys from the table below containing
+the corresponding values from the event. In the second form,
+returns the value of a specific field in the event. In the third form,
+returns a list containing values from one or more fields specified
+in [arg FIELDLIST].
+[nl]
+[arg FORMATTED_EVENT] should be an element of the event list returned
+by [uri #etw_format_events [cmd etw_format_events]].
+[nl]
+An event has the following fields. The value of a field may be the
+empty string if the logging application did not set it or if the field
+is not supported by the provider type.
+
+[list_begin opt]
+[const channel]
+The numeric identifier for the event log channel to which the event
+was logged.
+[const channel_name]
+The name of the event log channel to which the event was logged.
+[const event_guid]
+The GUID identifying the event.
+[const id]
+The event identifier.
+[const kernel_time]
+The elapsed execution time for kernel-mode instructions in 100ns units.
+If the event was logged from a private session, this will be 0 as all
+time will be counted towards [const user_time].
+[const keyword_names]
+The list of keywords associated with the event.
+[const keywords]
+A bit mask corresponding to the keywords associated with the event.
+[const level]
+The numeric level at which the event was logged. Higher numeric levels are
+lower priority events.
+[const level_name]
+The name of the logging level at which the event was logged. Since
+this is localized, [const level] should be used for comparing event 
+logging levels.
+[const message]
+The message associated with the event. This may contain string inserts
+for event parameters. Use the 
+[uri #etw_format_event_message [cmd etw_format_event_message]]
+to retrieve the fully constructed message.
+[const opcode]
+The numeric opcode for the event, generally identifying one step
+in a sequence of operations.
+[const opcode_name]
+The string name for the numeric opcode. For MOF based events, this
+is the event type.
+[const pid]
+The process identifier of the process that logged the event. This will be -1
+if the event was not associated with any process.
+[const properties]
+A dictionary containing additional event parameters. The keys of the
+dictionary are dependent on the specific event type.
+[const provider_guid]
+The GUID identifying the provider.
+[const provider_name]
+The name of the provider. For classical MOF based provider, this
+is the name of the MOF class.
+[const task]
+The numeric task identifying the general area within the application.
+[const task_name]
+The string name associated with [const task].
+[const tid]
+The thread identifier of the process that logged the event. This will be -1
+if the event was not associated with any thread.
+[const timestamp]
+The time that the event was logged in system time format.
+Use [uri base.html#large_system_time_to_secs_since_1970 [cmd large_system_time_to_secs_since_1970]]
+to convert this to Tcl [cmd clock] format.
+[const user_time]
+The elapsed execution time for user-mode instructions in 100ns units.
+[const version]
+The version of the event. Together with [const id], this identifies a 
+specific event within a provider.
+
+[list_end]
+
+[call [cmd etw_format_events] [arg FORMATTER] [arg BUFDESC] [arg EVENTLIST]]
 Processes the list of raw ETW events passed in [arg EVENTLIST] and 
 returns a list of formatted events.
 [arg BUFDESC] and [arg EVENTLIST] should be the last two arguments
@@ -646,100 +727,32 @@ passed to the callback from [uri #etw_process_events [cmd etw_process_events]]
 or the elements of the return value of [cmd etw_process_events] when
 it is invoked without a callback.
 [nl]
-[arg WMIOBJ] should be a 
-[uri com.html#comobj COMOBJ] object returned by a call to
-[cmd "wmi_root -root wmi"].
-It is required to retrieve the definitions of events so that event-specific
-data can be parsed correctly.
+[arg FORMATTER] should be the handle to a formatter as returned by
+[uri #etw_open_formatter [cmd etw_open_formatter]].
 [nl]
-The command returns a list of formatted events. Each element is a dictionary
-with the following keys (other keys may be present but should be ignored
-and cannot be relied upon):
+The command returns a list of formatted events. Caller should treat
+each formatted event as opaque and use the [uri #etw_event [cmd etw_event]]
+command to extract specific event fields.
 
-[list_begin opt]
-[opt_def [cmd -classname]]
-The name of the parent MOF event class for the event. This may be the empty
-string if no MOF definition was found for the event.
-
-[opt_def [cmd -eventtype]]
-The numeric event type for the event.
-
-[opt_def [cmd -eventtypename]]
-The human readable event type for the event.
-If no MOF definition was found for the event,
-this will be same as the numeric event type.
-
-[opt_def [cmd -guid]]
-The GUID identifying the MOF event definition for the event.
-
-[opt_def [cmd -instanceid]]
-Refer to Windows SDK.
-
-[opt_def [cmd -kerneltime]]
-Amount of time kernel mode CPU time charged to the logging thread
-up till the time event was logged. This is in CPU time units and
-is not valid for private sessions.
-The value of a single CPU time unit is given in the 
-[cmd -hdr_timerresolution] key of [arg BUFDESC].
-
-[opt_def [cmd -level]]
-The event level at which the event was logged.
-
-[opt_def [cmd -mofdata]]
-The event-specific data in the event in binary format. The key
-[cmd -mofformatteddata] provides the formatted version of this data.
-
-[opt_def [cmd -mofformatteddata]]
-[emph "This key will not be present if no MOF definition was found"]
-[nl]
-This key contains a formatted subset of the binary data in the
-[cmd -mofdata] entry. This is a dictionary whose keys correspond to the
-(case-sensitive) event specific field names in the MOF definition for
-the event. If the binary data does not match the MOF definition, only
-the keys for those fields that were successfully extracted will be present.
-
-[opt_def [cmd -parentguid]]
-Refer to Windows SDK.
-
-[opt_def [cmd -parentinstanceid]]
-Refer to Windows SDK.
-
-[opt_def [cmd -processid]]
-The process id for the process that logged the event.
-
-[opt_def [cmd -processortime]]
-Amount of time user mode processor time charged to the logging thread
-up till the time event was logged. This is in CPU time units and
-is only valid for private sessions.
-The value of a single CPU time unit is given in the 
-[cmd -hdr_timerresolution] key of [arg BUFDESC].
-
-[opt_def [cmd -threadid]]
-The thread id for the thread that logged the event.
-
-[opt_def [cmd -timestamp]]
-The time at which the event was logged in 100ns units since
-Jan 1 1601. Use
-[uri base.html\#large_system_time_to_secs [cmd large_system_time_to_secs]]
-to convert to the format used by Tcl's [cmd clock] command.
-
-[opt_def [cmd -usertime]]
-Amount of time user mode CPU time charged to the logging thread
-up till the time event was logged. This is in CPU time units and
-is not valid for private sessions.
-The value of a single CPU time unit is given in the 
-[cmd -hdr_timerresolution] key of [arg BUFDESC].
-
-[opt_def [cmd -version]]
-The version of the event format.
-
-[list_end]
+[call [cmd etw_install_twapi_mof]]
+Installs the TWAPI Managed Object Format (MOF) definition for the event
+trace formats used by TWAPI. This command needs to be called on the
+system where a ETW consumer will be parsing TWAPI logged events.
+The definition can be removed by calling 
+[uri #etw_uninstall_twapi_mof [cmd etw_uninstall_twapi_mof]].
 
 [call [cmd etw_open_file] [arg PATH]]
 Opens a log file containing ETW events and returns a trace handle to it
 which can be passed to [uri #etw_process_events [cmd etw_process_events]].
 The handle must be closed later by passing it to
 [uri #etw_close_session [cmd etw_close_session]].
+
+[call [cmd etw_open_formatter]]
+Returns a handle to a ETW event formatter that can be passed to
+[uri #etw_format_events [cmd etw_format_events]] for formatting events.
+When no longer needed, the returned handle must be passed
+to [uri #etw_close_formatter [cmd etw_close_formatter]] so that
+associated resources may be released.
 
 [call [cmd etw_open_session] [arg SESSIONNAME]]
 Opens a real time ETW session and returns a trace handle to it
@@ -760,7 +773,7 @@ The options [cmd -start] and [cmd end] can be specified to limit the
 time interval for which events are processed. Both
 [arg STARTTIME] and [arg ENDTIME] must be specified in the same format as
 [uri osinfo.html\#get_system_time [cmd get_system_time]]. You can use
-[uri base.html\#secs_since_1970_to_large_system_time [cmd secs_since_1970_to_large_system_time]]
+[uri base.html#secs_since_1970_to_large_system_time [cmd secs_since_1970_to_large_system_time]]
 to convert the format used by Tcl's [cmd clock] command to this format.
 
 [nl]
@@ -802,17 +815,6 @@ consumed, the callback can execute
 [call [cmd etw_uninstall_twapi_mof]]
 Uninstalls the TWAPI Managed Object Format (MOF) definition for the event
 trace formats used by TWAPI.
-
-
-[call [cmd etw_load_mof_event_classes] [arg WMIOBJ] [opt [arg "CLASSNAME..."]]]
-Loads and caches the MOF event definitions for the specified MOF classes.
-If no classes are specified, loads all event class definitions. The event
-formatting routines will look up and cache definitions as needed but
-using this command can speed up the process by prepopulating the MOF cache.
-[nl]
-[arg WMIOBJ] should be a 
-[uri com.html#comobj COMOBJ] object returned by a call to
-[cmd "wmi_root -root wmi"].
 
 [list_end]
 
