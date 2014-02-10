@@ -638,7 +638,7 @@ Closes a trace session previously opened by a call to
 
 [call [cmd etw_event] [arg FORMATTED_EVENT]]
 [call [cmd etw_event] [arg FORMATTED_EVENT] [arg EVENTFIELD]]
-[call [cmd etw_event] [cmd get] [arg FORMATTED_EVENT] [arg FIELDLIST]]
+[call [cmd etw_event] [cmd select] [arg FORMATTED_EVENT] [arg FIELDLIST]]
 In the first form,
 returns a dictionary with keys from the table below containing
 the corresponding values from the event. In the second form,
@@ -700,6 +700,8 @@ The GUID identifying the provider.
 [const provider_name]
 The name of the provider. For classical MOF based provider, this
 is the name of the MOF class.
+[const sid]
+The SID of the logging process or an empty string if not available.
 [const task]
 The numeric task identifying the general area within the application.
 [const task_name]
