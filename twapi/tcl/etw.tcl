@@ -102,7 +102,7 @@ namespace eval twapi {
     record etw_event {id version channel level opcode task keywords
         timestamp tid pid 
         user_time kernel_time
-        provider_guid provider_name event_guid event_name
+        provider_guid provider_name event_guid
         channel_name level_name opcode_name task_name keyword_names
         properties
         message
@@ -704,7 +704,7 @@ proc twapi::_etw_format_tdh_events {bufdesc events} {
         } else {
             lappend formatted_event [expr {[tdh_event_header user_time $fields(header)] * $timer_resolution}] [expr {[tdh_event_header kernel_time $fields(header)] * $timer_resolution}]
         }
-        lappend formatted_event {*}[tdh_event_data select $fields(data) {provider_guid provider_name event_guid task_name channel_name level_name opcode_name task_name keyword_names properties message}]
+        lappend formatted_event {*}[tdh_event_data select $fields(data) {provider_guid provider_name event_guid channel_name level_name opcode_name task_name keyword_names properties message}]
         lappend formatted_events $formatted_event
     }
     return $formatted_events
@@ -785,13 +785,13 @@ proc twapi::_etw_format_mof_events {oswbemservices bufdesc events} {
         }
 
         # eventclass -> provider_name
-        # TBD - should we get the Provider qualifier from Mof as provider_name?
+        # TBD - should we get the Provider qualifier from Mof as provider_name? (Does it even exist?)
         # TBD - what should provider_guid be ?
         set provider_guid ""
         # mofformatteddata -> properties
-        # TBD - construct dummy level
-        set level_name ""
-        lappend formatted_event $provider_guid $eventclass $hdr(guid) $eventclass "" $level_name $eventtypename "" "" $properties ""
+        # level name is not localized. Oh well, too bad
+        set level_name [dict* {0 {Log Always} 1 Critical 2 Error 3 Warning 4 Informational 5 Debug} $hdr(level)]
+        lappend formatted_event $provider_guid $eventclass $hdr(guid) "" $level_name $eventtypename "" "" $properties ""
 
         lappend formatted_events $formatted_event
     }
