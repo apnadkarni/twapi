@@ -13,6 +13,8 @@ source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_etw
 load_twapi_package twapi_process; # Needed for proc privileged
 
+catch {package require csv}
+
 namespace eval twapi::etw::test {
     namespace import ::tcltest::test
 
@@ -31,6 +33,132 @@ namespace eval twapi::etw::test {
         }
     }
     ::tcltest::testConstraint privileged [privileged]
+
+    proc tracerpt_file {file} {
+        variable logdir
+        set csvfile [file join $logdir tracerpt_[clock clicks].csv]
+        exec tracerpt $file -o $csvfile -of csv
+        set lines [lassign [split [read_file $csvfile] \n] header]
+        set keys {}
+        foreach field [csv::split $header] {
+            lappend keys [string trim $field]
+        }
+        set nkeys [llength $keys]
+        set recs {}
+        foreach line $lines {
+            set line [string trim $line]
+            if {$line eq ""} {
+                continue
+            }
+            set rec {}
+            foreach field [csv::split $line] {
+                lappend rec [string trim $field]
+            }
+            if {[llength $rec] > $nkeys} {
+                # Append remaining fields to last record
+                lappend recs [list {*}[lrange $rec 0 $nkeys-2] [lrange $rec $nkeys-1 end]]
+            } else {
+                lappend recs $rec
+            }
+        }
+        return [list $keys $recs]
+    }
+
+    proc validate_buf {buf logger} {
+        # Buffer header 
+        lassign $buf {*}[twapi::etw_event_trace_logfile]
+
+        if {$logfile eq "" && $logger_name eq ""} {
+            error "Log file and logger name are both empty"
+        }
+        if {$logfile ne "" && ![same_file $logfile $logger]} {
+            error "Log file name $logfile does not match $logger."
+        }
+
+        if {$logger_name ne "" && [string compare -nocase $logger_name $logger]} {
+            error "Logger name $logger_name does not match $logger."
+        }
+
+        if {$current_time < [twapi::timelist_to_large_system_time {2014 01 01 0 0 0}] ||
+            $current_time > [twapi::get_system_time]} {
+            error "Current time $current_time out of range"
+        }
+
+        if {$buffers_read <= 0 ||
+            $buffer_size < 0 ||
+            $filled <= 0 ||
+            ![string is boolean -strict $kernel_trace]} {
+            error "Invalid buffer usage counts"
+        }
+        
+        set hdr [twapi::etw_trace_logfile_header $trace_logfile_header]
+        # Verify integer keys
+        foreach key {buffer_size version_major version_minor
+            version_submajor version_subminor
+            provider_version processor_count end_time timer_resolution
+            max_file_size logfile_mode buffers_written events_lost
+            cpu_mhz boot_time perf_frequency start_time reserved_flags
+            buffers_lost
+        } {
+            dict incr hdr $key; # Will error if not integer
+        }
+
+        if {[dict get $hdr pointer_size] != 4 &&
+            [dict get $hdr pointer_size] != 8} {
+            error "Pointer size is not 4 or 8."
+        }
+
+        return
+    }
+
+
+    proc validate_events {events etlfile} {
+        lassign [tracerpt_file $etlfile] tracerpt_keys tracerpt_events
+        if {[llength $events] != [llength $tracerpt_events]} {
+            error "Number of events reported by tracerpt ([llength $tracerpt_events]) different from [llength $events]"
+        }
+        foreach ev $events tracerpt_event $tracerpt_events {
+            array set tev [twapi::twine $tracerpt_keys $tracerpt_event]
+            # Note fields in tev depend on Windows version
+            foreach {fld tfld} {
+                {task_name {Event Name}}
+                {opcode_name Type}
+                {id {Event ID}}
+                {version Version}
+                {channel Channel}
+                {level Level}
+                {opcode Opcode}
+                {task Task}
+                {keyword Keyword}
+                {pid PID}
+                {tid TID}
+                {timestamp Clock-Time}
+            } {
+                if {[info exists tev($tfld)] &&
+                    $tev($tfld) != [twapi::etw_event $fld $ev]} {
+                    error "Event field $fld value ([twapi::etw_event $fld $ev]) does not match tracerpt value $tev($tfld)"
+                }
+            }
+            foreach {fld tfld} {
+                {kernel_time Kernel(ms)}
+                {user_time User(ms)}
+            } {
+                if {[info exists tev($tfld)] &&
+                    ($tev($tfld) != [etw_event $fld $ev]/10000)} {
+                    error "Event field $fld value ([etw_event $fld $ev]) does not match tracerpt value $tev($tfld)/10000"
+                }
+            }
+
+            # Unfortunately, cannot check user data as tracerpt will happily skip complex fields like timezone
+            if {0 && [info exists "tev(User Data)"]} {
+                foreach tdata $tev(User Data) {fld val} [twapi::etw_event properties $ev] {
+                    if {$tdata != $val} {
+                        error "User data $fld=$val does not match tracerpt value $tdata"
+                    }
+                }
+            }
+        }
+    }
 
     test etw_install_mof-1.0 {
         TBD - etw_install_mof
@@ -117,10 +245,28 @@ namespace eval twapi::etw::test {
     } -result TBD
 
     test etw_open_file-1.0 {
-        TBD - etw_open_file
+        etw_open_file
+    } -body {
+        set etw [twapi::etw_open_file kernel.etl]
+    } -cleanup {
+        twapi::etw_close_session $etw
+    } -result {\d+} -match regexp
+
+    test etw_open_file-2.0 {
+        etw_open_file non-existing file
+    } -body {
+        set etw [twapi::etw_open_file nosuchfile.etl]
+    } -result TBD -returnCodes error
+
+    test etw_open_file-100.0 {
+        TBD - etw_open_file        
     } -constraints {
         TBD
     } -body {
+        # 32 bit file on 64 bits
+        # 64 bit file on 32 bits
+        # mof based providers
+        # manifest based providers
     } -result TBD
 
     test etw_open_session-1.0 {
@@ -131,17 +277,56 @@ namespace eval twapi::etw::test {
     } -result TBD
 
     test etw_close_session-1.0 {
-        TBD - etw_close_session
-    } -constraints {
-        TBD
+        etw_close_session (file)
     } -body {
+        twapi::etw_close_session [twapi::etw_open_file kernel.etl]
+    } -result ""
+
+    test etw_close_session-2.0 {
+        etw_close_session (real time)
+    } -constraints {
+        privileged
+    } -body {
+        
     } -result TBD
 
-    test etw_process_events-1.0 {
+    test etw_close_session-3.0 {
+        etw_close_session (previously closed)
+    } -setup {
+        set etw [twapi::etw_open_file kernel.etl]
+        twapi::etw_close_session $etw
+    } -body {
+        twapi::etw_close_session $etw
+    } -result "" -returnCodes error
+
+    test etw_consumer-1.0 {
+        Test etw_process_events/etw_format_events
+    } -setup {
+        set etw [twapi::etw_open_file kernel.etl]
+        set formatter [twapi::etw_open_formatter]
+    } -body {
+        set l [twapi::etw_process_events $etw]
+        foreach {buf events} $l {
+            validate_buf $buf kernel.etl
+        }
+        validate_events [twapi::etw_format_events $formatter {*}$l] kernel.etl
+    } -cleanup {
+        twapi::etw_close_formatter $formatter
+        twapi::etw_close_session $etw
+    } -result ""
+
+
+    test etw_consumer-100.0 {
         TBD - etw_process_events
     } -constraints {
         TBD
     } -body {
+        # 32 bit file on 64 bits
+        # 64 bit file on 32 bits
+        # mof based providers
+        # manifest based providers
+        # Callback mode
+        # Return list mode
     } -result TBD
 
     test etw_format_events-1.0 {
@@ -149,6 +334,10 @@ namespace eval twapi::etw::test {
     } -constraints {
         TBD
     } -body {
+        # 32 bit file on 64 bits
+        # 64 bit file on 32 bits
+        # mof based providers
+        # manifest based providers
     } -result TBD
 
     test etw_dump_files-1.0 {
