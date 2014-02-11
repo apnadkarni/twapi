@@ -801,7 +801,7 @@ proc twapi::_etw_format_mof_events {oswbemservices bufdesc events} {
             } else {
                 set eventclass ""
             }
-            set properties [list mofdata [mof_event data $event]]
+            set properties [list _mofdata [mof_event data $event]]
         }
 
         # eventclass -> provider_name
