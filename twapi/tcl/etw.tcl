@@ -72,11 +72,11 @@ namespace eval twapi {
     record tdh_event { header buffer_context extended_data data }
 
     record tdh_event_header { flags event_property tid pid timestamp
-        kernel_time user_time processor_time activity_id }
+        kernel_time user_time processor_time activity_id descriptor provider_guid}
 
     record tdh_event_buffer_context { processor logger_id }
 
-    record tdh_event_data { provider_guid event_guid descriptor
+    record tdh_event_data {event_guid
         decoder provider_name level_name channel_name keyword_names
         task_name opcode_name message localized_provider_name
         activity_id related_activity_id properties }
@@ -100,9 +100,9 @@ namespace eval twapi {
 
     # Standard app visible event definitions
     record etw_event {id version channel level opcode task keywords
-        timestamp tid pid 
+        timestamp tid pid provider_guid
         user_time kernel_time
-        provider_guid provider_name event_guid
+        provider_name event_guid
         channel_name level_name opcode_name task_name keyword_names
         properties
         message
@@ -120,7 +120,9 @@ namespace eval twapi {
 }
 
 
-proc twapi::etw_install_twapi_mof {} {
+twapi::proc* twapi::etw_install_twapi_mof {} {
+    package require twapi_wmi
+} {
     variable _etw_mof
     
     # MOF definition for our ETW trace event. This is loaded into
@@ -711,14 +713,14 @@ proc twapi::_etw_format_tdh_events {bufdesc events} {
     set formatted_events {}
     foreach event $events {
         array set fields [tdh_event $event]
-        set formatted_event [tdh_event_data descriptor $fields(data)]
-        lappend formatted_event {*}[tdh_event_header select $fields(header) {timestamp tid pid}]
+        set formatted_event [tdh_event_header descriptor $fields(header)]
+        lappend formatted_event {*}[tdh_event_header select $fields(header) {timestamp tid pid provider_guid}]
         if {$private_session} {
             lappend formatted_event [expr {[tdh_event_header processor_time $fields(header)] * $timer_resolution}] 0
         } else {
             lappend formatted_event [expr {[tdh_event_header user_time $fields(header)] * $timer_resolution}] [expr {[tdh_event_header kernel_time $fields(header)] * $timer_resolution}]
         }
-        lappend formatted_event {*}[tdh_event_data select $fields(data) {provider_guid provider_name event_guid channel_name level_name opcode_name task_name keyword_names properties message}] [dict* $fields(extended_data) sid ""]
+        lappend formatted_event {*}[tdh_event_data select $fields(data) {provider_name event_guid channel_name level_name opcode_name task_name keyword_names properties message}] [dict* $fields(extended_data) sid ""]
 
         lappend formatted_events $formatted_event
     }
@@ -749,13 +751,16 @@ proc twapi::_etw_format_mof_events {oswbemservices bufdesc events} {
     set private_session [expr {0x800 & [etw_trace_logfile_header logfile_mode $bufhdr]}]
     set pointer_size [etw_trace_logfile_header pointer_size $bufhdr]
 
+    # TBD - what should provider_guid be for each event?
+    set provider_guid ""
+
     set formatted_events {}
     foreach event $events {
         array set hdr [mof_event_header [mof_event header $event]]
         
         # Formatted event must match field sequence in etw_event record
         set formatted_event [list 0 $hdr(version) 0 $hdr(level) $hdr(type) 0 0 \
-                                 $hdr(timestamp) $hdr(tid) $hdr(pid)]
+                                 $hdr(timestamp) $hdr(tid) $hdr(pid) $provider_guid]
         
         if {$private_session} {
             lappend formatted_event [expr {$hdr(processor_time) * $timer_resolution}] 0
@@ -801,12 +806,10 @@ proc twapi::_etw_format_mof_events {oswbemservices bufdesc events} {
 
         # eventclass -> provider_name
         # TBD - should we get the Provider qualifier from Mof as provider_name? (Does it even exist?)
-        # TBD - what should provider_guid be ?
-        set provider_guid ""
         # mofformatteddata -> properties
         # level name is not localized. Oh well, too bad
         set level_name [dict* {0 {Log Always} 1 Critical 2 Error 3 Warning 4 Informational 5 Debug} $hdr(level)]
-        lappend formatted_event $provider_guid $eventclass $hdr(guid) "" $level_name $eventtypename "" "" $properties "" ""
+        lappend formatted_event $eventclass $hdr(guid) "" $level_name $eventtypename "" "" $properties "" ""
 
         lappend formatted_events $formatted_event
     }

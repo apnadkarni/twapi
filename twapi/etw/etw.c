@@ -1161,16 +1161,13 @@ static Tcl_Obj *ObjFromEVENT_DESCRIPTOR(EVENT_DESCRIPTOR *evdP)
 
 static Tcl_Obj *ObjFromEVENT_HEADER(EVENT_HEADER *evhP)
 {
-    Tcl_Obj *objs[9];
+    Tcl_Obj *objs[11];
 
     objs[0] = ObjFromLong(evhP->Flags);
     objs[1] = ObjFromLong(evhP->EventProperty);
     objs[2] = ObjFromLong(evhP->ThreadId);
     objs[3] = ObjFromLong(evhP->ProcessId);
     objs[4] = ObjFromLARGE_INTEGER(evhP->TimeStamp);
-    // Already returned from TRACE_EVENT_INFO so leave out here 
-    // ObjFromEVENT_DESCRIPTOR(&evhP->EventDescriptor);
-    // ObjFromGUID(&evhP->ProviderId);
 
     /*
      * Note - for user mode sessions, KernelTime/UserTime are not valid
@@ -1184,6 +1181,9 @@ static Tcl_Obj *ObjFromEVENT_HEADER(EVENT_HEADER *evhP)
 
     objs[8] = ObjFromGUID(&evhP->ActivityId);
     
+    objs[9] = ObjFromEVENT_DESCRIPTOR(&evhP->EventDescriptor);
+    objs[10] = ObjFromGUID(&evhP->ProviderId);
+
     return ObjNewList(ARRAYSIZE(objs), objs);
 }
 
@@ -1790,7 +1790,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
 static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RECORD *evrP, Tcl_Obj **teiObjP)
 {
     DWORD sz, winerr;
-    Tcl_Obj *objs[15];
+    Tcl_Obj *objs[13];
     TCL_RESULT status;
     TRACE_EVENT_INFO *teiP;
     EVENT_DESCRIPTOR *edP;
@@ -1830,33 +1830,39 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
 
 #define OFFSET_TO_OBJ(field_) (teiP->field_ ? ObjFromUnicodeNoTrailingSpace((LPWSTR)(teiP->field_ + (char*)teiP)) : emptyObj)
 
-    objs[0] = ObjFromGUID(&teiP->ProviderGuid);
-    objs[1] = classic ? ObjFromGUID(&teiP->EventGuid) : emptyObj;
-    objs[2] = ObjFromEVENT_DESCRIPTOR(&teiP->EventDescriptor);
-    objs[3] = ObjFromLong(teiP->DecodingSource);
-    objs[4] = OFFSET_TO_OBJ(ProviderNameOffset);
-    objs[5] = TwapiTEIUnicodeObj(teiP, teiP->LevelNameOffset, edP->Level);
-    objs[6] = TwapiTEIUnicodeObj(teiP, teiP->ChannelNameOffset, edP->Channel);
+    /* Provider GUID and EventDescriptor are already returned as part
+       of EVENT_HEADER. We prefer to do it there so that we can return
+       partial info even when the TdhGetEventInformation call fails
+       due to the MOF not having been registered
+    */
+
+    //objs[] = ObjFromGUID(&teiP->ProviderGuid);
+    objs[0] = classic ? ObjFromGUID(&teiP->EventGuid) : emptyObj;
+    //objs[] = ObjFromEVENT_DESCRIPTOR(&teiP->EventDescriptor);
+    objs[1] = ObjFromLong(teiP->DecodingSource);
+    objs[2] = OFFSET_TO_OBJ(ProviderNameOffset);
+    objs[3] = TwapiTEIUnicodeObj(teiP, teiP->LevelNameOffset, edP->Level);
+    objs[4] = TwapiTEIUnicodeObj(teiP, teiP->ChannelNameOffset, edP->Channel);
     if (teiP->KeywordsNameOffset)
-        objs[7] = ObjFromMultiSz((LPWSTR) (teiP->KeywordsNameOffset + (char*)teiP), -1);
+        objs[5] = ObjFromMultiSz((LPWSTR) (teiP->KeywordsNameOffset + (char*)teiP), -1);
     else
-        objs[7] = emptyObj;
-    objs[8] = TwapiTEIUnicodeObj(teiP, teiP->TaskNameOffset, edP->Task);
-    objs[9] = TwapiTEIUnicodeObj(teiP, teiP->OpcodeNameOffset, edP->Opcode);
-    objs[10] = OFFSET_TO_OBJ(EventMessageOffset);
-    objs[11] = OFFSET_TO_OBJ(ProviderMessageOffset);
+        objs[5] = emptyObj;
+    objs[6] = TwapiTEIUnicodeObj(teiP, teiP->TaskNameOffset, edP->Task);
+    objs[7] = TwapiTEIUnicodeObj(teiP, teiP->OpcodeNameOffset, edP->Opcode);
+    objs[8] = OFFSET_TO_OBJ(EventMessageOffset);
+    objs[9] = OFFSET_TO_OBJ(ProviderMessageOffset);
     if (classic) {
-        objs[12] = OFFSET_TO_OBJ(ActivityIDNameOffset);
-        objs[13] = OFFSET_TO_OBJ(RelatedActivityIDNameOffset);
+        objs[10] = OFFSET_TO_OBJ(ActivityIDNameOffset);
+        objs[11] = OFFSET_TO_OBJ(RelatedActivityIDNameOffset);
     } else {
-        objs[12] = emptyObj;
-        objs[13] = emptyObj;
+        objs[10] = emptyObj;
+        objs[11] = emptyObj;
     }
 
-    objs[14] = ObjNewList(2 * teiP->TopLevelPropertyCount, NULL);
+    objs[12] = ObjNewList(2 * teiP->TopLevelPropertyCount, NULL);
     if (evrP->EventHeader.Flags & EVENT_HEADER_FLAG_STRING_ONLY) {
-        ObjAppendElement(NULL, objs[14], STRING_LITERAL_OBJ("stringdata"));
-        ObjAppendElement(NULL, objs[14],
+        ObjAppendElement(NULL, objs[12], STRING_LITERAL_OBJ("stringdata"));
+        ObjAppendElement(NULL, objs[12],
                          ObjFromUnicodeLimited(evrP->UserData,
                                                evrP->UserDataLength/sizeof(WCHAR), NULL));
     } else {
@@ -1874,8 +1880,8 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
                     ObjDecrRefs(emptyObj); /* For the additional IncrRefs above */
                 return TCL_ERROR;
             }
-            ObjAppendElement(NULL, objs[14], propnameObj);
-            ObjAppendElement(NULL, objs[14], propvalObj);
+            ObjAppendElement(NULL, objs[12], propnameObj);
+            ObjAppendElement(NULL, objs[12], propvalObj);
         }
     }
 
