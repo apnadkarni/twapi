@@ -38,6 +38,9 @@ DEFINE_GUID ( /* 68fdd900-4a3e-11d1-84f4-0000f80464e3 */
     0x84, 0xf4, 0x00, 0x00, 0xf8, 0x04, 0x64, 0xe3
   );
 
+#define EVENT_HEADER_PROPERTY_XML               0x0001
+#define EVENT_HEADER_PROPERTY_FORWARDED_XML     0x0002
+#define EVENT_HEADER_PROPERTY_LEGACY_EVENTLOG   0x0004
 
 #define EVENT_HEADER_FLAG_EXTENDED_INFO         0x0001
 #define EVENT_HEADER_FLAG_PRIVATE_SESSION       0x0002
@@ -1795,7 +1798,7 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
     TRACE_EVENT_INFO *teiP;
     EVENT_DESCRIPTOR *edP;
     TDH_CONTEXT tdhctx;
-    int classic;
+    int i, classic;
     Tcl_Obj *emptyObj;
 
     /* TBD - instrument how much to try for initially */
@@ -1805,14 +1808,32 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
     tdhctx.ParameterType = TDH_CONTEXT_POINTERSIZE;
     tdhctx.ParameterSize = 0;   /* Reserved value */
 
+    emptyObj = ObjFromEmptyString();
+    ObjIncrRefs(emptyObj);  /* Since we DecrRefs it for error handling */
+
     winerr = TdhGetEventInformation(evrP, 1, &tdhctx, teiP, &sz);
     if (winerr == ERROR_INSUFFICIENT_BUFFER) {
         teiP = MemLifoAlloc(ticP->memlifoP, sz, NULL);
         winerr = TdhGetEventInformation(evrP, 1, &tdhctx, teiP, &sz);
     }
     
-    if (winerr != ERROR_SUCCESS)
-        return Twapi_AppendSystemError(ticP->interp, winerr);
+    if (winerr != ERROR_SUCCESS) {
+        /* Dummy up data */
+        for (i = 0; i < ARRAYSIZE(objs); ++i)
+            objs[i] = emptyObj;
+        switch (evrP->EventHeader.EventProperty) {
+        case EVENT_HEADER_PROPERTY_XML: i = DecodingSourceXMLFile; break;
+        case EVENT_HEADER_PROPERTY_LEGACY_EVENTLOG: i = DecodingSourceWbem; break;
+        default : i = -1; break;
+        }            
+        objs[1] = ObjFromLong(i); /* Decoding source */
+        objs[12] = ObjNewList(2, NULL);
+        ObjAppendElement(NULL, objs[12], STRING_LITERAL_OBJ("_userdata"));
+        ObjAppendElement(NULL, objs[12], ObjFromByteArray(evrP->UserData, evrP->UserDataLength));
+        *teiObjP = ObjNewList(ARRAYSIZE(objs), objs);
+        ObjDecrRefs(emptyObj);
+        return TCL_OK;
+    }
 
     edP = &teiP->EventDescriptor;
 
@@ -1824,9 +1845,6 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
                                   Tcl_ObjPrintf("Unsupported ETW decoding source (%d)", teiP->DecodingSource));
     }
 
-
-    emptyObj = ObjFromEmptyString();
-    ObjIncrRefs(emptyObj);  /* Since we DecrRefs it for error handling */
 
 #define OFFSET_TO_OBJ(field_) (teiP->field_ ? ObjFromUnicodeNoTrailingSpace((LPWSTR)(teiP->field_ + (char*)teiP)) : emptyObj)
 
@@ -1861,7 +1879,7 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
 
     objs[12] = ObjNewList(2 * teiP->TopLevelPropertyCount, NULL);
     if (evrP->EventHeader.Flags & EVENT_HEADER_FLAG_STRING_ONLY) {
-        ObjAppendElement(NULL, objs[12], STRING_LITERAL_OBJ("stringdata"));
+        ObjAppendElement(NULL, objs[12], STRING_LITERAL_OBJ("_stringdata"));
         ObjAppendElement(NULL, objs[12],
                          ObjFromUnicodeLimited(evrP->UserData,
                                                evrP->UserDataLength/sizeof(WCHAR), NULL));
