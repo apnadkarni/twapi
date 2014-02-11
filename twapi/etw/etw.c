@@ -1960,7 +1960,7 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD evrP)
     if (gETWContext.status == TCL_OK)
         ObjAppendElement(ticP->interp, gETWContext.eventsObj, ObjNewList(ARRAYSIZE(recObjs), recObjs));
     else
-        ObjDecrArrayRefs(3, objs);
+        ObjDecrArrayRefs(3, recObjs);
 
     MemLifoPopMark(mark);
     return;
