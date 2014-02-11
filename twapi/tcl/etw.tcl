@@ -232,7 +232,7 @@ proc twapi::etw_log_message {htrace message {level 4}} {
     if {[etw_provider_enable_level] >= $level} {
         # Must match Message event type in MoF definition
         # 1 -> event type for Message
-        TraceEvent $htrace 1  [encoding convertto unicode "$message\0"]
+        TraceEvent $htrace 1 $level  [encoding convertto unicode "$message\0"]
     }
 }
 

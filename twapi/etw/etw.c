@@ -816,9 +816,15 @@ static ULONG WINAPI TwapiETWProviderControlCallback(
             break;
         }
 
-        /* If we are already logging to a session we will ignore nonmatching */
+        /*
+         * If we are already logging to a session we will ignore nonmatching
+         * session handles so we will not be redirected away from our current
+         * session to a new one. However, the session handle is actually
+         * composed of the real session number plus logging level and
+         * enable flags. So we only check on the low 16 bits.
+         */
         if (! INVALID_SESSIONTRACE_HANDLE(gETWProviderSessionHandle) &&
-            session != gETWProviderSessionHandle) {
+            (session & 0xffff) != (gETWProviderSessionHandle & 0xffff)) {
             rc = ERROR_INVALID_PARAMETER;
             break;
         }

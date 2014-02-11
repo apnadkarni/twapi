@@ -19,6 +19,10 @@ namespace eval twapi::etw::test {
     namespace import ::tcltest::test
 
     variable logdir [tcltest::makeDirectory etwlogs]
+    proc new_etl_filepath {{prefix twapitest}} {
+        variable logdir
+        return [file join $logdir ${prefix}-[clock microseconds].etl]
+    }
 
     proc privileged {} {
         if {[twapi::min_os_version 6]} {
@@ -348,6 +352,7 @@ namespace eval twapi::etw::test {
         # manifest based providers
         # Callback mode
         # MUltiple trace files
+        # -starttime, -endtime
     } -result TBD
 
     test etw_format_events-1.0 {
@@ -381,7 +386,7 @@ namespace eval twapi::etw::test {
     } -constraints {
         privileged
     } -body {
-        set etl [file join $logdir [clock microseconds].etl]
+        set etl [new_etl_filepath]
         twapi::etw_start_kernel_trace {} -logfile $etl
         twapi::etw_stop_trace -sessionname "NT Kernel Logger"
         file exists $etl
@@ -392,7 +397,7 @@ namespace eval twapi::etw::test {
     } -constraints {
         privileged
     } -body {
-        set etl [file join $logdir [clock microseconds].etl]
+        set etl [new_etl_filepath]
         twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl
         after 1000
         # Next command will fail if file mode was not circular as
@@ -406,7 +411,7 @@ namespace eval twapi::etw::test {
     } -constraints {
         privileged
     } -body {
-        set etl [file join $logdir [clock microseconds].etl]
+        set etl [new_etl_filepath]
         twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl
         after 1000
         # Next command will fail if file mode was not circular as
@@ -420,7 +425,7 @@ namespace eval twapi::etw::test {
     } -constraints {
         privileged
     } -body {
-        set etl [file join $logdir [clock microseconds].etl]
+        set etl [new_etl_filepath]
         twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode sequential
         after 1000
         twapi::etw_stop_trace -sessionname "NT Kernel Logger"
@@ -432,7 +437,7 @@ namespace eval twapi::etw::test {
     } -constraints {
         privileged
     } -body {
-        set etl [file join $logdir [clock microseconds].etl]
+        set etl [new_etl_filepath]
         twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode sequential -maxfilesize 1
         after 1000
         # stop command should as file mode is sequential and
@@ -451,6 +456,62 @@ namespace eval twapi::etw::test {
     } -result {1 {TWAPI_WIN32 87}}
 
 
+    test etw_provider-1.0 {
+        Tests etw_start_trace/etw_stop_trace/etw_update_trace/etw_log_message/etw_enable_trace/etw_disable_trace
+    } -constraints {
+        privileged
+    } -body {
+        set etl [new_etl_filepath]
+        set tracename "TWAPITEST_[clock microseconds]"
+        set htrace [twapi::etw_start_trace $tracename -logfile $etl]
+        set hprov [twapi::etw_twapi_provider_register]
+        twapi::etw_enable_trace_provider $htrace [twapi::etw_twapi_provider_guid] -1 5
+        after 500;              # Needs a bit of time to take effect
+        for {set level 5} {$level > 0} {incr level -1} {
+            twapi::etw_enable_trace_provider $htrace [twapi::etw_twapi_provider_guid] -1 $level
+            twapi::etw_log_message $hprov "default"
+            twapi::etw_log_message $hprov "1" 1
+            twapi::etw_log_message $hprov "2" 2
+            twapi::etw_log_message $hprov "3" 3
+            twapi::etw_log_message $hprov "4" 4
+            twapi::etw_log_message $hprov "5" 5
+
+            twapi::etw_flush_trace -sessionhandle $htrace
+        }
+
+        # Repeat using tokens for levels
+        foreach level {verbose informational warning error fatal} {
+            twapi::etw_enable_trace_provider $htrace [twapi::etw_twapi_provider_guid] -1 $level
+            twapi::etw_log_message $hprov "default"
+            twapi::etw_log_message $hprov "fatal" fatal
+            twapi::etw_log_message $hprov "error" error
+            twapi::etw_log_message $hprov "warning" warning
+            twapi::etw_log_message $hprov "informational" informational
+            twapi::etw_log_message $hprov "verbose" verbose
+            
+            twapi::etw_flush_trace -sessionname $tracename
+        }
+
+        # Now disable the provider and try to log
+        twapi::etw_disable_trace_provider $htrace [twapi::etw_twapi_provider_guid]
+        twapi::etw_log_message $hprov "fatal (provider disabled)" 1
+        twapi::etw_flush_trace -sessionhandle $htrace
+        twapi::etw_stop_trace -sessionhandle $htrace
+
+        # Now see if messages were logged as expected
+        set errors {}
+        set htrace [twapi::etw_open_file $etl]
+        set formatter [twapi::etw_open_formatter]
+        set events [twapi::etw_format_events $formatter {*}[twapi::etw_process_events $htrace]]
+        twapi::etw_close_formatter $formatter
+        set result {}
+        foreach event $events {
+            if {[twapi::etw_event provider_name $event] eq "TwapiETWProvider"} {
+                lappend result [dict get [twapi::etw_event properties $event] Message]
+            }
+        }
+        set result
+    } -result {default 1 2 3 4 5 default 1 2 3 4 default 1 2 3 1 2 1 default fatal error warning informational verbose default fatal error warning informational fatal error warning fatal error fatal}
 
     test etw_enable_trace-1.0 {
         TBD - etw_enable_trace
@@ -483,5 +544,6 @@ namespace eval twapi::etw::test {
 
 #
 # Clean up
+catch {twapi::etw_uninstall_twapi_mof}
 ::tcltest::cleanupTests
 namespace delete ::twapi::etw::test
