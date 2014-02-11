@@ -51,7 +51,7 @@ to implement an event controller:
 command [uri #etw_start_trace [cmd etw_start_trace]] which
 creates a new trace session with configurable parameters.
 [bullet] To create and remove associations between event providers
-and trace sessions, use the [uri #etw_enable_trace [cmd etw_enable_trace]]
+and trace sessions, use the [uri #etw_enable_trace_provider [cmd etw_enable_trace_provider]]
 command. This command can also be used to communicate to the event providers
 what events are to be logged.
 [bullet] Use [uri #etw_query_trace [cmd etw_query_trace]]
@@ -173,7 +173,7 @@ kernel logs events such as network events, process events, disk I/O etc.
 to this session when enabled. This session can be started and configured
 through the [uri #etw_start_kernel_trace [cmd etw_start_kernel_trace]]
 command. The specific events to be logged are also specified as options
-to this command as the [uri #etw_enable_trace [cmd etw_enable_trace]]
+to this command as the [uri #etw_enable_trace_provider [cmd etw_enable_trace_provider]]
 cannot be used with kernel logging sessions.
 [para]
 See [uri http://msdn.microsoft.com/en-us/library/windows/desktop/aa364083(v=vs.85).aspx MSDN]
@@ -205,12 +205,11 @@ an ETW controller.
 
 [list_begin definitions]
 
-[call [cmd etw_disable_trace] [arg SESSIONHANDLE] [arg GUID] [arg ENABLEFLAGS] [arg LEVEL]]
-Enables a provider identified by [arg GUID] 
-to log to the trace session specified by [arg SESSIONHANDLE].
-See [uri #etw_enable_trace [cmd etw_enable_trace]].
+[call [cmd etw_disable_trace_provider] [arg SESSIONHANDLE] [arg GUID]]
+Removes the provider identified by [arg GUID] 
+from logging to the trace session specified by [arg SESSIONHANDLE].
 
-[call [cmd etw_enable_trace] [arg SESSIONHANDLE] [arg GUID] [arg ENABLEFLAGS] [arg LEVEL]]
+[call [cmd etw_enable_trace_provider] [arg SESSIONHANDLE] [arg GUID] [arg ENABLEFLAGS] [arg LEVEL]]
 Enables a provider identified by [arg GUID] 
 to log to the trace session specified by [arg SESSIONHANDLE].
 [nl]
@@ -222,7 +221,7 @@ classes and the corresponding bitmask for a specific provider.
 [arg LEVEL] is an integer between 0 and 255 that indicates the severity
 level at which events should be logged. The provider will log all events
 at [arg LEVEL] and below. Levels 1 through 5 can also be denoted as
-[const critical], [const error], [const warning], [const information]
+[const fatal], [const error], [const warning], [const informational]
 and [const verbose] respectively.
 
 [call [cmd etw_flush_trace] [opt [arg options]]]
@@ -524,10 +523,15 @@ function by Tcl's [cmd "trace add execution"] command.
 [cmd etw_execution_tracker] can be used as the callback similar
 to the example in [sectref "Tcl ETW traces"].
 
-[call [cmd etw_log_message] [arg HPROVIDER] [arg MESSAGE]]
+[call [cmd etw_log_message] [arg HPROVIDER] [arg MESSAGE] [opt [arg LEVEL]]]
 Writes an event containing the [arg MESSAGE] string to the trace session
 attached to the provider handle [arg HPROVIDER] returned
 by [uri #etw_twapi_provider_register [cmd etw_twapi_provider_register]].
+[arg LEVEL] indicates the severity level at which the message is to be
+logged. [arg LEVEL] must be an integer or one of the following
+constants [const verbose] (5), [const informational] (4), 
+[const warning] (3), [const error] (2) or [const fatal] (1).
+By default, the message is logged at level 4 (informational).
 
 [call [cmd etw_twapi_provider_register]]
 
@@ -536,7 +540,7 @@ The name and GUID corresponding to the provider can be retrieved through
 [uri #etw_twapi_provider_name [cmd etw_twapi_provider_name]] and
 [uri #etw_twapi_provider_guid [cmd etw_twapi_provider_guid]].
 These can then be passed to
-[uri #etw_enable_trace [cmd etw_enable_trace]] or any ETW controller
+[uri #etw_enable_trace_provider [cmd etw_enable_trace_provider]] or any ETW controller
 program to add the TWAPI provider to a trace session. Returns a handle
 to the registered provider.
 [nl]
@@ -553,7 +557,7 @@ Returns the GUID of the ETW event class used by
 
 [call [cmd etw_twapi_provider_guid]]
 Returns the GUID for the TWAPI ETW provider. This can be passed to
-[uri #etw_enable_trace [cmd etw_enable_trace]] or any ETW controller
+[uri #etw_enable_trace_provider [cmd etw_enable_trace_provider]] or any ETW controller
 program to add the TWAPI provider to a trace session.
 
 [call [cmd etw_twapi_provider_name]]
@@ -763,20 +767,15 @@ The handle must be closed later by passing it to
 [uri #etw_close_session [cmd etw_close_session]].
 
 [call [cmd etw_process_events] [opt "[cmd -callback] [arg CALLBACK]"] [opt "[cmd -start] [arg STARTTIME]"] [opt "[cmd -end] [arg ENDTIME]"] [arg HTRACE] [opt [arg HTRACE...]]]
-Passes events recorded in one or more event traces to the callback
-command prefix specified by [cmd -callback] for processing. If [cmd -callback]
-is not specified, any events accumulated in the ETW buffers are drained
-without processing. The trace session handles [arg HTRACE] are handles
+Processes events recorded in one or more event traces.
+The trace session handles [arg HTRACE] are handles
 returned by [uri #etw_open_file [cmd etw_open_file]] or 
 [uri #etw_open_session [cmd etw_open_session]].
-
 [nl]
-The options [cmd -start] and [cmd end] can be specified to limit the
-time interval for which events are processed. Both
-[arg STARTTIME] and [arg ENDTIME] must be specified in the same format as
-[uri osinfo.html\#get_system_time [cmd get_system_time]]. You can use
-[uri base.html#secs_since_1970_to_large_system_time [cmd secs_since_1970_to_large_system_time]]
-to convert the format used by Tcl's [cmd clock] command to this format.
+
+If [cmd -callback] is specified,
+the events are passed to the [arg CALLBACK] command prefix.
+command prefix specified by [cmd -callback] for processing.
 
 [nl]
 When ETW begins processing events, the callback is invoked repeatedly until
@@ -792,6 +791,17 @@ in turn will return a list of formatted events.
 To terminate processing of events before all events from the traces are
 consumed, the callback can execute
 [example "return -code break"]
+
+
+
+[nl]
+The options [cmd -start] and [cmd end] can be specified to limit the
+time interval for which events are processed. Both
+[arg STARTTIME] and [arg ENDTIME] must be specified in the same format as
+[uri osinfo.html\#get_system_time [cmd get_system_time]]. You can use
+[uri base.html#secs_since_1970_to_large_system_time [cmd secs_since_1970_to_large_system_time]]
+to convert the format used by Tcl's [cmd clock] command to this format.
+
 
 [call [cmd etw_uninstall_twapi_mof]]
 Uninstalls the TWAPI Managed Object Format (MOF) definition for the event
