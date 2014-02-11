@@ -15,11 +15,11 @@ namespace eval twapi {
     }
 
     # So we don't pollute namespace with temp vars
-    apply { {defs} {
+    apply [list defs {
         foreach {key val} $defs {
-            proc [namespace current]::etw_twapi_$key {} "return $val"
+            proc etw_twapi_$key {} "return $val"
         }
-    }} [array get _etw_mof]
+    } [namespace current]] [array get _etw_mof]
 
     # Cache of event definitions for parsing MOF  events. Nested dictionary
     # with the following structure (uppercase keys are variables,
@@ -107,6 +107,15 @@ namespace eval twapi {
         properties
         message
         sid
+    }
+
+    # Record for EVENT_TRACE_PROPERTIES
+    # TBD - document
+    record etw_trace {
+        logfile logger_name guid buffer_size min_buffers max_buffers
+        max_file_size logfile_mode flush_timer enable_flags client_context
+        age_limit buffer_count free_buffers events_lost buffers_written
+        log_buffers_lost real_time_buffers_lost logger_tid
     }
 }
 
@@ -218,10 +227,13 @@ proc twapi::etw_twapi_provider_register {} {
     return [twapi::RegisterTraceGuids $_etw_mof(provider_guid) $_etw_mof(eventclass_guid)]
 }
 
-proc twapi::etw_log_message {htrace message} {
-    # Must match Message event type in MoF definition
-    TraceEvent $htrace 1 0 [encoding convertto unicode "$message\0"]
-    return
+proc twapi::etw_log_message {htrace message {level 4}} {
+    set level [_etw_level_to_int $level]
+    if {[etw_provider_enable_level] >= $level} {
+        # Must match Message event type in MoF definition
+        # 1 -> event type for Message
+        TraceEvent $htrace 1  [encoding convertto unicode "$message\0"]
+    }
 }
 
 proc twapi::etw_variable_tracker {htrace name1 name2 op} {
@@ -853,7 +865,9 @@ proc twapi::etw_dump_to_file {args} {
             }
         }
 
-        puts $outfd [csv::join [etw_event] $opts(separator)]
+        if {$opts(format) eq "csv"} {
+            puts $outfd [csv::join [etw_event] $opts(separator)]
+        }
         # This is written using a callback to basically test the callback path
         set callback [list apply {
             {options outfd counter_varname max formatter bufd events}
@@ -1098,12 +1112,12 @@ proc twapi::etw_start_kernel_trace {events args} {
     return [etw_start_trace "NT Kernel Logger" -enableflags $enableflags {*}$args -paged 0]
 }
 
-proc twapi::etw_enable_trace {hsession guid enableflags level} {
-    return [EnableTrace 1 $enableflags [dict* {critical 1 error 2 warning 3 information 4 verbose 5} $level] $guid $hsession]
+proc twapi::etw_enable_trace_provider {hsession guid enableflags level} {
+    return [EnableTrace 1 $enableflags [_etw_level_to_int $level] $guid $hsession]
 }
 
-proc twapi::etw_disable_trace {hsession guid enableflags level} {
-    return [EnableTrace 0 $enableflags [dict* {critical 1 error 2 warning 3 information 4 verbose 5} $level] $guid $hsession]
+proc twapi::etw_disable_trace_provider {hsession guid} {
+    return [EnableTrace 0 -1 5 $guid $hsession]
 }
 
 proc twapi::etw_control_trace {action args} {
@@ -1202,3 +1216,6 @@ proc twapi::_etw_get_types {} {
     return $types
 }
 
+proc twapi::_etw_level_to_int {level} {
+    return [dict* {verbose 5 information 4 info 4 informational 4 warning 3 error 2 fatal 1 critical 1} [string tolower $level]]
+}
