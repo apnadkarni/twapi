@@ -460,6 +460,8 @@ namespace eval twapi::etw::test {
         Tests etw_start_trace/etw_stop_trace/etw_update_trace/etw_log_message/etw_enable_trace/etw_disable_trace
     } -constraints {
         privileged
+    } -setup {
+        twapi::etw_install_twapi_mof
     } -body {
         set etl [new_etl_filepath]
         set tracename "TWAPITEST_[clock microseconds]"
