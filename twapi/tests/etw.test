@@ -316,6 +316,27 @@ namespace eval twapi::etw::test {
     } -result ""
 
 
+    proc process_events_cb {formatter logfile varname bufd events} {
+        validate_buf $bufd $logfile
+        lappend $varname {*}[twapi::etw_format_events $formatter $bufd $events]
+    }
+
+    test etw_consumer-2.0 {
+        Test etw_process_events/etw_format_events - callback
+    } -setup {
+        set etw [twapi::etw_open_file kernel.etl]
+        set formatter [twapi::etw_open_formatter]
+    } -body {
+        set varname ::etw_consumer_[clock microseconds]
+        set l [twapi::etw_process_events -callback [list [namespace current]::process_events_cb $formatter kernel.etl $varname] $etw]
+        validate_events [set $varname] kernel.etl
+        set l
+    } -cleanup {
+        twapi::etw_close_formatter $formatter
+        twapi::etw_close_session $etw
+    } -result ""
+
+
     test etw_consumer-100.0 {
         TBD - etw_process_events
     } -constraints {
@@ -326,7 +347,7 @@ namespace eval twapi::etw::test {
         # mof based providers
         # manifest based providers
         # Callback mode
-        # Return list mode
+        # MUltiple trace files
     } -result TBD
 
     test etw_format_events-1.0 {
