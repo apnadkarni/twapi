@@ -60,7 +60,7 @@ proc twapi::pdh_counter_path {object counter args} {
         instance.arg
         parent.arg
         instanceindex.int
-        {localize.bool false}
+        {localized.bool false}
     } -nulldefault]
     
     if {$opts(instanceindex) < -1} {
@@ -68,7 +68,7 @@ proc twapi::pdh_counter_path {object counter args} {
         error "Invalid value '$opts(instanceindex)' specified for -instanceindex option"
     }
 
-    if {$opts(localize)} {
+    if {! $opts(localized)} {
         # Need to localize the counter names
         set object [_pdh_localize $object]
         set counter [_pdh_localize $counter]
@@ -273,7 +273,7 @@ proc twapi::get_perf_process_counter_paths {pids args} {
                     [list -$opt $pid [lindex $counter_info 1] \
                          [pdh_counter_path $path_components(object) \
                               [_pdh_localize [lindex $counter_info 0]] \
-                              -localize false \
+                              -localized true \
                               -machine $path_components(machine) \
                               -parent $path_components(parent) \
                               -instance $path_components(instance) \
@@ -375,7 +375,7 @@ proc twapi::get_perf_thread_counter_paths {tids args} {
                     [list -$opt $tid [lindex $counter_info 1] \
                          [pdh_counter_path $path_components(object) \
                               [_pdh_localize [lindex $counter_info 0]] \
-                              -localize false \
+                              -localized true \
                               -machine $path_components(machine) \
                               -parent $path_components(parent) \
                               -instance $path_components(instance) \
@@ -463,7 +463,7 @@ proc twapi::get_perf_processor_counter_paths {processor args} {
                      [pdh_counter_path \
                           [_pdh_localize "Processor"] \
                           [_pdh_localize [lindex $counter_info 0]] \
-                          -localize false \
+                          -localized true \
                           -machine $opts(machine) \
                           -instance $processor] \
                      [lindex $counter_info 2] \
@@ -515,12 +515,12 @@ proc twapi::get_perf_instance_counter_paths {object counters
         array set path_components [pdh_parse_counter_path $instance_path]
 
         # Now construct the requested counter paths
-        # TBD - what should -localize be here ?
+        # TBD - what should -localized be here ?
         foreach counter $counters {
             set counter_path \
                 [pdh_counter_path $path_components(object) \
                      $counter \
-                     -localize false \
+                     -localized true \
                      -machine $path_components(machine) \
                      -parent $path_components(parent) \
                      -instance $path_components(instance) \
@@ -694,7 +694,7 @@ proc twapi::_make_counter_path_list {object instance_list counter_list args} {
             foreach counter $counter_list {
                 lappend counter_paths [pdh_counter_path \
                                            $object $counter \
-                                           -localize false \
+                                           -localized true \
                                            -machine $opts(machine) \
                                            -instance $instance \
                                            -instanceindex $count]
