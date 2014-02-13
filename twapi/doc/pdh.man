@@ -141,12 +141,12 @@ to indicate counters for all instances are to be returned.
 When there is more than one instance of a performance object with the
 same name, this option allows selection of a particular one
 by specifying its numeric instance index.
-[opt_def [cmd -localize] [arg BOOLEAN]]
+[opt_def [cmd -localized] [arg BOOLEAN]]
 Performance object and counter names
 are localized based on the system languages. Using [const Process]
 as the object name on a French localized system will result in a failure.
 By default the command assumes the passed names are in English and
-localizes them for the local system. If [cmd -localize] is passed
+localizes them for the local system. If [cmd -localized] is passed
 as [const true], the command assumes that the names being passed
 are already appropriately localized.
 [opt_def [cmd -parent] [arg PARENTINSTANCE]]

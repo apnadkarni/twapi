@@ -214,14 +214,14 @@ namespace eval twapi::pdh::test {
     } -result "\\[twapi::_pdh_localize Thread](svchost/100#1)\\[twapi::_pdh_localize {% Idle Time}]"
 
     test pdh_counter_path-6.0 {
-        Perfobj ctrname parent instanceindex instance -localize true
+        Perfobj ctrname parent instanceindex instance -localized false
     } -body {
         # Only perfobj and ctrname should get localized
         twapi::pdh_counter_path Thread "% Idle Time" -instance Thread -instanceindex 1 -parent Process -machine System
     } -result "\\\\System\\[twapi::_pdh_localize Thread](Process/Thread#1)\\[twapi::_pdh_localize {% Idle Time}]"
 
     test pdh_counter_path-6.1 {
-        Perfobj ctrname parent instanceindex instance -localize false
+        Perfobj ctrname parent instanceindex instance -localized true
     } -body {
         twapi::pdh_counter_path Thread "% Idle Time" -instance Thread -instanceindex 1 -parent Process -machine System
     } -result "\\\\System\\Thread(Process/Thread#1)\\% Idle Time"
