@@ -36,8 +36,9 @@ proc docgen::docgen {docdef} {
 # and list of callouts
 proc docgen::callouts {script} {
     # Superfluous \'s are for emacs indentation workarounds
-    regsub -line -all {\;\#(<\d+>).*$} $script {\1} display
-    return [list $display [regexp -line -all -inline {\;\#<\d+>.*$} $script]]
+    #regsub -line -all {\;\s*\#(\s*<\d+>).*$} $script {\1} display
+    regsub -line -all {\;(\s*)\#(\s*<\d+>).*$} $script { \1 \2} display
+    return [list $display [regexp -line -all -inline {<\d+>.*$} $script]]
 }
 
 # Returns text verbatim except left aligned to shortest common blank prefix
