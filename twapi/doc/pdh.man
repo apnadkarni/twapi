@@ -96,7 +96,10 @@ be passed to [uri #pdh_get_scalar [cmd pdh_get_scalar]] or
 the [uri #pdh_query_get [cmd pdh_query_get]] command can be used
 to get values of multiple counters from a query.
 [nl]
-The counter is automatically released when the query is closed.
+The counter is automatically released when the query is closed. However,
+if a counter is no longer required while the other counters in the query
+are still in use, it can be removed from the query by calling
+[uri #pdh_remove_counter [cmd pdh_remove_counter]].
 [nl]
 The following options may be specified with the command. They impact
 how values from the counter are returned from the
@@ -258,6 +261,7 @@ in the corresponding [cmd pdh_add_counter] call.
 
 [call [cmd pdh_query_open]]
 Open a new performance counter query and returns a handle to it.
+Counters can be added and removed from the query using
 The query must be closed when no longer needed by calling
 [uri #pdh_query_close [cmd pdh_query_close]].
 
@@ -272,9 +276,14 @@ like processor utilization, the first call only serves to
 initialize the counters. Valid data is collected only from the second
 call onwards. Microsoft recommends calls be at least one second apart.
 
+[call [cmd pdh_remove_counter] [arg HPERF] [arg CTRNAME]]
+Removes a counter from a performance counter query. Counters are
+automatically released when a query is closed. However, if a counter
+is no longer of use but the other counters in the query are, this command can
+be used to remove it.
+
 [call [cmd pdh_system_performance_query] [opt [arg "CTRNAME ...."]]]
-The [uri #pdh_system_performance_query [cmd pdh_system_performance_query]]
-is a wrapper around [uri #pdh_query_open [cmd pdh_query_open]] that
+This is a wrapper around [uri #pdh_query_open [cmd pdh_query_open]] that
 includes some commonly used system counters.
 [nl]
 Calling the command without any arguments will return a list of 
