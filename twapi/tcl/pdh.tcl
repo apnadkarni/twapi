@@ -777,8 +777,8 @@ proc twapi::pdh_query_close {qid} {
     variable _pdh_queries
     _pdh_query_check $qid
 
-    foreach ctrh [dict get $_pdh_queries($qid) Counters] {
-        pdh_remove_counter $ctrh
+    dict for {ctrh -} [dict get $_pdh_queries($qid) Counters] {
+        PdhRemoveCounter $ctrh
     }
 
     PdhCloseQuery [dict get $_pdh_queries($qid) Qh]
@@ -812,12 +812,24 @@ proc twapi::pdh_add_counter {qid ctr_path args} {
         set flags [expr {$flags | [_pdh_fmt_sym_to_val $scale]}]
     }
 
-
     set hctr [PdhAddCounter [dict get $_pdh_queries($qid) Qh] $ctr_path $flags]
-    dict lappend _pdh_queries($qid) Counters $hctr
+    dict set _pdh_queries($qid) Counters $hctr 1
     dict set _pdh_queries($qid) Meta $name [list Counter $hctr FmtFlags $flags Array $array]
 
     return $hctr
+}
+
+proc twapi::pdh_remove_counter {qid ctrname} {
+    variable _pdh_queries
+    _pdh_query_check $qid
+    if {![dict exists $_pdh_queries($qid) Meta $ctrname]} {
+        badargs! "Counter \"$ctrname\" not present in query."
+    }
+    set hctr [dict get $_pdh_queries($qid) Meta $ctrname Counter]
+    dict unset _pdh_queries($qid) Counters $hctr
+    dict unset _pdh_queries($qid) Meta $ctrname
+    PdhRemoveCounter $hctr
+    return
 }
 
 proc twapi::pdh_query_get {qid args} {
@@ -887,7 +899,7 @@ twapi::proc* twapi::pdh_system_performance_query args {
     variable _sysperf_defs
 
     if {[llength $args] == 0} {
-        return [dict keys $_sysperf_defs]
+        return [lsort -dictionary [dict keys $_sysperf_defs]]
     }
 
     set qid [pdh_query_open]

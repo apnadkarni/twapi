@@ -659,7 +659,7 @@ static int TwapiPdhInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(PdhParseCounterPath, 201),
         DEFINE_ALIAS_CMD(PdhLookupPerfNameByIndex, 202),
         DEFINE_ALIAS_CMD(PdhOpenQuery, 203),
-        DEFINE_ALIAS_CMD(pdh_remove_counter, 301),
+        DEFINE_ALIAS_CMD(PdhRemoveCounter, 301),
         DEFINE_ALIAS_CMD(PdhCollectQueryData, 302),
         DEFINE_ALIAS_CMD(PdhCloseQuery, 303),
         DEFINE_ALIAS_CMD(PdhGetFormattedCounterValue, 1001),

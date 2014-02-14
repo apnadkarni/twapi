@@ -1015,6 +1015,30 @@ namespace eval twapi::pdh::test {
         twapi::pdh_query_close $qh
     } -result {1 1 1 1}
 
+    ################################################################
+
+    test pdh_remove_counter-1.0 {
+        pdh_remove_counter
+    } -body {
+        set qh [twapi::pdh_system_performance_query mutex_count handle_count]
+        set vals [twapi::pdh_query_get $qh]
+        twapi::pdh_remove_counter $qh handle_count
+        set vals2 [twapi::pdh_query_get $qh]
+        list [dict exists $vals mutex_count] [dict exists $vals handle_count] [dict exists $vals2 mutex_count] [dict exists $vals2 handle_count]
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result {1 1 1 0}
+
+    test pdh_remove_counter-2.0 {
+        pdh_remove_counter (non-existent)
+    } -body {
+        set qh [twapi::pdh_system_performance_query mutex_count handle_count]
+        twapi::pdh_remove_counter $qh handle_count
+        twapi::pdh_remove_counter $qh handle_count
+    } -cleanup {
+        twapi::pdh_query_close $qh
+    } -result "Counter \"handle_count\" not present in query." -returnCodes error
+
 
     ################################################################
 
