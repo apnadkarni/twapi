@@ -45,18 +45,20 @@ of interest. Call for each counter of interest.
 [opt_def [uri #pdh_add_counter [cmd pdh_add_counter]]]
 Adds a counter (specified by its counter path as returned in the previous step)
 to a query and returns a handle to it. Call for each counter of interest.
-[opt_def [uri #pdh_query_update [cmd pdh_query_update]]]
+[opt_def [uri #pdh_query_refresh [cmd pdh_query_refresh]]]
 Updates all counters in the query to their current values. For rate
 based counters, this must be called at least twice before retrieving
 the value of a counter.
 [opt_def [uri #pdh_get_scalar [cmd pdh_get_scalar]]]
 Returns the scalar value of a counter as updated in the last
-call to [uri #pdh_query_update [cmd pdh_query_update]].
+call to [uri #pdh_query_refresh [cmd pdh_query_refresh]].
 [opt_def [uri #pdh_get_array [cmd pdh_get_array]]]
-Returns a counter that is an array of values, for example, one
-for each process.
+Returns a counter that is an array of values (for example, one
+for each process) as updated in the last call
+call to [uri #pdh_query_refresh [cmd pdh_query_refresh]].
 [opt_def [uri #pdh_query_get [cmd pdh_query_get]]]
-Returns values for multiple counters from a query.
+Returns values for multiple counters from a query. Internally does
+the equivalent of [uri #pdh_query_refresh [cmd pdh_query_refresh]].
 [opt_def [uri #pdh_query_close [cmd pdh_query_close]]]
 Closes a query. This should be called to release resources associated
 with a query once the contained counters are no longer required.
@@ -69,7 +71,7 @@ includes some commonly used system counters.
 [example_begin]
 set queryh [lb]pdh_system_performance_query processor_utilization memory_free_kb[rb]
 proc print_counters {queryh} {
-    pdh_query_update $queryh
+    pdh_query_refresh $queryh
     puts [lb]pdh_query_get $queryh[rb]
     after 1000 [lb]info level 0[rb]
 }
@@ -87,7 +89,7 @@ Adds a counter specified by its path [arg CTRPATH] to a performance query.
 [uri #pdh_query_open [cmd pdh_query_open]].
 [arg CTRPATH] is a counter path normally constructed through
 [uri #pdh_counter_path [cmd pdh_counter_path]].
-Subsequent calls to [uri #pdh_query_update [cmd pdh_query_update]]
+Subsequent calls to [uri #pdh_query_refresh [cmd pdh_query_refresh]]
 for that query will update the counter.
 [nl]
 The command returns a handle to the counter which can then
@@ -200,10 +202,14 @@ before attempting to access the information for [arg PERFOBJ].
 Returns a flat list of instance name and value pairs for a counter
 that covers multiple objects, such as one containing wildcards.
 Refer to [uri #pdh_get_scalar [cmd pdh_get_scalar]] for options.
+[nl]
+Note that the command does not refresh the counter value. Caller must
+do that with [uri #pdh_query_refresh [cmd pdh_query_refresh]] before
+calling this command if so desired.
 
 [call [cmd pdh_get_scalar] [arg HCOUNTER] [opt [arg options]]]
 Returns the value of the specified counter as of the last call
-to [uri #pdh_query_update [cmd pdh_query_update]]. [arg HCOUNTER]
+to [uri #pdh_query_refresh [cmd pdh_query_refresh]]. [arg HCOUNTER]
 is a handle to a counter as returned by a prior call to
 [uri #pdh_add_counter [cmd pdh_add_counter]]. If the
 counter was specified using a wildcard, use
@@ -231,7 +237,9 @@ the command is [const 1] on success and [const 0] if the counter
 does not exist. Without this option, the command will raise an error
 if the counter does not exist.
 [list_end]
-
+Note that the command does not refresh the counter value. Caller must
+do that with [uri #pdh_query_refresh [cmd pdh_query_refresh]] before
+calling this command if so desired.
 [call [cmd pdh_parse_counter_path] [arg CTRPATH]]
 Returns a dictionary containing the components of the
 counter path [arg CTRPATH]. The dictionary contains the following
@@ -252,6 +260,9 @@ are specified, values for all counters added to the query are returned.
 Otherwise, each argument must be the name associated with the counter
 with the [cmd -name] option to the [cmd pdh_add_counter] command.
 [nl]
+The counters are refreshed with their current values from the system
+before being returned.
+[nl]
 The returned value is a dictionary, each key of which is the mnemonic name
 associated with the abovementioned [cmd -name] option of [cmd pdh_add_counter].
 The corresponding value in the dictionary may be a scalar or an array
@@ -265,9 +276,9 @@ Counters can be added and removed from the query using
 The query must be closed when no longer needed by calling
 [uri #pdh_query_close [cmd pdh_query_close]].
 
-[call [cmd pdh_query_update] [arg HPERF]]
-Updates all counters in the specified performance counter query
-with their current values.
+[call [cmd pdh_query_refresh] [arg HPERF]]
+Refreshes all counters in the specified performance counter query
+with their current values from the system.
 [arg HPERF] is a query handle previously returned by
 [uri #pdh_query_open [cmd pdh_query_open]].
 [nl]
@@ -292,7 +303,7 @@ counter mnemonics that the command understands.
 If called with arguments, each argument must be the name of a counter
 mnemonic. The command then returns a handle to a performance query with
 those counters already added. The command also internally
-calls [uri #pdh_query_update [cmd pdh_query_update]].
+calls [uri #pdh_query_refresh [cmd pdh_query_refresh]].
 [nl]
 The returned query handle can be used
 exactly as a handle from [uri #pdh_query_open [cmd pdh_query_open]]
