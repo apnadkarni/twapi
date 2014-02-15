@@ -259,7 +259,7 @@ namespace eval twapi::pdh::test {
     } -body {
         set p [twapi::pdh_parse_counter_path {\\Machine\PerfObj(Instance)\Counter}]
         list [dict get $p machine] [dict get $p object] [dict get $p instance] [dict get $p instanceindex] [dict get $p parent] [dict get $p counter]
-    } -result [list \\\\Machine PerfObj Instance -1 {} Counter]
+    } -result [list \\\\Machine PerfObj Instance 0 {} Counter]
 
     test pdh_parse_counter_path-6.0 {
         Parse path without counter
@@ -281,7 +281,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         twapi::pdh_get_scalar $h
     } -cleanup {
         twapi::pdh_query_close $qh
@@ -293,7 +293,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         twapi::pdh_get_scalar $h -scale none
     } -cleanup {
         twapi::pdh_query_close $qh
@@ -305,7 +305,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         twapi::pdh_get_scalar $h -scale x1000
     } -cleanup {
         twapi::pdh_query_close $qh
@@ -317,7 +317,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         twapi::pdh_get_scalar $h -scale nocap100
     } -cleanup {
         twapi::pdh_query_close $qh
@@ -329,7 +329,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         twapi::pdh_get_scalar $h -format long
     } -cleanup {
         twapi::pdh_query_close $qh
@@ -341,7 +341,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         twapi::pdh_get_scalar $h -format large
     } -cleanup {
         twapi::pdh_query_close $qh
@@ -353,7 +353,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         twapi::pdh_get_scalar $h -format double
     } -cleanup {
         twapi::pdh_query_close $qh
@@ -365,7 +365,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         list [twapi::pdh_get_scalar $h -var v] [string is integer -strict $v]
     } -cleanup {
         twapi::pdh_query_close $qh
@@ -378,14 +378,14 @@ namespace eval twapi::pdh::test {
     } -body {
         # Specify an counter instance that does not exist
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "ID Process" -instance nosuchprocess]]
-        # Add one more valid counter else pdh_query_update will fail
+        # Add one more valid counter else pdh_query_refresh will fail
         # without at least one valid counter
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "ID Process" -instance Idle]
-        twapi::pdh_query_update $qh
-        twapi::pdh_get_scalar $h -var v
+        twapi::pdh_query_refresh $qh
+        list [catch {twapi::pdh_get_scalar $h -var v}] [errorcode]
     } -cleanup {
         twapi::pdh_query_close $qh
-    } -result 0
+    } -result {1 {TWAPI_WIN32 -1073738810}}
 
     test pdh_get_array-1.0 {
         pdh_get_array
@@ -393,7 +393,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "ID Process" -instance *] -array 1]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         set d [twapi::pdh_get_array $h]
         list [dict get $d Idle] [dict get $d System]
     } -cleanup {
@@ -406,7 +406,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "Handle Count" -instance *]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         set d [twapi::pdh_get_array $h -scale none]
         list [dict get $d Idle] [dict get $d System]
     } -cleanup {
@@ -419,7 +419,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "Handle Count" -instance *]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         set d [twapi::pdh_get_array $h -scale x1000]
         list [dict get $d Idle] [dict get $d System]
     } -cleanup {
@@ -432,7 +432,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "Handle Count" -instance *]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         set d [twapi::pdh_get_array $h -scale nocap100]
         list [dict get $d Idle] [dict get $d System]
     } -cleanup {
@@ -446,7 +446,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "Handle Count" -instance *]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         set d [twapi::pdh_get_array $h -format long]
         list [dict get $d Idle] [dict get $d System]
     } -cleanup {
@@ -459,7 +459,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "Handle Count" -instance *]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         set d [twapi::pdh_get_array $h -format large]
         list [dict get $d Idle] [dict get $d System]
     } -cleanup {
@@ -472,7 +472,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "Handle Count" -instance *]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         set d [twapi::pdh_get_array $h -format double]
         list [dict get $d Idle] [dict get $d System]
     } -cleanup {
@@ -486,7 +486,7 @@ namespace eval twapi::pdh::test {
         unset -nocomplain v
     } -body {
         set h [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "ID Process" -instance *]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         list [twapi::pdh_get_array $h -var v] [dict get $v Idle] [dict get $v System]
     } -cleanup {
         twapi::pdh_query_close $qh
@@ -500,7 +500,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -cleanup {
         twapi::pdh_query_close $qh
-    } -result pdh#\\d+ -match regexp
+    } -result pdh\\d+ -match regexp
 
     test pdh_query_close-1.0 {
         Close a PDH query
@@ -509,7 +509,7 @@ namespace eval twapi::pdh::test {
         set pdh_handle [dict get $::twapi::_pdh_queries($qh) Qh]
     } -body {
         twapi::pdh_query_close $qh
-        list [catch {twapi::pdh_query_close $qh} msg] [regexp {Invalid query id pdh#\d+} $msg] \
+        list [catch {twapi::pdh_query_close $qh} msg] [regexp {Invalid query id pdh\d+} $msg] \
             [catch {twapi::PdhCloseQuery $pdh_handle}] [errorcode]
     } -result {1 1 1 {TWAPI_WIN32 -1073738820}}
 
@@ -523,7 +523,7 @@ namespace eval twapi::pdh::test {
         set count [twapi::PdhGetFormattedCounterValue $ctr_handle 0x400]
         twapi::pdh_query_close $qh
         list [catch {twapi::pdh_query_close $qh} msg] \
-            [regexp {Invalid query id pdh#\d+} $msg] \
+            [regexp {Invalid query id pdh\d+} $msg] \
             [regexp {^\d+$} $count] \
             [catch {twapi::PdhGetFormattedCounterValue $ctr_handle 0x400}] \
             [errorcode] \
@@ -537,7 +537,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set ctr_handle [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         twapi::PdhGetFormattedCounterValue $ctr_handle 0x400
     } -cleanup {
         twapi::pdh_query_close $qh
@@ -549,7 +549,7 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         set ctr_handle [twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events] -name eventcount]
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         twapi::PdhGetFormattedCounterValue $ctr_handle 0x200
     } -cleanup {
         twapi::pdh_query_close $qh
@@ -561,7 +561,6 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events]
-        twapi::pdh_query_update $qh
         set d [twapi::pdh_query_get $qh]
         list [dict size $d] [string is wide -strict [dict get $d \\Objects\\Events]]
     } -cleanup {
@@ -585,7 +584,6 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events] -name eventcount
-        twapi::pdh_query_update $qh
         set d [twapi::pdh_query_get $qh]
         list [dict size $d] [string is wide -strict [dict get $d eventcount]]
     } -cleanup {
@@ -612,7 +610,6 @@ namespace eval twapi::pdh::test {
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events] -name eventcount
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events] -name eventcountdbl -format double
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Semaphores] -name semaphorecount -format long
-        twapi::pdh_query_update $qh
         set d [twapi::pdh_query_get $qh]
         list [dict size $d] \
             [string is wide -strict [dict get $d \\Objects\\Events]] \
@@ -632,7 +629,6 @@ namespace eval twapi::pdh::test {
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events] -name eventcount
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events] -name eventcountdbl -format double
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Semaphores] -name semaphorecount -format long
-        twapi::pdh_query_update $qh
         set d [twapi::pdh_query_get $qh]
         list [dict size $d] \
             [string is wide -strict [dict get $d \\Objects\\Events]] \
@@ -649,7 +645,6 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_query_open]
     } -body {
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Process "ID Process" -instance *] -array 1 -name pids
-        twapi::pdh_query_update $qh
         set d [twapi::pdh_query_get $qh]
         list [dict get $d pids System] [dict get $d pids Idle]
     } -cleanup {
@@ -663,7 +658,6 @@ namespace eval twapi::pdh::test {
     } -body {
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events] -name eventcount
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Objects Events] -name eventcountscaled -scale x1000
-        twapi::pdh_query_update $qh
         set d [twapi::pdh_query_get $qh]
         expr {[dict get $d eventcount]*1000 == [dict get $d eventcountscaled]}
     } -cleanup {
@@ -678,9 +672,8 @@ namespace eval twapi::pdh::test {
         # TBD - what counter has a default scaling that will be disabled with -scale none ?
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Processor "% Idle Time" -instance _Total] -name idle
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Processor "% Idle Time" -instance _Total] -name idlescaled -scale none
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         after 1000
-        twapi::pdh_query_update $qh
         set d [twapi::pdh_query_get $qh]
         expr {[dict get $d idle] == [dict get $d idlescaled]}
     } -cleanup {
@@ -695,9 +688,8 @@ namespace eval twapi::pdh::test {
         # TBD - how to force values over 100 ?
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Processor "% Idle Time" -instance _Total] -name idle
         twapi::pdh_add_counter $qh [twapi::pdh_counter_path Processor "% Idle Time" -instance _Total] -name idlescaled -scale nocap100
-        twapi::pdh_query_update $qh
+        twapi::pdh_query_refresh $qh
         after 1000
-        twapi::pdh_query_update $qh
         set d [twapi::pdh_query_get $qh]
         expr {[dict get $d idle] == [dict get $d idlescaled]}
     } -cleanup {
@@ -710,7 +702,6 @@ namespace eval twapi::pdh::test {
     } -setup {
         set qh [twapi::pdh_system_performance_query commit_limit idle_utilization]
         after 1000
-        twapi::pdh_query_update $qh
     } -body {
         set d [twapi::pdh_query_get $qh]
         list [dict size $d] [string is wide [dict get $d commit_limit]] [string is double [dict get $d idle_utilization]]
@@ -723,7 +714,6 @@ namespace eval twapi::pdh::test {
     } -setup {
         set qh [twapi::pdh_system_performance_query section_count commit_limit idle_utilization]
         after 1000
-        twapi::pdh_query_update $qh 
     } -body {
         set d [twapi::pdh_query_get $qh section_count idle_utilization]
         list [dict size $d] [string is wide [dict get $d section_count]] [string is double [dict get $d idle_utilization]]
@@ -735,18 +725,17 @@ namespace eval twapi::pdh::test {
         pdh_system_performance_query with no args
     } -body {
         lsort [twapi::pdh_system_performance_query]
-    } -result {commit_limit committed_bytes committed_percent event_count handle_count idle_utilization idle_utilization_per_cpu interrupt_utilization interrupt_utilization_per_cpu memory_free_kb mutex_count page_fault_rate page_input_rate page_output_rate privileged_utilization privileged_utilization_per_cpu process_count processor_utilization processor_utilization_per_cpu section_count semaphore_count thread_count user_utilization user_utilization_per_cpu}
+    } -result {commit_limit committed_bytes committed_percent disk_bytes_rate disk_read_rate disk_readbytes_rate disk_transfer_rate disk_write_rate disk_writebytes_rate event_count handle_count idle_utilization idle_utilization_per_cpu interrupt_utilization interrupt_utilization_per_cpu memory_free_kb mutex_count page_fault_rate page_input_rate page_output_rate privileged_utilization privileged_utilization_per_cpu process_count processor_utilization processor_utilization_per_cpu section_count semaphore_count thread_count user_utilization user_utilization_per_cpu}
 
     test pdh_system_performance_query-2.0 {
         pdh_system_performance_query with all args
     } -body {
         set qh [twapi::pdh_system_performance_query {*}[twapi::pdh_system_performance_query]]
         after 1000
-        twapi::pdh_query_update $qh
         lsort [dict keys [twapi::pdh_query_get $qh]]
     } -cleanup {
         twapi::pdh_query_close $qh
-    } -result {commit_limit committed_bytes committed_percent event_count handle_count idle_utilization idle_utilization_per_cpu interrupt_utilization interrupt_utilization_per_cpu memory_free_kb mutex_count page_fault_rate page_input_rate page_output_rate privileged_utilization privileged_utilization_per_cpu process_count processor_utilization processor_utilization_per_cpu section_count semaphore_count thread_count user_utilization user_utilization_per_cpu}
+    } -result {commit_limit committed_bytes committed_percent disk_bytes_rate disk_read_rate disk_readbytes_rate disk_transfer_rate disk_write_rate disk_writebytes_rate event_count handle_count idle_utilization idle_utilization_per_cpu interrupt_utilization interrupt_utilization_per_cpu memory_free_kb mutex_count page_fault_rate page_input_rate page_output_rate privileged_utilization privileged_utilization_per_cpu process_count processor_utilization processor_utilization_per_cpu section_count semaphore_count thread_count user_utilization user_utilization_per_cpu}
 
     test pdh_system_performance_query-3.0 {
         pdh_system_performance_query -commit_limit
@@ -803,7 +792,6 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query idle_utilization]
         after 1000
-        twapi::pdh_query_update $qh
         lassign [twapi::pdh_query_get $qh] key val
         list [string equal idle_utilization $key] [string is double $val]
     } -cleanup {
@@ -815,7 +803,6 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query interrupt_utilization]
         after 1000
-        twapi::pdh_query_update $qh
         lassign [twapi::pdh_query_get $qh] key val
         list [string equal interrupt_utilization $key] [string is double $val]
     } -cleanup {
@@ -847,7 +834,6 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query page_fault_rate]
         after 1000
-        twapi::pdh_query_update $qh
         lassign [twapi::pdh_query_get $qh] key val
         list [string equal page_fault_rate $key] [string is double $val]
     } -cleanup {
@@ -859,7 +845,6 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query page_input_rate]
         after 1000
-        twapi::pdh_query_update $qh
         lassign [twapi::pdh_query_get $qh] key val
         list [string equal page_input_rate $key] [string is double $val]
     } -cleanup {
@@ -872,7 +857,6 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query page_output_rate]
         after 1000
-        twapi::pdh_query_update $qh
         lassign [twapi::pdh_query_get $qh] key val
         list [string equal page_output_rate $key] [string is double $val]
     } -cleanup {
@@ -884,7 +868,6 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query privileged_utilization]
         after 1000
-        twapi::pdh_query_update $qh
         lassign [twapi::pdh_query_get $qh] key val
         list [string equal privileged_utilization $key] [string is double $val]
     } -cleanup {
@@ -906,7 +889,6 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query processor_utilization]
         after 1000
-        twapi::pdh_query_update $qh
         lassign [twapi::pdh_query_get $qh] key val
         list [string equal processor_utilization $key] [string is double $val]
     } -cleanup {
@@ -948,7 +930,6 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query user_utilization]
         after 1000
-        twapi::pdh_query_update $qh
         lassign [twapi::pdh_query_get $qh] key val
         list [string equal user_utilization $key] [string is double $val]
     } -cleanup {
@@ -960,7 +941,6 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query idle_utilization_per_cpu]
         after 1000
-        twapi::pdh_query_update $qh
         lassign [twapi::pdh_query_get $qh] key val
         list [string equal idle_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
     } -cleanup {
@@ -972,7 +952,6 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query processor_utilization_per_cpu]
         after 1000
-        twapi::pdh_query_update $qh
         lassign [twapi::pdh_query_get $qh] key val
         list [string equal processor_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
     } -cleanup {
@@ -984,7 +963,6 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query interrupt_utilization_per_cpu]
         after 1000
-        twapi::pdh_query_update $qh
         lassign [twapi::pdh_query_get $qh] key val
         list [string equal interrupt_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
     } -cleanup {
@@ -996,7 +974,6 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query privileged_utilization_per_cpu]
         after 1000
-        twapi::pdh_query_update $qh
         lassign [twapi::pdh_query_get $qh] key val
         list [string equal privileged_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
     } -cleanup {
@@ -1008,7 +985,6 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query user_utilization_per_cpu]
         after 1000
-        twapi::pdh_query_update $qh
         lassign [twapi::pdh_query_get $qh] key val
         list [string equal user_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
     } -cleanup {

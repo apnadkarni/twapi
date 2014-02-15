@@ -152,7 +152,7 @@ proc twapi::pdh_counter_path_value {counter_path args} {
     set hquery [pdh_query_open -datasource $opts(datasource)]
     trap {
         set hcounter [pdh_add_counter $hquery $counter_path]
-        pdh_query_update $hquery
+        pdh_query_refresh $hquery
         if {[string length $opts(var)]} {
             # Need to pass up value in a variable if so requested
             upvar $opts(var) myvar
@@ -573,7 +573,7 @@ proc twapi::get_perf_counter_paths {object counters counter_values args} {
         }
 
         # Now collect the info
-        pdh_query_update $hquery
+        pdh_query_refresh $hquery
         
         # Now lookup each counter value to find a matching one
         foreach hcounter [array names lookup] {
@@ -728,10 +728,10 @@ proc twapi::get_perf_values_from_metacounter_info {metacounters args} {
                 lappend counter_info $pdh_opt $key $counter_path $data_type $hcounter
             }
             
-            pdh_query_update $hquery
+            pdh_query_refresh $hquery
             if {$need_wait} {
                 after $opts(interval)
-                pdh_query_update $hquery
+                pdh_query_refresh $hquery
             }
             
             foreach {pdh_opt key counter_path data_type hcounter} $counter_info {
@@ -759,14 +759,14 @@ proc twapi::pdh_query_open {args} {
     } -nulldefault]
 
     set qh [PdhOpenQuery $opts(datasource) $opts(cookie)]
-    set id pdh#[TwapiId]
+    set id pdh[TwapiId]
     dict set _pdh_queries($id) Qh $qh
     dict set _pdh_queries($id) Counters {}
     dict set _pdh_queries($id) Meta {}
     return $id
 }
 
-proc twapi::pdh_query_update {qid args} {
+proc twapi::pdh_query_refresh {qid args} {
     variable _pdh_queries
     _pdh_query_check $qid
     PdhCollectQueryData [dict get $_pdh_queries($qid) Qh]
@@ -834,10 +834,15 @@ proc twapi::pdh_remove_counter {qid ctrname} {
 
 proc twapi::pdh_query_get {qid args} {
     variable _pdh_queries
+
     _pdh_query_check $qid
 
+    # Refresh the data
+    PdhCollectQueryData [dict get $_pdh_queries($qid) Qh]
+
     set meta [dict get $_pdh_queries($qid) Meta]
-    if {[llength $args]} {
+
+    if {[llength $args] != 0} {
         set names $args
     } else {
         set names [dict keys $meta]
@@ -859,20 +864,27 @@ twapi::proc* twapi::pdh_system_performance_query args {
     variable _sysperf_defs
 
     set _sysperf_defs {
-        event_count { {Objects Events} {-format large} }
-        mutex_count { {Objects Mutexes} {-format large} }
-        process_count { {Objects Processes} {-format large} }
-        section_count { {Objects Sections} {-format large} }
-        semaphore_count { {Objects Semaphores} {-format large} }
-        thread_count { {Objects Threads} {-format large} }
+        event_count { {Objects Events} {} }
+        mutex_count { {Objects Mutexes} {} }
+        process_count { {Objects Processes} {} }
+        section_count { {Objects Sections} {} }
+        semaphore_count { {Objects Semaphores} {} }
+        thread_count { {Objects Threads} {} }
         handle_count { {Process "Handle Count" -instance _Total} {-format long} }
-        commit_limit { {Memory "Commit Limit"} {-format large} }
-        committed_bytes { {Memory "Committed Bytes"} {-format large} }
+        commit_limit { {Memory "Commit Limit"} {} }
+        committed_bytes { {Memory "Committed Bytes"} {} }
         committed_percent { {Memory "% Committed Bytes In Use"} {-format double} }
-        memory_free_kb { {Memory "Available KBytes"} {-format large} }
+        memory_free_kb { {Memory "Available KBytes"} {} }
         page_fault_rate { {Memory "Page Faults/sec"} {-format double} }
         page_input_rate { {Memory "Pages Input/sec"} {-format double} }
         page_output_rate { {Memory "Pages Output/sec"} {-format double} }
+
+        disk_bytes_rate { {PhysicalDisk "Disk Bytes/sec" -instance _Total} {} }
+        disk_readbytes_rate { {PhysicalDisk "Disk Read Bytes/sec" -instance _Total} {} }
+        disk_writebytes_rate { {PhysicalDisk "Disk Write Bytes/sec" -instance _Total} {} }
+        disk_transfer_rate { {PhysicalDisk "Disk Transfers/sec" -instance _Total} {} }
+        disk_read_rate { {PhysicalDisk "Disk Reads/sec" -instance _Total} {} }
+        disk_write_rate { {PhysicalDisk "Disk Writes/sec" -instance _Total} {} }
     }
 
     # Per-processor counters are based on above but the object name depends
@@ -909,7 +921,7 @@ twapi::proc* twapi::pdh_system_performance_query args {
             set ctr_path [pdh_counter_path {*}[lindex $def 0]]
             pdh_add_counter $qid $ctr_path -name $arg {*}[lindex $def 1]
         }
-        pdh_query_update $qid
+        pdh_query_refresh $qid
     } onerror {} {
         pdh_query_close $qid
         rethrow
