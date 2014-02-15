@@ -6,6 +6,11 @@
  */
 
 /* Interface to CryptoAPI */
+/*
+ * TBD - GetCryptProvFromCert, CryptVerifyCertificateSignature(Ex),
+ * TBD - CryptQueryObject, CryptRetrieveObjectByUrl, Crypt(Ex|Im)portKey
+ */
+
 
 #include "twapi.h"
 #include "twapi_crypto.h"
