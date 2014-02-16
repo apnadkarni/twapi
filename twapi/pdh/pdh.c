@@ -124,12 +124,10 @@ int Twapi_PdhEnumObjectItems(TwapiInterpContext *ticP,
     DWORD  counter_buf_size;
     WCHAR *instance_buf;
     DWORD  instance_buf_size;
-    Tcl_Obj *objs[2];           /* 0 - counter, 1 - instance */
+    TCL_RESULT res;
     
     counter_buf = NULL;
     instance_buf = NULL;
-    objs[0] = NULL;
-    objs[1] = NULL;
 
     /*
      * First make a call to figure out how much space is required.
@@ -140,7 +138,7 @@ int Twapi_PdhEnumObjectItems(TwapiInterpContext *ticP,
     instance_buf_size = 0;
     pdh_status = PdhEnumObjectItemsW(
         szDataSource ,szMachineName, szObjectName, NULL, &counter_buf_size,
-        NULL, &instance_buf_size, dwDetailLevel, dwFlags);
+        NULL, &instance_buf_size, dwDetailLevel, 0);
 
     if ((pdh_status != ERROR_SUCCESS) && (pdh_status != PDH_MORE_DATA)) {
         return Twapi_AppendSystemError(ticP->interp, pdh_status);
@@ -157,24 +155,55 @@ int Twapi_PdhEnumObjectItems(TwapiInterpContext *ticP,
         szDataSource ,szMachineName, szObjectName,
         counter_buf, &counter_buf_size,
         instance_buf, &instance_buf_size,
-        dwDetailLevel, dwFlags);
+        dwDetailLevel, 0);
         
-    if (pdh_status == ERROR_SUCCESS) {
+
+    if (pdh_status != ERROR_SUCCESS)
+        res = Twapi_AppendSystemError(ticP->interp, pdh_status);
+    {
+        Tcl_Obj *objs[2];
+        Tcl_Obj *objP;
+        
         /*
-         * Format and return as a list of two lists if both counters and
-         * instances are present, else a list of one list in only counters
-         * are present.
-         */ 
-        objs[0] = ObjFromMultiSz(counter_buf, counter_buf_size);
-        if (instance_buf_size)
-            objs[1] = ObjFromMultiSz(instance_buf, instance_buf_size);
-        ObjSetResult(ticP->interp,
-                         ObjNewList((instance_buf_size ? 2 : 1), objs));
+         * flags == 1 => return counter names
+         * flags == 2 => return instance names
+         * flags == * => return both
+         */
+
+        res = TCL_OK;
+        objP = NULL;
+        switch (dwFlags) {
+        case 1:
+            objP = ObjFromMultiSz(counter_buf, counter_buf_size);
+            break;
+        case 2:
+            /* Note there is a difference between an object has no *current*
+               instances versus one that CANNOT have instances (e.g. Memory) */
+            if (instance_buf_size)
+                objP = ObjFromMultiSz(instance_buf, instance_buf_size);
+            else {
+                objP = ObjFromUnicode(szObjectName);
+                Tcl_AppendPrintfToObj(objP, " performance object does not support instances");
+                res = TCL_ERROR;
+            }                
+            break;
+        default:
+            objs[0] = ObjFromMultiSz(counter_buf, counter_buf_size);
+            /* Note there is a difference between an object has no *current*
+               instances versus one that CANNOT have instances (e.g. Memory) */
+            if (instance_buf_size)
+                objs[1] = ObjFromMultiSz(instance_buf, instance_buf_size);
+            objP = ObjNewList(instance_buf_size ? 2 : 1, objs);
+            break;
+        }
+
+        if (objP)
+            ObjSetResult(ticP->interp, objP);
+        /* else empty result or already filled */
     }
 
     MemLifoPopFrame(ticP->memlifoP);
-    return pdh_status == ERROR_SUCCESS ?
-        TCL_OK : Twapi_AppendSystemError(ticP->interp, pdh_status);
+    return res;
 }
 
 
