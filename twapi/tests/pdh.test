@@ -107,6 +107,46 @@ namespace eval twapi::pdh::test {
         list [expr {[llength $l_l2] > 0}] $l2_l
     } -result {1 {}}
 
+    test pdh_enumerate_object_instances-1.0 {
+        pdh_enumerate_object_instances
+    } -body {
+        set l [twapi::pdh_enumerate_object_instances process]
+        expr {[llength [lsearch -all $l svchost*]] > 1}
+    } -result 1
+
+    test pdh_enumerate_object_instances-1.1 {
+        pdh_enumerate_object_instances -refresh
+    } -body {
+        set l [twapi::pdh_enumerate_object_instances process -refresh]
+        expr {[llength [lsearch -all $l svchost*]] > 1}
+    } -result 1
+
+    test pdh_enumerate_object_instances-2.0 {
+        pdh_enumerate_object_instances -detail wizard
+    } -body {
+        set l [twapi::pdh_enumerate_object_instances process -detail wizard]
+        expr {[llength [lsearch -all $l svchost*]] > 1}
+    } -result 1
+
+    test pdh_enumerate_object_instances-3.0 {
+        pdh_enumerate_object_instances -detail expert
+    } -body {
+        set l [twapi::pdh_enumerate_object_instances process -detail expert]
+        expr {[llength [lsearch -all $l svchost*]] > 1}
+    } -result 1
+    test pdh_enumerate_object_instances-4.0 {
+        pdh_enumerate_object_instances -detail advanced
+    } -body {
+        set l [twapi::pdh_enumerate_object_instances process -detail advanced]
+        expr {[llength [lsearch -all $l svchost*]] > 1}
+    } -result 1
+    test pdh_enumerate_object_instances-5.0 {
+        pdh_enumerate_object_instances -detail novice
+    } -body {
+        set l [twapi::pdh_enumerate_object_instances process -detail novice]
+        expr {[llength [lsearch -all $l svchost*]] > 1}
+    } -result 1
+
     test pdh_enumerate_object_items-1.0 {
         pdh_enumerate_object_items
     } -body {
@@ -120,6 +160,13 @@ namespace eval twapi::pdh::test {
         set l [twapi::pdh_enumerate_object_items process -refresh]
         list [llength $l] [expr {"Thread Count" in [lindex $l 0]}] [expr {"svchost" in [lindex $l 1]}]
     } -result {2 1 1}
+
+    test pdh_enumerate_object_items-1.2 {
+        pdh_enumerate_object_items - instances not supported
+    } -body {
+        set l [twapi::pdh_enumerate_object_items Memory]
+        list [llength $l] [expr {"Available Bytes" in [lindex $l 0]}]
+    } -result {1 1}
 
     test pdh_enumerate_object_items-2.0 {
         pdh_enumerate_object_items wizard
@@ -158,6 +205,66 @@ namespace eval twapi::pdh::test {
         set l2_l [setops::diff [lindex $l2 0] [lindex $l 0]]
         list [llength $l2] [expr {[llength $l_l2] >= 0}] $l2_l
     } -result {2 1 {}}
+
+
+    test pdh_enumerate_object_counters-1.0 {
+        pdh_enumerate_object_counters
+    } -body {
+        set l [twapi::pdh_enumerate_object_counters process]
+        expr {"Thread Count" in $l}
+    } -result 1
+
+    test pdh_enumerate_object_counters-1.1 {
+        pdh_enumerate_object_counters
+    } -body {
+        set l [twapi::pdh_enumerate_object_counters process -refresh]
+        expr {"Thread Count" in $l}
+    } -result 1
+
+    test pdh_enumerate_object_counters-1.2 {
+        pdh_enumerate_object_counters - instances not supported
+    } -body {
+        set l [twapi::pdh_enumerate_object_counters Memory]
+        expr {"Available Bytes" in $l}
+    } -result 1
+
+    test pdh_enumerate_object_counters-2.0 {
+        pdh_enumerate_object_counters wizard
+    } -body {
+        set l [twapi::pdh_enumerate_object_counters process]
+        set l2 [twapi::pdh_enumerate_object_counters process -detail wizard]
+        list [setops::diff $l $l2] [setops::diff $l2 $l]
+    } -result {{} {}}
+
+    test pdh_enumerate_object_counters-3.0 {
+        pdh_enumerate_object_counters expert
+    } -body {
+        set l [twapi::pdh_enumerate_object_counters process]
+        set l2 [twapi::pdh_enumerate_object_counters process -detail expert]
+        set l_l2 [setops::diff $l $l2]
+        set l2_l [setops::diff $l2 $l]
+        list [expr {[llength $l_l2] >= 0}] $l2_l
+    } -result {1 {}}
+
+    test pdh_enumerate_object_counters-4.0 {
+        pdh_enumerate_object_counters 
+    } -body {
+        set l [twapi::pdh_enumerate_object_counters process -detail expert]
+        set l2 [twapi::pdh_enumerate_object_counters process -detail advanced]
+        set l_l2 [setops::diff $l $l2]
+        set l2_l [setops::diff $l2 $l]
+        list [expr {[llength $l_l2] >= 0}] $l2_l
+    } -result {1 {}}
+
+    test pdh_enumerate_object_counters-5.0 {
+        pdh_enumerate_object_counters 
+    } -body {
+        set l [twapi::pdh_enumerate_object_counters process -detail advanced]
+        set l2 [twapi::pdh_enumerate_object_counters process -detail novice]
+        set l_l2 [setops::diff [lindex $l 0] [lindex $l2 0]]
+        set l2_l [setops::diff [lindex $l2 0] [lindex $l 0]]
+        list [expr {[llength $l_l2] >= 0}] $l2_l
+    } -result {1 {}}
 
     test pdh_counter_path-1.0 {
         Perfobj ctrname

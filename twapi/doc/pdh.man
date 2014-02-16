@@ -13,9 +13,11 @@ performance counters.
 [section "Performance Objects"]
 To get a list of performance objects on a system, call
 [uri #pdh_enumerate_objects [cmd pdh_enumerate_objects]].
-The specific counters supported by an object and the list of its instances
-is returned by
-[uri #pdh_enumerate_object_items [cmd pdh_enumerate_object_items]].
+Commands
+[uri #pdh_enumerate_object_counters [cmd pdh_enumerate_object_counters]],
+[uri #pdh_enumerate_object_instances [cmd pdh_enumerate_object_instances]] and
+[uri #pdh_enumerate_object_items [cmd pdh_enumerate_object_items]] return
+the counters and instances for a particular performance object.
 
 [section "Counter Paths"]
 
@@ -179,10 +181,27 @@ Specifying [cmd -refresh] causes the cache to be refreshed
 before being returned.
 [list_end]
 
+[call [cmd pdh_enumerate_object_counters] [arg PERFOBJ] [opt [arg options]]]
+Returns a list of the names of counters present in the performance
+object [arg PERFOBJ]. See 
+[uri #pdh_enumerate_object_items [cmd pdh_enumerate_object_items]]
+for valid options.
+
+[call [cmd pdh_enumerate_object_instances] [arg PERFOBJ] [opt [arg options]]]
+Returns a list of the names of instances of the performance
+object [arg PERFOBJ]. The list may be empty if the object supports
+instances but none are present. The command raises an error
+if [arg PERFOBJ] does not support instances at all.
+See [uri #pdh_enumerate_object_items [cmd pdh_enumerate_object_items]]
+for valid options.
+
 [call [cmd pdh_enumerate_object_items] [arg PERFOBJ] [opt [arg options]]]
-Returns a list of two elements, the first being a list of counter names
-for the performance object [arg PERFOBJ] and the second being the
-list of instance names for object.
+Returns a list of one or two elements, the first being a list of counter names
+for the performance object [arg PERFOBJ]. If the performance object
+does not support instances, the returned list contains only that element.
+Otherwise, the second element is the
+list of instance names for object. This may be empty in the case
+the performance object supports instances but none are present.
 The following options may be specified:
 [list_begin opt]
 [opt_def [cmd -detail] [arg DETAILLEVEL]]

@@ -32,9 +32,7 @@ proc twapi::pdh_enumerate_objects {args} {
                 $opts(refresh)]
 }
 
-#
-# Return list of items within a performance object
-proc twapi::pdh_enumerate_object_items {objname args} {
+proc twapi::_pdh_enumerate_object_items_helper {selector objname args} {
     array set opts [parseargs args {
         datasource.arg
         machine.arg
@@ -49,8 +47,13 @@ proc twapi::pdh_enumerate_object_items {objname args} {
     return [PdhEnumObjectItems $opts(datasource) $opts(machine) \
                 $objname \
                 [_perf_detail_sym_to_val $opts(detail)] \
-                0]
+                $selector]
 }
+
+interp alias {} twapi::pdh_enumerate_object_items {} twapi::_pdh_enumerate_object_items_helper 0
+interp alias {} twapi::pdh_enumerate_object_counters {} twapi::_pdh_enumerate_object_items_helper 1
+interp alias {} twapi::pdh_enumerate_object_instances {} twapi::_pdh_enumerate_object_items_helper 2
+
 
 #
 # Construct a counter path
