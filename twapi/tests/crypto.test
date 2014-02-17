@@ -17,7 +17,14 @@ namespace eval twapi::crypto::test {
     namespace import ::tcltest::test
 
     proc openssl {args} {
-        return [exec ../../tools/openssl/bin/openssl.exe {*}$args 2>@1]
+        set cmd [auto_execok openssl.exe]
+        if {[llength $cmd] == 0} {
+            # Try from the source pool. We do it this way because 
+            # of problems loading in VmWare virtual machines from the
+            # host's drive share
+            set cmd [list ../../tools/openssl/bin/openssl.exe]
+        }
+        return [exec {*}$cmd {*}$args 2>@1]
     }
 
     proc setup_contexts {package} {
@@ -296,7 +303,7 @@ namespace eval twapi::crypto::test {
         set count
     } -cleanup {
         twapi::cert_store_release $hstore
-    } -result 6
+    } -result 7
 
     test cert_temporary_store-pfx-1.1 {
         Open a PFX certificate store with non empty password, no private keys
@@ -309,7 +316,7 @@ namespace eval twapi::crypto::test {
         set count
     } -cleanup {
         twapi::cert_store_release $hstore
-    } -result 6
+    } -result 7
 
     test cert_temporary_store-pfx-2.0 {
         Import a certificate store with password and private keys
@@ -321,7 +328,7 @@ namespace eval twapi::crypto::test {
             incr count
         }
         set count
-    } -result 6
+    } -result 7
 
     test cert_temporary_store-pfx-3.0 {
         Import a certificate store -exportableprivatekeys
@@ -354,7 +361,7 @@ namespace eval twapi::crypto::test {
             incr count
         }
         set count
-    } -result 6
+    } -result 7
 
     test cert_temporary_store-serialized-1.0 {
         Open a serialized certificate store
@@ -365,7 +372,7 @@ namespace eval twapi::crypto::test {
             incr count
         }
         set count
-    } -result 6
+    } -result 7
 
     test cert_temporary_store-pkcs7-1.0 {
         Open a PKCS7 certificate store
@@ -374,7 +381,7 @@ namespace eval twapi::crypto::test {
         set count 0
         twapi::cert_store_iterate $hstore hcert { incr count }
         set count
-    } -result 6
+    } -result 7
 
     test cert_temporary_store-pkcs7-1.1 {
         Open a PKCS7 certificate store (der)
@@ -383,7 +390,7 @@ namespace eval twapi::crypto::test {
         set count 0
         twapi::cert_store_iterate $hstore hcert { incr count }
         set count
-    } -result 6
+    } -result 7
 
     test cert_temporary_store-pkcs7-1.2 {
         Open a PKCS7 certificate store (pem)
@@ -392,7 +399,7 @@ namespace eval twapi::crypto::test {
         set count 0
         twapi::cert_store_iterate $hstore hcert { incr count }
         set count
-    } -result 6
+    } -result 7
 
 
     ################################################################
@@ -715,12 +722,21 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    foreach loc [concat {user users service services localmachine localmachineenterprise localmachinegrouppolicy usergrouppolicy} [twapi::cert_system_store_locations]] {
+    foreach loc [concat {user users service localmachine localmachineenterprise localmachinegrouppolicy usergrouppolicy} [twapi::cert_system_store_locations]] {
         test "cert_system_stores-$loc-1.0" {
             Get system store list
         } -body [format {
-            set stores [twapi::cert_system_stores %s]
-            expr {"My" in $stores && "CA" in $stores && "Root" in $stores}
+            if {[catch {
+                set stores [twapi::cert_system_stores %s]
+            }]} {
+                expr {[lindex $::errorCode 0] eq "TWAPI_WIN32" &&
+                      [lindex $::errorCode 1] == 2}
+            } else {
+                # For Users store, list is SID/My etc.
+                expr {[lsearch $stores *My] >= 0 &&
+                      [lsearch $stores *CA] >= 0 &&
+                      [lsearch $stores *Root] >= 0}
+            }
         } $loc] -result 1
     }
 
@@ -1428,7 +1444,7 @@ namespace eval twapi::crypto::test {
         set path [write_test_file [twapi::cert_store_export_pfx [storewithkeys] [twapi::conceal pkcspass] -exportprivatekeys false]]
         set output [openssl pkcs12 -in $path -info -passin pass:pkcspass -noout]
         list [llength [regexp -all -inline "Shrouded Keybag" $output]] [llength [regexp -all -inline "Certificate bag" $output]] 
-    } -result {0 6}
+    } -result {0 7}
 
     test cert_store_export_pfx-3.2 {
         Export a certificate store with password - -exportprivatekeys 1, openssl
@@ -1436,7 +1452,7 @@ namespace eval twapi::crypto::test {
         set path [write_test_file [twapi::cert_store_export_pfx [storewithkeys] [twapi::conceal pkcspass] -exportprivatekeys 1]]
         set output [openssl pkcs12 -in $path -info -passin pass:pkcspass -noout]
         list [llength [regexp -all -inline "Shrouded Keybag" $output]] [llength [regexp -all -inline "Certificate bag" $output]] 
-    } -result {6 6}
+    } -result {7 7}
 
     test cert_store_export_pfx-4.0 {
         Export a certificate store -failonmissingkey
@@ -1463,7 +1479,7 @@ namespace eval twapi::crypto::test {
         set path [write_test_file [twapi::cert_store_export_pkcs12 [storewithkeys] [twapi::conceal pkcspass] -exportprivatekeys 1]]
         set output [openssl pkcs12 -in $path -info -passin pass:pkcspass -noout]
         list [llength [regexp -all -inline "Shrouded Keybag" $output]] [llength [regexp -all -inline "Certificate bag" $output]] 
-    } -result {6 6}
+    } -result {7 7}
 
     ################################################################
 
@@ -1541,7 +1557,7 @@ namespace eval twapi::crypto::test {
         twapi::cert_subject_name $hcert -name dns
     } -cleanup {
         twapi::cert_release $hcert
-    } -result twapitestfull.twapitest.com
+    } -result full.twapitest.com
 
     test cert_subject_name-1.2 {
         Get certificate subject -name email
@@ -2493,7 +2509,7 @@ namespace eval twapi::crypto::test {
         twapi::cert_thumbprint $cert
     } -cleanup {
         twapi::cert_release $cert
-    } -result 6c4dc7e773dba9bbe680d66554b6cfd595cc4c0c
+    } -result 937b877cbbfd4fcbe18f80ffa198cee2cae3c463
 
     ################################################################
 
