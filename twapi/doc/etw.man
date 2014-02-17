@@ -205,13 +205,15 @@ an ETW controller.
 
 [list_begin definitions]
 
-[call [cmd etw_disable_trace_provider] [arg SESSIONHANDLE] [arg GUID]]
+[call [cmd etw_disable_trace_provider] [arg TRACEHANDLE] [arg GUID]]
 Removes the provider identified by [arg GUID] 
-from logging to the trace session specified by [arg SESSIONHANDLE].
+from logging to the trace session specified by [arg TRACEHANDLE]
+(as returned by [uri #etw_start_trace [cmd etw_start_trace]]).
 
-[call [cmd etw_enable_trace_provider] [arg SESSIONHANDLE] [arg GUID] [arg ENABLEFLAGS] [arg LEVEL]]
+[call [cmd etw_enable_trace_provider] [arg TRACEHANDLE] [arg GUID] [arg ENABLEFLAGS] [arg LEVEL]]
 Enables a provider identified by [arg GUID] 
-to log to the trace session specified by [arg SESSIONHANDLE].
+to log to the trace session specified by [arg TRACEHANDLE]
+(as returned by [uri #etw_start_trace [cmd etw_start_trace]]).
 [nl]
 [arg ENABLEFLAGS] is an integer bitmask that indicates to the provider which
 classes of events are to be logged. The specific bits depend on the provider.
@@ -224,57 +226,58 @@ at [arg LEVEL] and below. Levels 1 through 5 can also be denoted as
 [const fatal], [const error], [const warning], [const informational]
 and [const verbose] respectively.
 
-[call [cmd etw_flush_trace] [opt [arg options]]]
+[call [cmd etw_flush_trace] [arg TRACE] [opt [arg options]]]
 Flushes the buffers belonging to a tracing session.
-The session may be specified either by its name 
-or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]])
-through the options [cmd -sessionname] and [cmd -sessionhandle]
-respectively.
+The trace [arg TRACE] may be specified either by its name
+or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]]).
 
-[call [cmd etw_query_trace] [opt [arg options]]]
+[call [cmd etw_query_trace] [arg TRACE]]
 Returns a dictionary containing a trace session's settings and status.
-The session may be specified either by its name 
-or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]])
-through the options [cmd -sessionname] and [cmd -sessionhandle]
-respectively. The returned dictionary has the following fields:
-
+The trace [arg TRACE] may be specified either by its name
+or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]]).
+The returned dictionary has the following keys 
+(any additional keys should be ignored and not relied on being present):
 [list_begin opt]
-[opt_def [cmd -buffersize]]
+[opt_def [cmd buffer_size]]
 Size of the buffers for the session.
-[opt_def [cmd -bufferswritten]]
+[opt_def [cmd buffers_written]]
 Number of buffers flushed.
-[opt_def [cmd -clockresolution]]
+[opt_def [cmd clock_resolution]]
 One of [const qpc], [const system] or [const cpucycle] as described
 in [uri #etw_start_trace [cmd etw_start_trace]].
-[opt_def [cmd -eventslost]]
+[opt_def [cmd enable_flags]]
+The provider enable mask for the trace session. This is valid
+only for kernel trace sessions in which case it contains the enable
+mask for the kernel components.
+[opt_def [cmd events_lost]]
 Number of events lost in the session that were not recorded.
-[opt_def [cmd -flushtimer]]
+[opt_def [cmd flush_timer]]
 Number of seconds after which buffers are automatically flushed.
-[opt_def [cmd -freebuffers]]
+[opt_def [cmd free_buffers]]
 Number of free buffers in the trace session.
-[opt_def [cmd -logbufferslost]]
+[opt_def [cmd log_buffers_lost]]
 Number of buffers lost without being consumed.
-[opt_def [cmd -logfile]]
+[opt_def [cmd logfile]]
 The log file associated with the session.
-[opt_def [cmd -logfilemode]]
+[opt_def [cmd logfile_mode]]
 Bit flags indicating logging mode for the session.
-[opt_def [cmd -loggerthread]]
-Thread doing the logging for the session.
-[opt_def [cmd -maxbuffers]]
+[opt_def [cmd logger_tid]]
+Thread id of thread doing the logging for the session.
+[opt_def [cmd max_buffers]]
 Maximum number of buffers that can be allocated for the session.
-[opt_def [cmd -maxfilesize]]
+[opt_def [cmd max_file_size]]
 Maximum size specified for the file in megabytes.
-[opt_def [cmd -minbuffers]]
+[opt_def [cmd min_buffers]]
 Minimum number of buffers that can be allocated for the session.
-[opt_def [cmd -numbuffers]]
+[opt_def [cmd buffer_count]]
 Number of buffers in use.
-[opt_def [cmd -realtimebufferslost]]
+[opt_def [cmd real_time_buffers_lost]]
 Number of buffers used for real time tracing that could not be written
 to the log file.
-[opt_def [cmd -sessionguid]]
-The GUID associated with the session.
-[opt_def [cmd -sessionname]]
-The name of the session.
+[opt_def [cmd trace_guid]]
+The GUID associated with the trace session.
+[opt_def [cmd trace_name]]
+The name of the trace session.
 [list_end]
 
 [call [cmd etw_start_kernel_trace] [arg EVENTCLASSES] [opt [arg options]]]
@@ -325,9 +328,9 @@ options that may be specified. However, note [const rotate]
 is not a valid value for [cmd -filemode] for kernel traces
 and the [cmd -usepagedmemory] option must not be specified.
 
-[call [cmd etw_start_trace] [arg SESSIONNAME] [opt [arg options]]]
-Starts a new ETW trace session with the name [arg SESSIONNAME].
-Returns a pair consisting of a session handle and a dictionary
+[call [cmd etw_start_trace] [arg TRACENAME] [opt [arg options]]]
+Starts a new ETW trace session with the name [arg TRACENAME].
+Returns a pair consisting of a trace handle and a dictionary
 containing the event trace properties.
 [nl]
 The following
@@ -456,24 +459,20 @@ for setting access control on the session.
 For more details on the options, refer to the
 [uri http://msdn.microsoft.com/en-us/library/aa363802(v=vs.85).aspx "Windows SDK ETW documentation"].
 
-[call [cmd etw_stop_trace] [opt [arg options]]]
-Stops a tracing session. The session may be specified either by
-its name 
-or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]])
-through the options [cmd -sessionname] and [cmd -sessionhandle]
-respectively.
+[call [cmd etw_stop_trace] [arg TRACE]]
+Stops a tracing session. 
+The trace [arg TRACE] may be specified either by its name
+or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]]).
 [nl]
-The command returns a dictionary containing the properties of the stopped
-tracing session.
+The command returns a dictionary containing the stopped trace session's
+status in the same format as [uri #etw_query_trace [cmd etw_query_trace]].
 
-[call [cmd etw_update_trace] [opt [arg options]]]
+[call [cmd etw_update_trace] [arg TRACE] [opt [arg options]]]
 Updates the attributes associated with a session. If the session is inactive
 (e.g. from a log files without an associated active session), the command
 has no effect.
-The session may be specified either by its name 
-or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]])
-through the options [cmd -sessionname] and [cmd -sessionhandle]
-respectively.
+The trace [arg TRACE] may be specified either by its name
+or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]]).
 
 The command returns a dictionary containing a trace session's settings 
 and status in the same format as
@@ -482,19 +481,23 @@ and status in the same format as
 The following session attributes may be updated:
 
 [list_begin opt]
-[opt_def [cmd -flushtimer]]
-Changes the number of seconds after which buffers are automatically flushed.
-[opt_def [cmd -logbufferslost]]
-Number of buffers lost without being consumed.
-[opt_def [cmd -logfile]]
-The log file associated with the session.
-[opt_def [cmd -logfilemode]]
-Changes the logging mode for the session.
-[opt_def [cmd -maxbuffers]]
-Changes the maximum number of buffers that can be allocated for the session.
+[opt_def [cmd -enableflags] [arg FLAGS]]
+Changes the enable flags for the trace session. Only applies if
+the trace is a "NT Kernel Logger" session.
+[opt_def [cmd -flushtimer] [arg TIMERVAL]]
+If non-0, changes the number of seconds after which buffers are 
+automatically flushed.
+[opt_def [cmd -logfile] [arg FILEPATH]]
+If specified, changes the log file associated with the session.
+[opt_def [cmd -maxbuffers] [arg COUNT]]
+If non-0, changes the maximum number of buffers that can be allocated for 
+the trace session.
+[opt_def [cmd -realtime] [arg BOOLEAN]]
+If [const true], turns on realtime mode, else turns it off. Note if
+the command is called to update other options, and
+this option is not specified, it results in the real time mode being
+turned off.
 [list_end]
-
-
 
 [list_end]
 
@@ -658,68 +661,68 @@ empty string if the logging application did not set it or if the field
 is not supported by the provider type.
 
 [list_begin opt]
-[const channel]
+[opt_def [const channel]]
 The numeric identifier for the event log channel to which the event
 was logged.
-[const channel_name]
+[opt_def [const channel_name]]
 The name of the event log channel to which the event was logged.
-[const event_guid]
+[opt_def [const event_guid]]
 The GUID identifying the event.
-[const id]
+[opt_def [const id]]
 The event identifier.
-[const kernel_time]
+[opt_def [const kernel_time]]
 The elapsed execution time for kernel-mode instructions in 100ns units.
 If the event was logged from a private session, this will be 0 as all
 time will be counted towards [const user_time].
-[const keyword_names]
+[opt_def [const keyword_names]]
 The list of keywords associated with the event.
-[const keywords]
+[opt_def [const keywords]]
 A bit mask corresponding to the keywords associated with the event.
-[const level]
+[opt_def [const level]]
 The numeric level at which the event was logged. Higher numeric levels are
 lower priority events.
-[const level_name]
+[opt_def [const level_name]]
 The name of the logging level at which the event was logged. Since
 this is localized, [const level] should be used for comparing event 
 logging levels.
-[const message]
+[opt_def [const message]]
 The message associated with the event. This may contain string inserts
 for event parameters. Use the 
 [uri #etw_format_event_message [cmd etw_format_event_message]]
 to retrieve the fully constructed message.
-[const opcode]
+[opt_def [const opcode]]
 The numeric opcode for the event, generally identifying one step
 in a sequence of operations.
-[const opcode_name]
+[opt_def [const opcode_name]]
 The string name for the numeric opcode. For MOF based events, this
 is the event type.
-[const pid]
+[opt_def [const pid]]
 The process identifier of the process that logged the event. This will be -1
 if the event was not associated with any process.
-[const properties]
+[opt_def [const properties]]
 A dictionary containing additional event parameters. The keys of the
 dictionary are dependent on the specific event type.
-[const provider_guid]
+[opt_def [const provider_guid]]
 The GUID identifying the provider.
-[const provider_name]
+[opt_def [const provider_name]]
 The name of the provider. For classical MOF based provider, this
 is the name of the MOF class.
-[const sid]
+[opt_def [const sid]]
 The SID of the logging process or an empty string if not available.
-[const task]
+[opt_def [const task]]
 The numeric task identifying the general area within the application.
-[const task_name]
+[opt_def [const task_name]]
 The string name associated with [const task].
-[const tid]
+[opt_def [const tid]]
 The thread identifier of the process that logged the event. This will be -1
 if the event was not associated with any thread.
-[const timestamp]
+[opt_def [const timestamp]]
 The time that the event was logged in system time format.
 Use [uri base.html#large_system_time_to_secs_since_1970 [cmd large_system_time_to_secs_since_1970]]
 to convert this to Tcl [cmd clock] format.
-[const user_time]
+[opt_def [const user_time]]
 The elapsed execution time for user-mode instructions in 100ns units.
-[const version]
+[opt_def [const version]]
 The version of the event. Together with [const id], this identifies a 
 specific event within a provider.
 
