@@ -90,7 +90,7 @@ twapi twapi-bin twapi-modular: $(@)-build "$(DISTDIR)\$@\pkgindex.tcl"
         $(COPY) LICENSE "$(DISTDIR)\$@"
 	$(COPY) doc\announce$(TWAPI_MAJOR)$(TWAPI_MINOR).txt "$(DISTDIR)\$@\README.TXT"
 	cd "$(DISTDIR)" && $(ZIP) -r "$@-$(TWAPI_VERSION).zip" $@
-	if exist "$(USERPROFILE)\My Documents\Downloads\twapi" $(COPY) "$(DISTDIR)\$@-$(TWAPI_VERSION).zip" "$(USERPROFILE)\My Documents\Downloads\twapi"
+	if exist "$(USERPROFILE)\Documents\Downloads\twapi" $(COPY) "$(DISTDIR)\$@-$(TWAPI_VERSION).zip" "$(USERPROFILE)\Downloads\twapi"
 
 twapi-lib: twapi-lib-build tcl\kitgen_setup_twapi_vfs.tcl
 	$(COPY) tcl\kitgen_setup_twapi_vfs.tcl "$(DISTDIR)\$@"
