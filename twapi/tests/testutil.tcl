@@ -6,6 +6,12 @@ global psinfo;                    # Array storing process information
 
 global thrdinfo;                  # Array storing thread informations
 
+proc new_name {} {
+    variable _test_name_counter
+    # Just using [clock microseconds] is not enough granularity
+    return TwapiTest-[clock microseconds]-[incr _test_name_counter]
+}
+
 proc errorcode {} {
     return [lrange $::errorCode 0 1]
 }
