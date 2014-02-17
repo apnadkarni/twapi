@@ -164,6 +164,41 @@ namespace eval twapi::etw::test {
         }
     }
 
+    proc validate_trace_stats {stats path name} {
+        set diff [setops::diff {
+            logfile trace_name trace_guid buffer_size min_buffers max_buffers
+            max_file_size logfile_mode flush_timer enable_flags clock_resolution
+            age_limit buffer_count free_buffers events_lost buffers_written
+            log_buffers_lost real_time_buffers_lost logger_tid
+        } [dict keys $stats]]
+
+        if {[llength $diff]} {
+            error "Keys [join $diff ,] missing from trace stats dictionary"
+        }
+
+        # TBD - clock_resolution ?
+        foreach key {
+            buffer_size min_buffers max_buffers
+            max_file_size logfile_mode flush_timer enable_flags
+            age_limit buffer_count free_buffers events_lost buffers_written
+            log_buffers_lost real_time_buffers_lost logger_tid
+        } {
+            if {![string is wide [dict get $stats $key]]} {
+                error "Value for $key in trace stats dictionary is not an integer"
+            }
+        }
+
+        if {![equal_paths $path [dict get $stats logfile]]} {
+            error "Log file paths do not match"
+        }
+
+        if {! [string equal -nocase $name [dict get $stats trace_name]]} {
+            error "Trace names do not match"
+        }
+        
+        return
+    }
+
     test etw_install_mof-1.0 {
         TBD - etw_install_mof
     } -constraints {
@@ -388,7 +423,7 @@ namespace eval twapi::etw::test {
     } -body {
         set etl [new_etl_filepath]
         twapi::etw_start_kernel_trace {} -logfile $etl
-        twapi::etw_stop_trace -sessionname "NT Kernel Logger"
+        twapi::etw_stop_trace "NT Kernel Logger"
         file exists $etl
     } -result 1
 
@@ -402,7 +437,7 @@ namespace eval twapi::etw::test {
         after 1000
         # Next command will fail if file mode was not circular as
         # log would get full and the trace would have already stopped
-        twapi::etw_stop_trace -sessionname "NT Kernel Logger"
+        twapi::etw_stop_trace "NT Kernel Logger"
         file size $etl
     } -result 1048576
 
@@ -416,7 +451,7 @@ namespace eval twapi::etw::test {
         after 1000
         # Next command will fail if file mode was not circular as
         # log would get full and the trace would have already stopped
-        twapi::etw_stop_trace -sessionname "NT Kernel Logger"
+        twapi::etw_stop_trace  "NT Kernel Logger"
         file size $etl
     } -result 1048576
 
@@ -428,7 +463,7 @@ namespace eval twapi::etw::test {
         set etl [new_etl_filepath]
         twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode sequential
         after 1000
-        twapi::etw_stop_trace -sessionname "NT Kernel Logger"
+        twapi::etw_stop_trace  "NT Kernel Logger"
         expr {[file size $etl] > 1048576}
     } -result 1
 
@@ -442,7 +477,7 @@ namespace eval twapi::etw::test {
         after 1000
         # stop command should as file mode is sequential and
         # log would get full and the trace would have already stopped
-        list [catch {twapi::etw_stop_trace -sessionname "NT Kernel Logger"}] \
+        list [catch {twapi::etw_stop_trace  "NT Kernel Logger"}] \
             [file size $etl]
     } -result {1 1048576}
 
@@ -478,7 +513,7 @@ namespace eval twapi::etw::test {
             twapi::etw_log_message $hprov "4" 4
             twapi::etw_log_message $hprov "5" 5
 
-            twapi::etw_flush_trace -sessionhandle $htrace
+            twapi::etw_flush_trace  $htrace
         }
 
         # Repeat using tokens for levels
@@ -491,14 +526,14 @@ namespace eval twapi::etw::test {
             twapi::etw_log_message $hprov "informational" informational
             twapi::etw_log_message $hprov "verbose" verbose
             
-            twapi::etw_flush_trace -sessionname $tracename
+            twapi::etw_flush_trace  $tracename
         }
 
         # Now disable the provider and try to log
         twapi::etw_disable_trace_provider $htrace [twapi::etw_twapi_provider_guid]
         twapi::etw_log_message $hprov "fatal (provider disabled)" 1
-        twapi::etw_flush_trace -sessionhandle $htrace
-        twapi::etw_stop_trace -sessionhandle $htrace
+        twapi::etw_flush_trace  $htrace
+        twapi::etw_stop_trace  $htrace
 
         # Now see if messages were logged as expected
         set errors {}
@@ -515,33 +550,255 @@ namespace eval twapi::etw::test {
         set result
     } -result {default 1 2 3 4 5 default 1 2 3 4 default 1 2 3 1 2 1 default fatal error warning informational verbose default fatal error warning informational fatal error warning fatal error fatal}
 
-    test etw_enable_trace-1.0 {
-        TBD - etw_enable_trace
-    } -constraints {
-        TBD
-    } -body {
-    } -result TBD
 
-    test etw_disable_trace-1.0 {
-        TBD - etw_disable_trace
-    } -constraints {
-        TBD
-    } -body {
-    } -result TBD
+    ################################################################
 
-    test etw_control_trace-1.0 {
-        TBD - etw_control_trace
+    test etw_update_trace-1.0 {
+        etw_update_trace using trace handle -flushtimer
     } -constraints {
-        TBD
+        privileged
+    } -setup {
+        set etl [new_etl_filepath]
+        set name TWAPITRACE-[clock microseconds]
+        set htrace [twapi::etw_start_trace $name -logfile $etl]
     } -body {
-    } -result TBD
+        set stats [twapi::etw_query_trace $htrace]
+        validate_trace_stats $stats $etl $name
+        set flush_timer [dict get $stats flush_timer]
+        incr flush_timer 10
+        set stats2 [twapi::etw_update_trace $htrace -flushtimer $flush_timer]
+        validate_trace_stats $stats2 $etl $name
+        list \
+            [tcl::mathop::== [dict get $stats2 flush_timer] $flush_timer] \
+            [tcl::mathop::== [dict get $stats2 max_buffers] [dict get $stats max_buffers]] \
+            [equal_paths [dict get $stats2 logfile] [dict get $stats logfile]] \
+            [tcl::mathop::== [dict get $stats2 enable_flags] [dict get $stats enable_flags]] \
+            [tcl::mathop::& [dict get $stats2 logfile_mode] 0x100]
+    } -cleanup {
+        twapi::etw_stop_trace $htrace
+    } -result {1 1 1 1 0}
+
+    test etw_update_trace-2.0 {
+        etw_update_trace using trace handle -logfile
+    } -constraints {
+        privileged
+    } -setup {
+        set etl [new_etl_filepath]
+        set name TWAPITRACE-[clock microseconds]
+        set htrace [twapi::etw_start_trace $name -logfile $etl]
+    } -body {
+        set stats [twapi::etw_query_trace $htrace]
+        validate_trace_stats $stats $etl $name
+        set etl2 [new_etl_filepath]
+        set stats2 [twapi::etw_update_trace $name -logfile $etl2]
+        validate_trace_stats $stats2 $etl2 $name
+        list \
+            [tcl::mathop::== [dict get $stats2 flush_timer] [dict get $stats flush_timer]] \
+            [tcl::mathop::== [dict get $stats2 max_buffers] [dict get $stats max_buffers]] \
+            [equal_paths [dict get $stats2 logfile] $etl2] \
+            [tcl::mathop::== [dict get $stats2 enable_flags] [dict get $stats enable_flags]] \
+            [tcl::mathop::& [dict get $stats2 logfile_mode] 0x100]
+    } -cleanup {
+        twapi::etw_stop_trace $htrace
+    } -result {1 1 1 1 0}
+
+    test etw_update_trace-3.0 {
+        etw_update_trace using trace handle -maxbuffers
+    } -constraints {
+        privileged
+    } -setup {
+        set etl [new_etl_filepath]
+        set name TWAPITRACE-[clock microseconds]
+        set htrace [twapi::etw_start_trace $name -logfile $etl]
+    } -body {
+        set stats [twapi::etw_query_trace $htrace]
+        validate_trace_stats $stats $etl $name
+        set max_buffers [dict get $stats max_buffers]
+        incr max_buffers 1
+        set stats2 [twapi::etw_update_trace $htrace -maxbuffers $max_buffers]
+        validate_trace_stats $stats2 $etl $name
+        list \
+            [tcl::mathop::== [dict get $stats2 max_buffers] $max_buffers] \
+            [tcl::mathop::== [dict get $stats2 flush_timer] [dict get $stats flush_timer]] \
+            [equal_paths [dict get $stats2 logfile] [dict get $stats logfile]] \
+            [tcl::mathop::== [dict get $stats2 enable_flags] [dict get $stats enable_flags]] \
+            [tcl::mathop::& [dict get $stats2 logfile_mode] 0x100]
+    } -cleanup {
+        twapi::etw_stop_trace $htrace
+    } -result {1 1 1 1 0}
+
+    test etw_update_trace-4.0 {
+        etw_update_trace using trace name -enableflags
+    } -constraints {
+        privileged
+    } -setup {
+        set etl [new_etl_filepath]
+        set name "NT Kernel Logger"; # Required for -enableflags
+        set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl]
+    } -body {
+        set stats [twapi::etw_query_trace $htrace]
+        validate_trace_stats $stats $etl $name
+        set enable_flags [dict get $stats enable_flags]
+        if {$enable_flags != 0x10020700} {
+            error "enable_flags=0x$enable_flags, expected 0x10020700"
+        }
+        set enable_flags [expr {$enable_flags & ~0x1000000}]
+        set stats2 [twapi::etw_update_trace $name -enableflags $enable_flags]
+        validate_trace_stats $stats2 $etl $name
+        list \
+            [tcl::mathop::== [dict get $stats2 max_buffers] [dict get $stats max_buffers]] \
+            [tcl::mathop::== [dict get $stats2 flush_timer] [dict get $stats flush_timer]] \
+            [equal_paths [dict get $stats2 logfile] [dict get $stats logfile]] \
+            [tcl::mathop::== [dict get $stats2 enable_flags] $enable_flags] \
+            [tcl::mathop::& [dict get $stats2 logfile_mode] 0x100]
+    } -cleanup {
+        twapi::etw_stop_trace $htrace
+    } -result {1 1 1 1 0}
+
+
+    test etw_update_trace-5.0 {
+        etw_update_trace using trace handle -realtime 0
+    } -constraints {
+        privileged
+    } -setup {
+        set etl [new_etl_filepath]
+        set name TWAPITRACE-[clock microseconds]
+        set htrace [twapi::etw_start_trace $name -logfile $etl -realtime 1]
+    } -body {
+        set stats [twapi::etw_query_trace $htrace]
+        validate_trace_stats $stats $etl $name
+        set logfile_mode [dict get $stats logfile_mode]
+        if {($logfile_mode & 0x100) == 0} {
+            error "Log file mode does not have real time bit set"
+        }
+        set stats2 [twapi::etw_update_trace $htrace -realtime 0]
+        validate_trace_stats $stats2 $etl $name
+        list \
+            [tcl::mathop::== [dict get $stats2 max_buffers] [dict get $stats max_buffers]] \
+            [tcl::mathop::== [dict get $stats2 flush_timer] [dict get $stats flush_timer]] \
+            [equal_paths [dict get $stats2 logfile] [dict get $stats logfile]] \
+            [tcl::mathop::== [dict get $stats2 enable_flags] [dict get $stats enable_flags]] \
+            [tcl::mathop::& [dict get $stats2 logfile_mode] 0x100]
+    } -cleanup {
+        twapi::etw_stop_trace $htrace
+    } -result {1 1 1 1 0}
+
+
+    test etw_update_trace-5.1 {
+        etw_update_trace using trace handle -realtime 1
+    } -constraints {
+        privileged
+    } -setup {
+        set etl [new_etl_filepath]
+        set name TWAPITRACE-[clock microseconds]
+        set htrace [twapi::etw_start_trace $name -logfile $etl -realtime 0]
+    } -body {
+        set stats [twapi::etw_query_trace $htrace]
+        validate_trace_stats $stats $etl $name
+        set logfile_mode [dict get $stats logfile_mode]
+        if {$logfile_mode & 0x100} {
+            error "Log file mode has real time bit set"
+        }
+        set stats2 [twapi::etw_update_trace $htrace -realtime 1]
+        validate_trace_stats $stats2 $etl $name
+        # Note setting real time also sets the flush timer
+        list \
+            [tcl::mathop::== [dict get $stats2 max_buffers] [dict get $stats max_buffers]] \
+            [tcl::mathop::== [dict get $stats2 flush_timer] 1] \
+            [equal_paths [dict get $stats2 logfile] [dict get $stats logfile]] \
+            [tcl::mathop::== [dict get $stats2 enable_flags] [dict get $stats enable_flags]] \
+            [tcl::mathop::& [dict get $stats2 logfile_mode] 0x100]
+    } -cleanup {
+        twapi::etw_stop_trace $htrace
+    } -result {1 1 1 1 256}
+
+
+    ################################################################
 
     test etw_query_trace-1.0 {
-        TBD - etw_query_trace
+        etw_query_trace using trace handle
     } -constraints {
-        TBD
+        privileged
+    } -setup {
+        set etl [new_etl_filepath]
+        set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl]
     } -body {
-    } -result TBD
+        set stats [twapi::etw_query_trace $htrace]
+        catch {validate_trace_stats $stats $etl "NT Kernel Logger"}
+    } -cleanup {
+        twapi::etw_stop_trace $htrace
+    } -result 0
+
+    test etw_query_trace-2.0 {
+        etw_query_trace using trace name
+    } -constraints {
+        privileged
+    } -setup {
+        set etl [new_etl_filepath]
+        set name TWAPITRACE-[clock microseconds]
+        set htrace [twapi::etw_start_trace $name -logfile $etl]
+    } -body {
+        set stats [twapi::etw_query_trace $name]
+        catch {validate_trace_stats $stats $etl $name}
+    } -cleanup {
+        twapi::etw_stop_trace $htrace
+    } -result 0
+
+    test etw_stop_trace-1.0 {
+        etw_stop_trace using trace handle
+    } -constraints {
+        privileged
+    } -setup {
+        set etl [new_etl_filepath]
+        set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl]
+    } -body {
+        set stats [twapi::etw_stop_trace $htrace]
+        validate_trace_stats $stats $etl "NT Kernel Logger"
+        list [catch {twapi::etw_stop_trace $htrace}] [errorcode]
+    } -result {1 {TWAPI_WIN32 4201}}
+
+    test etw_stop_trace-2.0 {
+        etw_stop_trace using trace name
+    } -constraints {
+        privileged
+    } -setup {
+        set etl [new_etl_filepath]
+        set name TWAPITRACE-[clock microseconds]
+        set htrace [twapi::etw_start_trace $name -logfile $etl]
+    } -body {
+        set stats [twapi::etw_stop_trace $name]
+        validate_trace_stats $stats $etl $name
+        list [catch {twapi::etw_stop_trace $htrace}] [errorcode]
+    } -result {1 {TWAPI_WIN32 4201}}
+
+    test etw_flush_trace-1.0 {
+        etw_flush_trace using trace handle
+    } -constraints {
+        privileged
+    } -setup {
+        set etl [new_etl_filepath]
+        set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl]
+    } -body {
+        set stats [twapi::etw_flush_trace $htrace]
+        catch {validate_trace_stats $stats $etl "NT Kernel Logger"}
+    } -cleanup {
+        twapi::etw_stop_trace $htrace
+    } -result 0
+
+    test etw_flush_trace-2.0 {
+        etw_flush_trace using trace name
+    } -constraints {
+        privileged
+    } -setup {
+        set etl [new_etl_filepath]
+        set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl]
+    } -body {
+        set stats [twapi::etw_flush_trace "NT Kernel Logger"]
+        catch {validate_trace_stats $stats $etl "NT Kernel Logger"}
+    } -cleanup {
+        twapi::etw_stop_trace $htrace
+    } -result 0
+
 }
 
 #

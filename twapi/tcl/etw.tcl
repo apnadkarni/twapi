@@ -43,10 +43,15 @@ namespace eval twapi {
     variable _etw_event_defs
     set _etw_event_defs [dict create]
 
-    # Keeps track of open trace handles
-    variable _etw_open_traces
-    array set _etw_open_traces {}
+    # Keeps track of open trace handles for reading
+    variable _etw_trace_consumers
+    array set _etw_trace_consumers {}
 
+    # Keep track of trace controller handles. Note we do not always
+    # need a handle for controller actions. We can also control based
+    # on name, for example if some other process has started the trace
+    variable _etw_trace_controllers
+    array set _etw_trace_controllers {}
 
     #
     # These record definitions match the lists constructed in the ETW C code
@@ -111,9 +116,9 @@ namespace eval twapi {
 
     # Record for EVENT_TRACE_PROPERTIES
     # TBD - document
-    record etw_trace {
-        logfile logger_name guid buffer_size min_buffers max_buffers
-        max_file_size logfile_mode flush_timer enable_flags client_context
+    record etw_trace_properties {
+        logfile trace_name trace_guid buffer_size min_buffers max_buffers
+        max_file_size logfile_mode flush_timer enable_flags clock_resolution
         age_limit buffer_count free_buffers events_lost buffers_written
         log_buffers_lost real_time_buffers_lost logger_tid
     }
@@ -260,7 +265,7 @@ proc twapi::etw_variable_tracker {htrace name1 name2 op} {
     # Must match VariableTrace event type in MoF definition
     TraceEvent $htrace 2 0 \
         [encoding convertto unicode "$op\0$name1\0$name2\0$var\0"] \
-        [_etw_make_limited_unicode $context]
+        [_etw_encode_limited_unicode $context]
 }
 
 
@@ -288,10 +293,10 @@ proc twapi::etw_execution_tracker {htrace command args} {
     # Must match Execution event type in MoF definition
     TraceEvent $htrace 3 0 \
         [encode convertto unicode "$op\0"] \
-        [_etw_make_limited_unicode $command] \
+        [_etw_encode_limited_unicode $command] \
         [encode convertto unicode "$code\0"] \
-        [_etw_make_limited_unicode $result] \
-        [_etw_make_limited_unicode $context]
+        [_etw_encode_limited_unicode $result] \
+        [_etw_encode_limited_unicode $context]
 }
 
 
@@ -305,7 +310,7 @@ proc twapi::etw_command_tracker {htrace oldname newname op} {
     # Must match CommandTrace event type in MoF definition
     TraceEvent $htrace 4 0 \
         [encode converto unicode "$op\0$oldname\0$newname\0"] \
-        [_etw_make_limited_unicode $context]
+        [_etw_encode_limited_unicode $context]
 }
 
 proc twapi::etw_parse_mof_event_class {ocls} {
@@ -600,30 +605,30 @@ proc twapi::etw_load_mof_event_classes {oswbemservices args} {
 
 proc twapi::etw_open_file {path} {
 # TBD - PROCESS_TRACE_MODE_RAW_TIMESTAMP
-    variable _etw_open_traces
+    variable _etw_trace_consumers
 
     set path [file normalize $path]
 
     set htrace [OpenTrace $path 0]
-    set _etw_open_traces($htrace) $path
+    set _etw_trace_consumers($htrace) $path
     return $htrace
 }
 
 proc twapi::etw_open_session {sessionname} {
 # TBD - PROCESS_TRACE_MODE_RAW_TIMESTAMP
-    variable _etw_open_traces
+    variable _etw_trace_consumers
 
     set htrace [OpenTrace $sessionname 1]
-    set _etw_open_traces($htrace) $sessionname
+    set _etw_trace_consumers($htrace) $sessionname
     return $htrace
 }
 
 proc twapi::etw_close_session {htrace} {
-    variable _etw_open_traces
+    variable _etw_trace_consumers
 
-    if {[info exists _etw_open_traces($htrace)]} {
+    if {[info exists _etw_trace_consumers($htrace)]} {
         CloseTrace $htrace
-        unset _etw_open_traces($htrace)
+        unset _etw_trace_consumers($htrace)
     }
     return
 }
@@ -939,6 +944,7 @@ twapi::proc* twapi::etw_dump_to_list {args} {
 }
 
 proc twapi::etw_start_trace {session_name args} {
+    variable _etw_trace_controllers
     
     # Specialized for kernel debugging - {bufferingmode {} 0x400}
     # Not supported until Win7 {noperprocessorbuffering {} 0x10000000}
@@ -963,8 +969,11 @@ proc twapi::etw_start_trace {session_name args} {
         {preallocate.bool 0 0x20}
     } -maxleftover 0]
 
-    set logfilemode 0
+    if {!$opts(realtime) && (![info exists opts(logfile)] || $opts(logfile) eq "")} {
+        badargs! "Log file name must be specified if real time mode is not in effect"
+    }
 
+    set logfilemode 0
     switch -exact $opts(filemode) {
         sequential {
             if {[info exists opts(maxfilesize)]} {
@@ -1037,7 +1046,9 @@ proc twapi::etw_start_trace {session_name args} {
     lappend params -clockresolution [dict! {qpc 1 system 2 cpucycle 3} $opts(clockresolution)]
 
     trap {
-        return [StartTrace $session_name $params]
+        set h [StartTrace $session_name $params]
+        set _etw_trace_controllers($h) $session_name
+        return $h
     } onerror {TWAPI_WIN32 5} {
         return -options [trapoptions] "Access denied. This may be because the process does not have permission to create the specified logfile or because it is not running under an account permitted to control ETW traces."
     }
@@ -1123,7 +1134,15 @@ proc twapi::etw_disable_trace_provider {hsession guid} {
     return [EnableTrace 0 -1 5 $guid $hsession]
 }
 
-proc twapi::etw_control_trace {action args} {
+proc twapi::etw_control_trace {action session args} {
+    variable _etw_trace_controllers
+
+    if {[info exists _etw_trace_controllers($session)]} {
+        set sessionhandle $session
+    } else {
+        set sessionhandle 0
+        set sessionname $session
+    }
 
     set action [dict get {
         query  0
@@ -1133,8 +1152,6 @@ proc twapi::etw_control_trace {action args} {
     } $action]
 
     array set opts [parseargs args {
-        {sessionhandle.arg 0}
-        sessionname.arg
         sessionguid.arg
         logfile.arg
         maxbuffers.int
@@ -1145,26 +1162,24 @@ proc twapi::etw_control_trace {action args} {
 
     set params {}
 
-    if {(![info exists opts(sessionhandle)]) &&
-        (![info exists opts(sessionname)])} {
-        error "One of -sessionhandle or -sessionname must be specified."
-    }
-
     if {[info exists opts(realtime)]} {
         if {$opts(realtime)} {
-            lappend params -logfilemode 0x100
+            lappend params -logfilemode 0x100; # EVENT_TRACE_REAL_TIME_MODE 
         } else {
             lappend params -logfilemode 0
         }
     }
-        
-    foreach opt {sessionguid sessionname} {
-        if {[info exists opts($opt)]} {
-            lappend params -$opt $opts($opt)
-        }
+
+    if {[info exists opts(sessionguid)]} {
+        append params -sessionguid $opts(sessionguid)
     }
 
-    if {$action eq "update"} {
+    if {[info exists sessionname]} {
+        lappend params -sessionname $sessionname
+    }
+
+    if {$action == 2} {
+        # update
         foreach opt {logfile flushtimer enableflags maxbuffers} {
             if {[info exists opts($opt)]} {
                 lappend params -$opt $opts($opt)
@@ -1172,19 +1187,27 @@ proc twapi::etw_control_trace {action args} {
         }
     }
 
-    return [ControlTrace $action $opts(sessionhandle) $params]
+    return [etw_trace_properties [ControlTrace $action $sessionhandle $params]]
 }
 
-interp alias {} twapi::etw_stop_trace {} twapi::etw_control_trace stop
-interp alias {} twapi::etw_flush_trace {} twapi::etw_control_trace flush
-interp alias {} twapi::etw_query_trace {} twapi::etw_control_trace query
 interp alias {} twapi::etw_update_trace {} twapi::etw_control_trace update
 
-proc twapi::etw_query_trace {args} {
-    set d [etw_control_trace query {*}$args]
-    set cr [lindex  {{} qpc system cpucycle} [dict get $d -clockresolution]]
-    if {$cr ne ""} {
-        dict set d -clockresolution $cr
+proc twapi::etw_stop_trace {trace} {
+    variable _etw_trace_controllers
+    set stats [etw_control_trace stop $trace]
+    unset -nocomplain _etw_trace_controllers($trace)
+    return $stats
+}
+
+proc twapi::etw_flush_trace {trace} {
+    return [etw_control_trace flush $trace]
+}
+
+proc twapi::etw_query_trace {trace} {
+    set d [etw_control_trace query $trace]
+    set cres [lindex  {{} qpc system cpucycle} [dict get $d clock_resolution]]
+    if {$cres ne ""} {
+        dict set d clock_resolution $cres
     }
 
     #TBD - check whether -maxfilesize needs to be massaged
@@ -1192,13 +1215,15 @@ proc twapi::etw_query_trace {args} {
     return $d
 }
 
+
+
 #
 # Helper functions
 #
 
 
 # Return binary unicode with truncation if necessary
-proc twapi::_etw_make_limited_unicode {s {max 80}} {
+proc twapi::_etw_encode_limited_unicode {s {max 80}} {
     if {[string length $s] > $max} {
         set s "[string range $s 0 $max-3]..."
     }
