@@ -1451,7 +1451,7 @@ TCL_RESULT ObjToUCHAR(Tcl_Interp *interp, Tcl_Obj *obj, UCHAR *ucP)
     int lval;
 
     TWAPI_ASSERT(sizeof(UCHAR) == sizeof(unsigned char));
-    if (ObjToRangedInt(interp, obj, 0, SCHAR_MAX, &lval) != TCL_OK)
+    if (ObjToRangedInt(interp, obj, 0, UCHAR_MAX, &lval) != TCL_OK)
         return TCL_ERROR;
     *ucP = (UCHAR) lval;
     return TCL_OK;
@@ -2773,6 +2773,7 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
 {
     char *s;
     VARTYPE vt;
+    Tcl_Obj *elemObj;
 
     switch (TwapiGetTclType(objP)) {
     case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
@@ -2805,7 +2806,6 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
 
         /* We do not know the type of each SAFEARRAY element. Guess on element value */
         vt = VT_VARIANT;   /* In case we cannot tell */
-#ifdef APN
         if (ObjListIndex(NULL, objP, 0, &elemObj) == TCL_OK && elemObj) {
             switch (TwapiGetTclType(elemObj)) {
             case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
@@ -2816,7 +2816,6 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
             case TWAPI_TCLTYPE_STRING:        vt = VT_BSTR; break;
             }            
         }
-#endif
         return vt | VT_ARRAY;
 
     case TWAPI_TCLTYPE_DICT:
@@ -2947,7 +2946,7 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
             varP->vt = VT_DISPATCH;
         } else if (ObjToIUnknown(NULL, objP, &varP->punkVal) == TCL_OK) {
             varP->vt = VT_UNKNOWN;
-#ifndef APN
+#if 0
         } else if (ObjCharLength(objP) == 0) {
             varP->vt = VT_NULL;
 #endif
