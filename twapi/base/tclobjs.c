@@ -2874,7 +2874,7 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
     case VT_I2:   return ObjToSHORT(interp, objP, &V_I2(varP));
     case VT_UI2:  return ObjToUSHORT(interp, objP, &V_UI2(varP));
     case VT_I1:   return ObjToCHAR(interp, objP, &V_I1(varP));
-    case VT_UI1:   return ObjToCHAR(interp, objP, &V_UI1(varP));
+    case VT_UI1:   return ObjToUCHAR(interp, objP, &V_UI1(varP));
 
     /* For compatibility reasons, allow interchangeable signed/unsigned ints */
     case VT_I4:
