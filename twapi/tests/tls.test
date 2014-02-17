@@ -914,8 +914,6 @@ test tls_socket-client-3.2 {
         puts $so "GET /\r\n\r\n"
         set reader [twapi::lambda {so} {
             set line [gets $so]
-            puts $line
-            puts EOF:[eof $so]
             append ::response ${line}\n
             if {[eof $so]} {
                 set ::done eof
