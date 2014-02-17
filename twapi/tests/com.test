@@ -1089,12 +1089,13 @@ namespace eval twapi::com::test {
 
 
     test variant_param_passing-r8-2.0 {
-        Test variant parameter of type R8, overflow
+        Test variant parameter of type R8 - infinity
     } -setup {
         set o [testobj]
     } -body {
         $o DoubleProperty [string repeat 9 500]
-    } -result {Value is out of range.} -returnCodes error
+        $o DoubleProperty
+    } -result Inf
 
     test variant_param_passing-r8-2.1 {
         TBD Test variant parameter of type R8, underflow
@@ -1230,7 +1231,7 @@ namespace eval twapi::com::test {
     test variant_param_passing-safearray-1.3 {
         Basic safearray test - set integer safe array property
     } -body {
-        [testobj] IntSAProperty {{0 1 2} {3 4 5}}
+        [testobj] IntSAProperty [list [list 0 1 2] [list 3 4 5]]
         [testobj] IntSAProperty
     } -result {{0 1 2} {3 4 5}}
 
