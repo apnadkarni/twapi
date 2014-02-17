@@ -2623,6 +2623,10 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     TCL_RESULT res;
     CERT_INFO *ciP;
     HCERTSTORE hstore;
+    union {
+        WCHAR uni[MAX_PATH+1];
+        char ansi[MAX_PATH+1];
+    } buf;
 
     --objc;
     ++objv;
@@ -3303,22 +3307,39 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 10051: // CryptEnumProvider
         CHECK_NARGS(interp, objc, 1);
         CHECK_INTEGER_OBJ(interp, dw, objv[0]);
-        dw2 = MAX_PATH;
-        pv = TwapiAlloc(MAX_PATH * sizeof(WCHAR));
-        if ((func == 10050 ? CryptEnumProviderTypesW : CryptEnumProvidersW)(dw, NULL, 0, &dw3, pv, &dw2)) {
-            objs[0] = ObjFromDWORD(dw3);
-            objs[1] = ObjFromUnicode(pv);
-            result.type= TRT_OBJV;
-            result.value.objv.objPP = objs;
-            result.value.objv.nobj = 2;
+
+        /* XP SP3 has a bug where the Unicode version of the
+           CryptEnumProviderTypes always returns ERROR_MORE_DATA - see
+           http://support.microsoft.com/kb/959160
+           We special case this to use the ANSI version.
+        */
+        if (func == 10050 && ! TwapiMinOSVersion(6, 0)) {
+            dw2 = sizeof(buf.ansi);   /* sizeof, NOT ARRAYSIZE in all cases */
+            if (CryptEnumProviderTypesA(dw, NULL, 0, &dw3, buf.ansi, &dw2)) {
+                objs[0] = ObjFromDWORD(dw3);
+                objs[1] = ObjFromStringLimited(buf.ansi, dw2, NULL);
+                result.type= TRT_OBJV;
+                result.value.objv.objPP = objs;
+                result.value.objv.nobj = 2;
+                break;
+            }
         } else {
-            result.value.ival = GetLastError();
-            if (result.value.ival == ERROR_NO_MORE_ITEMS)
-                result.type = TRT_EMPTY;
-            else
-                result.type = TRT_EXCEPTION_ON_ERROR;
+            dw2 = sizeof(buf.uni);   /* sizeof, NOT ARRAYSIZE in all cases */
+            if ((func == 10050 ? CryptEnumProviderTypesW : CryptEnumProvidersW)(dw, NULL, 0, &dw3, buf.uni, &dw2)) {
+                objs[0] = ObjFromDWORD(dw3);
+                objs[1] = ObjFromUnicodeLimited(buf.uni, dw2/sizeof(WCHAR), NULL);
+                result.type= TRT_OBJV;
+                result.value.objv.objPP = objs;
+                result.value.objv.nobj = 2;
+                break;
+            }
         }
-        TwapiFree(pv);
+        /* Error handling */
+        result.value.ival = GetLastError();
+        if (result.value.ival == ERROR_NO_MORE_ITEMS)
+            result.type = TRT_EMPTY;
+        else
+            result.type = TRT_EXCEPTION_ON_ERROR;
         break;
 
 #ifdef TBD
