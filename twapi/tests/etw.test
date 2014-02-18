@@ -339,7 +339,7 @@ namespace eval twapi::etw::test {
         twapi::etw_close_session $etw
     } -body {
         twapi::etw_close_session $etw
-    } -result "Cannot find trace session*" -returnCodes error
+    } -result "Cannot find trace session*" -returnCodes error -match glob
 
     test etw_consumer-1.0 {
         Test etw_process_events/etw_format_events
