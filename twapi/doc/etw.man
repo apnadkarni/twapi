@@ -344,9 +344,11 @@ an requested size and will be adjusted by ETW.
 [opt_def [cmd -clockresolution] [arg RESOLUTION]]
 The clock resolution to use when timestamping events in the session.
 Specify [arg RESOLUTION] as [const qpc] to use the query performance
-counter. This is the highest resolution and is the default. Specify
+counter. This is the highest resolution but is relatively expensive.
+Specify
 [const system] to use system time. This is lower resolution but is
-cheaper in run time cost. Specify [const cpucycle] to use the CPU
+cheaper in run time cost and is the default.
+Specify [const cpucycle] to use the CPU
 cycle counter. This has the highest resolution and is the cheapest
 to obtain. However it can be very inaccurate as it is affected by power
 and temperature management features of the CPU.

@@ -959,7 +959,7 @@ proc twapi::etw_start_trace {session_name args} {
         flushtimer.int
         enableflags.int
         {filemode.arg circular {sequential append rotate circular}}
-        {clockresolution.arg qpc}
+        {clockresolution.arg system}
         {private.bool 0 0x800}
         {realtime.bool 0 0x100}
         {secure.bool 0 0x80}
