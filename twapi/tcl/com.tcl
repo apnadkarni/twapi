@@ -2652,10 +2652,14 @@ twapi::class create ::twapi::ITypeLibProxy {
 
         if {[dict exists $data module]} {
             dict for {guid guiddata} [dict get $data module] {
-                set module_name [dict get $guiddata -name]
-                append code "\n    # Module $module_name ($guid)\n"
-                append code "    [list array set $module_name [dict get $guiddata -values]]"
-                append code \n
+                # Some modules may not have constants (-values).
+                # We currently only output constants from modules, not functions
+                if {[dict exists $guiddata -values]} {
+                    set module_name [dict get $guiddata -name]
+                    append code "\n    # Module $module_name ($guid)\n"
+                    append code "    [list array set $module_name [dict get $guiddata -values]]"
+                    append code \n
+                }
             }
         }
 
