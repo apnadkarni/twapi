@@ -371,7 +371,7 @@ proc twapi::get_process_ids {args} {
     foreach {pid piddata} [get_multiple_process_info -matchpids $all_pids {*}$popts] {
         array set pidvals $piddata
         if {[info exists opts(path)] &&
-            ![string [expr {$match_op eq "-glob" ? "match" : "equal"}] -nocase $opts(path) [file join $pidvals(-path)]]} {
+            ![string [expr {$match_op eq "~" ? "match" : "equal"}] -nocase $opts(path) [file join $pidvals(-path)]]} {
             continue
         }
 
@@ -1378,8 +1378,17 @@ proc twapi::get_process_parent {pid args} {
     }
 
     trap {
+        set parent [lindex [recordarray -slice InheritedFromProcessId [twapi::Twapi_GetProcessList $pid 1]] 1]
+        if {$parent ne ""} {
+            return $parent
+        }
+    } onerror {} {
+        # Just try the other methods below
+    }
+
+    trap {
         set hpid [get_process_handle $pid]
-        set parent [lindex [Twapi_NtQueryInformationProcessBasicInformation $hpid] 5]
+        return [lindex [Twapi_NtQueryInformationProcessBasicInformation $hpid] 5]
 
     } onerror {TWAPI_WIN32 5} {
         set error noaccess
@@ -1391,24 +1400,7 @@ proc twapi::get_process_parent {pid args} {
         }
     }
 
-    # TBD - if above fails, try through Twapi_GetProcessList
-
-    if {![info exists parent]} {
-        # TBD - get rid of pdh library
-        # Try getting through pdh library
-        set counters [get_perf_process_counter_paths $pid -parent]
-        if {[llength counters]} {
-            set vals [get_perf_values_from_metacounter_info $counters -interval 0]
-            if {[llength $vals] > 2} {
-                set parent [lindex $vals 2]
-            }
-        }
-        if {![info exists parent]} {
-            set parent $opts($error)
-        }
-    }
-
-    return $parent
+    return $opts($error)
 }
 
 # Get the base priority class of a process
