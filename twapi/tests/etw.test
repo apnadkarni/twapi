@@ -19,9 +19,9 @@ namespace eval twapi::etw::test {
     namespace import ::tcltest::test
 
     variable logdir [tcltest::makeDirectory etwlogs]
-    proc new_etl_filepath {{prefix twapitest}} {
+    proc new_etl_filepath {} {
         variable logdir
-        return [file join $logdir ${prefix}-[clock microseconds].etl]
+        return [file join $logdir [new_name].etl]
     }
 
     proc privileged {} {
@@ -427,45 +427,58 @@ namespace eval twapi::etw::test {
         file exists $etl
     } -result 1
 
+    # NOTE
+    # For -filemode tests, there is no easy way to confirm the actual
+    # mode implemented be looking at the log file. There are too many
+    # differences between Windows versions and actually reading the log
+    # to check for event overwrites etc. does not help because different
+    # Windows versions will log "state dump" events on closure which
+    # makes it difficult to check for circular mode etc.
+    #
+    # So instead, we just check what mode Windows returns by querying
+    # the trace and assume verifying that is sufficient.
+
     test etw_start_kernel_trace-2.0 {
         Start kernel trace (verify -filemode default is circular)
     } -constraints {
         privileged
     } -body {
         set etl [new_etl_filepath]
-        twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl
-        after 1000
+        set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl]
+        set status [twapi::etw_query_trace $htrace]
         # Next command will fail if file mode was not circular as
         # log would get full and the trace would have already stopped
-        twapi::etw_stop_trace "NT Kernel Logger"
-        file size $etl
-    } -result 1048576
+        twapi::etw_stop_trace $htrace
+        list [expr {([dict get $status logfile_mode] & 15)}] [dict get $status max_file_size] [dict get $status clock_resolution]
+    } -result {2 1 system}
 
     test etw_start_kernel_trace-2.1 {
-        Start kernel trace (verify -filemode circular)
+        Start kernel trace (verify -filemode circular, -clockresolution qpc)
     } -constraints {
         privileged
     } -body {
         set etl [new_etl_filepath]
-        twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl
-        after 1000
+        set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode circular -clockresolution qpc]
+        set status [twapi::etw_query_trace $htrace]
         # Next command will fail if file mode was not circular as
         # log would get full and the trace would have already stopped
-        twapi::etw_stop_trace  "NT Kernel Logger"
-        file size $etl
-    } -result 1048576
+        twapi::etw_stop_trace $htrace
+        expr {([dict get $status logfile_mode] & 15)}
+        list [expr {([dict get $status logfile_mode] & 15)}] [dict get $status max_file_size] [dict get $status clock_resolution]
+    } -result {2 1 qpc}
 
     test etw_start_kernel_trace-2.2 {
-        Start kernel trace (verify -filemode sequential)
+        Start kernel trace (verify -filemode sequential, no max file size)
     } -constraints {
         privileged
     } -body {
         set etl [new_etl_filepath]
-        twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode sequential
-        after 1000
-        twapi::etw_stop_trace  "NT Kernel Logger"
-        expr {[file size $etl] > 1048576}
-    } -result 1
+        set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode sequential -clockresolution cpucycle]
+        set status [twapi::etw_query_trace $htrace]
+        twapi::etw_stop_trace $htrace
+        list [expr {([dict get $status logfile_mode] & 15)}] [dict get $status max_file_size] [dict get $status clock_resolution]
+    } -result {0 0 cpucycle}
+
 
     test etw_start_kernel_trace-2.3 {
         Start kernel trace (verify -filemode sequential -maxfilesize)
@@ -473,23 +486,38 @@ namespace eval twapi::etw::test {
         privileged
     } -body {
         set etl [new_etl_filepath]
-        twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode sequential -maxfilesize 1
-        after 1000
-        # stop command should as file mode is sequential and
-        # log would get full and the trace would have already stopped
-        list [catch {twapi::etw_stop_trace  "NT Kernel Logger"}] \
-            [file size $etl]
-    } -result {1 1048576}
+        set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode sequential -maxfilesize 10]
+        set status [twapi::etw_query_trace $htrace]
+        twapi::etw_stop_trace $htrace
+        list [expr {([dict get $status logfile_mode] & 15)}] [dict get $status max_file_size]
+    } -result {1 10}
 
     test etw_start_kernel_trace-2.4 {
         Start kernel trace (verify -filemode rotate)
     } -constraints {
         privileged
     } -body {
-        set etl [file join $logdir [clock microseconds]-%d.etl]
-        list [catch {twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode rotate}] [errorcode]
-    } -result {1 {TWAPI_WIN32 87}}
+        set etl [file join $logdir [new_name]-%d.etl]
+        set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode rotate]
+        set status [twapi::etw_query_trace $htrace]
+        twapi::etw_stop_trace $htrace
+        list [expr {([dict get $status logfile_mode] & 15)}] [dict get $status max_file_size]
+    } -result {8 1}
 
+
+    test etw_start_kernel_trace-2.5 {
+        Start kernel trace (verify -filemode append)
+    } -constraints {
+        privileged
+    } -body {
+        set etl [new_etl_filepath]
+        set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode append]
+        set status [twapi::etw_query_trace $htrace]
+        # Next command will fail if file mode was not circular as
+        # log would get full and the trace would have already stopped
+        twapi::etw_stop_trace $htrace
+        list [expr {([dict get $status logfile_mode] & 15)}] [dict get $status max_file_size]
+    } -result {4 0}
 
     test etw_provider-1.0 {
         Tests etw_start_trace/etw_stop_trace/etw_update_trace/etw_log_message/etw_enable_trace/etw_disable_trace
@@ -500,11 +528,12 @@ namespace eval twapi::etw::test {
     } -body {
         set etl [new_etl_filepath]
         set tracename "TWAPITEST_[clock microseconds]"
-        set htrace [twapi::etw_start_trace $tracename -logfile $etl]
         set hprov [twapi::etw_twapi_provider_register]
+        set htrace [twapi::etw_start_trace $tracename -logfile $etl]
         twapi::etw_enable_trace_provider $htrace [twapi::etw_twapi_provider_guid] -1 5
-        after 500;              # Needs a bit of time to take effect
+        after 1000;              # Needs a bit of time to take effect
         for {set level 5} {$level > 0} {incr level -1} {
+            twapi::etw_log_message $hprov "SETLEVEL_$level" 1
             twapi::etw_enable_trace_provider $htrace [twapi::etw_twapi_provider_guid] -1 $level
             twapi::etw_log_message $hprov "default"
             twapi::etw_log_message $hprov "1" 1
@@ -518,6 +547,7 @@ namespace eval twapi::etw::test {
 
         # Repeat using tokens for levels
         foreach level {verbose informational warning error fatal} {
+            twapi::etw_log_message $hprov "SETLEVEL_$level" 1
             twapi::etw_enable_trace_provider $htrace [twapi::etw_twapi_provider_guid] -1 $level
             twapi::etw_log_message $hprov "default"
             twapi::etw_log_message $hprov "fatal" fatal
@@ -534,7 +564,6 @@ namespace eval twapi::etw::test {
         twapi::etw_log_message $hprov "fatal (provider disabled)" 1
         twapi::etw_flush_trace  $htrace
         twapi::etw_stop_trace  $htrace
-
         # Now see if messages were logged as expected
         set errors {}
         set htrace [twapi::etw_open_file $etl]
@@ -543,12 +572,12 @@ namespace eval twapi::etw::test {
         twapi::etw_close_formatter $formatter
         set result {}
         foreach event $events {
-            if {[twapi::etw_event provider_name $event] eq "TwapiETWProvider"} {
+            if {[twapi::etw_event provider_name $event] in {TwapiETWEventClass TwapiETWProvider}} {
                 lappend result [dict get [twapi::etw_event properties $event] Message]
             }
         }
         set result
-    } -result {default 1 2 3 4 5 default 1 2 3 4 default 1 2 3 1 2 1 default fatal error warning informational verbose default fatal error warning informational fatal error warning fatal error fatal}
+    } -result {SETLEVEL_5 default 1 2 3 4 5 SETLEVEL_4 default 1 2 3 4 SETLEVEL_3 1 2 3 SETLEVEL_2 1 2 SETLEVEL_1 1 SETLEVEL_verbose default fatal error warning informational verbose SETLEVEL_informational default fatal error warning informational SETLEVEL_warning fatal error warning SETLEVEL_error fatal error SETLEVEL_fatal fatal}
 
 
     ################################################################
