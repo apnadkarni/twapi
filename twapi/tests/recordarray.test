@@ -111,7 +111,7 @@ namespace eval twapi::base::test {
         $r c {1 2}
     } -cleanup {
         rename $r {}
-    } -returnCodes error -result "too few values in record"
+    } -returnCodes error -result "too few values in record*" -match glob
 
     test record-2.5 {
         Record get field from empty record (fail)
@@ -121,7 +121,7 @@ namespace eval twapi::base::test {
         $r a {}
     } -cleanup {
         rename $r {}
-    } -returnCodes error -result "too few values in record"
+    } -returnCodes error -result "too few values in record*" -match glob
 
     test record-2.6 {
         Record get explicit command
@@ -301,7 +301,7 @@ namespace eval twapi::base::test {
         $r select {1 2} {b c}
     } -cleanup {
         rename $r {}
-    } -returnCodes error -result "too few values in record"
+    } -returnCodes error -result "too few values in record*" -match glob
 
 }
 
