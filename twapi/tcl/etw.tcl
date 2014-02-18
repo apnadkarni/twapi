@@ -626,10 +626,12 @@ proc twapi::etw_open_session {sessionname} {
 proc twapi::etw_close_session {htrace} {
     variable _etw_trace_consumers
 
-    if {[info exists _etw_trace_consumers($htrace)]} {
-        CloseTrace $htrace
-        unset _etw_trace_consumers($htrace)
+    if {! [info exists _etw_trace_consumers($htrace)]} {
+        badargs! "Cannot find trace session with handle $htrace"
     }
+
+    CloseTrace $htrace
+    unset _etw_trace_consumers($htrace)
     return
 }
 
