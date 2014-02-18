@@ -62,14 +62,16 @@ proc twapi::pdh_counter_path {object counter args} {
         machine.arg
         instance.arg
         parent.arg
-        instanceindex.int
+        {instanceindex.int -1}
         {localized.bool false}
     } -nulldefault]
     
-    if {$opts(instanceindex) < -1} {
-        # Note -1 allowed for instance index
-        error "Invalid value '$opts(instanceindex)' specified for -instanceindex option"
+    if {$opts(instanceindex) == 0} {
+        # For XP. For first instance (index 0), the path should not contain
+        # "#0" but on XP it does. Reset it to -1 for Vista+ consistency
+        set opts(instanceindex) -1
     }
+
 
     if {! $opts(localized)} {
         # Need to localize the counter names

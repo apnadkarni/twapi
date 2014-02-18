@@ -19,6 +19,25 @@ load_twapi_package twapi_pdh
 namespace eval twapi::pdh::test {
     namespace import ::tcltest::test
 
+    proc verify_cpu_utilization_counters {expected_key result} {
+        lassign $result key val
+        if {[twapi::min_os_version 6]} {
+            if {[string equal $expected_key $key] &&
+                [string is double [dict get $val _Total]] &&
+                [string is double [dict get $val 0,_Total]] &&
+                [string is double [dict get $val 0,0]]} {
+                return 1
+            }
+        } else {
+            if {[string equal $expected_key $key] &&
+                [string is double [dict get $val _Total]] &&
+                [string is double [dict get $val 0]]} {
+                return 1
+            }
+        }
+        return 0
+    }
+
     ################################################################
 
     test locale_workaround-1.0 {
@@ -73,7 +92,7 @@ namespace eval twapi::pdh::test {
         set l2 [twapi::pdh_enumerate_objects -detail advanced]
         set l_l2 [setops::diff $l $l2]
         set l2_l [setops::diff $l2 $l]
-        list [expr {[llength $l_l2] > 0}] $l2_l
+        list [expr {[llength $l_l2] >= 0}] $l2_l
     } -result {1 {}}
 
     test pdh_enumerate_objects-4.1 {
@@ -104,7 +123,7 @@ namespace eval twapi::pdh::test {
         set l2 [twapi::pdh_enumerate_objects -detail advanced]
         set l_l2 [setops::diff $l $l2]
         set l2_l [setops::diff $l2 $l]
-        list [expr {[llength $l_l2] > 0}] $l2_l
+        list [expr {[llength $l_l2] >= 0}] $l2_l
     } -result {1 {}}
 
     test pdh_enumerate_object_instances-1.0 {
@@ -1048,33 +1067,32 @@ namespace eval twapi::pdh::test {
     } -body {
         set qh [twapi::pdh_system_performance_query idle_utilization_per_cpu]
         after 1000
-        lassign [twapi::pdh_query_get $qh] key val
-        list [string equal idle_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
+        verify_cpu_utilization_counters idle_utilization_per_cpu [twapi::pdh_query_get $qh]
     } -cleanup {
         twapi::pdh_query_close $qh
-    } -result {1 1 1 1}
+    } -result 1
 
     test pdh_system_performance_query-23.0 {
         pdh_system_performance_query processor_utilization_per_cpu
     } -body {
         set qh [twapi::pdh_system_performance_query processor_utilization_per_cpu]
         after 1000
-        lassign [twapi::pdh_query_get $qh] key val
-        list [string equal processor_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
+        verify_cpu_utilization_counters processor_utilization_per_cpu [twapi::pdh_query_get $qh]
     } -cleanup {
         twapi::pdh_query_close $qh
-    } -result {1 1 1 1}
+    } -result 1
+
 
     test pdh_system_performance_query-24.0 {
         pdh_system_performance_query interrupt_utilization_per_cpu
     } -body {
         set qh [twapi::pdh_system_performance_query interrupt_utilization_per_cpu]
         after 1000
-        lassign [twapi::pdh_query_get $qh] key val
-        list [string equal interrupt_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
+        verify_cpu_utilization_counters interrupt_utilization_per_cpu [twapi::pdh_query_get $qh]
     } -cleanup {
         twapi::pdh_query_close $qh
-    } -result {1 1 1 1}
+    } -result 1
+
 
     test pdh_system_performance_query-25.0 {
         pdh_system_performance_query privileged_utilization_per_cpu
@@ -1082,10 +1100,11 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_system_performance_query privileged_utilization_per_cpu]
         after 1000
         lassign [twapi::pdh_query_get $qh] key val
-        list [string equal privileged_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
+        verify_cpu_utilization_counters privileged_utilization_per_cpu [twapi::pdh_query_get $qh]
     } -cleanup {
         twapi::pdh_query_close $qh
-    } -result {1 1 1 1}
+    } -result 1
+
 
     test pdh_system_performance_query-26.0 {
         pdh_system_performance_query user_utilization_per_cpu
@@ -1093,10 +1112,10 @@ namespace eval twapi::pdh::test {
         set qh [twapi::pdh_system_performance_query user_utilization_per_cpu]
         after 1000
         lassign [twapi::pdh_query_get $qh] key val
-        list [string equal user_utilization_per_cpu $key] [string is double [dict get $val _Total]] [string is double [dict get $val 0,_Total]] [string is double [dict get $val 0,0]]
+        verify_cpu_utilization_counters user_utilization_per_cpu [twapi::pdh_query_get $qh]
     } -cleanup {
         twapi::pdh_query_close $qh
-    } -result {1 1 1 1}
+    } -result 1
 
     ################################################################
 
