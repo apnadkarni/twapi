@@ -666,7 +666,7 @@ namespace eval twapi::com::test {
             set record {}
             set propset [$elem Properties_]
             $propset -iterate itemobj {
-                # Note how we get the default property
+                # Note how we get the default property. TBD - document
                 lappend record [string tolower [$itemobj Name]] [$itemobj -default]
                 $itemobj -destroy
             }
@@ -1450,11 +1450,23 @@ namespace eval twapi::com::test {
     test generate_code_from_typelib-2.0 {
         Verify generate_code_from_typelib from imports module constants
     } -body {
+        eval [ twapi::generate_code_from_typelib [file join $::env(SYSTEMROOT) system32/msvbvm60.dll] -namespace [namespace current]::tempns -type module]
+        list $tempns::Constants(vbVerticalTab) $tempns::Constants(vbObjectError)
+    } -cleanup {
+        namespace delete [namespace current]::tempns
+    } -result [list \v -2147221504]
+
+    test generate_code_from_typelib-3.0 {
+        Verify generate_code_from_typelib from imports module constants
+    } -constraints {
+        OBSOLETE - file does not exist on all systems
+    } -body {
         eval [ twapi::generate_code_from_typelib [file join $::env(SYSTEMROOT) system32/Speech/Common/sapi.dll] -namespace [namespace current]::tempns -type module]
         set tempns::SpeechStringConstants(SpeechRegistryUserRoot)
     } -cleanup {
         namespace delete [namespace current]::tempns
     } -result {HKEY_CURRENT_USER\SOFTWARE\Microsoft\Speech}
+
 
     ################################################################
 
