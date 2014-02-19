@@ -539,10 +539,11 @@ proc twapi::tls::_negotiate chan {
 }
 
 proc twapi::tls::_negotiate2 {chan} {
-    debuglog [info level 0]
     variable _channels
         
     dict with _channels($chan) {}; # dict -> local vars
+
+    debuglog "[info level 0]: State=$State"
     switch $State {
         NEGOTIATING {
             if {$Blocking && ![info exists AcceptCallback]} {
@@ -555,10 +556,12 @@ proc twapi::tls::_negotiate2 {chan} {
                     error "Unexpected EOF during TLS negotiation (NEGOTIATING)"
                 } else {
                     # No data yet, just keep waiting
+                    debuglog "Waiting (chan $chan) for more data on Socket $Socket"
                     return
                 }
             } else {
                 lassign [sspi_step $SspiContext $data] status outdata leftover
+                debuglog "sspi_step returned status $status with [string length $outdata] bytes"
                 if {[string length $outdata]} {
                     chan puts -nonewline $Socket $outdata
                     chan flush $Socket
@@ -610,19 +613,25 @@ proc twapi::tls::_negotiate2 {chan} {
                 _server_blocking_negotiate $chan
             } else {
                 set data [chan read $Socket]
+                debuglog "Read [string length $data] bytes from $chan"
                 if {[string length $data] == 0} {
                     if {[chan eof $Socket]} {
                         error "Unexpected EOF during TLS negotiation (SERVERINIT)"
                     } else {
                         # No data yet, just keep waiting
+                        debuglog "$chan: no data from socket $Socket. Waiting..."
                         return
                     }
                 } else {
+                    debuglog "Setting $chan State=NEGOTIATING"
+
                     dict set _channels($chan) State NEGOTIATING
                     set SspiContext [sspi_server_context $Credentials $data -stream 1]
                     dict set _channels($chan) SspiContext $SspiContext
                     lassign [sspi_step $SspiContext] status outdata leftover
+                    debuglog "sspi_step returned status $status with [string length $outdata] bytes"
                     if {[string length $outdata]} {
+                        debuglog "Writing [string length $outdata] bytes to socket $Socket"
                         chan puts -nonewline $Socket $outdata
                         chan flush $Socket
                     }
@@ -635,6 +644,7 @@ proc twapi::tls::_negotiate2 {chan} {
                                     # TBD - shut down channel
                                 }
                             }
+                            debuglog "Marking channel $chan open"
                             _open $chan
                         }
                         continue {
@@ -685,17 +695,21 @@ proc twapi::tls::_blocking_negotiate_loop {chan} {
 
     dict with _channels($chan) {}; # dict -> local vars
 
+    debuglog "[info level 0] State=$State"
+
     lassign [sspi_step $SspiContext] status outdata
     debuglog "sspi_step status $status"
     # Keep looping as long as the SSPI state machine tells us to 
     while {$status eq "continue"} {
         # If the previous step had any output, send it out
         if {[string length $outdata]} {
+            debuglog "Writing [string length $outdata] to socket $Socket"
             chan puts -nonewline $Socket $outdata
             chan flush $Socket
         }
 
         set indata [_blocking_read $Socket]
+        debuglog "Read [string length $indata] from socket $Socket"
         if {[chan eof $Socket]} {
             error "Unexpected EOF during TLS negotiation."
         }
@@ -712,6 +726,7 @@ proc twapi::tls::_blocking_negotiate_loop {chan} {
 
     # Send output irrespective of status
     if {[string length $outdata]} {
+        debuglog "Sending [string length $outdata] bytes on socket $Socket"
         chan puts -nonewline $Socket $outdata
         chan flush $Socket
     }
@@ -725,6 +740,7 @@ proc twapi::tls::_blocking_negotiate_loop {chan} {
                 error "Error status $status decrypting data"
             }
         }
+        debuglog "Marking $chan open"
         _open $chan
     } else {
         # Should not happen. Negotiation failures will raise an error,
