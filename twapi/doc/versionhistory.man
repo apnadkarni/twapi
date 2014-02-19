@@ -7,7 +7,7 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 4.0.26 Beta"]
+[section "Version 4.0.35 Beta"]
 Major changes in this release are support for Windows event tracing,
 new Windows event logging API, SSL/TLS sockets,
 greatly enhanced support for CryptoAPI including certificate handling,
@@ -18,13 +18,20 @@ and run-time performance.
 [list_begin bullet]
 
 [bullet]
-Enhanced [uri sspi.html SSPI] module including stream support.
-
-[bullet]
 Added [uri tls.html SSL/TLS] socket channels.
 
 [bullet]
+Added support for the [uri eventlog.html "new event logging infrastructure"]
+in Windows Vista.
+
+[bullet]
 Added support for reading [uri pdh.html "performance counters"].
+
+[bullet]
+New [uri etw.html "Event Tracing for Windows"] module.
+
+[bullet]
+Enhanced [uri sspi.html SSPI] module including stream support.
 
 [bullet]
 Added [uri crypto.html "certificate commands"] 
@@ -40,13 +47,6 @@ Added [uri base.html#read_credentials [cmd read_credentials]],
 [bullet]
 Added [uri base.html#conceal [cmd conceal]] and
 [uri base.html#reveal [cmd reveal]].
-
-[bullet]
-Added support for the [uri eventlog.html "new event logging infrastructure"]
-in Windows Vista.
-
-[bullet]
-New [uri etw.html "Event Tracing for Windows"] module.
 
 [bullet]
 Added [cmd -active] option to
