@@ -115,7 +115,9 @@ namespace eval twapi::apputil::test {
     test get_command_line-1.0 {
         Get the command line of the current process
     } -body {
-        lrange [twapi::get_command_line] 1 end
+        # trim is needed because extra batch file % params result
+        # in extra blanks in teh command line
+        lrange [split [string trim [twapi::get_command_line]]] 1 end
     } -result [linsert $argv 0 $argv0] -match list
 
     ################################################################
@@ -123,8 +125,8 @@ namespace eval twapi::apputil::test {
     test get_command_line_args-1.0 {
         Get the command line of the current process
     } -body {
-        twapi::get_command_line_args [twapi::get_command_line]
-    } -result "* $argv0*$argv" -match glob
+        lrange [twapi::get_command_line_args [string trim [twapi::get_command_line]]] 1 end
+    } -result [linsert $argv 0 $argv0] -match list
 
 
     ################################################################

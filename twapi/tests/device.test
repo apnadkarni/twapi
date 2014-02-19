@@ -11,6 +11,8 @@ eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_device
+load_twapi_package twapi_share
+load_twapi_package twapi_security
 
 namespace eval twapi::device::test {
     namespace import ::tcltest::test
@@ -167,7 +169,7 @@ namespace eval twapi::device::test {
         if {! [file exists [file join $drive /]]} {
             error "Drive $drive does not exist"
         }
-        set device_handle [create_file "\\\\.\\$drive" -createdisposition open_existing]
+        set device_handle [twapi::create_file "\\\\.\\$drive" -createdisposition open_existing]
     } -cleanup {
         twapi::CloseHandle $device_handle
     } -body {
