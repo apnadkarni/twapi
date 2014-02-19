@@ -23,7 +23,7 @@ proc transform_file {infile {navfile ""} {adfile ""} {adfile2 ""} {outfile ""}} 
     }
 
     puts $outfd {<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN">}
-    puts $outfd {
+    puts $outfd [format {
 <html>
   <head>
     <title>Tcl Windows API extension</title>
@@ -32,8 +32,8 @@ proc transform_file {infile {navfile ""} {adfile ""} {adfile2 ""} {outfile ""}} 
     <link rel="stylesheet" type="text/css" href="styles.css" />
   </head>
   <body>
-    <div id="doc" class="yui-t4">
-    }
+    <div id="doc" %s>
+    } [expr {$adfile ne "" ? {class="yui-t4"} : {}}]]
 
 
     # Put the page header
