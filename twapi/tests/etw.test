@@ -13,7 +13,7 @@ source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_etw
 load_twapi_package twapi_process; # Needed for proc privileged
 
-catch {package require csv}
+source csv.tcl
 
 namespace eval twapi::etw::test {
     namespace import ::tcltest::test
