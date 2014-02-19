@@ -289,6 +289,9 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
     Tcl_Obj      *objs[6];
     TimeStamp     expiration;
 
+    /* NOTE - on XP for schannel at least, the input buffer must not 
+       be read-only. Discovered in testing so made sbd_in read-write
+       Later Win versions do not seem to mind */
     contextP = &context;
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
                        GETVAR(credential, ObjToSecHandle),
@@ -297,7 +300,7 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
                        GETINT(contextreq),
                        GETINT(reserved1),
                        GETINT(targetdatarep),
-                       GETVAR(sbd_in, ObjToSecBufferDescRO),
+                       GETVAR(sbd_in, ObjToSecBufferDescRW),
                        GETINT(reserved2),
                        ARGEND) != TCL_OK)
         return TCL_ERROR;
@@ -421,11 +424,14 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     Tcl_Obj      *objs[6];
     TimeStamp     expiration;
 
+    /* NOTE - on XP for schannel at least, the input buffer must not 
+       be read-only. Discovered in testing so made sbd_in read-write
+       Later Win versions do not seem to mind */
     contextP = &context;
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
                        GETVAR(credential, ObjToSecHandle),
                        GETVAR(contextP, ObjToSecHandle_NULL),
-                       GETVAR(sbd_in, ObjToSecBufferDescRO),
+                       GETVAR(sbd_in, ObjToSecBufferDescRW),
                        GETINT(contextreq),
                        GETINT(targetdatarep),
                        ARGEND) != TCL_OK)
