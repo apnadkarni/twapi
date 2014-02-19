@@ -37,5 +37,8 @@ puts "Copying test scripts from [file dirname [file normalize [info script]]]"
 file copy [file dirname [file normalize [info script]]] [file join $target tests]
 #file copy [file join [file dirname [file normalize [info script]]] rctest bitmap.bmp] [file join $target tests]
 
+file copy [file join [file dirname [info script]] .. .. tools openssl] [file join $target openssl]
+
 
 puts "Remember to copy appropriate twapi distribution"
+puts "Remember to set OPENSSL_CONF=[file join $target openssl ssl openssl.cnf]"
