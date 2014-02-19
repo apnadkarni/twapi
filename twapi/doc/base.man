@@ -129,7 +129,8 @@ The current contents of the debug log can be retrieved with
 [uri #debuglog_get [cmd debuglog_get]].
 
 [section "Utility commands"]
-[uri \#parseargs [cmd parseargs]] parses an argument list based on specified options.
+[uri \#parseargs [cmd parseargs]]
+parses an argument list based on specified options.
 The command [uri \#expand_environment_strings [cmd expand_environment_strings]]
 replaces environment variables
 in a string with their values. [uri \#format_message [cmd format_message]]
@@ -651,7 +652,7 @@ whether the user selected for the credentials to be saved or not.
 [nl]
 The following options may be specified:
 [list_begin opt]
-[cmd -expectconfirmation] option lets the manager know the application
+[opt_def [cmd -expectconfirmation]] option lets the manager know the application
 will call [cmd confirm_credentials] after verifying credentials. If
 [const false], the credentials manager will not hold on to the credentials
 and [cmd confirm_credentials] need not be called. Generally,
