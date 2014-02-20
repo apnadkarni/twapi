@@ -220,6 +220,9 @@ namespace eval twapi::share::test {
         if {![export_exists $export_name]} {
             error "Failed to create test share"
         }
+
+        close [open [file join $export_dir dummy] w+]
+
         return $export_name
     }
 
@@ -236,7 +239,7 @@ namespace eval twapi::share::test {
         
         exec net use $testshares(client_device) $testshares(client_share_mapped)
         # Force a session to be created
-        close [open [file join $testshares(client_device) dummy] w+]
+        close [open [file join $testshares(client_device) dummy] r]
     }
 
     # Create a unmapped client share
@@ -248,7 +251,7 @@ namespace eval twapi::share::test {
         }
         exec net use $testshares(client_share_unmapped)
         # Force a session to be created
-        close [open [file join $testshares(client_share_unmapped) dummy] w+]
+        close [open [file join $testshares(client_share_unmapped) dummy] r]
     }
 
     proc delete_mapped_client_share {} {
@@ -283,7 +286,7 @@ namespace eval twapi::share::test {
                 if {[string equal -nocase $local $testshares(client_device)]} {
                     if {[equal_paths $remote $testshares(client_share_mapped)]} {
                         # Force a session to be created
-                        close [open [file join $testshares(client_device) dummy] w+]
+                        close [open [file join $testshares(client_device) dummy] r]
                         return 1
 
                     } else {
@@ -313,7 +316,7 @@ namespace eval twapi::share::test {
                 foreach {local remote} $mapping break
                 if {[equal_paths $remote $testshares(client_share_unmapped)]} {
                     # Force a session to be created
-                    close [open [file join $testshares(client_share_unmapped) dummy] w+]
+                    close [open [file join $testshares(client_share_unmapped) dummy] r]
                     return 1
                 }
             }
