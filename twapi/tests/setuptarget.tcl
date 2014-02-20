@@ -39,6 +39,6 @@ file copy [file dirname [file normalize [info script]]] [file join $target tests
 
 file copy [file join [file dirname [info script]] .. .. tools openssl] [file join $target openssl]
 
-
 puts "Remember to copy appropriate twapi distribution"
+puts "Remember to regsvr32 [file nativename [file join $target tests comtest comtest.dll]]"
 puts "Remember to set OPENSSL_CONF=[file join $target openssl ssl openssl.cnf]"

@@ -11,6 +11,8 @@ eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_share
+load_twapi_package twapi_security
+load_twapi_package twapi_storage
 
 namespace eval twapi::share::test {
     namespace import ::tcltest::test
@@ -21,11 +23,9 @@ namespace eval twapi::share::test {
     variable testshares
     # Contains directory exported from server, will be mapped to a local device
     set testshares(export_dir_mapped) [tcltest::makeDirectory TWAPI_SHARE_MAPPED_[clock seconds]]
-    tcltest::makeFile "" [file join $testshares(export_dir_mapped) dummy]
 
     # Contains directory exported from server, but not mapped to local device
     set testshares(export_dir_unmapped) [tcltest::makeDirectory TWAPI_SHARE_UNMAPPED_[clock seconds]]
-    tcltest::makeFile "" [file join $testshares(export_dir_unmapped) dummy]
 
     # Name of exported share mapped to a device
     set testshares(export_name_mapped) "TWAPI_EXPORT_MAPPED"
@@ -42,7 +42,6 @@ namespace eval twapi::share::test {
     set testshares(client_share_unmapped) "\\\\127.0.0.1\\$testshares(export_name_unmapped)"
     set testshares(client_device) [find_unused_drive]
     
-
     variable shares
     # Get share data from VBScript for verification purposes
     proc fill_shares {{refresh 0}} {
@@ -183,7 +182,6 @@ namespace eval twapi::share::test {
         # type must be "mapped" or "unmapped"
         variable testshares
         upvar 0 testshares(export_name_$type) export_name
-
         # We use delete_share, not "net share" because the latter
         # prompts about open files and on at leat 64bit win28r2, the
         # client keeps the directory open making the close fail.
@@ -237,9 +235,8 @@ namespace eval twapi::share::test {
         }
         
         exec net use $testshares(client_device) $testshares(client_share_mapped)
-
         # Force a session to be created
-        close [open [file join $testshares(client_device) dummy] r]
+        close [open [file join $testshares(client_device) dummy] w+]
     }
 
     # Create a unmapped client share
@@ -251,7 +248,7 @@ namespace eval twapi::share::test {
         }
         exec net use $testshares(client_share_unmapped)
         # Force a session to be created
-        close [open [file join $testshares(client_share_unmapped) dummy] r]
+        close [open [file join $testshares(client_share_unmapped) dummy] w+]
     }
 
     proc delete_mapped_client_share {} {
@@ -286,7 +283,7 @@ namespace eval twapi::share::test {
                 if {[string equal -nocase $local $testshares(client_device)]} {
                     if {[equal_paths $remote $testshares(client_share_mapped)]} {
                         # Force a session to be created
-                        close [open [file join $testshares(client_device) dummy] r]
+                        close [open [file join $testshares(client_device) dummy] w+]
                         return 1
 
                     } else {
@@ -316,7 +313,7 @@ namespace eval twapi::share::test {
                 foreach {local remote} $mapping break
                 if {[equal_paths $remote $testshares(client_share_unmapped)]} {
                     # Force a session to be created
-                    close [open [file join $testshares(client_share_unmapped) dummy] r]
+                    close [open [file join $testshares(client_share_unmapped) dummy] w+]
                     return 1
                 }
             }
@@ -1366,7 +1363,9 @@ namespace eval twapi::share::test {
             ::twapi::end_lm_sessions -user $::env(USERNAME) -system \\\\127.0.0.1
         }
 
+        puts [::twapi::find_lm_sessions -user $::env(USERNAME) -all]
         verify_lm_test_sessions [::twapi::find_lm_sessions -user $::env(USERNAME) -all] $lm_session_fields [list ] 0 0
+        
     } -result "" -returnCodes {0 1}
 
     ###
@@ -1438,7 +1437,6 @@ namespace eval twapi::share::test {
     } -setup {
         create_unmapped_client_share
     } -body {
-        puts $::env(USERNAME)
         ::twapi::get_lm_session_info \\\\127.0.0.1 $::env(USERNAME)
     } -result ""
 
@@ -2194,6 +2192,8 @@ namespace eval twapi::share::test {
 
     ################################################################
 
+    delete_mapped_client_share
+    delete_unmapped_client_share
     delete_test_export mapped
     delete_test_export unmapped
 

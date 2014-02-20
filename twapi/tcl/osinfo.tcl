@@ -636,7 +636,7 @@ proc twapi::abort_system_shutdown {args} {
 twapi::proc* twapi::get_system_uptime {} {
     package require twapi_pdh
     variable _system_start_time    
-    set ctr_path [pdh_counter_path System "System Up Time" -localize true]
+    set ctr_path [pdh_counter_path System "System Up Time"]
     set uptime [pdh_counter_path_value $ctr_path -format double]
     set now [clock seconds]
     set _system_start_time [expr {$now - round($uptime+0.5)}]
