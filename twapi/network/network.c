@@ -1901,10 +1901,6 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             return Twapi_GetAdaptersInfo(ticP);
         case 3:
             return Twapi_GetInterfaceInfo(ticP);
-        case 4:
-            result.type = GetNumberOfInterfaces(&result.value.uval) ? TRT_GETLASTERROR : TRT_DWORD;
-            break;
-
         }
     } else if (func < 300) {
         if (objc != 3)
@@ -2035,7 +2031,6 @@ static int TwapiNetworkInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(GetNetworkParams, 1),
         DEFINE_ALIAS_CMD(GetAdaptersInfo,  2),
         DEFINE_ALIAS_CMD(GetInterfaceInfo,  3),
-        DEFINE_ALIAS_CMD(GetNumberOfInterfaces,  4),
         DEFINE_ALIAS_CMD(SetTcpEntry,  101),
         DEFINE_ALIAS_CMD(GetPerAdapterInfo,  201),
         DEFINE_ALIAS_CMD(GetIfEntry,  202),

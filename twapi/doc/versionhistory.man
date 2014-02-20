@@ -207,13 +207,16 @@ The [var errorCode], [var errorResult] and
 [var errorInfo] variables are no longer brought into scope
 automatically in onerror clauses.
 
+[opt_def [cmd get_netif_count], [cmd get_netif6_count]] Removed.
+Returned internal driver interface information which was misleading
+in terms of the interfaces actually visible at the application level.
+
 [opt_def [cmd TwapiThemeDefineValue]] Removed.
 
 [opt_def [cmd volume_properties_dialog]] Removed.
 Use [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]] instead.
 
 [list_end]
-
 
 [section "Version 3.1"]
 

@@ -65,12 +65,6 @@ Returns the IP version ([const 4] or [const 6]) of the IP address specified
 as [arg IPADDR]. Returns [const 0] if [arg IPADDR] is not a valid IPv4 or
 IPv6 address.
 
-[call [cmd get_netif_count]]
-Returns the number of network interfaces in the system that support IPv4.
-
-[call [cmd get_netif6_count]]
-Returns the number of network interfaces in the system that support IPv6.
-
 [call [cmd get_netif_indices]]
 
 Network interfaces in the system are identified by integer indices. This
