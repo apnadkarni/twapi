@@ -17,12 +17,16 @@ namespace eval twapi::crypto::test {
     namespace import ::tcltest::test
 
     proc openssl {args} {
-        set cmd [auto_execok openssl.exe]
-        if {[llength $cmd] == 0} {
-            # Try from the source pool. We do it this way because 
-            # of problems loading in VmWare virtual machines from the
-            # host's drive share
-            set cmd [list ../../tools/openssl/bin/openssl.exe]
+        if {[file exists [file join [pwd] .. openssl bin openssl.exe]]} {
+            set cmd [list [file join [pwd] .. openssl bin openssl.exe]]
+        } else {
+            set cmd [auto_execok openssl.exe]
+            if {[llength $cmd] == 0} {
+                # Try from the source pool. We do it this way because 
+                # of problems loading in VmWare virtual machines from the
+                # host's drive share
+                set cmd [list ../../tools/openssl/bin/openssl.exe]
+            }
         }
         set cfg [file join [file dirname [file dirname [file normalize [lindex $cmd 0]]]] ssl openssl.cnf]
         if {[file exists $cfg]} {
@@ -30,6 +34,8 @@ namespace eval twapi::crypto::test {
         }
         return [exec {*}$cmd {*}$args 2>@1]
     }
+
+    # TBD - add tests, including SSL, were data is passed in fragmented
 
     proc setup_contexts {package} {
         set ccred [twapi::sspi_acquire_credentials -role client -package $package]
