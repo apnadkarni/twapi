@@ -87,6 +87,17 @@ void TwapiGetDllVersion(char *dll, DLLVERSIONINFO *verP)
 }
 
 
+void TwapiDebugOutputObj(Tcl_Obj *objP)
+{
+    Tcl_Channel chan = Tcl_GetStdChannel(TCL_STDERR);
+    objP = ObjDuplicate(objP);
+    Tcl_AppendToObj(objP, "\n", 1);
+    Tcl_WriteObj(chan, objP);
+    Tcl_Flush(chan);
+    ObjDecrRefs(objP);
+}
+
+
 void TwapiDebugOutput(char *s) {
     Tcl_Channel chan = Tcl_GetStdChannel(TCL_STDERR);
     Tcl_Obj *objP;
