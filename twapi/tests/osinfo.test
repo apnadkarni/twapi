@@ -73,8 +73,8 @@ namespace eval twapi::osinfo::test {
                 # For workgroup env(USERDOMAIN) contains computer name, not
                 # workgroup so cannot compare with dominfo(-name)
                 # Just do an empirical check
-                if {[lsearch -exact {HOME TWAPI TEST} [string toupper $dominfo(-name)]] < 0} {
-                    lappend msgs "Field -name does not match. Was $dominfo(-name), expected one of TWAPI, TEST or HOME"
+                if {[lsearch -exact {WORKGROUP HOME TWAPI TEST} [string toupper $dominfo(-name)]] < 0} {
+                    lappend msgs "Field -name does not match. Was $dominfo(-name), expected one of WORKGROUP, TWAPI, TEST or HOME"
                 }
             }
         }
