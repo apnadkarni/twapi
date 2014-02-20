@@ -1588,8 +1588,8 @@ namespace eval twapi::ui::test {
     test close_window-4.0 {
         Close an Explorer window
     } -setup {
-        twapi::shell_execute;   # Shows current folder
-        set win [wait_for_window -text [file tail [pwd]]* -match glob -pids [list [get_explorer_pid]]]
+        twapi::shell_execute -path [pwd];   # Shows current folder
+        set win [wait_for_window -toplevel 1 -text [file tail [pwd]]* -match glob -pids [list [get_explorer_pid]]]
     } -body {
         # This test specifically tests Explorer window because
         # the old 2.2 method of SendMessage did not work for Explorer
