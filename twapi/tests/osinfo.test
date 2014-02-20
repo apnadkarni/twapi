@@ -688,7 +688,8 @@ namespace eval twapi::osinfo::test {
     } -body {
         set optval [twapi::get_memory_info -availcommit]
         verify_kl_fields $optval [list -availcommit]
-        verify_wmic_memory_value freespaceinpagingfiles [lindex $optval 1] approx
+        expr {[verify_wmic_memory_value freevirtualmemory [lindex $optval 1] approx] ||
+              [verify_wmic_memory_value freespaceinpagingfiles [lindex $optval 1] approx]}
     } -result 1
 
     ###
