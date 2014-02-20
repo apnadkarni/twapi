@@ -993,7 +993,7 @@ namespace eval twapi::network::test {
     test get_tcp_connections-1.1 {
         Get TCP connections for IPv6 - check for crash
     } -constraints {
-        tclipv6
+        ipv6 tclipv6
     } -setup {
         patience "get_tcp_connections-1.1"
     } -body {
@@ -1120,7 +1120,7 @@ namespace eval twapi::network::test {
                                     -matchpid -pid  [pid]] {
         test get_tcp_connections-[incr testnum].0 \
             "get_tcp_connections -all $matchopt $val" \
-            -constraints {tclipv6} \
+            -constraints {ipv6 tclipv6} \
             -setup {
                 set server_socket [socket -server [list lappend ::connection_establised 1] 9342]
                 set client_socket [socket ::1 9342]
