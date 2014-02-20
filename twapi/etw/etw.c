@@ -446,7 +446,7 @@ HANDLE gETWProviderEventClassRegistrationHandle; /* Handle returned by ETW for a
 ULONG  gETWProviderTraceEnableFlags;             /* Flags set by ETW controller */
 ULONG  gETWProviderTraceEnableLevel;             /* Level set by ETW controller */
 /* Session our provider is attached to */
-TRACEHANDLE gETWProviderSessionHandle = (TRACEHANDLE) INVALID_HANDLE_VALUE;
+TRACEHANDLE gETWProviderSessionHandle; /* Initialized in one-time init as system dependent */
 
 
 /*
@@ -837,8 +837,9 @@ static ULONG WINAPI TwapiETWProviderControlCallback(
         if (enable_level == 0) {
             /* *Possible* error */
             rc = GetLastError();
-            if (rc)
+            if (rc) {
                 break; /* Yep, real error */
+            }
         }
 
         SetLastError(0);
@@ -846,8 +847,9 @@ static ULONG WINAPI TwapiETWProviderControlCallback(
         if (enable_flags == 0) {
             /* *Possible* error */
             rc = GetLastError();
-            if (rc)
-                break;
+            if (rc) {
+                break; /* Yep, real error */
+            }
         }
 
         /* OK, all calls succeeded. Set up the global values */
@@ -858,7 +860,7 @@ static ULONG WINAPI TwapiETWProviderControlCallback(
  
     case WMI_DISABLE_EVENTS:  //Disable Provider.
         /* Don't we need to check session handle ? Sample MSDN does not */
-        gETWProviderSessionHandle = (TRACEHANDLE) INVALID_HANDLE_VALUE;
+        gETWProviderSessionHandle = (TRACEHANDLE) gInvalidTraceHandle;
         break;
 
     default:
@@ -2644,7 +2646,7 @@ static int Twapi_ETWCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         objP = ObjFromLong(gETWProviderTraceEnableLevel);
         break;
     case 3: // etw_provider_enabled
-        objP = ObjFromBoolean((HANDLE)gETWProviderSessionHandle != INVALID_HANDLE_VALUE);
+        objP = ObjFromBoolean(! INVALID_SESSIONTRACE_HANDLE(gETWProviderSessionHandle));
         break;
     case 4:
         CHECK_NARGS_RANGE(interp, objc, 1, 2);
@@ -2752,7 +2754,7 @@ static int ETWModuleOneTimeInit(Tcl_Interp *interp)
         else
             gInvalidTraceHandle = 0xFFFFFFFFFFFFFFFF;
     }
-
+    gETWProviderSessionHandle = gInvalidTraceHandle;
     InitializeCriticalSection(&gETWCS);
 
     return TCL_OK;

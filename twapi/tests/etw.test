@@ -580,6 +580,7 @@ namespace eval twapi::etw::test {
 
         # Now disable the provider and try to log
         twapi::etw_disable_trace_provider $htrace [twapi::etw_twapi_provider_guid]
+        after 100
         twapi::etw_log_message $hprov "fatal (provider disabled)" 1
         twapi::etw_flush_trace  $htrace
         twapi::etw_stop_trace  $htrace
