@@ -389,16 +389,6 @@ proc twapi::get_netif6_info {interface args} {
     return [array get result]
 }
 
-
-# Get the number of network interfaces
-proc twapi::get_netif_count {} {
-    return [GetNumberOfInterfaces]
-}
-
-proc twapi::get_netif6_count {} {
-    return [llength [GetAdaptersAddresses 23 8]]
-}
-
 # Get the address->h/w address table
 proc twapi::get_arp_table {args} {
     array set opts [parseargs args {
