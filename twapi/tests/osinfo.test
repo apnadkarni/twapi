@@ -44,13 +44,16 @@ namespace eval twapi::osinfo::test {
 
     # Get memory number from wmi
     proc verify_wmic_memory_value {field value {cmp exact}} {
-        # TBD - fix this for 64-bit systems
         array set mem [lindex [wmic_get CIM_OperatingSystem $field] 0]
+        # Some WMIC values are in KB some in bytes. Accept either
         set wmic_val [expr {wide(1024)*$mem($field)}]
         if {$cmp eq "approx"} {
-            return [approx $value $wmic_val]
+            return [expr {
+                          [approx $value $wmic_val] ||
+                          [approx $value $mem($field)]
+                      }]
         } else {
-            return [expr {$value == $wmic_val}]
+            return [expr {$value == $wmic_val || $value == $mem($field)}]
         }
     }
 
@@ -688,6 +691,8 @@ namespace eval twapi::osinfo::test {
     } -body {
         set optval [twapi::get_memory_info -availcommit]
         verify_kl_fields $optval [list -availcommit]
+        # Note MS has a documented bug because of which either of
+        # two values may match depending on the system patches
         expr {[verify_wmic_memory_value freevirtualmemory [lindex $optval 1] approx] ||
               [verify_wmic_memory_value freespaceinpagingfiles [lindex $optval 1] approx]}
     } -result 1
@@ -698,7 +703,10 @@ namespace eval twapi::osinfo::test {
     } -body {
         set optval [twapi::get_memory_info -totalcommit]
         verify_kl_fields $optval [list -totalcommit]
-        verify_wmic_memory_value sizestoredinpagingfiles [lindex $optval 1] approx
+        # Note MS has a documented bug because of which either of
+        # two values may match depending on the system patches
+        expr {[verify_wmic_memory_value sizestoredinpagingfiles [lindex $optval 1] approx] ||
+              [verify_wmic_memory_value totalvirtualmemorysize [lindex $optval 1] approx]}
     } -result 1
 
     ###
@@ -738,7 +746,10 @@ namespace eval twapi::osinfo::test {
         set optval [twapi::get_memory_info -processavailcommit]
         verify_kl_fields $optval [list -processavailcommit]
         # Expect available commit to be same as systemwide avail commit
-        verify_wmic_memory_value freespaceinpagingfiles [lindex $optval 1] approx
+        # Note MS has a documented bug because of which either of
+        # two values may match depending on the system patches
+        expr {[verify_wmic_memory_value freevirtualmemory [lindex $optval 1] approx] ||
+              [verify_wmic_memory_value freespaceinpagingfiles [lindex $optval 1] approx]}
     } -result 1
 
     test get_memory_info-16.0 {
@@ -747,7 +758,10 @@ namespace eval twapi::osinfo::test {
         set optval [twapi::get_memory_info -processcommitlimit]
         verify_kl_fields $optval [list -processcommitlimit]
         # Expect available commit to be same as systemwide avail commit
-        verify_wmic_memory_value sizestoredinpagingfiles [lindex $optval 1] approx
+        # Note MS has a documented bug because of which either of
+        # two values may match depending on the system patches
+        expr {[verify_wmic_memory_value sizestoredinpagingfiles [lindex $optval 1] approx] ||
+              [verify_wmic_memory_value totalvirtualmemorysize [lindex $optval 1] approx]}
     } -result 1
 
     test get_memory_info-17.0 {
