@@ -84,9 +84,9 @@ int TwapiStringToSOCKADDR_STORAGE(char *s, SOCKADDR_STORAGE *ssP, int family)
 {
     int sz;
 
-    /* Note ObjToInt may have made s invalid */
     if (family != AF_UNSPEC) {
         ssP->ss_family = family; /* MSDN says this is required to be set */
+        sz = sizeof(*ssP);
         if (WSAStringToAddressA(s,
                                 family, NULL,
                                 (struct sockaddr *)ssP, &sz) != 0) {
