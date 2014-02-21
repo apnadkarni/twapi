@@ -19,6 +19,9 @@ namespace eval twapi::network::test {
     ::tcltest::testConstraint ipv6  [expr {! [catch {exec netsh interface ipv6 show address}]}]
     ::tcltest::testConstraint tclipv6 [package vsatisfies [package require Tcl] 8.6b1.2]
 
+    variable udp_system_port;   # A port we know will be open. We cannot use 137/138 for reasons I don't remember (maybe they are owned by a process we cannot open)
+    regexp {0\.0\.0\.0:(1900|5355)\s} [exec netstat -anp udp] -> udp_system_port
+
     variable get_tcp_connections_fields {
         -state
         -localaddr
@@ -1143,7 +1146,7 @@ namespace eval twapi::network::test {
     test get_udp_connections-2.0 {
         Get UDP connections -modulepath
     } -body {
-        array set aconns [lindex [twapi::get_udp_connections -all -matchlocalport 1900] 0]
+        array set aconns [lindex [twapi::get_udp_connections -all -matchlocalport $udp_system_port] 0]
         # Sometimes path does not contain directory
         set dir [file dirname [set aconns(-modulepath)]]
         expr {$dir eq "." || [equal_paths $dir [file join $::env(WINDIR) system32]]}
@@ -1152,7 +1155,7 @@ namespace eval twapi::network::test {
     test get_udp_connections-2.1 {
         Get UDP connections -modulename
     } -body {
-        array set aconns [lindex [twapi::get_udp_connections -all -matchlocalport 1900] 0]
+        array set aconns [lindex [twapi::get_udp_connections -all -matchlocalport $udp_system_port] 0]
         expr {[file exists [file join $::env(WINDIR) system32 $aconns(-modulename)]] ||
               [file exists [file join $::env(WINDIR) system32 $aconns(-modulename).exe]] ||
               [file exists [file join $::env(WINDIR) system32 $aconns(-modulename).dll]]}
@@ -1165,8 +1168,8 @@ namespace eval twapi::network::test {
     set testnum 2
     foreach {matchopt opt val} [list \
                                     -matchlocaladdr -localaddr 127.0.0.1 \
-                                    -matchlocalport -localport 1900 \
-                                    -matchpid -pid  [lindex [lindex [twapi::get_udp_connections -pid -matchlocalport 1900] 0] 1]] {
+                                    -matchlocalport -localport $udp_system_port \
+                                    -matchpid -pid  [lindex [lindex [twapi::get_udp_connections -pid -matchlocalport $udp_system_port] 0] 1]] {
         test get_udp_connections-[incr testnum].0 {
             get_udp_connections -all $matchopt $val
         } -body "validate_connections \[twapi::get_udp_connections -all $matchopt $val\] 1 [list $get_udp_connections_fields] {$opt $val}" \
