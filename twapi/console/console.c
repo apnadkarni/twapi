@@ -350,6 +350,10 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         CHECK_INTEGER_OBJ(interp, dw, objv[0]);
         switch (func) {
+        case 100:
+            result.value.ival = AttachConsole(dw);
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            break;
         case 101:
             result.value.ival = SetConsoleCP(dw);
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -536,6 +540,7 @@ static int TwapiConsoleInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(GetConsoleTitle, 6),
         DEFINE_FNCODE_CMD(GetConsoleWindow, 7),
 
+        DEFINE_FNCODE_CMD(AttachConsole, 100), /* TBD - Tcl */
         DEFINE_FNCODE_CMD(SetConsoleCP, 101),
         DEFINE_FNCODE_CMD(SetConsoleOutputCP, 102),
         DEFINE_FNCODE_CMD(GenerateConsoleCtrlEvent, 103),
