@@ -1,4 +1,4 @@
-# Tcl Windows API (TWAPI) 4.0.26 BETA
+# Tcl Windows API (TWAPI) 4.0b40 BETA 2
 
 This is the second beta release of TWAPI 4.0.
 
@@ -16,6 +16,12 @@ TWAPI requires
 
 For a complete list, including INCOMPATIBLE CHANGES, see 
 http://twapi.sourceforge.net/4.0-dev/versionhistory.html
+
+Major changes in this release are support for Windows event tracing,
+new Windows event logging formats, SSL/TLS channels,
+certificate management and verification, access to
+performance counters, enhancements to the COM module and architectural
+changes for modularity and run-time performance.
 
 ## Distributions
 
