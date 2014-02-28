@@ -7,11 +7,6 @@
 namespace eval twapi {
 }
 
-# TBD - how do we know when to refresh items
-# - have a begin/end explicitly done by applications
-# - have a standard -refresh option
-# - distinguish between internal and external routines
-
 #
 # Return list of toplevel performance objects
 proc twapi::pdh_enumerate_objects {args} {
@@ -879,10 +874,11 @@ twapi::proc* twapi::pdh_system_performance_query args {
         commit_limit { {Memory "Commit Limit"} {} }
         committed_bytes { {Memory "Committed Bytes"} {} }
         committed_percent { {Memory "% Committed Bytes In Use"} {-format double} }
+        memory_free_mb { {Memory "Available MBytes"} {} }
         memory_free_kb { {Memory "Available KBytes"} {} }
-        page_fault_rate { {Memory "Page Faults/sec"} {-format double} }
-        page_input_rate { {Memory "Pages Input/sec"} {-format double} }
-        page_output_rate { {Memory "Pages Output/sec"} {-format double} }
+        page_fault_rate { {Memory "Page Faults/sec"} {} }
+        page_input_rate { {Memory "Pages Input/sec"} {} }
+        page_output_rate { {Memory "Pages Output/sec"} {} }
 
         disk_bytes_rate { {PhysicalDisk "Disk Bytes/sec" -instance _Total} {} }
         disk_readbytes_rate { {PhysicalDisk "Disk Read Bytes/sec" -instance _Total} {} }
@@ -890,6 +886,7 @@ twapi::proc* twapi::pdh_system_performance_query args {
         disk_transfer_rate { {PhysicalDisk "Disk Transfers/sec" -instance _Total} {} }
         disk_read_rate { {PhysicalDisk "Disk Reads/sec" -instance _Total} {} }
         disk_write_rate { {PhysicalDisk "Disk Writes/sec" -instance _Total} {} }
+        disk_idle_percent { {PhysicalDisk "% Idle Time" -instance _Total} {-format double} }
     }
 
     # Per-processor counters are based on above but the object name depends
