@@ -2,20 +2,17 @@
 
 This is the second beta release of TWAPI 4.0.
 
-Project home page, including documentation,
-is at http://twapi.sourceforge.net/4.0-dev.
+* Project home page is at http://twapi.sourceforge.net.
+* V4.0 Beta 2 documentation is at http://twapi.sourceforge.net/v4.0-dev.
 
 ## Supported platforms
 
-TWAPI requires
+TWAPI 4.0 requires
 
     * Windows XP (32-bit only) or later (32- or 64- bit)
     * Tcl 8.5 or 8.6 (32- or 64-bit)
 
 ## Changes since 3.1.17
-
-For a complete list, including INCOMPATIBLE CHANGES, see 
-http://twapi.sourceforge.net/4.0-dev/versionhistory.html
 
 Major changes in this release are support for Windows event tracing,
 new Windows event logging formats, SSL/TLS channels,
@@ -23,10 +20,13 @@ certificate management and verification, access to
 performance counters, enhancements to the COM module and architectural
 changes for modularity and run-time performance.
 
+For a complete list, including INCOMPATIBLE CHANGES, see 
+http://twapi.sourceforge.net/v4.0-dev/versionhistory.html
+
 ## Distributions
 
 TWAPI is distributed in multiple formats.
-See http://twapi.sourceforge.net/4.0-dev/installation.html for the details
+See http://twapi.sourceforge.net/v4.0-dev/installation.html for the details
 and the pros and cons of each format.
 
 ## TWAPI Summary
@@ -58,7 +58,6 @@ Functions in the following areas are implemented:
   * Clipboard access
   * Taskbar icons and notifications
   * Console mode functions
-  * System performance data
   * Window stations and desktops
   * Internationalization
   * Task scheduling
@@ -69,3 +68,4 @@ Functions in the following areas are implemented:
   * Device I/O and management
   * Crypto API and certificates
   * SSL/TLS
+  * Windows Performance Counters
