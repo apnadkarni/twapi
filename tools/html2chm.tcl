@@ -317,9 +317,9 @@ proc html2chm::process_content {path root} {
                         # are the same even though they point to different
                         # pages. It uses the same name for all the
                         # ToC entries. So make them unique by adding dummy
-                        # target names. Since they do not exist (probably)
+                        # target names. Since they do not exist
                         # target will just be top of the page.
-                        append target "#$pathx"
+                        append target "#unique[incr ::unique_generator]"
                     }
                     if {$xref eq "toc"} {
                         dict lappend meta($path) $xref \
