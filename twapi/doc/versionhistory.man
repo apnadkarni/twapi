@@ -148,13 +148,10 @@ Return value format and content has changed.
 
 [opt_def [uri process.html#get_process_info [cmd get_process_info]]]
 The [cmd -toplevels] option
-is no longer available. Also the [cmd -pid] no longer accepts a process name
-as argument. Both these can be replaced by a combination of
-[uri ui.html#get_toplevel_windows [cmd "get_toplevel_windows -pids"]]
-and [uri process.html#get_process_ids [cmd "get_process_ids -name"]].
-
-[opt_def [uri osinfo.html#get_process_info [cmd get_process_info]]]
-Rate based performance options have been removed.
+is no longer available. 
+Use [uri ui.html#get_toplevel_windows [cmd "get_toplevel_windows -pids"]]
+instead.
+Also, rate based performance options have been removed.
 Equivalent functionality is available through
 [uri pdh.html "performance counters"] commands.
 
