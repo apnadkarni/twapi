@@ -941,6 +941,43 @@ test tls_socket-client-4.0 {
     http::cleanup $tok
 } -result {ok {Probably Okay}}
 
+test tls_socket-client-5.0 {
+    Test tv.eurosport.com - bad certificate name
+} -body {
+    list [catch {twapi::tls_socket tv.eurosport.com 443}] [errorcode]
+} -result {1 {TWAPI_WIN32 -2146893022}}
+
+test tls_socket-client-5.1 {
+    Test tv.eurosport.com - bad certificate name
+} -constraints {
+    TBD
+} -body {
+    TBD - check with manual verification
+    list [catch {twapi::tls_socket tv.eurosport.com 443}] [errorcode]
+} -result {1 {TWAPI_WIN32 -2146893022}}
+
+test tls_socket-client-5.2 {
+    Test www.nlnetlabs.nl - unknown root ca
+} -body {
+    list [catch {twapi::tls_socket www.nlnetlabs.nl 443}] [errorcode]
+} -result {1 {TWAPI_WIN32 -2146893048}}
+
+test tls_socket-client-5.3 {
+    Test www.nlnetlabs.nl - untrusted root ca
+} -constraints {
+    TBD
+} -body {
+    # TBD - do manual version
+    list [catch {twapi::tls_socket www.nlnetlabs.nl 443}] [errorcode]
+} -result {1 {TWAPI_WIN32 -2146893022}}
+
+test tls_socket-client-5.4 {
+    Test www.vulcano.cl - no cert chain
+} -body {
+    list [catch {twapi::tls_socket www.vulcano.cl 443}] [errorcode]
+} -result {1 {TWAPI_WIN32 -2146893019}}
+
+
 #
 # Cleanup
 
