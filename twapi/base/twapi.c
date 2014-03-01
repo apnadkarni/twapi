@@ -63,7 +63,8 @@ static TwapiOneTimeInitState gTwapiInitialized;
 
 void TwapiBaseModuleCleanup(TwapiInterpContext *ticP);
 static void Twapi_Cleanup(ClientData clientdata);
-static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp);
+static void Twapi_InterpCleanup(ClientData clientdata, Tcl_Interp *interp);
+static void Twapi_InterpContextCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp);
 static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *, HMODULE, TwapiModuleDef * );
 static void TwapiInterpContextDelete(TwapiInterpContext *ticP);
 static TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmodule, TwapiModuleDef *);
@@ -87,20 +88,23 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 }
 #endif
 
-static void TwapiTlsFinalizeThread(ClientData token)
+static void TwapiTlsUnref()
 {
     if (gTlsIndex != TLS_OUT_OF_INDEXES) {
         TwapiTls *tlsP = TlsGetValue(gTlsIndex);
-        TWAPI_ASSERT(tlsP == token);
         if (tlsP) {
-            MemLifoClose(&tlsP->memlifo);
-            TwapiFree(tlsP);
-            TlsSetValue(gTlsIndex, NULL);
+            TWAPI_ASSERT(tlsP->nrefs > 0);
+            tlsP->nrefs -= 1;
+            if (tlsP->nrefs == 0) {
+                MemLifoClose(&tlsP->memlifo);
+                TwapiFree(tlsP);
+                TlsSetValue(gTlsIndex, NULL);
+            }
         }
     }
 }
 
-static TCL_RESULT TwapiTlsInitThread()
+static TCL_RESULT TwapiTlsInit()
 {
     TwapiTls *tlsP;
 
@@ -108,6 +112,10 @@ static TCL_RESULT TwapiTlsInitThread()
     tlsP = TlsGetValue(gTlsIndex);
     if (tlsP == NULL) {
         tlsP = (TwapiTls *) TwapiAllocZero(sizeof(*tlsP));
+        if (! TlsSetValue(gTlsIndex, tlsP)) {
+            TwapiFree(tlsP);
+            return TCL_ERROR;
+        }
         tlsP->thread = Tcl_GetCurrentThread();
         /* TBD - should we raise alloc from 8000 ? Too small ? */
         if (MemLifoInit(&tlsP->memlifo, NULL, NULL, NULL, 8000,
@@ -115,10 +123,9 @@ static TCL_RESULT TwapiTlsInitThread()
             TwapiFree(tlsP);
             return TCL_ERROR;
         }
-        if (! TlsSetValue(gTlsIndex, tlsP))
-            return TCL_ERROR;
-        Tcl_CreateThreadExitHandler(TwapiTlsFinalizeThread, tlsP);
     }
+
+    tlsP->nrefs += 1;
     return TCL_OK;
 }
 
@@ -202,7 +209,7 @@ int Twapi_base_Init(Tcl_Interp *interp)
      * Per interp initialization
      */
 
-    if (TwapiTlsInitThread() != TCL_OK)
+    if (TwapiTlsInit() != TCL_OK)
         return TCL_ERROR;
 
     /*
@@ -242,6 +249,8 @@ int Twapi_base_Init(Tcl_Interp *interp)
     /* Trap stack */
     BASE_CONTEXT(ticP)->trapstack = ObjNewList(0, NULL);
     ObjIncrRefs(BASE_CONTEXT(ticP)->trapstack);
+
+    Tcl_CallWhenDeleted(interp, Twapi_InterpCleanup, NULL);
 
     return TwapiLoadStaticModules(interp);
 }
@@ -457,6 +466,11 @@ static void Twapi_Cleanup(ClientData clientdata)
     WSACleanup();
 }
 
+static void Twapi_InterpCleanup(ClientData unused, Tcl_Interp *interp)
+{
+    TwapiTlsUnref();            /* Matches one in Twapi_Init */
+}
+
 
 static TwapiInterpContext *TwapiInterpContextNew(
     Tcl_Interp *interp, HMODULE hmodule, TwapiModuleDef *modP)
@@ -490,6 +504,7 @@ static TwapiInterpContext *TwapiInterpContextNew(
 TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmodule, TwapiModuleDef *modP)
 {
     TwapiInterpContext *ticP;
+    TwapiTls *tlsP;
 
     /*
      * Allocate a context that will be passed around in all commands
@@ -500,7 +515,9 @@ TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmod
         return NULL;
 
     /* Cache a pointer to the TLS memlifo */
-    ticP->memlifoP = TwapiMemLifo();
+    tlsP = Twapi_GetTls();
+    tlsP->nrefs += 1;           /* Will be unrefed when ticP is deleted */
+    ticP->memlifoP = &tlsP->memlifo;
 
     /* For all the commands we register with the Tcl interp, we add a single
      * ref for the context, not one per command. This is sufficient since
@@ -524,25 +541,28 @@ TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmod
     }
     LeaveCriticalSection(&gTwapiInterpContextsCS);
 
-    Tcl_CallWhenDeleted(interp, Twapi_InterpCleanup, ticP);
+    Tcl_CallWhenDeleted(interp, Twapi_InterpContextCleanup, ticP);
 
     return ticP;
 }
 
 /* Note CALLER MAY BE SOME OTHER THREAD, NOT NECESSARILY THE INTERP ONE */
-/* Most cleanup should have happened via Twapi_InterpCleanup */
+/* Most cleanup should have happened via Twapi_InterpContextCleanup */
 static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
 {
+    TwapiTls *tlsP;
 
     TWAPI_ASSERT(ticP->interp == NULL);
 
     DeleteCriticalSection(&ticP->lock);
 
-    /* TBD - should rest of this be in the Twapi_InterpCleanup instead ? */
+    /* TBD - should rest of this be in the Twapi_InterpContextCleanup instead ? */
     if (ticP->notification_win) {
         DestroyWindow(ticP->notification_win);
         ticP->notification_win = 0;
     }
+
+    TwapiTlsUnref();
 
     // TBD - what about freeing the memory?
 }
@@ -557,7 +577,7 @@ void TwapiInterpContextUnref(TwapiInterpContext *ticP, int decr)
 
 /* Note this cleans up only one TwapiInterpContext for interp, not the whole
    interp */
-static void Twapi_InterpCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
+static void Twapi_InterpContextCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
 {
     TwapiInterpContext *tic2P;
     TwapiThreadPoolRegistration *tprP;
