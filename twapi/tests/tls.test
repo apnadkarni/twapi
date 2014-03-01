@@ -925,6 +925,21 @@ test tls_socket-client-3.2 {
     list $::done [regexp {HTTP/1.0.*<HTML>.*</HTML>\s} $response]
 } -result {eof 1}
 
+# TBD - write more tests with howsmyssl
+test tls_socket-client-4.0 {
+    Test www.howsmyssl.com
+} -setup {
+    package require http
+    package require json
+} -body {
+    http::register https 443 ::twapi::tls_socket
+    set tok [http::geturl https://www.howsmyssl.com/a/check]
+    set response [json::json2dict [http::data $tok]]
+    list [http::status $tok] [dict get $response rating]
+} -cleanup {
+    http::unregister https
+    http::cleanup $tok
+} -result {ok {Probably Okay}}
 
 #
 # Cleanup
