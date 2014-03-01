@@ -257,12 +257,54 @@ that are in the [const stopped] state.
 that are not in the [const stopped] state.
 [list_end]
 
-The command returns a dictionary, the key being the
-internal name of the dependent service [emph "in lower case"] and the value
-second being a dictionary that describes
-a single service. The format of this dictionary
-is identical to that returned
-by the [uri \#get_multiple_service_status [cmd get_multiple_service_status]].
+The command returns a dictionary, the key being the internal name of 
+the service [emph "in lower case"], and the second being a dictionary
+that describes a single service. This dictionary contains the following
+keys:
+
+[list_begin opt]
+
+[opt_def [const checkpoint]] Contains the last checkpoint value
+reported by the service during a lengthy operation.
+
+[opt_def [const controls_accepted]] Contains a bitmask indicating the
+control commands accepted by the service. Refer to the Windows SDK
+documentation for [syscmd ControlService] for details.
+
+[opt_def [const displayname]] Indicates the user visible name of the service
+
+[opt_def [const exitcode]] The last exit code of the service. If this
+value is 1066, a service specific error code is returned in the
+[const service_code] field.
+
+[opt_def [const interactive]] Indicates whether the service is
+allowed to interact with the desktop ([const 1]) or not ([const 0]).
+
+[opt_def [const name]] Indicates the internal name of the service
+
+[opt_def [const service_code]] In case the [const exitcode]
+field contains 1066, this field contains a service specific code
+stored by the service.
+
+[opt_def [const serviceflags]] Integer value. If the low bit is set,
+the service runs in a system process that must alway be
+running.
+
+[opt_def [const servicetype]] Indicates the type of the service, and
+is one of [const win32_own_process], [const win32_share_process],
+[const kernel_driver], [const file_system_driver], [const adapter],
+[const recognizer_driver] or an integer denoting the type if not one
+of the above.
+
+[opt_def [const state]] Contains the latest reported status of the
+service and may have one of the values [const stopped], [const start_pending],
+[const stop_pending], [const running], [const continue_pending],
+[const pause_pending], [const paused] or an
+integer value indicating the status of the service if not one of the above.
+
+[opt_def [const wait_hint]] Estimated time required to complete an
+start, stop, pause or continue operation as last reported by the service.
+[list_end]
 
 [call [cmd get_multiple_service_status] [opt [arg options]]]
 Retrieves the status of multiple services matching the specified service type
@@ -302,10 +344,6 @@ keys:
 
 [list_begin opt]
 
-[opt_def [const serviceflags]] Integer value. If the low bit is set,
-the service runs in a system process that must alway be
-running.
-
 [opt_def [const checkpoint]] Contains the last checkpoint value
 reported by the service during a lengthy operation.
 
@@ -333,6 +371,10 @@ determined.
 field contains 1066, this field contains a service specific code
 stored by the service.
 
+[opt_def [const serviceflags]] Integer value. If the low bit is set,
+the service runs in a system process that must alway be
+running.
+
 [opt_def [const servicetype]] Indicates the type of the service, and
 is one of [const win32_own_process], [const win32_share_process],
 [const kernel_driver], [const file_system_driver], [const adapter],
@@ -357,11 +399,10 @@ The standard options described in
 [sectref "Standard Options"] may be specified with this command.
 
 [nl]
-The return value is a flat
-list of the form [arg "option1 value1 ..."] that can
-be directly passed to the
+The return value is a dictionary which
+can be passed to the
 [uri \#set_service_configuration [cmd set_service_configuration]]
-command. The returned values depend on
+command. The keys of the returned dictionary depend on
 which of the following options are specified:
 
 [list_begin opt]
@@ -437,16 +478,12 @@ service to the service control manager.
 The standard options described in
 [sectref "Standard Options"] may be specified with this command.
 
-The return value is a flat
-list of the form [arg "field1 value1 ..."].
-
-The following fields are returned:
+The return value is a dictionary with the following keys:
 
 [list_begin opt]
 
-[opt_def [const serviceflags]] Integer value. If the low bit is set,
-the service runs in a system process that must alway be
-running.
+[opt_def [const checkpoint]] Contains the last checkpoint value
+reported by the service during a lengthy operation.
 
 [opt_def [const controls_accepted]] Contains a bitmask indicating the
 control commands accepted by the service. Refer to the Windows SDK
@@ -458,6 +495,14 @@ value is 1066, a service specific error code is returned in the
 
 [opt_def [const interactive]] Indicates whether the service is
 allowed to interact with the desktop ([const 1]) or not ([const 0]).
+
+[opt_def [const pid]] The PID of the process in which the service is running.
+A value of -1 indicates
+that the process id of the service cannot be determined or is stopped.
+
+[opt_def [const serviceflags]] Integer value. If the low bit is set,
+the service runs in a system process that must alway be
+running.
 
 [opt_def [const servicetype]] Indicates the type of the service, and
 is one of [const win32_own_process], [const win32_share_process],
@@ -475,15 +520,8 @@ integer value indicating the status of the service if not one of the above.
 field contains 1066, this field contains a service specific code
 stored by the service.
 
-[opt_def [const checkpoint]] Contains the last checkpoint value
-reported by the service during a lengthy operation.
-
 [opt_def [const wait_hint]] Estimated time required to complete an
 start, stop, pause or continue operation as last reported by the service.
-
-[opt_def [const pid]] The PID of the process in which the service is running.
-A value of -1 indicates
-that the process id of the service cannot be determined or is stopped.
 
 [list_end]
 

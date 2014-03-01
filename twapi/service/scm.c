@@ -71,7 +71,7 @@ static int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
     rec[2] = STRING_LITERAL_OBJ("state");
     cP = ServiceStateString(ssp.dwCurrentState);
     rec[3] = cP ? ObjFromString(cP) : ObjFromDWORD(ssp.dwCurrentState);
-    rec[4] = STRING_LITERAL_OBJ("control_accepted");
+    rec[4] = STRING_LITERAL_OBJ("controls_accepted");
     rec[5] = ObjFromDWORD(ssp.dwControlsAccepted);
     rec[6] = STRING_LITERAL_OBJ("exitcode");
     rec[7] = ObjFromDWORD(ssp.dwWin32ExitCode);
@@ -314,7 +314,7 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     /* Note order of field names should be same as order of values above */
     keys[0] = TwapiGetAtom(ticP, "servicetype");
     keys[1] = TwapiGetAtom(ticP, "state");
-    keys[2] = TwapiGetAtom(ticP, "control_accepted");
+    keys[2] = TwapiGetAtom(ticP, "controls_accepted");
     keys[3] = TwapiGetAtom(ticP, "exitcode");
     keys[4] = TwapiGetAtom(ticP, "service_code");
     keys[5] = TwapiGetAtom(ticP, "checkpoint");
@@ -460,7 +460,7 @@ int Twapi_EnumDependentServices(
     /* Note order of names should be same as order of values below */
     keys[0] = TwapiGetAtom(ticP, "servicetype");
     keys[1] = TwapiGetAtom(ticP, "state");
-    keys[2] = TwapiGetAtom(ticP, "control_accepted");
+    keys[2] = TwapiGetAtom(ticP, "controls_accepted");
     keys[3] = TwapiGetAtom(ticP, "exitcode");
     keys[4] = TwapiGetAtom(ticP, "service_code");
     keys[5] = TwapiGetAtom(ticP, "checkpoint");
