@@ -146,6 +146,10 @@ Removed. Use [uri #get_processor_group_configuration [cmd get_processor_group_co
 [opt_def [uri base.html#get_build_config [cmd get_build_config]]]
 Return value format and content has changed.
 
+[opt_def [cmd get_logical_drives]]
+Removed. Use [uri storage.html#find_logical_drives [cmd find_logical_drives]]
+instead.
+
 [opt_def [uri process.html#get_process_info [cmd get_process_info]]]
 The [cmd -toplevels] option
 is no longer available. 
