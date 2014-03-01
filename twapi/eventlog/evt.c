@@ -1208,7 +1208,9 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
                          GETOBJ(sObj), GETOBJ(s2Obj), GETINT(dw),
                          GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtOpenPublisherMetadata(hevt, ObjToUnicode(sObj), ObjToUnicode(s2Obj), dw, dw2));
+        s2 = ObjToUnicode(s2Obj);
+        NULLIFY_EMPTY(s2);
+        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtOpenPublisherMetadata(hevt, ObjToUnicode(sObj), s2, dw, dw2));
         break;
 
     case 11: // evt_create_bookmark
