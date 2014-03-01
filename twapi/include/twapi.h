@@ -911,8 +911,13 @@ typedef struct _TwapiCallback {
 /*
  * Thread local storage area. This is initialized when the extension
  * is loaded in the thread by an interpreter if no other interpreter
- * in that thread has already done so. It is deallocated when the
- * thread terminates.
+ * in that thread has already done so. It is deallocated when all
+ * interps AND TwapiInterpContexts in that thread are deleted. This is
+ * tracked through reference counts which are incr/decr'ed whenever
+ * an interp or a new TwapiInterpContext is allocated/freed.
+ *
+ * IT IS NOT ACCESSIBLE IN A THREAD UNLESS AT LEAST ONE INTERP IS 
+ * STILL ALIVE
  */
 typedef struct _TwapiTls {
     Tcl_ThreadId thread;
@@ -923,6 +928,9 @@ typedef struct _TwapiTls {
      * released when the thread terminates.
      */
     MemLifo memlifo;
+
+    int nrefs;                  /* Reference counts to track active
+                                   interp contexts */
 
 #define TWAPI_TLS_SLOTS 8
     DWORD_PTR slots[TWAPI_TLS_SLOTS];
