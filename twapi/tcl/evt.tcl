@@ -393,7 +393,7 @@ proc twapi::evt_query {args} {
         {session.arg NULL}
         file.arg
         channel.arg
-        {query.arg ""}
+        {query.arg *}
         {ignorequeryerrors 0 0x1000}
         {direction.arg forward}
     } -maxleftover 0]
@@ -607,7 +607,7 @@ proc twapi::evt_subscribe {path args} {
     # TBD - document -session and -bookmark and -strict
     array set opts [parseargs args {
         {session.arg NULL}
-        {query.arg ""}
+        {query.arg *}
         bookmark.arg
         includeexisting
         {ignorequeryerrors 0 0x1000}
