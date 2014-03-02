@@ -1614,7 +1614,7 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
     # We first try using GetProcessImageFileName as that does not require
     # the PROCESS_VM_READ privilege
     if {[min_os_version 6 0]} {
-        set privs [list process_query_information_limited]
+        set privs [list process_query_limited_information]
     } else {
         set privs [list process_query_information]
     }
