@@ -671,57 +671,6 @@ namespace eval twapi::network::test {
 
     ################################################################
 
-    test hostname_to_address-1.0 {
-        Map host name to address
-    } -constraints {
-        nt
-    } -body {
-        set ipaddrs [twapi::hostname_to_address [resolvable_hostname]]
-        expr {[llength $ipaddrs] && [validate_ip_addresses $ipaddrs]}
-    } -result 1
-
-    ###
-
-    test hostname_to_address-1.1 {
-        Map host name to address (no addresses)
-    } -constraints {
-        nt
-    } -body {
-        llength [twapi::hostname_to_address xadf.xtrt.xsfdg.com]
-    } -result 0
-
-    ###
-
-    test hostname_to_address-2.0 {
-        Map host name to address asynchronous (success)
-    } -constraints {
-        nt
-    } -body {
-        set ::hostname_to_address_result [list ]
-        twapi::hostname_to_address [resolvable_hostname] -async {lappend ::hostname_to_address_result}
-        vwait ::hostname_to_address_result
-        foreach {hostname status ipaddrs} $::hostname_to_address_result break
-        expr {($hostname eq "[resolvable_hostname]") && ($status eq "success") && [llength $ipaddrs] && [validate_ip_addresses $ipaddrs]}
-    } -result 1
-
-    ###
-
-    test hostname_to_address-2.1 {
-        Map host name to address asynchronous (no addresses)
-    } -constraints {
-        nt
-    } -body {
-        set ::hostname_to_address_result [list ]
-        twapi::hostname_to_address xno.xsuch.xname.xcom -async {lappend ::hostname_to_address_result}
-        vwait ::hostname_to_address_result
-        foreach {hostname status ipaddrs} $::hostname_to_address_result break
-        expr {
-	      $hostname eq "xno.xsuch.xname.xcom" &&
-	      ((($status eq "success") && [llength $ipaddrs] == 0) ||
-	       $status eq "fail")
-	   }
-    } -result 1
-
     ################################################################
 
     test resolve_hostname-1.0 {
