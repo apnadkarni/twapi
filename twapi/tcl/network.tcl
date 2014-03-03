@@ -881,11 +881,6 @@ proc twapi::resolve_hostname {name args} {
     return $addrs
 }
 
-
-proc twapi::hostname_to_address {name args} {
-    return [resolve_hostname $name {*}$args -ipversion 4]
-}
-
 # Look up a port name
 proc twapi::port_to_service {port} {
     set name ""

@@ -178,6 +178,9 @@ Rate based performance options have been removed.
 Equivalent functionality is available through
 [uri pdh.html "performance counters"] commands.
 
+[opt_def [cmd hostname_to_address]] Removed. Use
+the [uri network.html#resolve_hostname [cmd resolve_hostname]] command instead.
+
 [opt_def [uri base.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]]]
 Returns an additional element - the day of the week.
 
