@@ -801,7 +801,6 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     TwapiResult result;
     int func = PtrToInt(clientdata);
     Tcl_Obj *objs[10];
-    int nobjs;
     SIZE_T sz, sz2;
 
     --objc;
@@ -902,11 +901,11 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         case 17:
             dw = sizeof(u.pmce);
             u.pmce.cb = dw;
-            if (! GetProcessMemoryInfo(h, &u.pmce, sizeof(u.pmce))) {
+            if (! GetProcessMemoryInfo(h, (PROCESS_MEMORY_COUNTERS*) &u.pmce, sizeof(u.pmce))) {
                 dw = sizeof(PROCESS_MEMORY_COUNTERS);
                 TWAPI_ASSERT(sizeof(u.pmce) < dw);
                 u.pmce.cb = dw;
-                if (! GetProcessMemoryInfo(h, &u.pmce, sizeof(u.pmce))) {
+                if (! GetProcessMemoryInfo(h, (PROCESS_MEMORY_COUNTERS*) &u.pmce, sizeof(u.pmce))) {
                     result.type = TRT_GETLASTERROR;
                     break;
                 }
