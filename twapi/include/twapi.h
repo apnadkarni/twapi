@@ -1089,7 +1089,7 @@ extern struct TwapiTclVersion gTclVersion;
 #define ERROR_IF_UNTHREADED(interp_)   Twapi_CheckThreadedTcl(interp_)
 
 typedef NTSTATUS (WINAPI *NtQuerySystemInformation_t)(int, PVOID, ULONG, PULONG);
-<
+
 /* Thread pool handle registration */
 TCL_RESULT TwapiThreadPoolRegister(
     TwapiInterpContext *ticP,
