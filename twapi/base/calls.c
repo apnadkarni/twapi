@@ -1386,9 +1386,9 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 1:
-        result.type = TRT_OBJ;
-        result.value.obj = Twapi_GetAtomStats(ticP);
-        break;
+        CHECK_NARGS(interp, objc, 0);
+        TwapiPurgeAtoms(ticP);
+        return TCL_OK;
     case 2:
         result.type = TRT_WIDE;
         result.value.wide = TWAPI_NEWID(ticP);
@@ -1440,7 +1440,18 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
             result.type = TRT_OBJ;
         } else
             return TwapiReturnError(interp, TWAPI_INVALID_COMMAND_SCOPE);
+#if TWAPI_ENABLE_INSTRUMENTATION
+    case 10:
+        result.type = TRT_OBJ;
+        result.value.obj = Twapi_GetAtomStats(ticP);
+        break;
+    case 11:
+        result.type = TRT_OBJ;
+        result.value.obj = Twapi_GetAtoms(ticP);
+        break;
+#endif
     }
+
 
     return TwapiSetResult(interp, &result);
 }
@@ -2217,7 +2228,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     };
 
     static struct alias_dispatch_s AliasDispatch[] = {
-        DEFINE_ALIAS_CMD(Twapi_GetAtomStats, 1),
+        DEFINE_ALIAS_CMD(purge_atoms, 1),
         DEFINE_ALIAS_CMD(TwapiId, 2),
         DEFINE_ALIAS_CMD(Twapi_GetNotificationWindow, 3),
 
@@ -2228,6 +2239,10 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(Twapi_RegisterWaitOnHandle, 7),
         DEFINE_ALIAS_CMD(trapresult, 8),
         DEFINE_ALIAS_CMD(trapoptions, 9),
+#if TWAPI_ENABLE_INSTRUMENTATION
+        DEFINE_ALIAS_CMD(atomstats, 10),
+        DEFINE_ALIAS_CMD(atoms, 11),
+#endif
     };
 
     struct tcl_dispatch_s TclDispatch[] = {

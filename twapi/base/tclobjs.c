@@ -973,7 +973,7 @@ int ObjToRangedInt(Tcl_Interp *interp, Tcl_Obj *obj, int low, int high, int *iP)
  * Convert a system time structure to a list
  * Year month day hour min sec msecs
  */
-Tcl_Obj *ObjFromSYSTEMTIME(LPSYSTEMTIME timeP)
+Tcl_Obj *ObjFromSYSTEMTIME(const SYSTEMTIME *timeP)
 {
     Tcl_Obj *objv[8];
 
@@ -1973,28 +1973,46 @@ Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
 
 Tcl_Obj *ObjFromTIME_ZONE_INFORMATION(const TIME_ZONE_INFORMATION *tzP)
 {
-    /*
-     * We mostly just pass this around, so just keep as binary structure
-     */
-    return ObjFromByteArray((unsigned char *)tzP, sizeof(*tzP));
+    Tcl_Obj *objs[7];
+
+    objs[0] = ObjFromLong(tzP->Bias);
+    objs[1] = ObjFromUnicodeLimited(tzP->StandardName, ARRAYSIZE(tzP->StandardName), NULL);
+    objs[2] = ObjFromSYSTEMTIME(&tzP->StandardDate);
+    objs[3] = ObjFromLong(tzP->StandardBias);
+    objs[4] = ObjFromUnicodeLimited(tzP->DaylightName, ARRAYSIZE(tzP->DaylightName), NULL);
+    objs[5] = ObjFromSYSTEMTIME(&tzP->DaylightDate);
+    objs[6] = ObjFromLong(tzP->DaylightBias);
+    return ObjNewList(7, objs);
 }
 
 TCL_RESULT ObjToTIME_ZONE_INFORMATION(Tcl_Interp *interp,
                                       Tcl_Obj *tzObj,
                                       TIME_ZONE_INFORMATION *tzP)
 {
-    unsigned char *p;
-    int len;
+    Tcl_Obj **objPP;
+    int nobjs;
+    Tcl_Obj *stdObj, *daylightObj;
 
-    p = ObjToByteArray(tzObj, &len);
-    if (len != sizeof(*tzP)) {
-        return TwapiReturnErrorEx(interp,
-                                  TWAPI_INVALID_ARGS,
-                                  Tcl_ObjPrintf("Invalid TIME_ZONE_INFORMATION size %d", len));
+    if (ObjGetElements(NULL, tzObj, &nobjs, &objPP) == TCL_OK &&
+        TwapiGetArgs(interp, nobjs, objPP,
+                     GETINT(tzP->Bias),
+                     GETOBJ(stdObj), GETVAR(tzP->StandardDate, ObjToSYSTEMTIME), GETINT(tzP->StandardBias),
+                     GETOBJ(daylightObj), GETVAR(tzP->DaylightDate, ObjToSYSTEMTIME), GETINT(tzP->DaylightBias),
+                     ARGEND) == TCL_OK) {
+        WCHAR *std_name, *daylight_name;
+        int std_len, daylight_len;
+        std_name = ObjToUnicodeN(stdObj, &std_len);
+        daylight_name = ObjToUnicodeN(daylightObj, &daylight_len);
+        /* Remember we need a terminating \0 */
+        if (std_len < ARRAYSIZE(tzP->StandardName) &&
+            daylight_len < ARRAYSIZE(tzP->DaylightName)) {
+            wcscpy(tzP->StandardName, std_name);
+            wcscpy(tzP->DaylightName, daylight_name);
+            return TCL_OK;
+        }
     }
 
-    *tzP = *((TIME_ZONE_INFORMATION *)p);
-    return TCL_OK;
+    return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid time zone format");
 }
 
 static char hexmap[] = "0123456789abcdef";

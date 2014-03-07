@@ -1089,11 +1089,7 @@ extern struct TwapiTclVersion gTclVersion;
 #define ERROR_IF_UNTHREADED(interp_)   Twapi_CheckThreadedTcl(interp_)
 
 typedef NTSTATUS (WINAPI *NtQuerySystemInformation_t)(int, PVOID, ULONG, PULONG);
-
-/* Get atom stats */
-Tcl_Obj *Twapi_GetAtomStats(TwapiInterpContext *ticP) ;
-
-
+<
 /* Thread pool handle registration */
 TCL_RESULT TwapiThreadPoolRegister(
     TwapiInterpContext *ticP,
@@ -1411,7 +1407,7 @@ TWAPI_EXTERN int ObjToVT(Tcl_Interp *interp, Tcl_Obj *obj, VARTYPE *vtP);
 TWAPI_EXTERN Tcl_Obj *ObjFromBSTR (BSTR bstr);
 TWAPI_EXTERN int ObjToBSTR (Tcl_Interp *, Tcl_Obj *, BSTR *);
 TWAPI_EXTERN int ObjToRangedInt(Tcl_Interp *, Tcl_Obj *obj, int low, int high, int *iP);
-TWAPI_EXTERN Tcl_Obj *ObjFromSYSTEMTIME(LPSYSTEMTIME timeP);
+TWAPI_EXTERN Tcl_Obj *ObjFromSYSTEMTIME(const SYSTEMTIME *timeP);
 TWAPI_EXTERN int ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME timeP);
 TWAPI_EXTERN Tcl_Obj *ObjFromFILETIME(FILETIME *ftimeP);
 TWAPI_EXTERN int ObjToFILETIME(Tcl_Interp *interp, Tcl_Obj *obj, FILETIME *cyP);
@@ -1512,6 +1508,7 @@ TWAPI_EXTERN void TwapiInterpContextUnref(TwapiInterpContext *ticP, int);
 TWAPI_EXTERN TwapiTls *Twapi_GetTls();
 TWAPI_EXTERN int Twapi_AssignTlsSubSlot();
 TWAPI_EXTERN Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key);
+TWAPI_EXTERN void TwapiPurgeAtoms(TwapiInterpContext *ticP);
 TWAPI_EXTERN void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *code);
 TWAPI_EXTERN TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp);
 
