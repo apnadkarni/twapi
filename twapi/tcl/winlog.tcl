@@ -236,7 +236,39 @@ if {[twapi::min_os_version 6]} {
 }
 
 
-
+proc twapi::_winlog_dump_list {{channels {Application System Security}} {atomize 0}} {
+    set evlist {}
+    foreach channel $channels {
+        set hevl [winlog_open -channel $channel]
+        trap {
+            while {[llength [set events [winlog_read $hevl]]]} {
+                foreach e $events {
+                    if {$atomize} {
+                        dict set ev -message [atomize [dict get $e -message]]
+                        dict set ev -levelname [atomize [dict get $e -levelname]]
+                        dict set ev -channel [atomize [dict get $e -channel]]
+                        dict set ev -providername [atomize [dict get $e -providername]]
+                        dict set ev -taskname [atomize [dict get $e -taskname]]
+                        dict set ev -eventid [atomize [dict get $e -eventid]]
+                        dict set ev -account [atomize [dict get $e -userid]]
+                    } else {
+                        dict set ev -message [dict get $e -message]
+                        dict set ev -levelname [dict get $e -levelname]
+                        dict set ev -channel [dict get $e -channel]
+                        dict set ev -providername [dict get $e -providername]
+                        dict set ev -taskname [dict get $e -taskname]
+                        dict set ev -eventid [dict get $e -eventid]
+                        dict set ev -account [dict get $e -userid]
+                    }
+                    lappend evlist $ev
+                }
+            }
+        } finally {
+            winlog_close $hevl
+        }
+    }
+    return $evlist
+}
 
 proc twapi::_winlog_dump {{channel Application} {fd stdout}} {
     set hevl [winlog_open -channel $channel]

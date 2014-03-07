@@ -33,6 +33,8 @@ typedef struct _TwapiBaseSpecificContext {
 /* Stuff common to base module but not exported */
 TwapiInterpContext *TwapiGetBaseContext(Tcl_Interp *interp);
 int Twapi_GetVersionEx(Tcl_Interp *interp);
+Tcl_Obj *Twapi_GetAtomStats(TwapiInterpContext *ticP) ;
+Tcl_Obj *Twapi_GetAtoms(TwapiInterpContext *ticP) ;
 
 TwapiTclObjCmd Twapi_ParseargsObjCmd;
 TwapiTclObjCmd Twapi_TrapObjCmd;
