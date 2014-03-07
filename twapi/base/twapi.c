@@ -550,8 +550,6 @@ TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmod
 /* Most cleanup should have happened via Twapi_InterpContextCleanup */
 static void TwapiInterpContextDelete(TwapiInterpContext *ticP)
 {
-    TwapiTls *tlsP;
-
     TWAPI_ASSERT(ticP->interp == NULL);
 
     DeleteCriticalSection(&ticP->lock);

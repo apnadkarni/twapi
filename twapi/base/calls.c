@@ -1444,6 +1444,7 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
             result.type = TRT_OBJ;
         } else
             return TwapiReturnError(interp, TWAPI_INVALID_COMMAND_SCOPE);
+        break;
 #if TWAPI_ENABLE_INSTRUMENTATION
     case 10:
         result.type = TRT_OBJ;
