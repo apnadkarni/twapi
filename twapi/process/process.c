@@ -786,14 +786,6 @@ static TCL_RESULT Twapi_CreateProcessAsUserObjCmd(
 }
 
 
-#if 0 /* TBD - XP only */
-EXCEPTION_ON_FALSE GetProcessMemoryInfo(
-    HANDLE Process,
-    PPROCESS_MEMORY_COUNTERS ppsmemCounters,
-    DWORD cb
-    );
-#endif
-
 static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     DWORD dw, dw2, dw3;
@@ -801,12 +793,16 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         DWORD_PTR dwp;
         WCHAR buf[MAX_PATH+1];
         MODULEINFO moduleinfo;
+        PROCESS_MEMORY_COUNTERS_EX pmce;
     } u;
     HANDLE h;
     HMODULE hmod;
     LPVOID pv;
     TwapiResult result;
     int func = PtrToInt(clientdata);
+    Tcl_Obj *objs[10];
+    int nobjs;
+    SIZE_T sz, sz2;
 
     --objc;
     ++objv;
@@ -857,7 +853,13 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     case 11:
         return Twapi_GetProcessList(interp, objc, objv);
     case 12:
-        break; // UNUSED
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        sz = dw == (DWORD)-1 ? (SIZE_T) -1 : dw;
+        sz2 = dw2 == (DWORD)-1 ? (SIZE_T) -1 : dw2;
+        result.type = SetProcessWorkingSetSize(h, sz, sz2) ? TRT_EMPTY : TRT_GETLASTERROR;
+        break;
+            
     case 13:
     case 14:
         if (TwapiGetArgs(interp, objc, objv, GETINT(dw), ARGEND) != TCL_OK)
@@ -882,8 +884,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         result.type = TRT_HANDLE;
         result.value.hval = (func == 15 ? OpenProcess : OpenThread)(dw, dw2, dw3);
         break;
-    case 17:                    /* UNUSED */
-        break;
+    case 17:
     case 18:
     case 19:
     case 20:
@@ -898,6 +899,35 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
+        case 17:
+            dw = sizeof(u.pmce);
+            u.pmce.cb = dw;
+            if (! GetProcessMemoryInfo(h, &u.pmce, sizeof(u.pmce))) {
+                dw = sizeof(PROCESS_MEMORY_COUNTERS);
+                TWAPI_ASSERT(sizeof(u.pmce) < dw);
+                u.pmce.cb = dw;
+                if (! GetProcessMemoryInfo(h, &u.pmce, sizeof(u.pmce))) {
+                    result.type = TRT_GETLASTERROR;
+                    break;
+                }
+            }
+            objs[0] = ObjFromDWORD(u.pmce.PageFaultCount);
+            objs[1] = ObjFromSIZE_T(u.pmce.PeakWorkingSetSize);
+            objs[2] = ObjFromSIZE_T(u.pmce.WorkingSetSize);
+            objs[3] = ObjFromSIZE_T(u.pmce.QuotaPeakPagedPoolUsage);
+            objs[4] = ObjFromSIZE_T(u.pmce.QuotaPagedPoolUsage);
+            objs[5] = ObjFromSIZE_T(u.pmce.QuotaPeakNonPagedPoolUsage);
+            objs[6] = ObjFromSIZE_T(u.pmce.QuotaNonPagedPoolUsage);
+            objs[7] = ObjFromSIZE_T(u.pmce.PagefileUsage);
+            objs[8] = ObjFromSIZE_T(u.pmce.PeakPagefileUsage);
+            if (dw == sizeof(u.pmce))
+                objs[9] = ObjFromSIZE_T(u.pmce.PrivateUsage);
+            else
+                objs[9] = ObjFromLong(0);
+            result.value.objv.objPP = objs;
+            result.value.objv.nobj = 10;
+            result.type = TRT_OBJV;
+            break;
         case 18:
             result.type = Twapi_IsWow64Process(h, &result.value.bval)
                 ? TRT_BOOL : TRT_GETLASTERROR;
@@ -1010,10 +1040,12 @@ static int TwapiProcessInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(GetModuleBaseName, 9),
         DEFINE_FNCODE_CMD(GetModuleInformation, 10),
         DEFINE_FNCODE_CMD(Twapi_GetProcessList, 11),
+        DEFINE_FNCODE_CMD(SetProcessWorkingSetSize, 12),
         DEFINE_FNCODE_CMD(SetThreadExecutionState, 13),
         DEFINE_FNCODE_CMD(ProcessIdToSessionId, 14),
         DEFINE_FNCODE_CMD(OpenProcess, 15),
         DEFINE_FNCODE_CMD(OpenThread, 16),
+        DEFINE_FNCODE_CMD(GetProcessMemoryInfo, 17), // TBD - Tcl
         DEFINE_FNCODE_CMD(IsWow64Process, 18),
         DEFINE_FNCODE_CMD(ResumeThread, 19),
         DEFINE_FNCODE_CMD(SuspendThread, 20),
