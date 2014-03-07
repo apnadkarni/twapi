@@ -879,6 +879,61 @@ Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key)
     }
 }
 
+void TwapiPurgeAtoms(TwapiInterpContext *ticP)
+{
+    Tcl_HashEntry *he;
+    Tcl_HashSearch hs;
+    
+    if (ticP->module.hmod != gTwapiModuleHandle)
+        ticP = TwapiGetBaseContext(ticP->interp);
+
+    if (BASE_CONTEXT(ticP)) {
+        for (he = Tcl_FirstHashEntry(&(BASE_CONTEXT(ticP)->atoms), &hs) ;
+             he != NULL;
+             he = Tcl_NextHashEntry(&hs)) {
+            /* It is safe to delete this and only this hash element */
+            Tcl_Obj *objP = Tcl_GetHashValue(he);
+            /* The expectation is that when this routine is called,
+               the caller is done with its use of atoms and released
+               its use of them. If any other component is using the
+               atom, ref count will be at least 2 (since the atom
+               table itself contributes 1). If this is not the case
+               remove from the atom table
+            */
+            if (! Tcl_IsShared(objP)) {
+                Tcl_DeleteHashEntry(he);
+                ObjDecrRefs(objP);
+            }
+        }
+    }
+}
+
+#if TWAPI_ENABLE_INSTRUMENTATION
+Tcl_Obj *Twapi_GetAtoms(TwapiInterpContext *ticP)
+{
+    Tcl_HashEntry *he;
+    Tcl_HashSearch hs;
+    Tcl_Obj *atomsObj;
+    
+    if (ticP->module.hmod != gTwapiModuleHandle)
+        ticP = TwapiGetBaseContext(ticP->interp);
+
+    atomsObj = ObjNewList(0, NULL);
+    if (BASE_CONTEXT(ticP)) {
+        for (he = Tcl_FirstHashEntry(&(BASE_CONTEXT(ticP)->atoms), &hs) ;
+             he != NULL;
+             he = Tcl_NextHashEntry(&hs)) {
+            /* It is safe to delete this and only this hash element */
+            Tcl_Obj *objP = Tcl_GetHashValue(he);
+            ObjAppendElement(NULL, atomsObj, objP);
+            ObjAppendElement(NULL, atomsObj, ObjFromLong(objP->refCount));
+        }
+    }
+    return atomsObj;
+}
+#endif
+
+#if TWAPI_ENABLE_INSTRUMENTATION
 Tcl_Obj *Twapi_GetAtomStats(TwapiInterpContext *ticP) 
 {
     char *stats;
@@ -892,6 +947,7 @@ Tcl_Obj *Twapi_GetAtomStats(TwapiInterpContext *ticP)
     ckfree(stats);
     return objP;
 }
+#endif
 
 static void TwapiBaseModuleCleanup(TwapiInterpContext *ticP)
 {
