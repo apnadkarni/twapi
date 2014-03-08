@@ -2,15 +2,15 @@
 
 This is the second beta release of TWAPI 4.0.
 
-* Project home page is at http://twapi.sourceforge.net.
-* V4.0 Beta 2 documentation is at http://twapi.sourceforge.net/v4.0-dev.
+  * Project home page is at http://twapi.sourceforge.net.
+  * V4.0 Beta 2 documentation is at http://twapi.sourceforge.net/v4.0-dev.
 
 ## Supported platforms
 
 TWAPI 4.0 requires
 
-    * Windows XP (32-bit only) or later (32- or 64- bit)
-    * Tcl 8.5 or 8.6 (32- or 64-bit)
+  * Windows XP (32-bit only) or later (32- or 64- bit)
+  * Tcl 8.5 or 8.6 (32- or 64-bit)
 
 ## Changes since 3.1.17
 
