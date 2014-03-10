@@ -86,7 +86,8 @@ Event providers are components that write events to a trace session.
 Association with a specific trace session is [emph not] under the control
 of the provider; that is a controller function. Of course, a single
 application may host both an event provider as well as an event controller.
-
+The list of providers on a system can be retrieved through the
+[uri #etw_get_providers [cmd etw_get_providers]] command.
 [para]
 Controllers send configuration information to providers in the form
 of [emph "enable flags"] and the [emph "enable level"]. The interpretation
@@ -232,6 +233,17 @@ and [const verbose] respectively.
 Flushes the buffers belonging to a tracing session.
 The trace [arg TRACE] may be specified either by its name
 or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]]).
+
+[call [cmd etw_get_providers]]
+Returns a dictionary containing all the providers registered on
+the system.
+The dictionary key is the GUID of the provider
+and the values are nested dictionaries with keys
+[const guid] containing the GUID (same as the key), 
+[const name] containing the name of the provider and
+[const type] which is one of [const mof] or [const xml]
+depending on whether the provider events are
+defined using WMI MOF or XML manifests.
 
 [call [cmd etw_get_traces]]
 Returns a dictionary containing all the traces currently running to which

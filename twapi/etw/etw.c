@@ -10,8 +10,6 @@
  * TBD - replace CALL_ with DEFINE_ALIAS_CMD oR DEFINE_FNCODE_CMD
  * TBD - replace dict ops with list ops if possible
  * TBD - TraceMessage
- * TBD - TdhEnumerateProviders
- * TBD - QueryAllTraces
  */
 
 #include "twapi.h"
@@ -352,22 +350,41 @@ enum _TDH_OUT_TYPE {
     TDH_OUTTYPE_NOPRINT
 };
 
+typedef struct _TRACE_PROVIDER_INFO {
+  GUID  ProviderGuid;
+  ULONG SchemaSource;
+  ULONG ProviderNameOffset;
+} TRACE_PROVIDER_INFO;
 
+typedef struct _PROVIDER_ENUMERATION_INFO {
+  ULONG               NumberOfProviders;
+  ULONG               Padding;
+  TRACE_PROVIDER_INFO TraceProviderInfoArray[ANYSIZE_ARRAY];
+} PROVIDER_ENUMERATION_INFO;
+
+/*
+ * Stubs for TDH functions
+ */
 typedef ULONG __stdcall TdhGetEventInformation_T(PEVENT_RECORD, ULONG, TDH_CONTEXT *, TRACE_EVENT_INFO *, ULONG *);
 typedef ULONG __stdcall TdhGetProperty_T(PEVENT_RECORD pEvent, ULONG TdhContextCount, TDH_CONTEXT *pTdhContext, ULONG PropertyDataCount, PPROPERTY_DATA_DESCRIPTOR pPropertyData, ULONG BufferSize, PBYTE pBuffer);
 typedef ULONG __stdcall TdhGetPropertySize_T(PEVENT_RECORD pEvent, ULONG TdhContextCount, TDH_CONTEXT *pTdhContext, ULONG PropertyDataCount, PPROPERTY_DATA_DESCRIPTOR pPropertyData, ULONG *pPropertySize);
 typedef ULONG __stdcall TdhGetEventMapInformation_T(PEVENT_RECORD pEvent, LPWSTR pMapName, PEVENT_MAP_INFO pBuffer, ULONG *pBufferSize);
+typedef ULONG __stdcall TdhEnumerateProviders_T(PROVIDER_ENUMERATION_INFO *pBuffer, ULONG *pBufferSize);
+
+
 static struct {
     TdhGetEventInformation_T  *_TdhGetEventInformation;
     TdhGetProperty_T *_TdhGetProperty;
     TdhGetPropertySize_T *_TdhGetPropertySize;
     TdhGetEventMapInformation_T *_TdhGetEventMapInformation;
+    TdhEnumerateProviders_T *_TdhEnumerateProviders;
 } gTdhStubs;
 
 #define TdhGetEventInformation gTdhStubs._TdhGetEventInformation
 #define TdhGetProperty gTdhStubs._TdhGetProperty
 #define TdhGetPropertySize gTdhStubs._TdhGetPropertySize
 #define TdhGetEventMapInformation gTdhStubs._TdhGetEventMapInformation
+#define TdhEnumerateProviders gTdhStubs._TdhEnumerateProviders
 
 int gTdhStatus;                 /* 0 - init, 1 - available, -1 - unavailable  */
 HANDLE gTdhDllHandle;
@@ -2096,6 +2113,54 @@ ULONG WINAPI TwapiETWBufferCallback(
     }
 }
 
+TCL_RESULT Twapi_TdhEnumerateProvidersObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TwapiInterpContext *ticP = clientdata;
+    MemLifo *memlifoP = ticP->memlifoP;
+    PROVIDER_ENUMERATION_INFO *peiP;
+    DWORD buf_sz;
+    DWORD status;
+    TCL_RESULT res;
+    DWORD i;
+
+    CHECK_NARGS(interp, objc, 1);
+
+    if (gTdhStatus <= 0)
+        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+
+    /* Windows 7/8 have a LOT of providers */
+    buf_sz =  TwapiMinOSVersion(6, 2) ? 100000 : 30000;
+    peiP = MemLifoPushFrame(memlifoP, buf_sz, &buf_sz);
+    /* The sizes may keep changing so keep looping but no more than 10 times */
+    for (i = 0; i < 10; ++i) {
+        status = TdhEnumerateProviders(peiP, &buf_sz);
+        if (status != ERROR_INSUFFICIENT_BUFFER)
+            break;
+        MemLifoPopFrame(memlifoP);
+        peiP = MemLifoPushFrame(memlifoP, buf_sz, &buf_sz);
+    }
+
+    if (status == ERROR_SUCCESS) {
+        Tcl_Obj **objPP = MemLifoAlloc(memlifoP, peiP->NumberOfProviders * sizeof(*objPP), NULL);
+        i = peiP->NumberOfProviders; 
+        while (i--) {
+            Tcl_Obj *objs[3];
+            TRACE_PROVIDER_INFO *tpiP = &peiP->TraceProviderInfoArray[i];
+            objs[0] = ObjFromGUID(&tpiP->ProviderGuid);
+            objs[1] = ObjFromLong(tpiP->SchemaSource);
+            objs[2] = ObjFromUnicode(ADDPTR(peiP, tpiP->ProviderNameOffset, WCHAR *));
+            objPP[i] = ObjNewList(3, objs);
+        }
+        ObjSetResult(interp, ObjNewList(peiP->NumberOfProviders, objPP));
+        res = TCL_OK;
+    } else
+        res = Twapi_AppendSystemError(interp, status);
+
+    MemLifoPopFrame(memlifoP);
+    return res;
+}
+
+
 TCL_RESULT Twapi_OpenTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TRACEHANDLE htrace;
@@ -2727,6 +2792,7 @@ static int TwapiETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(TraceEvent, Twapi_TraceEvent),
         DEFINE_TCL_CMD(Twapi_ParseEventMofData, Twapi_ParseEventMofData),
         DEFINE_TCL_CMD(QueryAllTraces, Twapi_QueryAllTracesObjCmd),
+        DEFINE_TCL_CMD(TdhEnumerateProviders, Twapi_TdhEnumerateProvidersObjCmd),
     };
 
     struct fncode_dispatch_s EtwCallDispatch[] = {
@@ -2783,6 +2849,7 @@ void TwapiInitTdhStubs(Tcl_Interp *interp)
     INIT_TDH_STUB(TdhGetProperty);
     INIT_TDH_STUB(TdhGetPropertySize);
     INIT_TDH_STUB(TdhGetEventMapInformation);
+    INIT_TDH_STUB(TdhEnumerateProviders);
 
 #endif
 

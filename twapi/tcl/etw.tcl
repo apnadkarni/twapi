@@ -133,6 +133,51 @@ proc twapi::etw_get_traces {} {
     return $sessions
 }
 
+if {[twapi::min_os_version 6]} {
+    proc twapi::etw_get_providers {args} {
+        parseargs args { {types.arg {mof xml}} } -setvars -maxleftover 0
+        set providers {}
+        foreach rec [TdhEnumerateProviders] {
+            lassign $rec guid type name
+            set type [dict* {0 xml 1 mof} $type]
+            if {$type in $types} {
+                lappend providers $guid [list guid $guid type $type name $name]
+            }
+        }
+        return $providers
+    }
+} else {
+    twapi::proc* twapi::etw_get_providers {args} {
+        package require twapi_wmi
+    } {
+        parseargs args { {types.arg {mof xml}} } -setvars -maxleftover 0
+        if {"mof" ni $types} {
+            return {};          # Older systems do not have xml based providers
+        }
+        set wmi [wmi_root -root wmi]
+        set oclasses {}
+        set providers {}
+        # TBD - check if ExecQuery would be faster
+        trap {
+            # All providers are direct subclasses of the EventTrace class
+            set oclasses [wmi_collect_classes $wmi -ancestor EventTrace -shallow]
+            foreach ocls $oclasses {
+                set quals [$ocls Qualifiers_]
+                trap {
+                    set name [$quals -with {{Item Description}} -invoke Value 2 {}]
+                    set guid [$quals -with {{Item Guid}} -invoke Value 2 {}]
+                    lappend providers [list guid $guid type mof name $name]
+                } finally {
+                    $quals -destroy
+                }
+            }
+        } finally {
+            foreach ocls $oclasses {$ocls -destroy}
+            $wmi -destroy
+        }
+        return $providers
+    }
+}
 
 twapi::proc* twapi::etw_install_twapi_mof {} {
     package require twapi_wmi

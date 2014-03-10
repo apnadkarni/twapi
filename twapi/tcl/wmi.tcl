@@ -53,6 +53,7 @@ proc twapi::_wmi {{top cimv2}} {
     return [wmi_root -root $top]
 }
 
+# TBD - see if using ExecQuery would be faster if it supports all the options
 proc twapi::wmi_collect_classes {swbemservices args} {
     array set opts [parseargs args {
         {ancestor.arg {}}
@@ -69,7 +70,7 @@ proc twapi::wmi_collect_classes {swbemservices args} {
     # wbemFlagUseAmendedQualifiers | wbemFlagReturnImmediately | wbemFlagForwardOnly
     set flags 0x20030
     if {$opts(shallow)} {
-        incr flags 1;           # 0x1 -> wbemQueryFlagsShallow
+        incr flags 1;           # 0x1 -> wbemQueryFlagShallow
     }
 
     set classes [$swbemservices SubclassesOf $opts(ancestor) $flags]
