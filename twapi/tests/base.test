@@ -2765,6 +2765,25 @@ namespace eval twapi::base::test {
         $r [list d e f] {1 2 3}; # Field name is a pure list
     } -returnCodes error -result "Invalid enum \"d e f\""
 
+    test record-9.0 {
+        Invalid record subcommand
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r foo {1 2 3} c
+    } -cleanup {
+        rename $r {}
+    } -returnCodes error -result "bad command \"foo\": must be get, set, or select"
+
+    ################################################################
+
+    test recordarray-100.0 {
+        recordarray tests
+    } -constraints {
+        TBD
+    } -body {
+    } -result TBD
+
     ################################################################
 
     #
