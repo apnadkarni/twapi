@@ -61,6 +61,8 @@ the parameters of an existing trace session.
 [uri #etw_stop_trace [cmd etw_stop_trace]] command. To flush the event
 trace buffers without terminating the trace session, use
 [uri #etw_flush_trace [cmd etw_flush_trace]] command.
+[bullet] Use [uri #etw_get_traces [cmd etw_get_traces]] to get
+a list of all current trace sessions.
 [list_end]
 
 [para]
@@ -230,6 +232,12 @@ and [const verbose] respectively.
 Flushes the buffers belonging to a tracing session.
 The trace [arg TRACE] may be specified either by its name
 or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]]).
+
+[call [cmd etw_get_traces]]
+Returns a dictionary containing all the traces currently running to which
+the calling process has access. The dictionary keys are the names of
+the trace sessions and the values are nested dictionaries in the same
+format as returned by [uri #etw_query_trace [cmd etw_query_trace]].
 
 [call [cmd etw_query_trace] [arg TRACE]]
 Returns a dictionary containing a trace session's settings and status.

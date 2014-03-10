@@ -125,6 +125,15 @@ namespace eval twapi {
 }
 
 
+proc twapi::etw_get_traces {} {
+    set sessions {}
+    foreach sess [QueryAllTraces] {
+        lappend sessions [etw_trace_properties trace_name $sess] [etw_trace_properties $sess]
+    }
+    return $sessions
+}
+
+
 twapi::proc* twapi::etw_install_twapi_mof {} {
     package require twapi_wmi
 } {

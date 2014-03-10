@@ -193,7 +193,7 @@ namespace eval twapi::etw::test {
         }
 
         if {![equal_paths $path [dict get $stats logfile]]} {
-            error "Log file paths do not match"
+            error "Log file paths do not match: $path != [dict get $stats logfile]"
         }
 
         if {! [string equal -nocase $name [dict get $stats trace_name]]} {
@@ -760,6 +760,17 @@ namespace eval twapi::etw::test {
     } -cleanup {
         twapi::etw_stop_trace $htrace
     } -result {1 1 1 256}
+
+
+    ################################################################
+
+    test etw_get_traces-1.0 {
+        etw_get_traces
+    } -body {
+        foreach {name stats} [twapi::etw_get_traces] {
+            validate_trace_stats $stats [dict get $stats logfile] $name
+        }
+    } -result ""
 
 
     ################################################################

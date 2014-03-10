@@ -10,6 +10,8 @@
  * TBD - replace CALL_ with DEFINE_ALIAS_CMD oR DEFINE_FNCODE_CMD
  * TBD - replace dict ops with list ops if possible
  * TBD - TraceMessage
+ * TBD - TdhEnumerateProviders
+ * TBD - QueryAllTraces
  */
 
 #include "twapi.h"
@@ -376,6 +378,9 @@ HANDLE gTdhDllHandle;
 # define EVENT_HEADER_FLAG_PROCESSOR_INDEX 0x0200 /* Win 8, not in older SDKs */
 #endif
 
+
+/* Windows allows max 64 sessions */
+#define MAX_SESSIONS 64
 
 /* Max length of file and session name fields in a trace (documented in SDK) */
 #define MAX_TRACE_NAME_CHARS (1024+1)
@@ -2135,6 +2140,49 @@ TCL_RESULT Twapi_OpenTrace(ClientData clientdata, Tcl_Interp *interp, int objc, 
     return TCL_OK;
 }
 
+TCL_RESULT Twapi_QueryAllTracesObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TwapiInterpContext *ticP = clientdata;
+    EVENT_TRACE_PROPERTIES **sessPP;
+    EVENT_TRACE_PROPERTIES *bufP;
+    DWORD i, count, struct_size, buf_size, status;
+    Tcl_Obj **objPP;
+    MemLifo *memlifoP = ticP->memlifoP;
+    TCL_RESULT res;
+
+    CHECK_NARGS(interp, objc, 1);
+
+    sessPP = MemLifoPushFrame(memlifoP, MAX_SESSIONS * sizeof(*sessPP), NULL);
+    struct_size = sizeof(EVENT_TRACE_PROPERTIES)  +
+        (MAX_TRACE_NAME_CHARS*sizeof(WCHAR)) + /* Space for session name */
+        (MAX_TRACE_NAME_CHARS*sizeof(WCHAR));  /* Space for file name */
+    buf_size = MAX_SESSIONS * struct_size;
+    bufP = MemLifoAlloc(memlifoP, buf_size, NULL);
+    ZeroMemory(bufP, buf_size);
+    for (i = 0; i < MAX_SESSIONS; ++i) {
+        sessPP[i] = (EVENT_TRACE_PROPERTIES *)(i*struct_size + (char *)bufP);
+        sessPP[i]->Wnode.BufferSize = struct_size;
+        sessPP[i]->LoggerNameOffset = sizeof(EVENT_TRACE_PROPERTIES);
+        sessPP[i]->LogFileNameOffset = sizeof(EVENT_TRACE_PROPERTIES) + MAX_TRACE_NAME_CHARS*sizeof(WCHAR);
+    }
+
+    status = QueryAllTracesW(sessPP, MAX_SESSIONS, &count);
+    if (status == ERROR_SUCCESS) {
+        if (count) {
+            objPP = MemLifoAlloc(memlifoP, count * sizeof(*objPP), NULL);
+            for (i = 0; i < count; ++i) {
+                objPP[i] = ObjFromEVENT_TRACE_PROPERTIES(sessPP[i]);
+            }
+            ObjSetResult(interp, ObjNewList(count, objPP));
+        }
+        res = TCL_OK;
+    } else
+        res = Twapi_AppendSystemError(interp, status);
+
+    MemLifoPopFrame(memlifoP);
+    return res;
+}
+
 TCL_RESULT Twapi_CloseTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TRACEHANDLE htrace;
@@ -2678,6 +2726,7 @@ static int TwapiETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(etw_unregister_provider, Twapi_UnregisterTraceGuids), //UnregisterTraceGuids
         DEFINE_TCL_CMD(TraceEvent, Twapi_TraceEvent),
         DEFINE_TCL_CMD(Twapi_ParseEventMofData, Twapi_ParseEventMofData),
+        DEFINE_TCL_CMD(QueryAllTraces, Twapi_QueryAllTracesObjCmd),
     };
 
     struct fncode_dispatch_s EtwCallDispatch[] = {
