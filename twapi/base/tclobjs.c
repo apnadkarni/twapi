@@ -4449,10 +4449,6 @@ TCL_RESULT ObjToEnum(Tcl_Interp *interp, Tcl_Obj *enumsObj, Tcl_Obj *nameObj,
         int i, nobjs;
         char *nameP;
 
-        if (nameObj->typePtr && nameObj->typePtr->freeIntRepProc) {
-            nameObj->typePtr->freeIntRepProc(nameObj);
-        }
-
         if ((res = ObjGetElements(interp, enumsObj, &nobjs, &objs)) != TCL_OK)
             return res;
 
@@ -4463,8 +4459,12 @@ TCL_RESULT ObjToEnum(Tcl_Interp *interp, Tcl_Obj *enumsObj, Tcl_Obj *nameObj,
         }
         if (i == nobjs) {
             if (interp)
-                ObjSetResult(interp, Tcl_ObjPrintf("Invalid enum %s", nameP));
+                ObjSetResult(interp, Tcl_ObjPrintf("Invalid enum \"%s\"", nameP));
             return TCL_ERROR;
+        }
+
+        if (nameObj->typePtr && nameObj->typePtr->freeIntRepProc) {
+            nameObj->typePtr->freeIntRepProc(nameObj);
         }
 
         nameObj->typePtr = &gEnumType;

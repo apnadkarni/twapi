@@ -2483,7 +2483,7 @@ namespace eval twapi::base::test {
         $r d {1 2 3}
     } -cleanup {
         rename $r {}
-    } -returnCodes error -result "Invalid enum d"
+    } -returnCodes error -result "Invalid enum \"d\""
 
     test record-2.3 {
         Record get field from truncated record
@@ -2543,7 +2543,7 @@ namespace eval twapi::base::test {
         $r get {1 2 3} d
     } -cleanup {
         rename $r {}
-    } -returnCodes error -result "Invalid enum d"
+    } -returnCodes error -result "Invalid enum \"d\""
 
     test record-3.3 {
         Record get field from truncated record
@@ -2614,7 +2614,7 @@ namespace eval twapi::base::test {
         $r set {1 2 3} d 4
     } -cleanup {
         rename $r {}
-    } -returnCodes error -result "Invalid enum d"
+    } -returnCodes error -result "Invalid enum \"d\""
 
     test record-5.3 {
         Record set field in truncated record
@@ -2724,7 +2724,7 @@ namespace eval twapi::base::test {
         $r select {1 2 3} {a d}
     } -cleanup {
         rename $r {}
-    } -returnCodes error -result "Invalid enum d"
+    } -returnCodes error -result "Invalid enum \"d\""
 
     test record-7.6 {
         Record select field from truncated record
@@ -2756,6 +2756,14 @@ namespace eval twapi::base::test {
         rename $r {}
     } -returnCodes error -result "too few values in record*" -match glob
 
+
+    test record-8.0 {
+        Test crash fix when invalid field does not have a string rep (Bug 127)
+    } -setup {
+        set r [twapi::record {a b c}]
+    } -body {
+        $r [list d e f] {1 2 3}; # Field name is a pure list
+    } -returnCodes error -result "Invalid enum \"d e f\""
 
     ################################################################
 
