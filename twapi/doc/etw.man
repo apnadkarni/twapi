@@ -234,21 +234,24 @@ Flushes the buffers belonging to a tracing session.
 The trace [arg TRACE] may be specified either by its name
 or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]]).
 
-[call [cmd etw_get_providers]]
-Returns a dictionary containing all the providers registered on
+[call [cmd etw_get_providers] [opt [cmd -detail]]]
+If [cmd -detail] is not specified,
+returns a list containing the names of all providers registered on
 the system.
-The dictionary key is the GUID of the provider
-and the values are nested dictionaries with keys
+If [cmd -detail] is specified, returns a list each element of
+which is a dictionary with keys
 [const guid] containing the GUID (same as the key), 
 [const name] containing the name of the provider and
 [const type] which is one of [const mof] or [const xml]
 depending on whether the provider events are
 defined using WMI MOF or XML manifests.
 
-[call [cmd etw_get_traces]]
-Returns a dictionary containing all the traces currently running to which
-the calling process has access. The dictionary keys are the names of
-the trace sessions and the values are nested dictionaries in the same
+[call [cmd etw_get_traces] [opt [cmd -detail]]]
+If [cmd -detail] is not specified, returns a list of the names of all traces
+currently running to which the calling process has access.
+If the [cmd -detail] option is specified,
+returns a list each element of which is a dictionary
+in the same
 format as returned by [uri #etw_query_trace [cmd etw_query_trace]].
 
 [call [cmd etw_query_trace] [arg TRACE]]
@@ -349,9 +352,8 @@ is not a valid value for [cmd -filemode] for kernel traces
 and the [cmd -usepagedmemory] option must not be specified.
 
 [call [cmd etw_start_trace] [arg TRACENAME] [opt [arg options]]]
-Starts a new ETW trace session with the name [arg TRACENAME].
-Returns a pair consisting of a trace handle and a dictionary
-containing the event trace properties.
+Starts a new ETW trace with the name [arg TRACENAME]
+and returns a handle to it.
 [nl]
 The following
 options may be specified:

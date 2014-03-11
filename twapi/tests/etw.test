@@ -767,8 +767,17 @@ namespace eval twapi::etw::test {
     test etw_get_traces-1.0 {
         etw_get_traces
     } -body {
-        foreach {name stats} [twapi::etw_get_traces] {
+        foreach name [twapi::etw_get_traces] {
+            set stats [twapi::etw_query_trace $name]
             validate_trace_stats $stats [dict get $stats logfile] $name
+        }
+    } -result ""
+
+    test etw_get_traces-2.0 {
+        etw_get_traces -detail
+    } -body {
+        foreach stats [twapi::etw_get_traces -detail] {
+            validate_trace_stats $stats [dict get $stats logfile] [dict get $stats trace_name]
         }
     } -result ""
 
@@ -782,16 +791,33 @@ namespace eval twapi::etw::test {
                 set name [regsub {\s+} [string trim $name] { }]
                 # Lappend because logman reports both old style and
                 # new style for the same guid
-                dict lappend logman_providers $guid $name
+                dict lappend logman_providers $name $guid
             }
         }
     } -body {
         set providers [twapi::etw_get_providers]
-        dict for {guid2 rec} $providers {
-            dict with rec {}
-            if {$guid2 ne $guid} {
-                error "Guid mismatch in dict: $guid2 != $guid"
+        foreach name $providers {
+            if {![dict exists $logman_providers $name]} {
+                error "$name not found in logman output"
             }
+        }
+    } -result ""
+
+    test etw_get_providers-1.1 {
+        etw_get_providers -detail
+    } -setup {
+        foreach rec [split [exec {*}[auto_execok logman] query providers] \n] {
+            if {[regexp {(^.*)({.*})$} [string trim $rec] -> name guid]} {
+                set name [regsub {\s+} [string trim $name] { }]
+                # Lappend because logman reports both old style and
+                # new style for the same guid
+                dict lappend logman_providers $guid $name
+            }
+        }
+    } -body {
+        set providers [twapi::etw_get_providers -detail]
+        foreach rec $providers {
+            dict with rec {}
             if {$type ni {mof xml}} {
                 error "Unknown type $type"
             }
@@ -801,11 +827,8 @@ namespace eval twapi::etw::test {
             if {$name ni [dict get $logman_providers $guid]} {
                 error "Name $name does not match logman output [dict get $logman_providers $guid]"
             }
-            dict unset providers $guid
-            dict unset logman_providers $guid
         }
-        list [dict size $providers] [dict size $logman_providers]
-    } -result {0 0}
+    } -result ""
 
     ################################################################
 
