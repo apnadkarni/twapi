@@ -125,23 +125,36 @@ namespace eval twapi {
 }
 
 
-proc twapi::etw_get_traces {} {
+proc twapi::etw_get_traces {args} {
+    parseargs args {detail} -setvars -maxleftover 0
     set sessions {}
     foreach sess [QueryAllTraces] {
-        lappend sessions [etw_trace_properties trace_name $sess] [etw_trace_properties $sess]
+        set name [etw_trace_properties trace_name $sess]
+        if {$detail} {
+            lappend sessions [etw_trace_properties $sess]
+        } else {
+            lappend sessions $name
+        }
     }
     return $sessions
 }
 
 if {[twapi::min_os_version 6]} {
     proc twapi::etw_get_providers {args} {
-        parseargs args { {types.arg {mof xml}} } -setvars -maxleftover 0
+        parseargs args {
+            detail
+            {types.arg {mof xml}}
+        } -setvars -maxleftover 0
         set providers {}
         foreach rec [TdhEnumerateProviders] {
             lassign $rec guid type name
             set type [dict* {0 xml 1 mof} $type]
             if {$type in $types} {
-                lappend providers $guid [list guid $guid type $type name $name]
+                if {$detail} {
+                    lappend providers [list guid $guid type $type name $name]
+                } else {
+                    lappend providers $name
+                }
             }
         }
         return $providers
@@ -150,7 +163,7 @@ if {[twapi::min_os_version 6]} {
     twapi::proc* twapi::etw_get_providers {args} {
         package require twapi_wmi
     } {
-        parseargs args { {types.arg {mof xml}} } -setvars -maxleftover 0
+        parseargs args { detail {types.arg {mof xml}} } -setvars -maxleftover 0
         if {"mof" ni $types} {
             return {};          # Older systems do not have xml based providers
         }
@@ -166,7 +179,11 @@ if {[twapi::min_os_version 6]} {
                 trap {
                     set name [$quals -with {{Item Description}} -invoke Value 2 {}]
                     set guid [$quals -with {{Item Guid}} -invoke Value 2 {}]
-                    lappend providers [list guid $guid type mof name $name]
+                    if {$detail} {
+                        lappend providers [list guid $guid type mof name $name]
+                    } else {
+                        lappend providers $name
+                    }
                 } finally {
                     $quals -destroy
                 }
