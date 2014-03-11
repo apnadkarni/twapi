@@ -1086,6 +1086,7 @@ TCL_RESULT Twapi_ControlTrace(ClientData clientdata, Tcl_Interp *interp, int obj
     return code;
 }
 
+/* TBD - add support for EnableTraceEx */
 TCL_RESULT Twapi_EnableTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     GUID guid;
