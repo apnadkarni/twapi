@@ -140,13 +140,16 @@ proc twapi::etw_get_traces {args} {
 }
 
 if {[twapi::min_os_version 6]} {
+    proc twapi::etw_get_provider_guid {name} {
+        return [lindex [Twapi_TdhEnumerateProviders $name] 0]
+    }
     proc twapi::etw_get_providers {args} {
         parseargs args {
             detail
             {types.arg {mof xml}}
         } -setvars -maxleftover 0
         set providers {}
-        foreach rec [TdhEnumerateProviders] {
+        foreach rec [Twapi_TdhEnumerateProviders] {
             lassign $rec guid type name
             set type [dict* {0 xml 1 mof} $type]
             if {$type in $types} {
@@ -160,6 +163,34 @@ if {[twapi::min_os_version 6]} {
         return $providers
     }
 } else {
+    twapi::proc* twapi::etw_get_provider_guid {lookup_name} {
+        package require twapi_wmi
+    } {
+        set wmi [wmi_root -root wmi]
+        set oclasses {}
+        set providers {}
+        # TBD - check if ExecQuery would be faster
+        trap {
+            # All providers are direct subclasses of the EventTrace class
+            set oclasses [wmi_collect_classes $wmi -ancestor EventTrace -shallow]
+            foreach ocls $oclasses {
+                set quals [$ocls Qualifiers_]
+                trap {
+                    set name [$quals -with {{Item Description}} -invoke Value 2 {}]
+                    if {[string equal -nocase $name $lookup_name]} {
+                        return [$quals -with {{Item Guid}} -invoke Value 2 {}]
+                    }
+                } finally {
+                    $quals -destroy
+                }
+            }
+        } finally {
+            foreach ocls $oclasses {$ocls -destroy}
+            $wmi -destroy
+        }
+        return ""
+    }
+
     twapi::proc* twapi::etw_get_providers {args} {
         package require twapi_wmi
     } {
@@ -1023,7 +1054,7 @@ proc twapi::etw_start_trace {session_name args} {
     # Not supported until Win7 {noperprocessorbuffering {} 0x10000000}
     # Not clear what conditions it can be used {usekbytesforsize {} 0x2000}
     array set opts [parseargs args {
-        sessionguid.arg
+        traceguid.arg
         logfile.arg
         buffersize.int
         minbuffers.int
@@ -1095,7 +1126,7 @@ proc twapi::etw_start_trace {session_name args} {
         badargs! "Option -realtime is incompatible with options -private and -privateinproc"
     }
 
-    foreach opt {sessionguid logfile buffersize minbuffers maxbuffers flushtimer enableflags maxfilesize} {
+    foreach opt {traceguid logfile buffersize minbuffers maxbuffers flushtimer enableflags maxfilesize} {
         if {[info exists opts($opt)]} {
             lappend params -$opt $opts($opt)
         }
@@ -1200,10 +1231,12 @@ proc twapi::etw_start_kernel_trace {events args} {
 }
 
 proc twapi::etw_enable_trace_provider {hsession guid enableflags level} {
+    set guid [_etw_provider_guid $guid]
     return [EnableTrace 1 $enableflags [_etw_level_to_int $level] $guid $hsession]
 }
 
 proc twapi::etw_disable_trace_provider {hsession guid} {
+    set guid [_etw_provider_guid $guid]
     return [EnableTrace 0 -1 5 $guid $hsession]
 }
 
@@ -1225,7 +1258,7 @@ proc twapi::etw_control_trace {action session args} {
     } $action]
 
     array set opts [parseargs args {
-        sessionguid.arg
+        traceguid.arg
         logfile.arg
         maxbuffers.int
         flushtimer.int
@@ -1243,8 +1276,8 @@ proc twapi::etw_control_trace {action session args} {
         }
     }
 
-    if {[info exists opts(sessionguid)]} {
-        append params -sessionguid $opts(sessionguid)
+    if {[info exists opts(traceguid)]} {
+        append params -traceguid $opts(traceguid)
     }
 
     if {[info exists sessionname]} {
@@ -1319,4 +1352,16 @@ proc twapi::_etw_get_types {} {
 
 proc twapi::_etw_level_to_int {level} {
     return [dict* {verbose 5 information 4 info 4 informational 4 warning 3 error 2 fatal 1 critical 1} [string tolower $level]]
+}
+
+# Map provider guid/name to guid
+proc twapi::_etw_provider_guid {lookup} {
+    if {[Twapi_IsValidGUID $lookup]} {
+        return $lookup
+    }
+    set guid [etw_get_provider_guid $lookup]
+    if {$guid eq ""} {
+        badargs! "Provider \"$lookup\" not found."
+    }
+    return $guid
 }

@@ -45,8 +45,9 @@ Added [uri base.html#read_credentials [cmd read_credentials]],
 [uri security.html#credentials [cmd credentials]].
 
 [bullet]
-Added [uri base.html#conceal [cmd conceal]] and
-[uri base.html#reveal [cmd reveal]].
+Added [uri base.html#conceal [cmd conceal]]/[uri base.html#reveal [cmd reveal]] for memory encryption
+and [uri base.html#protect_data [cmd protect_data]]/[uri base.html#unprotect_data [cmd unprotect_data]]
+for protecting data based on user credentials.
 
 [bullet]
 Added [cmd -active] option to
