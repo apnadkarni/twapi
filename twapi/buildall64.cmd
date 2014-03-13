@@ -8,9 +8,13 @@ set MSVCDIR=
 SET PATH=%WINDIR%\SYSTEM32
 
 :: Setup build environment
-IF %TWAPI_COMPILER_DIR%. == . goto setupsdk
-@call "%TWAPI_COMPILER_DIR%"\x64\setup.bat
+IF NOT %TWAPI_COMPILER_DIR%. == . goto setuptwapicompiler
 
+if NOT EXIST "c:\bin\x86\twapi-tcl-vc6" goto setupsdk
+set TWAPI_COMPILER_DIR=c:\bin\x86\twapi-tcl-vc6
+
+:setuptwapicompiler
+@call "%TWAPI_COMPILER_DIR%"\x64\setup.bat
 goto dobuild
 
 :setupsdk
