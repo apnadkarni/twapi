@@ -566,7 +566,8 @@ namespace eval twapi::etw::test {
                 set curtid $tid
             }
             twapi::etw_log_message $hprov "SETLEVEL_$level" 1
-            twapi::etw_enable_trace_provider $htrace [twapi::etw_twapi_provider_guid] -1 $level
+            # Use name instead of guid
+            twapi::etw_enable_trace_provider $htrace [twapi::etw_twapi_provider_name] -1 $level
             after $wait_time
             twapi::etw_log_message $hprov "default"
             twapi::etw_log_message $hprov "fatal" fatal
@@ -578,8 +579,8 @@ namespace eval twapi::etw::test {
             twapi::etw_flush_trace  $tracename
         }
 
-        # Now disable the provider and try to log
-        twapi::etw_disable_trace_provider $htrace [twapi::etw_twapi_provider_guid]
+        # Now disable the provider and try to log - use name instead of guid
+        twapi::etw_disable_trace_provider $htrace [twapi::etw_twapi_provider_name]
         after 100
         twapi::etw_log_message $hprov "fatal (provider disabled)" 1
         twapi::etw_flush_trace  $htrace
@@ -779,6 +780,26 @@ namespace eval twapi::etw::test {
         foreach stats [twapi::etw_get_traces -detail] {
             validate_trace_stats $stats [dict get $stats logfile] [dict get $stats trace_name]
         }
+    } -result ""
+
+    ################################################################
+
+    test etw_get_provider_guid-1.0 {
+        etw_get_provider_guid
+    } -body {
+        twapi::etw_get_provider_guid "Windows Kernel Trace"
+    } -result {{9e814aad-3204-11d2-9a82-006008a86939}}
+
+    test etw_get_provider_guid-1.1 {
+        etw_get_provider_guid - case insensitive
+    } -body {
+        twapi::etw_get_provider_guid "windows kernel trace"
+    } -result {{9e814aad-3204-11d2-9a82-006008a86939}}
+
+    test etw_get_provider_guid-2.0 {
+        etw_get_provider_guid - non-existing
+    } -body {
+        twapi::etw_get_provider_guid " windows kernel trace"
     } -result ""
 
     ################################################################

@@ -2124,7 +2124,7 @@ TCL_RESULT Twapi_TdhEnumerateProvidersObjCmd(ClientData clientdata, Tcl_Interp *
     TCL_RESULT res;
     DWORD i;
 
-    CHECK_NARGS(interp, objc, 1);
+    CHECK_NARGS_RANGE(interp, objc, 1, 2);
 
     if (gTdhStatus <= 0)
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
@@ -2142,17 +2142,34 @@ TCL_RESULT Twapi_TdhEnumerateProvidersObjCmd(ClientData clientdata, Tcl_Interp *
     }
 
     if (status == ERROR_SUCCESS) {
-        Tcl_Obj **objPP = MemLifoAlloc(memlifoP, peiP->NumberOfProviders * sizeof(*objPP), NULL);
+        Tcl_Obj *objs[3];
         i = peiP->NumberOfProviders; 
-        while (i--) {
-            Tcl_Obj *objs[3];
-            TRACE_PROVIDER_INFO *tpiP = &peiP->TraceProviderInfoArray[i];
-            objs[0] = ObjFromGUID(&tpiP->ProviderGuid);
-            objs[1] = ObjFromLong(tpiP->SchemaSource);
-            objs[2] = ObjFromUnicode(ADDPTR(peiP, tpiP->ProviderNameOffset, WCHAR *));
-            objPP[i] = ObjNewList(3, objs);
+        if (objc == 1) {
+            /* Return all */
+            Tcl_Obj **objPP = MemLifoAlloc(memlifoP, peiP->NumberOfProviders * sizeof(*objPP), NULL);
+            while (i--) {
+                TRACE_PROVIDER_INFO *tpiP = &peiP->TraceProviderInfoArray[i];
+                objs[0] = ObjFromGUID(&tpiP->ProviderGuid);
+                objs[1] = ObjFromLong(tpiP->SchemaSource);
+                objs[2] = ObjFromUnicode(ADDPTR(peiP, tpiP->ProviderNameOffset, WCHAR *));
+                objPP[i] = ObjNewList(3, objs);
+            }
+            ObjSetResult(interp, ObjNewList(peiP->NumberOfProviders, objPP));
+        } else {
+            /* Return matching one. Empty string if not found */
+            WCHAR *s = ObjToUnicode(objv[1]);
+            while (i--) {
+                TRACE_PROVIDER_INFO *tpiP = &peiP->TraceProviderInfoArray[i];
+                WCHAR *s2 = ADDPTR(peiP, tpiP->ProviderNameOffset, WCHAR *);
+                if (lstrcmpiW(s, s2) == 0) {
+                    objs[0] = ObjFromGUID(&tpiP->ProviderGuid);
+                    objs[1] = ObjFromLong(tpiP->SchemaSource);
+                    objs[2] = ObjFromUnicode(s2);
+                    ObjSetResult(interp, ObjNewList(3, objs));
+                    break;
+                }
+            }            
         }
-        ObjSetResult(interp, ObjNewList(peiP->NumberOfProviders, objPP));
         res = TCL_OK;
     } else
         res = Twapi_AppendSystemError(interp, status);
@@ -2793,7 +2810,7 @@ static int TwapiETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(TraceEvent, Twapi_TraceEvent),
         DEFINE_TCL_CMD(Twapi_ParseEventMofData, Twapi_ParseEventMofData),
         DEFINE_TCL_CMD(QueryAllTraces, Twapi_QueryAllTracesObjCmd),
-        DEFINE_TCL_CMD(TdhEnumerateProviders, Twapi_TdhEnumerateProvidersObjCmd),
+        DEFINE_TCL_CMD(Twapi_TdhEnumerateProviders, Twapi_TdhEnumerateProvidersObjCmd),
     };
 
     struct fncode_dispatch_s EtwCallDispatch[] = {
