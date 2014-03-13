@@ -27,8 +27,13 @@ hg identify -i >>build\hgid.tmp
 
 :: Set up 32-bit build environment. If we are using the TWAPI custom
 :: environment point there, else the standard Microsoft paths
-IF %TWAPI_COMPILER_DIR%. == . goto setupsdk
 
+IF NOT %TWAPI_COMPILER_DIR%. == . goto setuptwapicompiler
+
+if NOT EXIST "c:\bin\x86\twapi-tcl-vc6" goto setupsdk
+set TWAPI_COMPILER_DIR=c:\bin\x86\twapi-tcl-vc6
+
+:setuptwapicompiler
 @call "%TWAPI_COMPILER_DIR%"\x86\setup.bat
 goto call64build
 
