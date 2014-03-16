@@ -50,7 +50,7 @@ to implement an event controller:
 command [uri #etw_start_trace [cmd etw_start_trace]] which
 creates a new trace with configurable parameters.
 [bullet] To create and remove associations between event providers
-and traces, use the [uri #etw_enable_trace_provider [cmd etw_enable_trace_provider]]
+and traces, use the [uri #etw_enable_provider [cmd etw_enable_provider]]
 command. This command can also be used to communicate to the event providers
 what events are to be logged.
 [bullet] Use [uri #etw_query_trace [cmd etw_query_trace]]
@@ -178,7 +178,7 @@ kernel logs events such as network events, process events, disk I/O etc.
 to this trace when enabled. This trace can be started and configured
 through the [uri #etw_start_kernel_trace [cmd etw_start_kernel_trace]]
 command. The specific events to be logged are also specified as options
-to this command as the [uri #etw_enable_trace_provider [cmd etw_enable_trace_provider]]
+to this command as the [uri #etw_enable_provider [cmd etw_enable_provider]]
 cannot be used with kernel traces.
 [para]
 See [uri http://msdn.microsoft.com/en-us/library/windows/desktop/aa364083(v=vs.85).aspx MSDN]
@@ -210,13 +210,13 @@ an ETW controller.
 
 [list_begin definitions]
 
-[call [cmd etw_disable_trace_provider] [arg TRACEHANDLE] [arg PROVIDER]]
-Removes the provider identified by [arg GUID] 
+[call [cmd etw_disable_provider] [arg TRACEHANDLE] [arg PROVIDER]]
+Disables the specified provider 
 from logging to the event trace specified by [arg TRACEHANDLE]
 (as returned by [uri #etw_start_trace [cmd etw_start_trace]]).
 [arg PROVIDER] can be the name or the GUID of the provider.
 
-[call [cmd etw_enable_trace_provider] [arg TRACEHANDLE] [arg PROVIDER] [arg ENABLEFLAGS] [arg LEVEL]]
+[call [cmd etw_enable_provider] [arg TRACEHANDLE] [arg PROVIDER] [arg ENABLEFLAGS] [arg LEVEL]]
 Enables a provider
 to log to the event trace specified by [arg TRACEHANDLE]
 (as returned by [uri #etw_start_trace [cmd etw_start_trace]]).
@@ -237,6 +237,9 @@ and [const verbose] respectively.
 Flushes the buffers belonging to an event trace.
 The trace [arg TRACE] may be specified either by its name
 or by its handle (as returned by [uri #etw_start_trace [cmd etw_start_trace]]).
+
+[call [cmd etw_get_provider_guid] [arg PROVIDERNAME]]
+Returns the GUID of specified provider.
 
 [call [cmd etw_get_providers] [opt [cmd -detail]]]
 If [cmd -detail] is not specified,
@@ -571,7 +574,7 @@ The name and GUID corresponding to the provider can be retrieved through
 [uri #etw_twapi_provider_name [cmd etw_twapi_provider_name]] and
 [uri #etw_twapi_provider_guid [cmd etw_twapi_provider_guid]].
 These can then be passed to
-[uri #etw_enable_trace_provider [cmd etw_enable_trace_provider]] or any ETW controller
+[uri #etw_enable_provider [cmd etw_enable_provider]] or any ETW controller
 program to add the TWAPI provider to a trace. Returns a handle
 to the registered provider.
 [nl]
@@ -588,7 +591,7 @@ Returns the GUID of the ETW event class used by
 
 [call [cmd etw_twapi_provider_guid]]
 Returns the GUID for the TWAPI ETW provider. This can be passed to
-[uri #etw_enable_trace_provider [cmd etw_enable_trace_provider]] or any ETW controller
+[uri #etw_enable_provider [cmd etw_enable_provider]] or any ETW controller
 program to add the TWAPI provider to an event trace.
 
 [call [cmd etw_twapi_provider_name]]
@@ -763,13 +766,13 @@ replacing the insert placeholders with the corresponding values from
 come from the [cmd message] and [cmd properties] fields returned by
 the [uri #etw_event [cmd etw_event]] command.
 
-[call [cmd etw_format_events] [arg FORMATTER] [arg BUFDESC] [arg EVENTLIST]]
-Processes the list of raw ETW events passed in [arg EVENTLIST] and 
+[call [cmd etw_format_events] [arg FORMATTER] [arg BUFDESC] [arg EVENTLIST] [opt "[cmd -filter] [arg FILTERLIST]"]]
+Processes the list of raw ETW events and 
 returns a list of formatted events.
-[arg BUFDESC] and [arg EVENTLIST] should be the last two arguments
-passed to the callback from [uri #etw_process_events [cmd etw_process_events]]
-or the elements of the return value of [cmd etw_process_events] when
-it is invoked without a callback.
+[arg BUFDESC] and [arg EVENTLIST] are the event buffer descriptor and
+the list of raw events for the event buffer as returned by
+[uri #etw_process_events [cmd etw_process_events]] or as passed
+to the [cmd -callback] option of that command.
 [nl]
 [arg FORMATTER] should be the handle to a formatter as returned by
 [uri #etw_open_formatter [cmd etw_open_formatter]].
@@ -777,6 +780,22 @@ it is invoked without a callback.
 The command returns a list of formatted events. Caller should treat
 each formatted event as opaque and use the [uri #etw_event [cmd etw_event]]
 command to extract specific event fields.
+[nl]
+If [cmd -filter] is specified, only those events that match all the
+filter expressions in [arg FILTERLIST] are returned. [arg FILTERLIST]
+is a list of filter expressions. Each filter expression is a 3-element
+list, where the first element is the name of the event field as
+returned by [uri #etw_event [cmd etw_event]], the second element
+is the matching operator and the third is the value to match.
+The matching operator must be one of the following:
+[list_begin opt]
+[opt_def [const eq]] Case-insensitive string equality
+[opt_def [const ne]] Case-insensitive strings inequality
+[opt_def [const ==]] Integer equality
+[opt_def [const !=]] Integer inequality
+[opt_def [const ~]] Pattern matched (as in [cmd "string match"])
+[opt_def [const !~]] Pattern not matched (as in [cmd "string match"])
+[list_end]
 
 [call [cmd etw_install_twapi_mof]]
 Installs the TWAPI Managed Object Format (MOF) definition for the event
@@ -811,9 +830,13 @@ returned by [uri #etw_open_file [cmd etw_open_file]] or
 [uri #etw_open_session [cmd etw_open_session]].
 [nl]
 
+If [cmd -callback] is not specified, the command returns a
+list consisting of alternative buffer descriptors and a raw event list.
+Each pair should be passed to [uri #etw_format_events [cmd etw_format_events]]
+which will in turn return a list of formatted events.
+
 If [cmd -callback] is specified,
 the events are passed to the [arg CALLBACK] command prefix.
-command prefix specified by [cmd -callback] for processing.
 
 [nl]
 When ETW begins processing events, the callback is invoked repeatedly until
@@ -829,8 +852,6 @@ in turn will return a list of formatted events.
 To terminate processing of events before all events from the traces are
 consumed, the callback can execute
 [example "return -code break"]
-
-
 
 [nl]
 The options [cmd -start] and [cmd end] can be specified to limit the

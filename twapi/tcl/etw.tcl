@@ -787,8 +787,12 @@ proc twapi::etw_close_formatter {formatter} {
     return
 }
 
-proc twapi::etw_format_events {formatter args} {
+proc twapi::etw_format_events {formatter bufd rawevents args} {
     variable _etw_formatters
+
+    parseargs args {
+        filter.arg
+    } -maxleftover 0 -setvars
 
     if {![dict exists $_etw_formatters $formatter]} {
         # We could actually just init ourselves but we want to force
@@ -799,17 +803,22 @@ proc twapi::etw_format_events {formatter args} {
     set events {}
     if {[dict exists $_etw_formatters $formatter OSWBemServices]} {
         set oswbemservices [dict get $_etw_formatters $formatter OSWBemServices]
-        foreach {bufd rawevents} $args {
-            lappend events [_etw_format_mof_events $oswbemservices $bufd $rawevents]
-        }
+        set events [_etw_format_mof_events $oswbemservices $bufd $rawevents]
     } else {
-        foreach {bufd rawevents} $args {
-            lappend events [_etw_format_tdh_events $bufd $rawevents]
-        }
+        set events [_etw_format_tdh_events $bufd $rawevents]
     }
 
-    # TBD - is concat the best way to do this ?
-    return [concat {*}$events]
+    if {! [info exists filter]} {
+        return $events
+    }
+
+    # Make it into a recordarray
+    set events [list [etw_event] $events]
+    foreach filterexpr $filter {
+        set events [recordarray -nocase -select {*}$filterexpr $events]
+    }
+
+    return [recordarray $events]
 }
 
 proc twapi::_etw_format_tdh_events {bufdesc events} {
@@ -945,8 +954,9 @@ proc twapi::etw_dump_to_file {args} {
     array set opts [parseargs args {
         {output.arg stdout}
         {limit.int -1}
-        {format.arg list {csv list}}
+        {format.arg csv {csv list}}
         {separator.arg ,}
+        {fields.arg {timestamp level_name provider_name pid task_name opcode_name message}}
     }]
 
     if {$opts(format) eq "csv"} {
@@ -978,7 +988,10 @@ proc twapi::etw_dump_to_file {args} {
         }
 
         if {$opts(format) eq "csv"} {
-            puts $outfd [csv::join [etw_event] $opts(separator)]
+            puts $outfd [csv::join $opts(fields) $opts(separator)]
+        }
+        if {[llength $htraces] == 0} {
+            return
         }
         # This is written using a callback to basically test the callback path
         set callback [list apply {
@@ -986,23 +999,33 @@ proc twapi::etw_dump_to_file {args} {
             {
                 array set opts $options
                 foreach event [etw_format_events $formatter $bufd $events] {
-                    if {$max >= 0 && [set $counter_varname] >= $max} { return -code break }
-                    incr $counter_varname
-
-                    array set fields [etw_event $event]
-                    set message [etw_format_event_message $fields(message) $fields(properties)]
-                    set fmtdata $fields(properties)
-                    if {[dict exists $fmtdata mofdata]} {
-                        # Only show 32 bytes
-                        binary scan [string range [dict get $fmtdata mofdata] 0 31] H* hex
-                        dict set fmtdata mofdata [regsub -all (..) $hex {\1 }]
+                    if {$max >= 0 && [set $counter_varname] >= $max} {
+                        puts $outfd BREAKING
+                        return -code break
                     }
-                    set fmtlist [list $fields(timestamp) $fields(pid) $fields(tid) $fields(provider_name) {*}$fmtdata $message]
+                    array set fields [etw_event $event]
+                    if {"message" in $opts(fields)} {
+                        set fields(message) [etw_format_event_message $fields(message) $fields(properties)]
+                    }
+                    if {"properties" in $opts(fields)} {
+                        set fmtdata $fields(properties)
+                        if {[dict exists $fmtdata mofdata]} {
+                            # Only show 32 bytes
+                            binary scan [string range [dict get $fmtdata mofdata] 0 31] H* hex
+                            dict set fmtdata mofdata [regsub -all (..) $hex {\1 }]
+                        }
+                        set fields(properties) $fmtdata
+                    }
+                    set fmtlist {}
+                    foreach field $opts(fields) {
+                        lappend fmtlist $fields($field)
+                    }
                     if {$opts(format) eq "csv"} {
                         puts $outfd [csv::join $fmtlist $opts(separator)]
                     } else {
                         puts $outfd $fmtlist
                     }
+                    incr $counter_varname
                 }
             }
         } [array get opts] $outfd $varname $opts(limit) $formatter]
@@ -1038,7 +1061,12 @@ twapi::proc* twapi::etw_dump_to_list {args} {
                 lappend htraces [etw_open_session $arg]
             }
         }
-        return [etw_format_events $formatter {*}[etw_process_events {*}$htraces]]
+        set formatted_events {}
+        foreach {bufd rawevents} [etw_process_events {*}$htraces] {
+            lappend formatted_events [etw_format_events $formatter $bufd $rawevents]
+        }
+        # TBD - best way to concat lists ? This might shimmer to strings
+        return [concat $formatted_events]
     } finally {
         foreach htrace $htraces {
             etw_close_session $htrace
@@ -1230,14 +1258,14 @@ proc twapi::etw_start_kernel_trace {events args} {
     return [etw_start_trace "NT Kernel Logger" -enableflags $enableflags {*}$args -paged 0]
 }
 
-proc twapi::etw_enable_trace_provider {hsession guid enableflags level} {
+proc twapi::etw_enable_provider {htrace guid enableflags level} {
     set guid [_etw_provider_guid $guid]
-    return [EnableTrace 1 $enableflags [_etw_level_to_int $level] $guid $hsession]
+    return [EnableTrace 1 $enableflags [_etw_level_to_int $level] $guid $htrace]
 }
 
-proc twapi::etw_disable_trace_provider {hsession guid} {
+proc twapi::etw_disable_provider {htrace guid} {
     set guid [_etw_provider_guid $guid]
-    return [EnableTrace 0 -1 5 $guid $hsession]
+    return [EnableTrace 0 -1 5 $guid $htrace]
 }
 
 proc twapi::etw_control_trace {action session args} {

@@ -350,8 +350,8 @@ namespace eval twapi::etw::test {
         set l [twapi::etw_process_events $etw]
         foreach {buf events} $l {
             validate_buf $buf kernel.etl
+            validate_events [twapi::etw_format_events $formatter $buf $events] kernel.etl
         }
-        validate_events [twapi::etw_format_events $formatter {*}$l] kernel.etl
     } -cleanup {
         twapi::etw_close_formatter $formatter
         twapi::etw_close_session $etw
@@ -402,6 +402,7 @@ namespace eval twapi::etw::test {
         # 64 bit file on 32 bits
         # mof based providers
         # manifest based providers
+        # -match option
     } -result TBD
 
     test etw_dump_files-1.0 {
@@ -533,7 +534,7 @@ namespace eval twapi::etw::test {
         set tracename "TWAPITEST_[clock microseconds]"
         set hprov [twapi::etw_twapi_provider_register]
         set htrace [twapi::etw_start_trace $tracename -logfile $etl]
-        twapi::etw_enable_trace_provider $htrace [twapi::etw_twapi_provider_guid] -1 5
+        twapi::etw_enable_provider $htrace [twapi::etw_twapi_provider_guid] -1 5
         set wait_time 100;      # Need to wait for level changes to effect
         after $wait_time;              # Needs a bit of time to take effect
         set curtid [twapi::get_current_thread_id]
@@ -545,7 +546,7 @@ namespace eval twapi::etw::test {
             }
 
             twapi::etw_log_message $hprov "SETLEVEL_$level" 1
-            twapi::etw_enable_trace_provider $htrace [twapi::etw_twapi_provider_guid] -1 $level
+            twapi::etw_enable_provider $htrace [twapi::etw_twapi_provider_guid] -1 $level
             after $wait_time
             twapi::etw_log_message $hprov "default"
             twapi::etw_log_message $hprov "1" 1
@@ -567,7 +568,7 @@ namespace eval twapi::etw::test {
             }
             twapi::etw_log_message $hprov "SETLEVEL_$level" 1
             # Use name instead of guid
-            twapi::etw_enable_trace_provider $htrace [twapi::etw_twapi_provider_name] -1 $level
+            twapi::etw_enable_provider $htrace [twapi::etw_twapi_provider_name] -1 $level
             after $wait_time
             twapi::etw_log_message $hprov "default"
             twapi::etw_log_message $hprov "fatal" fatal
@@ -580,7 +581,7 @@ namespace eval twapi::etw::test {
         }
 
         # Now disable the provider and try to log - use name instead of guid
-        twapi::etw_disable_trace_provider $htrace [twapi::etw_twapi_provider_name]
+        twapi::etw_disable_provider $htrace [twapi::etw_twapi_provider_name]
         after 100
         twapi::etw_log_message $hprov "fatal (provider disabled)" 1
         twapi::etw_flush_trace  $htrace
