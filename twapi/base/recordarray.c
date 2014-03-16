@@ -77,6 +77,33 @@ int Twapi_RecordArrayObjCmd(
         return TCL_ERROR;
     }
 
+    /*
+     * recordarray REC
+     *  Returns the values list
+     *
+     * recordarray options REC
+     *   -slice FIELDNAMEPAIRS
+     *      Returns only those fields that are included in FIELDNAMEPAIRS
+     *      each element of which is {FIELDNAME ?RENAMEDFIELD?) in
+     *      the order specified
+     *   -format [recordarray | flat | list | dict | index]
+     *      recordarray - return value is in recordarray format (default)
+     *      flat - all records are concatenated and returned as
+     *             a flat list of values
+     *      list - each returned record list
+     *      dict - each returned record is a dict with keys being field names
+     *   -select FIELDNAME OPERATOR OPERAND
+     *      Only those records whose field FIELDNAME match OPERAND using
+     *      the given OPERATOR are returned
+     *   -key KEYFIELD
+     *      Only used if -format is specified as 'list' or 'dict'.
+     *      The returned value is a dictionary with KEYFIELD as the key
+     *   -first
+     *      Only returns the first matching record
+     *   -nocase
+     *      Text based comparisons are done in case-insensitive manner
+     */ 
+
     /* Figure out the command options */
     for (i = 1 ; i < objc-1; ++i) {
         if (Tcl_GetIndexFromObj(interp, objv[i], opts, "option", TCL_EXACT, &opt) != TCL_OK)
@@ -256,7 +283,7 @@ int Twapi_RecordArrayObjCmd(
                 if ((wide == operand.wide) == negate)
                     continue;
             } else {
-                if (cmpfn(ObjToString(valueObj), operand.string) != negate)
+                if ((0 == cmpfn(ObjToString(valueObj), operand.string)) == negate)
                     continue;
             }
         }
