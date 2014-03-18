@@ -957,6 +957,7 @@ proc twapi::etw_dump_to_file {args} {
         {format.arg csv {csv list}}
         {separator.arg ,}
         {fields.arg {timestamp level_name provider_name pid task_name opcode_name message}}
+        filter.arg
     }]
 
     if {$opts(format) eq "csv"} {
@@ -998,9 +999,14 @@ proc twapi::etw_dump_to_file {args} {
             {options outfd counter_varname max formatter bufd events}
             {
                 array set opts $options
-                foreach event [etw_format_events $formatter $bufd $events] {
+                if {[info exists opts(filter)]} {
+                    set events [etw_format_events $formatter $bufd $events -filter $opts(filter)]
+                } else {
+                    set events [etw_format_events $formatter $bufd $events]
+                }
+
+                foreach event $events {
                     if {$max >= 0 && [set $counter_varname] >= $max} {
-                        puts $outfd BREAKING
                         return -code break
                     }
                     array set fields [etw_event $event]
