@@ -1363,6 +1363,11 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         result.type = TRT_DWORD;
         result.value.ival = CredUIConfirmCredentialsW(ObjToUnicode(objv[0]), dw);
         break;
+    case 10040: // enum
+        CHECK_NARGS(interp, objc, 2);
+        result.type = TRT_DWORD;
+        if (ObjToEnum(interp, objv[0], objv[1], &result.value.uval) != TCL_OK)
+            return TCL_ERROR;
     }
 
     return TwapiSetResult(interp, &result);
@@ -2365,6 +2370,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(RegisterEventSource, 10037),
         DEFINE_FNCODE_CMD(pointer_from_address, 10038),
         DEFINE_FNCODE_CMD(CredUIConfirmCredentials, 10039),
+        DEFINE_FNCODE_CMD(enum, 10040),
     };
 
     static struct alias_dispatch_s AliasDispatch[] = {
