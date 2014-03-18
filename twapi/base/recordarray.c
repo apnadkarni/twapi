@@ -8,7 +8,7 @@
 #include "twapi.h"
 #include "twapi_base.h"
 
-int Twapi_RecordArrayObjCmd(
+int Twapi_RecordArrayHelperObjCmd(
     TwapiInterpContext *ticP,
     Tcl_Interp *interp,
     int objc,
@@ -27,36 +27,39 @@ int Twapi_RecordArrayObjCmd(
     };
     enum opts_enum {RA_FORMAT, RA_SLICE, RA_SELECT, RA_KEY, RA_FIRST, RA_NOCASE};
     int opt;
+    /* Format of each record */
     static const char *formats[] = {
-        "recordarray", "flat", "list", "dict", "index", NULL
+        "recordarray", "flat", "list", "dict", NULL
     };
-    enum format_enum {RA_ARRAY, RA_FLAT, RA_LIST, RA_DICT, RA_INDEX};
+    enum format_enum {RA_ARRAY, RA_FLAT, RA_LIST, RA_DICT};
     int format = RA_ARRAY;
     static const char *select_ops[] = {
         "eq", "ne", "==", "!=", "~", "!~", NULL
     };
     enum select_ops_enum {RA_EQ, RA_NE, RA_EQ_INT, RA_NE_INT, RA_MATCH, RA_NOMATCH};
-    int select_op = RA_EQ;
 
     Tcl_Obj *sliceObj = NULL,
         *selectObj = NULL,
-        *operatorObj = NULL,
-        *operandObj = NULL,
         *keyfieldObj = NULL;
+    Tcl_Obj **selectElems = NULL;
     Tcl_Obj *recsObj = NULL;     /* Dup of records passed in */
     Tcl_Obj **recs;              /* Contents of recsObj */
     int      nrecs;              /* Number records */
     Tcl_Obj *fieldsObj = NULL;   /* Dup of record definition passed in */
     Tcl_Obj **fields;            /* Contents of recsObj */
     int      nfields;            /* Number of fields in record */
-    int select_pos;              /* Position of field to use for compares */
     int keyfield_pos;            /* Position of the key field */
     int first = 0;               /* If true, only first match returned */
-    union {
-        Tcl_WideInt wide;
-        char *string;
-    } operand;
-    int (WINAPI *cmpfn) (const char *, const char *) = lstrcmpA;
+    struct {
+        int (WINAPI *cmpfn) (const char *, const char *);
+        int select_op;
+        int select_pos;
+        union {
+            Tcl_WideInt wide;
+            char *string;
+        } operand;
+    } *selectors;
+    int nselectors;
     TCL_RESULT res;
 
     Tcl_Obj *new_rec;
@@ -66,7 +69,6 @@ int Twapi_RecordArrayObjCmd(
     Tcl_Obj **slice_fields = NULL;   /* Names of the fields to retrieve */
     int       *slice_fieldindices = NULL; /* Positions of the fields to retrieve */
     int      nslice_fields;   /* Count of above */
-    Tcl_Obj  **slice_newfields = NULL;/* New names of the fields to be returned */
     Tcl_Obj  **slice_values = NULL;
     Tcl_Obj  *newfieldsObj = NULL;
 
@@ -92,7 +94,7 @@ int Twapi_RecordArrayObjCmd(
      *             a flat list of values
      *      list - each returned record list
      *      dict - each returned record is a dict with keys being field names
-     *   -select FIELDNAME OPERATOR OPERAND
+     *   -select {{FIELDNAME OPERATOR OPERAND}....}
      *      Only those records whose field FIELDNAME match OPERAND using
      *      the given OPERATOR are returned
      *   -key KEYFIELD
@@ -122,13 +124,10 @@ int Twapi_RecordArrayObjCmd(
                 goto missing_value;
             sliceObj = objv[i];
             break;
-        case RA_SELECT:         /* -select FIELDNAME OPERATOR OPERAND */
-            ++i;                /* So missing value error picks correct obj */
-            if ((i+2) == (objc-1))
+        case RA_SELECT:         /* -select SELECTOR */
+            if (++i == (objc-1))
                 goto missing_value;
-            selectObj = objv[i++];
-            operatorObj = objv[i++];
-            operandObj = objv[i];
+            selectObj = ObjDuplicate(objv[i]); /* Protect against shimmer */
             break;
         case RA_KEY:
             if (++i == (objc-1))
@@ -153,9 +152,9 @@ int Twapi_RecordArrayObjCmd(
     if (i != 2)
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "Invalid recordarray format");
 
-    /* No commands -> return values */
+    /* No commands -> return as is */
     if (objc == 2) {
-        ObjSetResult(interp, raObj[1]);
+        ObjSetResult(interp, objv[1]);
         return TCL_OK;
     }
 
@@ -166,34 +165,50 @@ int Twapi_RecordArrayObjCmd(
             return res;
     }
 
-    /* If selection criteria are given, find index of field to match on */
-    select_pos = -1;
-    if (selectObj) {
-        if ((res=ObjToEnum(interp, raObj[0], selectObj, &select_pos)) != TCL_OK
-            ||
-            (res = Tcl_GetIndexFromObj(interp, operatorObj, select_ops, "operator", TCL_EXACT, &select_op)) != TCL_OK)
-            return res;
-        switch (select_op) {
-        case RA_NE: negate = 1; /* FALLTHRU */
-        case RA_EQ: /* TBD - should we do unicode compares? */
-            cmpfn = ignore_case ? lstrcmpiA : lstrcmpA;
-            operand.string = ObjToString(operandObj);
-            break;
-        case RA_NE_INT: negate = 1; /* FALLTHRU */
-        case RA_EQ_INT:
-            if ((res = ObjToWideInt(interp, operandObj, &operand.wide)) != TCL_OK)
-                goto vamoose;
-            break;
-        case RA_NOMATCH: negate = 1; /* FALLTHRU */
-        case RA_MATCH:
-            cmpfn = ignore_case ? TwapiGlobCmpCase : TwapiGlobCmp;
-            operand.string = ObjToString(operandObj);
-            break;
-        }
-    }
-
     /* Any exits hereon must MemLifoPopFrame */
     mark = MemLifoPushMark(ticP->memlifoP);
+
+    /* If selection criteria are given, find index of field to match on */
+    nselectors = 0;
+    if (selectObj) {
+        res = ObjGetElements(interp, selectObj, &nselectors, &selectElems);
+        if (res != TCL_OK)
+            goto vamoose;
+        selectors = MemLifoAlloc(ticP->memlifoP, nselectors * sizeof(*selectors), NULL);
+        for (i = 0; i < nselectors; ++i) {
+            Tcl_Obj **selectElem;
+            res = ObjGetElements(interp, selectElems[i], &j, &selectElem);
+            if (res != TCL_OK)
+                goto vamoose;
+            if (j != 3) {
+                res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid -select argument value");
+                goto vamoose;
+            }
+
+            if ((res=ObjToEnum(interp, raObj[0], selectElem[0], &selectors[i].select_pos)) != TCL_OK
+            ||
+                (res = Tcl_GetIndexFromObj(interp, selectElem[1], select_ops, "operator", TCL_EXACT, &selectors[i].select_op)) != TCL_OK) {
+                goto vamoose;
+            }
+            switch (selectors[i].select_op) {
+            case RA_NE: negate = 1; /* FALLTHRU */
+            case RA_EQ: /* TBD - should we do unicode compares? */
+                selectors[i].cmpfn = ignore_case ? lstrcmpiA : lstrcmpA;
+                selectors[i].operand.string = ObjToString(selectElem[2]);
+            break;
+            case RA_NE_INT: negate = 1; /* FALLTHRU */
+            case RA_EQ_INT:
+                if ((res = ObjToWideInt(interp, selectElem[2], &selectors[i].operand.wide)) != TCL_OK)
+                    goto vamoose;
+                break;
+            case RA_NOMATCH: negate = 1; /* FALLTHRU */
+            case RA_MATCH:
+                selectors[i].cmpfn = ignore_case ? TwapiGlobCmpCase : TwapiGlobCmp;
+                selectors[i].operand.string = ObjToString(selectElem[2]);
+                break;
+            }
+        }
+    }
 
     if (sliceObj) {
         /* Get list of fields to include in slice */
@@ -201,41 +216,24 @@ int Twapi_RecordArrayObjCmd(
                                   &nslice_fields, &slice_fields)) != TCL_OK)
             goto vamoose;
 
-        slice_newfields = MemLifoAlloc(ticP->memlifoP, nslice_fields*sizeof(Tcl_Obj*), NULL);
         slice_fieldindices = MemLifoAlloc(ticP->memlifoP, nslice_fields*sizeof(int), NULL);
         slice_values = MemLifoAlloc(ticP->memlifoP, nslice_fields*sizeof(Tcl_Obj*), NULL);
 
-        /* Figure out which columns go into the slice, and their names */
         for (i=0; i < nslice_fields; ++i) {
-            Tcl_Obj **names;
-            res = ObjGetElements(interp, slice_fields[i], &j, &names);
-            if (res != TCL_OK)
-                goto vamoose;
-            if (j == 1)
-                slice_newfields[i] = names[0]; /* Field name unchanged */
-            else if (j == 2)
-                slice_newfields[i] = names[1]; /* Field name is to be changed */
-            else {
-                /* Should be just 1 or 2 elements in renaming entry */
-                res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid slice field renaming entry.");
-            }
             /* Note use raObj[0] here, as (a) fieldsObj not init'ed yet,
                AND we want to pass the original, not dup, to ObjToEnum
                for performance reasons (it checks for cached values)
             */
-            res = ObjToEnum(interp, raObj[0], names[0], &slice_fieldindices[i]);
+            res = ObjToEnum(interp, raObj[0], slice_fields[i], &slice_fieldindices[i]);
             if (res != TCL_OK)
                 goto vamoose;
-            
         }
         /*
          * At this point,
          * slice_fieldindices[] maps field pos in slice to field pos in
          *   original recordarray
-         * slice_newfields[] contains the new names of the fields to
-         *   be returned in the slice.
          */
-        newfieldsObj = ObjNewList(nslice_fields, slice_newfields);
+        newfieldsObj = ObjNewList(nslice_fields, slice_fields);
         ObjIncrRefs(newfieldsObj); /* NEEDED for correct vamoosing! */
     }
 
@@ -264,10 +262,17 @@ int Twapi_RecordArrayObjCmd(
     }
 
     for (output_count = 0, i = 0; i < nrecs; ++i) {
-        if (select_pos >= 0) {
+        int matched;
+        matched = 1;
+        for (j = 0; j < nselectors; ++j) {
             Tcl_Obj *valueObj;
+            int select_op;
+
+            TWAPI_ASSERT(selectors);
+            select_op = selectors[j].select_op;
+
             /* select_pos gives position of field to match */
-            res = ObjListIndex(interp, recs[i], select_pos, &valueObj);
+            res = ObjListIndex(interp, recs[i], selectors[j].select_pos, &valueObj);
             if (res != TCL_OK)
                 break;
             if (valueObj == NULL) {
@@ -278,15 +283,25 @@ int Twapi_RecordArrayObjCmd(
             if (select_op == RA_EQ_INT || select_op == RA_NE_INT) {
                 Tcl_WideInt wide;
                 /* Note not-an-int is treated as no match, not as error */
-                if (ObjToWideInt(NULL, valueObj, &wide) != TCL_OK)
-                    continue;
-                if ((wide == operand.wide) == negate)
-                    continue;
+                if (ObjToWideInt(NULL, valueObj, &wide) != TCL_OK ||
+                    ((wide == selectors[j].operand.wide) == negate)) {
+                    matched = 0;
+                    break;
+                }
             } else {
-                if ((0 == cmpfn(ObjToString(valueObj), operand.string)) == negate)
-                    continue;
+                if ((0 == selectors[j].cmpfn(ObjToString(valueObj), selectors[j].operand.string)) == negate) {
+                    matched = 0;
+                    break;
+                }
             }
         }
+
+        if (res != TCL_OK)
+            break;
+
+        if (! matched)
+            continue;
+
         /* We have a match */
 
         /* Add in the dictionary key if so specified */
@@ -327,7 +342,7 @@ int Twapi_RecordArrayObjCmd(
                 slice_values[j] = values[slice_fieldindices[j]];
             }
             if (format == RA_DICT)
-                output[output_count++] = TwapiTwineObjv(slice_newfields, slice_values, nslice_fields);
+                output[output_count++] = TwapiTwineObjv(slice_fields, slice_values, nslice_fields);
             else
                 output[output_count++] = ObjNewList(nslice_fields, slice_values);;
         }
@@ -376,6 +391,8 @@ int Twapi_RecordArrayObjCmd(
     }
 
 vamoose:
+    if (selectObj)
+        ObjDecrRefs(selectObj);
     if (recsObj)
         ObjDecrRefs(recsObj);
     if (fieldsObj)

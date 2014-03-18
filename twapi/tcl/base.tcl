@@ -1280,3 +1280,84 @@ proc twapi::unprotect_data {data args} {
         return [lindex $data 0]
     }
 }
+
+namespace eval twapi::recordarray {}
+
+proc twapi::recordarray::size {ra} {
+    return [llength [lindex $ra 1]]
+}
+
+proc twapi::recordarray::fields {ra} {
+    return [lindex $ra 0]
+}
+
+proc twapi::recordarray::row {ra pos args} {
+    set r [lindex $ra 1 $pos]
+    if {[llength $r] == 0} {
+        return $r
+    }
+    parseargs args {
+        {format.arg list {list dict}}
+        slice.arg
+    } -setvars -maxleftover 0
+
+    set fields [lindex $ra 0]
+    if {[info exists slice]} {
+        set new_fields {}        
+        set new_r {}
+        foreach field $slice {
+            set i [enum $fields $field]
+            lappend new_r [lindex $r $i]
+            lappend new_fields [lindex $fields $i]
+        }
+        set r $new_r
+        set fields $new_fields
+    }
+
+    if {$format eq "list"} {
+        return $r
+    } else {
+        return [twine $fields $r]
+    }
+}
+
+proc twapi::recordarray::column {ra field} {
+    _recordarray -slice [list $field] -format flat $ra
+}
+
+proc twapi::recordarray::cell {ra pos field} {
+    return [lindex [lindex $ra 1 $pos] [enum [lindex $ra 0] $field]]
+}
+
+proc twapi::recordarray::values {ra args} {
+    parseargs args {
+        {format.arg recordarray {recordarray list dict flat}}
+        key.arg
+    } -ignoreunknown -setvars
+
+    if {$format eq "dict"} {
+        if {![info exists key]} {
+            set key [lindex [fields $ra] 0]
+        }
+        return [_recordarray {*}$args -format dict -key $key $ra]
+    } else {
+        return [_recordarray {*}$args -format $format $ra]
+    }
+}
+
+proc twapi::recordarray::rename {ra renames} {
+    set new_fields {}
+    foreach field [lindex $ra 0] {
+        if {[dict exists $renames $field]} {
+            lappend new_fields [dict get $renames $field]
+        } else {
+            lappend new_fields $field
+        }
+    }
+    return [list $new_fields [lindex $ra 1]]
+}
+
+namespace eval twapi::recordarray {
+    namespace export cell column fields rename row size values
+    namespace ensemble create
+}
