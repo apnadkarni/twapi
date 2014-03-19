@@ -311,9 +311,8 @@ proc twapi::get_process_ids {args} {
             return [Twapi_GetProcessList -1 0]
         }
         # We need to match against the name
-        return [recordarray values [Twapi_GetProcessList -1 2] \
-                    -select [list [list "-name" $match_op $opts(name) -nocase]] \
-                    -slice "-pid" -format flat]
+        return [recordarray column [Twapi_GetProcessList -1 2] -pid \
+                    -select [list [list "-name" $match_op $opts(name) -nocase]]]
     }
 
     # Only want pids with a specific user or path or logon session
@@ -340,8 +339,8 @@ proc twapi::get_process_ids {args} {
         }
 
         # Catch failures so we can try other means
-        if {! [catch {recordarray values [WTSEnumerateProcesses NULL] \
-                          -select $select_expr -slice ProcessId -format flat} wtslist]} {
+        if {! [catch {recordarray column [WTSEnumerateProcesses NULL] \
+                          ProcessId -select $select_expr} wtslist]} {
             return $wtslist
         }
     }
@@ -862,10 +861,10 @@ proc twapi::get_multiple_process_info {args} {
         set pidarg [expr {[llength $pids] == 1 ? [lindex $pids 0] : -1}]
         set data [twapi::Twapi_GetProcessList $pidarg $baseflags]
         if {$opts(all) || $opts(elapsedtime) || $opts(tids)} {
-            array set baserawdata [recordarray values $data -key "-pid" -format dict]
+            array set baserawdata [recordarray getdict $data -key "-pid" -format dict]
         }
         if {[info exists basefields]} {
-            array set results [recordarray values $data -slice $basefields -format dict -key "-pid"]
+            array set results [recordarray getdict $data -slice $basefields -format dict -key "-pid"]
         }
     } else {
         array set results {}
@@ -1106,7 +1105,7 @@ proc twapi::get_thread_info {tid args} {
     if {$flags} {
         # We need at least one of the base options
         foreach tdata [recordarray column [twapi::Twapi_GetProcessList -1 $flags] Threads] {
-            set tdict [recordarray values $tdata -key "-tid" -format dict]
+            set tdict [recordarray getdict $tdata -key "-tid" -format dict]
             if {[dict exists $tdict $tid]} {
                 array set threadinfo [dict get $tdict $tid]
                 break
@@ -1702,8 +1701,8 @@ proc twapi::_get_wts_pids {v_sids v_names} {
     if {! [catch {WTSEnumerateProcesses NULL} precords]} {
         upvar $v_sids wtssids
         upvar $v_names wtsnames
-        array set wtssids [recordarray values $precords -slice {ProcessId pUserSid} -format flat]
-        array set wtsnames [recordarray values $precords -slice {ProcessId pUserSid} -format flat]
+        array set wtssids [recordarray getlist $precords -slice {ProcessId pUserSid} -format flat]
+        array set wtsnames [recordarray getlist $precords -slice {ProcessId pUserSid} -format flat]
     }
 }
 
