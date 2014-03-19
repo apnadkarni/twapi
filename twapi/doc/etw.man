@@ -171,6 +171,8 @@ This is done by calling the [uri #etw_install_twapi_mof [cmd etw_install_twapi_m
 command. This must be done on the system where the event consumer runs.
 It is not required on the system where the events are generated.
 
+
+
 [section "Tracing kernel events"]
 [para]
 There is a special event trace associated with the Windows kernel. The
@@ -674,91 +676,6 @@ Closes an event trace previously opened by a call to
 [uri #etw_open_file [cmd etw_open_file]] or 
 [uri #etw_open_session [cmd etw_open_session]].
 
-[call [cmd etw_event] [arg FORMATTED_EVENT]]
-[call [cmd etw_event] [arg FORMATTED_EVENT] [arg EVENTFIELD]]
-[call [cmd etw_event] [cmd select] [arg FORMATTED_EVENT] [arg FIELDLIST]]
-In the first form,
-returns a dictionary with keys from the table below containing
-the corresponding values from the event. In the second form,
-returns the value of a specific field in the event. In the third form,
-returns a list containing values from one or more fields specified
-in [arg FIELDLIST].
-[nl]
-[arg FORMATTED_EVENT] should be an element of the event list returned
-by [uri #etw_format_events [cmd etw_format_events]].
-[nl]
-An event has the following fields. The value of a field may be the
-empty string if the logging application did not set it or if the field
-is not supported by the provider type.
-
-[list_begin opt]
-[opt_def [const channel]]
-The numeric identifier for the event log channel to which the event
-was logged.
-[opt_def [const channel_name]]
-The name of the event log channel to which the event was logged.
-[opt_def [const event_guid]]
-The GUID identifying the event.
-[opt_def [const id]]
-The event identifier.
-[opt_def [const kernel_time]]
-The elapsed execution time for kernel-mode instructions in 100ns units.
-If the event was logged from a private trace, this will be 0 as all
-time will be counted towards [const user_time].
-[opt_def [const keyword_names]]
-The list of keywords associated with the event.
-[opt_def [const keywords]]
-A bit mask corresponding to the keywords associated with the event.
-[opt_def [const level]]
-The numeric level at which the event was logged. Higher numeric levels are
-lower priority events.
-[opt_def [const level_name]]
-The name of the logging level at which the event was logged. Since
-this is localized, [const level] should be used for comparing event 
-logging levels.
-[opt_def [const message]]
-The message associated with the event. This may contain string inserts
-for event parameters. Use the 
-[uri #etw_format_event_message [cmd etw_format_event_message]]
-to retrieve the fully constructed message.
-[opt_def [const opcode]]
-The numeric opcode for the event, generally identifying one step
-in a sequence of operations.
-[opt_def [const opcode_name]]
-The string name for the numeric opcode. For MOF based events, this
-is the event type.
-[opt_def [const pid]]
-The process identifier of the process that logged the event. This will be -1
-if the event was not associated with any process.
-[opt_def [const properties]]
-A dictionary containing additional event parameters. The keys of the
-dictionary are dependent on the specific event type.
-[opt_def [const provider_guid]]
-The GUID identifying the provider.
-[opt_def [const provider_name]]
-The name of the provider. For classical MOF based provider, this
-is the name of the MOF class.
-[opt_def [const sid]]
-The SID of the logging process or an empty string if not available.
-[opt_def [const task]]
-The numeric task identifying the general area within the application.
-[opt_def [const task_name]]
-The string name associated with [const task].
-[opt_def [const tid]]
-The thread identifier of the process that logged the event. This will be -1
-if the event was not associated with any thread.
-[opt_def [const timestamp]]
-The time that the event was logged in system time format.
-Use [uri base.html#large_system_time_to_secs_since_1970 [cmd large_system_time_to_secs_since_1970]]
-to convert this to Tcl [cmd clock] format.
-[opt_def [const user_time]]
-The elapsed execution time for user-mode instructions in 100ns units.
-[opt_def [const version]]
-The version of the event. Together with [const id], this identifies a 
-specific event within a provider.
-
-[list_end]
-
 [call [cmd etw_format_event_message] [arg FORMATSTRING] [arg EVENTPROPERTIES]]
 Returns the message string constructed from [arg FORMATSTRING] by
 replacing the insert placeholders with the corresponding values from
@@ -766,7 +683,7 @@ replacing the insert placeholders with the corresponding values from
 come from the [cmd message] and [cmd properties] fields returned by
 the [uri #etw_event [cmd etw_event]] command.
 
-[call [cmd etw_format_events] [arg FORMATTER] [arg BUFDESC] [arg EVENTLIST] [opt "[cmd -filter] [arg FILTERLIST]"]]
+[call [cmd etw_format_events] [arg FORMATTER] [opt "[arg BUFDESC] [arg EVENTLIST]..."]]
 Processes the list of raw ETW events and 
 returns a list of formatted events.
 [arg BUFDESC] and [arg EVENTLIST] are the event buffer descriptor and
@@ -777,25 +694,85 @@ to the [cmd -callback] option of that command.
 [arg FORMATTER] should be the handle to a formatter as returned by
 [uri #etw_open_formatter [cmd etw_open_formatter]].
 [nl]
-The command returns a list of formatted events. Caller should treat
-each formatted event as opaque and use the [uri #etw_event [cmd etw_event]]
-command to extract specific event fields.
-[nl]
-If [cmd -filter] is specified, only those events that match all the
-filter expressions in [arg FILTERLIST] are returned. [arg FILTERLIST]
-is a list of filter expressions. Each filter expression is a 3-element
-list, where the first element is the name of the event field as
-returned by [uri #etw_event [cmd etw_event]], the second element
-is the matching operator and the third is the value to match.
-The matching operator must be one of the following:
+The command returns a [uri base.html#recordarray [cmd recordarray]]
+with the fields in the table below. The [cmd recordarray] commands
+can be used to access or transform the returned events.
+The value of a field may be the
+empty string if the logging application did not set it or if the field
+is not supported by the provider type.
 [list_begin opt]
-[opt_def [const eq]] Case-insensitive string equality
-[opt_def [const ne]] Case-insensitive strings inequality
-[opt_def [const ==]] Integer equality
-[opt_def [const !=]] Integer inequality
-[opt_def [const ~]] Pattern matched (as in [cmd "string match"])
-[opt_def [const !~]] Pattern not matched (as in [cmd "string match"])
+[opt_def [const -channel]]
+The numeric identifier for the event log channel to which the event
+was logged.
+[opt_def [const -channelname]]
+The name of the event log channel to which the event was logged.
+[opt_def [const -eventguid]]
+The GUID identifying the event. For manifest based events, this
+is empty.
+[opt_def [const -eventid]]
+The event identifier.
+[opt_def [const -kerneltime]]
+The elapsed execution time for kernel-mode instructions in 100ns units.
+If the event was logged from a private trace, this will be 0 as all
+time will be counted towards [const -usertime].
+[opt_def [const -keywordmask]]
+A bit mask corresponding to the keywords associated with the event.
+[opt_def [const -keywords]]
+The list of keywords associated with the event.
+[opt_def [const -level]]
+The numeric level at which the event was logged. Higher numeric levels are
+lower priority events.
+[opt_def [const -levelname]]
+The name of the logging level at which the event was logged. Since
+this is localized, [const -level] should be used for comparing event 
+logging levels.
+[opt_def [const -message]]
+The message associated with the event. This may contain string inserts
+for event parameters. Use the 
+[uri #etw_format_event_message [cmd etw_format_event_message]]
+to retrieve the fully constructed message.
+[opt_def [const -opcode]]
+The numeric opcode for the event, generally identifying one step
+in a sequence of operations.
+[opt_def [const -opcodename]]
+The string name for the numeric opcode. For MOF based events, this
+is the event type.
+[opt_def [const -pid]]
+The process identifier of the process that logged the event. This will be -1
+if the event was not associated with any process.
+[opt_def [const -properties]]
+A dictionary containing additional event parameters. The keys of the
+dictionary are dependent on the specific event type.
+[opt_def [const -providerguid]]
+The GUID identifying the provider.
+[opt_def [const -providername]]
+The name of the provider. For classical MOF based provider, this
+is the name of the MOF class.
+[opt_def [const -sid]]
+The SID of the logging process or an empty string if not available.
+[opt_def [const -task]]
+The numeric task identifying the general area within the application.
+[opt_def [const -taskname]]
+The string name associated with [const task].
+[opt_def [const -tid]]
+The thread identifier of the process that logged the event. This will be -1
+if the event was not associated with any thread.
+[opt_def [const -timecreated]]
+The time that the event was logged in system time format.
+Use [uri base.html#large_system_time_to_secs_since_1970 [cmd large_system_time_to_secs_since_1970]]
+to convert this to Tcl [cmd clock] format.
+[opt_def [const -usertime]]
+The elapsed execution time for user-mode instructions in 100ns units.
+[opt_def [const -version]]
+The version of the event. Together with [const id], this identifies a 
+specific event within a provider.
+
 [list_end]
+
+
+
+
+
 
 [call [cmd etw_install_twapi_mof]]
 Installs the TWAPI Managed Object Format (MOF) definition for the event
@@ -860,7 +837,6 @@ time interval for which events are processed. Both
 [uri osinfo.html\#get_system_time [cmd get_system_time]]. You can use
 [uri base.html#secs_since_1970_to_large_system_time [cmd secs_since_1970_to_large_system_time]]
 to convert the format used by Tcl's [cmd clock] command to this format.
-
 
 [call [cmd etw_uninstall_twapi_mof]]
 Uninstalls the TWAPI Managed Object Format (MOF) definition for the event
