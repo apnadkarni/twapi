@@ -995,8 +995,8 @@ proc twapi::etw_dump_to_file {args} {
                         return -code break
                     }
                     array set fields $event
-                    if {"message" in $opts(fields)} {
-                        set fields(message) [etw_format_event_message $fields(-message) $fields(-properties)]
+                    if {"-message" in $opts(fields)} {
+                        set fields(-message) [etw_format_event_message $fields(-message) $fields(-properties)]
                     }
                     if {"-properties" in $opts(fields)} {
                         set fmtdata $fields(-properties)
@@ -1054,7 +1054,7 @@ twapi::proc* twapi::etw_dump_to_list {args} {
         }
         set formatted_events {}
         foreach {bufd rawevents} [etw_process_events {*}$htraces] {
-            lappend formatted_events [etw_format_events $formatter $bufd $rawevents]
+            lappend formatted_events [recordarray getlist [etw_format_events $formatter $bufd $rawevents]]
         }
         # TBD - best way to concat lists ? This might shimmer to strings
         return [lconcat {*}$formatted_events]
