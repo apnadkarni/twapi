@@ -170,9 +170,16 @@ namespace eval ::twapi::process::test {
         get_threads $refresh
 
         set mismatches [list ]
-        foreach field {-tid -pid -basepriority -startaddress} {
+        foreach field {-tid -pid -basepriority} {
             if {[get_thread_field $tid $field] != $threadinfo($field)} {
-                lappend mismatches "Mismatch in field $field"
+                lappend mismatches "Mismatch in field $field: [get_thread_field $tid $field] != $threadinfo($field)"
+            }
+        }
+
+        foreach field {-startaddress} {
+            # VB returns truncated 32 bits of 64 bit address. TBD
+            if {[get_thread_field $tid $field] != (0xffffffff & $threadinfo($field))} {
+                lappend mismatches "Mismatch in field $field: [get_thread_field $tid $field] != $threadinfo($field)"
             }
         }
 
@@ -1277,14 +1284,14 @@ namespace eval ::twapi::process::test {
     ### Option tests - fields that cannot be verified but are typed
 
     foreach {field type} {
-        -elapsedtime       integer
-        -ioreadops         integer
-        -iowriteops        integer
-        -iootherops        integer
-        -ioreadbytes       integer
-        -iowritebytes      integer
-        -iootherbytes      integer
-        -priorityclass     integer
+        -elapsedtime       wide
+        -ioreadops         wide
+        -iowriteops        wide
+        -iootherops        wide
+        -ioreadbytes       wide
+        -iowritebytes      wide
+        -iootherbytes      wide
+        -priorityclass     wide
     } {
         test get_process_info-[incr testnum].0 "Verify get_process_info $field for another process" -constraints {
             nt
@@ -1332,13 +1339,26 @@ namespace eval ::twapi::process::test {
     ###
 
     set testnum 0
-    foreach field {-tid -basepriority -pid -startaddress -priority -state -waitreason} {
+    foreach field {-tid -basepriority -pid -priority -state -waitreason} {
         test get_thread_info-3.$testnum "Verify get_thread_info $field" -constraints {
             nt
         } -body "
             set tid \[get_explorer_tid\]
             eval set \[twapi::get_thread_info \$tid $field\]
             expr {\[get_thread_field \$tid $field\] == \[set $field\]}
+        " -result 1
+        incr testnum
+    }
+
+    # Need to truncate when comparing some fields because VB returns 32-bit
+    # addresses on 64-bit systems
+    foreach field {-startaddress} {
+        test get_thread_info-3.$testnum "Verify get_thread_info $field" -constraints {
+            nt
+        } -body "
+            set tid \[get_explorer_tid\]
+            eval set \[twapi::get_thread_info \$tid $field\]
+            expr {\[get_thread_field \$tid $field\] == (0xffffffff & \[set $field\])}
         " -result 1
         incr testnum
     }

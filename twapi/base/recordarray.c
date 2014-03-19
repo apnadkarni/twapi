@@ -14,7 +14,7 @@ int Twapi_RecordArrayHelperObjCmd(
     int objc,
     Tcl_Obj *CONST objv[])
 {
-    int i, j, negate = 0, ignore_case = 0;
+    int i, j, negate = 0;
     Tcl_Obj **raObj;
     static const char *opts[] = {
         "-format",              /* FORMAT */
@@ -22,10 +22,9 @@ int Twapi_RecordArrayHelperObjCmd(
         "-select",              /* OPER FIELDNAME VALUE */
         "-key",                 /* FIELDNAME */
         "-first",               /* no args */
-        "-nocase",              /* no args */
         NULL
     };
-    enum opts_enum {RA_FORMAT, RA_SLICE, RA_SELECT, RA_KEY, RA_FIRST, RA_NOCASE};
+    enum opts_enum {RA_FORMAT, RA_SLICE, RA_SELECT, RA_KEY, RA_FIRST};
     int opt;
     /* Format of each record */
     static const char *formats[] = {
@@ -51,19 +50,20 @@ int Twapi_RecordArrayHelperObjCmd(
     int keyfield_pos;            /* Position of the key field */
     int first = 0;               /* If true, only first match returned */
     struct {
-        int (WINAPI *cmpfn) (const char *, const char *);
-        int select_op;
-        int select_pos;
         union {
             Tcl_WideInt wide;
             char *string;
         } operand;
+        int (WINAPI *cmpfn) (const char *, const char *);
+        int select_op;
+        int select_pos;
+        int nocase;
     } *selectors;
     int nselectors;
     TCL_RESULT res;
 
-    Tcl_Obj *new_rec;
-    Tcl_Obj **output = &new_rec;
+    Tcl_Obj *new_rec[2];        /* 2 because we may need one for the key */
+    Tcl_Obj **output = NULL;
     int output_count;
 
     Tcl_Obj **slice_fields = NULL;   /* Names of the fields to retrieve */
@@ -84,17 +84,16 @@ int Twapi_RecordArrayHelperObjCmd(
      *  Returns the values list
      *
      * recordarray options REC
-     *   -slice FIELDNAMEPAIRS
-     *      Returns only those fields that are included in FIELDNAMEPAIRS
-     *      each element of which is {FIELDNAME ?RENAMEDFIELD?) in
-     *      the order specified
-     *   -format [recordarray | flat | list | dict | index]
+     *   -slice FIELDNAMES
+     *      Returns only those fields that are included in FIELDNAMES
+     *      in the order specified
+     *   -format [recordarray | flat | list | dict]
      *      recordarray - return value is in recordarray format (default)
      *      flat - all records are concatenated and returned as
      *             a flat list of values
      *      list - each returned record list
      *      dict - each returned record is a dict with keys being field names
-     *   -select {{FIELDNAME OPERATOR OPERAND}....}
+     *   -select {{FIELDNAME OPERATOR OPERAND ?-nocase?}....}
      *      Only those records whose field FIELDNAME match OPERAND using
      *      the given OPERATOR are returned
      *   -key KEYFIELD
@@ -102,8 +101,6 @@ int Twapi_RecordArrayHelperObjCmd(
      *      The returned value is a dictionary with KEYFIELD as the key
      *   -first
      *      Only returns the first matching record
-     *   -nocase
-     *      Text based comparisons are done in case-insensitive manner
      */ 
 
     /* Figure out the command options */
@@ -136,9 +133,6 @@ int Twapi_RecordArrayHelperObjCmd(
             break;
         case RA_FIRST:
             first = 1;
-            break;
-        case RA_NOCASE:
-            ignore_case = 1;
             break;
         }
     }
@@ -180,11 +174,21 @@ int Twapi_RecordArrayHelperObjCmd(
             res = ObjGetElements(interp, selectElems[i], &j, &selectElem);
             if (res != TCL_OK)
                 goto vamoose;
-            if (j != 3) {
+            if (j < 3 || j > 4) {
                 res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid -select argument value");
                 goto vamoose;
             }
 
+            selectors[i].nocase = 0;
+            if (j == 4) {
+                char *s = ObjToString(selectElem[3]);
+                if (STREQ("-nocase", s))
+                    selectors[i].nocase = 1;
+                else {
+                    res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid -select argument value");
+                    goto vamoose;
+                }
+            }
             if ((res=ObjToEnum(interp, raObj[0], selectElem[0], &selectors[i].select_pos)) != TCL_OK
             ||
                 (res = Tcl_GetIndexFromObj(interp, selectElem[1], select_ops, "operator", TCL_EXACT, &selectors[i].select_op)) != TCL_OK) {
@@ -193,7 +197,7 @@ int Twapi_RecordArrayHelperObjCmd(
             switch (selectors[i].select_op) {
             case RA_NE: negate = 1; /* FALLTHRU */
             case RA_EQ: /* TBD - should we do unicode compares? */
-                selectors[i].cmpfn = ignore_case ? lstrcmpiA : lstrcmpA;
+                selectors[i].cmpfn = selectors[i].nocase ? lstrcmpiA : lstrcmpA;
                 selectors[i].operand.string = ObjToString(selectElem[2]);
             break;
             case RA_NE_INT: negate = 1; /* FALLTHRU */
@@ -203,7 +207,7 @@ int Twapi_RecordArrayHelperObjCmd(
                 break;
             case RA_NOMATCH: negate = 1; /* FALLTHRU */
             case RA_MATCH:
-                selectors[i].cmpfn = ignore_case ? TwapiGlobCmpCase : TwapiGlobCmp;
+                selectors[i].cmpfn = selectors[i].nocase ? TwapiGlobCmpCase : TwapiGlobCmp;
                 selectors[i].operand.string = ObjToString(selectElem[2]);
                 break;
             }
@@ -253,7 +257,7 @@ int Twapi_RecordArrayHelperObjCmd(
     raObj = NULL;              /* So we do not inadvertently use it */
 
     if (first)
-        output = &new_rec;
+        output = new_rec;
     else {
         i = nrecs * sizeof(Tcl_Obj*);
         if (keyfield_pos >= 0)
@@ -357,10 +361,11 @@ int Twapi_RecordArrayHelperObjCmd(
 
     /* output[] contains output_count records to be returned */
     /* Figure out output format */
-    if (first) {
-        TWAPI_ASSERT(output == &new_rec);
+    if (0 && first) {
+        TWAPI_ASSERT(output == &new_rec[0]);
+        TWAPI_ASSERT(output_count <= 2);
         if (output_count)
-            ObjSetResult(interp, new_rec);
+            ObjSetResult(interp, ObjNewList(output_count, new_rec));
         /* else empty result */
     } else {
         Tcl_Obj *resultObjs[2];

@@ -311,9 +311,10 @@ proc twapi::get_process_ids {args} {
             return [Twapi_GetProcessList -1 0]
         }
         # We need to match against the name
-        return [recordarray -select ProcessName $match_op $opts(name) -nocase -slice ProcessId -format flat [Twapi_GetProcessList -1 2]]
+        return [recordarray values [Twapi_GetProcessList -1 2] \
+                    -select [list [list "-name" $match_op $opts(name) -nocase]] \
+                    -slice "-pid" -format flat]
     }
-
 
     # Only want pids with a specific user or path or logon session
 
@@ -332,12 +333,16 @@ proc twapi::get_process_ids {args} {
             return [list ]
         }
 
-        if {! [catch {recordarray -select pUserSid eq $sid [WTSEnumerateProcesses NULL]} wtslist]} {
-            if {[info exists opts(name)]} {
-                return [recordarray -select pProcessName $match_op $opts(name) -slice ProcessId -format flat $wtslist]
-            } else {
-                return [recordarray -slice ProcessId -format flat $wtslist]
-            }
+        if {[info exists opts(name)]} {
+            set select_expr [list [list pUserSid eq $sid -nocase] [list pProcessName $match_op $opts(name) -nocase]]
+        } else {
+            set select_expr [list [list pUserSid eq $sid -nocase]]
+        }
+
+        # Catch failures so we can try other means
+        if {! [catch {recordarray values [WTSEnumerateProcesses NULL] \
+                          -select $select_expr -slice ProcessId -format flat} wtslist]} {
+            return $wtslist
         }
     }
 
@@ -357,7 +362,7 @@ proc twapi::get_process_ids {args} {
     set process_pids [list ]
     if {[info exists opts(name)]} {
         # Note we may reach here if the WTS call above failed
-        set all_pids [recordarray -select ProcessName $match_op $opts(name) -nocase -slice ProcessId -format flat [Twapi_GetProcessList -1 2]]
+        set all_pids [recordarray column [Twapi_GetProcessList -1 2] ProcessId -select [list [list ProcessName $match_op $opts(name) -nocase]]]
     } else {
         set all_pids [Twapi_GetProcessList -1 0]
     }
@@ -819,37 +824,37 @@ proc twapi::get_multiple_process_info {args} {
     }
     set basenoexistvals {}
     if {$baseflags} {
-        foreach {opt field} {
-            pid                ProcessId
-            name               ProcessName
-            createtime         CreateTime
-            usertime           UserTime
-            privilegedtime     KernelTime
-            handlecount        HandleCount
-            pagefaults         VmCounters.PageFaultCount
-            pagefilebytes      VmCounters.PagefileUsage
-            pagefilebytespeak  VmCounters.PeakPagefileUsage
-            poolnonpagedbytes  VmCounters.QuotaNonPagedPoolUsage
-            poolnonpagedbytespeak  VmCounters.QuotaPeakNonPagedPoolUsage
-            poolpagedbytespeak     VmCounters.QuotaPeakPagedPoolUsage
-            poolpagedbytes     VmCounters.QuotaPagedPoolUsage
-            basepriority       BasePriority
-            threadcount        ThreadCount
-            virtualbytes       VmCounters.VirtualSize
-            virtualbytespeak   VmCounters.PeakVirtualSize
-            workingset         VmCounters.WorkingSetSize
-            workingsetpeak     VmCounters.PeakWorkingSetSize
-            ioreadops          IoCounters.ReadOperationCount
-            iowriteops         IoCounters.WriteOperationCount
-            iootherops         IoCounters.OtherOperationCount
-            ioreadbytes        IoCounters.ReadTransferCount
-            iowritebytes       IoCounters.WriteTransferCount
-            iootherbytes       IoCounters.OtherTransferCount
-            parent             InheritedFromProcessId
-            tssession          SessionId
+        foreach opt {
+            pid
+            name
+            createtime
+            usertime
+            privilegedtime
+            handlecount
+            pagefaults
+            pagefilebytes
+            pagefilebytespeak
+            poolnonpagedbytes
+            poolnonpagedbytespeak
+            poolpagedbytespeak
+            poolpagedbytes
+            basepriority
+            threadcount
+            virtualbytes
+            virtualbytespeak
+            workingset
+            workingsetpeak
+            ioreadops
+            iowriteops
+            iootherops
+            ioreadbytes
+            iowritebytes
+            iootherbytes
+            parent
+            tssession
         } {
             if {$opts($opt) || $opts(all)} {
-                lappend basefields [list $field -$opt]
+                lappend basefields -$opt
                 lappend basenoexistvals -$opt $opts(noexist)
             }
         }
@@ -857,10 +862,10 @@ proc twapi::get_multiple_process_info {args} {
         set pidarg [expr {[llength $pids] == 1 ? [lindex $pids 0] : -1}]
         set data [twapi::Twapi_GetProcessList $pidarg $baseflags]
         if {$opts(all) || $opts(elapsedtime) || $opts(tids)} {
-            array set baserawdata [recordarray -key ProcessId -format dict $data]
+            array set baserawdata [recordarray values $data -key "-pid" -format dict]
         }
         if {[info exists basefields]} {
-            array set results [recordarray -key ProcessId -slice $basefields -format dict $data]
+            array set results [recordarray values $data -slice $basefields -format dict -key "-pid"]
         }
     } else {
         array set results {}
@@ -896,7 +901,7 @@ proc twapi::get_multiple_process_info {args} {
         
         if {$opts(elapsedtime) || $opts(all)} {
             if {[info exists baserawdata($pid)]} {
-                set elapsed [twapi::kl_get $baserawdata($pid) CreateTime]
+                set elapsed [twapi::kl_get $baserawdata($pid) -createtime]
                 if {$elapsed} {
                     lappend results($pid) -elapsedtime [expr {$now-[large_system_time_to_secs $elapsed]}]
                 } else {
@@ -911,8 +916,7 @@ proc twapi::get_multiple_process_info {args} {
 
         if {$opts(tids) || $opts(all)} {
             if {[info exists baserawdata($pid)]} {
-                set tids [recordarray -slice ClientId.UniqueThread -format flat [kl_get $baserawdata($pid) Threads]]
-                lappend results($pid) -tids $tids
+                lappend results($pid) -tids [recordarray column [kl_get $baserawdata($pid) Threads] -tid]
             } else {
                 lappend results($pid) -tids $opts(noexist)
             }
@@ -1101,35 +1105,32 @@ proc twapi::get_thread_info {tid args} {
 
     if {$flags} {
         # We need at least one of the base options
-        foreach tdata [recordarray -slice Threads -format flat [twapi::Twapi_GetProcessList -1 $flags]] {
-            foreach {tid2 threaddata} [recordarray -key ClientId.UniqueThread -format dict $tdata] {
-                if {$tid2 == $tid} {
-                    # Found it!
-                    array set threadinfo $threaddata
-                    break
-                }
+        foreach tdata [recordarray column [twapi::Twapi_GetProcessList -1 $flags] Threads] {
+            set tdict [recordarray values $tdata -key "-tid" -format dict]
+            if {[dict exists $tdict $tid]} {
+                array set threadinfo [dict get $tdict $tid]
+                break
             }
-            if {[info exists threadinfo]} break
         }
         # It is possible that we looped through all the processes without
         # a thread match. Hence we check again that we have threadinfo for
         # each option value
-        foreach {opt field} {
-            pid            ClientId.UniqueProcess
-            waittime       WaitTime
-            usertime       UserTime
-            createtime     CreateTime
-            privilegedtime KernelTime
-            basepriority   BasePriority
-            priority       Priority
-            startaddress   StartAddress
-            state          State
-            waitreason     WaitReason
-            contextswitches ContextSwitchCount
+        foreach opt {
+            pid            
+            waittime
+            usertime
+            createtime
+            privilegedtime
+            basepriority
+            priority
+            startaddress
+            state
+            waitreason
+            contextswitches
         } {
             if {$opts($opt) || $opts(all)} {
                 if {[info exists threadinfo]} {
-                    lappend results -$opt $threadinfo($field)
+                    lappend results -$opt $threadinfo(-$opt)
                 } else {
                     lappend results -$opt $opts(noexist)
                 }
@@ -1137,8 +1138,8 @@ proc twapi::get_thread_info {tid args} {
         }
 
         if {$opts(elapsedtime) || $opts(all)} {
-            if {[info exists threadinfo(CreateTime)]} {
-                lappend results -elapsedtime [expr {[clock seconds]-[large_system_time_to_secs $threadinfo(CreateTime)]}]
+            if {[info exists threadinfo(-createtime)]} {
+                lappend results -elapsedtime [expr {[clock seconds]-[large_system_time_to_secs $threadinfo(-createtime)]}]
             } else {
                 lappend results -elapsedtime $opts(noexist)
             }
@@ -1378,7 +1379,7 @@ proc twapi::get_process_parent {pid args} {
     }
 
     trap {
-        set parent [lindex [recordarray -slice InheritedFromProcessId [twapi::Twapi_GetProcessList $pid 1]] 1]
+        set parent [recordarray cell [twapi::Twapi_GetProcessList $pid 1] 0 InheritedFromProcessId]
         if {$parent ne ""} {
             return $parent
         }
@@ -1648,7 +1649,8 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
 
         if {[string equal $type "name"]} {
             if {! [catch {WTSEnumerateProcesses NULL} precords]} {
-                return [lindex [recordarray -select ProcessId == $pid -slice pProcessName -format flat $precords] 0]
+                
+                return [lindex [recordarray column $precords pProcessName -select [list [list ProcessId == $pid]]] 0]
             }
 
             # That failed as well, try PDH. TBD - get rid of PDH
@@ -1700,8 +1702,8 @@ proc twapi::_get_wts_pids {v_sids v_names} {
     if {! [catch {WTSEnumerateProcesses NULL} precords]} {
         upvar $v_sids wtssids
         upvar $v_names wtsnames
-        array set wtssids [recordarray -slice {ProcessId pUserSid} -format flat $precords]
-        array set wtsnames [recordarray -slice {ProcessId pUserSid} -format flat $precords]
+        array set wtssids [recordarray values $precords -slice {ProcessId pUserSid} -format flat]
+        array set wtsnames [recordarray values $precords -slice {ProcessId pUserSid} -format flat]
     }
 }
 

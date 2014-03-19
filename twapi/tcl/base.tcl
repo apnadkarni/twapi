@@ -1291,12 +1291,12 @@ proc twapi::recordarray::fields {ra} {
     return [lindex $ra 0]
 }
 
-proc twapi::recordarray::row {ra pos args} {
-    set r [lindex $ra 1 $pos]
+proc twapi::recordarray::row {ra row args} {
+    set r [lindex $ra 1 $row]
     if {[llength $r] == 0} {
         return $r
     }
-    parseargs args {
+    ::twapi::parseargs args {
         {format.arg list {list dict}}
         slice.arg
     } -setvars -maxleftover 0
@@ -1321,16 +1321,20 @@ proc twapi::recordarray::row {ra pos args} {
     }
 }
 
-proc twapi::recordarray::column {ra field} {
-    _recordarray -slice [list $field] -format flat $ra
+proc twapi::recordarray::column {ra field args} {
+    # TBD - time to see if a script loop would be faster
+    ::twapi::parseargs args {
+        select.arg
+    } -nulldefault -maxleftover 0 -setvars
+    _recordarray -slice [list $field] -select $select -format flat $ra
 }
 
-proc twapi::recordarray::cell {ra pos field} {
-    return [lindex [lindex $ra 1 $pos] [enum [lindex $ra 0] $field]]
+proc twapi::recordarray::cell {ra row field} {
+    return [lindex [lindex $ra 1 $row] [enum [lindex $ra 0] $field]]
 }
 
 proc twapi::recordarray::values {ra args} {
-    parseargs args {
+    ::twapi::parseargs args {
         {format.arg recordarray {recordarray list dict flat}}
         key.arg
     } -ignoreunknown -setvars
