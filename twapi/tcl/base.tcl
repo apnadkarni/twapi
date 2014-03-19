@@ -1333,20 +1333,45 @@ proc twapi::recordarray::cell {ra row field} {
     return [lindex [lindex $ra 1 $row] [enum [lindex $ra 0] $field]]
 }
 
-proc twapi::recordarray::values {ra args} {
+proc twapi::recordarray::get {ra args} {
     ::twapi::parseargs args {
-        {format.arg recordarray {recordarray list dict flat}}
+        {format.arg list {list dict flat}}
         key.arg
     } -ignoreunknown -setvars
 
-    if {$format eq "dict"} {
-        if {![info exists key]} {
-            set key [lindex [fields $ra] 0]
-        }
-        return [_recordarray {*}$args -format dict -key $key $ra]
-    } else {
-        return [_recordarray {*}$args -format $format $ra]
+    # format & key are options just to stop them flowing down to _recordarray
+    # We do not pass it in
+
+    return [_recordarray {*}$args $ra]
+}
+
+proc twapi::recordarray::getlist {ra args} {
+    ::twapi::parseargs args {
+        {format.arg list {list dict flat}}
+        key.arg
+    } -ignoreunknown -setvars
+
+    # key is an option just to stop in flowing down to _recordarray
+    # We do not pass it in
+
+    return [_recordarray {*}$args -format $format $ra]
+}
+
+proc twapi::recordarray::getdict {ra args} {
+    ::twapi::parseargs args {
+        {format.arg list {list dict}}
+        key.arg
+    } -ignoreunknown -setvars
+
+    if {![info exists key]} {
+        set key [lindex [fields $ra] 0]
     }
+
+    # Note _recordarray has different (putting it politely) semantics
+    # of how -format and -key option are handled so the below might
+    # look a bit strange in that we pass -format as list and get
+    # back a dict
+    return [_recordarray {*}$args -format $format -key $key $ra]
 }
 
 proc twapi::recordarray::rename {ra renames} {
@@ -1362,6 +1387,6 @@ proc twapi::recordarray::rename {ra renames} {
 }
 
 namespace eval twapi::recordarray {
-    namespace export cell column fields rename row size values
+    namespace export cell column fields get getdict getlist rename row size
     namespace ensemble create
 }

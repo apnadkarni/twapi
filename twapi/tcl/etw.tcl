@@ -78,9 +78,7 @@ namespace eval twapi {
 
     record tdh_event_header { flags event_property tid pid timestamp
         kernel_time user_time processor_time activity_id descriptor provider_guid}
-
     record tdh_event_buffer_context { processor logger_id }
-
     record tdh_event_data {event_guid
         decoder provider_name level_name channel_name keyword_names
         task_name opcode_name message localized_provider_name
@@ -103,15 +101,15 @@ namespace eval twapi {
     record mof_event_header {type level version tid pid timestamp guid
         kernel_time user_time processor_time}
 
-    # Standard app visible event definitions
-    record etw_event {id version channel level opcode task keywords
-        timestamp tid pid provider_guid
-        user_time kernel_time
-        provider_name event_guid
-        channel_name level_name opcode_name task_name keyword_names
-        properties
-        message
-        sid
+    # Standard app visible event definitions. These are made
+    # compatible with the evt_* routines
+    record etw_event {-eventid -version -channel -level -opcode -task -keywordmask -timecreated -tid -pid -providerguid
+        -usertime -kerneltime
+        -providername -eventguid
+        -channelname -levelname -opcodename -taskname -keywords
+        -properties
+        -message
+        -sid
     }
 
     # Record for EVENT_TRACE_PROPERTIES
@@ -943,7 +941,7 @@ proc twapi::etw_dump_to_file {args} {
         {limit.int -1}
         {format.arg csv {csv list}}
         {separator.arg ,}
-        {fields.arg {timestamp level_name provider_name pid task_name opcode_name message}}
+        {fields.arg {-timecreated -levelname -providername -pid -taskname -opcodename -message}}
         filter.arg
     }]
 
@@ -992,22 +990,22 @@ proc twapi::etw_dump_to_file {args} {
                     set events [etw_format_events $formatter $bufd $events]
                 }
 
-                foreach event $events {
+                foreach event [recordarray getlist $events -format dict] {
                     if {$max >= 0 && [set $counter_varname] >= $max} {
                         return -code break
                     }
-                    array set fields [etw_event $event]
+                    array set fields $event
                     if {"message" in $opts(fields)} {
-                        set fields(message) [etw_format_event_message $fields(message) $fields(properties)]
+                        set fields(message) [etw_format_event_message $fields(-message) $fields(-properties)]
                     }
-                    if {"properties" in $opts(fields)} {
-                        set fmtdata $fields(properties)
+                    if {"-properties" in $opts(fields)} {
+                        set fmtdata $fields(-properties)
                         if {[dict exists $fmtdata mofdata]} {
                             # Only show 32 bytes
                             binary scan [string range [dict get $fmtdata mofdata] 0 31] H* hex
                             dict set fmtdata mofdata [regsub -all (..) $hex {\1 }]
                         }
-                        set fields(properties) $fmtdata
+                        set fields(-properties) $fmtdata
                     }
                     set fmtlist {}
                     foreach field $opts(fields) {
@@ -1059,7 +1057,7 @@ twapi::proc* twapi::etw_dump_to_list {args} {
             lappend formatted_events [etw_format_events $formatter $bufd $rawevents]
         }
         # TBD - best way to concat lists ? This might shimmer to strings
-        return [concat $formatted_events]
+        return [lconcat {*}$formatted_events]
     } finally {
         foreach htrace $htraces {
             etw_close_session $htrace

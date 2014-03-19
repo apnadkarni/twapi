@@ -441,8 +441,8 @@ proc twapi::evt_decode_event_system_fields {hevt} {
         return [twine {
             -providername -providerguid -eventid -qualifiers -level -task
             -opcode -keywordmask -timecreated -eventrecordid -activityid
-            -relatedactivityid -processid -threadid -channel
-            -computer -userid -version
+            -relatedactivityid -pid -tid -channel
+            -computer -sid -version
         } [Twapi_ExtractEVT_RENDER_VALUES $_evt(render_buffer)]]
     }
 
@@ -480,7 +480,6 @@ proc twapi::evt_decode_event {args} {
             taskname
             opcodename
             keywords
-            channel
             xml
         } -ignoreunknown -hyphenated]
         
@@ -509,7 +508,6 @@ proc twapi::evt_decode_event {args} {
             -taskname 3
             -opcodename 4
             -keywords 5
-            -channel 6
             -xml 9
         } {
             if {$opts($opt)} {
