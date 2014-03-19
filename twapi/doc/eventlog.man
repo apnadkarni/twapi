@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Event log" n ""]
-[copyright "2004-2012, Ashok P. Nadkarni"]
+[copyright "2004-2014, Ashok P. Nadkarni"]
 [moddesc "Event Log"]
 [titledesc "Commands relating to reading and writing the Windows event log"]
 [require twapi_eventlog]
@@ -441,8 +441,6 @@ in the dictionary always include those documented in
 In addition, the returned dictionary will include the following keys
 if they are specified as options to the command:
 [list_begin opt]
-[opt_def [cmd -channel]]
-Contains the channel into which the event was recorded.
 [opt_def [cmd -keywords]]
 Contains a list of keywords with which the event is tagged.
 [opt_def [cmd -levelname]]
@@ -510,7 +508,7 @@ An integer mask with bits corresponding to the event's keywords.
 The numeric level for the event.
 [opt_def [cmd -opcode]]
 The numeric opcode for the event.
-[opt_def [cmd -processid]]
+[opt_def [cmd -pid]]
 The process id of the process that logged the event.
 [opt_def [cmd -providerguid]]
 The GUID of the logging event provider.
@@ -521,11 +519,11 @@ The name of the logging event provider.
 GUID containing the relative activity id associated with the event.
 [opt_def [cmd -task]]
 The numeric task for the event.
-[opt_def [cmd -threadid]]
+[opt_def [cmd -tid]]
 The thread id of the logging thread.
 [opt_def [cmd -timecreated]]
 The time the event was logged in 100ns units since January 1, 1601 UTC.
-[opt_def [cmd -userid]]
+[opt_def [cmd -sid]]
 The SID of the account under which the logging thread was running.
 [opt_def [cmd -version]]
 The version of the event definition.
