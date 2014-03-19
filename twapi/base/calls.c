@@ -1368,6 +1368,27 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         result.type = TRT_DWORD;
         if (ObjToEnum(interp, objv[0], objv[1], &result.value.uval) != TCL_OK)
             return TCL_ERROR;
+        break;
+    case 10041: // lconcat
+        dw2 = 0;
+        for (dw = 0 ; dw < objc; ++dw) {
+            if (ObjListLength(interp, objv[dw], &dw3) != TCL_OK)
+                return TCL_ERROR;
+            dw2 += dw3;
+        }
+        result.type = TRT_OBJ;
+        result.value.obj = ObjNewList(dw2, NULL); /* Preallocated space */
+        for (dw = 0, dw2 = 0; dw < objc; ++dw) {
+            Tcl_Obj **elems;
+            int nelems;
+            /* Should not error, since we already did list convert above.
+               If it does we have bigger problems than a leaking result obj */
+            if (ObjGetElements(interp, objv[dw], &nelems, &elems) != TCL_OK)
+                return TCL_ERROR;
+            ObjListReplace(NULL, result.value.obj, dw2, 0, nelems, elems);
+            dw2 += nelems;      /* Keep count of how many we added */
+        }
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -2371,6 +2392,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(pointer_from_address, 10038),
         DEFINE_FNCODE_CMD(CredUIConfirmCredentials, 10039),
         DEFINE_FNCODE_CMD(enum, 10040),
+        DEFINE_FNCODE_CMD(lconcat, 10041),
     };
 
     static struct alias_dispatch_s AliasDispatch[] = {

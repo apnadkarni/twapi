@@ -4,7 +4,7 @@
 #
 # See the file LICENSE for license
 
-# Remote Desktop Services - TBD - document
+# Remote Desktop Services - TBD - document and test
 
 namespace eval twapi {}
 
@@ -29,11 +29,11 @@ proc twapi::rds_enumerate_sessions {args} {
     set sessions [WTSEnumerateSessions $opts(hserver)]
 
     if {[info exists state]} {
-        set sessions [recordarray -select State == $state $sessions]
+        set sessions [recordarray values $sessions -select [list [list State == $state]]]
     }
 
     set result {}
-    foreach {sess rec} [recordarray -key SessionId -format dict $sessions] {
+    foreach {sess rec} [recordarray values $sessions -key SessionId -format dict] {
         set state [lindex $states [kl_get $rec State]]
         if {$state eq ""} {
             set state [kl_get $rec State]

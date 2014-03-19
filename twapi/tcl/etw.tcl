@@ -787,12 +787,8 @@ proc twapi::etw_close_formatter {formatter} {
     return
 }
 
-proc twapi::etw_format_events {formatter bufd rawevents args} {
+proc twapi::etw_format_events {formatter bufd rawevents} {
     variable _etw_formatters
-
-    parseargs args {
-        filter.arg
-    } -maxleftover 0 -setvars
 
     if {![dict exists $_etw_formatters $formatter]} {
         # We could actually just init ourselves but we want to force
@@ -808,17 +804,8 @@ proc twapi::etw_format_events {formatter bufd rawevents args} {
         set events [_etw_format_tdh_events $bufd $rawevents]
     }
 
-    if {! [info exists filter]} {
-        return $events
-    }
-
-    # Make it into a recordarray
-    set events [list [etw_event] $events]
-    foreach filterexpr $filter {
-        set events [recordarray -nocase -select {*}$filterexpr $events]
-    }
-
-    return [recordarray $events]
+    # Return as a recordarray
+    return [list [etw_event] $events]
 }
 
 proc twapi::_etw_format_tdh_events {bufdesc events} {
