@@ -244,7 +244,11 @@ twapi::proc* twapi::etw_install_twapi_mof {} {
     set mof_template {
         #pragma namespace("\\\\.\\root\\wmi")
 
-        [dynamic: ToInstance, Description("TWAPI ETW Provider"),
+        // Keep Description same as provider_name as that is how
+        // TDH library identifies it. Else there will be a mismatch
+        // between TdhEnumerateProviders and how we internally assume is
+        // the provider name
+        [dynamic: ToInstance, Description("@provider_name"),
          Guid("@provider_guid")]
         class @provider_name : EventTrace
         {
@@ -785,7 +789,7 @@ proc twapi::etw_close_formatter {formatter} {
     return
 }
 
-proc twapi::etw_format_events {formatter bufd rawevents} {
+proc twapi::etw_format_events {formatter args} {
     variable _etw_formatters
 
     if {![dict exists $_etw_formatters $formatter]} {
@@ -797,13 +801,17 @@ proc twapi::etw_format_events {formatter bufd rawevents} {
     set events {}
     if {[dict exists $_etw_formatters $formatter OSWBemServices]} {
         set oswbemservices [dict get $_etw_formatters $formatter OSWBemServices]
-        set events [_etw_format_mof_events $oswbemservices $bufd $rawevents]
+        foreach {bufd rawevents} $args {
+            lappend events [_etw_format_mof_events $oswbemservices $bufd $rawevents]
+        }
     } else {
-        set events [_etw_format_tdh_events $bufd $rawevents]
+        foreach {bufd rawevents} $args {
+            lappend events [_etw_format_tdh_events $bufd $rawevents]
+        }
     }
 
     # Return as a recordarray
-    return [list [etw_event] $events]
+    return [list [etw_event] [lconcat {*}$events]]
 }
 
 proc twapi::_etw_format_tdh_events {bufdesc events} {
@@ -942,7 +950,7 @@ proc twapi::etw_dump_to_file {args} {
         {format.arg csv {csv list}}
         {separator.arg ,}
         {fields.arg {-timecreated -levelname -providername -pid -taskname -opcodename -message}}
-        filter.arg
+        {filter.arg {}}
     }]
 
     if {$opts(format) eq "csv"} {
@@ -984,13 +992,8 @@ proc twapi::etw_dump_to_file {args} {
             {options outfd counter_varname max formatter bufd events}
             {
                 array set opts $options
-                if {[info exists opts(filter)]} {
-                    set events [etw_format_events $formatter $bufd $events -filter $opts(filter)]
-                } else {
-                    set events [etw_format_events $formatter $bufd $events]
-                }
-
-                foreach event [recordarray getlist $events -format dict] {
+                set events [etw_format_events $formatter $bufd $events]
+                foreach event [recordarray getlist $events -format dict -select $opts(filter)] {
                     if {$max >= 0 && [set $counter_varname] >= $max} {
                         return -code break
                     }
@@ -1052,12 +1055,7 @@ twapi::proc* twapi::etw_dump_to_list {args} {
                 lappend htraces [etw_open_session $arg]
             }
         }
-        set formatted_events {}
-        foreach {bufd rawevents} [etw_process_events {*}$htraces] {
-            lappend formatted_events [recordarray getlist [etw_format_events $formatter $bufd $rawevents]]
-        }
-        # TBD - best way to concat lists ? This might shimmer to strings
-        return [lconcat {*}$formatted_events]
+        return [recordarray getlist [etw_format_events $formatter {*}[etw_process_events {*}$htraces]]]
     } finally {
         foreach htrace $htraces {
             etw_close_session $htrace
@@ -1094,6 +1092,11 @@ proc twapi::etw_start_trace {session_name args} {
 
     if {!$opts(realtime) && (![info exists opts(logfile)] || $opts(logfile) eq "")} {
         badargs! "Log file name must be specified if real time mode is not in effect"
+    }
+
+    if {[string equal -nocase $session_name "NT Kernel Logger"] &&
+        $opts(filemode) eq "rotate"} {
+        error "Option -filemode cannot have value \"rotate\" for NT Kernel Logger"
     }
 
     set logfilemode 0

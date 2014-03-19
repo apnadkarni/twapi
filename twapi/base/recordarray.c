@@ -250,6 +250,10 @@ int Twapi_RecordArrayHelperObjCmd(
     ObjIncrRefs(recsObj);
     if ((res = ObjGetElements(interp, recsObj, &nrecs, &recs)) != TCL_OK)
         goto vamoose;
+    if (nrecs == 0) {
+        /* Return empty result. res is already TCL_OK */
+        goto vamoose;           /* TBD - is empty result valid for all cases? */
+    }
     fieldsObj = ObjDuplicate(raObj[0]);
     ObjIncrRefs(fieldsObj);
     if ((res = ObjGetElements(interp, fieldsObj, &nfields, &fields)) != TCL_OK)
