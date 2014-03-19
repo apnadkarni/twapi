@@ -4191,6 +4191,12 @@ TCL_RESULT ObjGetElements(Tcl_Interp *interp, Tcl_Obj *l, int *objcP, Tcl_Obj **
     return Tcl_ListObjGetElements(interp, l, objcP, objvP);
 }
 
+TCL_RESULT ObjListReplace(Tcl_Interp *interp, Tcl_Obj *l, int first, int count, int objc, Tcl_Obj *const objv[])
+{
+    return Tcl_ListObjReplace(interp, l, first, count, objc, objv);
+}
+
+
 Tcl_Obj *ObjFromLong(long val)
 {
     return Tcl_NewLongObj(val);

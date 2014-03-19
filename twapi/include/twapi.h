@@ -1120,6 +1120,7 @@ TWAPI_EXTERN TCL_RESULT ObjListIndex(Tcl_Interp *interp, Tcl_Obj *l, int ix, Tcl
 
 TWAPI_EXTERN TCL_RESULT ObjAppendElement(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Obj *e);
 TWAPI_EXTERN TCL_RESULT ObjGetElements(Tcl_Interp *interp, Tcl_Obj *l, int *objcP, Tcl_Obj ***objvP);
+TWAPI_EXTERN TCL_RESULT ObjListReplace(Tcl_Interp *interp, Tcl_Obj *l, int first, int count, int objc, Tcl_Obj *const objv[]);
 
 #define Twapi_FreeNewTclObj(o_) do { if (o_) { ObjDecrRefs(o_); } } while (0)
 

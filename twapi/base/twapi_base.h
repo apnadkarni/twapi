@@ -40,7 +40,7 @@ TwapiTclObjCmd Twapi_ParseargsObjCmd;
 TwapiTclObjCmd Twapi_TrapObjCmd;
 TwapiTclObjCmd Twapi_KlGetObjCmd;
 TwapiTclObjCmd Twapi_TwineObjCmd;
-TwapiTclObjCmd Twapi_RecordArrayObjCmd;
+TwapiTclObjCmd Twapi_RecordArrayHelperObjCmd;
 TwapiTclObjCmd Twapi_RecordObjCmd;
 TwapiTclObjCmd Twapi_GetTwapiBuildInfo;
 TwapiTclObjCmd Twapi_InternalCastObjCmd;

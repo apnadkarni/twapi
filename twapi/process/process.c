@@ -104,6 +104,9 @@ static TCL_RESULT Twapi_GetProcessList(
 
         this_pid = processP->ProcessId;
 
+        /* NOTE: FIELD NAMES HERE MATCH THOSE AT TCL LEVEL. IF YOU
+           CHANGE ONE, NEED TO CHANGE THE OTHER! */
+
         /* Only include this process if we want all or pid matches */
         if (pid == (ULONG_PTR) (LONG_PTR) -1 || pid == this_pid) {
             /* List contains PID, Process info list pairs (flat list) */
@@ -112,15 +115,15 @@ static TCL_RESULT Twapi_GetProcessList(
                                  ObjFromULONG_PTR(processP->ProcessId));
             } else {
                 if (first_iteration)
-                    process_fields[0] = STRING_LITERAL_OBJ("ProcessId");
+                    process_fields[0] = STRING_LITERAL_OBJ("-pid");
                 process[0] = ObjFromULONG_PTR(processP->ProcessId);
 
                 pi = 1;
                 if (flags & TWAPI_F_GETPROCESSLIST_STATE) {
                     if (first_iteration) {
-                        process_fields[1] = STRING_LITERAL_OBJ("InheritedFromProcessId");
-                        process_fields[2] = STRING_LITERAL_OBJ("SessionId");
-                        process_fields[3] = STRING_LITERAL_OBJ("BasePriority");
+                        process_fields[1] = STRING_LITERAL_OBJ("-parent");
+                        process_fields[2] = STRING_LITERAL_OBJ("-tssession");
+                        process_fields[3] = STRING_LITERAL_OBJ("-basepriority");
                     }
                     process[1] = ObjFromULONG_PTR(processP->InheritedFromProcessId);
                     process[2] = ObjFromLong(processP->SessionId);
@@ -131,7 +134,7 @@ static TCL_RESULT Twapi_GetProcessList(
 
                 if (flags & TWAPI_F_GETPROCESSLIST_NAME) {
                     if (first_iteration)
-                        process_fields[pi] = STRING_LITERAL_OBJ("ProcessName");
+                        process_fields[pi] = STRING_LITERAL_OBJ("-name");
                     if (processP->ProcessId)
                         process[pi] = ObjFromLSA_UNICODE_STRING(&processP->ProcessName);
                     else
@@ -141,11 +144,11 @@ static TCL_RESULT Twapi_GetProcessList(
 
                 if (flags & TWAPI_F_GETPROCESSLIST_PERF) {
                     if (first_iteration) {
-                        process_fields[pi] = STRING_LITERAL_OBJ("HandleCount");
-                        process_fields[pi+1] = STRING_LITERAL_OBJ("ThreadCount");
-                        process_fields[pi+2] = STRING_LITERAL_OBJ("CreateTime");
-                        process_fields[pi+3] = STRING_LITERAL_OBJ("UserTime");
-                        process_fields[pi+4] = STRING_LITERAL_OBJ("KernelTime");
+                        process_fields[pi] = STRING_LITERAL_OBJ("-handlecount");
+                        process_fields[pi+1] = STRING_LITERAL_OBJ("-threadcount");
+                        process_fields[pi+2] = STRING_LITERAL_OBJ("-createtime");
+                        process_fields[pi+3] = STRING_LITERAL_OBJ("-usertime");
+                        process_fields[pi+4] = STRING_LITERAL_OBJ("-privilegedtime");
                     }
                     process[pi] = ObjFromLong(processP->HandleCount);
                     process[pi+1] = ObjFromLong(processP->ThreadCount);
@@ -158,17 +161,17 @@ static TCL_RESULT Twapi_GetProcessList(
 
                 if (flags & TWAPI_F_GETPROCESSLIST_VM) {
                     if (first_iteration) {
-                        process_fields[pi] = STRING_LITERAL_OBJ("VmCounters.PeakVirtualSize");
-                        process_fields[pi+1] = STRING_LITERAL_OBJ("VmCounters.VirtualSize");
-                        process_fields[pi+2] = STRING_LITERAL_OBJ("VmCounters.PageFaultCount");
-                        process_fields[pi+3] = STRING_LITERAL_OBJ("VmCounters.PeakWorkingSetSize");
-                        process_fields[pi+4] = STRING_LITERAL_OBJ("VmCounters.WorkingSetSize");
-                        process_fields[pi+5] = STRING_LITERAL_OBJ("VmCounters.QuotaPeakPagedPoolUsage");
-                        process_fields[pi+6] = STRING_LITERAL_OBJ("VmCounters.QuotaPagedPoolUsage");
-                        process_fields[pi+7] = STRING_LITERAL_OBJ("VmCounters.QuotaPeakNonPagedPoolUsage");
-                        process_fields[pi+8] = STRING_LITERAL_OBJ("VmCounters.QuotaNonPagedPoolUsage");
-                        process_fields[pi+9] = STRING_LITERAL_OBJ("VmCounters.PagefileUsage");
-                        process_fields[pi+10] = STRING_LITERAL_OBJ("VmCounters.PeakPagefileUsage");
+                        process_fields[pi] = STRING_LITERAL_OBJ("-virtualbytespeak");
+                        process_fields[pi+1] = STRING_LITERAL_OBJ("-virtualbytes");
+                        process_fields[pi+2] = STRING_LITERAL_OBJ("-pagefaults");
+                        process_fields[pi+3] = STRING_LITERAL_OBJ("-workingsetpeak");
+                        process_fields[pi+4] = STRING_LITERAL_OBJ("-workingset");
+                        process_fields[pi+5] = STRING_LITERAL_OBJ("-poolpagedbytespeak");
+                        process_fields[pi+6] = STRING_LITERAL_OBJ("-poolpagedbytes");
+                        process_fields[pi+7] = STRING_LITERAL_OBJ("-poolnonpagedbytespeak");
+                        process_fields[pi+8] = STRING_LITERAL_OBJ("-poolnonpagedbytes");
+                        process_fields[pi+9] = STRING_LITERAL_OBJ("-pagefilebytes");
+                        process_fields[pi+10] = STRING_LITERAL_OBJ("-pagefilebytespeak");
                     }
 
                     process[pi] = ObjFromSIZE_T(processP->VmCounters.PeakVirtualSize);
@@ -188,12 +191,12 @@ static TCL_RESULT Twapi_GetProcessList(
 
                 if (flags & TWAPI_F_GETPROCESSLIST_IO) {
                     if (first_iteration) {
-                        process_fields[pi] = STRING_LITERAL_OBJ("IoCounters.ReadOperationCount");
-                        process_fields[pi+1] = STRING_LITERAL_OBJ("IoCounters.WriteOperationCount");
-                        process_fields[pi+2] = STRING_LITERAL_OBJ("IoCounters.OtherOperationCount");
-                        process_fields[pi+3] = STRING_LITERAL_OBJ("IoCounters.ReadTransferCount");
-                        process_fields[pi+4] = STRING_LITERAL_OBJ("IoCounters.WriteTransferCount");
-                        process_fields[pi+5] = STRING_LITERAL_OBJ("IoCounters.OtherTransferCount");
+                        process_fields[pi] = STRING_LITERAL_OBJ("-ioreadops");
+                        process_fields[pi+1] = STRING_LITERAL_OBJ("-iowriteops");
+                        process_fields[pi+2] = STRING_LITERAL_OBJ("-iootherops");
+                        process_fields[pi+3] = STRING_LITERAL_OBJ("-ioreadbytes");
+                        process_fields[pi+4] = STRING_LITERAL_OBJ("-iowritebytes");
+                        process_fields[pi+5] = STRING_LITERAL_OBJ("-iootherbytes");
                     }
 
                     process[pi] = ObjFromULONGLONG(processP->IoCounters.ReadOperationCount);
@@ -221,8 +224,8 @@ static TCL_RESULT Twapi_GetProcessList(
                                                  ObjFromDWORD_PTR(threadP->ClientId.UniqueThread));
 #endif
                         if (first_iteration) {
-                            thread_fields[0] = STRING_LITERAL_OBJ("ClientId.UniqueProcess");
-                            thread_fields[1] = STRING_LITERAL_OBJ("ClientId.UniqueThread");
+                            thread_fields[0] = STRING_LITERAL_OBJ("-pid");
+                            thread_fields[1] = STRING_LITERAL_OBJ("-tid");
                         }
                         thread[0] = ObjFromDWORD_PTR(threadP->ClientId.UniqueProcess);
                         thread[1] = ObjFromDWORD_PTR(threadP->ClientId.UniqueThread);
@@ -230,11 +233,11 @@ static TCL_RESULT Twapi_GetProcessList(
                         ti = 2;
                         if (flags & TWAPI_F_GETPROCESSLIST_THREAD_STATE) {
                             if (first_iteration) {
-                                thread_fields[ti] = STRING_LITERAL_OBJ("BasePriority");
-                                thread_fields[ti+1] = STRING_LITERAL_OBJ("Priority");
-                                thread_fields[ti+2] = STRING_LITERAL_OBJ("StartAddress");
-                                thread_fields[ti+3] = STRING_LITERAL_OBJ("State");
-                                thread_fields[ti+4] = STRING_LITERAL_OBJ("WaitReason");
+                                thread_fields[ti] = STRING_LITERAL_OBJ("-basepriority");
+                                thread_fields[ti+1] = STRING_LITERAL_OBJ("-priority");
+                                thread_fields[ti+2] = STRING_LITERAL_OBJ("-startaddress");
+                                thread_fields[ti+3] = STRING_LITERAL_OBJ("-state");
+                                thread_fields[ti+4] = STRING_LITERAL_OBJ("-waitreason");
                             }
 
                             thread[ti] = ObjFromLong(threadP->BasePriority);
@@ -247,11 +250,11 @@ static TCL_RESULT Twapi_GetProcessList(
                         }
                         if (flags & TWAPI_F_GETPROCESSLIST_THREAD_PERF) {
                             if (first_iteration) {
-                                thread_fields[ti] = STRING_LITERAL_OBJ("WaitTime");
-                                thread_fields[ti+1] = STRING_LITERAL_OBJ("ContextSwitchCount");
-                                thread_fields[ti+2] = STRING_LITERAL_OBJ("CreateTime");
-                                thread_fields[ti+3] = STRING_LITERAL_OBJ("UserTime");
-                                thread_fields[ti+4] = STRING_LITERAL_OBJ("KernelTime");
+                                thread_fields[ti] = STRING_LITERAL_OBJ("-waittime");
+                                thread_fields[ti+1] = STRING_LITERAL_OBJ("-contextswitches");
+                                thread_fields[ti+2] = STRING_LITERAL_OBJ("-createtime");
+                                thread_fields[ti+3] = STRING_LITERAL_OBJ("-usertime");
+                                thread_fields[ti+4] = STRING_LITERAL_OBJ("-privilegedtime");
                             }
 
                             thread[ti] = ObjFromLong(threadP->WaitTime);
