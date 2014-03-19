@@ -1364,7 +1364,7 @@ proc twapi::recordarray::getdict {ra args} {
     } -ignoreunknown -setvars
 
     if {![info exists key]} {
-        set key [lindex [fields $ra] 0]
+        set key [lindex $ra 0 0]
     }
 
     # Note _recordarray has different (putting it politely) semantics
@@ -1386,7 +1386,26 @@ proc twapi::recordarray::rename {ra renames} {
     return [list $new_fields [lindex $ra 1]]
 }
 
+proc twapi::recordarray::concat {args} {
+    if {[llength $args] == 0} {
+        return {}
+    }
+    set args [lassign $args ra]
+    set fields [lindex $ra 0]
+    set values [list [lindex $ra 1]]
+    set width [llength $fields]
+    foreach ra $args {
+        if {[llength [lindex $ra 0]] != $width} {
+            badargs! "Attempt to concat mismatched recordarrays"
+        }
+        lappend values [lindex $ra 1]
+    }
+
+    return [list $fields [::twapi::lconcat {*}$values]]
+}
+
+
 namespace eval twapi::recordarray {
-    namespace export cell column fields get getdict getlist rename row size
+    namespace export cell column concat fields get getdict getlist rename row size
     namespace ensemble create
 }
