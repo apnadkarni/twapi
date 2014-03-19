@@ -119,47 +119,47 @@ namespace eval twapi::etw::test {
         return
     }
 
-
+    # events is a recordarray
     proc validate_events {events etlfile} {
         lassign [tracerpt_file $etlfile] tracerpt_keys tracerpt_events
-        if {[llength $events] != [llength $tracerpt_events]} {
-            error "Number of events reported by tracerpt ([llength $tracerpt_events]) different from [llength $events]"
+        if {[twapi::recordarray size $events] != [llength $tracerpt_events]} {
+            error "Number of events reported by tracerpt ([llength $tracerpt_events]) different from [twapi::recordarray size $events]"
         }
-        foreach ev $events tracerpt_event $tracerpt_events {
+        foreach ev [twapi::recordarray getlist $events -format dict] tracerpt_event $tracerpt_events {
             array set tev [twapi::twine $tracerpt_keys $tracerpt_event]
             # Note fields in tev depend on Windows version
             foreach {fld tfld} {
-                {task_name {Event Name}}
-                {opcode_name Type}
-                {id {Event ID}}
-                {version Version}
-                {channel Channel}
-                {level Level}
-                {opcode Opcode}
-                {task Task}
-                {keyword Keyword}
-                {pid PID}
-                {tid TID}
-                {timestamp Clock-Time}
+                {-taskname {Event Name}}
+                {-opcodename Type}
+                {-eventid {Event ID}}
+                {-version Version}
+                {-channel Channel}
+                {-level Level}
+                {-opcode Opcode}
+                {-task Task}
+                {-keywordmask Keyword}
+                {-pid PID}
+                {-tid TID}
+                {-timecreated Clock-Time}
             } {
                 if {[info exists tev($tfld)] &&
-                    $tev($tfld) != [twapi::etw_event $fld $ev]} {
-                    error "Event field $fld value ([twapi::etw_event $fld $ev]) does not match tracerpt value $tev($tfld)"
+                    $tev($tfld) != [dict get $ev $fld]} {
+                    error "Event field $fld value ([dict get $ev $fld]) does not match tracerpt value $tev($tfld)"
                 }
             }
             foreach {fld tfld} {
-                {kernel_time Kernel(ms)}
-                {user_time User(ms)}
+                {-kerneltime Kernel(ms)}
+                {-usertime User(ms)}
             } {
                 if {[info exists tev($tfld)] &&
-                    ($tev($tfld) != [etw_event $fld $ev]/10000)} {
-                    error "Event field $fld value ([etw_event $fld $ev]) does not match tracerpt value $tev($tfld)/10000"
+                    ($tev($tfld) != [dict get $ev $fld]/10000)} {
+                    error "Event field $fld value ([dict get $ev $fld]) does not match tracerpt value $tev($tfld)/10000"
                 }
             }
 
             # Unfortunately, cannot check user data as tracerpt will happily skip complex fields like timezone
             if {0 && [info exists "tev(User Data)"]} {
-                foreach tdata $tev(User Data) {fld val} [twapi::etw_event properties $ev] {
+                foreach tdata $tev(User Data) {fld val} [dict get $ev -properties] {
                     if {$tdata != $val} {
                         error "User data $fld=$val does not match tracerpt value $tdata"
                     }
@@ -298,8 +298,8 @@ namespace eval twapi::etw::test {
     test etw_open_file-2.0 {
         etw_open_file non-existing file
     } -body {
-        list [catch {twapi::etw_open_file nosuchfile.etl}] [errorcode]
-    } -result {1 {TWAPI_WIN32 161}}
+        list [catch {twapi::etw_open_file nosuchfile.etl}] [lindex $::errorCode 0] [expr {[lindex $::errorCode 1] in {2 161}}]
+    } -result {1 TWAPI_WIN32 1}
 
     test etw_open_file-100.0 {
         TBD - etw_open_file        
@@ -348,10 +348,12 @@ namespace eval twapi::etw::test {
         set formatter [twapi::etw_open_formatter]
     } -body {
         set l [twapi::etw_process_events $etw]
+        set ras {}
         foreach {buf events} $l {
             validate_buf $buf kernel.etl
-            validate_events [twapi::etw_format_events $formatter $buf $events] kernel.etl
+            lappend ras [twapi::etw_format_events $formatter $buf $events]
         }
+        validate_events [twapi::recordarray concat {*}$ras] kernel.etl
     } -cleanup {
         twapi::etw_close_formatter $formatter
         twapi::etw_close_session $etw
@@ -360,7 +362,7 @@ namespace eval twapi::etw::test {
 
     proc process_events_cb {formatter logfile varname bufd events} {
         validate_buf $bufd $logfile
-        lappend $varname {*}[twapi::etw_format_events $formatter $bufd $events]
+        lappend $varname [twapi::etw_format_events $formatter $bufd $events]
     }
 
     test etw_consumer-2.0 {
@@ -371,7 +373,7 @@ namespace eval twapi::etw::test {
     } -body {
         set varname ::etw_consumer_[clock microseconds]
         set l [twapi::etw_process_events -callback [list [namespace current]::process_events_cb $formatter kernel.etl $varname] $etw]
-        validate_events [set $varname] kernel.etl
+        validate_events [twapi::recordarray concat {*}[set $varname]] kernel.etl
         set l
     } -cleanup {
         twapi::etw_close_formatter $formatter
@@ -499,14 +501,11 @@ namespace eval twapi::etw::test {
     test etw_start_kernel_trace-2.4 {
         Start kernel trace (verify -filemode rotate)
     } -constraints {
-        privileged
+        privileged TBD
     } -body {
         set etl [file join $logdir [new_name]-%d.etl]
         set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode rotate]
-        set status [twapi::etw_query_trace $htrace]
-        twapi::etw_stop_trace $htrace
-        list [expr {([dict get $status logfile_mode] & 15)}] [dict get $status max_file_size]
-    } -result {8 1}
+    } -result "Option -filemode cannot have value \"rotate\" for NT Kernel Logger" -returnCodes error
 
 
     test etw_start_kernel_trace-2.5 {
@@ -516,12 +515,13 @@ namespace eval twapi::etw::test {
     } -body {
         set etl [new_etl_filepath]
         set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $etl -filemode append]
+        after 500
         set status [twapi::etw_query_trace $htrace]
         # Next command will fail if file mode was not circular as
         # log would get full and the trace would have already stopped
         twapi::etw_stop_trace $htrace
-        list [expr {([dict get $status logfile_mode] & 15)}] [dict get $status max_file_size]
-    } -result {4 0}
+        list [expr {([dict get $status logfile_mode] & 15) in {4 5}}] [dict get $status max_file_size]
+    } -result {1 0}
 
     test etw_provider-1.0 {
         Tests etw_start_trace/etw_stop_trace/etw_update_trace/etw_log_message/etw_enable_trace/etw_disable_trace
@@ -535,7 +535,7 @@ namespace eval twapi::etw::test {
         set hprov [twapi::etw_twapi_provider_register]
         set htrace [twapi::etw_start_trace $tracename -logfile $etl]
         twapi::etw_enable_provider $htrace [twapi::etw_twapi_provider_guid] -1 5
-        set wait_time 100;      # Need to wait for level changes to effect
+        set wait_time 200;      # Need to wait for level changes to effect
         after $wait_time;              # Needs a bit of time to take effect
         set curtid [twapi::get_current_thread_id]
         for {set level 5} {$level > 0} {incr level -1} {
@@ -582,7 +582,7 @@ namespace eval twapi::etw::test {
 
         # Now disable the provider and try to log - use name instead of guid
         twapi::etw_disable_provider $htrace [twapi::etw_twapi_provider_name]
-        after 100
+        after $wait_time
         twapi::etw_log_message $hprov "fatal (provider disabled)" 1
         twapi::etw_flush_trace  $htrace
         twapi::etw_stop_trace  $htrace
@@ -593,9 +593,9 @@ namespace eval twapi::etw::test {
         set events [twapi::etw_format_events $formatter {*}[twapi::etw_process_events $htrace]]
         twapi::etw_close_formatter $formatter
         set result {}
-        foreach event $events {
-            if {[twapi::etw_event provider_name $event] in {TwapiETWEventClass TwapiETWProvider}} {
-                lappend result [dict get [twapi::etw_event properties $event] Message]
+        foreach event [twapi::recordarray getlist $events -format dict] {
+            if {[dict get $event -providername] in {TwapiETWEventClass TwapiETWProvider}} {
+                lappend result [dict get $event -properties Message]
             }
         }
         set result
@@ -690,8 +690,8 @@ namespace eval twapi::etw::test {
         set stats [twapi::etw_query_trace $htrace]
         validate_trace_stats $stats $etl $name
         set enable_flags [dict get $stats enable_flags]
-        if {($enable_flags & 0x7fffffff) != 0x00020003} {
-            error "enable_flags=[format 0x%x $enable_flags], expected 0x00020700"
+        if {($enable_flags & 0x0fffffff) != 0x00020003} {
+            error "enable_flags=[format 0x%x $enable_flags], expected 0x00020003"
         }
         set enable_flags [expr {$enable_flags & ~0x1}]
         set stats2 [twapi::etw_update_trace $name -enableflags $enable_flags]
@@ -788,13 +788,13 @@ namespace eval twapi::etw::test {
     test etw_get_provider_guid-1.0 {
         etw_get_provider_guid
     } -body {
-        twapi::etw_get_provider_guid "Windows Kernel Trace"
+        string tolower [twapi::etw_get_provider_guid "Windows Kernel Trace"]
     } -result {{9e814aad-3204-11d2-9a82-006008a86939}}
 
     test etw_get_provider_guid-1.1 {
         etw_get_provider_guid - case insensitive
     } -body {
-        twapi::etw_get_provider_guid "windows kernel trace"
+        string tolower [twapi::etw_get_provider_guid "windows kernel trace"]
     } -result {{9e814aad-3204-11d2-9a82-006008a86939}}
 
     test etw_get_provider_guid-2.0 {
