@@ -448,18 +448,12 @@ proc twapi::set_service_configuration {name args} {
     set winparams(starttype)    [_map_starttype_sym $winparams(starttype)]
     set winparams(errorcontrol) [_map_errorcontrol_sym $winparams(errorcontrol)]
 
-    # If -interactive was specified, add the flag to the service type
-    if {[info exists opts(interactive)]} {
-        if {![info exists opts(servicetype)]} {
-            set opts(servicetype) $winparams(servicetype)
-        }
-        # 0x100 -> SERVICE_INTERACTIVE_PROCESS
-        if {$winparams(interactive)} {
-            setbits opts(servicetype) 0x100
-        } else {
-            resetbits opts(servicetype) 0x100 
-        }
-        setbits winparams(servicetype) $opts(servicetype)
+    # Merge the interactive setting
+    # 0x100 -> SERVICE_INTERACTIVE_PROCESS
+    if {$winparams(interactive)} {
+        setbits winparams(servicetype) 0x100
+    } else {
+        resetbits winparams(servicetype) 0x100 
     }
 
     # If domain/system not specified, tack on ".\" for local system
@@ -470,13 +464,17 @@ proc twapi::set_service_configuration {name args} {
     }
 
     # Now replace any options that were not specified with "no change"
-    # tokens. Note -interactive is not listed here, since it is included
-    # in servicetype at this point
+    # tokens.
     foreach opt {servicetype starttype errorcontrol} {
         if {![info exists opts($opt)]} {
             set winparams($opt) 0xffffffff;  # SERVICE_NO_CHANGE
         }
     }
+    # -servicetype and -interactive go in same field
+    if {![info exists opts(servicetype)] && ![info exists opts(interactive)]} {
+        set winparams(servicetype) 0xffffffff; # SERVICE_NO_CHANGE
+    }
+
     foreach opt {command loadordergroup dependencies account password displayname} {
         if {![info exists opts($opt)]} {
             set winparams($opt) $twapi::nullptr
