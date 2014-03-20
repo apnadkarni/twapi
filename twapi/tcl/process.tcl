@@ -864,11 +864,9 @@ proc twapi::get_multiple_process_info {args} {
         }
     }
 
-    set fields2 {};             # In case $pids is empty
-    foreach pid $pids {
-        set fields2 {}
-        if {$opts(elapsedtime) || $opts(all)} {
-            lappend fields2 -elapsedtime
+    if {$opts(elapsedtime) || $opts(all)} {
+        lappend fields -elapsedtime
+        foreach pid $pids {
             if {[info exists baserawdata($pid)]} {
                 set elapsed [twapi::kl_get $baserawdata($pid) -createtime]
                 if {$elapsed} {
@@ -887,23 +885,29 @@ proc twapi::get_multiple_process_info {args} {
                 dict lappend records $pid $opts(noexist)
             }
         }
+    }
 
-        if {$opts(tids) || $opts(all)} {
-            lappend fields2 -tids
+    if {$opts(tids) || $opts(all)} {
+        lappend fields -tids
+        foreach pid $pids {
             if {[info exists baserawdata($pid)]} {
                 dict lappend records $pid [recordarray column [kl_get $baserawdata($pid) Threads] -tid]
             } else {
                 dict lappend records $pid $opts(noexist)
             }
         }
+    }
 
-        if {$opts(all) || $opts(path)} {
-            lappend fields2 -path
+    if {$opts(all) || $opts(path)} {
+        lappend fields -path
+        foreach pid $pids {
             dict lappend records $pid [get_process_path $pid -noexist $opts(noexist) -noaccess $opts(noaccess)]
         }
+    }
 
-        if {$opts(all) || $opts(priorityclass)} {
-            lappend fields2 -priorityclass
+    if {$opts(all) || $opts(priorityclass)} {
+        lappend fields -priorityclass
+        foreach pid $pids {
             trap {
                 set prioclass [get_priority_class $pid]
             } onerror {TWAPI_WIN32 5} {
@@ -913,118 +917,130 @@ proc twapi::get_multiple_process_info {args} {
             }
             dict lappend records $pid $prioclass
         }
+    }
 
-        if {$opts(all) || $opts(commandline)} {
-            lappend fields2 -commandline
+    if {$opts(all) || $opts(commandline)} {
+        lappend fields -commandline
+        foreach pid $pids {
             dict lappend records $pid [get_process_commandline $pid -noexist $opts(noexist) -noaccess $opts(noaccess)]
         }
+    }
 
-        # Now get token related info, if any requested
-        # For returning as a record array, we have to be careful that
-        # each field is added in a specific order for every pid
-        # keeping in mind a different method might be used for different
-        # pids. So we collect the data in dictionary token_records and add 
-        # at the end in a fixed order
-        set token_records {}
-        set requested_opts $requested_token_opts
-        unset -nocomplain user
-        if {$opts(all) || $opts(user)} {
-            # See if we already have the user. Note sid of system idle
-            # will be empty string
-            if {[info exists wtssids($pid)]} {
-                if {$wtssids($pid) == ""} {
-                    # Put user as System
-                    set user SYSTEM
-                } else {
-                    # We speed up account lookup by caching sids
-                    if {[info exists sidcache($wtssids($pid))]} {
-                        set user $sidcache($wtssids($pid))
+
+    if {$opts(all) || $opts(user) || [llength $requested_token_opts]} {
+        foreach pid $pids {
+            # Now get token related info, if any requested
+            # For returning as a record array, we have to be careful that
+            # each field is added in a specific order for every pid
+            # keeping in mind a different method might be used for different
+            # pids. So we collect the data in dictionary token_records and add 
+            # at the end in a fixed order
+            set token_records {}
+            set requested_opts $requested_token_opts
+            unset -nocomplain user
+            if {$opts(all) || $opts(user)} {
+                # See if we already have the user. Note sid of system idle
+                # will be empty string
+                if {[info exists wtssids($pid)]} {
+                    if {$wtssids($pid) == ""} {
+                        # Put user as System
+                        set user SYSTEM
                     } else {
-                        set user [lookup_account_sid $wtssids($pid)]
-                        set sidcache($wtssids($pid)) $user
+                        # We speed up account lookup by caching sids
+                        if {[info exists sidcache($wtssids($pid))]} {
+                            set user $sidcache($wtssids($pid))
+                        } else {
+                            set user [lookup_account_sid $wtssids($pid)]
+                            set sidcache($wtssids($pid)) $user
+                        }
                     }
+                } else {
+                    lappend requested_opts -user
                 }
-            } else {
-                lappend requested_opts -user
             }
-        }
 
-        if {[llength $requested_opts]} {
-            trap {
-                dict set token_records $pid [_token_info_helper -pid $pid {*}$requested_opts]
-            } onerror {TWAPI_WIN32 5} {
-                foreach opt $requested_opts {
-                    dict set token_records $pid $opt $opts(noaccess)
-                }
-                # The NETWORK SERVICE and LOCAL SERVICE processes cannot
-                # be accessed. If we are looking for the logon session for
-                # these, try getting it from the witssid if we have it
-                # since the logon session is hardcoded for these accounts
-                if {"-logonsession" in  $requested_opts} {
-                    if {![info exists wtssids]} {
-                        _get_wts_pids wtssids wtsnames
+            if {[llength $requested_opts]} {
+                trap {
+                    dict set token_records $pid [_token_info_helper -pid $pid {*}$requested_opts]
+                } onerror {TWAPI_WIN32 5} {
+                    foreach opt $requested_opts {
+                        dict set token_records $pid $opt $opts(noaccess)
                     }
-                    if {[info exists wtssids($pid)]} {
-                        # Map user SID to logon session
-                        switch -exact -- $wtssids($pid) {
-                            S-1-5-18 {
-                                # SYSTEM
-                                dict set token_records $pid -logonsession 00000000-000003e7
-                            }
-                            S-1-5-19 {
-                                # LOCAL SERVICE
-                                dict set token_records $pid -logonsession 00000000-000003e5
-                            }
-                            S-1-5-20 {
-                                # LOCAL SERVICE
-                                dict set token_records $pid -logonsession 00000000-000003e4
+                    # The NETWORK SERVICE and LOCAL SERVICE processes cannot
+                    # be accessed. If we are looking for the logon session for
+                    # these, try getting it from the witssid if we have it
+                    # since the logon session is hardcoded for these accounts
+                    if {"-logonsession" in  $requested_opts} {
+                        if {![info exists wtssids]} {
+                            _get_wts_pids wtssids wtsnames
+                        }
+                        if {[info exists wtssids($pid)]} {
+                            # Map user SID to logon session
+                            switch -exact -- $wtssids($pid) {
+                                S-1-5-18 {
+                                    # SYSTEM
+                                    dict set token_records $pid -logonsession 00000000-000003e7
+                                }
+                                S-1-5-19 {
+                                    # LOCAL SERVICE
+                                    dict set token_records $pid -logonsession 00000000-000003e5
+                                }
+                                S-1-5-20 {
+                                    # LOCAL SERVICE
+                                    dict set token_records $pid -logonsession 00000000-000003e4
+                                }
                             }
                         }
                     }
-                }
-
-                # Similarly, if we are looking for user account, special case
-                # system and system idle processes
-                if {"-user" in  $requested_opts} {
-                    if {[is_idle_pid $pid] || [is_system_pid $pid]} {
-                        set user SYSTEM
-                    }
-                }
-
-            } onerror {TWAPI_WIN32 87} {
-                foreach opt $requested_opts {
-                    if {$opt eq "-user"} {
+                    
+                    # Similarly, if we are looking for user account, special case
+                    # system and system idle processes
+                    if {"-user" in  $requested_opts} {
                         if {[is_idle_pid $pid] || [is_system_pid $pid]} {
                             set user SYSTEM
-                        } else {
-                            set user $opts(noexist)
                         }
-                    } else {
-                        dict set token_records $pid $opt $opts(noexist)
+                    }
+                    
+                } onerror {TWAPI_WIN32 87} {
+                    foreach opt $requested_opts {
+                        if {$opt eq "-user"} {
+                            if {[is_idle_pid $pid] || [is_system_pid $pid]} {
+                                set user SYSTEM
+                            } else {
+                                set user $opts(noexist)
+                            }
+                        } else {
+                            dict set token_records $pid $opt $opts(noexist)
+                        }
                     }
                 }
             }
+            # Now add token values in a specific order - MUST MATCH fields BELOW
+            if {$opts(all) || $opts(user)} {
+                dict lappend records $pid $user
+            }
+            foreach opt $requested_token_opts {
+                if {[dict exists $token_records $pid $opt]} {
+                    dict lappend records $pid [dict get $token_records $pid $opt]
+                }
+            }
         }
-
-        # Now add token fields in a specific order.
+        # Now add token field names in a specific order - MUST MATCH ABOVE
         if {$opts(all) || $opts(user)} {
-            lappend fields2 -user
-            dict lappend records $pid $user
+            lappend fields -user
         }
         foreach opt $requested_token_opts {
             if {[dict exists $token_records $pid $opt]} {
-                lappend fields2 $opt
-                dict lappend records $pid [dict get $token_records $pid $opt]
+                lappend fields $opt
             }
         }
-
     }
 
     set return_data {}
     foreach pid $pids {
         lappend return_data [dict get $records $pid]
     }
-    return [list [lconcat $fields $fields2] $return_data]
+    return [list $fields $return_data]
 }
 
 
