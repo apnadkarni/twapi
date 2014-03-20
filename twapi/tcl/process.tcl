@@ -719,10 +719,10 @@ proc twapi::get_process_info {pid args} {
     # so [get_process_info -name] becomes [get_process_info [pid] -name]
     # TBD - should this be documented ?
     if {[string is integer -strict $pid]} {
-        return [lindex [get_multiple_process_info {*}$args -matchpids [list $pid]] 1]
+        return [lindex [gmpi {*}$args -matchpids [list $pid]] 1]
     } else {
         # $pid treated as an option name
-        return [lindex [get_multiple_process_info $pid {*}$args -matchpids [list [pid]]] 1]
+        return [lindex [gmpi $pid {*}$args -matchpids [list [pid]]] 1]
     }
 }
 
@@ -1020,6 +1020,299 @@ proc twapi::get_multiple_process_info {args} {
 
     return [array get results]
 }
+
+
+# Get multiple process information
+# TBD - document and write tests
+proc twapi::gmpi {args} {
+
+    # Options that are directly available from Twapi_GetProcessList
+    # Dict value is the flags to pass to Twapi_GetProcessList
+    set base_opts {
+        basepriority       1
+        parent             1        tssession          1
+        name               2
+        createtime         4        usertime           4
+        privilegedtime     4        handlecount        4
+        threadcount        4
+        pagefaults         8        pagefilebytes      8
+        pagefilebytespeak  8        poolnonpagedbytes  8
+        poolnonpagedbytespeak  8    poolpagedbytes     8
+        poolpagedbytespeak 8        virtualbytes       8
+        virtualbytespeak   8        workingset         8
+        workingsetpeak     8
+        ioreadops         16        iowriteops        16
+        iootherops        16        ioreadbytes       16
+        iowritebytes      16        iootherbytes      16
+    }
+    # Options that also dependent on Twapi_GetProcessList but not
+    # directly available
+    set base_calc_opts { elapsedtime 4   tids 32 }
+
+    # Note -user is also a potential token opt but not listed below
+    # because it can be gotten by other means
+    set token_opts {
+        disabledprivileges elevation enabledprivileges groupattrs groups
+        integrity integritylabel logonsession  primarygroup primarygroupsid
+        privileges restrictedgroupattrs restrictedgroups virtualized
+    }
+
+    set optdefs [lconcat {all pid user path commandline priorityclass {noexist.arg {(no such process)}} {noaccess.arg {(unknown)}} matchpids.arg} \
+                     [dict keys $base_opts] \
+                     [dict keys $base_calc_opts] \
+                     $token_opts]
+
+    array set opts [parseargs args $optdefs -maxleftover 0]
+
+    if {[info exists opts(matchpids)]} {
+        set pids $opts(matchpids)
+    } else {
+        set pids [Twapi_GetProcessList -1 0]
+    }
+
+    set now [get_system_time]
+
+    # We will return a record array. $records tracks a dict of record
+    # values keyed by pid, $fields tracks the names in the list elements
+    # [llength $fields] == [llength [lindex $records *]]
+    set records {}
+    set fields {}
+
+    # If user is requested, try getting it through terminal services
+    # if possible since the token method fails on some newer platforms
+    if {$opts(all) || $opts(user)} {
+        _get_wts_pids wtssids wtsnames
+    }
+
+    # See if any Twapi_GetProcessList options are requested and if
+    # so, calculate the appropriate flags
+    set baseflags 0
+    set basenoexistvals {}
+    dict for {opt flag} $base_opts {
+        if {$opts($opt) || $opts(all)} {
+            set baseflags [expr {$baseflags | $flag}]
+            lappend basefields -$opt
+            lappend basenoexistvals $opts(noexist)
+        }
+    }
+    dict for {opt flag} $base_calc_opts {
+        if {$opts($opt) || $opts(all)} {
+            set baseflags [expr {$baseflags | $flag}]
+        }
+    }
+
+    # See if we need to retrieve any base options
+    if {$baseflags} {
+        set pidarg [expr {[llength $pids] == 1 ? [lindex $pids 0] : -1}]
+        set data [twapi::Twapi_GetProcessList $pidarg [expr {$baseflags|1}]]
+        if {$opts(all) || $opts(elapsedtime) || $opts(tids)} {
+            array set baserawdata [recordarray getdict $data -key "-pid" -format dict]
+        }
+        if {[info exists basefields]} {
+            set fields $basefields
+            set records [recordarray getdict $data -slice $basefields -key "-pid"]
+        }
+    }
+    if {$opts(pid)} {
+        lappend fields -pid
+    }
+    foreach pid $pids {
+        # If base values were requested, but this pid does not exist
+        # use the "noexist" values
+        if {![dict exists $records $pid]} {
+            dict set records $pid $basenoexistvals
+        }
+        if {$opts(pid)} {
+            dict lappend records $pid $pid
+        }
+    }
+
+    # If all we need are baseline options, and no massaging is required
+    # (as for elapsedtime, for example), we can return what we have
+    # without looping through below. Saves significant time.
+    set done 1
+    foreach opt [list all user elapsedtime tids path commandline priorityclass \
+                     {*}$token_opts] {
+        if {$opts($opt)} {
+            set done 0
+            break
+        }
+    }
+
+    if {$done} {
+        set return_data {}
+        foreach pid $pids {
+            lappend return_data [dict get $records $pid]
+        }
+        return [list $fields $return_data]
+    }
+
+    set requested_token_opts {}
+    foreach opt $token_opts {
+        if {$opts(all) || $opts($opt)} {
+            lappend requested_token_opts -$opt
+        }
+    }
+
+    foreach pid $pids {
+        set fields2 {}
+        if {$opts(elapsedtime) || $opts(all)} {
+            lappend fields2 -elapsedtime
+            if {[info exists baserawdata($pid)]} {
+                set elapsed [twapi::kl_get $baserawdata($pid) -createtime]
+                if {$elapsed} {
+                    # 100ns -> seconds
+                    dict lappend records $pid [expr {($now-$elapsed)/10000000}]
+                } else {
+                    # For some processes like, System and Idle, kernel
+                    # returns start time of 0. Just use system uptime
+                    if {![info exists system_uptime]} {
+                        # Store locally so no refetch on each iteration
+                        set system_uptime [get_system_uptime]
+                    }
+                    dict lappend records $pid $system_uptime
+                }
+            } else {
+                dict lappend records $pid $opts(noexist)
+            }
+        }
+
+        if {$opts(tids) || $opts(all)} {
+            lappend fields2 -tids
+            if {[info exists baserawdata($pid)]} {
+                dict lappend records $pid [recordarray column [kl_get $baserawdata($pid) Threads] -tid]
+            } else {
+                dict lappend records $pid $opts(noexist)
+            }
+        }
+
+        if {$opts(all) || $opts(path)} {
+            lappend fields2 -path
+            dict lappend records $pid [get_process_path $pid -noexist $opts(noexist) -noaccess $opts(noaccess)]
+        }
+
+        if {$opts(all) || $opts(priorityclass)} {
+            lappend fields2 -priorityclass
+            trap {
+                set prioclass [get_priority_class $pid]
+            } onerror {TWAPI_WIN32 5} {
+                set prioclass $opts(noaccess)
+            } onerror {TWAPI_WIN32 87} {
+                set prioclass $opts(noexist)
+            }
+            dict lappend records $pid $prioclass
+        }
+
+        if {$opts(all) || $opts(commandline)} {
+            lappend fields2 -commandline
+            dict lappend records $pid [get_process_commandline $pid -noexist $opts(noexist) -noaccess $opts(noaccess)]
+        }
+
+        # Now get token related info, if any requested
+        # For returning as a record array, we have to be careful that
+        # each field is added in a specific order for every pid
+        # keeping in mind a different method might be used for different
+        # pids. So we collect the data in dictionary token_records and add 
+        # at the end in a fixed order
+        set token_records {}
+        set requested_opts $requested_token_opts
+        if {$opts(all) || $opts(user)} {
+            # See if we already have the user. Note sid of system idle
+            # will be empty string
+            if {[info exists wtssids($pid)]} {
+                if {$wtssids($pid) == ""} {
+                    # Put user as System
+                    dict lappend token_records $pid -user "SYSTEM"
+                } else {
+                    # We speed up account lookup by caching sids
+                    if {[info exists sidcache($wtssids($pid))]} {
+                        dict lappend token_records $pid -user $sidcache($wtssids($pid))
+                    } else {
+                        set uname [lookup_account_sid $wtssids($pid)]
+                        dict lappend token_records $pid -user $uname
+                        set sidcache($wtssids($pid)) $uname
+                    }
+                }
+            } else {
+                lappend requested_opts -user
+            }
+        }
+
+        if {[llength $requested_opts]} {
+            trap {
+                dict set token_records $pid [_token_info_helper -pid $pid {*}$requested_opts]
+            } onerror {TWAPI_WIN32 5} {
+                foreach opt $requested_opts {
+                    dict set token_records $pid $opt $opts(noaccess)
+                }
+                # The NETWORK SERVICE and LOCAL SERVICE processes cannot
+                # be accessed. If we are looking for the logon session for
+                # these, try getting it from the witssid if we have it
+                # since the logon session is hardcoded for these accounts
+                if {"-logonsession" in  $requested_opts} {
+                    if {![info exists wtssids]} {
+                        _get_wts_pids wtssids wtsnames
+                    }
+                    if {[info exists wtssids($pid)]} {
+                        # Map user SID to logon session
+                        switch -exact -- $wtssids($pid) {
+                            S-1-5-18 {
+                                # SYSTEM
+                                dict set token_records $pid -logonsession 00000000-000003e7
+                            }
+                            S-1-5-19 {
+                                # LOCAL SERVICE
+                                dict set token_records $pid -logonsession 00000000-000003e5
+                            }
+                            S-1-5-20 {
+                                # LOCAL SERVICE
+                                dict set token_records $pid -logonsession 00000000-000003e4
+                            }
+                        }
+                    }
+                }
+
+                # Similarly, if we are looking for user account, special case
+                # system and system idle processes
+                if {"-user" in  $requested_opts} {
+                    if {[is_idle_pid $pid] || [is_system_pid $pid]} {
+                        dict set token_records $pid -user SYSTEM
+                    }
+                }
+
+                set results($pid) [concat $results($pid) [array get tokresult]]
+            } onerror {TWAPI_WIN32 87} {
+                foreach opt $requested_opts {
+                    if {$opt eq "-user" && ([is_idle_pid $pid] || [is_system_pid $pid])} {
+                        dict set token_records $pid $opt SYSTEM
+                    } else {
+                        dict set token_records $pid $opt $opts(noexist)
+                    }
+                }
+            }
+        }
+
+        # Now add token fields in a specific order.
+        if {[dict exists $token_records $pid -user]} {
+            lappend fields2 -user
+            dict lappend records $pid [dict get $token_records $pid -user]
+        }
+        foreach opt $requested_token_opts {
+            if {[dict exists $token_records $pid $opt]} {
+                lappend fields2 -$opt
+                dict lappend records $pid [dict get $token_records $pid $opt]
+            }
+        }
+
+    }
+
+    set return_data {}
+    foreach pid $pids {
+        lappend return_data [dict get $records $pid]
+    }
+    return [list [lconcat $fields $fields2] $return_data]
+}
+
 
 
 # Get thread information
