@@ -1507,9 +1507,6 @@ proc twapi::get_process_commandline {pid args} {
 
     trap {
         # Assume max command line len is 1024 chars (2048 bytes)
-        set max_len 2048
-        set hgbl [GlobalAlloc 0 $max_len]
-        set pgbl [GlobalLock $hgbl]
         trap {
             set hpid [get_process_handle $pid -access {process_query_information process_vm_read}]
         } onerror {TWAPI_WIN32 87} {
@@ -1552,14 +1549,20 @@ proc twapi::get_process_commandline {pid args} {
         # } PEB;
         # So in both cases the pointer is 4 pointers from the start
 
-
         if {[info exists ::tcl_platform(pointerSize)]} {
             set pointer_size $::tcl_platform(pointerSize)
         } else {
             set pointer_size 4
         }
-        ReadProcessMemory $hpid [expr {$peb_addr+(4*$pointer_size)}] $pgbl $pointer_size
-        set proc_param_addr [pointer_to_address [Twapi_ReadMemory 4 $pgbl 0]]
+        if {$pointer_size == 4} {
+            set pointer_scanner n
+        } else {
+            set pointer_scanner m
+        }
+        set mem [ReadProcessMemory $hpid [expr {$peb_addr+(4*$pointer_size)}] $pointer_size]
+        if {![binary scan $mem $pointer_scanner proc_param_addr]} {
+            error "Could not read PEB of process $pid"
+        }
 
         # Now proc_param_addr contains the address of the Process parameter
         # structure which looks like:
@@ -1582,14 +1585,14 @@ proc twapi::get_process_commandline {pid args} {
         if {[info exists ::tcl_platform(pointerSize)] &&
             $::tcl_platform(pointerSize) == 8} {
             # Read the CommandLine field
-            ReadProcessMemory $hpid [expr {$proc_param_addr + 112}] $pgbl 16
-            if {![binary scan [Twapi_ReadMemory 1 $pgbl 0 16] tutunum cmdline_bytelen cmdline_bufsize unused cmdline_addr]} {
+            set mem [ReadProcessMemory $hpid [expr {$proc_param_addr + 112}] 16]
+            if {![binary scan $mem tutunum cmdline_bytelen cmdline_bufsize unused cmdline_addr]} {
                 error "Could not get address of command line"
             }
         } else {
             # Read the CommandLine field
-            ReadProcessMemory $hpid [expr {$proc_param_addr + 64}] $pgbl 8
-            if {![binary scan [Twapi_ReadMemory 1 $pgbl 0 8] tutunu cmdline_bytelen cmdline_bufsize cmdline_addr]} {
+            set mem [ReadProcessMemory $hpid [expr {$proc_param_addr + 64}] 8]
+            if {![binary scan $mem tutunu cmdline_bytelen cmdline_bufsize cmdline_addr]} {
                 error "Could not get address of command line"
             }
         }
@@ -1599,24 +1602,26 @@ proc twapi::get_process_commandline {pid args} {
                 set cmdline ""
             } else {
                 trap {
-                    ReadProcessMemory $hpid $cmdline_addr $pgbl $cmdline_bytelen
+                    set mem [ReadProcessMemory $hpid $cmdline_addr $cmdline_bytelen]
                 } onerror {TWAPI_WIN32 299} {
                     # ERROR_PARTIAL_COPY
                     # Rumour has it this can be a transient error if the
                     # process is initializing, so try once more
                     Sleep 0;    # Relinquish control to OS to run other process
                     # Retry
-                    ReadProcessMemory $hpid $cmdline_addr $pgbl $cmdline_bytelen
+                    set mem [ReadProcessMemory $hpid $cmdline_addr $cmdline_bytelen]
                 }
-                set cmdline [Twapi_ReadMemory 3 $pgbl 0 $cmdline_bytelen 1]
             }
         } else {
+            THIS CODE NEEDS TO BE MODIFIED IF REINSTATED. THE ReadProcessMemory
+            parameters have changed
             # Old pre-2.3 code
             # Now read the command line itself. We do not know the length
             # so assume MAX_PATH (1024) chars (2048 bytes). However, this may
             # fail if the memory beyond the command line is not allocated in the
             # target process. So we have to check for this error and retry with
             # smaller read sizes
+            set max_len 2048
             while {$max_len > 128} {
                 trap {
                     ReadProcessMemory $hpid $cmdline_addr $pgbl $max_len
@@ -1629,29 +1634,24 @@ proc twapi::get_process_commandline {pid args} {
             # OK, got something. It's in Unicode format, may not be null terminated
             # or may have multiple null terminated strings. THe command line
             # is the first string.
-            set cmdline [encoding convertfrom unicode [Twapi_ReadMemory 1 $pgbl 0 $max_len]]
-            set null_offset [string first "\0" $cmdline]
-            if {$null_offset >= 0} {
-                set cmdline [string range $cmdline 0 [expr {$null_offset-1}]]
-            }
         }
+        set cmdline [encoding convertfrom unicode $mem]
+        set null_offset [string first "\0" $cmdline]
+        if {$null_offset >= 0} {
+            set cmdline [string range $cmdline 0 [expr {$null_offset-1}]]
+        }
+
     } onerror {TWAPI_WIN32 5} {
         # Access denied
         set cmdline $opts(noaccess)
     } onerror {TWAPI_WIN32 299} {
-        # Only part of the Read* could be completed
+        # Only par
+t of the Read* could be completed
         # Access denied
         set cmdline $opts(noaccess)
     } finally {
         if {[info exists hpid]} {
             CloseHandle $hpid
-        }
-        if {[info exists hgbl]} {
-            if {[info exists pgbl]} {
-                # We had locked the memory
-                GlobalUnlock $hgbl
-            }
-            GlobalFree $hgbl
         }
     }
 
