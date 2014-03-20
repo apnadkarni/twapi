@@ -793,7 +793,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
 {
     DWORD dw, dw2, dw3;
     union {
-        DWORD_PTR dwp;
+    DWORD_PTR dwp;
         WCHAR buf[MAX_PATH+1];
         MODULEINFO moduleinfo;
         PROCESS_MEMORY_COUNTERS_EX pmce;
@@ -816,13 +816,20 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         break;
     case 7: // ReadProcessMemory
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLE(h), GETDWORD_PTR(u.dwp), GETVOIDP(pv),
-                         GETINT(dw),
+                         GETHANDLE(h), /* Process handle */
+                         GETDWORD_PTR(u.dwp), /*  address in target process */
+                         GETINT(dw),          /* Num bytes to read */
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.type =
-            ReadProcessMemory(h, (void *)u.dwp, pv, dw, &result.value.dwp)
-            ? TRT_DWORD_PTR : TRT_GETLASTERROR;
+        result.value.obj = ObjFromByteArray(NULL, dw);
+        pv = ObjToByteArray(result.value.obj, &dw);
+        if (ReadProcessMemory(h, (void *)u.dwp, pv, dw, &sz)) {
+            Tcl_SetByteArrayLength(result.value.obj, sz);
+            result.type = TRT_OBJ;
+        } else {
+            ObjDecrRefs(result.value.obj);
+            result.type = TRT_GETLASTERROR;
+        }
         break;
     case 8: // GetModuleFileName
     case 9: // GetModuleBaseName
