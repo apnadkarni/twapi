@@ -101,24 +101,6 @@ static struct Tcl_ObjType gVariantType = {
     NULL,     /* jenglish says keep this NULL */
 };
 
-/*
- * TwapiEnum is a Tcl "type" that maps strings to their positions in a
- * string table. 
- * The Tcl_Obj.internalRep.ptrAndLongRep.value holds the position
- * and Tcl_Obj.internalRep.ptrAndLongRep.ptr holds the table as a Tcl_Obj
- * of type list.
- */
-static void DupEnumType(Tcl_Obj *srcP, Tcl_Obj *dstP);
-static void FreeEnumType(Tcl_Obj *objP);
-static void UpdateEnumTypeString(Tcl_Obj *objP);
-static struct Tcl_ObjType gEnumType = {
-    "TwapiEnum",
-    FreeEnumType,
-    DupEnumType,
-    UpdateEnumTypeString,
-    NULL,     /* jenglish says keep this NULL */
-};
-
 static void TwapiInvalidVariantTypeMessage(Tcl_Interp *interp, VARTYPE vt)
 {
     if (interp) {
@@ -4407,6 +4389,26 @@ void TwapiFreeDecryptedPassword(WCHAR *p, int len)
     }
 }
 
+/*
+ * TwapiEnum is a Tcl "type" that maps strings to their positions in a
+ * string table. 
+ * The Tcl_Obj.internalRep.ptrAndLongRep.value holds the position
+ * and Tcl_Obj.internalRep.ptrAndLongRep.ptr holds the table as a Tcl_Obj
+ * of type list.
+ */
+static void DupEnumType(Tcl_Obj *srcP, Tcl_Obj *dstP);
+static void FreeEnumType(Tcl_Obj *objP);
+static void UpdateEnumTypeString(Tcl_Obj *objP);
+static struct Tcl_ObjType gEnumType = {
+    "TwapiEnum",
+    FreeEnumType,
+    DupEnumType,
+    UpdateEnumTypeString,
+    NULL,     /* jenglish says keep this NULL */
+};
+
+
+
 static void DupEnumType(Tcl_Obj *srcP, Tcl_Obj *dstP)
 {
     dstP->typePtr = srcP->typePtr;
@@ -4482,3 +4484,264 @@ TCL_RESULT ObjToEnum(Tcl_Interp *interp, Tcl_Obj *enumsObj, Tcl_Obj *nameObj,
     *valP = nameObj->internalRep.ptrAndLongRep.value;
     return TCL_OK;
 }
+
+
+
+/*
+ * TwapiCStruct is a Tcl "type" that holds definition of a C structure.
+ * string table. 
+ * The Tcl_Obj.internalRep.twoPtrValue.ptr1 points to a TwapiCStructRep
+ * which holds the decoded information.
+ * and Tcl_Obj.internalRep.twoPtrValue.ptr2 not used.
+ */
+static void DupCStructType(Tcl_Obj *srcP, Tcl_Obj *dstP);
+static void FreeCStructType(Tcl_Obj *objP);
+static void UpdateCStructTypeString(Tcl_Obj *objP);
+static struct Tcl_ObjType gCStructType = {
+    "TwapiCStruct",
+    FreeCStructType,
+    DupCStructType,
+    UpdateCStructTypeString, /* Will panic. Not expected to be called as
+                                we never change the string rep once created.
+                                Could set this to NULL, but prefer to have
+                                an explicit panic message */
+    NULL, /* jenglish says keep this NULL */
+};
+
+typedef struct TwapiCStructField_s {
+    unsigned int count;         /* If >=1, field is an array of this size
+                                   Note == 1 still means operand will be
+                                   treated as a list and first element used.
+                                   If 0, scalar */
+    unsigned int offset;        /* Offset from beginning of structure */
+    char size;             /* Size of the field */
+    char type;                  /* The type of the field */
+} TwapiCStructField;
+#define CSTRUCT_REP(o_)    ((TwapiCStructRep *)((o_)->internalRep.twoPtrValue.ptr1))
+
+typedef struct TwapiCStructRep_s {
+    int nrefs;                  /* Reference count for this structure */
+    int nfields;                /* Number of elements in fields[] */
+    int size;                   /* Size of the defined structure */
+    TwapiCStructField fields[1];
+} TwapiCStructRep;
+
+static CStructRepDecrRefs(TwapiCStructRep *csP)
+{
+    csP->nrefs -= 1;
+    if (csP->nrefs == 0)
+        TwapiFree(csP);
+}
+
+static void DupCStructType(Tcl_Obj *srcP, Tcl_Obj *dstP)
+{
+    dstP->typePtr = srcP->typePtr;
+    dstP->internalRep = srcP->internalRep;
+    CSTRUCT_REP(dstP)->nrefs += 1;
+}
+
+static void FreeCStructType(Tcl_Obj *objP)
+{
+    TwapiCStructRep *csP = CSTRUCT_REP(objP);
+    TWAPI_ASSERT(csP->nrefs > 0);
+    CStructRepDecrRefs(csP);
+    objP->internalRep.twoPtrValue.ptr1 = NULL;
+    objP->internalRep.twoPtrValue.ptr2 = NULL;
+    objP->typePtr = NULL;
+}
+
+static void UpdateCStructTypeString(Tcl_Obj *objP)
+{
+    Tcl_Panic("UpdateCStructTypeString called.");
+}
+
+static const char *cstruct_types[] = {
+    "char", "short", "int", "int64", "double", "string", "wstring", "structsize", NULL
+};
+enum cstruct_types_enum {
+    CSTRUCT_CHAR, CSTRUCT_SHORT, CSTRUCT_INT, CSTRUCT_INT64, 
+    CSTRUCT_DOUBLE, CSTRUCT_STRING, CSTRUCT_WSTRING, CSTRUCT_STRUCTSIZE, 
+};
+TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
+{
+    Tcl_Obj **fieldObjs;
+    int       i, nfields;
+    TwapiCStructRep *csP = NULL;
+    unsigned int offset, first_elem_size;
+    TCL_RESULT res;
+
+    if (csObj->typePtr == &gCStructType)
+        return TCL_OK;          /* Already the correct type */
+
+    /* Make sure the string rep exists before we convert as we
+       don't supply a string generation procedure
+    */
+    ObjToString(csObj);
+
+    if ((res = ObjGetElements(interp, csObj, &nfields, &fieldObjs)) != TCL_OK)
+        return res;
+    if (nfields == 0)
+        goto invalid_def;
+
+    csP = TwapiAlloc(sizeof(*csP) + (nfields-1)*sizeof(csP->fields[0]));
+    csP->nrefs = 1;
+    csP->nfields = nfields;
+    
+    /* Now parse all the elements */
+    for (offset = 0, i = 0; i < nfields; ++i) {
+        Tcl_Obj **defObjs;      /* Field definition elements */
+        int       ndefs;
+        int       array_size = 0;
+        int       deftype;
+        int       elem_size;
+
+        if (ObjGetElements(interp, csObj, &ndefs, &defObjs) != TCL_OK ||
+            ndefs == 0 || ndefs > 2 ||
+            Tcl_GetIndexFromObj(interp, defObjs[0], cstruct_types, "type", TCL_EXACT, &deftype) != TCL_OK ||
+            (ndefs == 2 &&
+             (ObjToInt(interp, defObjs[1], &array_size) != TCL_OK ||
+              array_size < 0))) {
+            goto invalid_def;
+        }
+
+        switch (deftype) {
+        case CSTRUCT_CHAR: elem_size = sizeof(char); break;
+        case CSTRUCT_SHORT: elem_size = sizeof(short); break;
+        case CSTRUCT_INT: elem_size = sizeof(int); break;
+        case CSTRUCT_INT64: elem_size = sizeof(__int64); break;
+        case CSTRUCT_DOUBLE: elem_size = sizeof(double); break;
+        case CSTRUCT_STRING: elem_size = sizeof(char*); break;
+        case CSTRUCT_WSTRING: elem_size = sizeof(WCHAR *); break;
+        case CSTRUCT_STRUCTSIZE:
+            if (array_size)
+                goto invalid_def; /* Cannot be an array */
+            elem_size = sizeof(int);
+            break;
+        }
+
+        if (i == 0)
+            first_elem_size = elem_size;
+        /* See if offset needs to be aligned */
+        offset = (offset + elem_size -1) & ~(elem_size -1);
+        csP->fields[i].offset = offset;
+        csP->fields[i].count = array_size;
+        csP->fields[i].type = deftype;
+        csP->fields[i].size = elem_size;
+        /* Array size of 0 means a scalar, so size 1 */
+        if (array_size == 0)
+            offset += elem_size; /* For next field */
+        else
+            offset += array_size*elem_size;
+    }
+
+    /* Whole structure has to be aligned */
+    csP->size = (offset + first_elem_size - 1) & ~(first_elem_size -1);
+
+    /* OK, valid opaque rep. Convert the passed object's internal rep */
+    if (csObj->typePtr && csObj->typePtr->freeIntRepProc) {
+        csObj->typePtr->freeIntRepProc(csObj);
+    }
+    csObj->typePtr = &gCStructType;
+    CSTRUCT_REP(csObj) = csP;
+    csObj->internalRep.twoPtrValue.ptr2 = NULL;
+
+    return TCL_OK;
+
+invalid_def:
+    TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS,
+                        "Invalid CStruct definition");
+error_return:
+    if (csP)
+        TwapiFree(csP);
+    return TCL_ERROR;
+}
+
+/* Caller responsible for cleanup for memlifoP in all cases, success or error */
+TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
+                         Tcl_Obj *csvalObj, void **ppv)
+{
+    Tcl_Obj **objPP;
+    int i, nobjs;
+    TCL_RESULT res;
+    TwapiCStructRep *csP = NULL;
+    void *pv;
+
+    if (ObjGetElements(interp, csvalObj, &nobjs, &objPP) != TCL_OK ||
+        nobjs != 2)
+        goto invalid_def;
+        
+    csP = CSTRUCT_REP(objPP[0]);
+    csP->nrefs += 1;            /* So it is not shimmered away underneath us */
+    
+    if (ObjGetElements(interp, csvalObj, &nobjs, &objPP) != TCL_OK ||
+        nobjs != csP->nfields)  /* Not correct number of values */
+        goto invalid_def;
+    
+    pv = MemLifoAlloc(memlifoP, csP->size, NULL);
+    for (i = 0; i < nobjs; ++i) {
+        int count = csP->fields[i].count;
+        void *pv2 = ADDPTR(pv, csP->fields[i].offset, void*);
+        Tcl_Obj **arrayObj;
+        int       nelems;        /* # elements in array */
+        int j, elem_size;
+        TCL_RESULT (*fn)(Tcl_Interp *, Tcl_Obj *, void *);
+
+        /* count > 0 => array and source obj is a list (even if count == 1) */
+        if (count) {
+            if (ObjGetElements(interp, objPP[i], &nelems, &arrayObj) != TCL_OK)
+                goto error_return;
+            if (count > nelems) {
+                TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Too few elements in cstruct array field");
+                goto error_return;
+            }
+        }
+        elem_size = csP->fields[i].size;
+
+        switch (csP->fields[i].type) {
+        case CSTRUCT_CHAR: fn = ObjToCHAR; break;
+        case CSTRUCT_SHORT: fn = ObjToSHORT; break;
+        case CSTRUCT_INT: fn = ObjToInt; break;
+        case CSTRUCT_INT64: fn = ObjToWideInt; break;
+        case CSTRUCT_DOUBLE: fn = ObjToDouble; break;
+        case CSTRUCT_STRING:
+            break;
+        case CSTRUCT_WSTRING:
+            break;
+        case CSTRUCT_STRUCTSIZE:
+            TWAPI_ASSERT(count == 0);
+            fn = ObjToInt;
+            break;
+        }
+
+        if (count) {
+            int j;
+            for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
+                if (fn(interp, arrayObj[j], pv2) != TCL_OK)
+                        goto error_return;
+            }
+        } else {
+            if (fn(interp, objPP[i], pv2) != TCL_OK)
+                goto error_return;
+            if (csP->fields[i].type == CSTRUCT_STRUCTSIZE) {
+                int ssize = *(int *)pv2;
+                if (ssize > csP->size || ssize < 0)
+                    goto invalid_def;
+                if (ssize == 0)
+                    *(int *)pv2 = csP->size;
+            }
+        }
+    }
+    
+    *ppv = pv;
+    CStructRepDecrRefs(csP);
+    return TCL_OK;
+
+invalid_def:
+    TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS,
+                        "Invalid CStruct value");
+error_return:
+    if (csP)
+        CStructRepDecrRefs(csP);
+    return TCL_ERROR;
+}
+
