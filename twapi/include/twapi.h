@@ -1281,6 +1281,7 @@ TWAPI_EXTERN void ObjDecrRefs(Tcl_Obj *);
 TWAPI_EXTERN void ObjDecrArrayRefs(int, Tcl_Obj *objv[]);
 
 TWAPI_EXTERN TCL_RESULT ObjToEnum(Tcl_Interp *interp, Tcl_Obj *enumsObj, Tcl_Obj *nameObj, int *valP);
+TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromOpaque(void *pv, char *name);
 #define ObjFromHANDLE(h) ObjFromOpaque((h), "HANDLE")

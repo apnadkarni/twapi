@@ -77,6 +77,8 @@ proc twapi::get_toplevel_windows {args} {
 # Find a window based on given criteria
 proc twapi::find_windows {args} {
     # TBD - would incorporating FindWindowEx be faster
+    # TBD - apparently on Windows 8, you need to use FindWindowEx to
+    # get non-toplevel Metro windows
 
     array set opts [parseargs args {
         ancestor.arg
