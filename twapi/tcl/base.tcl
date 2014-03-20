@@ -1317,7 +1317,7 @@ proc twapi::recordarray::row {ra row args} {
     if {$format eq "list"} {
         return $r
     } else {
-        return [twine $fields $r]
+        return [::twapi::twine $fields $r]
     }
 }
 

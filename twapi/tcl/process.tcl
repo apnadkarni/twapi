@@ -718,313 +718,23 @@ proc twapi::get_process_info {pid args} {
     # To avert a common mistake where pid is unspecified, use current pid
     # so [get_process_info -name] becomes [get_process_info [pid] -name]
     # TBD - should this be documented ?
-    if {[string is integer -strict $pid]} {
-        return [lindex [gmpi {*}$args -matchpids [list $pid]] 1]
-    } else {
-        # $pid treated as an option name
-        return [lindex [gmpi $pid {*}$args -matchpids [list [pid]]] 1]
+
+    if {![string is integer -strict $pid]} {
+        set args [linsert $args 0 $pid]
+        set pid [pid]
     }
+
+    set rec [recordarray row [get_multiple_process_info {*}$args -matchpids [list $pid]] 0 -format dict]
+    if {"-pid" ni $args && "-all" ni $args} {
+        dict unset rec -pid
+    }
+    return $rec
 }
 
 
 # Get multiple process information
 # TBD - document and write tests
 proc twapi::get_multiple_process_info {args} {
-
-    # Options that are directly available from Twapi_GetProcessList
-    if {![info exists ::twapi::get_multiple_process_info_base_opts]} {
-        # Array value is the flags to pass to Twapi_GetProcessList
-        array set ::twapi::get_multiple_process_info_base_opts {
-            pid                1
-            basepriority       1
-            parent             1
-            tssession          1
-            name               2
-            createtime         4
-            usertime           4
-            privilegedtime     4
-            elapsedtime        4
-            handlecount        4
-            pagefaults         8
-            pagefilebytes      8
-            pagefilebytespeak  8
-            poolnonpagedbytes  8
-            poolnonpagedbytespeak  8
-            poolpagedbytes     8
-            poolpagedbytespeak 8
-            threadcount        4
-            virtualbytes       8
-            virtualbytespeak   8
-            workingset         8
-            workingsetpeak     8
-            ioreadops         16
-            iowriteops        16
-            iootherops        16
-            ioreadbytes       16
-            iowritebytes      16
-            iootherbytes      16
-            tids              32
-        }
-    }
-
-    # Note -user is also a potential token opt but not listed above
-    # because it can be gotten by other means
-    set token_opts {
-        virtualized
-        elevation
-        integrity
-        integritylabel
-        groups
-        restrictedgroups
-        groupattrs
-        restrictedgroupattrs
-        primarygroup
-        primarygroupsid
-        privileges
-        enabledprivileges
-        disabledprivileges
-        logonsession
-    }
-
-    array set opts [parseargs args \
-                        [concat [list all \
-                                     user \
-                                     path \
-                                     commandline \
-                                     priorityclass \
-                                     [list noexist.arg "(no such process)"] \
-                                     [list noaccess.arg "(unknown)"] \
-                                     matchpids.arg] \
-                             [array names ::twapi::get_multiple_process_info_base_opts] \
-                             $token_opts] -maxleftover 0]
-
-    if {[info exists opts(matchpids)]} {
-        set pids $opts(matchpids)
-    } else {
-        set pids [Twapi_GetProcessList -1 0]
-    }
-
-    array set results {}
-    set now [clock seconds]
-
-    # If user is requested, try getting it through terminal services
-    # if possible since the token method fails on some newer platforms
-    if {$opts(all) || $opts(user)} {
-        _get_wts_pids wtssids wtsnames
-    }
-
-    # See if any Twapi_GetProcessList options are requested and if
-    # so, calculate the appropriate flags
-    set baseflags 0
-    foreach opt [array names ::twapi::get_multiple_process_info_base_opts] {
-        if {$opts($opt) || $opts(all)} {
-            set baseflags [expr {$baseflags | $::twapi::get_multiple_process_info_base_opts($opt)}]
-        }
-    }
-    set basenoexistvals {}
-    if {$baseflags} {
-        foreach opt {
-            pid
-            name
-            createtime
-            usertime
-            privilegedtime
-            handlecount
-            pagefaults
-            pagefilebytes
-            pagefilebytespeak
-            poolnonpagedbytes
-            poolnonpagedbytespeak
-            poolpagedbytespeak
-            poolpagedbytes
-            basepriority
-            threadcount
-            virtualbytes
-            virtualbytespeak
-            workingset
-            workingsetpeak
-            ioreadops
-            iowriteops
-            iootherops
-            ioreadbytes
-            iowritebytes
-            iootherbytes
-            parent
-            tssession
-        } {
-            if {$opts($opt) || $opts(all)} {
-                lappend basefields -$opt
-                lappend basenoexistvals -$opt $opts(noexist)
-            }
-        }
-
-        set pidarg [expr {[llength $pids] == 1 ? [lindex $pids 0] : -1}]
-        set data [twapi::Twapi_GetProcessList $pidarg $baseflags]
-        if {$opts(all) || $opts(elapsedtime) || $opts(tids)} {
-            array set baserawdata [recordarray getdict $data -key "-pid" -format dict]
-        }
-        if {[info exists basefields]} {
-            array set results [recordarray getdict $data -slice $basefields -format dict -key "-pid"]
-        }
-    } else {
-        array set results {}
-    }
-    # If all we need are baseline options, and no massaging is required
-    # (as for elapsedtime, for example), we can return what we have
-    # without looping through below. Saves significant time.
-    if {[llength [_array_non_zero_switches opts [concat $token_opts [list user elapsedtime tids path commandline priorityclass]] $opts(all)]] == 0} {
-        set return_data {}
-        foreach pid $pids {
-            if {[info exists results($pid)]} {
-                lappend return_data $pid $results($pid)
-            } else {
-                lappend return_data $pid $basenoexistvals
-            }
-        }
-        return $return_data
-    }
-
-    set requested_token_opts {}
-    foreach opt $token_opts {
-        if {$opts(all) || $opts($opt)} {
-            lappend requested_token_opts -$opt
-        }
-    }
-
-    foreach pid $pids {
-        # If base values were requested, but this pid does not exist
-        # use the "noexist" values
-        if {![info exists results($pid)]} {
-            set results($pid) $basenoexistvals
-        }
-        
-        if {$opts(elapsedtime) || $opts(all)} {
-            if {[info exists baserawdata($pid)]} {
-                set elapsed [twapi::kl_get $baserawdata($pid) -createtime]
-                if {$elapsed} {
-                    lappend results($pid) -elapsedtime [expr {$now-[large_system_time_to_secs $elapsed]}]
-                } else {
-                    # For some processes like, System and Idle, kernel
-                    # returns start time of 0. Just use system uptime
-                    lappend results($pid) -elapsedtime [get_system_uptime]
-                }
-            } else {
-                lappend results($pid) -elapsedtime $opts(noexist)
-            }
-        }
-
-        if {$opts(tids) || $opts(all)} {
-            if {[info exists baserawdata($pid)]} {
-                lappend results($pid) -tids [recordarray column [kl_get $baserawdata($pid) Threads] -tid]
-            } else {
-                lappend results($pid) -tids $opts(noexist)
-            }
-        }
-
-        if {$opts(all) || $opts(path)} {
-            lappend results($pid) -path [get_process_path $pid -noexist $opts(noexist) -noaccess $opts(noaccess)]
-        }
-
-        if {$opts(all) || $opts(priorityclass)} {
-            trap {
-                set prioclass [get_priority_class $pid]
-            } onerror {TWAPI_WIN32 5} {
-                set prioclass $opts(noaccess)
-            } onerror {TWAPI_WIN32 87} {
-                set prioclass $opts(noexist)
-            }
-            lappend results($pid) -priorityclass $prioclass
-        }
-
-        if {$opts(all) || $opts(commandline)} {
-            lappend results($pid) -commandline [get_process_commandline $pid -noexist $opts(noexist) -noaccess $opts(noaccess)]
-        }
-
-        # Now get token related info, if any requested
-        set requested_opts $requested_token_opts
-        if {$opts(all) || $opts(user)} {
-            # See if we already have the user. Note sid of system idle
-            # will be empty string
-            if {[info exists wtssids($pid)]} {
-                if {$wtssids($pid) == ""} {
-                    # Put user as System
-                    lappend results($pid) -user "SYSTEM"
-                } else {
-                    # We speed up account lookup by caching sids
-                    if {[info exists sidcache($wtssids($pid))]} {
-                        lappend results($pid) -user $sidcache($wtssids($pid))
-                    } else {
-                        set uname [lookup_account_sid $wtssids($pid)]
-                        lappend results($pid) -user $uname
-                        set sidcache($wtssids($pid)) $uname
-                    }
-                }
-            } else {
-                lappend requested_opts -user
-            }
-        }
-        if {[llength $requested_opts]} {
-            trap {
-                set results($pid) [concat $results($pid) [_token_info_helper -pid $pid {*}$requested_opts]]
-            } onerror {TWAPI_WIN32 5} {
-                foreach opt $requested_opts {
-                    set tokresult($opt) $opts(noaccess)
-                }
-                # The NETWORK SERVICE and LOCAL SERVICE processes cannot
-                # be accessed. If we are looking for the logon session for
-                # these, try getting it from the witssid if we have it
-                # since the logon session is hardcoded for these accounts
-                if {"-logonsession" in  $requested_opts} {
-                    if {![info exists wtssids]} {
-                        _get_wts_pids wtssids wtsnames
-                    }
-                    if {[info exists wtssids($pid)]} {
-                        # Map user SID to logon session
-                        switch -exact -- $wtssids($pid) {
-                            S-1-5-18 {
-                                # SYSTEM
-                                set tokresult(-logonsession) 00000000-000003e7
-                            }
-                            S-1-5-19 {
-                                # LOCAL SERVICE
-                                set tokresult(-logonsession) 00000000-000003e5
-                            }
-                            S-1-5-20 {
-                                # LOCAL SERVICE
-                                set tokresult(-logonsession) 00000000-000003e4
-                            }
-                        }
-                    }
-                }
-
-                # Similarly, if we are looking for user account, special case
-                # system and system idle processes
-                if {"-user" in  $requested_opts} {
-                    if {[is_idle_pid $pid] || [is_system_pid $pid]} {
-                        set tokresult(-user) SYSTEM
-                    }
-                }
-
-                set results($pid) [concat $results($pid) [array get tokresult]]
-            } onerror {TWAPI_WIN32 87} {
-                foreach opt $requested_opts {
-                    if {$opt eq "-user" && ([is_idle_pid $pid] || [is_system_pid $pid])} {
-                        lappend results($pid) $opt SYSTEM
-                    } else {
-                        lappend results($pid) $opt $opts(noexist)
-                    }
-                }
-            }
-        }
-    }
-
-    return [array get results]
-}
-
-
-# Get multiple process information
-# TBD - document and write tests
-proc twapi::gmpi {args} {
 
     # Options that are directly available from Twapi_GetProcessList
     # Dict value is the flags to pass to Twapi_GetProcessList
@@ -1061,8 +771,8 @@ proc twapi::gmpi {args} {
                      [dict keys $base_opts] \
                      [dict keys $base_calc_opts] \
                      $token_opts]
-
     array set opts [parseargs args $optdefs -maxleftover 0]
+    set opts(pid) 1; # Always return pid, -pid option is for backward compat
 
     if {[info exists opts(matchpids)]} {
         set pids $opts(matchpids)
@@ -1154,6 +864,7 @@ proc twapi::gmpi {args} {
         }
     }
 
+    set fields2 {};             # In case $pids is empty
     foreach pid $pids {
         set fields2 {}
         if {$opts(elapsedtime) || $opts(all)} {
@@ -1216,21 +927,21 @@ proc twapi::gmpi {args} {
         # at the end in a fixed order
         set token_records {}
         set requested_opts $requested_token_opts
+        unset -nocomplain user
         if {$opts(all) || $opts(user)} {
             # See if we already have the user. Note sid of system idle
             # will be empty string
             if {[info exists wtssids($pid)]} {
                 if {$wtssids($pid) == ""} {
                     # Put user as System
-                    dict lappend token_records $pid -user "SYSTEM"
+                    set user SYSTEM
                 } else {
                     # We speed up account lookup by caching sids
                     if {[info exists sidcache($wtssids($pid))]} {
-                        dict lappend token_records $pid -user $sidcache($wtssids($pid))
+                        set user $sidcache($wtssids($pid))
                     } else {
-                        set uname [lookup_account_sid $wtssids($pid)]
-                        dict lappend token_records $pid -user $uname
-                        set sidcache($wtssids($pid)) $uname
+                        set user [lookup_account_sid $wtssids($pid)]
+                        set sidcache($wtssids($pid)) $user
                     }
                 }
             } else {
@@ -1276,15 +987,18 @@ proc twapi::gmpi {args} {
                 # system and system idle processes
                 if {"-user" in  $requested_opts} {
                     if {[is_idle_pid $pid] || [is_system_pid $pid]} {
-                        dict set token_records $pid -user SYSTEM
+                        set user SYSTEM
                     }
                 }
 
-                set results($pid) [concat $results($pid) [array get tokresult]]
             } onerror {TWAPI_WIN32 87} {
                 foreach opt $requested_opts {
-                    if {$opt eq "-user" && ([is_idle_pid $pid] || [is_system_pid $pid])} {
-                        dict set token_records $pid $opt SYSTEM
+                    if {$opt eq "-user"} {
+                        if {[is_idle_pid $pid] || [is_system_pid $pid]} {
+                            set user SYSTEM
+                        } else {
+                            set user $opts(noexist)
+                        }
                     } else {
                         dict set token_records $pid $opt $opts(noexist)
                     }
@@ -1293,13 +1007,13 @@ proc twapi::gmpi {args} {
         }
 
         # Now add token fields in a specific order.
-        if {[dict exists $token_records $pid -user]} {
+        if {$opts(all) || $opts(user)} {
             lappend fields2 -user
-            dict lappend records $pid [dict get $token_records $pid -user]
+            dict lappend records $pid $user
         }
         foreach opt $requested_token_opts {
             if {[dict exists $token_records $pid $opt]} {
-                lappend fields2 -$opt
+                lappend fields2 $opt
                 dict lappend records $pid [dict get $token_records $pid $opt]
             }
         }
