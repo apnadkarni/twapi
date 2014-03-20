@@ -359,7 +359,7 @@ Returns the PID of the process corresponding to the process handle
 [call [cmd get_priority_class] [arg PID]]
 Returns the scheduling priority class of the process with id [arg PID].
 
-[call [cmd get_process_commandline] [arg PID]]
+[call [cmd get_process_commandline] [arg PID] [opt [arg options]]]
 Returns the command line with which the process with id [arg PID] was invoked.
 The following options may be specified with the command.
 [list_begin opt]
