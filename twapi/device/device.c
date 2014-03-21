@@ -1063,6 +1063,57 @@ static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationByHwnd(HWND hw
     return dncP;
 }
 
+static int Twapi_DeviceIoControlObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    HANDLE   hdev;
+    Tcl_Obj *inputObj;
+    DWORD    ctrl;
+    void    *inP, *outP;
+    DWORD    nin, nout;
+    MemLifo *memlifoP = ticP->memlifoP;
+    MemLifoMarkHandle mark;
+    TCL_RESULT res;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETHANDLE(hdev), GETINT(ctrl),
+                     ARGUSEDEFAULT, GETOBJ(inputObj),
+                     GETINT(nout),
+                     ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    mark = MemLifoPushMark(memlifoP);
+    /* NOTE mark HAS TO BE POPPED ON ALL EXITS */
+
+    if (inputObj) {
+        res = ParseCStruct(interp, memlifoP, inputObj, &nin, &inP);
+    } else {
+        inP = NULL;
+        nin = 0; 
+        res = TCL_OK;
+    }
+
+    if (res == TCL_OK) {
+        if (nout)
+            outP = MemLifoAlloc(memlifoP, nout, &nout);
+        else
+            outP = NULL;
+
+        /* We currently to do not bother with failing due to buffer being
+           too small. Caller should handle that case
+           (ERROR_INSUFFICIENT_BUFFER or ERROR_MORE_DATA) */
+        if (DeviceIoControl(hdev, ctrl, inP, nin, outP, nout, &nout, NULL)) {
+            if (outP && nout) {
+                ObjSetResult(interp, ObjFromByteArray(outP, nout));
+            }
+            res = TCL_OK;
+        } else
+            res = TwapiReturnSystemError(interp);
+    }
+
+    MemLifoPopMark(mark);
+    return res;
+}
+
 static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int func;
@@ -1193,20 +1244,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         break;
     case 68:
         return Twapi_SetupDiClassGuidsFromNameEx(ticP, objc-2, objv+2);
-    case 69:
-        if (TwapiGetArgs(interp, objc-2, objv+2,
-                         GETHANDLE(h),   GETINT(dw),
-                         GETVOIDP(pv),   GETINT(dw2),
-                         GETVOIDP(pv2),  GETINT(dw3),
-                         ARGUSEDEFAULT,
-                         GETVOIDP(pv3),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        if (DeviceIoControl(h, dw, pv, dw2, pv2, dw3,
-                            &result.value.uval, pv3))
-            result.type = TRT_DWORD;
-        else
-            result.type = TRT_GETLASTERROR;
+    case 69: // UNUSED
         break;
     case 70:
         if (objc != 3)
@@ -1244,7 +1282,6 @@ static int TwapiDeviceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(device_setup_class_guid_to_name, 66), //SetupDiClassNameFromGuidEx
         DEFINE_ALIAS_CMD(get_device_element_instance_id, 67), //SetupDiGetDeviceInstanceId
         DEFINE_ALIAS_CMD(SetupDiClassGuidsFromNameEx, 68),
-        DEFINE_ALIAS_CMD(DeviceIoControl, 69),
         DEFINE_ALIAS_CMD(close_devinfoset, 70), //SetupDiDestroyDeviceInfoList
         DEFINE_ALIAS_CMD(Twapi_RegisterDeviceNotification, 71),
         DEFINE_ALIAS_CMD(Twapi_UnregisterDeviceNotification, 72),
@@ -1252,6 +1289,7 @@ static int TwapiDeviceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     /* Create the underlying call dispatch commands */
     Tcl_CreateObjCommand(interp, "twapi::DeviceCall", Twapi_DeviceCallObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::DeviceIoControl", Twapi_DeviceIoControlObjCmd, ticP, NULL);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(DeviceAliasDispatch), DeviceAliasDispatch, "twapi::DeviceCall");
 
     return TCL_OK;

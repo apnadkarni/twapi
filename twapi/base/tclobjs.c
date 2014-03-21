@@ -4682,9 +4682,16 @@ TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
     void *pv;
 
     if (ObjGetElements(interp, csvalObj, &nobjs, &objPP) != TCL_OK ||
-        nobjs != 2)
+        (nobjs != 0 && nobjs != 2))
         goto invalid_def;
         
+    /* Empty string means struct pointer is treated as NULL */
+    if (nobjs == 0) {
+        *sizeP = 0;
+        *ppv = NULL;
+        return TCL_OK;
+    }
+
     if (ObjCastToCStruct(interp, objPP[0]) != TCL_OK)
         return TCL_ERROR;
 
