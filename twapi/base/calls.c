@@ -1404,7 +1404,9 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
     TwapiId twapi_id;
     DWORD dw, dw2;
     HANDLE h;
+    void *pv;
     Tcl_Obj *objP = NULL;
+    MemLifoMarkHandle mark;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -1471,16 +1473,38 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
         } else
             return TwapiReturnError(interp, TWAPI_INVALID_COMMAND_SCOPE);
         break;
-#if TWAPI_ENABLE_INSTRUMENTATION
     case 10:
+#if TWAPI_ENABLE_INSTRUMENTATION
         result.type = TRT_OBJ;
         result.value.obj = Twapi_GetAtomStats(ticP);
+#endif
         break;
     case 11:
+#if TWAPI_ENABLE_INSTRUMENTATION
         result.type = TRT_OBJ;
         result.value.obj = Twapi_GetAtoms(ticP);
-        break;
 #endif
+        break;
+    case 12: // cstruct - WILL NOT WORK WITH string and wstring ! For limited tests only
+#if TWAPI_ENABLE_INSTRUMENTATION
+        CHECK_NARGS(interp, objc, 1);
+        mark = MemLifoPushMark(ticP->memlifoP);
+        result.value.ival = ParseCStruct(interp, ticP->memlifoP, objv[0], &dw, &pv);
+        if (result.value.ival != TCL_OK)
+            result.type = TRT_TCL_RESULT;
+        else {
+            result.value.obj = ObjFromByteArray(pv, dw);
+            result.type = TRT_OBJ;
+        }
+        MemLifoPopMark(mark);
+#endif
+        break;
+    case 13: //cstruct_def_dump
+#if TWAPI_ENABLE_INSTRUMENTATION
+        CHECK_NARGS(interp, objc, 1);
+        return TwapiCStructDefDump(interp, objv[0]);
+#endif        
+        break;
     }
 
 
@@ -2407,10 +2431,10 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(Twapi_RegisterWaitOnHandle, 7),
         DEFINE_ALIAS_CMD(trapresult, 8),
         DEFINE_ALIAS_CMD(trapoptions, 9),
-#if TWAPI_ENABLE_INSTRUMENTATION
         DEFINE_ALIAS_CMD(atomstats, 10),
         DEFINE_ALIAS_CMD(atoms, 11),
-#endif
+        DEFINE_ALIAS_CMD(cstruct, 12),
+        DEFINE_ALIAS_CMD(cstruct_dumpdef, 13),
     };
 
     struct tcl_dispatch_s TclDispatch[] = {

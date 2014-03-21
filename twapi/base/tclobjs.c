@@ -4514,7 +4514,8 @@ typedef struct TwapiCStructField_s {
                                    treated as a list and first element used.
                                    If 0, scalar */
     unsigned int offset;        /* Offset from beginning of structure */
-    char size;             /* Size of the field */
+    unsigned int size;          /* Size of the field. As int as we may allow
+                                   nesting in the future */
     char type;                  /* The type of the field */
 } TwapiCStructField;
 #define CSTRUCT_REP(o_)    ((TwapiCStructRep *)((o_)->internalRep.twoPtrValue.ptr1))
@@ -4567,7 +4568,7 @@ TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
     Tcl_Obj **fieldObjs;
     int       i, nfields;
     TwapiCStructRep *csP = NULL;
-    unsigned int offset, first_elem_size;
+    unsigned int offset, struct_alignment;
     TCL_RESULT res;
 
     if (csObj->typePtr == &gCStructType)
@@ -4587,6 +4588,7 @@ TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
     csP->nrefs = 1;
     csP->nfields = nfields;
     
+    struct_alignment = 1;
     /* Now parse all the elements */
     for (offset = 0, i = 0; i < nfields; ++i) {
         Tcl_Obj **defObjs;      /* Field definition elements */
@@ -4595,7 +4597,7 @@ TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
         int       deftype;
         int       elem_size;
 
-        if (ObjGetElements(interp, csObj, &ndefs, &defObjs) != TCL_OK ||
+        if (ObjGetElements(interp, fieldObjs[i], &ndefs, &defObjs) != TCL_OK ||
             ndefs == 0 || ndefs > 2 ||
             Tcl_GetIndexFromObj(interp, defObjs[0], cstruct_types, "type", TCL_EXACT, &deftype) != TCL_OK ||
             (ndefs == 2 &&
@@ -4613,16 +4615,18 @@ TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
         case CSTRUCT_STRING: elem_size = sizeof(char*); break;
         case CSTRUCT_WSTRING: elem_size = sizeof(WCHAR *); break;
         case CSTRUCT_STRUCTSIZE:
+            /* NOTE : if there are any strings in the struct,
+               this does not include storage for the string themselves */
             if (array_size)
                 goto invalid_def; /* Cannot be an array */
             elem_size = sizeof(int);
             break;
         }
 
-        if (i == 0)
-            first_elem_size = elem_size;
+        if (elem_size > struct_alignment)
+            struct_alignment = elem_size;
         /* See if offset needs to be aligned */
-        offset = (offset + elem_size -1) & ~(elem_size -1);
+        offset = (offset + elem_size - 1) & ~(elem_size - 1);
         csP->fields[i].offset = offset;
         csP->fields[i].count = array_size;
         csP->fields[i].type = deftype;
@@ -4635,7 +4639,7 @@ TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
     }
 
     /* Whole structure has to be aligned */
-    csP->size = (offset + first_elem_size - 1) & ~(first_elem_size -1);
+    csP->size = (offset + struct_alignment - 1) & ~(struct_alignment - 1);
 
     /* OK, valid opaque rep. Convert the passed object's internal rep */
     if (csObj->typePtr && csObj->typePtr->freeIntRepProc) {
@@ -4658,7 +4662,7 @@ error_return:
 
 /* Caller responsible for cleanup for memlifoP in all cases, success or error */
 TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
-                         Tcl_Obj *csvalObj, void **ppv)
+                         Tcl_Obj *csvalObj, DWORD *sizeP, void **ppv)
 {
     Tcl_Obj **objPP;
     int i, nobjs;
@@ -4670,10 +4674,13 @@ TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
         nobjs != 2)
         goto invalid_def;
         
+    if (ObjCastToCStruct(interp, objPP[0]) != TCL_OK)
+        return TCL_ERROR;
+
     csP = CSTRUCT_REP(objPP[0]);
     csP->nrefs += 1;            /* So it is not shimmered away underneath us */
     
-    if (ObjGetElements(interp, csvalObj, &nobjs, &objPP) != TCL_OK ||
+    if (ObjGetElements(interp, objPP[1], &nobjs, &objPP) != TCL_OK ||
         nobjs != csP->nfields)  /* Not correct number of values */
         goto invalid_def;
     
@@ -4683,7 +4690,8 @@ TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
         void *pv2 = ADDPTR(pv, csP->fields[i].offset, void*);
         Tcl_Obj **arrayObj;
         int       nelems;        /* # elements in array */
-        int j, elem_size;
+        void *s;
+        int j, elem_size, len;
         TCL_RESULT (*fn)(Tcl_Interp *, Tcl_Obj *, void *);
 
         /* count > 0 => array and source obj is a list (even if count == 1) */
@@ -4704,9 +4712,29 @@ TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
         case CSTRUCT_INT64: fn = ObjToWideInt; break;
         case CSTRUCT_DOUBLE: fn = ObjToDouble; break;
         case CSTRUCT_STRING:
-            break;
+            if (count) {
+                for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
+                    s = ObjToStringN(arrayObj[j], &len);
+                    *(char **)pv2 = MemLifoCopy(memlifoP, s, len);
+                }                
+            } else {
+                s = ObjToStringN(objPP[i], &len);
+                *(char **)pv2 = MemLifoCopy(memlifoP, s, len);
+            }
+            continue;
+
         case CSTRUCT_WSTRING:
-            break;
+            if (count) {
+                for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
+                    s = ObjToUnicodeN(arrayObj[j], &len);
+                    *(char **)pv2 = MemLifoCopy(memlifoP, s, len);
+                }
+            } else {
+                s = ObjToUnicodeN(objPP[i], &len);
+                *(char **)pv2 = MemLifoCopy(memlifoP, s, sizeof(WCHAR)*len);
+            }
+            continue;
+
         case CSTRUCT_STRUCTSIZE:
             TWAPI_ASSERT(count == 0);
             fn = ObjToInt;
@@ -4714,7 +4742,6 @@ TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
         }
 
         if (count) {
-            int j;
             for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
                 if (fn(interp, arrayObj[j], pv2) != TCL_OK)
                         goto error_return;
@@ -4733,6 +4760,7 @@ TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
     }
     
     *ppv = pv;
+    *sizeP = csP->size;
     CStructRepDecrRefs(csP);
     return TCL_OK;
 
@@ -4745,3 +4773,28 @@ error_return:
     return TCL_ERROR;
 }
 
+#if TWAPI_ENABLE_INSTRUMENTATION
+TCL_RESULT TwapiCStructDefDump(Tcl_Interp *interp, Tcl_Obj *csObj)
+{
+    TwapiCStructRep *csP = NULL;
+    Tcl_Obj *objP;
+    int i;
+
+    if (ObjCastToCStruct(interp, csObj) != TCL_OK)
+            return TCL_ERROR;
+        
+    csP = CSTRUCT_REP(csObj);
+    objP = Tcl_ObjPrintf("nrefs=%d, nfields=%d, size=%d",
+                     csP->nrefs, csP->nfields, csP->size);
+    for (i = 0; i < csP->nfields; ++i) {
+        Tcl_AppendPrintfToObj(objP, "\n\tField %d: count=%d, offset=%d, size=%d, type=%d",
+                              i,
+                              csP->fields[i].count,
+                              csP->fields[i].offset, 
+                              csP->fields[i].size,
+                              csP->fields[i].type);
+    }
+    ObjSetResult(interp, objP);
+    return TCL_OK;
+}
+#endif
