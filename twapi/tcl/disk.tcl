@@ -55,7 +55,7 @@ proc twapi::get_volume_info {drive args} {
         if {! [_is_unc $drive]} {
             trap {
                 set device_handle [create_file "\\\\.\\[string range $drive 0 1]" -createdisposition open_existing]
-                set bin [device_ioctl $device_handle 0x560000]
+                set bin [device_ioctl $device_handle 0x560000 -outputcount 32]
                 if {[binary scan $bin i nextents] != 1} {
                     error "Truncated information returned from ioctl 0x560000"
                 }

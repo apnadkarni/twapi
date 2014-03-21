@@ -1485,7 +1485,7 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
         result.value.obj = Twapi_GetAtoms(ticP);
 #endif
         break;
-    case 12: // cstruct - WILL NOT WORK WITH string and wstring ! For limited tests only
+    case 12: // cstruct_binary - WILL NOT WORK WITH string and wstring ! For limited tests only
 #if TWAPI_ENABLE_INSTRUMENTATION
         CHECK_NARGS(interp, objc, 1);
         mark = MemLifoPushMark(ticP->memlifoP);

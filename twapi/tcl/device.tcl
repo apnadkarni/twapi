@@ -345,58 +345,14 @@ proc twapi::_device_registry_sym_to_code {sym} {
 }
 
 # Do a device ioctl, returning result as a binary
+# TBD - document that caller has to handle errors 122 (ERROR_INSUFFICIENT_BUFFER) and (ERROR_MORE_DATA)
 proc twapi::device_ioctl {h code args} {
-    variable _ioctl_membuf;     # Memory buffer is reused so we do not allocate every time
-    variable _ioctl_membuf_size
-
     array set opts [parseargs args {
-        {inputbuffer.arg NULL}
-        {inputcount.int 0}
+        {input.arg {}}
+        {outputcount.int 0}
     } -maxleftover 0]
 
-    if {![info exists _ioctl_membuf]} {
-        set _ioctl_membuf_size 128
-        set _ioctl_membuf [malloc $_ioctl_membuf_size]
-    }
-
-    # Note on an exception error, the output buffer stays allocated.
-    # That is not a bug.
-    while {true} {
-        trap {
-            # IMPORTANT NOTE: the last parameter OVERLAPPED must be NULL
-            # since device_ioctl is not reentrant (because of the use
-            # of the "static" output buffer) and hence must not
-            # be used in asynchronous operation where it might be called
-            # before the previous call has finished.
-            set outcount [DeviceIoControl $h $code $opts(inputbuffer) $opts(inputcount) $_ioctl_membuf $_ioctl_membuf_size NULL]
-        } onerror {TWAPI_WIN32 122} {
-            # Need to reallocate buffer. The seq below is such that
-            # _ioctl_membuf is valid at all times, even when
-            # there is a no memory exception.
-            set newsize [expr {$_ioctl_membuf_size * 2}]
-            set newbuf [malloc $newsize]
-            # Now that we got a new buffer without an exception, set the
-            # buffer variables
-            set _ioctl_membuf $newbuf
-            set _ioctl_membuf_size $newsize
-            # Loop back to retry
-            continue
-        }
-
-        # Fine, got what we wanted. Break out of the loop
-        break
-    }
-
-    set bin [Twapi_ReadMemory 1 $_ioctl_membuf 0 $outcount]
-
-    # Do not hold on to cache memory is it is too big
-    if {$_ioctl_membuf_size >= 1000} {
-        free $_ioctl_membuf
-        unset _ioctl_membuf
-        set _ioctl_membuf_size 0
-    }
-
-    return $bin
+    return [DeviceIoControl $h $code $opts(input) $opts(outputcount)]
 }
 
 
