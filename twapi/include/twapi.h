@@ -1282,13 +1282,20 @@ TWAPI_EXTERN void ObjDecrArrayRefs(int, Tcl_Obj *objv[]);
 
 TWAPI_EXTERN TCL_RESULT ObjToEnum(Tcl_Interp *interp, Tcl_Obj *enumsObj, Tcl_Obj *nameObj, int *valP);
 TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj);
-TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
+TWAPI_EXTERN TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
                          Tcl_Obj *csvalObj, DWORD *sizeP, void **ppv);
-
+TWAPI_EXTERN TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes, Tcl_Obj *csObj, Tcl_Obj **objPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromOpaque(void *pv, char *name);
-#define ObjFromHANDLE(h) ObjFromOpaque((h), "HANDLE")
-#define ObjFromHWND(h) ObjFromOpaque((h), "HWND")
-#define ObjFromLPVOID(p) ObjFromOpaque((p), NULL)
+
+TWAPI_INLINE Tcl_Obj *ObjFromHANDLE(HANDLE h) {
+    return ObjFromOpaque(h, "HANDLE");
+}
+TWAPI_INLINE Tcl_Obj *ObjFromHWND(HWND hwnd) {
+    return ObjFromOpaque(hwnd, "HWND");
+}
+TWAPI_INLINE Tcl_Obj *ObjFromLPVOID(void *p) {
+    return ObjFromOpaque(p, NULL);
+}
 
 /* The following macros assume objP_ typePtr points to Twapi's gVariantType */
 #define VARIANT_REP_VALUE(objP_) ((objP_)->internalRep.ptrAndLongRep.ptr)
@@ -1310,8 +1317,6 @@ TWAPI_EXTERN TCL_RESULT ObjToLPVOID(Tcl_Interp *interp, Tcl_Obj *objP, HANDLE *p
 #define ObjToHANDLE ObjToLPVOID
 #define ObjToHWND(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HWND")
 
-/* Unsigned ints/longs need to be promoted to wide ints when converting to Tcl_Obj*/
-#define ObjFromDWORD(dw_) ObjFromWideInt((DWORD)(dw_))
 #define ObjFromULONG      ObjFromDWORD
 #define ObjToDWORD        ObjToLong
 
@@ -1323,6 +1328,11 @@ TWAPI_EXTERN TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *lvalP
 #define ObjToInt ObjToLong
 
 TWAPI_EXTERN Tcl_Obj *ObjFromWideInt(Tcl_WideInt val);
+/* Unsigneds need to be promoted to wide ints when converting to Tcl_Obj*/
+TWAPI_INLINE Tcl_Obj *ObjFromDWORD(DWORD dw) {
+    return ObjFromWideInt(dw);
+}
+
 TWAPI_EXTERN TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP);
 TWAPI_EXTERN Tcl_Obj *ObjFromDouble(double val);
 TWAPI_EXTERN TCL_RESULT ObjToDouble(Tcl_Interp *interp, Tcl_Obj *objP, double *);

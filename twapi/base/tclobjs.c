@@ -4557,8 +4557,10 @@ static void UpdateCStructTypeString(Tcl_Obj *objP)
     Tcl_Panic("UpdateCStructTypeString called.");
 }
 
+/* These string are chosen to match the ones used in VARIANT. No
+   particular reason, just consistency */
 static const char *cstruct_types[] = {
-    "boolean", "char", "uchar", "short", "ushort", "int", "uint", "int64", "uint64", "double", "string", "wstring", "cbsize", "handle", NULL
+    "bool", "i1", "ui1", "i2", "ui2", "i4", "ui4", "i8", "ui8", "r8", "lpstr", "lpwstr", "cbsize", "handle", NULL
 };
 enum cstruct_types_enum {
     CSTRUCT_BOOLEAN, CSTRUCT_CHAR, CSTRUCT_UCHAR, CSTRUCT_SHORT, CSTRUCT_USHORT, CSTRUCT_INT, CSTRUCT_UINT, CSTRUCT_INT64, CSTRUCT_UINT64,
@@ -4797,6 +4799,73 @@ error_return:
         CStructRepDecrRefs(csP);
     return TCL_ERROR;
 }
+
+TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes, Tcl_Obj *csObj, Tcl_Obj **objPP)
+{
+    TwapiCStructRep *csP = NULL;
+    Tcl_Obj *objs[32];          /* Assume no more than 32 fields in a struct */
+    int i;
+
+    if (ObjCastToCStruct(interp, csObj) != TCL_OK)
+        return TCL_ERROR;
+
+    csP = CSTRUCT_REP(objPP[0]);
+    
+    if (nbytes != 0 && nbytes != csP->size) 
+        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "Size mismatch with cstruct definition");
+
+    if (csP->nfields > ARRAYSIZE(objs))
+        return TwapiReturnErrorMsg(interp, TWAPI_INTERNAL_LIMIT, "Not enough space to decode all cstruct fields");
+
+    TWAPI_ASSERT(csP->nrefs > 0);
+    csP->nrefs += 1;            /* So it is not shimmered away underneath us */
+    for (i = 0; i < csP->nfields; ++i) {
+        int count = csP->fields[i].count;
+        void *pv2 = ADDPTR(pv, csP->fields[i].offset, void*);
+        Tcl_Obj *arrayObj;
+        int       nelems;        /* # elements in array */
+        void *s;
+        int j, elem_size, len;
+        TCL_RESULT (*fn)(Tcl_Interp *, Tcl_Obj *, void *);
+
+        elem_size = csP->fields[i].size;
+
+#define EXTRACT(type_, fn_)                                             \
+        do {                                                            \
+            if (count) {                                                \
+                arrayObj = ObjNewList(count, NULL);                     \
+                for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, sizeof(type_), void*)) { \
+                    ObjAppendElement(NULL, arrayObj, (fn_)(*(type_ *)pv2)); \
+                }                                                       \
+                objs[i] = arrayObj;                                     \
+            } else                                                      \
+                objs[i] = (fn_)(*(type_ *)pv2);                         \
+        } while (0)
+        switch (csP->fields[i].type) {
+        case CSTRUCT_BOOLEAN: EXTRACT(int, ObjFromBoolean); break;
+        case CSTRUCT_CHAR: EXTRACT(char, ObjFromInt); break;
+        case CSTRUCT_UCHAR: EXTRACT(unsigned char, ObjFromInt); break;
+        case CSTRUCT_SHORT: EXTRACT(short, ObjFromInt); break;
+        case CSTRUCT_USHORT: EXTRACT(unsigned short, ObjFromInt); break;
+        case CSTRUCT_INT: EXTRACT(int, ObjFromInt); break;
+        case CSTRUCT_UINT: EXTRACT(DWORD, ObjFromWideInt); break;
+        case CSTRUCT_INT64: EXTRACT(__int64, ObjFromWideInt); break;
+        case CSTRUCT_UINT64: EXTRACT(__int64, ObjFromWideInt); break; // TBD-handles unsigned ?
+        case CSTRUCT_DOUBLE: EXTRACT(double, ObjFromDouble); break;
+        case CSTRUCT_HANDLE: EXTRACT(HANDLE, ObjFromHANDLE); break;
+        case CSTRUCT_STRING: EXTRACT(char*, ObjFromString); break;
+        case CSTRUCT_WSTRING: EXTRACT(WCHAR*, ObjFromUnicode); break;
+        case CSTRUCT_CBSIZE: EXTRACT(DWORD, ObjFromDWORD); break;
+        }
+    }
+    
+    *objPP = ObjNewList(csP->nfields, objs);
+    if (csP)
+        CStructRepDecrRefs(csP);
+    return TCL_OK;
+}
+
+
 
 #if TWAPI_ENABLE_INSTRUMENTATION
 TCL_RESULT TwapiCStructDefDump(Tcl_Interp *interp, Tcl_Obj *csObj)
