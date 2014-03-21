@@ -227,11 +227,7 @@ TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
         }
         pv = (void*) dwp;
         s = ObjToString(objs[1]);
-        if (s[0] == 0
-#ifdef OBSOLETE
-            || STREQ(s, "void*")
-#endif
-            )
+        if (s[0] == 0)
             ctype = NULL;
         else {
             ctype = objs[1];

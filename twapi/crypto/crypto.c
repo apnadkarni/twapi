@@ -1464,34 +1464,6 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     status = ParseCRYPT_KEY_PROV_INFO(ticP, provinfoObj, &kiP);
     if (status != TCL_OK)
         goto vamoose;
-#ifdef OBSOLETE
-    /* Parse CRYPT_KEY_PROV_INFO */
-    if ((status = ObjGetElements(interp, provinfoObj, &nobjs, &objs)) != TCL_OK)
-        goto vamoose;
-
-    if (nobjs == 0)
-        kiP = NULL;
-    else {
-        if (TwapiGetArgsEx(ticP, nobjs, objs,
-                           GETWSTR(ki.pwszContainerName),
-                           GETWSTR(ki.pwszProvName),
-                           GETINT(ki.dwProvType),
-                           GETINT(ki.dwFlags),
-                           GETOBJ(provparaObj),
-                           GETINT(ki.dwKeySpec),
-                           ARGEND) != TCL_OK
-            ||
-            ObjListLength(NULL, provparaObj, &ki.cProvParam) != TCL_OK
-            ||
-            ki.cProvParam != 0) {
-            ObjSetStaticResult(interp, "Invalid or unimplemented provider parameters");
-            status = TCL_ERROR;
-            goto vamoose;
-        }
-        ki.rgProvParam = NULL;
-        kiP = &ki;
-    }
-#endif
 
     /* Parse CRYPT_ALGORITHM_IDENTIFIER */
     if ((status = ObjListLength(interp, algidObj, &nobjs)) != TCL_OK)
@@ -1678,49 +1650,6 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
 
     return TwapiSetResult(interp, &result);
 }
-
-#ifdef OBSOLETE
-static TCL_RESULT Twapi_SetCertContextKeyProvInfo(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
-{
-    PCCERT_CONTEXT certP;
-    CRYPT_KEY_PROV_INFO ckpi;
-    Tcl_Obj **objs;
-    int       nobjs;
-    TCL_RESULT status;
-    Tcl_Obj *connameObj, *provnameObj;
-
-    /* Note - objc/objv have initial command name arg removed by caller */
-    if ((status = TwapiGetArgs(interp, objc, objv,
-                               GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
-                               ARGSKIP, ARGEND)) != TCL_OK)
-        return status;
-
-    if ((status = ObjGetElements(interp, objv[1], &nobjs, &objs)) != TCL_OK)
-        return status;
-
-    /* As always, extract WSTR AFTER other args to avoid shimmering */
-    if ((status = TwapiGetArgs(interp, nobjs, objs,
-                               GETOBJ(connameObj),
-                               GETOBJ(provnameObj),
-                               GETINT(ckpi.dwProvType),
-                               GETINT(ckpi.dwFlags),
-                               ARGSKIP, // cProvParam+rgProvParam
-                               GETINT(ckpi.dwKeySpec),
-                               ARGEND)) != TCL_OK)
-        return status;
-
-    ckpi.cProvParam = 0;
-    ckpi.rgProvParam = NULL;
-
-    ckpi.pwszContainerName = ObjToUnicode(connameObj);
-    ckpi.pwszProvName = ObjToUnicode(provnameObj);
-    if (CertSetCertificateContextProperty(certP, CERT_KEY_PROV_INFO_PROP_ID,
-                                          0, &ckpi))
-        return TCL_OK;
-    else
-        return TwapiReturnSystemError(interp);
-}
-#endif // OBSOLETE Twapi_SetCertContextKeyProvInfo
 
 static TCL_RESULT TwapiCertGetNameString(
     Tcl_Interp *interp,

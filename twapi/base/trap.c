@@ -128,34 +128,7 @@ TCL_RESULT Twapi_TrapObjCmd(
 
 
         if (match) {
-#ifdef OBSOLETE
-            Tcl_Obj *errorResultObjP;
-            /*
-             * This onerror clause matches. Execute the code after importing
-             * the errorCode, errorResult and errorInfo into local scope
-             * We are basically cloning TclX's try_eval command code here
-             */
-            errorResultObjP = ObjDuplicate(ObjGetResult(interp));
-            ObjIncrRefs (errorResultObjP);
-            Tcl_ResetResult (interp);
-
-            /* Import errorResult, errorInfo, errorCode */
-            result = GlobalImport (interp);
-            if (result != TCL_ERROR) {
-                /* Set errorResult variable so script can access it */
-                if (Tcl_SetVar2Ex(interp, "errorResult", NULL,
-                                  errorResultObjP, TCL_LEAVE_ERR_MSG) == NULL) {
-                    result = TCL_ERROR;
-                }
-            }
-            /* If no errors, eval the error handling script */
-            if (result != TCL_ERROR)
-#endif // OBSOLETE
-                result = Tcl_EvalObjEx(interp, objv[i+2], 0);
-
-#ifdef OBSOLETE
-            ObjDecrRefs(errorResultObjP);
-#endif
+            result = Tcl_EvalObjEx(interp, objv[i+2], 0);
             break;              /* Error handling all done */
         }
     }
@@ -213,62 +186,3 @@ pop_and_return:
     return result;
 }
 
-#ifdef OBSOLETE
-/*-----------------------------------------------------------------------------
- * Copied from the TclX code
- * GlobalImport --
- *   Import the errorResult, errorInfo, and errorCode global variable into the
- * current environment by calling the global command directly.
- *
- * Parameters:
- *   o interp (I) - Current interpreter,  Result is preserved.
- * Returns:
- *   TCL_OK or TCL_ERROR.
- *-----------------------------------------------------------------------------
- */
-static int
-GlobalImport (interp)
-    Tcl_Interp *interp;
-{
-    static char global [] = "global";
-    Tcl_Obj *savedResult;
-    Tcl_CmdInfo cmdInfo;
-#define globalObjc (4)
-    Tcl_Obj *globalObjv [globalObjc];
-    int idx, code = TCL_OK;
-
-    savedResult = ObjDuplicate (ObjGetResult (interp));
-
-    if (!Tcl_GetCommandInfo (interp, global, &cmdInfo)) {
-        Tcl_AppendResult (interp, "can't find \"global\" command",
-                              (char *) NULL);
-        goto errorExit;
-    }
-
-    globalObjv [0] = ObjFromString (global);
-    globalObjv [1] = ObjFromString ("errorResult");
-    globalObjv [2] = ObjFromString ("errorInfo");
-    globalObjv [3] = ObjFromString ("errorCode");
-
-    for (idx = 0; idx < globalObjc; idx++) {
-        ObjIncrRefs (globalObjv [idx]);
-    }
-
-    code = (*cmdInfo.objProc) (cmdInfo.objClientData,
-                               interp,
-                               globalObjc,
-                               globalObjv);
-    for (idx = 0; idx < globalObjc; idx++) {
-        ObjDecrRefs (globalObjv [idx]);
-    }
-
-    if (code == TCL_ERROR)
-        goto errorExit;
-
-    return ObjSetResult (interp, savedResult);
-
-  errorExit:
-    ObjDecrRefs (savedResult);
-    return TCL_ERROR;
-}
-#endif
