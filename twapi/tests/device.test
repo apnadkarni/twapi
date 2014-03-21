@@ -76,12 +76,12 @@ namespace eval twapi::device::test {
             # We use regexp because the wmi values have arbitrary whitespace/tabs!
             switch -exact --  $value {
                 11 {
-                    if {![regexp {^Removable\s+media\s+other\s+than\s+floppy$} $wmivalue]} {
+                    if {![string match -nocase "Removable media*" $wmivalue]} {
                         return "Media type $value does not match $wmivalue."
                     }
                 }
                 12 {
-                    if {![regexp {^Fixed\s+hard\s+disk\s+media$} $wmivalue]} {
+                    if {![regexp -nocase {^Fixed\s+hard\s+disk\s+media$} $wmivalue]} {
                         return "Media type $value does not match $wmivalue."
                     }
                 }
