@@ -74,7 +74,7 @@ namespace eval twapi {
                     set type cbsize
                 }
 
-                lappend l [list $name $type $count]
+                lappend l [list $type $count]
             }
             return $l
         }
