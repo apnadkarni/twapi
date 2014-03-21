@@ -43,20 +43,22 @@ namespace eval twapi {
                     set name [string range $name 1 end]
                 }
                 switch -regexp -- [string trim $type] {
-                    {^char$} {set type char}
+                    {^char$} {set type i1}
                     {^BYTE$} -
-                    {^unsigned char$} {set type uchar}
-                    {^short$} {set type uint}
-                    {^unsigned\s+short$} {set type ushort}
-                    {^BOOLEAN$} {set type boolean}
-                    {^int$} {set type int}
+                    {^unsigned char$} {set type ui1}
+                    {^short$} {set type i2}
+                    {^WORD$} -
+                    {^unsigned\s+short$} {set type ui2}
+                    {^BOOLEAN$} {set type bool}
+                    {^int$} {set type i4}
+                    {^ULONG$} -
                     {^DWORD$} -
-                    {^unsigned\s+int$} {set type uint}
-                    {^__int64$} {set type int64}
-                    {^unsigned\s+__int64$} {set type uint64}
-                    {^double$} {set type double}
-                    {^char\s*\*$} {set type string}
-                    {^WCHAR\s*\*$} {set type wstring}
+                    {^unsigned\s+int$} {set type ui4}
+                    {^__int64$} {set type i8}
+                    {^unsigned\s+__int64$} {set type ui8}
+                    {^double$} {set type r8}
+                    {^char\s*\*$} {set type lpstr}
+                    {^WCHAR\s*\*$} {set type lpwstr}
                     {^HANDLE$} {set type handle}
                     default {error "Unknown type $type"}
                 }
