@@ -388,55 +388,41 @@ proc twapi::get_physical_disk_info {disk args} {
     trap {
         if {$opts(all) || $opts(geometry)} {
             # IOCTL_DISK_GET_DRIVE_GEOMETRY - 0x70000
-            if {[binary scan [device_ioctl $h 0x70000] "wiiii" geom(-cylinders) geom(-mediatype) geom(-trackspercylinder) geom(-sectorspertrack) geom(-bytespersector)] != 5} {
+            if {[binary scan [device_ioctl $h 0x70000 -outputcount 24] "wiiii" geom(-cylinders) geom(-mediatype) geom(-trackspercylinder) geom(-sectorspertrack) geom(-bytespersector)] != 5} {
                 error "DeviceIoControl 0x70000 on disk '$disk' returned insufficient data."
             }
             lappend result -geometry [array get geom]
         }
 
         if {$opts(all) || $opts(layout)} {
-            # IOCTL_DISK_GET_DRIVE_LAYOUT_EX is not supported on Win2K
-            if {[min_os_version 5 1] && ![info exists ::twapi::_use_win2k_disk_ioctls]} {
-                # XP and later - IOCTL_DISK_GET_DRIVE_LAYOUT_EX
-                set data [device_ioctl $h 0x70050]
-                if {[binary scan $data "i i" partstyle layout(-partitioncount)] != 2} {
-                    error "DeviceIoControl 0x70050 on disk '$disk' returned insufficient data."
-                }
-                set layout(-partitionstyle) [_partition_style_sym $partstyle]
-                switch -exact -- $layout(-partitionstyle) {
-                    mbr {
-                        if {[binary scan $data "@8 i" layout(-signature)] != 1} {
-                            error "DeviceIoControl 0x70050 on disk '$disk' returned insufficient data."
-                        }
-                    }
-                    gpt {
-                        set pi(-diskid) [_binary_to_guid $data 32]
-                        if {[binary scan $data "@8 w w i" layout(-startingusableoffset) layout(-usablelength) layout(-maxpartitioncount)] != 3} {
-                            error "DeviceIoControl 0x70050 on disk '$disk' returned insufficient data."
-                        }
-                    }
-                    raw -
-                    unknown {
-                        # No fields to add
+            # XP and later - IOCTL_DISK_GET_DRIVE_LAYOUT_EX
+            set data [device_ioctl $h 0x70050 -outputcount 624]
+            if {[binary scan $data "i i" partstyle layout(-partitioncount)] != 2} {
+                error "DeviceIoControl 0x70050 on disk '$disk' returned insufficient data."
+            }
+            set layout(-partitionstyle) [_partition_style_sym $partstyle]
+            switch -exact -- $layout(-partitionstyle) {
+                mbr {
+                    if {[binary scan $data "@8 i" layout(-signature)] != 1} {
+                        error "DeviceIoControl 0x70050 on disk '$disk' returned insufficient data."
                     }
                 }
+                gpt {
+                    set pi(-diskid) [_binary_to_guid $data 32]
+                    if {[binary scan $data "@8 w w i" layout(-startingusableoffset) layout(-usablelength) layout(-maxpartitioncount)] != 3} {
+                        error "DeviceIoControl 0x70050 on disk '$disk' returned insufficient data."
+                    }
+                }
+                raw -
+                unknown {
+                    # No fields to add
+                }
+            }
 
-                set layout(-partitions) [list ]
-                for {set i 0} {$i < $layout(-partitioncount)} {incr i} {
-                    # Decode each partition in turn. Sizeof of PARTITION_INFORMATION_EX is 144
-                    lappend layout(-partitions) [_decode_PARTITION_INFORMATION_EX_binary $data [expr {48 + (144*$i)}]]
-                }
-            } else {
-                # Win2K - IOCTL_DISK_GET_DRIVE_LAYOUT
-                set data [device_ioctl $h 0x7400c]
-                if {[binary scan $data "i i" layout(-partitioncount) layout(-signature)] != 2} {
-                    error "DeviceIoControl 0x7400C on disk '$disk' returned insufficient data."
-                }
-                set layout(-partitions) [list ]
-                for {set i 0} {$i < $layout(-partitioncount)} {incr i} {
-                    # Devode each partition in turn. Sizeof of PARTITION_INFORMATION is 32
-                    lappend layout(-partitions) [_decode_PARTITION_INFORMATION_binary $data [expr {8 + (32*$i)}]]
-                }
+            set layout(-partitions) [list ]
+            for {set i 0} {$i < $layout(-partitioncount)} {incr i} {
+                # Decode each partition in turn. Sizeof of PARTITION_INFORMATION_EX is 144
+                lappend layout(-partitions) [_decode_PARTITION_INFORMATION_EX_binary $data [expr {48 + (144*$i)}]]
             }
             lappend result -layout [array get layout]
         }
@@ -448,26 +434,6 @@ proc twapi::get_physical_disk_info {disk args} {
     }
 
     return $result
-}
-
-# Given a Tcl binary and offset, decode the PARTITION_INFORMATION record
-proc twapi::_decode_PARTITION_INFORMATION_binary {bin off} {
-    if {[binary scan $bin "@$off w w i i c c c c" \
-             pi(-startingoffset) \
-             pi(-partitionlength) \
-             pi(-hiddensectors) \
-             pi(-partitionnumber) \
-             pi(-partitiontype) \
-             pi(-bootindicator) \
-             pi(-recognizedpartition) \
-             pi(-rewritepartition)] != 8} {
-        error "Truncated partition structure."
-    }
-
-    # Show partition type in hex, not negative number
-    set pi(-partitiontype) [format 0x%2.2x [expr {0xff & $pi(-partitiontype)}]]
-
-    return [array get pi]
 }
 
 # Given a Tcl binary and offset, decode the PARTITION_INFORMATION_EX record
@@ -498,7 +464,7 @@ proc twapi::_decode_PARTITION_INFORMATION_EX_binary {bin off} {
             if {[binary scan $bin "@$off x64 w" pi(-attributes)] != 1} {
                 error "Truncated partition structure."
             }
-            set pi(-name) [_ucs16_binary_to_string [string range $bin [expr {$off+72} end]]]
+            set pi(-name) [_ucs16_binary_to_string [string range $bin [expr {$off+72}] end]]
         }
         raw -
         unknown {
