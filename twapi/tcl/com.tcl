@@ -701,7 +701,7 @@ proc twapi::_eventsink_callback {comobj dispidmap script dispid lcid flags param
 
     set retcode [catch {
         # Map dispid to event if possible
-        set dispid [twapi::kl_get_default $dispidmap $dispid $dispid]
+        set dispid [twapi::kl_get $dispidmap $dispid $dispid]
         set converted_params [list ]
         foreach param $params {
             # Note we do NOT ask variant_value to do AddRef.

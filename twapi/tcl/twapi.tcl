@@ -354,12 +354,6 @@ proc twapi::kl_create {args} {
 # Make a keyed list given fields and values
 interp alias {} twapi::kl_create2 {} twapi::twine
 
-# Return a field from a keyed list or a default if not present
-# This routine is now obsolete since the C version of kl_get takes
-# an optional default parameter
-# kl_get_default KEYEDLIST KEY DEFAULT
-interp alias {} ::twapi::kl_get_default {} ::twapi::kl_get
-
 # Set a key value
 proc twapi::kl_set {kl field newval} {
    set i 0
