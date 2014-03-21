@@ -218,11 +218,6 @@ static TCL_RESULT Twapi_GetProcessList(
 
                     threadP = &processP->Threads[0];
                     for (i=0; i < processP->ThreadCount; ++i, ++threadP) {
-#ifdef OBSOLETE
-                        ObjAppendElement(interp,
-                                                 threadlistObj,
-                                                 ObjFromDWORD_PTR(threadP->ClientId.UniqueThread));
-#endif
                         if (first_iteration) {
                             thread_fields[0] = STRING_LITERAL_OBJ("-pid");
                             thread_fields[1] = STRING_LITERAL_OBJ("-tid");

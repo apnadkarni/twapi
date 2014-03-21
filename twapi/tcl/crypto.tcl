@@ -274,27 +274,6 @@ proc twapi::cert_store_export_pfx {hstore password args} {
 }
 interp alias {} twapi::cert_store_export_pkcs12 {} twapi::cert_store_export_pfx
 
-proc twapi::OBSOLETEcert_store_import_pfx {pfx password args} {
-    parseargs args {
-        {exportableprivatekeys.bool 0 1}
-        {userprotected.bool 0 2}
-        keysettype.arg
-    } -maxleftover 0 -setvars
-
-    if {[string length $password] == 0} {
-        set password [conceal ""]
-    }
-    set flags 0
-    if {[info exists keysettype]} {
-        set flags [dict! {user 0x1000 machine 0x20} $keysettype]
-    }
-
-    set flags [tcl::mathop::| $flags $exportableprivatekeys $userprotected]
-    return [PFXImportCertStore $pfx $password $flags]
-}
-interp alias {} twapi::OBSOLETEcert_store_import_pkcs12 {} twapi::cert_store_import_pfx
-
-
 proc twapi::cert_store_commit {hstore args} {
     array set opts [parseargs args {
         {force.bool 0}
