@@ -473,9 +473,64 @@ proc twapi::_decode_PARTITION_INFORMATION_EX_binary {bin off} {
 
     }
 
-
     return [array get pi]
 }
+
+#  IOCTL_STORAGE_EJECT_MEDIA
+interp alias {} twapi::eject {} twapi::_issue_disk_ioctl 0x2d4808
+#  FSCTL_LOCK_VOLUME
+interp alias {} twapi::lock_volume {} twapi::_issue_disk_ioctl 0x90018
+#  FSCTL_LOCK_VOLUME
+interp alias {} twapi::unlock_volume {} twapi::_issue_disk_ioctl 0x90020
+
+proc twapi::_lock_media {lock device} {
+    # IOCTL_STORAGE_MEDIA_REMOVAL
+    _issue_disk_ioctl 0x2d4804 $device -input [list {{bool 0}} $lock]
+}
+interp alias {} twapi::lock_media {} twapi::_lock_media 1
+interp alias {} twapi::unlock_media {} twapi::_lock_media 0
+
+proc twapi::_issue_disk_ioctl {ioctl device args} {
+    set h [_open_disk_device $device]
+    trap {
+        device_ioctl $h $ioctl {*}$args
+    } finally {
+        close_handle $h
+    }
+}
+
+proc twapi::_open_disk_device {device} {
+    # device must be "cdrom", X:, X:\\, X:/ or a physical disk as 
+    # returned from find_physical_disks
+    switch -regexp -- $device {
+        {^cdrom$} {
+            foreach drive [find_logical_drives] {
+                if {![catch {get_volume_info $drive -type} drive_info]} {
+                    if {[dict get $drive_info -type] eq "cdrom"} {
+                        set device $drive
+                        break
+                    }
+                }
+            }
+            if {$device eq "cdrom"} {
+                error "Could not find a CD-ROM device."
+            }
+        }
+        {^[[:alpha:]]:(/|\\)?$} { 
+            set device "\\\\.\\[string range $device 0 1]"
+        }
+        {^\\\\\?\\.*#\{[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}\}$} {
+            # Device name ok
+        }
+        default {
+            # Just to prevent us from opening some file instead
+            error "Invalid device name '$device'"
+        }
+    }
+
+    return [create_file $device -createdisposition open_existing]
+}
+
 
 # Map a partition style code to a symbol
 proc twapi::_partition_style_sym {partstyle} {
