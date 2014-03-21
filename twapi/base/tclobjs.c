@@ -1805,8 +1805,13 @@ TCL_RESULT ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char
     return TCL_OK;
 }
 
+TCL_RESULT ObjToLPVOID(Tcl_Interp *interp, Tcl_Obj *objP, HANDLE *pvP)
+{
+    return ObjToOpaque(interp, objP, pvP, NULL);
+}
+
 /* Converts a Tcl_Obj to a pointer of any of the specified types */
-int ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, char **types)
+TCL_RESULT ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, char **types)
 {
     int i;
     if (ntypes == 0 || types == NULL)
@@ -4557,11 +4562,11 @@ static void UpdateCStructTypeString(Tcl_Obj *objP)
 }
 
 static const char *cstruct_types[] = {
-    "char", "short", "int", "int64", "double", "string", "wstring", "structsize", NULL
+    "boolean", "char", "uchar", "short", "ushort", "int", "uint", "int64", "uint64", "double", "string", "wstring", "cbsize", "handle", NULL
 };
 enum cstruct_types_enum {
-    CSTRUCT_CHAR, CSTRUCT_SHORT, CSTRUCT_INT, CSTRUCT_INT64, 
-    CSTRUCT_DOUBLE, CSTRUCT_STRING, CSTRUCT_WSTRING, CSTRUCT_STRUCTSIZE, 
+    CSTRUCT_BOOLEAN, CSTRUCT_CHAR, CSTRUCT_UCHAR, CSTRUCT_SHORT, CSTRUCT_USHORT, CSTRUCT_INT, CSTRUCT_UINT, CSTRUCT_INT64, CSTRUCT_UINT64,
+    CSTRUCT_DOUBLE, CSTRUCT_STRING, CSTRUCT_WSTRING, CSTRUCT_CBSIZE, CSTRUCT_HANDLE
 };
 TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
 {
@@ -4607,20 +4612,26 @@ TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
         }
 
         switch (deftype) {
+        case CSTRUCT_UCHAR: /* Fall thru */
         case CSTRUCT_CHAR: elem_size = sizeof(char); break;
+        case CSTRUCT_USHORT: /* Fall thru */
         case CSTRUCT_SHORT: elem_size = sizeof(short); break;
+        case CSTRUCT_BOOLEAN: /* Fall thru */
+        case CSTRUCT_UINT: /* Fall thru */
         case CSTRUCT_INT: elem_size = sizeof(int); break;
+        case CSTRUCT_UINT64: /* Fall thru */
         case CSTRUCT_INT64: elem_size = sizeof(__int64); break;
         case CSTRUCT_DOUBLE: elem_size = sizeof(double); break;
         case CSTRUCT_STRING: elem_size = sizeof(char*); break;
         case CSTRUCT_WSTRING: elem_size = sizeof(WCHAR *); break;
-        case CSTRUCT_STRUCTSIZE:
+        case CSTRUCT_CBSIZE:
             /* NOTE : if there are any strings in the struct,
                this does not include storage for the string themselves */
             if (array_size)
                 goto invalid_def; /* Cannot be an array */
             elem_size = sizeof(int);
             break;
+        case CSTRUCT_HANDLE: elem_size = sizeof(HANDLE); break;
         }
 
         if (elem_size > struct_alignment)
@@ -4706,11 +4717,17 @@ TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
         elem_size = csP->fields[i].size;
 
         switch (csP->fields[i].type) {
+        case CSTRUCT_BOOLEAN: fn = ObjToBoolean; break;
         case CSTRUCT_CHAR: fn = ObjToCHAR; break;
+        case CSTRUCT_UCHAR: fn = ObjToUCHAR; break;
         case CSTRUCT_SHORT: fn = ObjToSHORT; break;
-        case CSTRUCT_INT: fn = ObjToInt; break;
+        case CSTRUCT_USHORT: fn = ObjToUSHORT; break;
+        case CSTRUCT_INT: fn = ObjToLong; break;
+        case CSTRUCT_UINT: fn = ObjToLong; break; // TBD - handles unsigned ?
         case CSTRUCT_INT64: fn = ObjToWideInt; break;
+        case CSTRUCT_UINT64: fn = ObjToWideInt; break; // TBD-handles unsigned ?
         case CSTRUCT_DOUBLE: fn = ObjToDouble; break;
+        case CSTRUCT_HANDLE: fn = ObjToHANDLE; break;
         case CSTRUCT_STRING:
             if (count) {
                 for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
@@ -4735,10 +4752,15 @@ TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
             }
             continue;
 
-        case CSTRUCT_STRUCTSIZE:
+        case CSTRUCT_CBSIZE:
             TWAPI_ASSERT(count == 0);
             fn = ObjToInt;
             break;
+
+            
+
+        default:
+            TwapiReturnErrorEx(interp, TWAPI_BUG, Tcl_ObjPrintf("Unknown Cstruct type %d", csP->fields[i].type));
         }
 
         if (count) {
@@ -4749,7 +4771,7 @@ TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
         } else {
             if (fn(interp, objPP[i], pv2) != TCL_OK)
                 goto error_return;
-            if (csP->fields[i].type == CSTRUCT_STRUCTSIZE) {
+            if (csP->fields[i].type == CSTRUCT_CBSIZE) {
                 int ssize = *(int *)pv2;
                 if (ssize > csP->size || ssize < 0)
                     goto invalid_def;

@@ -1306,7 +1306,7 @@ TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointerOrNull(Tcl_Interp *interp, Tcl_Obj *
 TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointerTic(TwapiInterpContext *, Tcl_Obj *objP, void **pvP, const char *name, void *verifier);
 TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointerOrNullTic(TwapiInterpContext *, Tcl_Obj *objP, void **pvP, const char *name, void *verifier);
 
-#define ObjToLPVOID(interp, obj, vPP) ObjToOpaque((interp), (obj), (vPP), NULL)
+TWAPI_EXTERN TCL_RESULT ObjToLPVOID(Tcl_Interp *interp, Tcl_Obj *objP, HANDLE *pvP);
 #define ObjToHANDLE ObjToLPVOID
 #define ObjToHWND(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HWND")
 
