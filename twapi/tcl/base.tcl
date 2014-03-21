@@ -26,6 +26,63 @@ namespace eval twapi {
 
     # Cache mapping SIDs to account names. Dict keyed by system and SID
     variable _sid_to_name_cache {}
+
+    # Return a suitable cstruct definition based on a C definition
+    namespace eval cstruct {
+        proc define s {
+            regsub -all {(/\*.* \*/){1,1}?} $s {} s
+            regsub -line -all {//.*$} $s { } s
+            set l {}
+            foreach def [split $s ";"] {
+                if {[regexp {^\s*$} $def]} continue
+                if {![regexp {^\s*(.+)\s+(\*?[[:alnum:]_]+)\s*(\[.+\])?\s*$} $def ->  type name array]} {
+                    error "Invalid definition $def"
+                }
+                if {[string index $name 0] eq "*"} {
+                    append type *
+                    set name [string range $name 1 end]
+                }
+                switch -regexp -- [string trim $type] {
+                    {^char$} {set type char}
+                    {^BYTE$} -
+                    {^unsigned char$} {set type uchar}
+                    {^short$} {set type uint}
+                    {^unsigned\s+short$} {set type ushort}
+                    {^BOOLEAN$} {set type boolean}
+                    {^int$} {set type int}
+                    {^DWORD$} -
+                    {^unsigned\s+int$} {set type uint}
+                    {^__int64$} {set type int64}
+                    {^unsigned\s+__int64$} {set type uint64}
+                    {^double$} {set type double}
+                    {^char\s*\*$} {set type string}
+                    {^WCHAR\s*\*$} {set type wstring}
+                    {^HANDLE$} {set type handle}
+                    default {error "Unknown type $type"}
+                }
+                set count 0
+                if {$array ne ""} {
+                    set count [string trim [string range $array 1 end-1]]
+                    if {![string is integer -strict $count]} {
+                        error "Non-integer array size"
+                    }
+                }
+
+                if {$name eq "cbSize" && $type in {int uint} && $count == 0} {
+                    set type cbsize
+                }
+
+                lappend l [list $name $type $count]
+            }
+            return $l
+        }
+        proc value {def val} {
+            return [list $def $val]
+        }
+
+        namespace export define value
+        namespace ensemble create
+    }
 }
 
 
