@@ -17,6 +17,17 @@ load_twapi_package twapi_security
 namespace eval twapi::device::test {
     namespace import ::tcltest::test
 
+    proc find_cdrom {} {
+        foreach drive [twapi::find_logical_drives] {
+            if {![catch {twapi::get_drive_type $drive} drive_type]} {
+                if {$drive_type eq "cdrom"} {
+                    return $drive
+                }
+            }
+        }
+        error "No cdrom found"
+    }
+
     proc fill_physical_disks {{force 0}} {
         variable physical_disks
         if {[info exists physical_disks] && ! $force} {
@@ -49,12 +60,6 @@ namespace eval twapi::device::test {
                     }
                 }
             }
-        }
-
-        # We use dicts below, for semi supported 8.4, don't bother checking
-        # field values. Only existence checked.
-        if {![package vsatisfies [info tclversion] 8.5]} {
-            return ""
         }
 
         # We have a match. Compare whatever fields we can
@@ -497,8 +502,175 @@ namespace eval twapi::device::test {
 
     ################################################################
 
+    test eject-1.0 {
+        Eject and load cdrom (eject_media)
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "Please make sure the CD-ROM is closed."
+        twapi::eject_media cdrom
+        set ejected [yesno "Did the CD-ROM get ejected?"]
+        if {$ejected} {
+            set load_error [catch {twapi::load_media cdrom} msg errdict]
+            if {$load_error} {
+                set loaded 0
+            } else {
+                set loaded [yesno "Did the CD-ROM get closed? If not please close it."]
+            }
+        } else {
+            set load_error 0
+            set loaded 0
+        }
+        # Not all cd-roms will support loading. Will return Windows error 1
+        list $ejected [expr {$loaded || ($load_error && [lindex [dict get $errdict -errorcode] 1] == 1)}]
+    } -result {1 1}
 
-    ::tcltest::cleanupTests
+    test eject-1.1 {
+        Eject and load using drive letter (eject, and also verifies eject unlocks if necessary)
+    } -constraints {
+        userInteraction
+    } -setup {
+        set drive [find_cdrom]
+    } -body {
+        pause "Please make sure the CD-ROM is closed."
+        twapi::lock_media $drive
+        twapi::eject $drive
+        set ejected [yesno "Did the CD-ROM get ejected?"]
+        if {$ejected} {
+            set load_error [catch {twapi::load_media cdrom} msg errdict]
+            if {$load_error} {
+                set loaded 0
+            } else {
+                set loaded [yesno "Did the CD-ROM get closed? If not please close it."]
+            }
+        } else {
+            set load_error 0
+            set loaded 0
+        }
+        # Not all cd-roms will support loading. Will return Windows error 1
+        list $ejected [expr {$loaded || ($load_error && [lindex [dict get $errdict -errorcode] 1] == 1)}]
+    } -result {1 1}
+
+    test eject-1.2 {
+        Eject and load using volume
+    } -constraints {
+        userInteraction
+    } -setup {
+        set drive [find_cdrom]
+        set vol [twapi::get_mounted_volume_name $drive]
+    } -body {
+        pause "Please make sure the CD-ROM is closed."
+        twapi::eject_media $vol
+        set ejected [yesno "Did the CD-ROM get ejected?"]
+        if {$ejected} {
+            set load_error [catch {twapi::load_media cdrom} msg errdict]
+            if {$load_error} {
+                set loaded 0
+            } else {
+                set loaded [yesno "Did the CD-ROM get closed? If not please close it."]
+            }
+        } else {
+            set load_error 0
+            set loaded 0
+        }
+        # Not all cd-roms will support loading. Will return Windows error 1
+        list $ejected [expr {$loaded || ($load_error && [lindex [dict get $errdict -errorcode] 1] == 1)}]
+    } -result {1 1}
+
+    test eject-1.3 {
+        Eject and load using physicals disk
+    } -constraints {
+        userInteraction TBD
+    } -body {
+        Need to find a way to know which physical disk path to use
+    } -result ""
+
+    test eject-2.0 {
+        Eject USB pen drive
+    } -constraints {
+        userInteraction TBD
+    } -body {
+        Need to find a way to know which disk to use (check for removable?)
+    } -result ""
+
+    test eject-3.0 {
+        Try eject with open file
+    } -constraints {
+        userInteraction TBD
+    } -body {
+        Try and eject if a file is open - should fail
+    } -result ""
+
+    ################################################################
+
+    test lock_media-1.0 {
+        Lock/unlock cdrom
+    } -constraints {
+        userInteraction
+    } -setup {
+        # Make sure cdrom is not already locked. [eject] will unlock it
+        twapi::eject cdrom
+        set eject_setup [yesno "Did the CD-ROM eject? Please close it."]
+    } -body {
+        twapi::lock_media cdrom
+        set user1 [yesno "Please MANUALLY try to eject the CD-ROM. Were you able to?"]
+        twapi::unlock_media cdrom
+        set user2 [yesno "Please MANUALLY try to eject the CD-ROM. Were you able to?"]
+        pause "Please close the CDROM"
+        list $user1 $user2
+    } -result {0 1}
+
+    test lock_media-1.1 {
+        Lock/unlock cdrom (drive letter)
+    } -constraints {
+        userInteraction
+    } -setup {
+        # Make sure cdrom is not already locked. [eject] will unlock it
+        set drive [find_cdrom]
+        twapi::eject $drive
+        set eject_setup [yesno "Did the CD-ROM eject? Please close it."]
+    } -body {
+        twapi::lock_media $drive
+        set user1 [yesno "Please MANUALLY try to eject the CD-ROM. Were you able to?"]
+        twapi::unlock_media $drive
+        set user2 [yesno "Please MANUALLY try to eject the CD-ROM. Were you able to?"]
+        pause "Please close the CDROM"
+        list $user1 $user2
+    } -result {0 1}
+
+    test lock_media-1.2 {
+        Lock/unlock cdrom (volume)
+    } -constraints {
+        userInteraction
+    } -setup {
+        # Make sure cdrom is not already locked. [eject] will unlock it
+        set drive [find_cdrom]
+        set vol [twapi::get_mounted_volume_name $drive]
+        twapi::eject $vol
+        set eject_setup [yesno "Did the CD-ROM eject? Please close it."]
+    } -body {
+        twapi::lock_media $vol
+        set user1 [yesno "Please MANUALLY try to eject the CD-ROM. Were you able to?"]
+        twapi::unlock_media $vol
+        set user2 [yesno "Please MANUALLY try to eject the CD-ROM. Were you able to?"]
+        pause "Please close the CDROM"
+        list $user1 $user2
+    } -result {0 1}
+
+    test lock_media-1.3 {
+        Lock and unlock using physicals disk
+    } -constraints {
+        userInteraction TBD
+    } -body {
+        Need to find a way to know which physical disk path to use
+    } -result ""
+
+
+    ################################################################
+
 }
+
+
+::tcltest::cleanupTests
 
 namespace delete ::twapi::device::test

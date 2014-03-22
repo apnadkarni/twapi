@@ -10,6 +10,7 @@
 This package provides procedures related to device information and
 management in Windows operating systems.
 
+
 [section "Device ioctls"]
 
 The [uri #device_ioctl [cmd device_ioctl]] command provides thin
@@ -17,6 +18,13 @@ wrapper around the DeviceIoControl Win32 function. This allows for
 device specific control commands to be issued to devices. You will
 need to refer to the Windows SDK documentation for specifics of
 the ioctls supported by various devices.
+
+[section "Media control"]
+The commands [uri #eject_media [cmd eject_media]], 
+[uri #load_media [cmd load_media]] and
+[uri #lock_media [cmd lock_media]] and
+[uri #unlock_media [cmd unlock_media]] provide control
+over removable devices and media.
 
 [section "Device notifications"]
 
@@ -50,17 +58,29 @@ physical disk.
 [section Commands]
 [list_begin definitions]
 
-[call [cmd device_ioctl] [arg DEVICEHANDLE] [arg IOCTLCODE]]
+[call [cmd device_ioctl] [arg DEVICEHANDLE] [arg IOCTLCODE] [opt "[cmd -outputcount] [arg BUFSIZE]"]]
 This is a thin wrapper around the Win32 [cmd DeviceIoControl] function.
 Primary role of the wrapper is to do
 automatic output buffer management for the caller. [arg DEVICEHANDLE],
 usually obtained through
 [uri base.html#create_file [cmd create_file]],
 is a handle to the device of interest. [arg IOCTLCODE] is the IOCTL code
-to be sent to the device. The command returns the result as a Tcl
-binary value that should in general be
+to be sent to the device. The [cmd -outputcount] option should be specified
+if the call is expected to return data. [arg BUFSIZE] should be the size
+of the output buffer expected by the call. The command will then return
+the result as a Tcl binary value that should in general be
 parsed with the Tcl [cmd "binary scan"] command.
-[nl]
+
+[call [cmd eject_media] [arg DEVICE]]
+Alias for [uri #eject_media [cmd eject_media]].
+
+[call [cmd eject_media] [arg DEVICE]]
+Ejects a removable device, such as a CD-ROM or pen drive.
+[arg DEVICE] should be of the form [arg X:], [arg X:\\], [arg X:/]
+where [arg X] is a drive letter, or a physical disk path as returned
+by the [uri #find_physical_disks [cmd find_physical_disks]] command,
+or [const cdrom], in which case the first CD-ROM in the device list
+is ejected.
 
 [call [cmd find_physical_disks]]
 Returns the list of physical disks in the system. The returned paths
@@ -126,6 +146,25 @@ also have the fields
 it will have the fields [cmd -partitiontype], [cmd -partitionif],
 [cmd -attributes] and [cmd -name]. Partition styles [const raw] and
 [const unknown] have no additional fields.
+
+[call [cmd load_media] [arg DEVICE]]
+Load removable media such as a CD or DVD.
+[arg DEVICE] should be of the form [arg X:], [arg X:\\], [arg X:/]
+where [arg X] is a drive letter, or a physical disk path as returned
+by the [uri #find_physical_disks [cmd find_physical_disks]] command,
+or [const cdrom], in which case the first CD-ROM in the device list
+is loaded.
+
+[call [cmd lock_media] [arg DEVICE]]
+Locks the media in a device with removable media such as a CD-ROM.
+On devices that support this function (not all do), locking the
+media will prevent the media from being ejected. The media can be
+unlocked with [uri #unlock_media [cmd unlock_media]].
+[arg DEVICE] should be of the form [arg X:], [arg X:\\], [arg X:/]
+where [arg X] is a drive letter, or a physical disk path as returned
+by the [uri #find_physical_disks [cmd find_physical_disks]] command,
+or [const cdrom], in which case the media in the
+first CD-ROM in the device list is locked.
 
 [call [cmd start_device_notifier] [arg SCRIPT] [opt "[cmd -deviceinterface] [arg DEVICEINTERFACE]"] [opt "[cmd -handle] [arg DEVICEHANDLE]"]]
 
@@ -299,6 +338,15 @@ on non-threaded builds.
 Cancels monitoring of device changes. [arg MONITORID]
 which must be an identifier previously
 returned by [uri \#start_device_notifier [cmd start_device_notifier]].
+
+[call [cmd unlock_media] [arg DEVICE]]
+Unlocks the media in a device with removable media such as a CD-ROM
+which had been previously locked with [uri #lock_media [cmd lock_media]].
+[arg DEVICE] should be of the form [arg X:], [arg X:\\], [arg X:/]
+where [arg X] is a drive letter, or a physical disk path as returned
+by the [uri #find_physical_disks [cmd find_physical_disks]] command,
+or [const cdrom], in which case the first CD-ROM in the device list
+is unlocked.
 
 [list_end]
 
