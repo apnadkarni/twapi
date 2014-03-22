@@ -477,11 +477,33 @@ proc twapi::_decode_PARTITION_INFORMATION_EX_binary {bin off} {
 }
 
 #  IOCTL_STORAGE_EJECT_MEDIA
-interp alias {} twapi::eject {} twapi::_issue_disk_ioctl 0x2d4808
+interp alias {} twapi::eject {} twapi::eject_media
+proc twapi::eject_media {device} {
+    # http://support.microsoft.com/default.aspx?scid=KB;EN-US;Q165721&
+    set h [_open_disk_device $device]
+    trap {
+        device_ioctl $h 0x90018; # FSCTL_LOCK_VOLUME
+        device_ioctl $h 0x90020; # FSCTL_DISMOUNT_VOLUME
+        device_ioctl $h 0x2d4804 -input [list {{bool 0}} 0]; #  IOCTL_STORAGE_MEDIA_REMOVAL (0)
+        device_ioctl $h 0x2d4808; # IOCTL_STORAGE_EJECT_MEDIA
+    } finally {
+        close_handle $h
+    }
+}
+
+# IOCTL_DISK_LOAD_MEDIA
+# Note - should we use IOCTL_DISK_LOAD_MEDIA2 instead (0x2d080c) see
+# SDK, faster if read / write access not necessary. We are closing
+# the handle right away anyway but would that stop other apps from
+# acessing the file system on the CD ? Need to try (note device
+# has to be opened with FILE_READ_ATTRIBUTES only in that case)
+
+interp alias {} twapi::load_media {} twapi::_issue_disk_ioctl 0x2d480c
+
 #  FSCTL_LOCK_VOLUME
-interp alias {} twapi::lock_volume {} twapi::_issue_disk_ioctl 0x90018
+# TBD - interp alias {} twapi::lock_volume {} twapi::_issue_disk_ioctl 0x90018
 #  FSCTL_LOCK_VOLUME
-interp alias {} twapi::unlock_volume {} twapi::_issue_disk_ioctl 0x90020
+# TBD - interp alias {} twapi::unlock_volume {} twapi::_issue_disk_ioctl 0x9001c
 
 proc twapi::_lock_media {lock device} {
     # IOCTL_STORAGE_MEDIA_REMOVAL
@@ -499,15 +521,17 @@ proc twapi::_issue_disk_ioctl {ioctl device args} {
     }
 }
 
-proc twapi::_open_disk_device {device} {
-    # device must be "cdrom", X:, X:\\, X:/ or a physical disk as 
+twapi::proc* twapi::_open_disk_device {device} {
+    package require twapi_storage
+} {
+    # device must be "cdrom", X:, X:\\, X:/, a volume or a physical disk as 
     # returned from find_physical_disks
-    switch -regexp -- $device {
+    switch -regexp -nocase -- $device {
         {^cdrom$} {
             foreach drive [find_logical_drives] {
-                if {![catch {get_volume_info $drive -type} drive_info]} {
-                    if {[dict get $drive_info -type] eq "cdrom"} {
-                        set device $drive
+                if {![catch {get_drive_type $drive} drive_type]} {
+                    if {$drive_type eq "cdrom"} {
+                        set device "\\\\.\\$drive"
                         break
                     }
                 }
@@ -522,13 +546,21 @@ proc twapi::_open_disk_device {device} {
         {^\\\\\?\\.*#\{[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}\}$} {
             # Device name ok
         }
+        {^\\\\\?\\Volume\{[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}\}\\?$} {
+            # Volume name ok. But make sure we trim off any trailing 
+            # \ since create_file will open the root dir instead of the device
+            set device [string trimright $device \\]
+        }
         default {
             # Just to prevent us from opening some file instead
             error "Invalid device name '$device'"
         }
     }
 
-    return [create_file $device -createdisposition open_existing]
+    # http://support.microsoft.com/default.aspx?scid=KB;EN-US;Q165721&
+    return [create_file $device -access {generic_read generic_write} \
+                -createdisposition open_existing \
+                -share {read write}]
 }
 
 

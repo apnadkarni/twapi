@@ -39,6 +39,14 @@ for creation, verification
 and management of certificates and certificate stores.
 
 [bullet]
+New commands
+[uri device.html#eject_media [cmd eject_media],
+[uri device.html#load_media [cmd load_media],
+[uri device.html#lock_media [cmd lock_media] and
+[uri device.html#unlock_media [cmd unlock_media]
+for dealing with removable media.
+
+[bullet]
 Added [uri base.html#read_credentials [cmd read_credentials]],
 [uri base.html#credentials_dialog [cmd credentials_dialog]],
 [uri base.html#confirm_credentials [cmd confirm_credentials]] and
@@ -136,6 +144,9 @@ Multidimensional arrays are returned as nested lists. In 3.1, they
 were returned as a single flat list.
 
 [opt_def [uri base.html#debuglog [cmd debuglog]]]
+Calling interface has changed.
+
+[opt_def [uri device.html#device_ioctl [cmd device_ioctl]]]
 Calling interface has changed.
 
 [opt_def [cmd file_properties_dialog]]
