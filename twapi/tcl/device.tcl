@@ -478,13 +478,18 @@ proc twapi::_decode_PARTITION_INFORMATION_EX_binary {bin off} {
 
 #  IOCTL_STORAGE_EJECT_MEDIA
 interp alias {} twapi::eject {} twapi::eject_media
-proc twapi::eject_media {device} {
+twapi::proc* twapi::eject_media device {
+    struct _PREVENT_MEDIA_REMOVAL {
+            BOOLEAN PreventMediaRemoval;
+    }
+} {
     # http://support.microsoft.com/default.aspx?scid=KB;EN-US;Q165721&
     set h [_open_disk_device $device]
     trap {
         device_ioctl $h 0x90018; # FSCTL_LOCK_VOLUME
         device_ioctl $h 0x90020; # FSCTL_DISMOUNT_VOLUME
-        device_ioctl $h 0x2d4804 -input [list {{bool 0}} 0]; #  IOCTL_STORAGE_MEDIA_REMOVAL (0)
+        #  IOCTL_STORAGE_MEDIA_REMOVAL (0)
+        device_ioctl $h 0x2d4804 -input [_PREVENT_MEDIA_REMOVAL [list 0]]
         device_ioctl $h 0x2d4808; # IOCTL_STORAGE_EJECT_MEDIA
     } finally {
         close_handle $h
