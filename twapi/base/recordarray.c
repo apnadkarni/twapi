@@ -19,12 +19,12 @@ int Twapi_RecordArrayHelperObjCmd(
     static const char *opts[] = {
         "-format",              /* FORMAT */
         "-slice",               /* FIELDNAMES */
-        "-select",              /* OPER FIELDNAME VALUE */
+        "-filter",              /* OPER FIELDNAME VALUE */
         "-key",                 /* FIELDNAME */
         "-first",               /* no args */
         NULL
     };
-    enum opts_enum {RA_FORMAT, RA_SLICE, RA_SELECT, RA_KEY, RA_FIRST};
+    enum opts_enum {RA_FORMAT, RA_SLICE, RA_FILTER, RA_KEY, RA_FIRST};
     int opt;
     /* Format of each record */
     static const char *formats[] = {
@@ -32,15 +32,15 @@ int Twapi_RecordArrayHelperObjCmd(
     };
     enum format_enum {RA_ARRAY, RA_FLAT, RA_LIST, RA_DICT};
     int format = RA_ARRAY;
-    static const char *select_ops[] = {
+    static const char *filter_ops[] = {
         "eq", "ne", "==", "!=", "~", "!~", NULL
     };
-    enum select_ops_enum {RA_EQ, RA_NE, RA_EQ_INT, RA_NE_INT, RA_MATCH, RA_NOMATCH};
+    enum filter_ops_enum {RA_EQ, RA_NE, RA_EQ_INT, RA_NE_INT, RA_MATCH, RA_NOMATCH};
 
     Tcl_Obj *sliceObj = NULL,
-        *selectObj = NULL,
+        *filterObj = NULL,
         *keyfieldObj = NULL;
-    Tcl_Obj **selectElems = NULL;
+    Tcl_Obj **filterElems = NULL;
     Tcl_Obj *recsObj = NULL;     /* Dup of records passed in */
     Tcl_Obj **recs;              /* Contents of recsObj */
     int      nrecs;              /* Number records */
@@ -55,11 +55,11 @@ int Twapi_RecordArrayHelperObjCmd(
             char *string;
         } operand;
         int (WINAPI *cmpfn) (const char *, const char *);
-        int select_op;
-        int select_pos;
+        int filter_op;
+        int filter_pos;
         int nocase;
-    } *selectors;
-    int nselectors;
+    } *filters;
+    int nfilters;
     TCL_RESULT res;
 
     Tcl_Obj *new_rec[2];        /* 2 because we may need one for the key */
@@ -93,7 +93,7 @@ int Twapi_RecordArrayHelperObjCmd(
      *             a flat list of values
      *      list - each returned record list
      *      dict - each returned record is a dict with keys being field names
-     *   -select {{FIELDNAME OPERATOR OPERAND ?-nocase?}....}
+     *   -filter {{FIELDNAME OPERATOR OPERAND ?-nocase?}....}
      *      Only those records whose field FIELDNAME match OPERAND using
      *      the given OPERATOR are returned
      *   -key KEYFIELD
@@ -121,10 +121,10 @@ int Twapi_RecordArrayHelperObjCmd(
                 goto missing_value;
             sliceObj = objv[i];
             break;
-        case RA_SELECT:         /* -select SELECTOR */
+        case RA_FILTER:         /* -filter FILTER */
             if (++i == (objc-1))
                 goto missing_value;
-            selectObj = ObjDuplicate(objv[i]); /* Protect against shimmer */
+            filterObj = ObjDuplicate(objv[i]); /* Protect against shimmer */
             break;
         case RA_KEY:
             if (++i == (objc-1))
@@ -163,52 +163,52 @@ int Twapi_RecordArrayHelperObjCmd(
     mark = MemLifoPushMark(ticP->memlifoP);
 
     /* If selection criteria are given, find index of field to match on */
-    nselectors = 0;
-    if (selectObj) {
-        res = ObjGetElements(interp, selectObj, &nselectors, &selectElems);
+    nfilters = 0;
+    if (filterObj) {
+        res = ObjGetElements(interp, filterObj, &nfilters, &filterElems);
         if (res != TCL_OK)
             goto vamoose;
-        selectors = MemLifoAlloc(ticP->memlifoP, nselectors * sizeof(*selectors), NULL);
-        for (i = 0; i < nselectors; ++i) {
-            Tcl_Obj **selectElem;
-            res = ObjGetElements(interp, selectElems[i], &j, &selectElem);
+        filters = MemLifoAlloc(ticP->memlifoP, nfilters * sizeof(*filters), NULL);
+        for (i = 0; i < nfilters; ++i) {
+            Tcl_Obj **filterElem;
+            res = ObjGetElements(interp, filterElems[i], &j, &filterElem);
             if (res != TCL_OK)
                 goto vamoose;
             if (j < 3 || j > 4) {
-                res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid -select argument value");
+                res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid -filter argument value");
                 goto vamoose;
             }
 
-            selectors[i].nocase = 0;
+            filters[i].nocase = 0;
             if (j == 4) {
-                char *s = ObjToString(selectElem[3]);
+                char *s = ObjToString(filterElem[3]);
                 if (STREQ("-nocase", s))
-                    selectors[i].nocase = 1;
+                    filters[i].nocase = 1;
                 else {
-                    res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid -select argument value");
+                    res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid -filter argument value");
                     goto vamoose;
                 }
             }
-            if ((res=ObjToEnum(interp, raObj[0], selectElem[0], &selectors[i].select_pos)) != TCL_OK
+            if ((res=ObjToEnum(interp, raObj[0], filterElem[0], &filters[i].filter_pos)) != TCL_OK
             ||
-                (res = Tcl_GetIndexFromObj(interp, selectElem[1], select_ops, "operator", TCL_EXACT, &selectors[i].select_op)) != TCL_OK) {
+                (res = Tcl_GetIndexFromObj(interp, filterElem[1], filter_ops, "operator", TCL_EXACT, &filters[i].filter_op)) != TCL_OK) {
                 goto vamoose;
             }
-            switch (selectors[i].select_op) {
+            switch (filters[i].filter_op) {
             case RA_NE: negate = 1; /* FALLTHRU */
             case RA_EQ: /* TBD - should we do unicode compares? */
-                selectors[i].cmpfn = selectors[i].nocase ? lstrcmpiA : lstrcmpA;
-                selectors[i].operand.string = ObjToString(selectElem[2]);
+                filters[i].cmpfn = filters[i].nocase ? lstrcmpiA : lstrcmpA;
+                filters[i].operand.string = ObjToString(filterElem[2]);
             break;
             case RA_NE_INT: negate = 1; /* FALLTHRU */
             case RA_EQ_INT:
-                if ((res = ObjToWideInt(interp, selectElem[2], &selectors[i].operand.wide)) != TCL_OK)
+                if ((res = ObjToWideInt(interp, filterElem[2], &filters[i].operand.wide)) != TCL_OK)
                     goto vamoose;
                 break;
             case RA_NOMATCH: negate = 1; /* FALLTHRU */
             case RA_MATCH:
-                selectors[i].cmpfn = selectors[i].nocase ? TwapiGlobCmpCase : TwapiGlobCmp;
-                selectors[i].operand.string = ObjToString(selectElem[2]);
+                filters[i].cmpfn = filters[i].nocase ? TwapiGlobCmpCase : TwapiGlobCmp;
+                filters[i].operand.string = ObjToString(filterElem[2]);
                 break;
             }
         }
@@ -272,15 +272,15 @@ int Twapi_RecordArrayHelperObjCmd(
     for (output_count = 0, i = 0; i < nrecs; ++i) {
         int matched;
         matched = 1;
-        for (j = 0; j < nselectors; ++j) {
+        for (j = 0; j < nfilters; ++j) {
             Tcl_Obj *valueObj;
-            int select_op;
+            int filter_op;
 
-            TWAPI_ASSERT(selectors);
-            select_op = selectors[j].select_op;
+            TWAPI_ASSERT(filters);
+            filter_op = filters[j].filter_op;
 
-            /* select_pos gives position of field to match */
-            res = ObjListIndex(interp, recs[i], selectors[j].select_pos, &valueObj);
+            /* filter_pos gives position of field to match */
+            res = ObjListIndex(interp, recs[i], filters[j].filter_pos, &valueObj);
             if (res != TCL_OK)
                 break;
             if (valueObj == NULL) {
@@ -288,16 +288,16 @@ int Twapi_RecordArrayHelperObjCmd(
                 break;
             }
 
-            if (select_op == RA_EQ_INT || select_op == RA_NE_INT) {
+            if (filter_op == RA_EQ_INT || filter_op == RA_NE_INT) {
                 Tcl_WideInt wide;
                 /* Note not-an-int is treated as no match, not as error */
                 if (ObjToWideInt(NULL, valueObj, &wide) != TCL_OK ||
-                    ((wide == selectors[j].operand.wide) == negate)) {
+                    ((wide == filters[j].operand.wide) == negate)) {
                     matched = 0;
                     break;
                 }
             } else {
-                if ((0 == selectors[j].cmpfn(ObjToString(valueObj), selectors[j].operand.string)) == negate) {
+                if ((0 == filters[j].cmpfn(ObjToString(valueObj), filters[j].operand.string)) == negate) {
                     matched = 0;
                     break;
                 }
@@ -400,8 +400,8 @@ int Twapi_RecordArrayHelperObjCmd(
     }
 
 vamoose:
-    if (selectObj)
-        ObjDecrRefs(selectObj);
+    if (filterObj)
+        ObjDecrRefs(filterObj);
     if (recsObj)
         ObjDecrRefs(recsObj);
     if (fieldsObj)

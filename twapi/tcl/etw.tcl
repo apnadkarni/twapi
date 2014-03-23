@@ -993,7 +993,7 @@ proc twapi::etw_dump_to_file {args} {
             {
                 array set opts $options
                 set events [etw_format_events $formatter $bufd $events]
-                foreach event [recordarray getlist $events -format dict -select $opts(filter)] {
+                foreach event [recordarray getlist $events -format dict -filter $opts(filter)] {
                     if {$max >= 0 && [set $counter_varname] >= $max} {
                         return -code break
                     }
