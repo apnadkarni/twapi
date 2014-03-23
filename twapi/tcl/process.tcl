@@ -312,7 +312,7 @@ proc twapi::get_process_ids {args} {
         }
         # We need to match against the name
         return [recordarray column [Twapi_GetProcessList -1 2] -pid \
-                    -select [list [list "-name" $match_op $opts(name) -nocase]]]
+                    -filter [list [list "-name" $match_op $opts(name) -nocase]]]
     }
 
     # Only want pids with a specific user or path or logon session
@@ -333,14 +333,14 @@ proc twapi::get_process_ids {args} {
         }
 
         if {[info exists opts(name)]} {
-            set select_expr [list [list pUserSid eq $sid -nocase] [list pProcessName $match_op $opts(name) -nocase]]
+            set filter_expr [list [list pUserSid eq $sid -nocase] [list pProcessName $match_op $opts(name) -nocase]]
         } else {
-            set select_expr [list [list pUserSid eq $sid -nocase]]
+            set filter_expr [list [list pUserSid eq $sid -nocase]]
         }
 
         # Catch failures so we can try other means
         if {! [catch {recordarray column [WTSEnumerateProcesses NULL] \
-                          ProcessId -select $select_expr} wtslist]} {
+                          ProcessId -filter $filter_expr} wtslist]} {
             return $wtslist
         }
     }
@@ -361,7 +361,7 @@ proc twapi::get_process_ids {args} {
     set process_pids [list ]
     if {[info exists opts(name)]} {
         # Note we may reach here if the WTS call above failed
-        set all_pids [recordarray column [Twapi_GetProcessList -1 2] ProcessId -select [list [list ProcessName $match_op $opts(name) -nocase]]]
+        set all_pids [recordarray column [Twapi_GetProcessList -1 2] ProcessId -filter [list [list ProcessName $match_op $opts(name) -nocase]]]
     } else {
         set all_pids [Twapi_GetProcessList -1 0]
     }
@@ -1672,7 +1672,7 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
         if {[string equal $type "name"]} {
             if {! [catch {WTSEnumerateProcesses NULL} precords]} {
                 
-                return [lindex [recordarray column $precords pProcessName -select [list [list ProcessId == $pid]]] 0]
+                return [lindex [recordarray column $precords pProcessName -filter [list [list ProcessId == $pid]]] 0]
             }
 
             # That failed as well, try PDH. TBD - get rid of PDH

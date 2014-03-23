@@ -40,10 +40,10 @@ and management of certificates and certificate stores.
 
 [bullet]
 New commands
-[uri device.html#eject_media [cmd eject_media],
-[uri device.html#load_media [cmd load_media],
-[uri device.html#lock_media [cmd lock_media] and
-[uri device.html#unlock_media [cmd unlock_media]
+[uri device.html#eject_media [cmd eject_media]],
+[uri device.html#load_media [cmd load_media]],
+[uri device.html#lock_media [cmd lock_media]] and
+[uri device.html#unlock_media [cmd unlock_media]]
 for dealing with removable media.
 
 [bullet]
@@ -87,6 +87,9 @@ TclOO in newer Tcl versions (8.6b2 and later)
 
 [bullet]
 Added [uri com.html#define_dispatch_prototypes [cmd define_dispatch_prototypes]].
+
+[bullet]
+Added [uri base.html#recordarrays [cmd recordarray]] command.
 
 [bullet]
 Added [uri input.html#get_keyboard_layout_name [cmd get_keyboard_layout_name]].

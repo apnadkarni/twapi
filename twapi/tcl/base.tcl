@@ -1350,7 +1350,7 @@ proc twapi::recordarray::fields {ra} {
     return [lindex $ra 0]
 }
 
-proc twapi::recordarray::row {ra row args} {
+proc twapi::recordarray::index {ra row args} {
     set r [lindex $ra 1 $row]
     if {[llength $r] == 0} {
         return $r
@@ -1383,9 +1383,9 @@ proc twapi::recordarray::row {ra row args} {
 proc twapi::recordarray::column {ra field args} {
     # TBD - time to see if a script loop would be faster
     ::twapi::parseargs args {
-        select.arg
+        filter.arg
     } -nulldefault -maxleftover 0 -setvars
-    _recordarray -slice [list $field] -select $select -format flat $ra
+    _recordarray -slice [list $field] -filter $filter -format flat $ra
 }
 
 proc twapi::recordarray::cell {ra row field} {
@@ -1465,6 +1465,6 @@ proc twapi::recordarray::concat {args} {
 
 
 namespace eval twapi::recordarray {
-    namespace export cell column concat fields get getdict getlist rename row size
+    namespace export cell column concat fields get getdict getlist index rename size
     namespace ensemble create
 }
