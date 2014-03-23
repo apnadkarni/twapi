@@ -1407,6 +1407,8 @@ proc twapi::recordarray::concat {args} {
 
 # Return a suitable cstruct definition based on a C definition
 proc twapi::struct {struct_name s} {
+    variable _struct_defs
+
     regsub -all {(/\*.* \*/){1,1}?} $s {} s
     regsub -line -all {//.*$} $s { } s
     set l {}
@@ -1458,8 +1460,15 @@ proc twapi::struct {struct_name s} {
     # just needs to return a list of the definition as constructed
     # above and the passed list value
     #uplevel 1 [list interp alias {} $struct_name {} list $l]
-    set proc_body "[list list $l] \$val"
-    uplevel 1 [list proc $struct_name val $proc_body]
+    set proc_body [format {
+        set def %s
+        if {[llength $args] == 0} {
+            return $def
+        } else {
+            return [list $def $args]
+        }
+    } [list $l]]
+    uplevel 1 [list proc $struct_name args $proc_body]
     return
 }
 

@@ -489,7 +489,7 @@ twapi::proc* twapi::eject_media device {
         device_ioctl $h 0x90018; # FSCTL_LOCK_VOLUME
         device_ioctl $h 0x90020; # FSCTL_DISMOUNT_VOLUME
         #  IOCTL_STORAGE_MEDIA_REMOVAL (0)
-        device_ioctl $h 0x2d4804 -input [_PREVENT_MEDIA_REMOVAL [list 0]]
+        device_ioctl $h 0x2d4804 -input [_PREVENT_MEDIA_REMOVAL 0]
         device_ioctl $h 0x2d4808; # IOCTL_STORAGE_EJECT_MEDIA
     } finally {
         close_handle $h
