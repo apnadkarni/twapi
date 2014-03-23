@@ -29,7 +29,7 @@ proc twapi::rds_enumerate_sessions {args} {
     set sessions [WTSEnumerateSessions $opts(hserver)]
 
     if {[info exists state]} {
-        set sessions [recordarray get $sessions -select [list [list State == $state]]]
+        set sessions [recordarray get $sessions -filter [list [list State == $state]]]
     }
 
     set result {}

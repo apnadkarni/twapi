@@ -71,7 +71,7 @@ of the output buffer expected by the call. The command will then return
 the result as a Tcl binary value that should in general be
 parsed with the Tcl [cmd "binary scan"] command.
 
-[call [cmd eject_media] [arg DEVICE]]
+[call [cmd eject] [arg DEVICE]]
 Alias for [uri #eject_media [cmd eject_media]].
 
 [call [cmd eject_media] [arg DEVICE]]

@@ -136,6 +136,78 @@ It can be disabled again with
 The current contents of the debug log can be retrieved with
 [uri #debuglog_get [cmd debuglog_get]].
 
+[section "Record arrays"]
+Some TWAPI commands return data in a form that is similar to a table
+with named columns.
+For example, the event tracing module returns a list of event trace records.
+The form of the returned data is called a [emph "record array"]
+and is intended to be opaque and 
+manipulated through the [uri #recordarray [cmd recordarray]] command.
+The command takes various forms shown
+in the table below and is flexible enough to retrieve data
+as dictionaries or lists as well as support operations like filtering
+and column slicing.
+
+[list_begin opt]
+[opt_def [uri #recordarraycell [cmd "recordarray cell"]]]
+Returns the value in a specified field in a specific record.
+[opt_def [uri #recordarraycolumn [cmd "recordarray column"]]]
+Returns values for a specified field for all records.
+[opt_def [uri #recordarrayconcat [cmd "recordarray concat"]]]
+Returns a record array containing records from one or more 
+record arrays.
+[opt_def [uri #recordarrayfields [cmd "recordarray fields"]]]
+Returns field names for the records in the record array.
+[opt_def [uri #recordarrayget [cmd "recordarray get"]]]
+Returns another record array containing a subset of the records and
+fields.
+[opt_def [uri #recordarraygetdict [cmd "recordarray getdict"]]]
+Returns a dictionary containing a subset of the records and
+fields.
+[opt_def [uri #recordarraygetlist [cmd "recordarray getlist"]]]
+Returns a list containing a subset of the records and
+fields.
+[opt_def [uri #recordarrayindex [cmd "recordarray index"]]]
+Returns the record at a specified position in list or dictionary format.
+[opt_def [uri #recordarrayrename [cmd "recordarray rename"]]]
+Renames one or more fields in the record array.
+[opt_def [uri #recordarraysize [cmd "recordarray size"]]]
+Returns the number of records in the record array.
+[list_end]
+
+Many record array commands accept some of the following common
+options:
+[list_begin opt]
+[opt_def [cmd -filter] [arg FILTERLIST]]
+Specifies a list of matching filters. Only the records matching all the
+filter expressions in [arg FILTERLIST] are returned. [arg FILTERLIST]
+is a list of filter expressions. Each filter expression is a 3-element
+list consisting of a record field name,
+a matching operator and the value to match.
+The matching operator must be one of the following:
+[list_begin opt]
+[opt_def [const eq]] Case-insensitive string equality
+[opt_def [const ne]] Case-insensitive strings inequality
+[opt_def [const ==]] Integer equality
+[opt_def [const !=]] Integer inequality
+[opt_def [const ~]] Pattern matched (as in [cmd "string match"])
+[opt_def [const !~]] Pattern not matched (as in [cmd "string match"])
+[list_end]
+[opt_def [cmd -format] [arg FORMAT]]
+Specifies the format of each record element returned. [arg FORMAT]
+may be one of the following values:
+[list_begin opt]
+[opt_def [const list]] each record is returned as a list (default).
+[opt_def [const dict]] each record is returned as a dictionary whose keys
+are the fields names of the record array.
+[opt_def [const flat]] Field values of returned as a flat list. Only valid
+for the [uri #recordarraygetlist [cmd "recordarray getlist"]] command.
+[list_end]
+[opt_def [cmd -slice] [arg FIELDLIST]]
+Specifies that the return value should only include the fields
+specified in [arg FIELDLIST] and in that order.
+[list_end]
+
 [section "Utility commands"]
 [uri \#parseargs [cmd parseargs]]
 parses an argument list based on specified options.
@@ -168,8 +240,8 @@ are useful for manipulating internal Tcl value types. This is sometimes useful
 and required when dealing with external APIs and data formats like
 [uri com.html#controllingparametertypes "COM"].
 
-[uri #hex32] [cmd hex32]] and
-[uri #hex64] [cmd hex64]] format numbers as fixed length
+[uri #hex32 [cmd hex32]] and
+[uri #hex64 [cmd hex64]] format numbers as fixed length
 hexadecimal strings.
 
 [uri #lambda [cmd lambda]] returns an anonymous proc definition
@@ -726,6 +798,60 @@ to inform it whether the returned credentials are valid or not by calling
 
 The command [uri #credentials_dialog [cmd credentials_dialog]] provides
 a GUI version of this command.
+
+[call [cmd "recordarray cell"] [arg RECORDARRAY] [arg INDEX] [arg FIELD]]
+Returns the value of the field [arg FIELD] of the record at
+index [arg INDEX] in the specified record array.
+
+[call [cmd "recordarray column"] [arg RECORDARRAY] [arg FIELD] [opt "[cmd -filter] [arg FILTERLIST]"]]
+Returns a list of values of the field [arg FIELD] in all records. If
+option [cmd -filter] is specified only the values from the matching
+records are included in the returned list. See [sectref "Record arrays"]
+for the format of [arg FILTERLIST].
+
+[call [cmd "recordarray concat"] [opt "[arg RECORDARRAY] [arg RECORDARRAY]..."]]
+Returns a record array containing records from one or more 
+record arrays. The number of fields in each record array must be the
+same though their names need not be identical.
+
+[call [cmd "recordarray fields"] [arg RECORDARRAY]]
+Returns field names for the records in the record array.
+
+[call [cmd "recordarray get"] [arg RECORDARRAY] [opt [arg options]]]
+Returns a record array containing a subset of the records and
+fields from [arg RECORDARRAY].
+[arg options] may be include [cmd -filter] and [arg -slice]
+from amongst the standard options described in
+[sectref "Record arrays"]. Other options are silently ignored.
+
+[call [cmd "recordarray getdict"] [arg RECORDARRAY] [opt [arg options]]]
+Returns a dictionary containing a subset of the records and
+fields from [arg RECORDARRAY]. The keys of the dictionary are
+specified through option [cmd -key] the value for which must
+be the name of a field in the dictionary. If the option
+is not specified, the first field in the record definition for
+the record array is used as the key. [arg options] may include any
+of the standard options described in [sectref "Record arrays"].
+
+[call [cmd "recordarray getlist"] [arg RECORDARRAY] [opt [arg options]]]
+Returns a list containing a subset of the records and
+fields from [arg RECORDARRAY]. The form and contente of
+the elements of the returned list depend on the [arg options]
+as described in [sectref "Record arrays"].
+
+[call [cmd "recordarray index"] [arg RECORDARRAY] [arg INDEX] [opt [arg options]]]
+Returns the record at a specified position in the record array. The
+options [cmd -format] and [cmd -slice] as described in
+[sectref "Record arrays"] control the fields returned and their format.
+
+[call [cmd "recordarray rename"] [arg RECORDARRAY] [arg FIELDRENAMEMAP]]
+Returns a new record array with the same records as [arg RECORDARRY] but
+with the fields renamed as per the contents of the dictionary
+[arg FIELDRENAMEMAP] which should map the old field name to a new one.
+Names of any fields not in [arg FIELDRENAMEMAP] are preserved.
+
+[call [cmd "recordarray size"] [arg RECORDARRAY]]
+Returns the number of records in the record array.
 
 [call [cmd rethrow]]
 Raises a Tcl error where the error options, including values of
