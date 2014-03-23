@@ -27,64 +27,6 @@ namespace eval twapi {
     # Cache mapping SIDs to account names. Dict keyed by system and SID
     variable _sid_to_name_cache {}
 
-    # Return a suitable cstruct definition based on a C definition
-    namespace eval cstruct {
-        proc define s {
-            regsub -all {(/\*.* \*/){1,1}?} $s {} s
-            regsub -line -all {//.*$} $s { } s
-            set l {}
-            foreach def [split $s ";"] {
-                if {[regexp {^\s*$} $def]} continue
-                if {![regexp {^\s*(.+)\s+(\*?[[:alnum:]_]+)\s*(\[.+\])?\s*$} $def ->  type name array]} {
-                    error "Invalid definition $def"
-                }
-                if {[string index $name 0] eq "*"} {
-                    append type *
-                    set name [string range $name 1 end]
-                }
-                switch -regexp -- [string trim $type] {
-                    {^char$} {set type i1}
-                    {^BYTE$} -
-                    {^unsigned char$} {set type ui1}
-                    {^short$} {set type i2}
-                    {^WORD$} -
-                    {^unsigned\s+short$} {set type ui2}
-                    {^BOOLEAN$} {set type bool}
-                    {^int$} {set type i4}
-                    {^ULONG$} -
-                    {^DWORD$} -
-                    {^unsigned\s+int$} {set type ui4}
-                    {^__int64$} {set type i8}
-                    {^unsigned\s+__int64$} {set type ui8}
-                    {^double$} {set type r8}
-                    {^char\s*\*$} {set type lpstr}
-                    {^WCHAR\s*\*$} {set type lpwstr}
-                    {^HANDLE$} {set type handle}
-                    default {error "Unknown type $type"}
-                }
-                set count 0
-                if {$array ne ""} {
-                    set count [string trim [string range $array 1 end-1]]
-                    if {![string is integer -strict $count]} {
-                        error "Non-integer array size"
-                    }
-                }
-
-                if {$name eq "cbSize" && $type in {int uint} && $count == 0} {
-                    set type cbsize
-                }
-
-                lappend l [list $type $count]
-            }
-            return $l
-        }
-        proc value {def val} {
-            return [list $def $val]
-        }
-
-        namespace export define value
-        namespace ensemble create
-    }
 }
 
 
@@ -1463,6 +1405,63 @@ proc twapi::recordarray::concat {args} {
     return [list $fields [::twapi::lconcat {*}$values]]
 }
 
+# Return a suitable cstruct definition based on a C definition
+proc twapi::struct {struct_name s} {
+    regsub -all {(/\*.* \*/){1,1}?} $s {} s
+    regsub -line -all {//.*$} $s { } s
+    set l {}
+    foreach def [split $s ";"] {
+        if {[regexp {^\s*$} $def]} continue
+        if {![regexp {^\s*(.+)\s+(\*?[[:alnum:]_]+)\s*(\[.+\])?\s*$} $def ->  type name array]} {
+            error "Invalid definition $def"
+        }
+        if {[string index $name 0] eq "*"} {
+            append type *
+            set name [string range $name 1 end]
+        }
+        switch -regexp -- [string trim $type] {
+            {^char$} {set type i1}
+            {^BYTE$} -
+            {^unsigned char$} {set type ui1}
+            {^short$} {set type i2}
+            {^WORD$} -
+            {^unsigned\s+short$} {set type ui2}
+            {^BOOLEAN$} {set type bool}
+            {^int$} {set type i4}
+            {^ULONG$} -
+            {^DWORD$} -
+            {^unsigned\s+int$} {set type ui4}
+            {^__int64$} {set type i8}
+            {^unsigned\s+__int64$} {set type ui8}
+            {^double$} {set type r8}
+            {^char\s*\*$} {set type lpstr}
+            {^WCHAR\s*\*$} {set type lpwstr}
+            {^HANDLE$} {set type handle}
+            default {error "Unknown type $type"}
+        }
+        set count 0
+        if {$array ne ""} {
+            set count [string trim [string range $array 1 end-1]]
+            if {![string is integer -strict $count]} {
+                error "Non-integer array size"
+            }
+        }
+
+        if {$name eq "cbSize" && $type in {int uint} && $count == 0} {
+            set type cbsize
+        }
+
+        lappend l [list $name $type $count]
+    }
+
+    # The command for returning a constructed value for the struct
+    # just needs to return a list of the definition as constructed
+    # above and the passed list value
+    #uplevel 1 [list interp alias {} $struct_name {} list $l]
+    set proc_body "[list list $l] \$val"
+    uplevel 1 [list proc $struct_name val $proc_body]
+    return
+}
 
 namespace eval twapi::recordarray {
     namespace export cell column concat fields get getdict getlist index rename size
