@@ -1120,9 +1120,9 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
     GUID guid;
     GUID *guidP;
     HWND   hwnd;
-    LPVOID pv, pv2, pv3;
+    LPVOID pv;
     Tcl_Obj *sObj, *s2Obj;
-    DWORD dw, dw2, dw3;
+    DWORD dw;
     union {
         WCHAR buf[MAX_PATH+1];
         struct {

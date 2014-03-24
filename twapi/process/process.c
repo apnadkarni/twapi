@@ -819,7 +819,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         result.value.obj = ObjFromByteArray(NULL, dw);
         pv = ObjToByteArray(result.value.obj, &dw);
         if (ReadProcessMemory(h, (void *)u.dwp, pv, dw, &sz)) {
-            Tcl_SetByteArrayLength(result.value.obj, sz);
+            Tcl_SetByteArrayLength(result.value.obj, (int) sz);
             result.type = TRT_OBJ;
         } else {
             ObjDecrRefs(result.value.obj);
