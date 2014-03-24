@@ -947,6 +947,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     GUID *guidP;
     LSA_UNICODE_STRING lsa_ustr; /* Used with lsa_oattr so not in union */
     TwapiResult result;
+    int i;
 
     --objc;
     ++objv;
@@ -1371,19 +1372,19 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         break;
     case 10041: // lconcat
         dw2 = 0;
-        for (dw = 0 ; dw < objc; ++dw) {
-            if (ObjListLength(interp, objv[dw], &dw3) != TCL_OK)
+        for (i = 0 ; i < objc; ++i) {
+            if (ObjListLength(interp, objv[i], &dw3) != TCL_OK)
                 return TCL_ERROR;
             dw2 += dw3;
         }
         result.type = TRT_OBJ;
         result.value.obj = ObjNewList(dw2, NULL); /* Preallocated space */
-        for (dw = 0, dw2 = 0; dw < objc; ++dw) {
+        for (i = 0, dw2 = 0; i < objc; ++i) {
             Tcl_Obj **elems;
             int nelems;
             /* Should not error, since we already did list convert above.
                If it does we have bigger problems than a leaking result obj */
-            if (ObjGetElements(interp, objv[dw], &nelems, &elems) != TCL_OK)
+            if (ObjGetElements(interp, objv[i], &nelems, &elems) != TCL_OK)
                 return TCL_ERROR;
             ObjListReplace(NULL, result.value.obj, dw2, 0, nelems, elems);
             dw2 += nelems;      /* Keep count of how many we added */
@@ -1404,10 +1405,11 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
     TwapiId twapi_id;
     DWORD dw, dw2;
     HANDLE h;
-    void *pv;
     Tcl_Obj *objP = NULL;
+#ifdef TWAPI_ENABLE_INSTRUMENTATION
+    void *pv;
     MemLifoMarkHandle mark;
-
+#endif
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
     CHECK_INTEGER_OBJ(interp, func, objv[1]);

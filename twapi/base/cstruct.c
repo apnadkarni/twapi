@@ -136,7 +136,7 @@ TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
         int       array_size = 0;
         int       deftype;
         int       elem_size;
-        int       field_alignment;
+        DWORD       field_alignment;
         TwapiCStructRep  *child = NULL;
 
         /* Note for ease of cleanup in case of errors, we only set
@@ -379,7 +379,7 @@ TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
                          Tcl_Obj *csvalObj, DWORD flags, DWORD *sizeP, void **ppv)
 {
     Tcl_Obj **objPP;
-    int i, nobjs;
+    int nobjs;
     TCL_RESULT res;
     TwapiCStructRep *csP = NULL;
     void *pv;
@@ -456,10 +456,7 @@ static TCL_RESULT ObjFromCStructHelper(Tcl_Interp *interp, void *pv, int nbytes,
         int count = csP->fields[i].count;
         void *pv2 = ADDPTR(pv, csP->fields[i].offset, void*);
         Tcl_Obj *arrayObj;
-        int       nelems;        /* # elements in array */
-        void *s;
-        int j, elem_size, len;
-        TCL_RESULT (*fn)(Tcl_Interp *, Tcl_Obj *, void *);
+        int j, elem_size;
 
         elem_size = csP->fields[i].size;
 
