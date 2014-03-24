@@ -29,9 +29,10 @@ static struct Tcl_ObjType gCStructType = {
     NULL, /* jenglish says keep this NULL */
 };
 
+struct TwapiCStructRep_s;       /* Forward decl */
 typedef struct TwapiCStructField_s {
     Tcl_Obj *name;           /* Name of the field */
-    Tcl_Obj *child;          /* Nested structure name or NULL */
+    struct TwapiCStructRep_s *child; /* Nested structure name or NULL */
     unsigned int count;         /* If >=1, field is an array of this size
                                    Note == 1 still means operand will be
                                    treated as a list and first element used.
@@ -59,7 +60,7 @@ static CStructRepDecrRefs(TwapiCStructRep *csP)
             if (csP->fields[i].name)
                 ObjDecrRefs(csP->fields[i].name);
             if (csP->fields[i].child)
-                ObjDecrRefs(csP->fields[i].child);
+                CStructRepDecrRefs(csP->fields[i].child);
         }
         TwapiFree(csP);
     }
@@ -90,11 +91,11 @@ static void UpdateCStructTypeString(Tcl_Obj *objP)
 /* These string are chosen to match the ones used in VARIANT. No
    particular reason, just consistency */
 static const char *cstruct_types[] = {
-    "bool", "i1", "ui1", "i2", "ui2", "i4", "ui4", "i8", "ui8", "r8", "lpstr", "lpwstr", "cbsize", "handle", NULL
+    "bool", "i1", "ui1", "i2", "ui2", "i4", "ui4", "i8", "ui8", "r8", "lpstr", "lpwstr", "cbsize", "handle", "struct", NULL
 };
 enum cstruct_types_enum {
     CSTRUCT_BOOLEAN, CSTRUCT_CHAR, CSTRUCT_UCHAR, CSTRUCT_SHORT, CSTRUCT_USHORT, CSTRUCT_INT, CSTRUCT_UINT, CSTRUCT_INT64, CSTRUCT_UINT64,
-    CSTRUCT_DOUBLE, CSTRUCT_STRING, CSTRUCT_WSTRING, CSTRUCT_CBSIZE, CSTRUCT_HANDLE
+    CSTRUCT_DOUBLE, CSTRUCT_STRING, CSTRUCT_WSTRING, CSTRUCT_CBSIZE, CSTRUCT_HANDLE, CSTRUCT_STRUCT
 };
 TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
 {
@@ -133,11 +134,16 @@ TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
         int       array_size = 0;
         int       deftype;
         int       elem_size;
+        TwapiCStructRep  *child = NULL;
+
+        /* Note for ease of cleanup in case of errors, we only set
+           the csP fields for this field entry at bottom of loop when 
+           sure that no errors are possible */
 
         if (ObjGetElements(interp, fieldObjs[i], &ndefs, &defObjs) != TCL_OK ||
-            ndefs < 2 || ndefs > 3 ||
+            ndefs < 2 || ndefs > 4 ||
             Tcl_GetIndexFromObj(interp, defObjs[1], cstruct_types, "type", TCL_EXACT, &deftype) != TCL_OK ||
-            (ndefs == 3 &&
+            (ndefs > 2 &&
              (ObjToInt(interp, defObjs[2], &array_size) != TCL_OK ||
               array_size < 0))) {
             goto invalid_def;
@@ -164,14 +170,25 @@ TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
             elem_size = sizeof(int);
             break;
         case CSTRUCT_HANDLE: elem_size = sizeof(HANDLE); break;
+        case CSTRUCT_STRUCT:
+            if (ndefs < 4)
+                goto invalid_def; /* Struct descriptor missing */
+            if (ObjCastToCStruct(interp, defObjs[3]) != TCL_OK)
+                goto error_return; /* Error message already in interp */
+            TWAPI_ASSERT(defObjs[3]->typePtr == &gCStructType);
+            child = CSTRUCT_REP(defObjs[3]);
+            child->nrefs += 1;  /* Since we will link to it below */
+            elem_size = child->size;
+            break;
         }
 
         if (elem_size > struct_alignment)
             struct_alignment = elem_size;
         /* See if offset needs to be aligned */
         offset = (offset + elem_size - 1) & ~(elem_size - 1);
-        csP->fields[i].name = NULL;
-        csP->fields[i].child = NULL;
+        csP->fields[i].name = defObjs[0];
+        ObjIncrRefs(defObjs[0]);
+        csP->fields[i].child = child;
         csP->fields[i].offset = offset;
         csP->fields[i].count = array_size;
         csP->fields[i].type = deftype;
@@ -201,42 +218,31 @@ invalid_def:
                         "Invalid CStruct definition");
 error_return:
     if (csP)
-        TwapiFree(csP);
+        CStructRepDecrRefs(csP);
     return TCL_ERROR;
 }
 
-/* Caller responsible for cleanup for memlifoP in all cases, success or error */
-TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
-                         Tcl_Obj *csvalObj, DWORD *sizeP, void **ppv)
+
+/* Caller responsible for all MemLifo releasing */
+static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
+                                      TwapiCStructRep *csP, 
+                                      Tcl_Obj *valObj, DWORD size, void *pv)
 {
     Tcl_Obj **objPP;
     int i, nobjs;
     TCL_RESULT res;
-    TwapiCStructRep *csP = NULL;
-    void *pv;
 
-    if (ObjGetElements(interp, csvalObj, &nobjs, &objPP) != TCL_OK ||
-        (nobjs != 0 && nobjs != 2))
-        goto invalid_def;
-        
-    /* Empty string means struct pointer is treated as NULL */
-    if (nobjs == 0) {
-        *sizeP = 0;
-        *ppv = NULL;
-        return TCL_OK;
-    }
-
-    if (ObjCastToCStruct(interp, objPP[0]) != TCL_OK)
-        return TCL_ERROR;
-
-    csP = CSTRUCT_REP(objPP[0]);
     csP->nrefs += 1;            /* So it is not shimmered away underneath us */
     
-    if (ObjGetElements(interp, objPP[1], &nobjs, &objPP) != TCL_OK ||
+    if (ObjGetElements(interp, valObj, &nobjs, &objPP) != TCL_OK ||
         nobjs != csP->nfields)  /* Not correct number of values */
         goto invalid_def;
     
-    pv = MemLifoAlloc(memlifoP, csP->size, NULL);
+    if (csP->size != size) {
+        TwapiReturnError(interp, TWAPI_BUFFER_OVERRUN);
+        goto error_return;
+    }
+
     for (i = 0; i < nobjs; ++i) {
         int count = csP->fields[i].count;
         void *pv2 = ADDPTR(pv, csP->fields[i].offset, void*);
@@ -256,6 +262,10 @@ TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
             }
         }
         elem_size = csP->fields[i].size;
+
+        /* TBD - can combine the count == 0/count != 0 cases
+           by setting arrayObjs to &objPP[i] and count = 1 for the former case
+        */
 
         switch (csP->fields[i].type) {
         case CSTRUCT_BOOLEAN: fn = ObjToBoolean; break;
@@ -298,8 +308,30 @@ TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
             fn = ObjToInt;
             break;
 
+        case CSTRUCT_STRUCT:
+            /*
+             * objPP[i] is a nested struct value or array of them.
+             * csP->fields[i].child points to its definition.
+             */
+            TWAPI_ASSERT(csP->fields[i].child);
+            if (count) {
+                for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
+                    res = ParseCStructHelper(interp, memlifoP, csP->fields[i].child,
+                                         arrayObj[j], elem_size, pv2);
+                    if (res != TCL_OK)
+                        goto invalid_def;
+                }                
+            } else {
+                res = ParseCStructHelper(interp, memlifoP, csP->fields[i].child,
+                                         objPP[i], elem_size, pv2);
+                if (res != TCL_OK)
+                    goto invalid_def;
+            }
+            continue;
+
         default:
             TwapiReturnErrorEx(interp, TWAPI_BUG, Tcl_ObjPrintf("Unknown Cstruct type %d", csP->fields[i].type));
+            goto error_return;
         }
 
         if (count) {
@@ -320,10 +352,52 @@ TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
         }
     }
     
-    *ppv = pv;
-    *sizeP = csP->size;
     CStructRepDecrRefs(csP);
     return TCL_OK;
+
+invalid_def:
+    TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS,
+                        "Invalid CStruct value");
+error_return:
+    CStructRepDecrRefs(csP);
+    return TCL_ERROR;
+}
+
+TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
+                         Tcl_Obj *csvalObj, DWORD *sizeP, void **ppv)
+{
+    Tcl_Obj **objPP;
+    int i, nobjs;
+    TCL_RESULT res;
+    TwapiCStructRep *csP = NULL;
+    void *pv;
+
+    if (ObjGetElements(interp, csvalObj, &nobjs, &objPP) != TCL_OK ||
+        (nobjs != 0 && nobjs != 2))
+        goto invalid_def;
+        
+    /* Empty string means struct pointer is treated as NULL */
+    if (nobjs == 0) {
+        *sizeP = 0;
+        *ppv = NULL;
+        return TCL_OK;
+    }
+
+    if (ObjCastToCStruct(interp, objPP[0]) != TCL_OK)
+        goto error_return;
+
+    csP = CSTRUCT_REP(objPP[0]);
+    csP->nrefs += 1;            /* So it is not shimmered away underneath us */
+    /* REMEMBER to release csP from this point on */
+
+    pv = MemLifoAlloc(memlifoP, csP->size, NULL);
+    res = ParseCStructHelper(interp, memlifoP, csP, objPP[1], csP->size, pv);
+    if (res == TCL_OK) {
+        *ppv = pv;
+        *sizeP = csP->size;
+        CStructRepDecrRefs(csP);
+        return TCL_OK;
+    }
 
 invalid_def:
     TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS,
@@ -334,25 +408,25 @@ error_return:
     return TCL_ERROR;
 }
 
-TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes, Tcl_Obj *csObj, Tcl_Obj **objPP)
+
+static TCL_RESULT ObjFromCStructHelper(Tcl_Interp *interp, void *pv, int nbytes, TwapiCStructRep *csP, Tcl_Obj **objPP)
 {
-    TwapiCStructRep *csP = NULL;
     Tcl_Obj *objs[32];          /* Assume no more than 32 fields in a struct */
     int i;
 
-    if (ObjCastToCStruct(interp, csObj) != TCL_OK)
-        return TCL_ERROR;
-
-    csP = CSTRUCT_REP(objPP[0]);
-    
-    if (nbytes != 0 && nbytes != csP->size) 
-        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "Size mismatch with cstruct definition");
-
-    if (csP->nfields > ARRAYSIZE(objs))
-        return TwapiReturnErrorMsg(interp, TWAPI_INTERNAL_LIMIT, "Not enough space to decode all cstruct fields");
-
     TWAPI_ASSERT(csP->nrefs > 0);
     csP->nrefs += 1;            /* So it is not shimmered away underneath us */
+
+    if (nbytes != 0 && nbytes != csP->size) {
+        TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "Size mismatch with cstruct definition");
+        goto error_return;
+    }
+
+    if (csP->nfields > ARRAYSIZE(objs)) {
+        TwapiReturnErrorMsg(interp, TWAPI_INTERNAL_LIMIT, "Not enough space to decode all cstruct fields");
+        goto error_return;
+    }
+
     for (i = 0; i < csP->nfields; ++i) {
         int count = csP->fields[i].count;
         void *pv2 = ADDPTR(pv, csP->fields[i].offset, void*);
@@ -390,13 +464,47 @@ TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes, Tcl_Obj *csO
         case CSTRUCT_STRING: EXTRACT(char*, ObjFromString); break;
         case CSTRUCT_WSTRING: EXTRACT(WCHAR*, ObjFromUnicode); break;
         case CSTRUCT_CBSIZE: EXTRACT(DWORD, ObjFromDWORD); break;
+        case CSTRUCT_STRUCT:
+            if (count) {
+                arrayObj = ObjNewList(count, NULL);
+                for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
+                    Tcl_Obj *elemObj;
+                    if (ObjFromCStructHelper(interp, pv2, elem_size,
+                                         csP->fields[i].child, &elemObj)
+                        != TCL_OK) {
+                        ObjDecrRefs(arrayObj);
+                        goto error_return;
+                    }
+                    ObjAppendElement(NULL, arrayObj, elemObj);
+                }
+                objs[i] = arrayObj;
+            } else {
+                TWAPI_ASSERT(csP->fields[i].child);
+                if (ObjFromCStructHelper(interp, pv2, elem_size,
+                                         csP->fields[i].child, &objs[i])
+                    != TCL_OK)
+                    goto error_return;
+            }
+            break;
         }
     }
     
     *objPP = ObjNewList(csP->nfields, objs);
-    if (csP)
-        CStructRepDecrRefs(csP);
+    CStructRepDecrRefs(csP);
     return TCL_OK;
+
+error_return:
+    CStructRepDecrRefs(csP);
+    return TCL_ERROR;
+
+}
+
+TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes, Tcl_Obj *csObj, Tcl_Obj **objPP)
+{
+    if (ObjCastToCStruct(interp, csObj) != TCL_OK)
+        return TCL_ERROR;
+
+    return ObjFromCStructHelper(interp, pv, nbytes, CSTRUCT_REP(csObj), objPP);
 }
 
 
