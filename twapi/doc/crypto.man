@@ -516,6 +516,15 @@ The value is a binary octet string containing an IP address.
 The value is a registered OID in string format.
 [list_end]
 
+[section "Data protection"]
+
+Windows provides facilities to encrypt and protect data based on the
+user credentials such that it can only be retrieved on the same
+system with the same credentials. The
+The [uri #protect_data [cmd protect_data]] and
+[uri #unprotect_data [cmd unprotect_data]] commands provide
+access to this facility.
+
 
 
 
@@ -1775,6 +1784,59 @@ Returns the size of the session key in the container.
 
 [call [cmd crypt_symmetric_key_size] [arg HCRYPT]]
 Returns the size of the symmetric key in the container.
+
+[call [cmd protect_data] [arg BINDATA] [opt [arg options]]]
+Encrypts and signs the binary data [arg BINDATA] so that it can only
+be recovered by a process running under the same user credentials
+on the same system through [uri #unprotect_data [cmd unprotect_data]].
+[nl]
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -audit] [arg BOOLEAN]]
+If [const true], an audit event is generated. Default is [const false].
+[opt_def [cmd -description] [arg DESCRIPTION]]
+A descriptive string that is stored with the encrypted data.
+[opt_def [cmd -hwnd] [arg HWND]]
+The handle to the parent window if a dialog is to be shown to the user.
+[opt_def [cmd -localmachine] [arg BOOLEAN]]
+If [const false] (default), only the same user can decrypt the data.
+If [const true], any user on the same machine can do the decryption.
+[opt_def [cmd -noui] [arg BOOLEAN]]
+If [const true], the operation fails if any user dialog is
+required to be shown. Default is [const false].
+[opt_def [cmd -prompt] [arg PROMPTSTRING]]
+If specified, the user is shown a dialog with the specified
+[arg PROMPTSTRING] to set the security level of the encrypted
+data. The user will also be prompted at the time the data
+is decrypted.
+[list_end]
+
+[call [cmd unprotect_data] [arg BINDATA] [opt [arg options]]]
+Decrypts and verifies the signature on the binary data [arg BINDATA]
+which must have been encrypted with the
+[uri #protect_data [cmd protect_data]] command.
+The command will raise an error if [arg BINDATA] was encrypted
+under different user or machine credentials.
+The command returns the decrypted data.
+[nl]
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -withdescription] [arg BOOLEAN]]
+By default the command returns just the decrypted data.
+If specified as [const true], the command returns a list of two
+elements - the decrypted data and a
+descriptive string that is stored with the encrypted data.
+[opt_def [cmd -hwnd] [arg HWND]]
+The handle to the parent window if a dialog is to be shown to the user.
+[opt_def [cmd -noui] [arg BOOLEAN]]
+If [const true], the operation fails if any user dialog is
+required to be shown. Default is [const false].
+[opt_def [cmd -prompt] [arg PROMPTSTRING]]
+If specified, the user is shown a dialog with the specified
+[arg PROMPTSTRING].
+[list_end]
+
+
 
 [list_end]
 

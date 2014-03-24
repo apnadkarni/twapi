@@ -2533,6 +2533,8 @@ vamoose:
     return res;
 }
 
+
+
 static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
@@ -3294,6 +3296,141 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     return TwapiSetResult(interp, &result);
 }
 
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParseCRYPTPROTECT_PROMPTSTRUCT(TwapiInterpContext *ticP, Tcl_Obj *promptObj, CRYPTPROTECT_PROMPTSTRUCT *promptP)
+{
+    Tcl_Obj **objs;
+    int nobjs;
+    TCL_RESULT res;
+
+    res = ObjGetElements(NULL, promptObj, &nobjs, &objs);
+    if (res == TCL_OK) {
+        promptP->cbSize = sizeof(*promptP);
+        if (nobjs == 0) {
+            promptP->dwPromptFlags = 0;
+            promptP->hwndApp = NULL;
+            promptP->szPrompt = NULL;
+        } else {
+            res = TwapiGetArgsEx(ticP, nobjs, objs,
+                                 GETINT(promptP->dwPromptFlags),
+                                 GETHWND(promptP->hwndApp),
+                                 GETWSTR(promptP->szPrompt), ARGEND);
+            }
+    }
+    return res;
+}
+
+static int Twapi_CryptProtectObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    DWORD flags;
+    CRYPT_DATA_BLOB inblob, outblob;
+    TCL_RESULT res;
+    Tcl_Obj *inObj, *promptObj;
+    LPCWSTR description;
+    CRYPTPROTECT_PROMPTSTRUCT prompt;
+    MemLifoMarkHandle mark;
+    
+    mark = MemLifoPushMark(ticP->memlifoP);
+    
+    /* We do not want to make a copy of the input data for performance
+       reasons so we do not extract it directly using TwapiGetArgsEx. Other
+       parameters are extracted using that function so we are safe
+       in directly accessing the input data blob without fear of
+       the Tcl_Obj shimmering underneath us
+    */
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETOBJ(inObj),
+                         GETEMPTYASNULL(description), ARGSKIP,
+                         ARGSKIP, GETOBJ(promptObj),
+                         GETINT(flags), ARGEND);
+    if (res != TCL_OK)
+        goto vamoose;
+
+    res = ParseCRYPTPROTECT_PROMPTSTRUCT(ticP, promptObj, &prompt);
+    if (res != TCL_OK)
+        goto vamoose;
+
+    inblob.pbData = ObjToByteArray(inObj, &inblob.cbData);
+    outblob.pbData = NULL;
+    outblob.cbData = 0;
+    if (CryptProtectData(
+            &inblob,
+            description,        /* May be NULL */
+            NULL,               /* Entropy, not supported */
+            NULL,               /* Reserved - should be NULL */
+            prompt.szPrompt ? &prompt : NULL,
+            flags,
+            &outblob)) {
+        if (outblob.pbData) {
+            ObjSetResult(interp, ObjFromByteArray(outblob.pbData, outblob.cbData));
+            LocalFree(outblob.pbData);
+        } /* else empty result. Should not happen ? */
+    }
+    else
+        res = TwapiReturnSystemError(interp);
+
+vamoose:
+    MemLifoPopMark(mark);
+    return res;
+}
+
+
+static int Twapi_CryptUnprotectObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    DWORD flags;
+    CRYPT_DATA_BLOB inblob, outblob;
+    Tcl_Obj *inObj, *promptObj;
+    LPWSTR description;
+    CRYPTPROTECT_PROMPTSTRUCT prompt;
+    MemLifoMarkHandle mark;
+    TCL_RESULT res;
+    
+    mark = MemLifoPushMark(ticP->memlifoP);
+    
+    /* We do not want to make a copy of the input data for performance
+       reasons so we do not extract it directly using TwapiGetArgsEx. Other
+       parameters are extracted using that function so we are safe
+       in directly accessing the input data blob without fear of
+       the Tcl_Obj shimmering underneath us
+    */
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETOBJ(inObj),
+                         ARGSKIP, ARGSKIP, GETOBJ(promptObj),
+                         GETINT(flags), ARGEND);
+    if (res != TCL_OK)
+        goto vamoose;
+
+    res = ParseCRYPTPROTECT_PROMPTSTRUCT(ticP, promptObj, &prompt);
+    if (res != TCL_OK)
+        goto vamoose;
+
+    inblob.pbData = ObjToByteArray(inObj, &inblob.cbData);
+    outblob.pbData = NULL;
+    outblob.cbData = 0;
+    description = NULL;
+    if (CryptUnprotectData(
+            &inblob,
+            &description,
+            NULL,
+            NULL,
+            prompt.szPrompt ? &prompt : NULL,
+            flags,
+            &outblob)) {
+        Tcl_Obj *objs[2];
+        objs[0] = ObjFromByteArray(outblob.pbData, outblob.cbData);
+        objs[1] = description ? ObjFromUnicode(description) : ObjFromEmptyString();
+        ObjSetResult(interp, ObjNewList(2, objs));
+        if (description)
+            LocalFree(description);
+        if (outblob.pbData)
+            LocalFree(outblob.pbData);
+    }
+    else
+        res = TwapiReturnSystemError(interp);
+
+vamoose:
+    MemLifoPopMark(mark);
+    return res;
+}
+
 static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s CryptoDispatch[] = {
@@ -3365,8 +3502,10 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptFormatObject, Twapi_CryptFormatObjectObjCmd), // Tcl
         DEFINE_TCL_CMD(CertSetCertificateContextProperty, Twapi_CertSetCertificateContextPropertyObjCmd),
         DEFINE_TCL_CMD(Twapi_CertChainContexts, Twapi_CertChainContextsObjCmd),
-        DEFINE_FNCODE_CMD(PFXExportCertStoreEx, Twapi_PFXExportCertStoreExObjCmd),
-        DEFINE_FNCODE_CMD(PFXImportCertStore, Twapi_PFXImportCertStoreObjCmd),
+        DEFINE_TCL_CMD(CryptProtectData, Twapi_CryptProtectObjCmd),
+        DEFINE_TCL_CMD(CryptUnprotectData, Twapi_CryptUnprotectObjCmd),
+        DEFINE_TCL_CMD(PFXExportCertStoreEx, Twapi_PFXExportCertStoreExObjCmd),
+        DEFINE_TCL_CMD(PFXImportCertStore, Twapi_PFXImportCertStoreObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);

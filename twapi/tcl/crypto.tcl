@@ -32,6 +32,60 @@ This is the only way that I found to attach private key to a certificate.
 }
 
 ################################################################
+### Data protection
+
+proc twapi::protect_data {data args} {
+
+    # Not used because doesn't seem to have any effect 
+    # {promptonunprotect.bool 0 0x1}
+    parseargs args {
+        {description.arg ""}
+        {localmachine.bool 0 0x4}
+        {noui.bool 0 0x1}
+        {audit.bool 0 0x10}
+        {hwnd.arg NULL}
+        prompt.arg
+    } -setvars -maxleftover 0
+
+    if {[info exists prompt]} {
+        # 2 -> PROMPTONPROTECT
+        set prompt [list 2 $hwnd $prompt]
+    } else {
+        set prompt {}
+    }
+
+    return [CryptProtectData $data $description "" "" $prompt [expr {$localmachine | $noui | $audit}]]
+}
+
+proc twapi::unprotect_data {data args} {
+    # Do not seem to have any effect
+    # {promptonunprotect.bool 0 0x1}
+    # {promptonprotect.bool 0 0x2}
+    parseargs args {
+        {withdescription.bool 0}
+        {noui.bool 0 0x1}
+        {hwnd.arg NULL}
+        prompt.arg
+    } -setvars -maxleftover 0
+
+    if {[info exists prompt]} {
+        # 2 -> PROMPTONPROTECT
+        set prompt [list 2 $hwnd $prompt]
+    } else {
+        set prompt {}
+    }
+
+    set data [CryptUnprotectData $data "" "" $prompt $noui]
+    if {$withdescription} {
+        return $data
+    } else {
+        return [lindex $data 0]
+    }
+}
+
+
+
+################################################################
 # Certificate Stores
 
 # Close a certificate store

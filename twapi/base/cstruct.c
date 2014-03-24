@@ -46,9 +46,9 @@ typedef struct TwapiCStructField_s {
 
 typedef struct TwapiCStructRep_s {
     int nrefs;                  /* Reference count for this structure */
-    int nfields;                /* Number of elements in fields[] */
-    int size;                   /* Size of the defined structure */
-    int alignment;              /* Alignment required (calculated based
+    unsigned int nfields;                /* Number of elements in fields[] */
+    unsigned int size;                   /* Size of the defined structure */
+    unsigned int alignment;              /* Alignment required (calculated based
                                    on contained fields) */
     TwapiCStructField fields[1];
 } TwapiCStructRep;
@@ -241,7 +241,7 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
                                       DWORD size, void *pv)
 {
     Tcl_Obj **objPP;
-    int i, nobjs;
+    unsigned int i, nobjs;
     TCL_RESULT res;
 
     csP->nrefs += 1;            /* So it is not shimmered away underneath us */
@@ -355,7 +355,7 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
             if (fn(interp, objPP[i], pv2) != TCL_OK)
                 goto error_return;
             if (csP->fields[i].type == CSTRUCT_CBSIZE) {
-                int ssize = *(int *)pv2;
+                unsigned int ssize = *(int *)pv2;
                 if (ssize > csP->size || ssize < 0)
                     goto invalid_def;
                 if (ssize == 0)
@@ -425,11 +425,10 @@ error_return:
 }
 
 
-static TCL_RESULT ObjFromCStructHelper(Tcl_Interp *interp, void *pv, int nbytes, TwapiCStructRep *csP, DWORD flags, Tcl_Obj **objPP)
+static TCL_RESULT ObjFromCStructHelper(Tcl_Interp *interp, void *pv, unsigned int nbytes, TwapiCStructRep *csP, DWORD flags, Tcl_Obj **objPP)
 {
     Tcl_Obj *objs[2*32]; /* Assume no more than 32 fields in a struct */
-    int i, objindex;
-    int include_key, max_fields;
+    unsigned int i, objindex, max_fields, include_key;
 
     TWAPI_ASSERT(csP->nrefs > 0);
     csP->nrefs += 1;            /* So it is not shimmered away underneath us */
