@@ -1281,10 +1281,8 @@ TWAPI_EXTERN void ObjDecrRefs(Tcl_Obj *);
 TWAPI_EXTERN void ObjDecrArrayRefs(int, Tcl_Obj *objv[]);
 
 TWAPI_EXTERN TCL_RESULT ObjToEnum(Tcl_Interp *interp, Tcl_Obj *enumsObj, Tcl_Obj *nameObj, int *valP);
-TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj);
-TWAPI_EXTERN TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
-                         Tcl_Obj *csvalObj, DWORD *sizeP, void **ppv);
-TWAPI_EXTERN TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes, Tcl_Obj *csObj, Tcl_Obj **objPP);
+
+
 TWAPI_EXTERN Tcl_Obj *ObjFromOpaque(void *pv, char *name);
 
 TWAPI_INLINE Tcl_Obj *ObjFromHANDLE(HANDLE h) {
@@ -1525,6 +1523,17 @@ TWAPI_EXTERN Tcl_Obj *TwapiGetAtom(TwapiInterpContext *ticP, const char *key);
 TWAPI_EXTERN void TwapiPurgeAtoms(TwapiInterpContext *ticP);
 TWAPI_EXTERN void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcmd, char *code);
 TWAPI_EXTERN TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp);
+
+/* Cstruct calls */
+TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj);
+TWAPI_EXTERN TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
+                                      Tcl_Obj *csvalObj, DWORD flags, DWORD *sizeP, void **ppv);
+/* ParseCStruct flags definitions */
+#define CSTRUCT_ALLOW_NULL 0x1
+
+TWAPI_EXTERN TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes, Tcl_Obj *csObj, DWORD flags, Tcl_Obj **objPP);
+/* ObjFromCStruct flags definitions */
+#define CSTRUCT_RETURN_DICT 0x1
 
 /* Wrappers for memlifo based s/w stack */
 TWAPI_INLINE MemLifo *TwapiMemLifo(void) {

@@ -39,6 +39,23 @@
 #  PP97FrameClass  Microsoft PowerPoint
 #  OpusApp  Microsoft Word
 
+namespace eval twapi {
+    struct POINT {LONG x;  LONG y;}
+    struct RECT { LONG left; LONG top; LONG right; LONG bottom; }
+    struct WINDOWPLACEMENT {
+        UINT   cbSize;
+        UINT   flags;
+        UINT  showCmd;
+        struct POINT ptMinPosition;
+        struct POINT ptMaxPosition;
+        struct RECT  rcNormalPosition;
+    }
+}
+
+proc twapi::get_window_placement {hwin} {
+    GetWindowPlacement $hwin [WINDOWPLACEMENT]
+}
+
 # Set the focus to the given window
 proc twapi::set_focus {hwin} {
     return [_return_window [_attach_hwin_and_eval $hwin {SetFocus $hwin}]]

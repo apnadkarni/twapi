@@ -701,15 +701,6 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_HDC;
             result.value.hval = GetWindowDC(hwnd);
             break;
-        case 27:
-            if (GetWindowPlacement(hwnd, &u.winplace)) {
-                result.type = TRT_OBJ;
-                result.value.obj = ObjFromWINDOWPLACEMENT(&u.winplace);
-                break;
-            } else {
-                result.type = TRT_GETLASTERROR;
-            }
-            break;
         }
     } else if (func < 1000) {
         /* Exactly one additional int arg */
@@ -761,11 +752,7 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_BOOL;
             result.value.bval = IsChild(hwnd, hwnd2);
             break;
-        case 1003: //SetWindowPlacement
-            if (ObjToWINDOWPLACEMENT(interp, objv[0], &u.winplace) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetWindowPlacement(hwnd, &u.winplace);
+        case 1003: // UNUSED
             break;
         case 1004: // InvalidateRect
             rectP = &u.rect;
@@ -834,6 +821,71 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     }
 
     return TwapiSetResult(interp, &result);
+}
+
+static int Twapi_UiCallWStructObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TwapiResult result;
+    DWORD dw;
+    HWND hwnd;
+    int func = PtrToInt(clientdata);
+    MemLifo *memlifoP;
+    MemLifoMarkHandle mark;
+    TCL_RESULT res;
+    void *pv;
+    Tcl_Obj *objP;
+    union {
+        WINDOWPLACEMENT winplace;
+        WINDOWINFO wininfo;
+        WCHAR buf[MAX_PATH+1];
+        RECT   rect;
+        HRGN   hrgn;
+    } u;
+
+    /* At least two args - window and another arg */
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETHWND(hwnd), GETOBJ(objP),
+                     ARGTERM) != TCL_OK)
+        return TCL_ERROR;
+
+    memlifoP = TwapiMemLifo();
+    mark = MemLifoPushMark(memlifoP);
+    objc -= 3;
+    objv += 3;
+    result.type = TRT_BADFUNCTIONCODE;
+
+    res = TCL_OK;
+    switch (func) {
+    case 1: // SetWindowPlacement
+        res = ParseCStruct(interp, memlifoP, objP, 0, &dw, &pv);
+        if (res == TCL_OK) {
+            if (! SetWindowPlacement(hwnd, pv))
+                result.type = TRT_EMPTY;
+            else
+                result.type = TRT_GETLASTERROR;
+        } else {
+            result.value.ival = res;
+            result.type = TRT_TCL_RESULT;
+        }
+        break;
+    case 2: // GetWindowPlacement
+        if (GetWindowPlacement(hwnd, &u.winplace)) {
+            res = ObjFromCStruct(interp, &u.winplace, sizeof(u.winplace), objP, 0, &result.value.obj);
+            if (res == TCL_OK)
+                result.type = TRT_OBJ;
+            else {
+                result.value.ival = res;
+                result.type = TRT_TCL_RESULT;
+            }
+        } else {
+            result.type = TRT_GETLASTERROR;
+        }
+        break;
+    }
+
+    res = TwapiSetResult(interp, &result);
+    MemLifoPopMark(mark);
+    return res;
 }
 
 static int TwapiUiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
@@ -905,7 +957,6 @@ static int TwapiUiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(EnumChildWindows, 24),
         DEFINE_FNCODE_CMD(GetWindowText, 25),
         DEFINE_FNCODE_CMD(GetWindowDC, 26),
-        DEFINE_FNCODE_CMD(GetWindowPlacement, 27), // TBD - Tcl 
         DEFINE_FNCODE_CMD(GetAncestor, 501),
         DEFINE_FNCODE_CMD(GetWindow, 502),
         DEFINE_FNCODE_CMD(ShowWindow, 503),
@@ -915,7 +966,6 @@ static int TwapiUiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(MonitorFromWindow, 507),
         DEFINE_FNCODE_CMD(SetWindowText, 1001),
         DEFINE_FNCODE_CMD(IsChild, 1002),
-        DEFINE_FNCODE_CMD(SetWindowPlacement, 1003), // TBD - Tcl 
         DEFINE_FNCODE_CMD(InvalidateRect, 1004),     // TBD - Tcl 
         DEFINE_FNCODE_CMD(SetWindowPos, 1005),
         DEFINE_FNCODE_CMD(MoveWindow, 1006),
@@ -926,8 +976,15 @@ static int TwapiUiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(SetLayeredWindowAttributes, 1011),
     };
 
+    /* Command using memlifo */
+    static struct fncode_dispatch_s UiCallWStructDispatch[] = {
+        DEFINE_FNCODE_CMD(SetWindowPlacement, 1), // TBD - Tcl 
+        DEFINE_FNCODE_CMD(GetWindowPlacement, 2), // TBD - Tcl 
+    };
+
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(UiCallDispatch), UiCallDispatch, Twapi_UiCallObjCmd);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(UiCallWDispatch), UiCallWDispatch, Twapi_UiCallWObjCmd);
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(UiCallWStructDispatch), UiCallWStructDispatch, Twapi_UiCallWStructObjCmd);
 
     return TCL_OK;
 }

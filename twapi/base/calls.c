@@ -1489,7 +1489,7 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
 #if TWAPI_ENABLE_INSTRUMENTATION
         CHECK_NARGS(interp, objc, 1);
         mark = MemLifoPushMark(ticP->memlifoP);
-        result.value.ival = ParseCStruct(interp, ticP->memlifoP, objv[0], &dw, &pv);
+        result.value.ival = ParseCStruct(interp, ticP->memlifoP, objv[0], 0, &dw, &pv);
         if (result.value.ival != TCL_OK)
             result.type = TRT_TCL_RESULT;
         else {

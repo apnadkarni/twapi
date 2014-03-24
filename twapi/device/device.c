@@ -1085,7 +1085,7 @@ static int Twapi_DeviceIoControlObjCmd(TwapiInterpContext *ticP, Tcl_Interp *int
     /* NOTE mark HAS TO BE POPPED ON ALL EXITS */
 
     if (inputObj) {
-        res = ParseCStruct(interp, memlifoP, inputObj, &nin, &inP);
+        res = ParseCStruct(interp, memlifoP, inputObj, CSTRUCT_ALLOW_NULL, &nin, &inP);
     } else {
         inP = NULL;
         nin = 0; 

@@ -1428,7 +1428,9 @@ proc twapi::struct {struct_name s} {
             {^WORD$} -
             {^unsigned\s+short$} {set type ui2}
             {^BOOLEAN$} {set type bool}
+            {^LONG$} -
             {^int$} {set type i4}
+            {^UINT$} -
             {^ULONG$} -
             {^DWORD$} -
             {^unsigned\s+int$} {set type ui4}
@@ -1456,7 +1458,8 @@ proc twapi::struct {struct_name s} {
             }
         }
 
-        if {$name eq "cbSize" && $type in {int uint} && $count == 0} {
+        if {[string equal -nocase $name "cbSize"] &&
+            $type in {i4 ui4} && $count == 0} {
             set type cbsize
         }
 
