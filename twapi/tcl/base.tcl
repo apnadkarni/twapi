@@ -1413,15 +1413,14 @@ proc twapi::struct {struct_name s} {
     regsub -line -all {//.*$} $s { } s
     set l {}
     foreach def [split $s ";"] {
-        if {[regexp {^\s*$} $def]} continue
-        if {![regexp {^\s*(.+)\s+(\*?[[:alnum:]_]+)\s*(\[.+\])?\s*$} $def ->  type name array]} {
+        set def [string trim $def]
+        if {$def eq ""} continue
+        if {![regexp {^(.+[^[:alnum:]_])([[:alnum:]_]+)\s*(\[.+\])?$} $def ->  type name array]} {
             error "Invalid definition $def"
         }
-        if {[string index $name 0] eq "*"} {
-            append type *
-            set name [string range $name 1 end]
-        }
-        switch -regexp -- [string trim $type] {
+        
+        set child {}
+        switch -regexp -matchvar matchvar -- [string trim $type] {
             {^char$} {set type i1}
             {^BYTE$} -
             {^unsigned char$} {set type ui1}
@@ -1439,6 +1438,14 @@ proc twapi::struct {struct_name s} {
             {^char\s*\*$} {set type lpstr}
             {^WCHAR\s*\*$} {set type lpwstr}
             {^HANDLE$} {set type handle}
+            {^struct\s+([[:alnum:]_]+)$} {
+                # Embedded struct. It should be defined already. Calling
+                # it with no args returns its definition. Note type
+                # could be passed as Tcl command! That's ok. If worried
+                # should be using a safe interp anyways.
+                set child [uplevel 1 [lrange $matchvar 1 1]]
+                set type struct
+            }
             default {error "Unknown type $type"}
         }
         set count 0
@@ -1453,13 +1460,9 @@ proc twapi::struct {struct_name s} {
             set type cbsize
         }
 
-        lappend l [list $name $type $count]
+        lappend l [list $name $type $count $child]
     }
 
-    # The command for returning a constructed value for the struct
-    # just needs to return a list of the definition as constructed
-    # above and the passed list value
-    #uplevel 1 [list interp alias {} $struct_name {} list $l]
     set proc_body [format {
         set def %s
         if {[llength $args] == 0} {
