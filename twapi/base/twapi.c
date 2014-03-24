@@ -97,6 +97,7 @@ static void TwapiTlsUnref()
             tlsP->nrefs -= 1;
             if (tlsP->nrefs == 0) {
                 MemLifoClose(&tlsP->memlifo);
+                ObjDecrRefs(tlsP->ffiObj);
                 TwapiFree(tlsP);
                 TlsSetValue(gTlsIndex, NULL);
             }
@@ -123,6 +124,8 @@ static TCL_RESULT TwapiTlsInit()
             TwapiFree(tlsP);
             return TCL_ERROR;
         }
+        tlsP->ffiObj = ObjNewDict();
+        ObjIncrRefs(tlsP->ffiObj);
     }
 
     tlsP->nrefs += 1;
@@ -150,9 +153,6 @@ TwapiTls *Twapi_GetTls()
         Tcl_Panic("TLS pointer is NULL");
     return tlsP;
 }
-
-/* TBD - make inline */
-
 
 int TwapiLoadStaticModules(Tcl_Interp *interp)
 {

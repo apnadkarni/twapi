@@ -928,9 +928,16 @@ typedef struct _TwapiTls {
      * released when the thread terminates.
      */
     MemLifo memlifo;
+    
+    /*
+     * ffiObj points to a Tcl_DictObj that maps the DLL and function
+     * to its address. The key is the DLL name/path and function name.
+     * The value being the address of the function
+     * if found and 0 otherwise.
+     */
+    Tcl_Obj *ffiObj;
 
-    int nrefs;                  /* Reference counts to track active
-                                   interp contexts */
+    int nrefs;                  /* Reference count */
 
 #define TWAPI_TLS_SLOTS 8
     DWORD_PTR slots[TWAPI_TLS_SLOTS];
@@ -1122,6 +1129,11 @@ TWAPI_EXTERN TCL_RESULT ObjAppendElement(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Obj
 TWAPI_EXTERN TCL_RESULT ObjGetElements(Tcl_Interp *interp, Tcl_Obj *l, int *objcP, Tcl_Obj ***objvP);
 TWAPI_EXTERN TCL_RESULT ObjListReplace(Tcl_Interp *interp, Tcl_Obj *l, int first, int count, int objc, Tcl_Obj *const objv[]);
 
+TWAPI_EXTERN Tcl_Obj *ObjNewDict(void);
+TWAPI_EXTERN TCL_RESULT ObjDictGet(Tcl_Interp *interp, Tcl_Obj *dictObj, Tcl_Obj *keyObj, Tcl_Obj **valueObjP);
+TWAPI_EXTERN TCL_RESULT ObjDictPut(Tcl_Interp *interp, Tcl_Obj *dictObj, Tcl_Obj *keyObj, Tcl_Obj *valueObj);
+
+
 #define Twapi_FreeNewTclObj(o_) do { if (o_) { ObjDecrRefs(o_); } } while (0)
 
 Tcl_Obj *TwapiAppendObjArray(Tcl_Obj *resultObj, int objc, Tcl_Obj **objv,
@@ -1294,6 +1306,12 @@ TWAPI_INLINE Tcl_Obj *ObjFromHWND(HWND hwnd) {
 TWAPI_INLINE Tcl_Obj *ObjFromLPVOID(void *p) {
     return ObjFromOpaque(p, NULL);
 }
+TWAPI_INLINE Tcl_Obj *ObjFromHMODULE(HMODULE hmod) {
+    return ObjFromOpaque(hmod, "HMODULE");
+}
+TWAPI_INLINE Tcl_Obj *ObjFromFARPROC(FARPROC fn) {
+    return ObjFromOpaque(fn, "FARPROC");
+}
 
 /* The following macros assume objP_ typePtr points to Twapi's gVariantType */
 #define VARIANT_REP_VALUE(objP_) ((objP_)->internalRep.ptrAndLongRep.ptr)
@@ -1314,6 +1332,7 @@ TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointerOrNullTic(TwapiInterpContext *, Tcl_
 TWAPI_EXTERN TCL_RESULT ObjToLPVOID(Tcl_Interp *interp, Tcl_Obj *objP, HANDLE *pvP);
 #define ObjToHANDLE ObjToLPVOID
 #define ObjToHWND(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HWND")
+#define ObjToHMODULE(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HMODULE")
 
 #define ObjFromULONG      ObjFromDWORD
 #define ObjToDWORD        ObjToLong
