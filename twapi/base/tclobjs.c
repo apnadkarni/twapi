@@ -4179,6 +4179,21 @@ TCL_RESULT ObjListReplace(Tcl_Interp *interp, Tcl_Obj *l, int first, int count, 
     return Tcl_ListObjReplace(interp, l, first, count, objc, objv);
 }
 
+Tcl_Obj *ObjNewDict()
+{
+    return Tcl_NewDictObj();
+}
+
+TCL_RESULT ObjDictGet(Tcl_Interp *interp, Tcl_Obj *dictObj, Tcl_Obj *keyObj, Tcl_Obj **valueObjP)
+{
+    return Tcl_DictObjGet(interp, dictObj, keyObj, valueObjP);
+}
+
+TCL_RESULT ObjDictPut(Tcl_Interp *interp, Tcl_Obj *dictObj, Tcl_Obj *keyObj, Tcl_Obj *valueObj)
+{
+    return Tcl_DictObjPut(interp, dictObj, keyObj, valueObj);
+}
+
 
 Tcl_Obj *ObjFromLong(long val)
 {
