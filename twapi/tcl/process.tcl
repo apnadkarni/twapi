@@ -724,7 +724,7 @@ proc twapi::get_process_info {pid args} {
         set pid [pid]
     }
 
-    set rec [recordarray row [get_multiple_process_info {*}$args -matchpids [list $pid]] 0 -format dict]
+    set rec [recordarray index [get_multiple_process_info {*}$args -matchpids [list $pid]] 0 -format dict]
     if {"-pid" ni $args && "-all" ni $args} {
         dict unset rec -pid
     }
