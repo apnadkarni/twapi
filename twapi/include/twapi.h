@@ -1333,6 +1333,7 @@ TWAPI_EXTERN TCL_RESULT ObjToLPVOID(Tcl_Interp *interp, Tcl_Obj *objP, HANDLE *p
 #define ObjToHANDLE ObjToLPVOID
 #define ObjToHWND(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HWND")
 #define ObjToHMODULE(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HMODULE")
+#define ObjToFARPROC(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (void **)(p_), "FARPROC")
 
 #define ObjFromULONG      ObjFromDWORD
 #define ObjToDWORD        ObjToLong
