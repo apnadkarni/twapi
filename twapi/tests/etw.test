@@ -524,7 +524,7 @@ namespace eval twapi::etw::test {
     } -result {1 0}
 
     test etw_provider-1.0 {
-        Tests etw_start_trace/etw_stop_trace/etw_update_trace/etw_log_message/etw_enable_trace/etw_disable_trace
+        Tests etw_start_trace/etw_stop_trace/etw_log_message/etw_enable_trace/etw_disable_trace
     } -constraints {
         privileged
     } -setup {

@@ -79,10 +79,12 @@ proc twapi::winlog_close {hq} {
         error "Invalid event consumer handler '$hq'"
     }
 
+    if {[dict exists $_winlog_handles $hq signal]} {
+        # Catch in case app has closed event directly, for
+        # example when returned through winlog_subscribe
+        catch {close_handle [dict get $_winlog_handles $hq signal]}
+    }
     if {[min_os_version 6]} {
-        if {[dict exists $_winlog_handles $hq signal]} {
-            close_handle [dict get $_winlog_handles $hq signal]
-        }
         set hsess [dict get $_winlog_handles $hq session]
         evt_close $hq
         evt_close_session $hsess
@@ -175,7 +177,11 @@ if {[twapi::min_os_version 6]} {
     }
 
     proc twapi::winlog_subscribe {channelpath} {
-        return [evt_subscribe $channelpath -ignorequeryerrors]
+        variable _winlog_handles
+        lassign [evt_subscribe $channelpath -ignorequeryerrors] hq signal
+        dict set _winlog_handles $hq signal $signal
+        dict set _winlog_handles $hq session NULL; # local session
+        return [list $hq $signal]
     }
 
     interp alias {} twapi::winlog_clear {} twapi::evt_clear_log
@@ -210,7 +216,12 @@ if {[twapi::min_os_version 6]} {
     }
 
     proc twapi::winlog_subscribe {source} {
-        return [eventlog_subscribe $source]
+        variable _winlog_handles
+        lassign [eventlog_subscribe $source] hq hevent
+        dict set _winlog_handles $hq channel $source
+        dict set _winlog_handles $hq direction forward
+        dict set _winlog_handles $hq signal $hevent
+        return $hq
     }
 
     proc twapi::winlog_clear {source args} {

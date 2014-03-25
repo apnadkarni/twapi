@@ -773,11 +773,15 @@ namespace eval twapi {
 # NOT the same as export_public_commands
 proc twapi::_get_public_commands {} {
     variable exports;           # Populated via pkgIndex.tcl
-    if {![info exists exports]} {
-        error "Export table does not exist."
+    if {[info exists exports]} {
+        return [concat {*}[dict values $exports]]
+    } else {
+        set cmds {}
+        foreach cmd [lsearch -regexp -inline -all [info commands [namespace current]::*] {::twapi::[a-z].*}] {
+            lappend cmds [namespace tail $cmd]
+        }
+        return $cmds
     }
-
-    return [concat {*}[dict values $exports]]
 }
 
 proc twapi::export_public_commands {} {

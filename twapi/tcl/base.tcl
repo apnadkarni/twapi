@@ -1060,7 +1060,7 @@ proc twapi::eventlog_log {message args} {
         system.arg
         source.arg
         {type.arg information}
-        {category.int 1}
+        {category.int 0}
     } -nulldefault]
 
     set hevl [eventlog_open -write -source $opts(source) -system $opts(system)]

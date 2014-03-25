@@ -28,6 +28,11 @@ proc tcltest::test args {
         incr ::implemented
     }
 }
+
+proc test args {
+    # Old style tests left over in tls.test. Ignore
+}
+
 proc tcltest::cleanupTests {} {}
 
 foreach fn [glob *.test] {
@@ -57,6 +62,18 @@ array set do_not_test {
     read_console             deprecated_alias
     write_console            deprecated_alias
     update_service_status    run_as_service
+    etw_open_formatter       etw_consumer
+    etw_close_formatter      etw_consumer
+    etw_format_events        etw_consumer
+    etw_install_twapi_mof    etw_provider
+    etw_twapi_provider_register    etw_provider
+    etw_open_file            etw_provider
+    etw_disable_provider     etw_provider
+    etw_enable_provider     etw_provider
+    etw_log_message          etw_provider
+    etw_stop_trace           etw_provider
+    namedpipe_server         pipe
+    namedpipe_client         pipe
 }
 set missing {}
 foreach cmd [twapi::_get_public_commands] {
