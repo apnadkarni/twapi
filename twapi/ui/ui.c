@@ -330,49 +330,33 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     result.type = TRT_BADFUNCTIONCODE;
     if (func < 1000) {
         /* Functions taking no arguments */
+
+        HWND (WINAPI *hfn)(void);
+        DWORD (WINAPI *dfn)();
         if (objc != 0)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         switch (func) {
         case 1:
-            result.type = GetCursorPos(&result.value.point) ? TRT_POINT : TRT_GETLASTERROR;
-            break;
         case 2:
-            result.type = GetCaretPos(&result.value.point) ? TRT_POINT : TRT_GETLASTERROR;
+            result.type = (func == 1 ? GetCursorPos : GetCaretPos) (&result.value.point) ? TRT_POINT : TRT_GETLASTERROR;
             break;
-        case 3:
-            result.type = TRT_DWORD;
-            result.value.uval = GetCaretBlinkTime();
-            break;
-        case 4:
-            result.type = TRT_HWND;
-            result.value.hwin = GetFocus();
-            break;
-        case 5:
-            result.type = TRT_HWND;
-            result.value.hwin = GetDesktopWindow();
-            break;
-        case 6:
-            result.type = TRT_HWND;
-            result.value.hwin = GetShellWindow();
-            break;
-        case 7:
-            result.type = TRT_HWND;
-            result.value.hwin = GetForegroundWindow();
-            break;
-        case 8:
-            result.type = TRT_HWND;
-            result.value.hwin = GetActiveWindow();
-            break;
-        case 9:
-            result.type = TRT_BOOL;
-            result.value.bval = IsThemeActive();
-            break;
-        case 10:
-            result.type = TRT_BOOL;
-            result.value.bval = IsAppThemed();
-            break;
+        case 3: dfn = GetCaretBlinkTime; break;
+        case 4: hfn = GetFocus; break;
+        case 5: hfn = GetDesktopWindow; break;
+        case 6: hfn = GetShellWindow; break;
+        case 7: hfn = GetForegroundWindow; break;
+        case 8: hfn = GetActiveWindow; break;
+        case 9: dfn = IsThemeActive; break;
+        case 10: dfn = IsAppThemed; break;
         case 11:
             return Twapi_GetCurrentThemeName(interp);
+        }
+        if (hfn) {
+            result.type = TRT_HWND;
+            result.value.hwin = hfn();
+        } else if (dfn) {
+            result.type = TRT_DWORD;
+            result.value.uval = dfn();
         }
     } else if (func < 2000) {
         /* Exactly one arg */
@@ -584,66 +568,27 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     objv += 2;
     result.type = TRT_BADFUNCTIONCODE;
     if (func < 500) {
+        BOOL (WINAPI *bfn)(HWND) = NULL;
+        DWORD (WINAPI *dfn)(HWND) = NULL;
+
         if (objc != 0)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
         switch (func) {
-        case 1:
-            result.type = TRT_BOOL;
-            result.value.bval = IsIconic(hwnd);
-            break;
-        case 2:
-            result.type = TRT_BOOL;
-            result.value.bval = IsZoomed(hwnd);
-            break;
-        case 3:
-            result.type = TRT_BOOL;
-            result.value.bval = IsWindowVisible(hwnd);
-            break;
-        case 4:
-            result.type = TRT_BOOL;
-            result.value.bval = IsWindow(hwnd);
-            break;
-        case 5:
-            result.type = TRT_BOOL;
-            result.value.bval = IsWindowUnicode(hwnd);
-            break;
-        case 6:
-            result.type = TRT_BOOL;
-            result.value.bval = IsWindowEnabled(hwnd);
-            break;
-        case 7:
-            result.type = TRT_BOOL;
-            result.value.bval = ArrangeIconicWindows(hwnd);
-            break;
-        case 8:
-            result.type = TRT_BOOL;
-            result.value.bval = SetForegroundWindow(hwnd);
-            break;
-        case 9:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = OpenIcon(hwnd);
-            break;
-        case 10:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = CloseWindow(hwnd);
-            break;
-        case 11:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = DestroyWindow(hwnd);
-            break;
-        case 12:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = UpdateWindow(hwnd);
-            break;
-        case 13:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = HideCaret(hwnd);
-            break;
-        case 14:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = ShowCaret(hwnd);
-            break;
+        case 1: bfn = IsIconic; break;
+        case 2: bfn = IsZoomed; break;
+        case 3: bfn = IsWindowVisible; break;
+        case 4: bfn = IsWindow; break;
+        case 5: bfn = IsWindowUnicode; break;
+        case 6: bfn = IsWindowEnabled; break;
+        case 7: bfn = ArrangeIconicWindows; break;
+        case 8: bfn = SetForegroundWindow; break;
+        case 9: dfn = OpenIcon; break;
+        case 10: dfn = CloseWindow; break;
+        case 11: dfn = DestroyWindow; break;
+        case 12: dfn = UpdateWindow; break;
+        case 13: dfn = HideCaret; break;
+        case 14: dfn = ShowCaret; break;
         case 15:
             result.type = TRT_HWND;
             result.value.hwin = GetParent(hwnd);
@@ -701,6 +646,13 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_HDC;
             result.value.hval = GetWindowDC(hwnd);
             break;
+        }
+        if (bfn) {
+            result.type = TRT_BOOL;
+            result.value.bval = bfn(hwnd);
+        } else if (dfn) {
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = dfn(hwnd);
         }
     } else if (func < 1000) {
         /* Exactly one additional int arg */
