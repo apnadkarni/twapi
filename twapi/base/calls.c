@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2013, Ashok P. Nadkarni
+ * Copyright (c) 2010-2014, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -751,7 +751,6 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     GUID guid;
     WCHAR *bufP;
     SYSTEMTIME systime;
-    TwapiTls *tlsP;
 
     if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -911,40 +910,6 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         } else {
             result.type = TRT_EMPTY;
         }
-        break;
-    case 1025: //ffi_load
-        tlsP = Twapi_GetTls();
-        if (ObjDictGet(interp, tlsP->ffiObj, objv[0], &objs[0]) != TCL_OK)
-            return TCL_ERROR;
-        if (objs[0] == NULL) {
-            /* Entry does not exist. Check if the DLL handle is there */
-            Tcl_Obj **dll_and_func;
-            Tcl_Obj *dllObj;
-            HMODULE  hdll = NULL;
-            FARPROC fn;
-            if (ObjGetElements(NULL, objv[0], &dw, &dll_and_func) != TCL_OK ||
-                dw != 2) {
-                return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid DLL and function specification");
-            }
-            if (ObjDictGet(interp, tlsP->ffiObj, dll_and_func[0], &dllObj) != TCL_OK)
-                return TCL_ERROR;
-            if (dllObj == NULL) {
-                hdll = LoadLibraryW(ObjToUnicode(dll_and_func[0]));
-                ObjDictPut(interp, tlsP->ffiObj, dll_and_func[0], ObjFromHMODULE(hdll)); /* May be NULL */
-            } else {
-                if (ObjToHMODULE(interp, dllObj, &hdll) != TCL_OK)
-                    return TCL_ERROR;
-            }
-            if (hdll) {
-                /* Have DLL, get the function address */
-                fn = GetProcAddress(hdll, ObjToString(dll_and_func[1]));
-            } else
-                fn = 0;
-            objs[0] = ObjFromFARPROC(fn);
-            ObjDictPut(NULL, tlsP->ffiObj, objv[0], objs[0]);
-        }
-        result.value.obj = objs[0];
-        result.type = TRT_OBJ;
         break;
     }
 
@@ -2274,7 +2239,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(pointer_registered?, 1022),
         DEFINE_FNCODE_CMD(pointer_to_address, 1023),
         DEFINE_FNCODE_CMD(pointer_type, 1024),
-        DEFINE_FNCODE_CMD(ffi_load, 1025),
     };
 
     static struct fncode_dispatch_s CallArgsDispatch[] = {
@@ -2361,6 +2325,11 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(FormatMessageFromString, Twapi_FormatMessageFromStringObjCmd),
         DEFINE_TCL_CMD(CredUIPromptForCredentials, Twapi_CredUIPromptObjCmd),
         DEFINE_TCL_CMD(CredUICmdLinePromptForCredentials, Twapi_CredUICmdLinePromptObjCmd),
+#ifdef NOTYET
+        DEFINE_TCL_CMD(ffi_load, Twapi_FfiLoadObjCmd),
+        DEFINE_TCL_CMD(ffi0, Twapi_Ffi0ObjCmd),
+        DEFINE_TCL_CMD(ffiH, Twapi_FfiHObjCmd),
+#endif
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallHDispatch), CallHDispatch, Twapi_CallHObjCmd);
