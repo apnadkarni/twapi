@@ -47,6 +47,9 @@ TwapiTclObjCmd Twapi_GetTwapiBuildInfo;
 TwapiTclObjCmd Twapi_InternalCastObjCmd;
 TwapiTclObjCmd Twapi_GetTclTypeObjCmd;
 TwapiTclObjCmd Twapi_EnumPrintersLevel4ObjCmd;
+TwapiTclObjCmd Twapi_FfiLoadObjCmd;
+TwapiTclObjCmd Twapi_Ffi0ObjCmd;
+TwapiTclObjCmd Twapi_FfiHObjCmd;
 
 
 #endif
