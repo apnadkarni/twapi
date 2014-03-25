@@ -768,7 +768,7 @@ a GUI version of this command.
 
 [call [cmd "recordarray cell"] [arg RECORDARRAY] [arg INDEX] [arg FIELD]]
 Returns the value of the field [arg FIELD] of the record at
-index [arg INDEX] in the specified record array.
+index [arg INDEX] in the specified [uri #recordarrays "record array"].
 
 [call [cmd "recordarray column"] [arg RECORDARRAY] [arg FIELD] [opt "[cmd -filter] [arg FILTERLIST]"]]
 Returns a list of values of the field [arg FIELD] in all records. If
@@ -778,14 +778,16 @@ for the format of [arg FILTERLIST].
 
 [call [cmd "recordarray concat"] [opt "[arg RECORDARRAY] [arg RECORDARRAY]..."]]
 Returns a record array containing records from one or more 
-record arrays. The number of fields in each record array must be the
+[uri #recordarrays "record arrays"]. 
+The number of fields in each record array must be the
 same though their names need not be identical.
 
 [call [cmd "recordarray fields"] [arg RECORDARRAY]]
-Returns field names for the records in the record array.
+Returns field names for the records in the [uri #recordarrays "record array"].
 
 [call [cmd "recordarray get"] [arg RECORDARRAY] [opt [arg options]]]
-Returns a record array containing a subset of the records and
+Returns a [uri #recordarrays "record array"]
+containing a subset of the records and
 fields from [arg RECORDARRAY].
 [arg options] may be include [cmd -filter] and [arg -slice]
 from amongst the standard options described in
@@ -807,7 +809,8 @@ the elements of the returned list depend on the [arg options]
 as described in [sectref "Record arrays"].
 
 [call [cmd "recordarray index"] [arg RECORDARRAY] [arg INDEX] [opt [arg options]]]
-Returns the record at a specified position in the record array. The
+Returns the record at a specified position in the 
+[uri #recordarrays "record array"]. The
 options [cmd -format] and [cmd -slice] as described in
 [sectref "Record arrays"] control the fields returned and their format.
 
@@ -818,7 +821,7 @@ with the fields renamed as per the contents of the dictionary
 Names of any fields not in [arg FIELDRENAMEMAP] are preserved.
 
 [call [cmd "recordarray size"] [arg RECORDARRAY]]
-Returns the number of records in the record array.
+Returns the number of records in the [uri #recordarrays "record array"].
 
 [call [cmd rethrow]]
 Raises a Tcl error where the error options, including values of
