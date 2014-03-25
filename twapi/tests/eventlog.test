@@ -73,6 +73,22 @@ namespace eval twapi::eventlog::test {
         return
     }
 
+    proc verify_winlog_event {e} {
+
+        set messages {}
+        foreach fld {
+            -providername -providerguid -eventid -qualifiers
+            -level -task -opcode -keywordmask -timecreated -eventrecordid
+            -activityid -relatedactivityid -pid -tid -channel -computer
+            -sid -version -levelname -taskname -message
+        } {
+            if {![dict exists $e $fld]} {
+                lappend messages "Field $e missing from event"
+            }
+        }
+        return $messages
+    }
+
     ################################################################
 
     # Monitoring test first !! Else Windows event log
@@ -666,6 +682,247 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
+    test winlog_backup-1.0 {
+        Back up the eventlog, also covers winlog_event_count-2.0
+    } -body {
+        set backup [file join $::env(TEMP) twapi_winlog_test.bak]
+        twapi::winlog_backup Application $backup
+        set count [twapi::winlog_event_count -channel Application]
+        set count2 [twapi::winlog_event_count -file $backup]
+        expr {$count == $count2}
+    } -cleanup {
+        file delete $backup
+    } -result 1
+
+    ################################################################
+
+    test winlog_close-1.0 {
+        Close a event log handle
+    } -body {
+        set hevl [twapi::winlog_open]
+        twapi::winlog_close $hevl
+        # Should generate error when closing
+        catch {twapi::winlog_close $hevl}
+    } -result 1
+
+    ################################################################
+
+    test winlog_event_count-1.0 {
+        winlog_event_count -channel
+    } -body {
+        set count1 [twapi::winlog_event_count -channel Application]
+        twapi::eventlog_log "TWAPI test winlog_event_count-1.0" -source Application
+        set count2 [twapi::winlog_event_count -channel Application]
+        expr {$count2 == ($count1 + 1)}
+    } -result 1
+
+    test winlog_event_count-2.0 {
+        winlog_event_count -file
+    } -constraints {
+        coveredelsewhere
+    } -body {
+        Covered by winlog_backup-1.0
+    } -result ""
+
+    test winlog_event_count-3.0 {
+        winlog_event_count -system
+    } -body {
+        set count1 [twapi::winlog_event_count -channel Application -system $::env(COMPUTERNAME)]
+        twapi::eventlog_log "TWAPI test winlog_event_count-1.0" -source Application -system $::env(COMPUTERNAME)
+        set count2 [twapi::winlog_event_count -channel Application -system $::env(COMPUTERNAME)]
+        expr {$count2 == ($count1 + 1)}
+    } -result 1
+
+    test winlog_event_count-3.1 {
+        winlog_event_count -system (fail) - make sure -system option is actually seen
+    } -body {
+        list [catch {twapi::winlog_event_count -channel Application -system NOSUCHSYSTEM}] [errorcode]
+    } -result {1 {TWAPI_WIN32 1722}}
+
+    ################################################################
+
+    test winlog_open-1.0 {
+        winlog_open
+    } -constraints {
+        coveredelsewhere
+    } -body {
+        Convered by winlog_read
+    } -result ""
+
+    ################################################################
+
+    set testnum 0
+    foreach source {application system security} {
+        test winlog_read-1.[incr testnum] "winlog_read event log records from the $source log" -body {
+            patience "Reading events"
+            set hevl [twapi::winlog_open -channel $source]
+            set msgs ""
+            set count 0
+            while {[llength [set events [twapi::winlog_read $hevl]]]} {
+                foreach eventrec $events {
+                    incr count
+                    set msgs [verify_winlog_event $eventrec]
+                    if {[llength $msgs]} break
+                }
+                if {[llength $msgs]} break
+            }
+            twapi::winlog_close $hevl
+            list [expr {$count > 0}] [llength $msgs]
+        } -result {1 0}
+    }
+
+    test winlog_read-2.0 {
+        Verify winlog is read in forward direction by default
+    } -body {
+        set hevl [twapi::winlog_open]
+        set recs [twapi::winlog_read $hevl]
+        if {[llength $recs] < 2} {
+            lappend recs {*}[twapi::winlog_read $hevl]
+        }
+        twapi::winlog_close $hevl
+        expr {[dict get [lindex $recs 1]] > [dict get [lindex $recs 0]]}
+    } -result 1
+
+    test winlog_read-2.1 {
+        Verify winlog_read forward
+    } -body {
+        set hevl [twapi::winlog_open -direction forward]
+        set recs [twapi::winlog_read $hevl]
+        if {[llength $recs] < 2} {
+            lappend recs {*}[twapi::winlog_read $hevl]
+        }
+        twapi::winlog_close $hevl
+        expr {[dict get [lindex $recs 1]] > [dict get [lindex $recs 0]]}
+    } -result 1
+
+    test winlog_read-2.2 {
+        Verify winlog_read backward
+    } -body {
+        set hevl [twapi::winlog_open -direction backward]
+        set recs [twapi::winlog_read $hevl]
+        if {[llength $recs] < 2} {
+            lappend recs {*}[twapi::winlog_read $hevl]
+        }
+        twapi::winlog_close $hevl
+        expr {[dict get [lindex $recs 1]] < [dict get [lindex $recs 0]]}
+    } -result 1
+
+
+    test winlog_read-3.0 {
+        Verify winlog read with -system 
+    } -body {
+        set hevl [twapi::winlog_open -system $::env(COMPUTERNAME)]
+        set recs [twapi::winlog_read $hevl]
+        foreach eventrec $recs {
+            set msgs [verify_winlog_event $eventrec]
+            if {[llength $msgs]} break
+        }
+        twapi::winlog_close $hevl
+        set msgs
+    } -result ""
+
+    test winlog_read-3.1 {
+        Verify winlog read with -system (fail - to verify -system option is obeyed)
+    } -body {
+        list [catch {twapi::winlog_open -system NOSUCHSYSTEM}] [errorcode]
+    } -result {1 {TWAPI_WIN32 1722}}
+
+
+    test winlog_read-4.0 {
+        winlog_read event log records from file
+    } -setup {
+        set backup [file join $::env(TEMP) winlog_read_file.bak]
+        twapi::winlog_backup Application $backup
+    } -body {
+        patience "Reading events"
+        set hevl [twapi::winlog_open -file $backup]
+        set msgs ""
+        set count 0
+        while {[llength [set events [twapi::winlog_read $hevl]]]} {
+            foreach eventrec $events {
+                incr count
+                set msgs [verify_winlog_event $eventrec]
+                if {[llength $msgs]} break
+            }
+            if {[llength $msgs]} break
+        }
+        twapi::winlog_close $hevl
+        list [expr {$count > 0}] [llength $msgs]
+    } -cleanup {
+        file delete $backup
+    } -result {1 0}
+
+
+
+    test winlog_read-100.0 {
+        winlog_read -lcid
+    } -constraints {
+        TBD
+    } -body {} -result {}
+
+    ################################################################
+
+    #NOTE - KEEP THESE WINLOG CLEAR TESTS AT THE END AFTER ANY READ TESTS
+
+    test winlog_clear-1.0 {
+        Clear the event log
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        # Make sure there are events in the log
+        twapi::eventlog_log "TWAPI Test winlog_clear-1.0" -source Application
+        if {[twapi::winlog_event_count -channel Application] == 0} {
+            error "No events in event log"
+        }
+    } -body {
+        twapi::winlog_clear Application
+        twapi::winlog_event_count -channel Application
+    } -result 0
+
+    test winlog_clear-1.1 {
+        Backup and clear the event log
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        # Make sure there are events in the log
+        twapi::eventlog_log "TWAPI Test winlog_clear-1.1" -source Application
+        if {[twapi::winlog_event_count -channel Application] == 0} {
+            error "No events in event log"
+        }
+    } -body {
+        set backup [file join $::env(TEMP) twapi_events_clear_test.bak]
+        set count1 [twapi::winlog_event_count -channel Application]
+        twapi::winlog_clear Application -backup $backup
+        set count2 [twapi::winlog_event_count -channel Application]
+        set count3 [twapi::winlog_event_count -file $backup]
+        list [expr {$count1 == $count3}] $count2
+    } -result {1 0}
+
+    ################################################################
+
+    test winlog_subscribe-1.0 {
+        Verify asynchronous monitoring of event log
+    } -setup {
+        patience eventlog_monitor-1.0
+        # Delay because event log service
+        # restricts frequency of notifications to 5 sec intervals
+        # so wait to clear out notifications sent in earlier tests if any
+        # TBD - after 5000
+    } -body {
+        lassign [twapi::winlog_subscribe Application] hevl hevent
+        # The read has to fail before events are sent. So read all
+        # events first
+        while {[llength [twapi::winlog_read $hevl]]} {}
+
+        # Write a message
+        twapi::eventlog_log "winlog_subscribe test message"
+
+        twapi::wait_on_handle $hevent -wait 5000
+    } -cleanup {
+        twapi::winlog_close $hevl
+    } -result signalled
+
+    ################################################################
 
     #
     # Clean up

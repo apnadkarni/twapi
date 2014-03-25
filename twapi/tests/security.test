@@ -4785,8 +4785,9 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
                       -dacl $dacl \
                       -sacl $sacl]
     } -body {
-        twapi::get_security_descriptor_group [twapi::set_security_descriptor_group $secd "Power Users"]
-    } -result [twapi::lookup_account_name "Power Users"]
+        set secd2 [twapi::set_security_descriptor_group $secd "Users"]
+        list [twapi::get_security_descriptor_group $secd2] [twapi::get_security_descriptor_owner $secd2]
+    } -result [list [twapi::lookup_account_name "Users"] [twapi::lookup_account_name $administrator_account_name]]
 
     ###
 
@@ -4801,16 +4802,17 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
                       -dacl $dacl \
                       -sacl $sacl]
     } -body {
-        twapi::get_security_descriptor_group [twapi::set_security_descriptor_group $secd [twapi::lookup_account_name "Power Users"]]
-    } -result [twapi::lookup_account_name "Power Users"]
+        set secd2 [twapi::set_security_descriptor_group $secd [twapi::lookup_account_name "Users"]]
+        list [twapi::get_security_descriptor_group $secd2] [twapi::get_security_descriptor_owner $secd2]
+    } -result [list [twapi::lookup_account_name "Users"] [twapi::lookup_account_name $administrator_account_name]]
 
     ###
 
     test set_security_descriptor_group-2.0 {
         Set the group SID in a NULL security descriptor
     } -body {
-        twapi::get_security_descriptor_group [twapi::set_security_descriptor_group {} [twapi::lookup_account_name "Power Users"]]
-    } -result [twapi::lookup_account_name "Power Users"]
+        twapi::get_security_descriptor_group [twapi::set_security_descriptor_group {} [twapi::lookup_account_name "Users"]]
+    } -result [twapi::lookup_account_name "Users"]
 
     ################################################################
 
