@@ -3388,6 +3388,91 @@ namespace eval twapi::base::test {
         twapi::recordarray getlist $ra -filter {{a !~ x*} {c !~ O -nocase}} -first -format flat
     } -result {X Y Z}
 
+    test recordarray-9.0 {
+        recordarray size
+    } -setup {
+        set ra {{a b c} {{x y z} {X Y Z} {xa yb zc} {XA YB ZC} {m n o}}}
+    } -body {
+        twapi::recordarray size $ra
+    } -result 5
+
+    test recordarray-9.1 {
+        recordarray size 0
+    } -setup {
+        set ra {{a b c} {}}
+    } -body {
+        twapi::recordarray size $ra
+    } -result 0
+
+    test recordarray-9.2 {
+        recordarray size 0
+    } -body {
+        twapi::recordarray size {}
+    } -result 0
+
+    test recordarray-10.0 {
+        recordarray rename
+    } -setup {
+        set ra {{a b c} {{x y z} {X Y Z}}}
+    } -body {
+        twapi::recordarray rename $ra {a x c Y}
+    } -result {{x b Y} {{x y z} {X Y Z}}}
+
+    test recordarray-10.1 {
+        recordarray rename
+    } -setup {
+        set ra {{a b c} {{x y z} {X Y Z}}}
+    } -body {
+        twapi::recordarray rename $ra {}
+    } -result {{a b c} {{x y z} {X Y Z}}}
+
+    test recordarray-10.2 {
+        recordarray rename
+    } -setup {
+        set ra {{a b c} {{x y z} {X Y Z}}}
+    } -body {
+        twapi::recordarray rename $ra {a b b c c a}
+    } -result {{b c a} {{x y z} {X Y Z}}}
+
+    test recordarray-11.0 {
+        recordarray index
+    } -setup {
+        set ra {{a b c} {{{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray index $ra 0
+    } -result {{0 0} {0 1} {1 2}}
+
+    test recordarray-11.1 {
+        recordarray index end
+    } -setup {
+        set ra {{a b c} {{{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray index $ra end
+    } -result {{2 0} {2 1} {2 2}}
+
+    test recordarray-11.2 {
+        recordarray index -slice
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray index $ra 1 -slice {a c}
+    } -result {{1 0} {1 2}}
+
+    test recordarray-11.3 {
+        recordarray index -format list
+    } -setup {
+        set ra {{a b c} {{{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray index $ra 0 -format list
+    } -result {{0 0} {0 1} {1 2}}
+
+    test recordarray-11.3 {
+        recordarray index -format dict
+    } -setup {
+        set ra {{a b c} {{{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray index $ra 0 -format dict
+    } -result {a {0 0} b {0 1} c {1 2}}
 
     ################################################################
 
