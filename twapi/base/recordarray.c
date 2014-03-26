@@ -33,9 +33,9 @@ int Twapi_RecordArrayHelperObjCmd(
     enum format_enum {RA_ARRAY, RA_FLAT, RA_LIST, RA_DICT};
     int format = RA_ARRAY;
     static const char *filter_ops[] = {
-        "eq", "ne", "==", "!=", "~", "!~", NULL
+        "eq", "ne", "~", "!~", "==", "!=", "<", "<=", ">", ">=", NULL
     };
-    enum filter_ops_enum {RA_EQ, RA_NE, RA_EQ_INT, RA_NE_INT, RA_MATCH, RA_NOMATCH};
+    enum filter_ops_enum {RA_EQ, RA_NE, RA_MATCH, RA_NOMATCH, RA_EQ_INT, RA_NE_INT, RA_LT_INT, RA_LE_INT, RA_GT_INT, RA_GE_INT};
 
     Tcl_Obj *sliceObj = NULL,
         *filterObj = NULL,
@@ -202,7 +202,11 @@ int Twapi_RecordArrayHelperObjCmd(
                 filters[i].cmpfn = filters[i].nocase ? lstrcmpiA : lstrcmpA;
                 filters[i].operand.string = ObjToString(filterElem[2]);
             break;
-            case RA_NE_INT: filters[i].negate = 1; /* FALLTHRU */
+            case RA_LT_INT:
+            case RA_LE_INT:
+            case RA_GT_INT:
+            case RA_GE_INT:
+            case RA_NE_INT:
             case RA_EQ_INT:
                 if ((res = ObjToWideInt(interp, filterElem[2], &filters[i].operand.wide)) != TCL_OK)
                     goto vamoose;
@@ -272,11 +276,12 @@ int Twapi_RecordArrayHelperObjCmd(
     }
 
     for (output_count = 0, i = 0; i < nrecs; ++i) {
-        int matched;
-        matched = 1;
+        int match;
+        match = 1;
         for (j = 0; j < nfilters; ++j) {
             Tcl_Obj *valueObj;
             int filter_op;
+            Tcl_WideInt wide;
 
             TWAPI_ASSERT(filters);
             filter_op = filters[j].filter_op;
@@ -290,26 +295,42 @@ int Twapi_RecordArrayHelperObjCmd(
                 break;
             }
 
-            if (filter_op == RA_EQ_INT || filter_op == RA_NE_INT) {
-                Tcl_WideInt wide;
-                /* Note not-an-int is treated as no match, not as error */
-                if (ObjToWideInt(NULL, valueObj, &wide) != TCL_OK ||
-                    ((wide == filters[j].operand.wide) == filters[j].negate)) {
-                    matched = 0;
-                    break;
+            switch (filter_op) {
+            case RA_EQ_INT:
+            case RA_NE_INT:
+            case RA_LT_INT:
+            case RA_LE_INT:
+            case RA_GT_INT:
+            case RA_GE_INT:
+                if (ObjToWideInt(NULL, valueObj, &wide) != TCL_OK) {
+                    /* Note not-an-int is treated as no match, not as error */
+                    match = 0;
+                } else {
+                    switch (filter_op) {
+                    case RA_EQ_INT: match = (wide == filters[j].operand.wide) ; break;
+                    case RA_NE_INT: match = (wide != filters[j].operand.wide) ; break;
+                    case RA_LT_INT: match = (wide < filters[j].operand.wide) ; break;
+                    case RA_LE_INT: match = (wide <= filters[j].operand.wide) ; break;
+                    case RA_GT_INT: match = (wide > filters[j].operand.wide) ; break;
+                    case RA_GE_INT: match = (wide >= filters[j].operand.wide) ; break;
+                    }
                 }
-            } else {
+                break;
+            default:
                 if ((0 == filters[j].cmpfn(ObjToString(valueObj), filters[j].operand.string)) == filters[j].negate) {
-                    matched = 0;
-                    break;
+                    match = 0;
                 }
+                break;
+
             }
+            if (! match)
+                break;
         }
 
         if (res != TCL_OK)
             break;
 
-        if (! matched)
+        if (! match)
             continue;
 
         /* We have a match */
