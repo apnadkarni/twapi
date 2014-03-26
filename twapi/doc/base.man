@@ -173,17 +173,23 @@ options:
 [opt_def [cmd -filter] [arg FILTERLIST]]
 Specifies a list of matching filters. Only the records matching all the
 filter expressions in [arg FILTERLIST] are returned. [arg FILTERLIST]
-is a list of filter expressions. Each filter expression is a 3-element
+is a list of filter expressions. Each filter expression is a 3 or 4 element
 list consisting of a record field name,
-a matching operator and the value to match.
+a matching operator, the value to match and optionally a fourth element
+[cmd -nocase] which may be used with any of the string or pattern matching
+operators to indicate that character case should be ignored.
 The matching operator must be one of the following:
 [list_begin opt]
-[opt_def [const eq]] Case-insensitive string equality
-[opt_def [const ne]] Case-insensitive strings inequality
-[opt_def [const ==]] Integer equality
-[opt_def [const !=]] Integer inequality
+[opt_def [const eq]] String equality
+[opt_def [const ne]] Strings inequality
 [opt_def [const ~]] Pattern matched (as in [cmd "string match"])
 [opt_def [const !~]] Pattern not matched (as in [cmd "string match"])
+[opt_def [const ==]] Integer equality
+[opt_def [const !=]] Integer inequality
+[opt_def [const <]] Integer less than
+[opt_def [const <=]] Integer less than or equal
+[opt_def [const >]] Integer greater than
+[opt_def [const >]] Integer greater than or equal
 [list_end]
 [opt_def [cmd -format] [arg FORMAT]]
 Specifies the format of each record element returned. [arg FORMAT]
