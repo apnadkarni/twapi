@@ -1256,7 +1256,7 @@ proc twapi::recordarray::index {ra row args} {
         set new_fields {}        
         set new_r {}
         foreach field $slice {
-            set i [enum $fields $field]
+            set i [twapi::enum $fields $field]
             lappend new_r [lindex $r $i]
             lappend new_fields [lindex $fields $i]
         }
@@ -1280,7 +1280,7 @@ proc twapi::recordarray::column {ra field args} {
 }
 
 proc twapi::recordarray::cell {ra row field} {
-    return [lindex [lindex $ra 1 $row] [enum [lindex $ra 0] $field]]
+    return [lindex [lindex $ra 1 $row] [twapi::enum [lindex $ra 0] $field]]
 }
 
 proc twapi::recordarray::get {ra args} {
@@ -1346,7 +1346,7 @@ proc twapi::recordarray::concat {args} {
     set width [llength $fields]
     foreach ra $args {
         if {[llength [lindex $ra 0]] != $width} {
-            badargs! "Attempt to concat mismatched recordarrays"
+            twapi::badargs! "Attempt to concat mismatched recordarrays"
         }
         lappend values [lindex $ra 1]
     }
