@@ -2777,12 +2777,383 @@ namespace eval twapi::base::test {
 
     ################################################################
 
-    test recordarray-100.0 {
-        recordarray tests
-    } -constraints {
-        TBD
+    test recordarray-1.0 {
+        recordarray cell first cell
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
     } -body {
-    } -result TBD
+        twapi::recordarray cell $ra 0 a
+    } -result {0 0}
+
+    test recordarray-1.1 {
+        recordarray cell last cell
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray cell $ra 2 c
+    } -result {2 2}
+
+
+    test recordarray-1.2 {
+        recordarray cell end
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray cell $ra end b
+    } -result {2 1}
+
+    test recordarray-1.3 {
+        recordarray cell empty array
+    } -setup {
+        set ra {{a b c} {}}
+    } -body {
+        twapi::recordarray cell $ra 0 a
+    } -result {}
+
+    test recordarray-1.4 {
+        recordarray cell out of bounds row
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray cell $ra 3 b
+    } -result {}
+
+    test recordarray-1.5 {
+        recordarray cell negative row
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray cell $ra 3 b
+    } -result {}
+
+    test recordarray-1.6 {
+        recordarray cell invalid column
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray cell $ra 0 d
+    } -result "Invalid enum \"d\"" -returnCodes error
+
+    test recordarray-2.0 {
+        recordarray column first column
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray column $ra a
+    } -result {{0 0} {1 0} {2 0}}
+
+    test recordarray-2.1 {
+        recordarray column last column
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray column $ra c
+    } -result {{0 2} {1 2} {2 2}}
+
+    test recordarray-2.2 {
+        recordarray column filter 
+    } -setup {
+        set ra {{a b c} { {1 2 3} {4 5 6} {7 8 9} }}
+    } -body {
+        twapi::recordarray column $ra b -filter {{b != 5}}
+    } -result {2 8}
+
+    test recordarray-2.3 {
+        recordarray column filter column different from retrived column
+    } -setup {
+        set ra {{a b c} { {1 2 3} {4 5 6} {7 8 9} }}
+    } -body {
+        twapi::recordarray column $ra a -filter {{c != 3}}
+    } -result {4 7}
+    
+    test recordarray-3.0 {
+        recordarray concat single array
+    } -setup {
+        set ra {{a b c} { {1 2 3} {4 5 6} {7 8 9} }}
+    } -body {
+        twapi::recordarray concat $ra 
+    } -result {{a b c} {{1 2 3} {4 5 6} {7 8 9}}}
+
+    test recordarray-3.1 {
+        recordarray concat array
+    } -setup {
+        set ra {{a b c} { {1 2 3} {4 5 6} {7 8 9} }}
+    } -body {
+        twapi::recordarray concat $ra {{a b c} {{A B C}}}
+    } -result {{a b c} {{1 2 3} {4 5 6} {7 8 9} {A B C}}}
+
+    test recordarray-3.2 {
+        recordarray concat empty array
+    } -setup {
+        set ra {{a b c} { {1 2 3} {4 5 6} {7 8 9} }}
+    } -body {
+        twapi::recordarray concat $ra {{a b c} {}}
+    } -result {{a b c} {{1 2 3} {4 5 6} {7 8 9}}}
+
+    test recordarray-3.3 {
+        recordarray concat array with different field names
+    } -setup {
+        set ra {{a b c} { {1 2 3} {4 5 6} {7 8 9} }}
+    } -body {
+        twapi::recordarray concat $ra {{x y z} {{A B C}}}
+    } -result {{a b c} {{1 2 3} {4 5 6} {7 8 9} {A B C}}}
+
+    test recordarray-3.4 {
+        recordarray concat array with different field number
+    } -setup {
+        set ra {{a b c} { {1 2 3} {4 5 6} {7 8 9} }}
+    } -body {
+        twapi::recordarray concat $ra {{a b c d} {{A B C D}}}
+    } -result "Attempt to concat mismatched recordarrays" -returnCodes error
+
+    test recordarray-3.5 {
+        recordarray concat empty array
+    } -setup {
+        set ra {{a b c} { {1 2 3} {4 5 6} {7 8 9} }}
+    } -body {
+        twapi::recordarray concat $ra {}
+    } -result "Attempt to concat mismatched recordarrays" -returnCodes error
+
+    test recordarray-4.0 {
+        recordarray fields
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray fields $ra 
+    } -result {a b c}
+
+
+    test recordarray-5.0 {
+        recordarray get
+    } -setup {
+        set ra {{a b c} {{{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray get $ra
+    } -result {{a b c} {{{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
+
+    test recordarray-5.1 {
+        recordarray get -slice
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray get $ra -slice {a c}
+    } -result {{a c} {{{0 0} {1 2}} {{1 0} {1 2}} {{2 0} {2 2}}}}
+
+    test recordarray-5.2 {
+        recordarray get -slice single column
+    } -setup {
+        set ra {{a {b x} c} { {{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray get $ra -slice {{b x}}
+    } -result {{{b x}} {{{0 1}} {{1 1}} {{2 1}}}}
+
+    test recordarray-5.3 {
+        recordarray get -filter 
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {1 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray get $ra -filter {{a != 1}}
+    } -result {{a b c} {{0 {0 1} {1 2}} {2 {2 1} {2 2}}}}
+
+    test recordarray-5.4 {
+        recordarray get -filter 
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {1 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray get $ra -filter {{a != 1} {b eq {2 1}}}
+    } -result {{a b c} {{2 {2 1} {2 2}}}}
+
+    test recordarray-5.5 {
+        recordarray get -filter empty result
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {1 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray get $ra -filter {{a != 1} {b eq {1 1}}}
+    } -result {{a b c} {}}
+
+    test recordarray-5.6 {
+        recordarray get -filter -slice
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {1 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray get $ra -filter {{a != 1}} -slice {a b}
+    } -result {{a b} {{0 {0 1}} {2 {2 1}}}}
+
+    test recordarray-5.7 {
+        recordarray get -filter -slice different order
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {1 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray get $ra -filter {{a != 1} {b eq {2 1}}} -slice {c a}
+    } -result {{c a} {{{2 2} 2}}}
+
+    test recordarray-6.0 {
+        recordarray getdict
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray getdict $ra
+    } -result {{0 0} {{0 0} {0 1} {0 2}} {1 0} {{1 0} {1 1} {1 2}} {2 0} {{2 0} {2 1} {2 2}}}
+
+    test recordarray-6.1 {
+        recordarray getdict -key
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray getdict $ra -key c
+    } -result {{0 2} {{0 0} {0 1} {0 2}} {1 2} {{1 0} {1 1} {1 2}} {2 2} {{2 0} {2 1} {2 2}}}
+
+    test recordarray-6.2 {
+        recordarray getdict -slice
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray getdict $ra -slice {a c}
+    } -result {{0 0} {{0 0} {0 2}} {1 0} {{1 0} {1 2}} {2 0} {{2 0} {2 2}}}
+
+    test recordarray-6.3 {
+        recordarray getdict -slice
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray getdict $ra -slice {a b} -key c
+    } -result {{0 2} {{0 0} {0 1}} {1 2} {{1 0} {1 1}} {2 2} {{2 0} {2 1}}}
+
+    test recordarray-6.4 {
+        recordarray getdict -filter 
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {0 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray getdict $ra -filter {{a != 1}}
+    } -result {0 {0 {0 1} {0 2}} 2 {2 {2 1} {2 2}}}
+
+    test recordarray-6.5 {
+        recordarray getdict -filter empty result
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {1 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray getdict $ra -filter {{a != 1} {b eq {1 1}}}
+    } -result {}
+
+    test recordarray-6.6 {
+        recordarray getdict -filter -slice
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {0 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray getdict $ra -filter {{a != 0}} -slice {a b} -key c
+    } -result {{1 2} {1 {1 1}} {2 2} {2 {2 1}}}
+
+    test recordarray-6.7 {
+        recordarray getdict -filter -slice different order
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {0 2}} {1 {2 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray getdict $ra -filter {{a != 1} {b eq {2 1}}} -slice {c b}
+    } -result {2 {{2 2} {2 1}}}
+
+    test recordarray-6.8 {
+        recordarray getdict -filter -slice -format list
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {0 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray getdict $ra -filter {{a != 0}} -slice {a b} -key c -format list
+    } -result {{1 2} {1 {1 1}} {2 2} {2 {2 1}}}
+
+    test recordarray-6.9 {
+        recordarray getdict -filter -slice -format dict
+    } -setup {
+        set ra {{a {b x} c} { {0 {0 1} {0 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray getdict $ra -filter {{a != 0}} -slice {a {b x}} -key c -format dict
+    } -result {{1 2} {a 1 {b x} {1 1}} {2 2} {a 2 {b x} {2 1}}}
+
+    test recordarray-7.0 {
+        recordarray getlist
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray getlist $ra
+    } -result {{{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}
+
+    test recordarray-7.1 {
+        recordarray getlist -slice
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray getlist $ra -slice {a c}
+    } -result {{{0 0} {0 2}} {{1 0} {1 2}} {{2 0} {2 2}}}
+
+    test recordarray-7.2 {
+        recordarray getlist -filter 
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {0 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray getlist $ra -filter {{a != 1}}
+    } -result {{0 {0 1} {0 2}} {2 {2 1} {2 2}}}
+
+    test recordarray-7.3 {
+        recordarray getlist -filter empty result
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {1 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray getlist $ra -filter {{a != 1} {b eq {1 1}}}
+    } -result {}
+
+    test recordarray-7.4 {
+        recordarray getlist -filter -slice
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {0 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray getlist $ra -filter {{a != 0}} -slice {a b}
+    } -result {{1 {1 1}} {2 {2 1}}}
+
+    test recordarray-7.5 {
+        recordarray getlist -filter -slice different order
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {0 2}} {1 {2 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray getlist $ra -filter {{a != 1} {b eq {2 1}}} -slice {c b}
+    } -result {{{2 2} {2 1}}}
+
+    test recordarray-7.6 {
+        recordarray getlist -format flat
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray getlist $ra -format flat
+    } -result {{0 0} {0 1} {0 2} {1 0} {1 1} {1 2} {2 0} {2 1} {2 2}}
+
+    test recordarray-7.7 {
+        recordarray getlist -slice -flat
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray getlist $ra -slice {a c} -format flat
+    } -result {{0 0} {0 2} {1 0} {1 2} {2 0} {2 2}}
+
+    test recordarray-7.8 {
+        recordarray getlist -slice -flat -filter
+    } -setup {
+        set ra {{a b c} { {{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+    } -body {
+        twapi::recordarray getlist $ra -slice {a c} -filter {{b ne {1 1}}} -format flat
+    } -result {{0 0} {0 2} {2 0} {2 2}}
+
+    test recordarray-7.9 {
+        recordarray getlist -filter -slice -format list
+    } -setup {
+        set ra {{a b c} { {0 {0 1} {0 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray getlist $ra -filter {{a != 0}} -slice {a b} -format list
+    } -result {{1 {1 1}} {2 {2 1}}}
+
+    test recordarray-6.9 {
+        recordarray getlist -filter -slice -format dict
+    } -setup {
+        set ra {{a {b x} c} { {0 {0 1} {0 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray getlist $ra -filter {{a != 0}} -slice {a {b x}} -format dict
+    } -result {{a 1 {b x} {1 1}} {a 2 {b x} {2 1}}}
 
     ################################################################
 
