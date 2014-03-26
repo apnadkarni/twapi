@@ -789,7 +789,7 @@ Returns field names for the records in the [uri #recordarrays "record array"].
 Returns a [uri #recordarrays "record array"]
 containing a subset of the records and
 fields from [arg RECORDARRAY].
-[arg options] may be include [cmd -filter] and [arg -slice]
+[arg options] may be include [cmd -filter] and [cmd -slice]
 from amongst the standard options described in
 [sectref "Record arrays"]. Other options are silently ignored.
 
@@ -804,7 +804,7 @@ of the standard options described in [sectref "Record arrays"].
 
 [call [cmd "recordarray getlist"] [arg RECORDARRAY] [opt [arg options]]]
 Returns a list containing a subset of the records and
-fields from [arg RECORDARRAY]. The form and contente of
+fields from [arg RECORDARRAY]. The form and content of
 the elements of the returned list depend on the [arg options]
 as described in [sectref "Record arrays"].
 
