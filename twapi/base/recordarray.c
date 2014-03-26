@@ -14,7 +14,7 @@ int Twapi_RecordArrayHelperObjCmd(
     int objc,
     Tcl_Obj *CONST objv[])
 {
-    int i, j, negate = 0;
+    int i, j;
     Tcl_Obj **raObj;
     static const char *opts[] = {
         "-format",              /* FORMAT */
@@ -55,9 +55,10 @@ int Twapi_RecordArrayHelperObjCmd(
             char *string;
         } operand;
         int (WINAPI *cmpfn) (const char *, const char *);
-        int filter_op;
         int filter_pos;
+        int filter_op;
         int nocase;
+        int negate;
     } *filters;
     int nfilters;
     TCL_RESULT res;
@@ -179,6 +180,7 @@ int Twapi_RecordArrayHelperObjCmd(
                 goto vamoose;
             }
 
+            filters[i].negate = 0;
             filters[i].nocase = 0;
             if (j == 4) {
                 char *s = ObjToString(filterElem[3]);
@@ -195,17 +197,17 @@ int Twapi_RecordArrayHelperObjCmd(
                 goto vamoose;
             }
             switch (filters[i].filter_op) {
-            case RA_NE: negate = 1; /* FALLTHRU */
+            case RA_NE: filters[i].negate = 1; /* FALLTHRU */
             case RA_EQ: /* TBD - should we do unicode compares? */
                 filters[i].cmpfn = filters[i].nocase ? lstrcmpiA : lstrcmpA;
                 filters[i].operand.string = ObjToString(filterElem[2]);
             break;
-            case RA_NE_INT: negate = 1; /* FALLTHRU */
+            case RA_NE_INT: filters[i].negate = 1; /* FALLTHRU */
             case RA_EQ_INT:
                 if ((res = ObjToWideInt(interp, filterElem[2], &filters[i].operand.wide)) != TCL_OK)
                     goto vamoose;
                 break;
-            case RA_NOMATCH: negate = 1; /* FALLTHRU */
+            case RA_NOMATCH: filters[i].negate = 1; /* FALLTHRU */
             case RA_MATCH:
                 filters[i].cmpfn = filters[i].nocase ? TwapiGlobCmpCase : TwapiGlobCmp;
                 filters[i].operand.string = ObjToString(filterElem[2]);
@@ -292,12 +294,12 @@ int Twapi_RecordArrayHelperObjCmd(
                 Tcl_WideInt wide;
                 /* Note not-an-int is treated as no match, not as error */
                 if (ObjToWideInt(NULL, valueObj, &wide) != TCL_OK ||
-                    ((wide == filters[j].operand.wide) == negate)) {
+                    ((wide == filters[j].operand.wide) == filters[j].negate)) {
                     matched = 0;
                     break;
                 }
             } else {
-                if ((0 == filters[j].cmpfn(ObjToString(valueObj), filters[j].operand.string)) == negate) {
+                if ((0 == filters[j].cmpfn(ObjToString(valueObj), filters[j].operand.string)) == filters[j].negate) {
                     matched = 0;
                     break;
                 }
