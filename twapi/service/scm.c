@@ -273,7 +273,6 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     BOOL  success;
     Tcl_Obj *resultObj, *groupnameObj;
     Tcl_Obj *rec[12];    /* Holds values for each status record */
-    Tcl_Obj *keys[ARRAYSIZE(rec)];
     Tcl_Obj *states[8]; /* Holds shared objects for states 1-7, 0 unused */
     DWORD winerr;
     DWORD i;
@@ -310,22 +309,7 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
         states[i] = TwapiGetAtom(ticP, ServiceStateString(i));
     }
 
-    /* Note order of names should be same as order of values below */
-    /* Note order of field names should be same as order of values above */
-    keys[0] = TwapiGetAtom(ticP, "servicetype");
-    keys[1] = TwapiGetAtom(ticP, "state");
-    keys[2] = TwapiGetAtom(ticP, "controls_accepted");
-    keys[3] = TwapiGetAtom(ticP, "exitcode");
-    keys[4] = TwapiGetAtom(ticP, "service_code");
-    keys[5] = TwapiGetAtom(ticP, "checkpoint");
-    keys[6] = TwapiGetAtom(ticP, "wait_hint");
-    keys[7] = TwapiGetAtom(ticP, "pid");
-    keys[8] = TwapiGetAtom(ticP, "serviceflags");
-    keys[9] = TwapiGetAtom(ticP, "name");
-    keys[10] = TwapiGetAtom(ticP, "displayname");
-    keys[11] = TwapiGetAtom(ticP, "interactive");
-
-    resultObj = Tcl_NewDictObj();
+    resultObj = ObjNewList(200, NULL);
     resume_handle = 0;
     do {
         /* Note we don't actually make use of buf_needed, just reuse the
@@ -382,10 +366,7 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
             rec[10] = ObjFromUnicode(sbuf[i].lpDisplayName);
             rec[11] = Tcl_NewBooleanObj(sbuf[i].ServiceStatusProcess.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
 
-            /* Note rec[9] object is also appended as the "key" for the
-               but in lower case form */
-            Tcl_DictObjPut(interp, resultObj, TwapiLowerCaseObj(rec[9]),
-                           TwapiTwineObjv(keys, rec, ARRAYSIZE(rec)));
+            ObjAppendElement(NULL, resultObj, ObjNewList(ARRAYSIZE(rec), rec));
         }
         /* If !success -> ERROR_MORE_DATA so keep looping */
     } while (! success);
@@ -411,7 +392,6 @@ int Twapi_EnumDependentServices(
     DWORD services_returned;
     BOOL  success;
     Tcl_Obj *rec[10];    /* Holds values for each status record */
-    Tcl_Obj *keys[ARRAYSIZE(rec)];
     Tcl_Obj *states[8];
     DWORD winerr;
     DWORD i;
@@ -457,19 +437,7 @@ int Twapi_EnumDependentServices(
         sbuf = MemLifoPushFrame(ticP->memlifoP, buf_sz, NULL);
     } while (1);
 
-    /* Note order of names should be same as order of values below */
-    keys[0] = TwapiGetAtom(ticP, "servicetype");
-    keys[1] = TwapiGetAtom(ticP, "state");
-    keys[2] = TwapiGetAtom(ticP, "controls_accepted");
-    keys[3] = TwapiGetAtom(ticP, "exitcode");
-    keys[4] = TwapiGetAtom(ticP, "service_code");
-    keys[5] = TwapiGetAtom(ticP, "checkpoint");
-    keys[6] = TwapiGetAtom(ticP, "wait_hint");
-    keys[7] = TwapiGetAtom(ticP, "name");
-    keys[8] = TwapiGetAtom(ticP, "displayname");
-    keys[9] = TwapiGetAtom(ticP, "interactive");
-
-    resultObj = Tcl_NewDictObj();
+    resultObj = ObjNewList(10, NULL);
     for (i = 0; i < services_returned; ++i) {
         DWORD dw;
 
@@ -499,8 +467,7 @@ int Twapi_EnumDependentServices(
         rec[8] = ObjFromUnicode(sbuf[i].lpDisplayName);
         rec[9] = ObjFromDWORD(sbuf[i].ServiceStatus.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
 
-        /* Note rec[7] object is also appended as the "key" but in lowercase*/
-        Tcl_DictObjPut(interp, resultObj, TwapiLowerCaseObj(rec[7]), TwapiTwineObjv(keys, rec, ARRAYSIZE(rec)));
+        ObjAppendElement(NULL, resultObj, ObjNewList(ARRAYSIZE(rec), rec));
     }
 
     ObjSetResult(interp, resultObj);

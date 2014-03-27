@@ -658,14 +658,12 @@ namespace eval twapi::services::test {
     test get_multiple_service_status-1.0 {
         Get the status of all services
     } -body {
+        # Note this test may fail if not privileged mode
         catch {unset svcinfo}
         set result [list ]
-        foreach {name svc} [twapi::get_multiple_service_status] {
+        foreach svc [twapi::recordarray getlist [twapi::get_multiple_service_status] -format dict] {
             array set svcinfo $svc
-            # Documented as keys always lower case
-            if {[string tolower $name] ne $name} {
-                lappend result "Service name key '$name' not lower case"
-            }
+            set name [string tolower $svcinfo(name)]
             if {[string match "win32*" $svcinfo(servicetype)]} {
                 lappend result [verify_service_status $name svcinfo]
             }
@@ -680,11 +678,9 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         set result [list ]
-        foreach {name svc} [twapi::get_multiple_service_status -active] {
+        foreach svc [twapi::recordarray getlist [twapi::get_multiple_service_status -active] -format dict] {
             array set svcinfo $svc
-            if {[string tolower $name] ne $name} {
-                lappend result "Service name key '$name' not lower case"
-            }
+            set name [string tolower $svcinfo(name)]
             # Verify that the service is running
             if {$svcinfo(state) != "running" && $svcinfo(state) != "start_pending"} {
                 lappend result "$svcinfo(name) is not active"
@@ -703,11 +699,9 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         set result [list ]
-        foreach {name svc} [twapi::get_multiple_service_status -inactive] {
+        foreach svc [twapi::recordarray getlist [twapi::get_multiple_service_status -inactive] -format dict] {
             array set svcinfo $svc
-            if {[string tolower $name] ne $name} {
-                lappend result "Service name key '$name' not lower case"
-            }
+            set name [string tolower $svcinfo(name)]
             # Verify that the service is running
             if {$svcinfo(state) != "stopped"} {
                 lappend result "$svcinfo(name) is active"
@@ -726,11 +720,9 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         set result [list ]
-        foreach {name svc} [twapi::get_multiple_service_status -win32_own_process] {
+        foreach svc [twapi::recordarray getlist [twapi::get_multiple_service_status -win32_own_process] -format dict] {
             array set svcinfo $svc
-            if {[string tolower $name] ne $name} {
-                lappend result "Service name key '$name' not lower case"
-            }
+            set name [string tolower $svcinfo(name)]
             # Verify that the service is running
             if {$svcinfo(servicetype) != "win32_own_process"} {
                 lappend result "$svcinfo(name) is not a win32_own_process"
@@ -746,11 +738,9 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         set result [list ]
-        foreach {name svc} [twapi::get_multiple_service_status -win32_share_process] {
+        foreach svc [twapi::recordarray getlist [twapi::get_multiple_service_status -win32_share_process] -format dict] {
             array set svcinfo $svc
-            if {[string tolower $name] ne $name} {
-                lappend result "Service name key '$name' not lower case"
-            }
+            set name [string tolower $svcinfo(name)]
             # Verify that the service is running
             if {$svcinfo(servicetype) != "win32_share_process"} {
                 lappend result "$svcinfo(name) is not a win32_share_process"
@@ -766,11 +756,9 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         set result [list ]
-        foreach {name svc} [twapi::get_multiple_service_status -kernel_driver] {
+        foreach svc [twapi::recordarray getlist [twapi::get_multiple_service_status -kernel_driver] -format dict] {
             array set svcinfo $svc
-            if {[string tolower $name] ne $name} {
-                lappend result "Service name key '$name' not lower case"
-            }
+            set name [string tolower $svcinfo(name)]
             # Verify that the service is running
             if {$svcinfo(servicetype) != "kernel_driver"} {
                 lappend result "$svcinfo(name) is not a kernel_driver"
@@ -787,11 +775,9 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         set result [list ]
-        foreach {name svc} [twapi::get_dependent_service_status rpcss] {
+        foreach svc [twapi::recordarray getlist [twapi::get_dependent_service_status rpcss] -format dict] {
             array set svcinfo $svc
-            if {[string tolower $name] ne $name} {
-                lappend result "Service name key '$name' not lower case"
-            }
+            set name [string tolower $svcinfo(name)]
             lappend result [verify_service_status $name svcinfo {pid}]
         }
         concat [join $result \n]
@@ -804,11 +790,9 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         set result [list ]
-        foreach {svcname svc} [twapi::get_dependent_service_status lanmanworkstation] {
+        foreach svc [twapi::recordarray getlist [twapi::get_dependent_service_status lanmanworkstation] -format dict] {
             array set svcinfo $svc
-            if {[string tolower $name] ne $name} {
-                lappend result "Service name key '$name' not lower case"
-            }
+            set name [string tolower $svcinfo(name)]
             lappend result $svcinfo(name)
         }
         setops::diff $result {SessionEnv RpcLocator Netlogon Messenger Browser BITS Alerter}
@@ -821,11 +805,9 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         set result [list ]
-        foreach {svcname svc} [twapi::get_dependent_service_status MSIserver] {
+        foreach svc [twapi::recordarray getlist [twapi::get_dependent_service_status MSIserver] -format dict] {
             array set svcinfo $svc
-            if {[string tolower $svcname] ne $svcname} {
-                lappend result "Service name key '$name' not lower case"
-            }
+            set name [string tolower $svcinfo(name)]
             lappend result $svcinfo(name)
         }
         set result
