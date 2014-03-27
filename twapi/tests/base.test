@@ -3474,6 +3474,54 @@ namespace eval twapi::base::test {
         twapi::recordarray index $ra 0 -format dict
     } -result {a {0 0} b {0 1} c {1 2}}
 
+    test recordarray-12.0 {
+        recordarray range
+    } -setup {
+        set ra {{a b c} {{{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray range $ra 0 end
+    } -result {{a b c} {{{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
+
+    test recordarray-12.1 {
+        recordarray range empty
+    } -setup {
+        set ra {{a b c} {{{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray range $ra 0 -1
+    } -result {{a b c} {}}
+
+    test recordarray-12.2 {
+        recordarray range empty
+    } -setup {
+        set ra {{a b c} {}}
+    } -body {
+        twapi::recordarray range $ra 0 end
+    } -result {{a b c} {}}
+
+    test recordarray-12.3 {
+        recordarray range 0..
+    } -setup {
+        set ra {{a b c} {{{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray range $ra 0 1
+    } -result {{a b c} {{{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}}}}
+
+    test recordarray-12.4 {
+        recordarray range N..N
+    } -setup {
+        set ra {{a b c} {{{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray range $ra 1 1
+    } -result {{a b c} {{{1 0} {1 1} {1 2}}}}
+
+    test recordarray-12.5 {
+        recordarray range out of range
+    } -setup {
+        set ra {{a b c} {{{0 0} {0 1} {1 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
+    } -body {
+        twapi::recordarray range $ra 2 4
+    } -result {{a b c} {{{2 0} {2 1} {2 2}}}}
+
     ################################################################
 
     test badargs-1.0 {
