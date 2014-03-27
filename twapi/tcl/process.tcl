@@ -398,20 +398,33 @@ proc twapi::get_process_ids {args} {
 proc twapi::get_process_modules {pid args} {
     variable my_process_handle
 
-    array set opts [parseargs args {handle name path imagedata all}]
+    array set opts [parseargs args {handle name path base size entry all}]
 
     if {$opts(all)} {
-        foreach opt {handle name path imagedata} {
+        foreach opt {handle name path base size entry} {
             set opts($opt) 1
         }
     }
-    set noopts [expr {($opts(name) || $opts(path) || $opts(imagedata) || $opts(handle)) == 0}]
+    set noopts [expr {($opts(name) || $opts(path) || $opts(base) || $opts(size) || $opts(entry) || $opts(handle)) == 0}]
+
+    if {! $noopts} {
+        # Returning a record array
+        set fields {}
+        # ORDER MUST be same a value order below
+        foreach opt {handle name path base size entry} {
+            if {$opts($opt)} {
+                lappend fields -$opt
+            }
+        }
+        
+    }
 
     if {$pid == [pid]} {
         set hpid $my_process_handle
     } else {
         set hpid [get_process_handle $pid -access {process_query_information process_vm_read}]
     }
+
     set results [list ]
     trap {
         foreach module [EnumProcessModules $hpid] {
@@ -419,43 +432,49 @@ proc twapi::get_process_modules {pid args} {
                 lappend results $module
                 continue
             }
-            set module_data [list ]
+            set rec {}
             if {$opts(handle)} {
-                lappend module_data -handle $module
+                lappend rec $module
             }
             if {$opts(name)} {
                 if {[catch {GetModuleBaseName $hpid $module} name]} {
                     set name ""
                 }
-                lappend module_data -name $name
+                lappend rec $name
             }
-           if {$opts(path)} {
+            if {$opts(path)} {
                 if {[catch {GetModuleFileNameEx $hpid $module} path]} {
                     set path ""
                 }
-               lappend module_data -path [_normalize_path $path]
+                lappend rec [_normalize_path $path]
             }
-            if {$opts(imagedata)} {
+            if {$opts(base) || $opts(size) || $opts(entry)} {
                 if {[catch {GetModuleInformation $hpid $module} imagedata]} {
                     set base ""
                     set size ""
                     set entry ""
                 } else {
-                    array set temp $imagedata
-                    set base $temp(lpBaseOfDll)
-                    set size $temp(SizeOfImage)
-                    set entry $temp(EntryPoint)
+                    lassign $imagedata base size entry
                 }
-                lappend module_data -imagedata [list $base $size $entry]
+                foreach opt {base size entry} {
+                    if {$opts($opt)} {
+                        lappend rec [set $opt]
+                    }
+                }
             }
-            lappend results $module_data
+            lappend results $rec
         }
     } finally {
         if {$hpid != $my_process_handle} {
             CloseHandle $hpid
         }
     }
-    return $results
+
+    if {$noopts} {
+        return $results
+    } else {
+        return [list $fields $results]
+    }
 }
 
 
@@ -588,30 +607,38 @@ proc twapi::get_process_name {pid args} {
 proc twapi::get_device_drivers {args} {
     array set opts [parseargs args {name path base all}]
 
+    set fields {}
+    # Order MUST be same as order of values below
+    foreach opt {base name path} {
+        if {$opts($opt) || $opts(all)} {
+            lappend fields -$opt
+        }
+    }
+
     set results [list ]
     foreach module [EnumDeviceDrivers] {
-        catch {unset module_data}
+        unset -nocomplain rec
         if {$opts(base) || $opts(all)} {
-            set module_data [list -base $module]
+            lappend rec $module
         }
         if {$opts(name) || $opts(all)} {
             if {[catch {GetDeviceDriverBaseName $module} name]} {
                     set name ""
             }
-            lappend module_data -name $name
+            lappend rec $name
         }
         if {$opts(path) || $opts(all)} {
             if {[catch {GetDeviceDriverFileName $module} path]} {
                 set path ""
             }
-            lappend module_data -path [_normalize_path $path]
+            lappend rec [_normalize_path $path]
         }
-        if {[info exists module_data]} {
-            lappend results $module_data
+        if {[info exists rec]} {
+            lappend results $rec
         }
     }
 
-    return $results
+    return [list $fields $results]
 }
 
 # Check if the given process exists

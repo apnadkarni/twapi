@@ -465,90 +465,110 @@ namespace eval ::twapi::process::test {
 
     test get_process_modules-1.0 {
         Get handles of modules loaded in a process
-    } -constraints {
-        nt
     } -body {
         expr {[llength [twapi::get_process_modules [get_explorer_pid] -handle]] > 0}
     } -result 1
     
-    ###
-    
     test get_process_modules-1.1 {
         Get names of modules loaded in a process
-    } -constraints {
-        nt
     } -body {
-        get_kl_field [lindex [twapi::get_process_modules \
-                                    [get_explorer_pid] -name] 0] -name
+        set mods [twapi::get_process_modules [get_explorer_pid] -name]
+        twapi::recordarray cell $mods 0 -name
     } -match path -result explorer.exe
-    
-    ###
     
     test get_process_modules-1.2 {
         Get paths of modules loaded in a process
-    } -constraints {
-        nt
     } -body {
-        get_kl_field [lindex [twapi::get_process_modules \
-                                    [get_explorer_pid] -path] 0] -path
+        set mods [twapi::get_process_modules [get_explorer_pid] -path]
+        twapi::recordarray cell $mods 0 -path
     } -match path -result [get_explorer_path]
     
-    ###
-    
     test get_process_modules-1.3 {
-        Get image data of modules loaded in a process
-    } -constraints {
-        nt
+        Get base of modules loaded in a process
+    } -setup {
+        if {[info exists ::tcl_platform(pointerSize)] &&
+            $::tcl_platform(pointerSize) == 8} {
+            set inttype wide
+        } else {
+            set inttype integer
+        }
     } -body {
         # Get all modules and do some minimal checks
         set result ok
-        foreach mod [twapi::get_process_modules [get_explorer_pid] -imagedata] {
-            if {[llength $mod] != 2} {
-                set result "Wrong number of fields in module element"
+        set mods [twapi::get_process_modules [get_explorer_pid] -base]
+        foreach val [twapi::recordarray column $mods -base] {
+            if {![string is $inttype -strict $val]} {
+                set result "Non-integer image base"
                 break
-            }
-            if {[lindex $mod 0] ne "-imagedata"} {
-                set result "Missing file name '-imagedata'"
-                break
-            }
-            set imagedata [lindex $mod 1]
-            if {[llength $imagedata] != 3} {
-                set result "Wrong number of elements in -imagedata field"
-                break
-            }
-	    if {[info exists ::tcl_platform(pointerSize)] &&
-		$::tcl_platform(pointerSize) == 8} {
-		set size wide
-	    } else {
-		set size integer
-	    }
-            if {!([string is $size -strict [lindex $imagedata 0]] ||
-                  [string is $size -strict [lindex $imagedata 0]] ||
-                  [string is $size -strict [lindex $imagedata 0]])} {
-                set result "Non-integer image data field"
             }
         }
         set result
     } -result ok
-    
-    
-    ###
 
     test get_process_modules-1.4 {
         Verify -all option returns all attributes of modules
     } -constraints {
         nt
     } -body {
-        foreach module [twapi::get_process_modules [get_explorer_pid] -all] {
+        set mods [twapi::get_process_modules [get_explorer_pid] -all]
+        foreach module [twapi::recordarray getlist $mods -format dict] {
             # Verify each field exists 
             # (get_kl_field raises an error if missing)
             get_kl_field $module -handle
             get_kl_field $module -name
             get_kl_field $module -path
-            get_kl_field $module -imagedata
+            get_kl_field $module -base
+            get_kl_field $module -size
+            get_kl_field $module -entry
         }
         return ""
     } -result ""
+
+    test get_process_modules-1.5 {
+        Get size of modules loaded in a process
+    } -setup {
+        if {[info exists ::tcl_platform(pointerSize)] &&
+            $::tcl_platform(pointerSize) == 8} {
+            set inttype wide
+        } else {
+            set inttype integer
+        }
+    } -body {
+        # Get all modules and do some minimal checks
+        set result ok
+        set mods [twapi::get_process_modules [get_explorer_pid] -size]
+        foreach val [twapi::recordarray column $mods -size] {
+            if {![string is $inttype -strict $val]} {
+                set result "Non-integer image size"
+                break
+            }
+        }
+        set result
+    } -result ok
+
+    test get_process_modules-1.6 {
+        Get entry of modules loaded in a process
+    } -setup {
+        if {[info exists ::tcl_platform(pointerSize)] &&
+            $::tcl_platform(pointerSize) == 8} {
+            set inttype wide
+        } else {
+            set inttype integer
+        }
+    } -body {
+        # Get all modules and do some minimal checks
+        set result ok
+        set mods [twapi::get_process_modules [get_explorer_pid] -size]
+        foreach val [twapi::recordarray column $mods -size] {
+            if {![string is $inttype -strict $val]} {
+                set result "Non-integer image size"
+                break
+            }
+        }
+        set result
+    } -result ok
+
+
 
     ################################################################
 
@@ -738,7 +758,7 @@ namespace eval ::twapi::process::test {
     } -constraints {
         nt
     } -body {
-        llength [twapi::get_device_drivers]
+        twapi::recordarray size [twapi::get_device_drivers]
     } -result 0
 
     ###
@@ -748,7 +768,7 @@ namespace eval ::twapi::process::test {
     } -constraints {
         nt
     } -body {
-        verify_list_kl_fields [twapi::get_device_drivers -base] {-base}
+        verify_list_kl_fields [twapi::recordarray getlist [twapi::get_device_drivers -base] -format dict] {-base}
     } -result ""
     
     ###
@@ -758,7 +778,7 @@ namespace eval ::twapi::process::test {
     } -constraints {
         nt
     } -body {
-        verify_list_kl_fields [twapi::get_device_drivers -name] {-name}
+        verify_list_kl_fields [twapi::recordarray getlist [twapi::get_device_drivers -name] -format dict] {-name}
     } -result ""
     
     ###
@@ -768,7 +788,7 @@ namespace eval ::twapi::process::test {
     } -constraints {
         nt
     } -body {
-        verify_list_kl_fields [twapi::get_device_drivers -path] {-path}
+        verify_list_kl_fields [twapi::recordarray getlist [twapi::get_device_drivers -path] -format dict] {-path}
     } -result ""
 
     ###
@@ -778,7 +798,7 @@ namespace eval ::twapi::process::test {
     } -constraints {
         nt
     } -body {
-        verify_list_kl_fields [twapi::get_device_drivers -all] {-path -name -base}
+        verify_list_kl_fields [twapi::recordarray getlist [twapi::get_device_drivers -all] -format dict] {-path -name -base}
     } -result ""
     
 
