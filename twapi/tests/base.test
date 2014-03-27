@@ -3476,6 +3476,46 @@ namespace eval twapi::base::test {
 
     ################################################################
 
+    test badargs-1.0 {
+        badargs
+    } -setup {
+        proc badproc args {twapi::badargs! Message}
+    } -body {
+        list [catch {badproc a b c} msg] [regexp {while executing\s+"badproc a b c"} $::errorInfo] $::errorCode
+    } -result {1 1 {TWAPI BADARGS Message}}
+
+    ################################################################
+
+    test conceal-1.0 {
+        Conceal text
+    } -body {
+        set c [twapi::conceal abc]
+        list [string length $c] [string first a $c] [twapi::reveal $c]
+    } -result {8 -1 abc}
+
+    test conceal-1.1 {
+        Conceal text exactly 8 chars (block size), unicode
+    } -body {
+        set c [twapi::conceal abcdefg\u0100]
+        list [string length $c] [string first a $c] [twapi::reveal $c]
+    } -result [list 24 -1 abcdefg\u0100]
+
+    ################################################################
+
+    test swapl-1.0 {
+        swapl
+    } -body {
+        twapi::swapl {a b {c d} {e f}}
+    } -result {b a {e f} {c d}}
+
+    test swapl-1.1 {
+        swapl
+    } -body {
+        twapi::swapl {a b c}
+    } -result {b a {} c}
+
+    ################################################################
+
     #
     # Clean up
     ::tcltest::cleanupTests

@@ -74,6 +74,11 @@ array set do_not_test {
     etw_stop_trace           etw_provider
     namedpipe_server         pipe
     namedpipe_client         pipe
+    reveal                   conceal
+    tls                      tlsIO
+    tls_socket               tlsIO
+    trapoptions              trap
+    trapresult               trap
 }
 set missing {}
 foreach cmd [twapi::_get_public_commands] {
