@@ -257,11 +257,8 @@ that are in the [const stopped] state.
 that are not in the [const stopped] state.
 [list_end]
 
-The command returns a dictionary, the key being the internal name of 
-the service [emph "in lower case"], and the second being a dictionary
-that describes a single service. This dictionary contains the following
-keys:
-
+The command returns a 
+[uri #recordarrays "record array"] with the following fields.
 [list_begin opt]
 
 [opt_def [const checkpoint]] Contains the last checkpoint value
@@ -337,10 +334,9 @@ that are in the [const stopped] state.
 [opt_def -active] Specifying this option will result in inclusion of services
 that are not in the [const stopped] state.
 [list_end]
-The command returns a dictionary, the key being the internal name of 
-the service [emph "in lower case"], and the second being a dictionary
-that describes a single service. This dictionary contains the following
-keys:
+The command returns a 
+[uri #recordarrays "record array"]
+with the following fields.
 
 [list_begin opt]
 
@@ -370,10 +366,6 @@ determined.
 [opt_def [const service_code]] In case the [const exitcode]
 field contains 1066, this field contains a service specific code
 stored by the service.
-
-[opt_def [const serviceflags]] Integer value. If the low bit is set,
-the service runs in a system process that must alway be
-running.
 
 [opt_def [const servicetype]] Indicates the type of the service, and
 is one of [const win32_own_process], [const win32_share_process],
