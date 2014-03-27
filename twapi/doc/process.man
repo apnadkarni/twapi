@@ -308,12 +308,10 @@ Returns the PID of the current process.
 Returns the TID of the current thread.
 
 [call [cmd get_device_drivers] [opt [arg options]]]
-This command returns information about the device drivers loaded
-in the system.
-The returned information is in the form of
-a list of sublist with each sublist corresponding to a loaded driver.
-Each sublist is a flat list of "[arg option] [arg value]" pairs.
-The following options may be specified:
+Returns a [uri base.html#recordarrays "record array"]
+describing the device drivers loaded in the system.
+The fields of the record array are based on which of
+the following options are specified:
 [list_begin opt]
 [opt_def [cmd -all]] Returns all device driver attributes below.
 [opt_def [cmd -base]] Returns the base address in memory where the driver
@@ -597,21 +595,21 @@ This command returns information about the modules loaded in the
 process with id [arg PID]. If no options are specified, the command
 returns a list of handles to the modules.
 [nl]
-If any options are specified, the returned information is in the form of
-a list of sublists each of which corresponds to a loaded
-module. The sublist for each module is in the form
-"[arg option] [arg VALUE]".
-The following options may be specified:
+If any options are specified, the returned information is a
+[uri base.html#recordarrays "record array"] with one record
+per module. The fields of the record array depend on which of
+the following options are specified.
 [list_begin opt]
 [opt_def [cmd -all]] Returns the data for all options described below.
+[opt_def [cmd -base]] Includes the base address of the module.
+[opt_def [cmd -entry]] Includes the address of
+the entry point to the module.
 [opt_def [cmd -handle]] Includes the handle to the module in the returned
 data for each module.
-[opt_def [cmd -path]] Includes the full path from which the module was loaded.
 [opt_def [cmd -name]] Includes the name of the module - generally the file
 name portion of the path.
-[opt_def [cmd -imagedata]] Includes the base address in memory where the
-module is loaded, the size of the module in memory and the address of
-the entry point to the module as a sublist for each module.
+[opt_def [cmd -path]] Includes the full path from which the module was loaded.
+[opt_def [cmd -size]] Includes the size of the module.
 [list_end]
 
 [call [cmd get_process_name] [arg PID]]

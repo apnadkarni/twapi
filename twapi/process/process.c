@@ -485,15 +485,12 @@ static int ListObjToSTARTUPINFO(TwapiInterpContext *ticP, Tcl_Obj *siObj, STARTU
 
 Tcl_Obj *ObjFromMODULEINFO(LPMODULEINFO miP)
 {
-    Tcl_Obj *objv[6];
+    Tcl_Obj *objv[3];
 
-    objv[0] = STRING_LITERAL_OBJ("lpBaseOfDll");
-    objv[1] = ObjFromDWORD_PTR(miP->lpBaseOfDll);
-    objv[2] = STRING_LITERAL_OBJ("SizeOfImage");
-    objv[3] = ObjFromLong(miP->SizeOfImage);
-    objv[4] = STRING_LITERAL_OBJ("EntryPoint");
-    objv[5] = ObjFromDWORD_PTR(miP->EntryPoint);
-    return ObjNewList(6, objv);
+    objv[0] = ObjFromDWORD_PTR(miP->lpBaseOfDll);
+    objv[1] = ObjFromLong(miP->SizeOfImage);
+    objv[2] = ObjFromDWORD_PTR(miP->EntryPoint);
+    return ObjNewList(3, objv);
 }
 
 #ifndef TWAPI_LEAN
