@@ -1073,14 +1073,18 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     DWORD dw, dw2;
     Tcl_Obj *sObj, *s2Obj, *s3Obj;
     LPWSTR s, s2;
-    EVT_HANDLE hevt, hevt2;
+    EVT_HANDLE hevt, hevt2, *hevtP;
     Tcl_WideInt wide;
     int func = PtrToInt(clientdata);
     HANDLE h;
-    WCHAR buf[MAX_PATH+1];
+    union {
+        WCHAR buf[MAX_PATH+1];
+        EVT_HANDLE hevts[100];
+    } u;
     EVT_VARIANT var;
     GUID guid;
-    
+    int i;
+
     if (gEvtStatus != 1)
         return Twapi_AppendSystemError(interp, ERROR_CALL_NOT_IMPLEMENTED);
 
@@ -1237,16 +1241,37 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         result.type = TRT_EMPTY;
         break;
 
+    case 14:
+        /* First verify syntax of handles */
+        if (objc < ARRAYSIZE(u.hevts))
+            hevtP = u.hevts;
+        else
+            hevtP = TwapiPushFrame(objc * sizeof(*hevtP), NULL);
+        for (i = 0; i < objc; ++i) {
+            if (ObjToOpaque(interp, objv[i], &hevtP[i], "EVT_HANDLE") != TCL_OK) {
+                if (objc >= ARRAYSIZE(u.hevts))
+                    TwapiPopFrame();
+                return TCL_ERROR;
+            }
+        }
+        /* Now do the actual close. On errors, we continue to close remaining */
+        result.type = TRT_EMPTY;
+        for (i = 0; i < objc; ++i) {
+            if (! EvtClose(hevtP[i])) {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                result.value.ival = GetLastError();
+            }
+        }
+        if (objc >= ARRAYSIZE(u.hevts))
+            TwapiPopFrame();
+        break;
+
     default:
         /* Params - HANDLE followed by optional DWORD */
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
                          ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
-        case 101:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = EvtClose(hevt);
-            break;
         case 102:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = EvtCancel(hevt);
@@ -1258,8 +1283,8 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         case 109: // EvtNextPublisherId
             /* Note channel/publisher is max 255 chars so no need to check
                for ERROR_INSUFFICIENT_BUFFER */
-            if ((func == 104 ? EvtNextChannelPath : EvtNextPublisherId)(hevt, ARRAYSIZE(buf), buf, &dw) != FALSE) {
-                ObjSetResult(interp, ObjFromUnicodeN(buf, dw-1));
+            if ((func == 104 ? EvtNextChannelPath : EvtNextPublisherId)(hevt, ARRAYSIZE(u.buf), u.buf, &dw) != FALSE) {
+                ObjSetResult(interp, ObjFromUnicodeN(u.buf, dw-1));
                 return TCL_OK;
             }
             result.type = TRT_EXCEPTION_ON_ERROR;
@@ -1333,11 +1358,11 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(EvtExportLog, 8),
         DEFINE_FNCODE_CMD(EvtSetChannelConfigProperty, 9),
         DEFINE_FNCODE_CMD(EvtOpenPublisherMetadata, 10),
-        DEFINE_FNCODE_CMD(evt_create_bookmark, 11),  // docs
-        DEFINE_FNCODE_CMD(evt_update_bookmark, 12), // docs
-        DEFINE_FNCODE_CMD(evt_free, 13), // docs
-        DEFINE_FNCODE_CMD(evt_close, 101), // docs
-        DEFINE_FNCODE_CMD(evt_cancel, 102), // docs
+        DEFINE_FNCODE_CMD(evt_create_bookmark, 11),  // TBD docs
+        DEFINE_FNCODE_CMD(evt_update_bookmark, 12), // TBD docs
+        DEFINE_FNCODE_CMD(evt_free, 13), // TBD docs
+        DEFINE_FNCODE_CMD(evt_close, 14), // TBD docs
+        DEFINE_FNCODE_CMD(evt_cancel, 102), // TBD docs
         DEFINE_FNCODE_CMD(EvtOpenChannelEnum, 103),
         DEFINE_FNCODE_CMD(EvtNextChannelPath, 104),
         DEFINE_FNCODE_CMD(EvtSaveChannelConfig, 105),
