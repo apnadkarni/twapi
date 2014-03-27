@@ -210,10 +210,8 @@ must be specified.
 [call [cmd find_lm_connections] [opt [arg options]]]
 Returns information about the connections to a share on a server or
 established from a particular client system. The return value is
-a list of sublists containing information about each connection.
-The actual data included depends on the options
-specified.
-
+a [uri #recordarrays "record array"]
+whose fields correspond to the options below.
 [list_begin opt]
 [opt_def [cmd -activeseconds]]
 Returns the number of seconds the connection has been established.
@@ -249,13 +247,16 @@ Returns name of the user that made the connection.
 [list_end]
 
 [call [cmd find_lm_open_files] [opt [arg options]]]
-Returns a list of sublists containing information about files and
+Returns a [uri #recordarrays "record array"]
+containing information about files and
 devices opened through a Lan Manager session.
-The actual data included depends on the options
-specified.
+The fields of the record array depend on the specific
+options. 
+Refer to [uri \#get_lm_open_file_info [cmd get_lm_open_file_info]]
+for a list of these options.
 [nl]
-The following [arg options] specify matching
-criteria that control which sessions are returned:
+In addition, the following [arg options] specify matching
+criteria that control which records are returned:
 [list_begin opt]
 [opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
 on which the command is to be executed. By default, this is the local
@@ -265,18 +266,17 @@ files should have begin with [arg PATHPREFIX].
 If [arg PATHPREFIX]
 is an empty string (default), all open files are included.
 [list_end]
-Additional options control the data returned for each open file.
-Refer to [uri \#get_lm_open_file_info [cmd get_lm_open_file_info]]
-for a list of these options.
 
 [call [cmd find_lm_sessions] [opt [arg options]]]
-Returns a list of [sectref "Lan Manager sessions"] matching the specified
-options. The list contains sublists containing
-data for each session. The actual data included depends on the options
-specified.
+Returns a [uri #recordarrays "record array"]
+of [sectref "Lan Manager sessions"] matching the specified
+options. 
+The fields of the record array depend on the options
+specified. Refer to [uri \#get_lm_session_info [cmd get_lm_session_info]]
+for a list of these options.
 [nl]
 
-The following [arg options] specify matching
+In addition, the following [arg options] specify matching
 criteria that control which sessions are returned:
 [list_begin opt]
 [opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
@@ -289,9 +289,6 @@ is an empty string (default), all client systems are included.
 user whose sessions are to be included. If [arg USERNAME]
 is an empty string (default), all users are included.
 [list_end]
-Additional options control the data returned for each session.
-Refer to [uri \#get_lm_session_info [cmd get_lm_session_info]]
-for a list of these options.
 
 [call [cmd get_client_share_info] [arg SHAREPATH] [opt [arg options]]]
 Returns information about the connected network share identified

@@ -404,8 +404,10 @@ namespace eval twapi::share::test {
         return [join $msgs \n]
     }
 
-    # Verify multiple session data
+    # Verify multiple session data - sessions is a record array
     proc verify_lm_test_sessions {sessions expected_fields expected_values {mincount 1} {maxcount 100}} {
+        set sessions [twapi::recordarray getlist $sessions -format dict]
+
         if {[llength $sessions] < $mincount} {
             return "Expected at least $mincount sessions, found only [llength $sessions]."
         }
@@ -464,6 +466,7 @@ namespace eval twapi::share::test {
 
     # Verify multiple LM connection data
     proc verify_lm_test_connections {conns expected_fields expected_values {mincount 1} {maxcount 100}} {
+        set conns [twapi::recordarray getlist $conns -format dict]
         if {[llength $conns] < $mincount} {
             return "Expected at least $mincount LM connections, found only [llength $conns]."
         }
@@ -522,6 +525,8 @@ namespace eval twapi::share::test {
 
     # Verify multiple LM open file data
     proc verify_lm_test_openfiles {files expected_fields expected_values {mincount 1} {maxcount 100}} {
+        set files [twapi::recordarray getlist $files -format dict]
+
         if {[llength $files] < $mincount} {
             return "Expected at least $mincount LM open files, found only [llength $files]."
         }
