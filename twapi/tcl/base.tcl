@@ -1271,6 +1271,10 @@ proc twapi::recordarray::index {ra row args} {
     }
 }
 
+proc twapi::recordarray::range {ra low high} {
+    return [list [lindex $ra 0] [lrange [lindex $ra 1] $low $high]]
+}
+
 proc twapi::recordarray::column {ra field args} {
     # TBD - time to see if a script loop would be faster
     ::twapi::parseargs args {
@@ -1354,6 +1358,11 @@ proc twapi::recordarray::concat {args} {
     return [list $fields [::twapi::lconcat {*}$values]]
 }
 
+namespace eval twapi::recordarray {
+    namespace export cell column concat fields get getdict getlist index range rename size
+    namespace ensemble create
+}
+
 # Return a suitable cstruct definition based on a C definition
 proc twapi::struct {struct_name s} {
     variable _struct_defs
@@ -1427,7 +1436,3 @@ proc twapi::struct {struct_name s} {
     return
 }
 
-namespace eval twapi::recordarray {
-    namespace export cell column concat fields get getdict getlist index rename size
-    namespace ensemble create
-}

@@ -161,6 +161,8 @@ Returns a list containing a subset of the records and
 fields.
 [opt_def [uri #recordarrayindex [cmd "recordarray index"]]]
 Returns the record at a specified position in list or dictionary format.
+[opt_def [uri #recordarrayrange [cmd "recordarray range"]]]
+Returns a new record array containing records in the specified range.
 [opt_def [uri #recordarrayrename [cmd "recordarray rename"]]]
 Renames one or more fields in the record array.
 [opt_def [uri #recordarraysize [cmd "recordarray size"]]]
@@ -819,6 +821,10 @@ Returns the record at a specified position in the
 [uri #recordarrays "record array"]. The
 options [cmd -format] and [cmd -slice] as described in
 [sectref "Record arrays"] control the fields returned and their format.
+
+[call [cmd "recordarray range"] [arg RECORDARRAY] [arg LOW] [arg HIGH]]
+Returns a new [uri #recordarrays "record array"]
+containing the records in the specified index range.
 
 [call [cmd "recordarray rename"] [arg RECORDARRAY] [arg FIELDRENAMEMAP]]
 Returns a new record array with the same records as [arg RECORDARRY] but
