@@ -544,7 +544,11 @@ proc twapi::get_multiple_service_status {args} {
     # 4 -> SC_MANAGER_ENUMERATE_SERVICE
     set scm [OpenSCManager $opts(system) $opts(database) 4]
     trap {
-        return [EnumServicesStatusEx $scm 0 $servicetype $servicestate __null__]
+        set fields {
+            servicetype state controls_accepted  exitcode service_code
+            checkpoint wait_hint pid serviceflags name displayname interactive 
+        }
+        return [list $fields [EnumServicesStatusEx $scm 0 $servicetype $servicestate __null__]]
     } finally {
         CloseServiceHandle $scm
     }
@@ -573,7 +577,14 @@ proc twapi::get_dependent_service_status {name args} {
     set opts(proc)     twapi::EnumDependentServices
     set opts(args)     [list $servicestate]
 
-    return [_service_fn_wrapper $name opts]
+    set fields {
+        servicetype state controls_accepted  exitcode service_code
+        checkpoint wait_hint name displayname interactive 
+    }
+
+    return [list $fields [_service_fn_wrapper $name opts]]
+
+
 }
 
 
