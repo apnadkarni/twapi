@@ -751,7 +751,7 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    set testnum 0
+    set testnum -1
     foreach source {application system security} {
         test winlog_read-1.[incr testnum] "winlog_read event log records from the $source log" -body {
             patience "Reading events"
@@ -776,11 +776,21 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hevl [twapi::winlog_open]
         set recs [twapi::winlog_read $hevl]
-        if {[llength $recs] < 2} {
+        if {[llength $recs] < 5} {
             lappend recs {*}[twapi::winlog_read $hevl]
         }
+        set ok 1
+        set rec_id 0
+        foreach rec $recs {
+            set rec_next [dict get $rec -eventrecordid]
+            if {$rec_next <= $rec_id} {
+                set ok 0
+                break
+            }
+            set rec_id $rec_next
+        }
         twapi::winlog_close $hevl
-        expr {[dict get [lindex $recs 1]] > [dict get [lindex $recs 0]]}
+        set ok
     } -result 1
 
     test winlog_read-2.1 {
@@ -788,11 +798,21 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hevl [twapi::winlog_open -direction forward]
         set recs [twapi::winlog_read $hevl]
-        if {[llength $recs] < 2} {
+        if {[llength $recs] < 5} {
             lappend recs {*}[twapi::winlog_read $hevl]
         }
+        set ok 1
+        set rec_id 0
+        foreach rec $recs {
+            set rec_next [dict get $rec -eventrecordid]
+            if {$rec_next <= $rec_id} {
+                set ok 0
+                break
+            }
+            set rec_id $rec_next
+        }
         twapi::winlog_close $hevl
-        expr {[dict get [lindex $recs 1]] > [dict get [lindex $recs 0]]}
+        set ok
     } -result 1
 
     test winlog_read-2.2 {
@@ -800,11 +820,21 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hevl [twapi::winlog_open -direction backward]
         set recs [twapi::winlog_read $hevl]
-        if {[llength $recs] < 2} {
+        if {[llength $recs] < 5} {
             lappend recs {*}[twapi::winlog_read $hevl]
         }
+        set ok 1
+        set rec_id 0x7fffffff
+        foreach rec $recs {
+            set rec_next [dict get $rec -eventrecordid]
+            if {$rec_next >= $rec_id} {
+                set ok 0
+                break
+            }
+            set rec_id $rec_next
+        }
         twapi::winlog_close $hevl
-        expr {[dict get [lindex $recs 1]] < [dict get [lindex $recs 0]]}
+        set ok
     } -result 1
 
 
