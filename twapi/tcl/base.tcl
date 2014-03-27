@@ -1349,8 +1349,10 @@ proc twapi::recordarray::concat {args} {
     set values [list [lindex $ra 1]]
     set width [llength $fields]
     foreach ra $args {
-        if {[llength [lindex $ra 0]] != $width} {
-            twapi::badargs! "Attempt to concat mismatched recordarrays"
+        foreach fld1 $fields fld2 [lindex $ra 0] {
+            if {$fld1 ne $fld2} {
+                twapi::badargs! "Attempt to concat record arrays with different fields ([join $fields ,] versus [join [lindex $ra 0] ,])"
+            }
         }
         lappend values [lindex $ra 1]
     }

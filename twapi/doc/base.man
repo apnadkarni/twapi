@@ -787,8 +787,7 @@ for the format of [arg FILTERLIST].
 [call [cmd "recordarray concat"] [opt "[arg RECORDARRAY] [arg RECORDARRAY]..."]]
 Returns a record array containing records from one or more 
 [uri #recordarrays "record arrays"]. 
-The number of fields in each record array must be the
-same though their names need not be identical.
+The fields in each record array must be the same.
 
 [call [cmd "recordarray fields"] [arg RECORDARRAY]]
 Returns field names for the records in the [uri #recordarrays "record array"].
