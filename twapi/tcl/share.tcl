@@ -425,18 +425,13 @@ proc twapi::find_lm_sessions args {
         set sessions [_net_enum_helper NetSessionEnum -system $opts(system) -preargs [list $opts(client) $opts(user)] -level $level]
     } onerror {TWAPI_WIN32 2312} {
         # No session matching the specified client
-        return [list ]
+        set sessions {}
     } onerror {TWAPI_WIN32 2221} {
         # No session matching the user
-        return [list ]
+        set sessions {}
     }
 
-    set retval [list ]
-    foreach sess $sessions {
-        lappend retval [_format_lm_session $sess opts]
-    }
-
-    return $retval
+    return [_format_lm_sessions $sessions opts]
 }
 
 
@@ -472,7 +467,7 @@ proc twapi::get_lm_session_info {client user args} {
     # Note an error is generated if no matching session exists
     set sess [NetSessionGetInfo $opts(system) $client $user $level]
 
-    return [_format_lm_session $sess opts]
+    return [recordarray index [_format_lm_sessions [list $sess] opts] 0 -format dict]
 }
 
 # Delete sessions
@@ -519,11 +514,6 @@ proc twapi::find_lm_open_files args {
         username
     } -maxleftover 0]
 
-    if {![min_os_version 5]} {
-        # System name is specified. If NT, make sure it is UNC form
-        set opts(system) [_make_unc_computername $opts(system)]
-    }
-    
     set level 3
     if {! ($opts(all) || $opts(permissions) || $opts(lockcount) ||
            $opts(path) || $opts(username))} {
@@ -540,12 +530,7 @@ proc twapi::find_lm_open_files args {
         return [list ]
     }
 
-    set retval [list ]
-    foreach file $files {
-        lappend retval [_format_lm_open_file $file opts]
-    }
-
-    return $retval
+    return [_format_lm_open_files $files opts]
 }
 
 # Get information about an open LM file
@@ -574,7 +559,7 @@ proc twapi::get_lm_open_file_info {fid args} {
         set level 2
     }
 
-    return [_format_lm_open_file [NetFileGetInfo $opts(system) $fid $level] opts]
+    return [recordarray index [_format_lm_open_files [list [NetFileGetInfo $opts(system) $fid $level]] opts] 0 -format dict]
 }
 
 # Close an open LM file
@@ -607,11 +592,6 @@ proc twapi::find_lm_connections args {
         sharename
     } -maxleftover 0]
 
-    if {![min_os_version 5]} {
-        # System name is specified. If NT, make sure it is UNC form
-        set opts(system) [_make_unc_computername $opts(system)]
-    }
-    
     if {! ([info exists opts(client)] || [info exists opts(share)])} {
         win32_error 87 "Must specify either -client or -share option."
     }
@@ -637,6 +617,15 @@ proc twapi::find_lm_connections args {
     # TBD - change to use -resume option to _net_enum_helper since
     # there might be a log of connections
     set conns [_net_enum_helper NetConnectionEnum -system $opts(system) -preargs [list $qualifier] -level $level]
+
+    # NOTE fields MUST BE IN SAME ORDER AS VALUES BELOW
+    set fields {}
+    foreach opt {id opencount usercount activeseconds username type
+        clientname sharename} {
+        if {$opts(all) || $opts($opt)} {
+            lappend fields -$opt
+        }
+    }
     set retval [list ]
     foreach conn $conns {
         set item [list ]
@@ -648,11 +637,11 @@ proc twapi::find_lm_connections args {
             username      username
         } {
             if {$opts(all) || $opts($opt)} {
-                lappend item -$opt [kl_get $conn $fld]
+                lappend item [kl_get $conn $fld]
             }
         }
         if {$opts(all) || $opts(type)} {
-            lappend item -type [_share_type_code_to_symbols [kl_get $conn type]]
+            lappend item [_share_type_code_to_symbols [kl_get $conn type]]
         }
         # What's returned in the netname field depends on what we
         # passed as the qualifier
@@ -665,16 +654,16 @@ proc twapi::find_lm_connections args {
                 set clientname [_make_unc_computername [kl_get $conn netname]]
             }
             if {$opts(all) || $opts(clientname)} {
-                lappend item -clientname $clientname
+                lappend item $clientname
             }
             if {$opts(all) || $opts(sharename)} {
-                lappend item -sharename $sharename
+                lappend item $sharename
             }
         }
         lappend retval $item
     }
 
-    return $retval
+    return [list $fields $retval]
 }
 
 
@@ -706,45 +695,68 @@ proc twapi::_calc_minimum_session_info_level {v_opts} {
 
 # Common code to format a session record. v_opts is name of array
 # that controls which fields are returned
-proc twapi::_format_lm_session {sess v_opts} {
+proc twapi::_format_lm_sessions {sessions v_opts} {
     upvar $v_opts opts
 
-    set retval [list ]
-    foreach {opt fld} {
-        transport     transport
-        username      username
-        opencount     num_opens
-        idleseconds   idle_time
-        activeseconds time
-        clienttype    cltype_name
+    set fields {}
+    # ORDER MUST BE same as value order below
+    foreach opt {
+        transport username opencount idleseconds activeseconds
+        clienttype clientname attrs
     } {
         if {$opts(all) || $opts($opt)} {
-            lappend retval -$opt [kl_get $sess $fld]
+            lappend fields -$opt
         }
     }
-    if {$opts(all) || $opts(clientname)} {
-        # Since clientname is always required to be in UNC on input
-        # also pass it back in UNC format
-        lappend retval -clientname [_make_unc_computername [kl_get $sess cname]]
-    }
-    if {$opts(all) || $opts(attrs)} {
-        set attrs [list ]
-        set flags [kl_get $sess user_flags]
-        if {$flags & 1} {
-            lappend attrs guest
+
+    set retval {}
+    foreach sess $sessions {
+        foreach {opt fld} {
+            transport     transport
+            username      username
+            opencount     num_opens
+            idleseconds   idle_time
+            activeseconds time
+            clienttype    cltype_name
+        } {
+            if {$opts(all) || $opts($opt)} {
+                lappend retval [kl_get $sess $fld]
+            }
         }
-        if {$flags & 2} {
-            lappend attrs noencryption
+        if {$opts(all) || $opts(clientname)} {
+            # Since clientname is always required to be in UNC on input
+            # also pass it back in UNC format
+            lappend retval [_make_unc_computername [kl_get $sess cname]]
         }
-        lappend retval -attrs $attrs
+        if {$opts(all) || $opts(attrs)} {
+            set attrs [list ]
+            set flags [kl_get $sess user_flags]
+            if {$flags & 1} {
+                lappend attrs guest
+            }
+            if {$flags & 2} {
+                lappend attrs noencryption
+            }
+            lappend retval $attrs
+        }
     }
-    return $retval
+    return [list $fields $retval]
 }
 
 # Common code to format a lm open file record. v_opts is name of array
 # that controls which fields are returned
-proc twapi::_format_lm_open_file {file v_opts} {
+proc twapi::_format_lm_open_files {files v_opts} {
     upvar $v_opts opts
+
+    set fields {}
+    # ORDER MUST BE same as value order below
+    foreach opt {
+        id lockcount path username permissions
+    } {
+        if {$opts(all) || $opts($opt)} {
+            lappend fields -$opt
+        }
+    }
 
     set retval [list ]
     foreach {opt fld} {
@@ -754,7 +766,7 @@ proc twapi::_format_lm_open_file {file v_opts} {
         username    username
     } {
         if {$opts(all) || $opts($opt)} {
-            lappend retval -$opt [kl_get $file $fld]
+            lappend retval [kl_get $file $fld]
         }
     }
 
@@ -766,10 +778,10 @@ proc twapi::_format_lm_open_file {file v_opts} {
                 lappend permissions $perm
             }
         }
-        lappend retval -permissions $permissions
+        lappend retval $permissions
     }
 
-    return $retval
+    return [list $fields $retval]
 }
 
 # NOTE: THIS ONLY MAPS FOR THE Net* functions, NOT THE WNet*
