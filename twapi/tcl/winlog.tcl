@@ -6,8 +6,6 @@
 
 # Routines to unify old and new Windows event log APIs
 
-# TBD - winlog test suite
-
 namespace eval twapi {
     # Dictionary to map eventlog consumer handles to various related info
     # The primary key is the read handle to the event channel/source.
@@ -162,9 +160,10 @@ if {[twapi::min_os_version 6]} {
         # TBD - is 10 an appropriate number of events to read?
         set events [evt_next $hq -timeout 0 -count 10 -status status]
         if {[llength $events]} {
-            foreach hevt $events {
-                lappend result [evt_decode_event $hevt -lcid $lcid -ignorestring "" -message -levelname -taskname]
-                evt_close $hevt
+            trap {
+                set result [evt_decode_events $events -lcid $lcid -ignorestring "" -message -levelname -taskname]
+            } finally {
+                evt_close {*}$events
             }
             return $result
         }
@@ -203,24 +202,26 @@ if {[twapi::min_os_version 6]} {
         } -setvars -maxleftover 0
 
         variable _winlog_handles
-        set result {}
+        set fields {-channel -taskname -message -providername -eventid -level -levelname -eventrecordid -computer -sid -timecreated}
+        set values {}
         set channel [dict get $_winlog_handles $hq channel]
         foreach evl [eventlog_read $hq -direction [dict get $_winlog_handles $hq direction]] {
-            lappend result \
+            # Note order must be same as fields above
+            lappend values \
                 [list \
-                     -channel $channel \
-                     -taskname [eventlog_format_category $evl -langid $lcid] \
-                     -message [eventlog_format_message $evl -langid $lcid -width -1] \
-                     -providername [dict get $evl -source] \
-                     -eventid [dict get $evl -eventid] \
-                     -level [dict get $evl -level] \
-                     -levelname [dict get $evl -type] \
-                     -eventrecordid [dict get $evl -recordnum] \
-                     -computer [dict get $evl -system] \
-                     -userid [dict get $evl -sid] \
-                     -timecreated [secs_since_1970_to_large_system_time [dict get $evl -timewritten]]]
+                     $channel \
+                     [eventlog_format_category $evl -langid $lcid] \
+                     [eventlog_format_message $evl -langid $lcid -width -1] \
+                     [dict get $evl -source] \
+                     [dict get $evl -eventid] \
+                     [dict get $evl -level] \
+                     [dict get $evl -type] \
+                     [dict get $evl -recordnum] \
+                     [dict get $evl -system] \
+                     [dict get $evl -sid] \
+                     [secs_since_1970_to_large_system_time [dict get $evl -timewritten]]]
         }
-        return $result
+        return [list $fields $values]
     }
 
     proc twapi::winlog_subscribe {source} {
@@ -261,7 +262,7 @@ proc twapi::_winlog_dump_list {{channels {Application System Security}} {atomize
         set hevl [winlog_open -channel $channel]
         trap {
             while {[llength [set events [winlog_read $hevl]]]} {
-                foreach e $events {
+                foreach e [recordarray getlist $events -format dict] {
                     if {$atomize} {
                         dict set ev -message [atomize [dict get $e -message]]
                         dict set ev -levelname [atomize [dict get $e -levelname]]
@@ -293,7 +294,7 @@ proc twapi::_winlog_dump {{channel Application} {fd stdout}} {
     set hevl [winlog_open -channel $channel]
     while {[llength [set events [winlog_read $hevl]]]} {
         # print out each record
-        foreach ev $events {
+        foreach ev [recordarray getlist $events -format dict] {
             puts $fd "[dict get $ev -timecreated] [dict get $ev -providername]: [dict get $ev -message]"
         }
     }

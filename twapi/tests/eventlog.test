@@ -610,13 +610,13 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hq [twapi::evt_query -channel system]
         lassign [twapi::evt_next $hq -count 2] hevt1 hevt2
-        array set first [twapi::evt_decode_event_system_fields $hevt1]
-        array set second [twapi::evt_decode_event_system_fields $hevt2]
+        array set first [twapi::evt_decode_event $hevt1]
+        array set second [twapi::evt_decode_event $hevt2]
         # Verify default forward direction
         expr {
               $first(-timecreated) <= $second(-timecreated)
               &&
-              $first(-eventrecordid) <= $second(-eventrecordid)
+              $first(-eventrecordid) < $second(-eventrecordid)
           }
     } -cleanup {
         twapi::evt_close $hq
@@ -631,8 +631,8 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hq [twapi::evt_query -channel system -direction forward]
         lassign [twapi::evt_next $hq -count 2] hevt1 hevt2
-        array set first [twapi::evt_decode_event_system_fields $hevt1]
-        array set second [twapi::evt_decode_event_system_fields $hevt2]
+        array set first [twapi::evt_decode_event $hevt1]
+        array set second [twapi::evt_decode_event $hevt2]
         # Verify default forward direction
         expr {
               $first(-timecreated) <= $second(-timecreated)
@@ -652,8 +652,8 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hq [twapi::evt_query -channel system -direction backward]
         lassign [twapi::evt_next $hq -count 2] hevt1 hevt2
-        array set first [twapi::evt_decode_event_system_fields $hevt1]
-        array set second [twapi::evt_decode_event_system_fields $hevt2]
+        array set first [twapi::evt_decode_event $hevt1]
+        array set second [twapi::evt_decode_event $hevt2]
         # Verify default forward direction
         expr {
               $first(-timecreated) >= $second(-timecreated)
@@ -679,6 +679,33 @@ namespace eval twapi::eventlog::test {
         TBD
     } -result TBD
 
+    ################################################################
+
+    test evt_decode_event-1.0 {
+        Event query -session -file -query -ignorequeryerrors
+    } -constraints {
+        TBD win6
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -cleanup {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test evt_decode_events-1.0 {
+        Event query -session -file -query -ignorequeryerrors
+    } -constraints {
+        TBD win6
+    } -setup {
+        TBD
+    } -body {
+        TBD
+    } -cleanup {
+        TBD
+    } -result TBD
 
     ################################################################
 
@@ -758,8 +785,8 @@ namespace eval twapi::eventlog::test {
             set hevl [twapi::winlog_open -channel $source]
             set msgs ""
             set count 0
-            while {[llength [set events [twapi::winlog_read $hevl]]]} {
-                foreach eventrec $events {
+            while {[twapi::recordarray size [set events [twapi::winlog_read $hevl]]]} {
+                foreach eventrec [twapi::recordarray getlist $events -format dict] {
                     incr count
                     set msgs [verify_winlog_event $eventrec]
                     if {[llength $msgs]} break
@@ -776,12 +803,12 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hevl [twapi::winlog_open]
         set recs [twapi::winlog_read $hevl]
-        if {[llength $recs] < 5} {
-            lappend recs {*}[twapi::winlog_read $hevl]
+        if {[twapi::recordarray size $recs] < 5} {
+            set recs [twapi::recordarray concat $recs [twapi::winlog_read $hevl]]
         }
         set ok 1
         set rec_id 0
-        foreach rec $recs {
+        foreach rec [twapi::recordarray getlist $recs -format dict] {
             set rec_next [dict get $rec -eventrecordid]
             if {$rec_next <= $rec_id} {
                 set ok 0
@@ -798,12 +825,12 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hevl [twapi::winlog_open -direction forward]
         set recs [twapi::winlog_read $hevl]
-        if {[llength $recs] < 5} {
-            lappend recs {*}[twapi::winlog_read $hevl]
+        if {[twapi::recordarray size $recs] < 5} {
+            set recs [twapi::recordarray concat $recs [twapi::winlog_read $hevl]]
         }
         set ok 1
         set rec_id 0
-        foreach rec $recs {
+        foreach rec [twapi::recordarray getlist $recs -format dict] {
             set rec_next [dict get $rec -eventrecordid]
             if {$rec_next <= $rec_id} {
                 set ok 0
@@ -820,12 +847,12 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hevl [twapi::winlog_open -direction backward]
         set recs [twapi::winlog_read $hevl]
-        if {[llength $recs] < 5} {
-            lappend recs {*}[twapi::winlog_read $hevl]
+        if {[twapi::recordarray size $recs] < 5} {
+            set recs [twapi::recordarray concat $recs [twapi::winlog_read $hevl]]
         }
         set ok 1
         set rec_id 0x7fffffff
-        foreach rec $recs {
+        foreach rec [twapi::recordarray getlist $recs -format dict] {
             set rec_next [dict get $rec -eventrecordid]
             if {$rec_next >= $rec_id} {
                 set ok 0
@@ -843,7 +870,7 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hevl [twapi::winlog_open -system $::env(COMPUTERNAME)]
         set recs [twapi::winlog_read $hevl]
-        foreach eventrec $recs {
+        foreach eventrec [twapi::recordarray getlist $recs -format dict] {
             set msgs [verify_winlog_event $eventrec]
             if {[llength $msgs]} break
         }
@@ -868,8 +895,8 @@ namespace eval twapi::eventlog::test {
         set hevl [twapi::winlog_open -file $backup]
         set msgs ""
         set count 0
-        while {[llength [set events [twapi::winlog_read $hevl]]]} {
-            foreach eventrec $events {
+        while {[twapi::recordarray size [set events [twapi::winlog_read $hevl]]]} {
+            foreach eventrec [twapi::recordarray getlist $events -format dict] {
                 incr count
                 set msgs [verify_winlog_event $eventrec]
                 if {[llength $msgs]} break

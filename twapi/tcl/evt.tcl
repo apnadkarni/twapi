@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2012, Ashok P. Nadkarni
+# Copyright (c) 2012-2014, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -19,6 +19,14 @@ namespace eval twapi {
     #    This is a dictionary indexed with nested keys - 
     #     publisher, session, lcid. TBD - need a mechanism to clear ?
     variable _evt
+
+    # System event fields in order returned by _evt_decode_event_system_fields
+    twapi::record evt_system_fields  {
+        -providername -providerguid -eventid -qualifiers -level -task
+        -opcode -keywordmask -timecreated -eventrecordid -activityid
+        -relatedactivityid -pid -tid -channel
+        -computer -sid -version
+    }
 
     proc _evt_init {} {
         variable _evt
@@ -432,66 +440,60 @@ proc twapi::evt_next {hresultset args} {
     }
 }
 
-proc twapi::evt_decode_event_system_fields {hevt} {
+twapi::proc* twapi::_evt_decode_event_system_fields {hevt} {
     _evt_init
-
-    proc evt_decode_event_system_fields {hevt} {
-        variable _evt
-        set _evt(render_buffer) [Twapi_EvtRenderValues $_evt(system_render_context_handle) $hevt $_evt(render_buffer)]
-        return [twine {
-            -providername -providerguid -eventid -qualifiers -level -task
-            -opcode -keywordmask -timecreated -eventrecordid -activityid
-            -relatedactivityid -pid -tid -channel
-            -computer -sid -version
-        } [Twapi_ExtractEVT_RENDER_VALUES $_evt(render_buffer)]]
-    }
-
-    return [evt_decode_event_system_fields $hevt]
+} {
+    variable _evt
+    set _evt(render_buffer) [Twapi_EvtRenderValues $_evt(system_render_context_handle) $hevt $_evt(render_buffer)]
+    return [Twapi_ExtractEVT_RENDER_VALUES $_evt(render_buffer)]
 }
 
 # TBD - document. Returns a list of user data values
-proc twapi::evt_decode_event_userdata {hevt} {
+twapi::proc* twapi::evt_decode_event_userdata {hevt} {
     _evt_init
-
-    proc evt_decode_event_userdata {hevt} {
-        variable _evt
-        set _evt(render_buffer) [Twapi_EvtRenderValues $_evt(user_render_context_handle) $hevt $_evt(render_buffer)]
-        return [Twapi_ExtractEVT_RENDER_VALUES $_evt(render_buffer)]
-    }
-
-    return [evt_decode_event_userdata $hevt]
+} {
+    variable _evt
+    set _evt(render_buffer) [Twapi_EvtRenderValues $_evt(user_render_context_handle) $hevt $_evt(render_buffer)]
+    return [Twapi_ExtractEVT_RENDER_VALUES $_evt(render_buffer)]
 }
 
-
-proc twapi::evt_decode_event {args} {
+twapi::proc* twapi::evt_decode_events {hevts args} {
     _evt_init
+} {
+    variable _evt
 
-    proc evt_decode_event {hevt args} {
-
-        array set opts [parseargs args {
-            hpublisher.arg
-            {values.arg NULL}
-            {session.arg NULL}
-            {logfile.arg ""}
-            {lcid.int 0}
-            ignorestring.arg
-            message
-            levelname
-            taskname
-            opcodename
-            keywords
-            xml
-        } -ignoreunknown -hyphenated]
+    array set opts [parseargs args {
+        hpublisher.arg
+        {values.arg NULL}
+        {session.arg NULL}
+        {logfile.arg ""}
+        {lcid.int 0}
+        ignorestring.arg
+        message
+        levelname
+        taskname
+        opcodename
+        keywords
+        xml
+    } -ignoreunknown -hyphenated]
         
-        set decoded [evt_decode_event_system_fields $hevt]
+    # SAME ORDER AS _evt_decode_event_system_fields
+    set decoded_fields [evt_system_fields]
+    
+    # ORDER MUST BE SAME AS order in which values are appended below
+    foreach opt {-levelname -taskname -opcodename -keywords -xml -message} {
+        if {$opts($opt)} {
+            lappend decoded_fields $opt
+        }
+    }
 
+    foreach hevt $hevts {
+        set decoded [_evt_decode_event_system_fields $hevt]
         if {[info exists opts(-hpublisher)]} {
             set hpub $opts(-hpublisher)
         } else {
             # Get publisher from hevt
-            variable _evt
-
-            set publisher [dict get $decoded -providername]
+            set publisher [evt_system_fields -providername $decoded]
             if {! [dict exists $_evt(publisher_handles) $publisher $opts(-session) $opts(-lcid)]} {
                 if {[catch {
                     dict set _evt(publisher_handles) $publisher $opts(-session) $opts(-lcid) [EvtOpenPublisherMetadata $opts(-session) $publisher $opts(-logfile) $opts(-lcid) 0]
@@ -503,6 +505,7 @@ proc twapi::evt_decode_event {args} {
             set hpub [dict get $_evt(publisher_handles) $publisher $opts(-session) $opts(-lcid)]
         }
 
+        # ORDER MUST BE SAME AS decoded_fields ABOVE
         foreach {opt optind} {
             -levelname 2
             -taskname 3
@@ -512,19 +515,19 @@ proc twapi::evt_decode_event {args} {
         } {
             if {$opts($opt)} {
                 if {$opt in {-level -task -opcode} &&
-                    [dict get $decoded $opt] == 0 &&
+                    [evt_system_fields $opt $decoded] == 0 &&
                     [info exists opts(-ignorestring)]} {
                     # Don't bother making the call. 0 -> null
-                    lappend decoded $opt $opts(-ignorestring)
+                    lappend decoded $opts(-ignorestring)
                 } else {
                     if {[info exists opts(-ignorestring)]} {
                         if {[EvtFormatMessage $hpub $hevt 0 $opts(-values) $optind message]} {
-                            lappend decoded $opt $message
+                            lappend decoded $message
                         } else {
-                            lappend decoded $opt $opts(-ignorestring)
+                            lappend decoded $opts(-ignorestring)
                         }
                     } else {
-                        lappend decoded $opt [EvtFormatMessage $hpub $hevt 0 $opts(-values) $optind]
+                        lappend decoded [EvtFormatMessage $hpub $hevt 0 $opts(-values) $optind]
                     }
                 }
             }
@@ -535,28 +538,31 @@ proc twapi::evt_decode_event {args} {
         # unless user data extraction also fails
         if {$opts(-message)} {
             if {[EvtFormatMessage $hpub $hevt 0 $opts(-values) 1 message]} {
-                lappend decoded -message $message
+                lappend decoded $message
             } else {
                 # TBD - make sure we have a test for this case.
                 # TBD - log
                 if {[catch {
-                    lappend decoded -message "Message for event could not be found. Event contained user data: [join [evt_decode_event_userdata $hevt] ,]"
+                    lappend decoded "Message for event could not be found. Event contained user data: [join [evt_decode_event_userdata $hevt] ,]"
                 } message]} {
                     if {[info exists opts(-ignorestring)]} {
-                        lappend decoded -message $opts(-ignorestring)
+                        lappend decoded $opts(-ignorestring)
                     } else {
                         error $message
                     }
                 }
             }
         }
-
-        return $decoded
+        
+        lappend decoded_events $decoded
     }
 
-    return [evt_decode_event {*}$args]
+    return [list $decoded_fields $decoded_events]
 }
 
+proc twapi::evt_decode_event {hevt args} {
+    return [recordarray index [evt_decode_events [list $hevt] {*}$args] 0 -format dict]
+}
 
 # TBD - document
 proc twapi::evt_format_publisher_message {hpub msgid args} {
@@ -656,17 +662,16 @@ proc twapi::_evt_dump {args} {
     set hq [evt_query {*}$args]
     trap {
         while {[llength [set hevts [evt_next $hq]]]} {
-            foreach hevt $hevts {
-                trap {
+            trap {
+                foreach ev [recordarray getlist [evt_decode_events $hevts -message -ignorestring None.] -format dict] {
                     if {[info exists opts(count)] &&
-                        [incr opts(count) -1] <= 0} {
+                        [incr opts(count) -1] < 0} {
                         return
                     }
-                    set ev [evt_decode_event $hevt -message -ignorestring None.]
                     puts $opts(outfd) "[dict get $ev -timecreated] [dict get $ev -eventrecordid] [dict get $ev -providername]: [dict get $ev -eventrecordid] [dict get $ev -message]"
-                } finally {
-                    evt_close $hevt
-                }                
+                }
+            } finally {
+                evt_close {*}$hevts
             }
         }
     } finally {
