@@ -134,8 +134,8 @@ the [uri #evt_query [cmd evt_query]] command. This command returns
 a handle to a result set containing matching events. These can
 then be retrieved and processed using the
 [uri #evt_next [cmd evt_next]] and 
-[uri #evt_decode_event [cmd evt_decode_event]] or
-[uri #evt_decode_event_system_fields [cmd evt_decode_event_system_fields]].
+[uri #evt_decode_events [cmd evt_decode_events]] or
+[uri #evt_decode_event [cmd evt_decode_event]].
 
 [para]
 All handles returned by the [cmd evt_*] commands, such as those returned from
@@ -157,7 +157,7 @@ a command to write events.
 The common access commands require a handle to the event log which
 can be obtained via the [uri \#winlog_open [cmd winlog_open]]
 command. 
-access, but never both. The returned handle must be closed when no
+The returned handle must be closed when no
 longer required by calling
 [uri \#winlog_close [cmd winlog_close]].
 
@@ -425,9 +425,9 @@ Clears the specified event channel of all events. If [cmd -backup] is specified,
 the events are written to the specified backup file before the channel
 is cleared.
 
-[call [cmd evt_close] [arg EVTHANDLE]]
-Closes the handle returned by various EVT commands such as
-[uri #evt_query [cmd evt_query]].
+[call [cmd evt_close] [opt "[arg EVTHANDLE] [arg EVTHANDLE]..."]]
+Close handles returned by various EVT commands such as
+[uri #evt_query [cmd evt_query]] or [uri #evt_next [cmd evt_next]].
 
 [call [cmd evt_decode_event] [arg HEVENT] [opt [arg options]]]
 Returns information about an event. [arg HEVENT] is a handle
@@ -436,45 +436,17 @@ from [uri #evt_next [cmd evt_next]].
 
 [nl]
 The returned information is in the form of a dictionary. The keys
-in the dictionary always include those documented in
-[uri #evt_decode_event_system_fields [cmd evt_decode_event_system_fields]].
-In addition, the returned dictionary will include the following keys
-if they are specified as options to the command:
-[list_begin opt]
-[opt_def [cmd -keywords]]
-Contains a list of keywords with which the event is tagged.
-[opt_def [cmd -levelname]]
-Contains the string associated by the publisher with the numeric level.
-[opt_def [cmd -message]]
-Contains the formatted message corresponding to the event.
-[opt_def [cmd -opcodename]]
-Contains the string associated by the publisher with the numeric opcode field.
-[opt_def [cmd -taskname]]
-Contains the string associated by the publisher with the numeric task field.
-[opt_def [cmd -xml]]
-Contains an XML fragment describing the event.
-[list_end]
+in the dictionary are the same as the fields of the record array
+returned by [uri #evt_decode_events [cmd evt_decode_events]].
+See the documentation of that command for fields and options.
 
 [nl]
-The following additional options may also be specified with the command:
+Besides the options for [cmd evt_decode_events], the
+following additional options may also be specified:
 [list_begin opt]
 [opt_def [cmd -hpublisher] [arg HPUBLISHER]]
 A handle to the event publisher metadata. If not specified, the publisher
 metadata for the event is extracted from the event itself.
-[opt_def [cmd -ignorestring] [arg STRING]]
-If specified, [arg STRING] is returned for any field that cannot be obtained.
-Without this option, errors retrieving fields will generate a Tcl exception.
-[opt_def [cmd -lcid] [arg LCID]]
-Specifies the language in which the message is to be formatted. Defaults
-to the locale of the calling thread. This option is ignored if the
-[cmd -hpublisher] option is specified.
-[opt_def [cmd -logfile] [arg PATH]]
-Specifies the path to the logfile containing archived publisher metadata
-for the event.
-This option is ignored if the [cmd -hpublisher] option is specified.
-[opt_def [cmd -session] [arg HSESSION]]
-Specifies the session to the event logging subsystem for the event.
-By default the local event logging subsystem is used.
 [opt_def [cmd -values] [arg HVALUES]]
 By default, the command will pick any values to be inserted into the
 formatted event string from the event itself. If this option is specified,
@@ -482,16 +454,14 @@ the values will instead be picked from [arg HVALUES] which must
 be a handle to a render values block.
 [list_end]
 
-[call [cmd evt_decode_event_system_fields] [arg HEVENT]]
-Returns a dictionary containing the standard system fields present in
-all events. [arg HEVENT] is a handle
-to an event such as an element of the list returned
-from [uri #evt_next [cmd evt_next]].
-
+[call [cmd evt_decode_events] [arg HEVENTLIST]]
+Returns a [uri base.html#recordarrays "record array"] containing
+decoded events. [arg HEVENTLIST] is a list of handles
+to events as returned from [uri #evt_next [cmd evt_next]].
 [nl]
-The returned dictionary includes the following keys:
+The returned record array always contains the following system fields
+which are present in all events:
 [list_begin opt]
-
 [opt_def [cmd -activityid]]
 GUID containing the activity id associated with the event.
 [opt_def [cmd -channel]]
@@ -528,6 +498,43 @@ The SID of the account under which the logging thread was running.
 [opt_def [cmd -version]]
 The version of the event definition.
 [list_end]
+
+In addition, the returned record array will include the following keys
+if they are specified as options to the command:
+[list_begin opt]
+[opt_def [cmd -keywords]]
+Contains a list of keywords with which the event is tagged.
+[opt_def [cmd -levelname]]
+Contains the string associated by the publisher with the numeric level.
+[opt_def [cmd -message]]
+Contains the formatted message corresponding to the event.
+[opt_def [cmd -opcodename]]
+Contains the string associated by the publisher with the numeric opcode field.
+[opt_def [cmd -taskname]]
+Contains the string associated by the publisher with the numeric task field.
+[opt_def [cmd -xml]]
+Contains an XML fragment describing the event.
+[list_end]
+
+[nl]
+The following additional options may also be specified with the command:
+[list_begin opt]
+[opt_def [cmd -ignorestring] [arg STRING]]
+If specified, [arg STRING] is returned for any field that cannot be obtained.
+Without this option, errors retrieving fields will generate a Tcl exception.
+[opt_def [cmd -lcid] [arg LCID]]
+Specifies the language in which the message is to be formatted. Defaults
+to the locale of the calling thread. This option is ignored if the
+[cmd -hpublisher] option is specified.
+[opt_def [cmd -logfile] [arg PATH]]
+Specifies the path to the logfile containing archived publisher metadata
+for the event.
+This option is ignored if the [cmd -hpublisher] option is specified.
+[opt_def [cmd -session] [arg HSESSION]]
+Specifies the session to the event logging subsystem for the event.
+By default the local event logging subsystem is used.
+[list_end]
+
 
 [call [cmd evt_export_log] [arg OUTFILE] [opt [arg options]]]
 Exports events, optionally matching a query,
@@ -729,21 +736,29 @@ This option cannot be used with the [cmd -file] option.
 [list_end]
 
 [call [cmd winlog_read] [arg "WINLOGHANDLE"] [opt "[cmd -lcid] [arg LCID]"]]
-Returns a list of events read from the specified event log.
+Returns a [uri base.html#recordarrays "record array"] containing
+events read from the specified event log.
 The handle [arg WINLOGHANDLE] must have been
 previously returned by [uri \#winlog_open [cmd winlog_open]].
 [arg LCID] is the identifies the language in which messages are
 to be formatted.
 [nl]
 The number of events
-returned may vary. Returns an empty list
+returned may vary. Returns an empty record array
 when no more records can be read. Each
 [uri \#winlog_read [cmd winlog_read]] command
 moves the event log read pointer.
 [nl]
-Each element of the returned list is a dictionary describing the event.
-See [uri #evt_decode_event [cmd evt_decode_event]]. The dictionary may contain
-additional keys which should be ignored.
+The returned record array contains the following fields describing
+the event :
+[cmd -channel], [cmd -taskname], [cmd -message], [cmd -providername], 
+[cmd -eventid], [cmd -level], [cmd -levelname], [cmd -eventrecordid], 
+[cmd -computer], [cmd -sid] and [cmd -timecreated].
+Refer to [uri #evt_decode_events [cmd evt_decode_events]] for
+details.
+[nl]
+The record array may also contain additional fields that should be ignored.
+
 
 [call [cmd winlog_subscribe] [arg CHANNEL_OR_SOURCE]]
 Registers for notifications when events are logged to the specified
