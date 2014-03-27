@@ -728,7 +728,7 @@ the event log resides. By default, this is the local system.
 This option cannot be used with the [cmd -file] option.
 [list_end]
 
-[call [cmd winlog_read] [arg "WINLOGHANDLE"] [opt [arg LCID]]]
+[call [cmd winlog_read] [arg "WINLOGHANDLE"] [opt "[cmd -lcid] [arg LCID]"]]
 Returns a list of events read from the specified event log.
 The handle [arg WINLOGHANDLE] must have been
 previously returned by [uri \#winlog_open [cmd winlog_open]].

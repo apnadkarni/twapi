@@ -154,7 +154,11 @@ proc twapi::winlog_event_count {args} {
 
 if {[twapi::min_os_version 6]} {
 
-    proc twapi::winlog_read {hq {lcid 0}} {
+    proc twapi::winlog_read {hq args} {
+        parseargs args {
+            {lcid.int 0}
+        } -setvars -maxleftover 0
+
         # TBD - is 10 an appropriate number of events to read?
         set events [evt_next $hq -timeout 0 -count 10 -status status]
         if {[llength $events]} {
@@ -193,7 +197,11 @@ if {[twapi::min_os_version 6]} {
 
 } else {
 
-    proc twapi::winlog_read {hq {langid 0}} {
+    proc twapi::winlog_read {hq args} {
+        parseargs args {
+            {lcid.int 0}
+        } -setvars -maxleftover 0
+
         variable _winlog_handles
         set result {}
         set channel [dict get $_winlog_handles $hq channel]
@@ -201,8 +209,8 @@ if {[twapi::min_os_version 6]} {
             lappend result \
                 [list \
                      -channel $channel \
-                     -taskname [eventlog_format_category $evl -langid $langid] \
-                     -message [eventlog_format_message $evl -langid $langid -width -1] \
+                     -taskname [eventlog_format_category $evl -langid $lcid] \
+                     -message [eventlog_format_message $evl -langid $lcid -width -1] \
                      -providername [dict get $evl -source] \
                      -eventid [dict get $evl -eventid] \
                      -level [dict get $evl -level] \
