@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012, Ashok P. Nadkarni
+ * Copyright (c) 2010-2014, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -4083,6 +4083,9 @@ Tcl_UniChar *ObjToUnicodeN(Tcl_Obj *objP, int *lenP)
 
 Tcl_Obj *ObjFromUnicodeN(const Tcl_UniChar *ws, int len)
 {
+    if (ws == NULL)
+        return ObjFromEmptyString(); /* TBD - log ? */
+
 #if USE_UNICODE_OBJ
     return Tcl_NewUnicodeObj(ws, len);
 #else
@@ -4092,6 +4095,9 @@ Tcl_Obj *ObjFromUnicodeN(const Tcl_UniChar *ws, int len)
 
 Tcl_Obj *ObjFromUnicode(const Tcl_UniChar *ws)
 {
+    if (ws == NULL)
+        return ObjFromEmptyString(); /* TBD - log ? */
+
 #if USE_UNICODE_OBJ
     return Tcl_NewUnicodeObj(ws, -1);
 #else
@@ -4111,11 +4117,15 @@ char *ObjToStringN(Tcl_Obj *objP, int *lenP)
 
 Tcl_Obj *ObjFromStringN(const char *s, int len)
 {
+    if (s == NULL)
+        return ObjFromEmptyString(); /* TBD - log ? */
     return Tcl_NewStringObj(s, len);
 }
 
 Tcl_Obj *ObjFromString(const char *s)
 {
+    if (s == NULL)
+        return ObjFromEmptyString(); /* TBD - log ? */
     return Tcl_NewStringObj(s, -1);
 }
 

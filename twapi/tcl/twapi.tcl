@@ -86,6 +86,17 @@ namespace eval twapi {
         }
         return $swapped
     }
+
+    # TBD - see if C would make faster
+    # Returns a list consisting of n'th index within each sublist element
+    # Should we allow n to be a nested index ? C impl may be harder
+    proc lpick {l {n 0}} {
+        set result {}
+        foreach e $l {
+            lappend result [lindex $e $n]
+        }
+        return $result
+    }
 }
 
 # Make twapi versions the same as the base module versions
@@ -700,14 +711,21 @@ proc twapi::_net_enum_helper {function args} {
         {namelevel.int 0}
         {preargs.arg {}}
         {postargs.arg {}}
-        {namefield.arg name}
+        {namefield.int 0}
+        fields.arg
     } -maxleftover 0]
 
     if {[info exists opts(level)]} {
         set level $opts(level)
+        if {! [info exists opts(fields)]} {
+            badargs! "Option -fields must be specified if -level is specified"
+        }
     } else {
         set level $opts(namelevel)
     }
+
+    # Note later we need to know if opts(resume) was specified so
+    # don't change this to just default -resume to 0 above
     if {[info exists opts(resume)]} {
         set resumehandle $opts(resume)
     } else {
@@ -718,28 +736,28 @@ proc twapi::_net_enum_helper {function args} {
     set result {}
     while {$moredata} {
         if {[info exists opts(filter)]} {
-            lassign  [$function $opts(system) {*}$opts(preargs) $level $opts(filter) {*}$opts(postargs) $resumehandle] moredata resumehandle totalentries groups
+            lassign  [$function $opts(system) {*}$opts(preargs) $level $opts(filter) {*}$opts(postargs) $resumehandle] moredata resumehandle totalentries entries
         } else {
-            lassign [$function $opts(system) {*}$opts(preargs) $level {*}$opts(postargs) $resumehandle] moredata resumehandle totalentries groups
+            lassign [$function $opts(system) {*}$opts(preargs) $level {*}$opts(postargs) $resumehandle] moredata resumehandle totalentries entries
         }
         # If caller does not want all data in one lump stop here
         if {[info exists opts(resume)]} {
             if {[info exists opts(level)]} {
-                return [list $moredata $resumehandle $totalentries $groups]
+                return [list $moredata $resumehandle $totalentries [list $opts(fields) $entries]]
             } else {
                 # Return flat list of names
-                return [list $moredata $resumehandle $totalentries [kl_flatten $groups name]]
+                return [list $moredata $resumehandle $totalentries [lpick $entries $opts(namefield)]]
             }
         }
 
-        lappend result {*}$groups
+        lappend result {*}$entries
     }
 
     # Return what we have. Format depend on caller options.
     if {[info exists opts(level)]} {
-        return $result
+        return [list $opts(fields) $result]
     } else {
-        return [kl_flatten $result $opts(namefield)]
+        return [lpick $result $opts(namefield)]
     }
 }
 

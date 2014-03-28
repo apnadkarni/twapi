@@ -1,10 +1,34 @@
 #
-# Copyright (c) 2003, Ashok P. Nadkarni
+# Copyright (c) 2003-2014, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
 
-namespace eval twapi {}
+namespace eval twapi {
+    # Win SDK based structure definitions
+
+    record SHARE_INFO_0 {-name}
+    record SHARE_INFO_1 {-name -type -comment}
+    record SHARE_INFO_2 {-name -type -comment -permissions -max_conn -current_conn -path -passwd}
+    record SHARE_INFO_502 {-name -type -comment -permissions -max_conn -current_conn -path -passwd -reserved -secd}
+
+    record USE_INFO_0 {-localdevice -remoteshare}
+    record USE_INFO_1 {-localdevice -remoteshare -password -status -type -opencount -usecount}
+    record USE_INFO_2 {-localdevice -remoteshare -password -status -type -opencount -usecount -user -domain}
+
+    record SESSION_INFO_0 {-clientname}
+    record SESSION_INFO_1 {-clientname -user -opencount -activeseconds -idleseconds -attrs}
+    record SESSION_INFO_2 {-clientname -user -opencount -activeseconds -idleseconds -attrs -clienttype}
+    record SESSION_INFO_502 {-clientname -user -opencount -activeseconds -idleseconds -attrs -clienttype -transport}
+    record SESSION_INFO_10 {-clientname -user -activeseconds -idleseconds}
+
+    record FILE_INFO_2 {-id}
+    record FILE_INFO_3 {-id -permissions -lockcount -path -user}
+
+    record CONNECTION_INFO_0 {-id}
+    record CONNECTION_INFO_1 {-id -type -opencount -usercount -activeseconds -user -netname}
+
+}
 
 # TBD - is there a Tcl wrapper around NetShareCheck?
 
@@ -62,34 +86,39 @@ proc twapi::get_shares {args} {
         set level 1
     }
 
-    set raw_data [_net_enum_helper NetShareEnum -system $opts(system) -level $level]
-    set shares [list ]
-    foreach elem $raw_data {
-        array set share $elem
+    set record_proc SHARE_INFO_$level
+    set raw_data [_net_enum_helper NetShareEnum -system $opts(system) -level $level -fields [$record_proc]]
+    set recs [list ]
+    foreach rec [recordarray getlist $raw_data] {
         # 0xC0000000 -> 0x80000000 (STYPE_SPECIAL), 0x40000000 (STYPE_TEMPORARY)
-        set special [expr {$share(type) & 0xC0000000}]
+        set special [expr {[$record_proc -type $rec] & 0xC0000000}]
         if {$special && $opts(excludespecial)} {
             continue
         }
         # We need the special cast to int because else operands get promoted
         # to 64 bits as the hex is treated as an unsigned value
-        set share(type) [expr {int($share(type) & ~ $special)}]
-        if {[info exists type_filter] && $share(type) != $type_filter} {
+        set share_type [$record_proc -type $rec]
+        if {[info exists type_filter] && [expr {int($share_type & ~ $special)}] != $type_filter} {
             continue
         }
+        set rec [$record_proc set $rec -type [_share_type_code_to_symbols $share_type]]
         if {[info exists opts(level)]} {
-            if {$opts(level) == 0} {
-                # We had bumped level to 1 so only extract the level 0 field
-                lappend shares [list netname $share(netname)]
-            } else {
-                lappend shares $elem
-            }
+            lappend recs $rec
         } else {
-            lappend shares $share(netname)
+            lappend recs [$record_proc -name $rec]
         }
     }
 
-    return $shares
+    if {[info exists opts(level)]} {
+        set ra [list [$record_proc] $recs]
+        if {$opts(level) == 0} {
+            # We actually need only a level 0 subset
+            return [recordarray get $ra -slice [SHARE_INFO_0]]
+        }
+        return $ra
+    } else {
+        return $recs
+    }
 }
 
 
@@ -105,57 +134,40 @@ proc twapi::get_share_info {sharename args} {
         max_conn
         current_conn
         secd
-    } -nulldefault]
-
-    if {$opts(all)} {
-        foreach opt {name type path comment max_conn current_conn secd} {
-            set opts($opt) 1
-        }
-    }
+    } -nulldefault -hyphenated]
 
     set level 0
 
-    if {$opts(name) || $opts(type) || $opts(comment)} {
+    if {$opts(-all) || $opts(-name) || $opts(-type) || $opts(-comment)} {
         set level 1
+        set record_proc SHARE_INFO_1
     }
 
-    if {$opts(max_conn) || $opts(current_conn) || $opts(path)} {
+    if {$opts(-all) || $opts(-max_conn) || $opts(-current_conn) || $opts(-path)} {
         set level 2
+        set record_proc SHARE_INFO_2
     }
 
-    if {$opts(secd)} {
+    if {$opts(-all) || $opts(-secd)} {
         set level 502
+        set record_proc SHARE_INFO_502
     }
 
     if {! $level} {
         return
     }
 
-    array set shareinfo [NetShareGetInfo $opts(system) $sharename $level]
-
+    set rec [NetShareGetInfo $opts(-system) $sharename $level]
     set result [list ]
-    if {$opts(name)} {
-        lappend result -name $shareinfo(netname)
+    foreach opt {-name -comment -max_conn -current_conn -path -secd} {
+        if {$opts(-all) || $opts($opt)} {
+            lappend result $opt [$record_proc $opt $rec]
+        }
     }
-    if {$opts(type)} {
-        lappend result -type [_share_type_code_to_symbols $shareinfo(type)]
+    if {$opts(-all) || $opts(-type)} {
+        lappend result -type [_share_type_code_to_symbols [$record_proc -type $rec]]
     }
-    if {$opts(comment)} {
-        lappend result -comment $shareinfo(remark)
-    }
-    if {$opts(max_conn)} {
-        lappend result -max_conn $shareinfo(max_uses)
-    }
-    if {$opts(current_conn)} {
-        lappend result -current_conn $shareinfo(current_uses)
-    }
-    if {$opts(path)} {
-        lappend result -path $shareinfo(path)
-    }
-    if {$opts(secd)} {
-        lappend result -secd $shareinfo(security_descriptor)
-    }
-    
+
     return $result
 }
 
@@ -185,7 +197,6 @@ proc twapi::set_share_info {sharename args} {
 
 
 # Get list of remote shares
-interp alias {} twapi::get_connected_shares {} twapi::get_client_shares
 proc twapi::get_client_shares {args} {
     array set opts [parseargs args {
         {system.arg ""}
@@ -193,20 +204,29 @@ proc twapi::get_client_shares {args} {
     } -maxleftover 0]
 
     if {[info exists opts(level)]} {
-        set shares {}
-        foreach share [_net_enum_helper NetUseEnum -system $opts(system) -level $opts(level)] {
-            lappend shares [_map_USE_INFO $share]
+        set rec_proc USE_INFO_$opts(level)
+        set ra [_net_enum_helper NetUseEnum -system $opts(system) -level $opts(level) -fields [$rec_proc]]
+        set fields [$rec_proc]
+        set have_status [expr {"-status" in $fields}]
+        set have_type [expr {"-type" in $fields}]
+        if {! ($have_status || $have_type)} {
+            return $ra
         }
-        return $shares
+        set recs {}
+        foreach rec [recordarray getlist $ra] {
+            if {$have_status} {
+                set rec [$rec_proc set $rec -status [_map_useinfo_status [$rec_proc -status $rec]]]
+            }
+            if {$have_type} {
+                set rec [$rec_proc set $rec -type [_map_useinfo_type [$rec_proc -type $rec]]]
+            }
+            lappend recs $rec
+        }
+        return [list $fields $recs]
     }
 
-    # For backwards compatibility, if no level specified, returned
-    # format is slightly different.
-    set cshares {}
-    foreach elem [_net_enum_helper NetUseEnum -system $opts(system) -level 0] {
-        lappend cshares [list [kl_get $elem local] [kl_get $elem remote]]
-    }
-    return $cshares
+    # -level not specified. Just return a list of the remote share names
+    return [recordarray column [_net_enum_helper NetUseEnum -system $opts(system) -level 0 -fields [USE_INFO_0]] -remoteshare]
 }
 
 
@@ -299,8 +319,7 @@ proc twapi::get_client_share_info {sharename args} {
     # that else select any of the local devices mapped to it
     # TBD - any better way of finding out a mapping than calling
     # get_client_shares?
-    foreach elem [get_client_shares] {
-        lassign $elem elem_device elem_unc
+    foreach {elem_device elem_unc} [recordarray getlist [get_client_shares -level 1] -format flat] {
         if {[string equal -nocase $sharename $elem_unc]} {
             if {$elem_device eq ""} {
                 # Found an entry without a local device. Use it
@@ -344,18 +363,26 @@ proc twapi::get_client_share_info {sharename args} {
         provider
         comment
         all
-    } -maxleftover 0]
+    } -maxleftover 0 -hyphenated]
 
 
     # Call Twapi_NetGetInfo always to get status. If we are not connected,
     # we will not call WNetGetResourceInformation as that will time out
     if {[info exists local]} {
-        array set shareinfo [_map_USE_INFO [NetUseGetInfo "" $local 2]]
+        set share [NetUseGetInfo "" $local 2]
     } else {
-        array set shareinfo [_map_USE_INFO [NetUseGetInfo "" $unc 2]]
+        set share [NetUseGetInfo "" $unc 2]
+    }
+    array set shareinfo [USE_INFO_2 $share]
+    unset shareinfo(-password)
+    if {[info exists shareinfo(-status)]} {
+        set shareinfo(-status) [_map_useinfo_status $shareinfo(-status)]
+    }
+    if {[info exists shareinfo(-type)]} {
+        set shareinfo(-type) [_map_useinfo_type $shareinfo(-type)]
     }
 
-    if {$opts(all) || $opts(comment) || $opts(provider)} {
+    if {$opts(-all) || $opts(-comment) || $opts(-provider)} {
         # Only get this information if we are connected
         if {$shareinfo(-status) eq "connected"} {
             array set wnetinfo [lindex [Twapi_WNetGetResourceInformation $unc "" 0] 0]
@@ -367,27 +394,25 @@ proc twapi::get_client_share_info {sharename args} {
         }
     }
 
-    if {$opts(all)} {
+    if {$opts(-all)} {
         return [array get shareinfo]
     }
 
     # Get rid of unwanted fields
     foreach opt {
-        user
-        localdevice
-        remoteshare
-        status
-        type
-        opencount
-        usecount
-        domain
-        provider
-        comment
+        -user
+        -localdevice
+        -remoteshare
+        -status
+        -type
+        -opencount
+        -usecount
+        -domain
+        -provider
+        -comment
     } {
         if {! $opts($opt)} {
-            if {[info exists shareinfo(-$opt)]} {
-                unset shareinfo(-$opt)
-            }
+            unset -nocomplain shareinfo($opt)
         }
     }
 
@@ -413,16 +438,12 @@ proc twapi::find_lm_sessions args {
     } -maxleftover 0]
 
     set level [_calc_minimum_session_info_level opts]
-    if {![min_os_version 5]} {
-        # System name is specified. If NT, make sure it is UNC form
-        set opts(system) [_make_unc_computername $opts(system)]
-    }
     
     # On all platforms, client must be in UNC format
     set opts(client) [_make_unc_computername $opts(client)]
 
     trap {
-        set sessions [_net_enum_helper NetSessionEnum -system $opts(system) -preargs [list $opts(client) $opts(user)] -level $level]
+        set sessions [_net_enum_helper NetSessionEnum -system $opts(system) -preargs [list $opts(client) $opts(user)] -level $level -fields [SESSION_INFO_$level]]
     } onerror {TWAPI_WIN32 2312} {
         # No session matching the specified client
         set sessions {}
@@ -467,7 +488,7 @@ proc twapi::get_lm_session_info {client user args} {
     # Note an error is generated if no matching session exists
     set sess [NetSessionGetInfo $opts(system) $client $user $level]
 
-    return [recordarray index [_format_lm_sessions [list $sess] opts] 0 -format dict]
+    return [recordarray index [_format_lm_sessions [list [SESSION_INFO_$level] [list $sess]] opts] 0 -format dict]
 }
 
 # Delete sessions
@@ -524,10 +545,10 @@ proc twapi::find_lm_open_files args {
     # TBD - change to use -resume option to _net_enum_helper as there
     # might be a lot of files
     trap {
-        set files [_net_enum_helper NetFileEnum -system $opts(system) -preargs [list [file nativename $opts(basepath)] $opts(user)] -level $level]
+        set files [_net_enum_helper NetFileEnum -system $opts(system) -preargs [list [file nativename $opts(basepath)] $opts(user)] -level $level -fields [FILE_INFO_$level]]
     } onerror {TWAPI_WIN32 2221} {
         # No files matching the user
-        return [list ]
+        set files [list [FILE_INFO_$level] {}]
     }
 
     return [_format_lm_open_files $files opts]
@@ -559,7 +580,7 @@ proc twapi::get_lm_open_file_info {fid args} {
         set level 2
     }
 
-    return [recordarray index [_format_lm_open_files [list [NetFileGetInfo $opts(system) $fid $level]] opts] 0 -format dict]
+    return [recordarray index [_format_lm_open_files [list [FILE_INFO_$level] [list [NetFileGetInfo $opts(system) $fid $level]]] opts] 0 -format dict]
 }
 
 # Close an open LM file
@@ -606,64 +627,75 @@ proc twapi::find_lm_connections args {
         set qualifier $opts(share)
     }
 
-    set level 1
-    if {! ($opts(all) || $opts(type) || $opts(opencount) ||
-           $opts(usercount) || $opts(username) ||
-           $opts(activeseconds) || $opts(clientname) || $opts(sharename))} {
-        # Only id's required
-        set level 0
+    set level 0
+    if {$opts(all) || $opts(type) || $opts(opencount) ||
+        $opts(usercount) || $opts(username) ||
+        $opts(activeseconds) || $opts(clientname) || $opts(sharename)} {
+        set level 1
     }
 
     # TBD - change to use -resume option to _net_enum_helper since
     # there might be a log of connections
-    set conns [_net_enum_helper NetConnectionEnum -system $opts(system) -preargs [list $qualifier] -level $level]
+    set conns [_net_enum_helper NetConnectionEnum -system $opts(system) -preargs [list $qualifier] -level $level -fields [CONNECTION_INFO_$level]]
 
     # NOTE fields MUST BE IN SAME ORDER AS VALUES BELOW
-    set fields {}
-    foreach opt {id opencount usercount activeseconds username type
-        clientname sharename} {
-        if {$opts(all) || $opts($opt)} {
-            lappend fields -$opt
-        }
-    }
-    set retval [list ]
-    foreach conn $conns {
-        set item [list ]
-        foreach {opt fld} {
-            id            id
-            opencount     num_opens
-            usercount     num_users
-            activeseconds time
-            username      username
-        } {
+    if {! $opts(all)} {
+        set fields {}
+        foreach opt {id opencount usercount activeseconds username type} {
             if {$opts(all) || $opts($opt)} {
-                lappend item [kl_get $conn $fld]
+                lappend fields -$opt
             }
         }
-        if {$opts(all) || $opts(type)} {
-            lappend item [_share_type_code_to_symbols [kl_get $conn type]]
-        }
-        # What's returned in the netname field depends on what we
-        # passed as the qualifier
         if {$opts(all) || $opts(clientname) || $opts(sharename)} {
+            lappend fields -netname
+        }
+        set conns [recordarray get $conns -slice $fields]
+    }    
+    set fields [recordarray fields $conns]
+    if {"-type" in $fields} {
+        set type_enum [enum $fields -type]
+    }
+    if {"-netname" in $fields} {
+        set netname_enum [enum $fields -netname]
+    }
+
+    if {! ([info exists type_enum] || [info exists netname_enum])} {
+        # No need to massage any data
+        return $conns
+    }
+
+    set recs {}
+    foreach rec [recordarray getlist $conns] {
+        if {[info exists type_enum]} {
+            lset rec $type_enum [_share_type_code_to_symbols [lindex $rec $type_enum]]
+        }
+        if {[info exists netname_enum]} {
+            # What's returned in the netname field depends on what we
+            # passed as the qualifier
             if {[info exists opts(client)]} {
-                set sharename [kl_get $conn netname]
+                set sharename [lindex $rec $netname_enum]
                 set clientname [_make_unc_computername $opts(client)]
             } else {
                 set sharename $opts(share)
-                set clientname [_make_unc_computername [kl_get $conn netname]]
+                set clientname [_make_unc_computername [lindex $rec $netname_enum]]
             }
             if {$opts(all) || $opts(clientname)} {
-                lappend item $clientname
+                lappend rec $clientname
             }
             if {$opts(all) || $opts(sharename)} {
-                lappend item $sharename
+                lappend rec $sharename
             }
         }
-        lappend retval $item
+        lappend recs $rec
+    }
+    if {$opts(all) || $opts(clientname)} {
+        lappend fields -clientname
+    }
+    if {$opts(all) || $opts(sharename)} {
+        lappend fields -sharename
     }
 
-    return [list $fields $retval]
+    return [list $fields $recs]
 }
 
 
@@ -695,52 +727,55 @@ proc twapi::_calc_minimum_session_info_level {v_opts} {
 
 # Common code to format a session record. v_opts is name of array
 # that controls which fields are returned
+# sessions is a record array
 proc twapi::_format_lm_sessions {sessions v_opts} {
     upvar $v_opts opts
 
-    set fields {}
-    # ORDER MUST BE same as value order below
-    foreach opt {
-        transport username opencount idleseconds activeseconds
-        clienttype clientname attrs
-    } {
-        if {$opts(all) || $opts($opt)} {
-            lappend fields -$opt
-        }
-    }
-
-    set retval {}
-    foreach sess $sessions {
-        foreach {opt fld} {
-            transport     transport
-            username      username
-            opencount     num_opens
-            idleseconds   idle_time
-            activeseconds time
-            clienttype    cltype_name
+    if {! $opts(all)} {
+        set fields {}
+        foreach opt {
+            transport username opencount idleseconds activeseconds
+            clienttype clientname attrs
         } {
             if {$opts(all) || $opts($opt)} {
-                lappend retval [kl_get $sess $fld]
+                lappend fields -$opt
             }
         }
-        if {$opts(all) || $opts(clientname)} {
-            # Since clientname is always required to be in UNC on input
-            # also pass it back in UNC format
-            lappend retval [_make_unc_computername [kl_get $sess cname]]
+        set sessions [recordarray get $sessions -slice $fields]
+    }
+
+    set fields [recordarray fields $sessions]
+    if {"-clientname" in $fields} {
+        set client_enum [enum $fields -clientname]
+    }
+    if {"-attrs" in $fields} {
+        set attrs_enum [enum $fields -attrs]
+    }
+
+    if {! ([info exists client_enum] || [info exists attrs_enum])} {
+        return $sessions
+    }
+
+    # Need to map client name and attrs fields
+    set recs {}
+    foreach rec [recordarray getlist $sessions] {
+        if {[info exists $client_enum]} {
+            lset rec $client_enum [_make_unc_computername [lindex $rec $client_enum]]
         }
-        if {$opts(all) || $opts(attrs)} {
-            set attrs [list ]
-            set flags [kl_get $sess user_flags]
+        if {[info exists $attrs_enum]} {
+            set attrs {}
+            set flags [lindex $rec $attrs_enum]
             if {$flags & 1} {
                 lappend attrs guest
             }
             if {$flags & 2} {
                 lappend attrs noencryption
             }
-            lappend retval $attrs
+            lset rec $attrs_enum $attrs
         }
+        lappend recs $rec
     }
-    return [list $fields $retval]
+    return [list $fields $recs]
 }
 
 # Common code to format a lm open file record. v_opts is name of array
@@ -748,40 +783,41 @@ proc twapi::_format_lm_sessions {sessions v_opts} {
 proc twapi::_format_lm_open_files {files v_opts} {
     upvar $v_opts opts
 
-    set fields {}
-    # ORDER MUST BE same as value order below
-    foreach opt {
-        id lockcount path username permissions
-    } {
-        if {$opts(all) || $opts($opt)} {
-            lappend fields -$opt
+    if {! $opts(all)} {
+        set fields {}
+        foreach opt {
+            id lockcount path username permissions
+        } {
+            if {$opts(all) || $opts($opt)} {
+                lappend fields -$opt
+            }
         }
+        set files [recordarray get $files -slice $fields]
     }
 
-    set retval [list ]
-    foreach {opt fld} {
-        id          id
-        lockcount   num_locks
-        path        pathname
-        username    username
-    } {
-        if {$opts(all) || $opts($opt)} {
-            lappend retval [kl_get $file $fld]
-        }
+    set fields [recordarray fields $files]
+
+    if {"-permissions" ni $fields} {
+        return $files
     }
 
-    if {$opts(all) || $opts(permissions)} {
+    # Need to massage permissions
+    set enum [enum $fields -permissions]
+
+    set recs {}
+    foreach rec [recordarray getlist $files] {
         set permissions [list ]
-        set perms [kl_get $file permissions]
+        set perms [lindex $rec $enum]
         foreach {flag perm} {1 read 2 write 4 create} {
             if {$perms & $flag} {
                 lappend permissions $perm
             }
         }
-        lappend retval $permissions
+        lset rec $enum $permissions
+        lappend recs $rec
     }
 
-    return [list $fields $retval]
+    return [list $fields $recs]
 }
 
 # NOTE: THIS ONLY MAPS FOR THE Net* functions, NOT THE WNet*
@@ -916,4 +952,18 @@ proc twapi::_map_USE_INFO {useinfo} {
     }
 
     return [array get result]
+}
+
+proc twapi::_map_useinfo_status {status} {
+    set sym [lindex {connected paused lostsession disconnected networkerror connecting reconnecting} $status]
+    if {$sym ne ""} {
+        return $sym
+    } else {
+        return $status
+    }
+}
+
+proc twapi::_map_useinfo_type {type} {
+    # Note share type and use info types are different
+    return [_share_type_code_to_symbols [expr {$type & 0x3fffffff}]]
 }
