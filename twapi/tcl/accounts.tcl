@@ -1,12 +1,36 @@
 #
-# Copyright (c) 2009, Ashok P. Nadkarni
+# Copyright (c) 2009-2014, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
 
 package require twapi_security
 
-namespace eval twapi {}
+namespace eval twapi {
+    record USER_INFO_0 {-name}
+    record USER_INFO_1 [concat [USER_INFO_0] {
+        -password -password_age -priv -home_dir -comment -status -script_path
+    }]
+    record USER_INFO_2 [concat [USER_INFO_1] {
+        -auth_flags -full_name -usr_comment -parms 
+        -workstations -last_logon -last_logoff -acct_expires -max_storage
+        -units_per_week -logon_hours -bad_pw_count -num_logons
+        -logon_server -country_code -code_page
+    }]
+    record USER_INFO_3 [concat [USER_INFO_2] {
+        -user_id -primary_group_id -profile -home_dir_drive -password_expired
+    }]
+    record USER_INFO_4 [concat [USER_INFO_2] {
+        -sid -primary_group_id -profile -home_dir_drive -password_expired
+    }]
+
+    record GROUP_INFO_0 {-name}
+    record GROUP_INFO_1 {-name -comment}
+    record GROUP_INFO_2 {-name -comment -group_id -attributes}
+    record GROUP_INFO_3 {-name -comment -sid -attributes}
+
+    record NetEnumResult {moredata hresume totalentries entries}
+}
 
 # Add a new user account
 proc twapi::new_user {username args} {
@@ -111,26 +135,24 @@ proc twapi::disable_user {username args} {
 
 # Return the specified fields for a user account
 proc twapi::get_user_account_info {account args} {
-
     # Define each option, the corresponding field, and the 
     # information level at which it is returned
     array set fields {
         comment 1
-        password_expired 3
+        password_expired 4
         full_name 2
         parms 2
         units_per_week 2
-        primary_group_id 3
+        primary_group_id 4
         status 1
         logon_server 2
         country_code 2
         home_dir 1
         password_age 1
-        home_dir_drive 3
+        home_dir_drive 4
         num_logons 2
         acct_expires 2
         last_logon 2
-        user_id 3
         usr_comment 2
         bad_pw_count 2
         code_page 2
@@ -139,22 +161,24 @@ proc twapi::get_user_account_info {account args} {
         last_logoff 2
         name 0
         script_path 1
-        profile 3
+        profile 4
         max_storage 2
     }
     # Left out - auth_flags 2
     # Left out (always returned as NULL) - password {usri3_password 1}
+    # Note sid is available at level 4 as well but don't want to set
+    # level 4 just for that since we can get it by other means. Hence
+    # not listed above
 
     array set opts [parseargs args \
-                        [concat [array names fields] \
-                             [list sid local_groups global_groups system.arg all]] \
+                        [concat [array names fields] sid \
+                             [list local_groups global_groups system.arg all]] \
                         -nulldefault]
 
     if {$opts(all)} {
-        set level 3
+        set level 4
         set opts(local_groups) 1
         set opts(global_groups) 1
-        set opts(sid) 1
     } else {
         # Based on specified fields, figure out what level info to ask for
         set level -1
@@ -171,15 +195,13 @@ proc twapi::get_user_account_info {account args} {
     array set result [list ]
 
     if {$level > -1} {
-        array set data [NetUserGetInfo $opts(system) $account $level]
+        set rawdata [NetUserGetInfo $opts(system) $account $level]
+        array set data [USER_INFO_$level $rawdata]
+
         # Extract the requested data
-        foreach {opt optval} [array get opts] {
-            if {[info exists fields($opt)] && ($optval || $opts(all))} {
-                if {$opt eq "status"} {
-                    set result(status) $data(flags)
-                } else {
-                    set result($opt) $data($opt)
-                }
+        foreach opt [array names fields] {
+            if {$opts(all) || $opts($opt)} {
+                set result($opt) $data($opt)
             }
         }
 
@@ -208,18 +230,20 @@ proc twapi::get_user_account_info {account args} {
                 }
             }
         }
-    
     }
 
+    # The Net* calls always return structures as lists even when the struct
+    # contains only one field so we need to lpick to extract the field
+
     if {$opts(local_groups)} {
-        set result(local_groups) [kl_flatten [lindex [NetUserGetLocalGroups $opts(system) $account 0 0] 3] name]
+        set result(local_groups) [lpick [NetEnumResult entries [NetUserGetLocalGroups $opts(system) $account 0 0]] 0]
     }
 
     if {$opts(global_groups)} {
-        set result(global_groups) [kl_flatten [lindex [NetUserGetGroups $opts(system) $account 0] 3] name]
+        set result(global_groups) [lpick [NetEnumResult entries [NetUserGetGroups $opts(system) $account 0]] 0]
     }
 
-    if {$opts(sid)} {
+    if {$opts(sid)  && ! [info exists result(sid)]} {
         set result(sid) [lookup_account_name $account -system $opts(system)]
     }
 
@@ -231,14 +255,14 @@ proc twapi::get_user_local_groups_recursive {account args} {
         system.arg
     } -nulldefault -maxleftover 0]
 
-    return [kl_flatten [lindex [NetUserGetLocalGroups $opts(system) [map_account_to_name $account -system $opts(system)] 0 1] 3] name]
+    # The Net* calls always return structures as lists even when the struct
+    # contains only one field so we need to lpick to extract the field
+    return [lpick [NetEnumResult entries [NetUserGetLocalGroups $opts(system) [map_account_to_name $account -system $opts(system)] 0 1]] 0]
 }
 
 
 # Set the specified fields for a user account
 proc twapi::set_user_account_info {account args} {
-
-    set notspecified "3kjafnq2or2034r12"; # Some junk
 
     # Define each option, the corresponding field, and the 
     # information level at which it is returned
@@ -295,7 +319,7 @@ proc twapi::set_user_account_info {account args} {
 }
                     
 
-proc twapi::get_global_group_info {name args} {
+proc twapi::get_global_group_info {grpname args} {
     array set opts [parseargs args {
         {system.arg ""}
         comment
@@ -306,24 +330,28 @@ proc twapi::get_global_group_info {name args} {
         all
     } -maxleftover 0]
 
-    set result [list ]
-    set info [NetGroupGetInfo $opts(system) $name 3]
-    if {$opts(all) || $opts(sid)} {
-        lappend result -sid [kl_get $info group_sid]
-    }
-    if {$opts(all) || $opts(name)} {
-        lappend result -name [kl_get $info name]
-    }
-    if {$opts(all) || $opts(comment)} {
-        lappend result -comment [kl_get $info comment]
-    }
-    if {$opts(all) || $opts(attributes)} {
-        lappend result -attributes [map_token_group_attr [kl_get $info attributes]]
+    set result {}
+    if {[expr {$opts(comment) || $opts(name) || $opts(sid) || $opts(attributes) || $opts(all)}]} {
+        # 3 -> GROUP_INFO level 3
+        lassign [NetGroupGetInfo $opts(system) $grpname 3] name comment sid attributes
+        if {$opts(all) || $opts(sid)} {
+            lappend result -sid $sid
+        }
+        if {$opts(all) || $opts(name)} {
+            lappend result -name $name
+        }
+        if {$opts(all) || $opts(comment)} {
+            lappend result -comment $comment
+        }
+        if {$opts(all) || $opts(attributes)} {
+            lappend result -attributes [map_token_group_attr $attributes]
+        }
     }
 
     if {$opts(all) || $opts(members)} {
-        lappend result -members [get_global_group_members $name -system $opts(system)]
+        lappend result -members [get_global_group_members $grpname -system $opts(system)]
     }
+
     return $result
 }
 
@@ -343,12 +371,12 @@ proc twapi::get_local_group_info {name args} {
         lappend result -sid [lookup_account_name $name -system $opts(system)]
     }
     if {$opts(all) || $opts(comment) || $opts(name)} {
-        set info [NetLocalGroupGetInfo $opts(system) $name 1]
+        lassign [NetLocalGroupGetInfo $opts(system) $name 1] name comment
         if {$opts(all) || $opts(name)} {
-            lappend result -name [kl_get $info name]
+            lappend result -name $name
         }
         if {$opts(all) || $opts(comment)} {
-            lappend result -comment [kl_get $info comment]
+            lappend result -comment $comment
         }
     }
     if {$opts(all) || $opts(members)} {
@@ -359,20 +387,41 @@ proc twapi::get_local_group_info {name args} {
 
 # Get list of users on a system
 proc twapi::get_users {args} {
-    lappend args -filter 0; # Filter. TBD -allow user to specify filter
+    parseargs args {
+        level.int
+    } -setvars -ignoreunknown
+
+    # TBD -allow user to specify filter
+    lappend args -filter 0
+    if {[info exists level]} {
+        lappend args -level $level -fields [USER_INFO_$level]
+    }
     return [_net_enum_helper NetUserEnum $args]
 }
 
-# Get list of global groups on a system
 proc twapi::get_global_groups {args} {
+    parseargs args {
+        level.int
+    } -setvars -ignoreunknown
+
+    # TBD - level 3 returns an ERROR_INVALID_LEVEL even though
+    # MSDN says its valid for NetGroupEnum
+
+    if {[info exists level]} {
+        lappend args -level $level -fields [GROUP_INFO_$level]
+    }
     return [_net_enum_helper NetGroupEnum $args]
 }
 
-# Get list of local groups on a system
 proc twapi::get_local_groups {args} {
+    parseargs args {
+        level.int
+    } -setvars -ignoreunknown
+
+    if {[info exists level]} {
+        lappend args -level $level -fields [dict get {0 {-name} 1 {-name -comment}} $level]
+    }
     return [_net_enum_helper NetLocalGroupEnum $args]
-    array set opts [parseargs args {system.arg} -nulldefault]
-    return [NetLocalGroupEnum $opts(system)]
 }
 
 # Create a new global group
@@ -419,12 +468,28 @@ proc twapi::delete_local_group {grpname args} {
 
 # Enumerate members of a global group
 proc twapi::get_global_group_members {grpname args} {
+    parseargs args {
+        level.int
+    } -setvars -ignoreunknown
+
+    if {[info exists level]} {
+        lappend args -level $level -fields [dict! {0 {-name} 1 {-name -attributes}} $level]
+    }
+
     lappend args -preargs [list $grpname] -namelevel 1
     return [_net_enum_helper NetGroupGetUsers $args]
 }
 
 # Enumerate members of a local group
 proc twapi::get_local_group_members {grpname args} {
+    parseargs args {
+        level.int
+    } -setvars -ignoreunknown
+
+    if {[info exists level]} {
+        lappend args -level $level -fields [dict! {0 {-name} 1 {-name -comment}} $level]
+    }
+
     lappend args -preargs [list $grpname] -namelevel 1
     return [_net_enum_helper NetLocalGroupGetMembers $args]
 }

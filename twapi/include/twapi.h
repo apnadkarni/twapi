@@ -1263,6 +1263,7 @@ TWAPI_EXTERN TCL_RESULT Twapi_AppendSystemErrorEx(Tcl_Interp *, unsigned long er
 #define Twapi_AppendSystemError2 Twapi_AppendSystemErrorEx
 TWAPI_EXTERN TCL_RESULT Twapi_AppendSystemError(Tcl_Interp *, unsigned long err);
 TWAPI_EXTERN int Twapi_AppendCOMError(Tcl_Interp *interp, HRESULT hr, ISupportErrorInfo *sei, REFIID iid);
+TWAPI_EXTERN TCL_RESULT Twapi_WrongLevelError(Tcl_Interp *interp, int level);
 TWAPI_EXTERN void TwapiWriteEventLogError(const char *msg);
 
 

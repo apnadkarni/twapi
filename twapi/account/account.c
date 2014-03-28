@@ -39,6 +39,7 @@ int Twapi_NetUserSetInfoLPWSTR(int fun, LPCWSTR server, LPCWSTR user, LPWSTR s);
  */
 static int g_netenum_buf_size = MAX_PREFERRED_LENGTH;
 
+
 /*
  * Convert local info structure to a list. Returns TCL_OK/TCL_ERROR
  * interp may be NULL
@@ -50,36 +51,23 @@ Tcl_Obj *ObjFromLOCALGROUP_INFO(
     )
 {
     LOCALGROUP_INFO_1 *groupinfoP = (LOCALGROUP_INFO_1 *) infoP;
-    int         objc = 0;
-    Tcl_Obj    *objv[4];
-
-
-#define ADD_LPWSTR_(fld) do {                                          \
-        objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = ObjFromUnicode(groupinfoP->lgrpi1_ ## fld); \
-    } while (0)
-#define ADD_DWORD_(fld) do {                                          \
-        objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = ObjFromLong(groupinfoP->lgrpi1_ ## fld); \
-    } while (0)
+    Tcl_Obj    *objs[2];
+    int nobjs = 1;
 
     switch (info_level) {
     case 1:
-        ADD_LPWSTR_(comment);
-        /* FALLTHRU */
+        ++nobjs;
+        objs[1] = ObjFromUnicode(groupinfoP->lgrpi1_comment);
+        /* FALL THRU */
     case 0:
-        ADD_LPWSTR_(name);
+        objs[0] = ObjFromUnicode(groupinfoP->lgrpi1_name);
         break;
     default:
-        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Invalid info level %d.", info_level));
+        Twapi_WrongLevelError(interp, info_level);
         return NULL;
     }
 
-#undef ADD_DWORD_
-#undef ADD_LPWSTR_
-
-    return ObjNewList(objc, objv);
+    return ObjNewList(nobjs, objs);
 }
 
 /* Returns TCL_OK/TCL_ERROR. interp may be NULL */
@@ -90,33 +78,21 @@ Tcl_Obj *ObjFromGROUP_USERS_INFO(
     )
 {
     GROUP_USERS_INFO_1 *groupinfoP = (GROUP_USERS_INFO_1 *) infoP;
-    int         objc = 0;
-    Tcl_Obj    *objv[4];
-
-#define ADD_LPWSTR_(fld) do {                                          \
-        objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = ObjFromUnicode(groupinfoP->grui1_ ## fld); \
-    } while (0)
-#define ADD_DWORD_(fld) do {                                          \
-        objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = ObjFromLong(groupinfoP->grui1_ ## fld); \
-    } while (0)
+    int         objc = 1;
+    Tcl_Obj    *objv[2];
 
     switch (info_level) {
     case 1:
-        ADD_DWORD_(attributes);
+        ++objc;
+        objv[1] = ObjFromLong(groupinfoP->grui1_attributes);
         /* FALLTHRU */
     case 0:
-        ADD_LPWSTR_(name);
+        objv[0] = ObjFromUnicode(groupinfoP->grui1_name);
         break;
     default:
-        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Invalid info level %d.", info_level));
+        Twapi_WrongLevelError(interp, info_level);
         return NULL;
     }
-
-#undef ADD_DWORD_
-#undef ADD_LPWSTR_
 
     return ObjNewList(objc, objv);
 }
@@ -130,10 +106,8 @@ Tcl_Obj *ObjFromUSER_INFO(
     DWORD        info_level
     )
 {
-    USER_INFO_3 *userinfoP = (USER_INFO_3 *) infoP;
-    int         objc;
-    Tcl_Obj    *objv[60];
-
+    Tcl_Obj    *objs[29];
+    int nobjs;
 
     /*
      * Note userinfoP may not point to a USER_INFO_3 struct! It depends
@@ -142,67 +116,65 @@ Tcl_Obj *ObjFromUSER_INFO(
      * use the following switch statement.
      */
 
-    /* We build from back of array since we would like basic elements
-       at front of Tcl list we build (most accessed elements in front */
-    objc = sizeof(objv)/sizeof(objv[0]);
-#define ADD_LPWSTR_(fld) do {                                          \
-        objv[--objc] = ObjFromUnicode(userinfoP->usri3_ ## fld); \
-        objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
-    } while (0)
-#define ADD_DWORD_(fld) do {                                          \
-        objv[--objc] = ObjFromLong(userinfoP->usri3_ ## fld); \
-        objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
-    } while (0)
-
+    nobjs = 1;                  /* name field always present */
     switch (info_level) {
     case 3:
-        ADD_DWORD_(primary_group_id);
-        ADD_LPWSTR_(home_dir_drive);
-        ADD_DWORD_(password_expired);
-        ADD_LPWSTR_(profile);
-        ADD_DWORD_(user_id);
+    case 4:
+        nobjs += 5;
+        /* NOTE even when fields names are the same, level 3 and
+           level 4 HAVE DIFFERENT FIELD OFFSETS */
+        if (info_level == 3) {
+            objs[24] = ObjFromDWORD(((USER_INFO_3*)infoP)->usri3_user_id);
+            objs[25] = ObjFromDWORD(((USER_INFO_3*)infoP)->usri3_primary_group_id);
+            objs[26] = ObjFromUnicode(((USER_INFO_3*)infoP)->usri3_profile);
+            objs[27] = ObjFromUnicode(((USER_INFO_3*)infoP)->usri3_home_dir_drive);
+            objs[28] = ObjFromDWORD(((USER_INFO_3*)infoP)->usri3_password_expired);
+        } else {
+            objs[24] = ObjFromSIDNoFail(((USER_INFO_4*)infoP)->usri4_user_sid);
+            objs[25] = ObjFromDWORD(((USER_INFO_4*)infoP)->usri4_primary_group_id);
+            objs[26] = ObjFromUnicode(((USER_INFO_4*)infoP)->usri4_profile);
+            objs[27] = ObjFromUnicode(((USER_INFO_4*)infoP)->usri4_home_dir_drive);
+            objs[28] = ObjFromDWORD(((USER_INFO_4*)infoP)->usri4_password_expired);
+        }
         /* FALL THROUGH */
     case 2:
-        ADD_DWORD_(auth_flags);
-        ADD_LPWSTR_(usr_comment);
-        ADD_LPWSTR_(parms);
-        ADD_LPWSTR_(workstations);
-        ADD_DWORD_(last_logon);
-        ADD_DWORD_(last_logoff);
-        ADD_DWORD_(acct_expires);
-        ADD_DWORD_(max_storage);
-        ADD_DWORD_(units_per_week);
-        objv[--objc] = Tcl_NewByteArrayObj(userinfoP->usri3_logon_hours,21);
-        objv[--objc] = STRING_LITERAL_OBJ("logon_hours");
-        ADD_DWORD_(bad_pw_count);
-        ADD_DWORD_(num_logons);
-        ADD_LPWSTR_(logon_server);
-        ADD_DWORD_(country_code);
-        ADD_DWORD_(code_page);
-        ADD_LPWSTR_(full_name);
+        nobjs += 16;
+        objs[8] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_auth_flags);
+        objs[9] = ObjFromUnicode(((USER_INFO_2*)infoP)->usri2_full_name);
+        objs[10] = ObjFromUnicode(((USER_INFO_2*)infoP)->usri2_usr_comment);
+        objs[11] = ObjFromUnicode(((USER_INFO_2*)infoP)->usri2_parms);
+        objs[12] = ObjFromUnicode(((USER_INFO_2*)infoP)->usri2_workstations);
+        objs[13] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_last_logon);
+        objs[14] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_last_logoff);
+        objs[15] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_acct_expires);
+        objs[16] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_max_storage);
+        objs[17] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_units_per_week);
+        objs[18] = ObjFromByteArray(((USER_INFO_2*)infoP)->usri2_logon_hours,21);
+        objs[19] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_bad_pw_count);
+        objs[20] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_num_logons);
+        objs[21] = ObjFromUnicode(((USER_INFO_2*)infoP)->usri2_logon_server);
+        objs[22] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_country_code);
+        objs[23] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_code_page);
         /* FALL THROUGH */
     case 1:
-        ADD_LPWSTR_(script_path);
-        ADD_LPWSTR_(password);
-        ADD_DWORD_(password_age);
-        ADD_DWORD_(priv);
-        ADD_DWORD_(flags);
-        ADD_LPWSTR_(home_dir);
-        ADD_LPWSTR_(comment);
+        nobjs += 7;
+        objs[1] = ObjFromUnicode(((USER_INFO_1*)infoP)->usri1_password ? ((USER_INFO_1*)infoP)->usri1_password : L"");
+        objs[2] = ObjFromDWORD(((USER_INFO_1*)infoP)->usri1_password_age);
+        objs[3] = ObjFromDWORD(((USER_INFO_1*)infoP)->usri1_priv);
+        objs[4] = ObjFromUnicode(((USER_INFO_1*)infoP)->usri1_home_dir);
+        objs[5] = ObjFromUnicode(((USER_INFO_1*)infoP)->usri1_comment);
+        objs[6] = ObjFromDWORD(((USER_INFO_1*)infoP)->usri1_flags);
+        objs[7] = ObjFromUnicode(((USER_INFO_1*)infoP)->usri1_script_path);
         /* FALL THROUGH */
     case 0:
-        ADD_LPWSTR_(name);
+        objs[0] = ObjFromUnicode(((USER_INFO_0*)infoP)->usri0_name);
         break;
     default:
-        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Invalid info level %d.", info_level));
+        Twapi_WrongLevelError(interp, info_level);
         return NULL;
     }
 
-#undef ADD_DWORD_
-#undef ADD_LPWSTR_
-
-    return ObjNewList((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
+    return ObjNewList(nobjs, objs);
 }
 
 
@@ -216,9 +188,8 @@ Tcl_Obj *ObjFromGROUP_INFO(
     DWORD       info_level
     )
 {
-    GROUP_INFO_3 *groupinfoP = (GROUP_INFO_3 *) infoP;
-    int         objc = 0;
-    Tcl_Obj    *objv[10];
+    int         nobjs;
+    Tcl_Obj    *objs[4];
 
     /*
      * Note groupinfoP may not point to a GROUP_INFO_3 struct! It depends
@@ -227,43 +198,32 @@ Tcl_Obj *ObjFromGROUP_INFO(
      * use the following switch statement.
      */
 
-#define ADD_LPWSTR_(fld) do {                                          \
-        objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = ObjFromUnicode(groupinfoP->grpi3_ ## fld); \
-    } while (0)
-#define ADD_DWORD_(fld) do {                                          \
-        objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = ObjFromLong(groupinfoP->grpi3_ ## fld); \
-    } while (0)
-
+    nobjs = 1;
     switch (info_level) {
     case 3: /* FALL THROUGH */
     case 2:
-        ADD_DWORD_(attributes);
+        nobjs += 2;
         if (info_level == 2) {
-            objv[objc++] = STRING_LITERAL_OBJ("group_id");
-            objv[objc++] = ObjFromDWORD(((GROUP_INFO_2 *)groupinfoP)->grpi2_group_id);
+            objs[3] = ObjFromDWORD(((GROUP_INFO_2*)infoP)->grpi2_attributes);
+            objs[2] = ObjFromDWORD(((GROUP_INFO_2*)infoP)->grpi2_group_id);
         } else {
-            objv[objc++] = STRING_LITERAL_OBJ("group_sid");
-            objv[objc++] = ObjFromSIDNoFail(groupinfoP->grpi3_group_sid);
+            objs[3] = ObjFromDWORD(((GROUP_INFO_3*)infoP)->grpi3_attributes);
+            objs[2] = ObjFromSIDNoFail(((GROUP_INFO_3*)infoP)->grpi3_group_sid);
         }
         /* FALL THROUGH */
     case 1:
-        ADD_LPWSTR_(comment);
+        nobjs += 1;
+        objs[1] = ObjFromUnicode(((GROUP_INFO_1*)infoP)->grpi1_comment);
         /* FALL THROUGH */
     case 0:
-        ADD_LPWSTR_(name);
+        objs[0] = ObjFromUnicode(((GROUP_INFO_0*)infoP)->grpi0_name);
         break;
     default:
-        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Invalid info level %d.", info_level));
+        Twapi_WrongLevelError(interp, info_level);
         return NULL;
     }
 
-#undef ADD_DWORD_
-#undef ADD_LPWSTR_
-
-    return ObjNewList(objc, objv);
+    return ObjNewList(nobjs, objs);
 }
 
 /* Returns TCL_OK/TCL_ERROR. interp may be NULL */
@@ -273,33 +233,21 @@ Tcl_Obj *ObjFromLOCALGROUP_USERS_INFO(
     DWORD       info_level
     )
 {
-    LOCALGROUP_USERS_INFO_0 *groupinfoP = (LOCALGROUP_USERS_INFO_0 *) infoP;
-    int         objc = 0;
-    Tcl_Obj    *objv[2];
+    Tcl_Obj    *objs[1];
 
-#define ADD_LPWSTR_(fld) do {                                          \
-        objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = ObjFromUnicode(groupinfoP->lgrui0_ ## fld); \
-    } while (0)
-#define ADD_DWORD_(fld) do {                                          \
-        objv[objc++] = STRING_LITERAL_OBJ(# fld);                      \
-        objv[objc++] = ObjFromLong(groupinfoP->lgrui0_ ## fld); \
-    } while (0)
+    /* Even though only one field, for consistency with other
+       structures, we have to return as a list */
 
     switch (info_level) {
     case 0:
-        ADD_LPWSTR_(name);
+        objs[0] = ObjFromUnicode(((LOCALGROUP_USERS_INFO_0 *)infoP)->lgrui0_name);
         break;
     default:
-        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Invalid info level %d.", info_level));
+        Twapi_WrongLevelError(interp, info_level);
         return NULL;
     }
 
-#undef ADD_DWORD_
-#undef ADD_LPWSTR_
-
-    return ObjNewList(objc, objv);
+    return ObjNewList(1, objs);
 }
 
 /* Returns TCL_OK/TCL_ERROR. interp may be NULL */
@@ -310,37 +258,32 @@ Tcl_Obj *ObjFromLOCALGROUP_MEMBERS_INFO(
     )
 {
     int         objc = 0;
-    Tcl_Obj    *objv[6];
+    Tcl_Obj    *objv[3];
 
     switch (info_level) {
     case 0:
-        objv[objc++] = STRING_LITERAL_OBJ("sid");
         objv[objc++] = ObjFromSIDNoFail(((LOCALGROUP_MEMBERS_INFO_0 *)infoP)->lgrmi0_sid);
         break;
     case 1:
     case 2:
-        objv[objc++] = STRING_LITERAL_OBJ("sid");
         objv[objc++] = ObjFromSIDNoFail(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_sid);
-        objv[objc++] = STRING_LITERAL_OBJ("sidusage");
         objv[objc++] = ObjFromLong(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_sidusage);
         if (info_level == 1) {
-            objv[objc++] = STRING_LITERAL_OBJ("name");
             objv[objc++] = ObjFromUnicode(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_name);
         } else {
-            objv[objc++] = STRING_LITERAL_OBJ("domainandname");
             objv[objc++] = ObjFromUnicode(((LOCALGROUP_MEMBERS_INFO_2 *)infoP)->lgrmi2_domainandname);
         }
         break;
     case 3:
-        objv[objc++] = STRING_LITERAL_OBJ("domainandname");
         objv[objc++] = ObjFromUnicode(((LOCALGROUP_MEMBERS_INFO_3 *)infoP)->lgrmi3_domainandname);
         break;
         
     default:
-        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Invalid info level %d.", info_level));
+        Twapi_WrongLevelError(interp, info_level);
         return NULL;
     }
+
+    TWAPI_ASSERT(objc <= ARRAYSIZE(objv));
 
     return ObjNewList(objc, objv);
 }
@@ -364,6 +307,7 @@ int TwapiNetUserOrGroupGetInfoHelper(
     case 1:
     case 2:
     case 3:
+    case 4:
         switch (type) {
         case 0:
             get_fn = NetUserGetInfo;

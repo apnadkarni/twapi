@@ -81,38 +81,30 @@ Tcl_Obj *ObjFromCONNECTION_INFO(
 {
     CONNECTION_INFO_1 *ciP;
     int         objc;
-    Tcl_Obj    *objv[14];
+    Tcl_Obj    *objv[7];
 
     ciP = (CONNECTION_INFO_1 *) infoP; /* May actually be CONNECTION_INFO_0 */
-    /* We build from back of array since we would like basic elements
-       at front of Tcl list we build */
-    objc = sizeof(objv)/sizeof(objv[0]);
+
+    objc = 1;
     switch (level) {
     case 1:
-        objv[--objc] = ObjFromLong(ciP->coni1_type);
-        objv[--objc] = STRING_LITERAL_OBJ("type");
-        objv[--objc] = ObjFromLong(ciP->coni1_num_opens);
-        objv[--objc] = STRING_LITERAL_OBJ("num_opens");
-        objv[--objc] = ObjFromLong(ciP->coni1_time);
-        objv[--objc] = STRING_LITERAL_OBJ("time");
-        objv[--objc] = ObjFromLong(ciP->coni1_num_users);
-        objv[--objc] = STRING_LITERAL_OBJ("num_users");
-        objv[--objc] = ObjFromUnicode(ciP->coni1_username);
-        objv[--objc] = STRING_LITERAL_OBJ("username");
-        objv[--objc] = ObjFromUnicode(ciP->coni1_netname);
-        objv[--objc] = STRING_LITERAL_OBJ("netname");
+        objc += 6;
+        objv[6] = ObjFromUnicode(ciP->coni1_netname);
+        objv[5] = ObjFromUnicode(ciP->coni1_username);
+        objv[4] = ObjFromLong(ciP->coni1_time);
+        objv[3] = ObjFromLong(ciP->coni1_num_users);
+        objv[2] = ObjFromLong(ciP->coni1_num_opens);
+        objv[1] = ObjFromLong(ciP->coni1_type);
         /* FALLTHRU */
     case 0:
-        objv[--objc] = ObjFromLong(ciP->coni1_id);
-        objv[--objc] = STRING_LITERAL_OBJ("id");
+        objv[0] = ObjFromLong(ciP->coni1_id);
         break;
     default:
-        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Invalid info level %d.", level));
+        Twapi_WrongLevelError(interp, level);
         return NULL;
     }
 
-    return ObjNewList((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
+    return ObjNewList(objc, objv);
 }
 
 /* Convert USE_INFO_* to list */
@@ -124,50 +116,37 @@ Tcl_Obj *ObjFromUSE_INFO(
 {
     USE_INFO_2 *uiP;
     int         objc;
-    Tcl_Obj    *objv[18];
+    Tcl_Obj    *objv[9];
 
     uiP = (USE_INFO_2 *) infoP; /* May acutally be any USE_INFO_* */
 
-    /* We build from back of array since we would like basic elements
-       at front of Tcl list we build (most accessed elements in front */
-    objc = sizeof(objv)/sizeof(objv[0]);
-#define ADD_LPWSTR_(fld) do {                                      \
-        objv[--objc] = ObjFromUnicode(uiP->ui2_ ## fld); \
-        objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
-    } while (0)
-#define ADD_DWORD_(fld) do {                                          \
-        objv[--objc] = ObjFromLong(uiP->ui2_ ## fld); \
-        objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
-    } while (0)
-
+    objc = 2;
     switch (level) {
     case 2:
-        ADD_LPWSTR_(username);
-        ADD_LPWSTR_(domainname);
+        objc += 2;
+        objv[8] = ObjFromUnicode(uiP->ui2_domainname);
+        objv[7] = ObjFromUnicode(uiP->ui2_username);
         // FALLTHRU
     case 1:
-        ADD_LPWSTR_(password);  /* Does this contain a valid value and need to be encrypted ? - TBD */
-        ADD_DWORD_(status);
-        ADD_DWORD_(asg_type);
-        ADD_DWORD_(refcount);
-        ADD_DWORD_(usecount);
+        objc += 5;
+        /* Does this contain a valid value and need to be encrypted ? - TBD */
+        objv[6] = ObjFromDWORD(uiP->ui2_usecount);
+        objv[5] = ObjFromDWORD(uiP->ui2_refcount);
+        objv[4] = ObjFromDWORD(uiP->ui2_asg_type);
+        objv[3] = ObjFromDWORD(uiP->ui2_status);
+        objv[2] = ObjFromUnicode(uiP->ui2_password);
         //FALLTHRU
     case 0:
-        ADD_LPWSTR_(local);
-        ADD_LPWSTR_(remote);
+        objv[1] = ObjFromUnicode(uiP->ui2_remote);
+        objv[0] = ObjFromUnicode(uiP->ui2_local);
         break;
 
     default:
-        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Invalid info level %d.", level));
+        Twapi_WrongLevelError(interp, level);
         return NULL;
     }
 
-#undef ADD_DWORD_
-#undef ADD_LPWSTR_
-
-    return ObjNewList((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
-
+    return ObjNewList(objc, objv);
 }
 
 Tcl_Obj *ObjFromSHARE_INFO(
@@ -178,53 +157,41 @@ Tcl_Obj *ObjFromSHARE_INFO(
 {
     SHARE_INFO_502 *siP;
     int         objc;
-    Tcl_Obj    *objv[18];
+    Tcl_Obj    *objv[10];
 
     siP = (SHARE_INFO_502 *) infoP; /* May acutally be any SHARE_INFO_* */
 
-    /* We build from back of array since we would like basic elements
-       at front of Tcl list we build (most accessed elements in front */
-    objc = sizeof(objv)/sizeof(objv[0]);
-#define ADD_LPWSTR_(fld) do {                                          \
-        objv[--objc] = ObjFromUnicode(siP->shi502_ ## fld); \
-        objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
-    } while (0)
-#define ADD_DWORD_(fld) do {                                          \
-        objv[--objc] = ObjFromLong(siP->shi502_ ## fld); \
-        objv[--objc] = STRING_LITERAL_OBJ(# fld);                      \
-    } while (0)
-
+    objc = 1;
     switch (level) {
     case 502:
-        objv[--objc] = ObjFromSECURITY_DESCRIPTOR(interp,
-                                                      siP->shi502_security_descriptor);
-        objv[--objc] = STRING_LITERAL_OBJ("security_descriptor");
+        objc += 2;
+        objv[9] = ObjFromSECURITY_DESCRIPTOR(interp,
+                                            siP->shi502_security_descriptor);
+        objv[8] = ObjFromDWORD(siP->shi502_reserved);
         // FALLTHRU
     case 2:
-        ADD_LPWSTR_(passwd);
-        ADD_LPWSTR_(path);
-        ADD_DWORD_(current_uses);
-        ADD_DWORD_(max_uses);
-        ADD_DWORD_(permissions);
+        objc += 5;
+        objv[7] = ObjFromUnicode(siP->shi502_passwd ? siP->shi502_passwd : L"");
+        objv[6] = ObjFromUnicode(siP->shi502_path);
+        objv[5] = ObjFromDWORD(siP->shi502_current_uses);
+        objv[4] = ObjFromDWORD(siP->shi502_max_uses);
+        objv[3] = ObjFromDWORD(siP->shi502_permissions);
         // FALLTHRU
     case 1:
-        ADD_LPWSTR_(remark);
-        ADD_DWORD_(type);
+        objc += 2;
+        objv[2] = ObjFromUnicode(siP->shi502_remark);
+        objv[1] = ObjFromDWORD(siP->shi502_type);
         // FALLTHRU
     case 0:
-        ADD_LPWSTR_(netname);
+        objv[0] = ObjFromUnicode(siP->shi502_netname);
         break;
 
     default:
-        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Invalid info level %d.", level));
+        Twapi_WrongLevelError(interp, level);
         return NULL;
     }
 
-#undef ADD_DWORD_
-#undef ADD_LPWSTR_
-
-    return ObjNewList((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
+    return ObjNewList(objc, objv);
 }
 
 
@@ -235,36 +202,29 @@ Tcl_Obj *ObjFromFILE_INFO(
     ) 
 {
     int         objc;
-    Tcl_Obj    *objv[10];
+    Tcl_Obj    *objv[5];
     FILE_INFO_3 *fiP;
 
     fiP = (FILE_INFO_3 *) infoP; /* May acutally be FILE_INFO_* */
 
-    /* We build from back of array since we would like basic elements
-       at front of Tcl list we build */
-    objc = sizeof(objv)/sizeof(objv[0]);
+    objc = 1;
     switch (level) {
     case 3:
-        objv[--objc] = ObjFromLong(fiP->fi3_permissions);
-        objv[--objc] = STRING_LITERAL_OBJ("permissions");
-        objv[--objc] = ObjFromLong(fiP->fi3_num_locks);
-        objv[--objc] = STRING_LITERAL_OBJ("num_locks");
-        objv[--objc] = ObjFromUnicode(fiP->fi3_username);
-        objv[--objc] = STRING_LITERAL_OBJ("username");
-        objv[--objc] = ObjFromUnicode(fiP->fi3_pathname);
-        objv[--objc] = STRING_LITERAL_OBJ("pathname");
+        objc += 4;
+        objv[4] = ObjFromUnicode(fiP->fi3_username);
+        objv[3] = ObjFromUnicode(fiP->fi3_pathname);
+        objv[2] = ObjFromLong(fiP->fi3_num_locks);
+        objv[1] = ObjFromLong(fiP->fi3_permissions);
         /* FALLTHRU */
     case 2:
-        objv[--objc] = ObjFromLong(fiP->fi3_id);
-        objv[--objc] = STRING_LITERAL_OBJ("id");
+        objv[0] = ObjFromLong(fiP->fi3_id);
         break;
     default:
-        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Invalid info level %d.", level));
+        Twapi_WrongLevelError(interp, level);
         return NULL;
     }
 
-    return ObjNewList((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
+    return ObjNewList(objc, objv);
 }
 
 
@@ -275,63 +235,49 @@ Tcl_Obj *ObjFromSESSION_INFO(
     ) 
 {
     int         objc;
-    Tcl_Obj    *objv[16];
+    Tcl_Obj    *objv[8];
 
     /* Note in the code below, the structures can be superimposed on one
        another except level 10
     */
 
-    /* We build from back of array since we would like basic elements
-       at front of Tcl list we build */
-    objc = sizeof(objv)/sizeof(objv[0]);
+    objc = 0;
     switch (level) {
     case 502:
-        objv[--objc] = ObjFromUnicode(((SESSION_INFO_502 *)infoP)->sesi502_transport);
-        objv[--objc] = STRING_LITERAL_OBJ("transport");
+        objc += 1;
+        objv[7] = ObjFromUnicode(((SESSION_INFO_502 *)infoP)->sesi502_transport);
         /* FALLTHRU */
     case 2:
-        objv[--objc] = ObjFromUnicode(((SESSION_INFO_2 *)infoP)->sesi2_cltype_name);
-        objv[--objc] = STRING_LITERAL_OBJ("cltype_name");
+        objc += 1;
+        objv[6] = ObjFromUnicode(((SESSION_INFO_2 *)infoP)->sesi2_cltype_name);
         /* FALLTHRU */
     case 1:
-        objv[--objc] = ObjFromUnicode(((SESSION_INFO_1 *)infoP)->sesi1_username);
-        objv[--objc] = STRING_LITERAL_OBJ("username");
-        objv[--objc] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_num_opens);
-        objv[--objc] = STRING_LITERAL_OBJ("num_opens");
-        objv[--objc] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_time);
-
-        objv[--objc] = STRING_LITERAL_OBJ("time");
-        objv[--objc] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_idle_time);
-
-        objv[--objc] = STRING_LITERAL_OBJ("idle_time");
-        objv[--objc] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_user_flags);
-
-        objv[--objc] = STRING_LITERAL_OBJ("user_flags");
+        objc += 5;
+        objv[5] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_user_flags);
+        objv[4] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_idle_time);
+        objv[3] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_time);
+        objv[2] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_num_opens);
+        objv[1] = ObjFromUnicode(((SESSION_INFO_1 *)infoP)->sesi1_username);
         /* FALLTHRU */
     case 0:
-        objv[--objc] = ObjFromUnicode(((SESSION_INFO_0 *)infoP)->sesi0_cname);
-        objv[--objc] = STRING_LITERAL_OBJ("cname");
+        objc += 1;
+        objv[0] = ObjFromUnicode(((SESSION_INFO_0 *)infoP)->sesi0_cname);
         break;
 
     case 10:
-        objv[--objc] = ObjFromUnicode(((SESSION_INFO_10 *)infoP)->sesi10_cname);
-        objv[--objc] = STRING_LITERAL_OBJ("cname");
-        objv[--objc] = ObjFromUnicode(((SESSION_INFO_10 *)infoP)->sesi10_username);
-        objv[--objc] = STRING_LITERAL_OBJ("username");
-        objv[--objc] = ObjFromLong(((SESSION_INFO_10 *)infoP)->sesi10_time);
-
-        objv[--objc] = STRING_LITERAL_OBJ("time");
-        objv[--objc] = ObjFromLong(((SESSION_INFO_10 *)infoP)->sesi10_idle_time);
-
-        objv[--objc] = STRING_LITERAL_OBJ("idle_time");
+        objc = 4;
+        objv[0] = ObjFromUnicode(((SESSION_INFO_10 *)infoP)->sesi10_cname);
+        objv[1] = ObjFromUnicode(((SESSION_INFO_10 *)infoP)->sesi10_username);
+        objv[2] = ObjFromLong(((SESSION_INFO_10 *)infoP)->sesi10_time);
+        objv[3] = ObjFromLong(((SESSION_INFO_10 *)infoP)->sesi10_idle_time);
         break;
+
     default:
-        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Invalid info level %d.", level));
+        Twapi_WrongLevelError(interp, level);
         return NULL;
     }
 
-    return ObjNewList((sizeof(objv)/sizeof(objv[0])-objc), &objv[objc]);
+    return ObjNewList(objc, objv);
 }
 
 
@@ -344,19 +290,19 @@ static Tcl_Obj *ListObjFromNETRESOURCEW(
     NETRESOURCEW    *nrP
     ) 
 {
-    Tcl_Obj *resultObj = ObjEmptyList();
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, nrP, dwScope);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, nrP, dwType);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, nrP, dwDisplayType);
-    Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, resultObj, nrP, dwUsage);
-    Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, resultObj, nrP, lpLocalName);
-    Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, resultObj, nrP, lpRemoteName);
-    Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, resultObj, nrP, lpComment);
-    Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, resultObj, nrP, lpProvider);
+    Tcl_Obj *objs[8];
 
-    return resultObj;
+    objs[0] = ObjFromDWORD(nrP->dwScope);
+    objs[1] = ObjFromDWORD(nrP->dwType);
+    objs[2] = ObjFromDWORD(nrP->dwDisplayType);
+    objs[3] = ObjFromDWORD(nrP->dwUsage);
+    objs[4] = ObjFromUnicode(nrP->lpLocalName);
+    objs[5] = ObjFromUnicode(nrP->lpRemoteName);
+    objs[6] = ObjFromUnicode(nrP->lpComment);
+    objs[7] = ObjFromUnicode(nrP->lpProvider);
+
+    return ObjNewList(8, objs);
 }    
-
 
 /*
  * Convert REMOTE_NAME_INFOW structure to Tcl list. Returns TCL_OK/TCL_ERROR
