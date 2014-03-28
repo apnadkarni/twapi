@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2012, Ashok P. Nadkarni
+# Copyright (c) 2012-2014, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -1307,6 +1307,10 @@ proc twapi::recordarray::getlist {ra args} {
 
     # key is an option just to stop in flowing down to _recordarray
     # We do not pass it in
+
+    if {[llength $args] == 0} {
+        return [lindex $ra 1]
+    }
 
     return [_recordarray {*}$args -format $format $ra]
 }

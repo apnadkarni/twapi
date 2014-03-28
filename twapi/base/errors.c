@@ -466,6 +466,13 @@ int Twapi_AppendCOMError(Tcl_Interp *interp, HRESULT hr, ISupportErrorInfo *sei,
     return TCL_ERROR;
 }
 
+TCL_RESULT Twapi_WrongLevelError(Tcl_Interp *interp, int level)
+{
+    return TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                              Tcl_ObjPrintf("Invalid info level %d.", level));
+}
+
+
 /*
  * Write a message to the event log. To be used only for errors that
  * cannot be raised through the Tcl interpreter, for example, service
