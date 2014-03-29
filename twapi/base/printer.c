@@ -45,11 +45,11 @@ int Twapi_EnumPrintersLevel4ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     printerInfoP = (PRINTER_INFO_4W *)buf;
     resultObj = ObjNewList(0, NULL);
     for (i = 0; i < num_printers; ++i, ++printerInfoP) {
-        Tcl_Obj *printerObj = ObjNewList(0, NULL);
-        Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, printerObj, printerInfoP, pPrinterName);
-        Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp, printerObj, printerInfoP, pServerName);
-        Twapi_APPEND_DWORD_FIELD_TO_LIST(interp, printerObj, printerInfoP, Attributes);
-        ObjAppendElement(interp, resultObj, printerObj);
+        Tcl_Obj *objs[3];
+        objs[0] = ObjFromUnicode(printerInfoP->pPrinterName);
+        objs[1] = ObjFromUnicode(printerInfoP->pServerName);
+        objs[2] = ObjFromDWORD(printerInfoP->Attributes);
+        ObjAppendElement(interp, resultObj, ObjNewList(3, objs));
     }
 
     ObjSetResult(interp, resultObj);
