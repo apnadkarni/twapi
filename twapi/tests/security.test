@@ -35,13 +35,14 @@ namespace eval twapi::security::test {
     # SID for the account the process is running under
     variable my_sid [name2sid $::env(USERNAME)]
     variable guest_sid [name2sid $guest_account_name]
+    variable administrator_sid [name2sid $administrator_account_name]
 
     # Define expected values for various get_user_account_info fields
     # assuming [string match -nocase comparison] and Administrator account
     variable get_user_account_info_fields
     array set get_user_account_info_fields\
         [list \
-             -user_id "500" \
+             -sid "S-1-5-21-*-500" \
              -usr_comment * \
              -bad_pw_count * \
              -logon_hours [string repeat 1 168] \
@@ -1586,8 +1587,8 @@ namespace eval twapi::security::test {
         Get users -level 0
     } -body {
         set kl [twapi::get_users -level 0]
-        verify_list_kl_fields $kl {name}
-        valid_account_names [twapi::kl_flatten $kl name]
+        verify_recordarray $kl {-name}
+        valid_account_names [twapi::recordarray column $kl -name]
     } -result 1
 
     test get_users-3.1 {
@@ -1595,11 +1596,8 @@ namespace eval twapi::security::test {
     } -body {
         set kl [twapi::get_users -level 1]
         # NOte field 'priv' is intentionally undocumented
-        verify_list_kl_fields $kl {comment flags home_dir name password password_age priv script_path }
-        expr {
-              [valid_account_names [twapi::kl_flatten $kl name]] &&
-              [verify_list_elements [twapi::kl_flatten $kl flags password_age] {string is integer -strict}]
-          }
+        verify_recordarray $kl {-comment -status -home_dir -name -password -password_age -priv -script_path }
+        valid_account_names [twapi::recordarray column $kl -name]
     } -result 1
 
     test get_users-3.2 {
@@ -1607,12 +1605,12 @@ namespace eval twapi::security::test {
     } -body {
         set kl [twapi::get_users -level 2]
         # NOte field 'priv' is intentionally undocumented
-        verify_list_kl_fields $kl {
-            acct_expires auth_flags bad_pw_count code_page comment country_code flags full_name home_dir last_logoff last_logon logon_hours logon_server max_storage name num_logons parms password password_age priv script_path units_per_week usr_comment workstations
+        verify_recordarray $kl {
+            -acct_expires -auth_flags -bad_pw_count -code_page -comment -country_code -status -full_name -home_dir -last_logoff -last_logon -logon_hours -logon_server -max_storage -name -num_logons -parms -password -password_age -priv -script_path -units_per_week -usr_comment -workstations
         }
         expr {
-              [valid_account_names [twapi::kl_flatten $kl name]] &&
-              [verify_list_elements [twapi::kl_flatten $kl flags password_age code_page country_code num_logons bad_pw_count units_per_week max_storage acct_expires last_logon last_logoff auth_flags] {string is integer -strict}]
+              [valid_account_names [twapi::recordarray column $kl -name]] &&
+              [verify_list_elements [twapi::recordarray getlist $kl -slice {-password_age -code_page -country_code -num_logons -bad_pw_count -units_per_week -max_storage -acct_expires -last_logon -last_logoff -auth_flags} -format flat] {string is integer -strict}]
           }
     } -result 1
 
@@ -1621,12 +1619,12 @@ namespace eval twapi::security::test {
     } -body {
         set kl [twapi::get_users -level 3]
         # NOte field 'priv' is intentionally undocumented
-        verify_list_kl_fields $kl {
-acct_expires auth_flags bad_pw_count code_page comment country_code flags full_name home_dir home_dir_drive last_logoff last_logon logon_hours logon_server max_storage name num_logons parms password password_age password_expired primary_group_id priv profile script_path units_per_week user_id usr_comment workstations
+        verify_recordarray $kl {
+-acct_expires -auth_flags -bad_pw_count -code_page -comment -country_code -status -full_name -home_dir -home_dir_drive -last_logoff -last_logon -logon_hours -logon_server -max_storage -name -num_logons -parms -password -password_age -password_expired -primary_group_id -priv -profile -script_path -units_per_week -user_id -usr_comment -workstations
         }
         expr {
-              [valid_account_names [twapi::kl_flatten $kl name]] &&
-              [verify_list_elements [twapi::kl_flatten $kl flags password_age code_page country_code num_logons bad_pw_count units_per_week max_storage acct_expires last_logon last_logoff auth_flags user_id primary_group_id] {string is integer -strict}]
+              [valid_account_names [twapi::recordarray column $kl -name]] &&
+              [verify_list_elements [twapi::recordarray getlist $kl -slice {-password_age -code_page -country_code -num_logons -bad_pw_count -units_per_week -max_storage -acct_expires -last_logon -last_logoff -auth_flags -user_id -primary_group_id} -format flat] {string is integer -strict}]
           }
     } -result 1
 
@@ -1637,12 +1635,12 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
     } -body {
         set kl [twapi::get_users -level 3 -system [testconfig domain_controller]]
         # NOte field 'priv' is intentionally undocumented
-        verify_list_kl_fields $kl {
-acct_expires auth_flags bad_pw_count code_page comment country_code flags full_name home_dir home_dir_drive last_logoff last_logon logon_hours logon_server max_storage name num_logons parms password password_age password_expired primary_group_id priv profile script_path units_per_week user_id usr_comment workstations
+        verify_recordarray $kl {
+-acct_expires -auth_flags -bad_pw_count -code_page -comment -country_code -status -full_name -home_dir -home_dir_drive -last_logoff -last_logon -logon_hours -logon_server -max_storage -name -num_logons -parms -password -password_age -password_expired -primary_group_id -priv -profile -script_path -units_per_week -user_id -usr_comment -workstations
         }
         expr {
-              [valid_account_names [twapi::kl_flatten $kl name]] &&
-              [verify_list_elements [twapi::kl_flatten $kl flags password_age code_page country_code num_logons bad_pw_count units_per_week max_storage acct_expires last_logon last_logoff auth_flags user_id primary_group_id] {string is integer -strict}]
+              [valid_account_names [twapi::recordarray column $kl -name]] &&
+              [verify_list_elements [twapi::recordarray getlist $kl {-password_age -code_page -country_code -num_logons -bad_pw_count -units_per_week -max_storage -acct_expires -last_logon -last_logoff -auth_flags -user_id -primary_group_id} -format flat] {string is integer -strict}]
           }
     } -result 1
 
@@ -1715,10 +1713,10 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set total 0
         while {$more} {
             foreach {more resumehandle count accounts} [twapi::get_users -resume $resumehandle -level 1] break
-            verify_list_kl_fields $accounts {comment flags home_dir name password password_age priv script_path }
+            verify_recordarray $accounts {-comment -status -home_dir -name -password -password_age -priv -script_path}
             incr iters
-            incr total [llength $accounts]
-            set valid_accounts [expr {$valid_accounts & [valid_account_names [twapi::kl_flatten $accounts name]]}]
+            incr total [twapi::recordarray size $accounts]
+            set valid_accounts [expr {$valid_accounts & [valid_account_names [twapi::recordarray column $accounts -name]]}]
         }
         list [expr {$iters > 1}] $valid_accounts [expr {$total > $naccounts}]
     } -cleanup {
@@ -2369,7 +2367,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         # TBD - need more validation
         # NOTE - Administrator account may be disabled on some systems
 	list \
-	    $uinfo(-user_id) \
+	    $uinfo(-sid) \
 	    [string is integer $uinfo(-bad_pw_count)] \
 	    [regexp {^[01]{168}$} $uinfo(-logon_hours)] \
 	    $uinfo(-code_page) \
@@ -2385,7 +2383,7 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
 	    $uinfo(-local_groups) \
 	    $uinfo(-acct_expires)
     } -match list -result [list \
-                               500 \
+                               $administrator_sid \
                                1 \
                                1 \
                                0 \
@@ -2446,8 +2444,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         Get global groups with -level 0
     } -body {
         set kl [twapi::get_global_groups -level 0]
-        verify_list_kl_fields $kl {name}
-        valid_account_names [twapi::kl_flatten $kl name]
+        verify_recordarray $kl {-name}
+        valid_account_names [twapi::recordarray column $kl -name]
     } -result 1
 
     test get_global_groups-3.1 {
@@ -2456,16 +2454,16 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         domain
     } -body {
         set kl [twapi::get_global_groups -level 0 -system [testconfig domain_controller]]
-        verify_list_kl_fields $kl {name}
-        valid_account_names [twapi::kl_flatten $kl name] [testconfig domain_controller]
+        verify_recordarray $kl {-name}
+        valid_account_names [twapi::recordarray column $kl -name] [testconfig domain_controller]
     } -result 1
 
     test get_global_groups-3.2 {
         Get global groups with -level 1
     } -body {
         set kl [twapi::get_global_groups -level 1]
-        verify_list_kl_fields $kl {name comment}
-        valid_account_names [twapi::kl_flatten $kl name]
+        verify_recordarray $kl {-name -comment}
+        valid_account_names [twapi::recordarray column $kl -name]
     } -result 1
 
     test get_global_groups-3.3 {
@@ -2474,16 +2472,16 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         domain
     } -body {
         set kl [twapi::get_global_groups -level 1 -system [testconfig domain_controller]]
-        verify_list_kl_fields $kl {name comment}
-        valid_account_names [twapi::kl_flatten $kl name] [testconfig domain_controller]
+        verify_recordarray $kl {-name -comment}
+        valid_account_names [twapi::recordarray column $kl -name] [testconfig domain_controller]
     } -result 1
 
     test get_global_groups-3.4 {
         Get global groups with -level 2
     } -body {
         set kl [twapi::get_global_groups -level 2]
-        verify_list_kl_fields $kl {name comment attributes group_id}
-        valid_account_names [twapi::kl_flatten $kl name]
+        verify_recordarray $kl {-name -comment -attributes -group_id}
+        valid_account_names [twapi::recordarray column $kl -name]
     } -result 1
 
     test get_global_groups-3.5 {
@@ -2492,8 +2490,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         domain
     } -body {
         set kl [twapi::get_global_groups -level 2 -system [testconfig domain_controller]]
-        verify_list_kl_fields $kl {name comment attributes group_id}
-        valid_account_names [twapi::kl_flatten $kl name] [testconfig domain_controller]
+        verify_recordarray $kl {-name -comment -attributes -group_id}
+        valid_account_names [twapi::recordarray column $kl -name] [testconfig domain_controller]
     } -result 1
 
     test get_global_groups-3.6 {
@@ -2504,8 +2502,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         Cannot get level 3 to work on any system, even with a separate C
         test program
         set kl [twapi::get_global_groups -level 3]
-        verify_list_kl_fields $kl {name comment attributes group_sid}
-        valid_account_names [twapi::kl_flatten $kl name] [testconfig domain_controller]
+        verify_recordarray $kl {-name -comment -attributes -sid}
+        valid_account_names [twapi::recordarray column $kl -name] [testconfig domain_controller]
     } -result 1
 
     test get_global_groups-4.0 {
@@ -2608,8 +2606,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         Get local groups with -level 0
     } -body {
         set kl [twapi::get_local_groups -level 0]
-        verify_list_kl_fields $kl {name}
-        valid_account_names [twapi::kl_flatten $kl name]
+        verify_recordarray $kl {-name}
+        valid_account_names [twapi::recordarray column $kl -name]
     } -result 1
 
     test get_local_groups-3.1 {
@@ -2618,16 +2616,16 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         domain
     } -body {
         set kl [twapi::get_local_groups -level 0 -system [testconfig domain_controller]]
-        verify_list_kl_fields $kl {name}
-        valid_account_names [twapi::kl_flatten $kl name] [testconfig domain_controller]
+        verify_recordarray $kl {-name}
+        valid_account_names [twapi::recordarray column $kl -name] [testconfig domain_controller]
     } -result 1
 
     test get_local_groups-3.2 {
         Get local groups with -level 1
     } -body {
         set kl [twapi::get_local_groups -level 1]
-        verify_list_kl_fields $kl {name comment}
-        valid_account_names [twapi::kl_flatten $kl name]
+        verify_recordarray $kl {-name -comment}
+        valid_account_names [twapi::recordarray column $kl -name]
     } -result 1
 
     test get_local_groups-3.3 {
@@ -2636,8 +2634,8 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         domain
     } -body {
         set kl [twapi::get_local_groups -level 1 -system [testconfig domain_controller]]
-        verify_list_kl_fields $kl {name comment}
-        valid_account_names [twapi::kl_flatten $kl name] [testconfig domain_controller]
+        verify_recordarray $kl {-name -comment}
+        valid_account_names [twapi::recordarray column $kl -name] [testconfig domain_controller]
     } -result 1
 
     test get_local_groups-4.0 {
@@ -2710,10 +2708,10 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set total 0
         while {$more} {
             foreach {more resumehandle count groups} [twapi::get_local_groups -resume $resumehandle -level 1] break
-            verify_list_kl_fields $groups {name comment}
+            verify_recordarray $groups {-name -comment}
             incr iters
-            incr total [llength $groups]
-            set valid_groups [expr {$valid_groups & [valid_account_names [twapi::kl_flatten $groups name]]}]
+            incr total [twapi::recordarray size $groups]
+            set valid_groups [expr {$valid_groups & [valid_account_names [twapi::recordarray column $groups -name]]}]
         }
         list [expr {$iters > 1}] $valid_groups [expr {$total > $ngroups}]
     } -cleanup {
@@ -2944,16 +2942,16 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         Get members of a global group -level 0
     } -body {
         set kl [twapi::get_global_group_members None -level 0]
-        verify_list_kl_fields $kl {name}
-        valid_account_names [twapi::kl_flatten $kl name]
+        verify_recordarray $kl {-name}
+        valid_account_names [twapi::recordarray column $kl -name]
     } -result 1
 
     test get_global_group_members-3.1 {
         Get members of a global group -level 1
     } -body {
         set kl [twapi::get_global_group_members None -level 1]
-        verify_list_kl_fields $kl {name attributes}
-        valid_account_names [twapi::kl_flatten $kl name]
+        verify_recordarray $kl {-name -attributes}
+        valid_account_names [twapi::recordarray column $kl -name]
     } -result 1
 
 
@@ -3002,10 +3000,10 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set total 0
         while {$more} {
             foreach {more resumehandle count accounts} [twapi::get_global_group_members "Domain Users" -resume $resumehandle -level 1 -system $dc] break
-            verify_list_kl_fields $accounts {name attributes}
+            verify_recordarray $accounts {-name -attributes}
             incr iters
-            incr total [llength $accounts]
-            set valid_accounts [expr {$valid_accounts & [valid_account_names [twapi::kl_flatten $accounts name] $dc]}]
+            incr total [twapi::recordarray size $accounts]
+            set valid_accounts [expr {$valid_accounts & [valid_account_names [twapi::recordarray column $accounts -name] $dc]}]
         }
         list [expr {$iters > 1}] $valid_accounts [expr {$total > $naccounts}]
     } -cleanup {
@@ -3047,34 +3045,34 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         Get members of a local group -level 0
     } -body {
         set kl [twapi::get_local_group_members $guests_account_name -level 0]
-        verify_list_kl_fields $kl {sid}
-        valid_account_sids [twapi::kl_flatten $kl sid]
+        verify_recordarray $kl {-sid}
+        valid_account_sids [twapi::recordarray column $kl -sid]
     } -result 1
 
     test get_local_group_members-3.1 {
         Get members of a local group -level 1
     } -body {
         set kl [twapi::get_local_group_members $guests_account_name -level 1]
-        verify_list_kl_fields $kl {sid name sidusage}
-        list [valid_account_sids [twapi::kl_flatten $kl sid]] \
-            [valid_account_names [twapi::kl_flatten $kl name]]
+        verify_recordarray $kl {-sid -sidusage -name}
+        list [valid_account_sids [twapi::recordarray column $kl -sid]] \
+            [valid_account_names [twapi::recordarray column $kl -name]]
     } -result {1 1}
 
     test get_local_group_members-3.2 {
         Get members of a local group -level 2
     } -body {
         set kl [twapi::get_local_group_members $guests_account_name -level 2]
-        verify_list_kl_fields $kl {sid domainandname sidusage}
-        list [valid_account_sids [twapi::kl_flatten $kl sid]] \
-            [valid_account_names [twapi::kl_flatten $kl domainandname]]
+        verify_recordarray $kl {-sid -sidusage -domainandname}
+        list [valid_account_sids [twapi::recordarray column $kl -sid]] \
+            [valid_account_names [twapi::recordarray column $kl -domainandname]]
     } -result {1 1}
 
     test get_local_group_members-3.3 {
         Get members of a local group -level 3
     } -body {
         set kl [twapi::get_local_group_members $guests_account_name -level 3]
-        verify_list_kl_fields $kl {domainandname}
-        valid_account_names [twapi::kl_flatten $kl domainandname]
+        verify_recordarray $kl {-domainandname}
+        valid_account_names [twapi::recordarray column $kl -domainandname]
     } -result 1
 
     test get_local_group_members-4.0 {
@@ -3120,10 +3118,10 @@ acct_expires auth_flags bad_pw_count code_page comment country_code flags full_n
         set total 0
         while {$more} {
             foreach {more resumehandle count accounts} [twapi::get_local_group_members Users -resume $resumehandle -level 2] break
-            verify_list_kl_fields $accounts {sid domainandname sidusage}
+            verify_recordarray $accounts {-sid -sidusage -domainandname}
             incr iters
-            incr total [llength $accounts]
-            set valid_accounts [expr {$valid_accounts & [valid_account_names [twapi::kl_flatten $accounts domainandname]]}]
+            incr total [twapi::recordarray size $accounts]
+            set valid_accounts [expr {$valid_accounts & [valid_account_names [twapi::recordarray column $accounts -domainandname]]}]
         }
         list [expr {$iters > 1}] $valid_accounts [expr {$total > $naccounts}]
     } -cleanup {

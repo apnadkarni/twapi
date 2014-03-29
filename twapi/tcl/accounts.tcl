@@ -201,29 +201,33 @@ proc twapi::get_user_account_info {account args} {
         # Extract the requested data
         foreach opt [array names fields] {
             if {$opts(all) || $opts($opt)} {
-                set result($opt) $data($opt)
+                set result(-$opt) $data(-$opt)
             }
         }
+        if {$level == 4 && ($opts(all) || $opts(sid))} {
+            set result(-sid) $data(-sid)
+        }
+
 
         # Map internal values to more friendly formats
-        if {[info exists result(status)]} {
+        if {[info exists result(-status)]} {
             # UF_LOCKOUT -> 0x10, UF_ACCOUNTDISABLE -> 0x2
-            if {$result(status) & 0x2} {
-                set result(status) "disabled"
-            } elseif {$result(status) & 0x10} {
-                set result(status) "locked"
+            if {$result(-status) & 0x2} {
+                set result(-status) "disabled"
+            } elseif {$result(-status) & 0x10} {
+                set result(-status) "locked"
             } else {
-                set result(status) "enabled"
+                set result(-status) "enabled"
             }
         }
 
-        if {[info exists result(logon_hours)]} {
-            binary scan $result(logon_hours) b* result(logon_hours)
+        if {[info exists result(-logon_hours)]} {
+            binary scan $result(-logon_hours) b* result(-logon_hours)
         }
 
-        foreach time_field {acct_expires last_logon last_logoff} {
+        foreach time_field {-acct_expires -last_logon -last_logoff} {
             if {[info exists result($time_field)]} {
-                if {$result($time_field) == -1} {
+                if {$result($time_field) == -1 || $result($time_field) == 4294967295} {
                     set result($time_field) "never"
                 } elseif {$result($time_field) == 0} {
                     set result($time_field) "unknown"
@@ -236,18 +240,18 @@ proc twapi::get_user_account_info {account args} {
     # contains only one field so we need to lpick to extract the field
 
     if {$opts(local_groups)} {
-        set result(local_groups) [lpick [NetEnumResult entries [NetUserGetLocalGroups $opts(system) $account 0 0]] 0]
+        set result(-local_groups) [lpick [NetEnumResult entries [NetUserGetLocalGroups $opts(system) $account 0 0]] 0]
     }
 
     if {$opts(global_groups)} {
-        set result(global_groups) [lpick [NetEnumResult entries [NetUserGetGroups $opts(system) $account 0]] 0]
+        set result(-global_groups) [lpick [NetEnumResult entries [NetUserGetGroups $opts(system) $account 0]] 0]
     }
 
-    if {$opts(sid)  && ! [info exists result(sid)]} {
-        set result(sid) [lookup_account_name $account -system $opts(system)]
+    if {$opts(sid)  && ! [info exists result(-sid)]} {
+        set result(-sid) [lookup_account_name $account -system $opts(system)]
     }
 
-    return [_get_array_as_options result]
+    return [array get result]
 }
 
 proc twapi::get_user_local_groups_recursive {account args} {
@@ -487,10 +491,10 @@ proc twapi::get_local_group_members {grpname args} {
     } -setvars -ignoreunknown
 
     if {[info exists level]} {
-        lappend args -level $level -fields [dict! {0 {-name} 1 {-name -comment}} $level]
+        lappend args -level $level -fields [dict! {0 {-sid} 1 {-sid -sidusage -name} 2 {-sid -sidusage -domainandname} 3 {-domainandname}} $level]
     }
 
-    lappend args -preargs [list $grpname] -namelevel 1
+    lappend args -preargs [list $grpname] -namelevel 1 -namefield 2
     return [_net_enum_helper NetLocalGroupGetMembers $args]
 }
 
