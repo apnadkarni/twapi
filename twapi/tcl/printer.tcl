@@ -15,14 +15,10 @@ proc twapi::enumerate_printers {args} {
     foreach elem [Twapi_EnumPrinters_Level4 \
                       [string map {all 6 any 6 local 2 remote 4} $opts(proximity)] \
                      ] {
-        lappend result [list \
-                            name [kl_get $elem pPrinterName] \
-                            server [kl_get $elem pServerName] \
-                            attrs [_symbolize_printer_attributes \
-                                       [kl_get $elem Attributes]] \
-                           ]
+        lappend result [list [lindex $elem 0] [lindex $elem 1] \
+                            [_symbolize_printer_attributes [lindex $elem 2]]]
     }
-    return $result
+    return [list {name server attrs} $result]
 }
 
 
