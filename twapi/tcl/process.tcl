@@ -366,31 +366,25 @@ proc twapi::get_process_ids {args} {
         set all_pids [Twapi_GetProcessList -1 0]
     }
 
+    set filter_expr {}
     set popts [list ]
-    foreach opt {path user logonsession} {
-        if {[info exists opts($opt)]} {
-            lappend popts -$opt
-        }
-    }
-    foreach {pid piddata} [get_multiple_process_info -matchpids $all_pids {*}$popts] {
-        array set pidvals $piddata
-        if {[info exists opts(path)] &&
-            ![string [expr {$match_op eq "~" ? "match" : "equal"}] -nocase $opts(path) [file join $pidvals(-path)]]} {
-            continue
-        }
+    if {[info exists opts(path)]} {
+        lappend popts -path
+        lappend filter_expr [list -path $match_op $opts(path) -nocase]
+    } 
 
-        if {[info exists opts(user)] && $pidvals(-user) ne $opts(user)} {
-            continue
-        }
+    if {[info exists opts(user)]} {
+        lappend popts -user
+        lappend filter_expr [list -user eq $opts(user) -nocase]
+    } 
+    if {[info exists opts(logonsession)]} {
+        lappend popts -logonsession
+        lappend filter_expr [list -logonsession eq $opts(logonsession) -nocase]
+    } 
 
-        if {[info exists opts(logonsession)] &&
-            $pidvals(-logonsession) ne $opts(logonsession)} {
-            continue
-        }
 
-        lappend process_pids $pid
-    }
-    return $process_pids
+    set matches [recordarray get [get_multiple_process_info -matchpids $all_pids {*}$popts] -filter $filter_expr]
+    return [recordarray column $matches -pid]
 }
 
 
@@ -736,7 +730,7 @@ proc twapi::get_thread_parent_process_id {tid} {
 
 # Get the thread ids belonging to a process
 proc twapi::get_process_thread_ids {pid} {
-    return [lindex [lindex [get_multiple_process_info -matchpids [list $pid] -tids] 1] 1]
+    return [recordarray cell [get_multiple_process_info -matchpids [list $pid] -tids] 0 -tids]
 }
 
 
