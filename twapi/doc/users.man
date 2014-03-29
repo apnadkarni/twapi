@@ -81,19 +81,22 @@ the [uri \#get_account_rights [cmd get_account_rights]],
 [section "Enumerating Accounts"]
 There are several commands for enumerating users and groups, including group 
 membership.
-[para]
-The commands [uri \#get_users [cmd get_users]],
-[uri \#get_global_groups [cmd get_global_groups]] and
-[uri \#get_local_groups [cmd get_local_groups]]
-enumerate users and groups on a system.
-[para]
-The commands [uri \#get_local_group_members [cmd get_local_group_members]]
-and [uri \#get_global_group_members [cmd get_global_group_members]]
-allow enumeration of the members of a group.
-[uri \#get_user_local_groups_recursive [cmd get_user_local_groups_recursive]]
-returns information about the local groups in which the user account
+[list_begin opt]
+[opt_def [uri \#get_users [cmd get_users]]]
+Enumerates the locally defined user accounts.
+[opt_def [uri \#get_global_groups [cmd get_global_groups]]]
+Enumerates the globally defined groups.
+[opt_def [uri \#get_local_groups [cmd get_local_groups]]]
+Enumerates the locally defined groups.
+[opt_def [uri \#get_local_group_members [cmd get_local_group_members]]]
+Enumerates the members of a local group.
+[opt_def [uri \#get_global_group_members [cmd get_global_group_members]]]
+Enumerates the members of a global group.
+[opt_def [uri \#get_user_local_groups_recursive [cmd get_user_local_groups_recursive]]]
+Enumerates the local groups in which a specific user account
 has direct or indirect membership.
-[para]
+[list_end]
+
 With the exception of
 [uri \#get_user_local_groups_recursive [cmd get_user_local_groups_recursive]],
 all these commands follow the same pattern of invocation 
@@ -105,9 +108,10 @@ detail or in incremental fashion.
 To get more detail about about the accounts being returned without
 making separate calls for each individual account, the [cmd -level]
 option may be specified.  When this option is specified, the list of
-accounts returned is a nested list instead of a flat list of names.
-Each sublist is a keyed list containing details for the account.
-The argument value passed with the option is an integer that indicates
+accounts returned is a [uri base.html#recordarrays "record array"]
+with fields that contain the detail values for an item.
+The argument value passed to the [cmd -level] option is an 
+integer that indicates
 the level of detail desired. The valid values for the argument and
 the specific fields returned in the sublist are dependent on the
 command and are described in the documentation for the command. See
@@ -119,7 +123,7 @@ may be better for performance and user responsiveness to retrieve the
 list in incremental fashion through [cmd -resume] option.
 On the initial call to any of the commands, the [arg RESUMEHANDLE] value
 for the option must be specified as 0. The command will then return
-a list of the form [arg \{] [arg MOREDATA] [arg RESUMEHANDLE] [arg COUNT] [arg VALUELIST] [arg \}]. In the returned list, [arg MOREDATA] is a boolean 
+a list of the form [arg \{] [arg MOREDATA] [arg RESUMEHANDLE] [arg COUNT] [arg DATA] [arg \}]. In the returned list, [arg MOREDATA] is a boolean 
 indicating if there are more accounts to be enumerated. If this value is
 [const 1], then the appropriate command can be called again, this time
 passing [arg RESUMEHANDLE] as the value for the [cmd -resume] option.
@@ -131,12 +135,15 @@ in the next call to the command.
 [emph "It is critical that the command be repeated with the correct value of [arg RESUMEHANDLE] and only if [arg MOREDATA] is 1."]
 The system does not protect against bad values which can crash your
 application. The other elements returned when the [cmd -resume] option 
-is used are [arg COUNT] and [arg VALUELIST]. The former is an estimate
+is used are [arg COUNT] and [arg DATA]. The former is an estimate
 of the sum of items returned in this call and those remaining to be
 returned. Note this is only an estimate and should not be relied on except
-for rough purposes such as displaying a progress bar. The [arg VALUELIST]
+for rough purposes such as displaying a progress bar. The [arg DATA]
 element is the actual values that are the result of the call. The format
-of this depends on the use of the [cmd -level] option as described above.
+of this depends on the use of the [cmd -level] option.
+If the [cmd -level] option was not specified, [arg DATA] is a simple list
+of values (such as user names). If [cmd -level] was specified to the command,
+[arg DATA] is a record array as described above.
 [para]
 The following sample session demonstrates the use of the two options
 and the format of the returned data:
@@ -145,11 +152,11 @@ and the format of the returned data:
 (tcl) 63 % get_local_group_members Administrators
 Administrator ashok
 (tcl) 64 % get_local_group_members Administrators -level 1
-{sid S-1-5-21-776561741-1580818891-725345543-500 sidusage 1 name Administrator} {sid S-1-5-21-776561741-1580818891-725345543-1003 sidusage 1 name ashok}
+-name -comment} {{S-1-5-21-1957994488-1801674531-839522115-500 1 Administrator} {S-1-5-21-1957994488-1801674531-839522115-1003 1 ashok}}
 (tcl) 65 % get_local_group_members Administrators -resume 0
 0 0 2 {Administrator ashok}
 (tcl) 66 % get_local_group_members Administrators -resume 0 -level 1
-0 0 2 {{sid S-1-5-21-776561741-1580818891-725345543-500 sidusage 1 name Administrator} {sid S-1-5-21-776561741-1580818891-725345543-1003 sidusage 1 name ashok}}
+0 0 4 {{-name -comment} {{S-1-5-21-1957994488-1801674531-839522115-500 1 Administrator} {S-1-5-21-1957994488-1801674531-839522115-1003 1 ashok}}}
 [example_end]
 
 [section Commands]
@@ -299,14 +306,15 @@ fields returned are described below.
 Returns account information in incremental mode.
 See [sectref "Enumerating Accounts"].
 [list_end]
-The valid values for [arg LEVEL] and the corresponding fields are shown
+The valid values for [arg LEVEL] and the corresponding fields 
+of the returned [uri base.html#recordarrays "record array"] are shown
 in the following table:
 [list_begin opt]
 [opt_def [const 0]]
-[const name]
+[const -name]
 [opt_def [const 1]]
-[const attributes],
-[const name]
+[const -name],
+[const -attributes]
 [list_end]
 
 [call [cmd get_global_groups] [arg [opt options]]]
@@ -325,24 +333,25 @@ fields returned are described below.
 Returns account information in incremental mode.
 See [sectref "Enumerating Accounts"].
 [list_end]
-The valid values for [arg LEVEL] and the corresponding fields are shown
+The valid values for [arg LEVEL] and the corresponding fields 
+in the returned [uri base.html#recordarrays "record array"] are shown
 in the following table:
 [list_begin opt]
 [opt_def [const 0]]
-[const name]
+[const -name]
 [opt_def [const 1]]
-[const comment],
-[const name]
+[const -name]
+[const -comment],
 [opt_def [const 2]]
-[const attributes],
-[const comment],
-[const group_id],
-[const name]
+[const -name]
+[const -comment],
+[const -group_id],
+[const -attributes],
 [opt_def [const 3]]
-[const attributes],
-[const comment],
-[const group_sid],
-[const name].
+[const -name].
+[const -comment],
+[const -sid],
+[const -attributes],
 [emph "This level may not be supported on all versions of Windows."]
 [list_end]
 Refer to the documentation of 
@@ -381,28 +390,29 @@ fields returned are described below.
 Returns account information in incremental mode.
 See [sectref "Enumerating Accounts"].
 [list_end]
-The valid values for [arg LEVEL] and the corresponding fields are shown
+The valid values for [arg LEVEL] and the corresponding fields or
+the returned [uri base.html#recordarrays "record array"] are shown
 in the following table:
 [list_begin opt]
 [opt_def [const 0]]
-[const sid]
+[const -sid]
 [opt_def [const 1]]
-[const name],
-[const sid],
-[const sidusage]
+[const -sid],
+[const -sidusage],
+[const -name]
 [opt_def [const 2]]
-[const domainandname],
-[const sid],
-[const sidusage]
+[const -sid],
+[const -sidusage],
+[const -domainandname]
 [opt_def [const 3]]
-[const domainandname]
+[const -domainandname]
 [list_end]
-The meanings of the fields should be self-evident.
 
 [call [cmd get_local_groups] [arg [opt options]]]
 If no options are specified, returns the list of local groups on the system.
 [nl]
-The following options may be specified to modify the behaviour of the command.
+The following options may be specified to modify the behaviour of the command
+and the format of the returned data.
 [list_begin opt]
 [opt_def [cmd -system] [arg SYSTEMNAME]]
 See [sectref "Standard Options"].
@@ -418,10 +428,10 @@ The valid values for [arg LEVEL] and the corresponding fields are shown
 in the following table:
 [list_begin opt]
 [opt_def [const 0]]
-[const name]
+[const -name]
 [opt_def [const 1]]
-[const comment],
-[const name]
+[const -comment],
+[const -name]
 [list_end]
 Refer to the documentation of 
 [uri #get_local_group_info [cmd get_local_group_info]]
@@ -551,69 +561,31 @@ fields returned are described below.
 Returns account information in incremental mode.
 See [sectref "Enumerating Accounts"].
 [list_end]
-The valid values for [arg LEVEL] and the corresponding fields are shown
+The valid values for [arg LEVEL] and the corresponding fields 
+that are returned in the [uri base.html#recordarrays "record array"]
+are shown
 in the table below. Note that there may be additional fields returned that
-are not listed below. These should be considered internal and their values
+are not listed. These should be considered internal and their values
 not relied on.
 [list_begin opt]
 [opt_def [const 0]]
-[cmd name]
+[cmd -name]
 [opt_def [const 1]]
-[const comment], [const flags], [const home_dir], [const name],
-[const password], [const password_age], [const script_path].
+Fields included in level 0 plus
+[const -comment], [const -status], [const -home_dir],
+[const -password], [const -password_age], [const -script_path].
 [opt_def [const 2]]
-[const acct_expires],
-[const auth_flags],
-[const bad_pw_count],
-[const code_page],
-[const comment],
-[const country_code],
-[const flags],
-[const full_name],
-[const home_dir],
-[const last_logoff],
-[const last_logon],
-[const logon_hours],
-[const logon_server],
-[const max_storage],
-[const name],
-[const num_logons],
-[const parms],
-[const password],
-[const password_age],
-[const script_path],
-[const units_per_week],
-[const usr_comment],
-[const workstations].
+Fields included in level 1 plus
+[const -auth_flags], [const -full_name], [const -usr_comment], [const -parms],
+[const -workstations] [const -last_logon],
+[const -last_logoff], [const -acct_expires], [const -max_storage],
+[const -units_per_week], [const -logon_hours], [const -bad_pw_count],
+[const -num_logons],
+[const -logon_server], [const -country_code], [const -code_page].
 [opt_def [const 3]]
-[const acct_expires],
-[const auth_flags],
-[const bad_pw_count],
-[const code_page],
-[const comment],
-[const country_code],
-[const flags],
-[const full_name],
-[const home_dir],
-[const home_dir_drive],
-[const last_logoff],
-[const last_logon],
-[const logon_hours],
-[const logon_server],
-[const max_storage],
-[const name],
-[const num_logons],
-[const parms],
-[const password],
-[const password_age],
-[const password_expired],
-[const primary_group_id],
-[const profile],
-[const script_path],
-[const units_per_week],
-[const user_id],
-[const usr_comment],
-[const workstations].
+Fields included in level 2 plus
+[const -user_id], [const -primary_group_id], [const -profile], 
+[const -home_dir_drive], [const -password_expired].
 [list_end]
 Refer to [uri #get_user_account_info [cmd get_user_account_info]] for
 the meaning of these fields.

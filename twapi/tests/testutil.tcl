@@ -982,6 +982,37 @@ proc verify_list_kl_fields {l fields {ignoreextra 0}} {
 }
 
 #
+# Verify record array contains specified fields and that the 
+# record array is not empty and each element has correct number of
+# field values
+proc verify_recordarray {ra fields {ignoreextra 0}} {
+    set ra_fields [twapi::recordarray fields $ra]
+    set ra_list [twapi::recordarray getlist $ra]
+    if {[llength $ra_list] == 0} {
+        error "Record array is empty"
+    }
+    foreach field $fields {
+        if {$field ni $ra_fields} {
+            error "Field <$field> not in record array fields <$ra_fields>"
+        }
+    }
+    if {! $ignoreextra} {
+        foreach field $ra_fields {
+            if {$field ni $fields} {
+                error "Record array has extra field <$field>"
+            }
+        }
+    }
+
+    set nfields [llength $ra_fields]
+    foreach e $ra_list {
+        if {[llength $e] != $nfields} {
+            error "Record array record size [llength $e] != record array width $nfields"
+        }
+    }
+}
+
+#
 # Verify is an integer pair
 proc verify_integer_pair {pair} {
     if {([llength $pair] != 2) || 
