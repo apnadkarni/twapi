@@ -410,7 +410,7 @@ proc twapi::get_arp_table {args} {
         }
         lappend arps [list $ifindex [_hwaddr_binary_to_string $hwaddr] $ipaddr $type]
     }
-    return $arps
+    return [list [list ifindex hwaddr ipaddr type] $arps]
 }
 
 # Return IP address for a hw address
@@ -600,60 +600,82 @@ proc twapi::get_tcp_connections {args} {
     } else {
         set level 5
     }
+
+    # See if any matching needs to be done
+    if {[info exists opts(matchlocaladdr)] || [info exists opts(matchlocalport)] ||
+        [info exist opts(matchremoteaddr)] || [info exists opts(matchremoteport)] ||
+        [info exists opts(matchpid)] || [info exists opts(matchstate)]} {
+        set need_matching 1
+    } else {
+        set need_matching 0
+    }
+        
+
     set conns [list ]
     foreach entry [_get_all_tcp 0 $level $opts(ipversion)] {
-        foreach {state localaddr localport remoteaddr remoteport pid bindtime modulename modulepath} $entry {
-            break
-        }
+        lassign $entry state localaddr localport remoteaddr remoteport pid bindtime modulename modulepath
+
         if {[string equal $remoteaddr 0.0.0.0]} {
             # Socket not connected. WIndows passes some random value
             # for remote port in this case. Set it to 0
             set remoteport 0
         }
-        if {[info exists opts(matchpid)]} {
-            # See if this platform even returns the PID
-            if {$pid == ""} {
-                error "Connection process id not available on this system."
-            }
-            if {$pid != $opts(matchpid)} {
-                continue
-            }
-        }
-        if {[info exists matchlocaladdr] &&
-            [lsearch -exact $matchlocaladdr $localaddr] < 0} {
-            # Not in match list
-            continue
-        }
-        if {[info exists matchremoteaddr] &&
-            [lsearch -exact $matchremoteaddr $remoteaddr] < 0} {
-            # Not in match list
-            continue
-        }
-        if {[info exists opts(matchlocalport)] &&
-            $opts(matchlocalport) != $localport} {
-            continue
-        }
-        if {[info exists opts(matchremoteport)] &&
-            $opts(matchremoteport) != $remoteport} {
-            continue
-        }
+
         if {[info exists tcp_statenames($state)]} {
             set state $tcp_statenames($state)
         }
-        if {[info exists matchstates] && [lsearch -exact $matchstates $state] < 0} {
-            continue
+        if {$need_matching} {
+            if {[info exists opts(matchpid)]} {
+                # See if this platform even returns the PID
+                if {$pid == ""} {
+                    error "Connection process id not available on this system."
+                }
+                if {$pid != $opts(matchpid)} {
+                    continue
+                }
+            }
+            if {[info exists matchlocaladdr] &&
+                [lsearch -exact $matchlocaladdr $localaddr] < 0} {
+                # Not in match list
+                continue
+            }
+            if {[info exists matchremoteaddr] &&
+                [lsearch -exact $matchremoteaddr $remoteaddr] < 0} {
+                # Not in match list
+                continue
+            }
+            if {[info exists opts(matchlocalport)] &&
+                $opts(matchlocalport) != $localport} {
+                continue
+            }
+            if {[info exists opts(matchremoteport)] &&
+                $opts(matchremoteport) != $remoteport} {
+                continue
+            }
+            if {[info exists matchstates] && [lsearch -exact $matchstates $state] < 0} {
+                continue
+            }
         }
 
         # OK, now we have matched. Include specified fields in the result
         set conn [list ]
         foreach opt {localaddr localport remoteaddr remoteport state pid bindtime modulename modulepath} {
             if {$opts(all) || $opts($opt)} {
-                lappend conn -$opt [set $opt]
+                lappend conn [set $opt]
             }
         }
         lappend conns $conn
     }
-    return $conns
+
+    # ORDER MUST MATCH ORDER ABOVE
+    set fields [list ]
+    foreach opt {localaddr localport remoteaddr remoteport state pid bindtime modulename modulepath} {
+        if {$opts(all) || $opts($opt)} {
+            lappend fields -$opt
+        }
+    }
+
+    return [list $fields $conns]
 }
 
 
@@ -721,12 +743,21 @@ proc twapi::get_udp_connections {args} {
         set conn [list ]
         foreach opt {localaddr localport pid bindtime modulename modulepath} {
             if {$opts(all) || $opts($opt)} {
-                lappend conn -$opt [set $opt]
+                lappend conn [set $opt]
             }
         }
         lappend conns $conn
     }
-    return $conns
+
+    # ORDER MUST MATCH THAT ABOVE
+    set fields [list ]
+    foreach opt {localaddr localport pid bindtime modulename modulepath} {
+        if {$opts(all) || $opts($opt)} {
+            lappend fields -$opt
+        }
+    }
+
+    return [list $fields $conns]
 }
 
 # Terminates a TCP connection. Does not generate an error if connection
