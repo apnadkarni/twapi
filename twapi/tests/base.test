@@ -3063,7 +3063,7 @@ namespace eval twapi::base::test {
     test recordarray-6.9 {
         recordarray getdict -filter -slice -format dict
     } -setup {
-        set ra {{a {b x} c} { {0 {0 1} {0 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
+        set ra {{a {b x} c} {{0 {0 1} {0 2}} {1 {1 1} {1 2}} {2 {2 1} {2 2}}}}
     } -body {
         twapi::recordarray getdict $ra -filter {{a != 0}} -slice {a {b x}} -key c -format dict
     } -result {{1 2} {a 1 {b x} {1 1}} {2 2} {a 2 {b x} {2 1}}}
@@ -3071,7 +3071,7 @@ namespace eval twapi::base::test {
     test recordarray-7.0 {
         recordarray getlist
     } -setup {
-        set ra {{a b c} { {{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}} }}
+        set ra {{a b c} {{{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}}
     } -body {
         twapi::recordarray getlist $ra
     } -result {{{0 0} {0 1} {0 2}} {{1 0} {1 1} {1 2}} {{2 0} {2 1} {2 2}}}
