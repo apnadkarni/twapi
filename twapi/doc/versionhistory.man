@@ -139,9 +139,27 @@ The following table lists incompatibilities and potential incompatibilities
 with respect to TWAPI 3.1.
 [list_begin opt]
 
-[opt_def [cmd address_to_hostname]] Removed. Use
+[opt_def "Users and Groups"]
+
+[opt_def "[uri users.html#get_global_groups get_global_groups] [uri users.html#get_global_group_members get_global_group_members] [uri users.html#get_local_groups get_local_groups] [uri users.html#get_local_group_members get_local_group_members] [uri users.html#get_users get_users]"]
+Commands returns a record array instead of a list when the [cmd -level]
+option is used. Field names have changed.
+
+
+[opt_def "Network configuration"]
+
+[opt_def address_to_hostname] Removed. Use
 the [uri network.html#resolve_address [cmd resolve_address]] command instead.
 
+[opt_def [cmd get_netif_count], [cmd get_netif6_count]] Removed.
+Returned internal driver interface information which was misleading
+in terms of the interfaces actually visible at the application level.
+
+
+[opt_def [cmd hostname_to_address]] Removed. Use
+the [uri network.html#resolve_hostname [cmd resolve_hostname]] command instead.
+
+[opt_def COM]
 [opt_def "COM SAFEARRAY"]
 Multidimensional arrays are returned as nested lists. In 3.1, they
 were returned as a single flat list.
@@ -149,14 +167,13 @@ were returned as a single flat list.
 [opt_def [uri base.html#debuglog [cmd debuglog]]]
 Calling interface has changed.
 
-[opt_def [uri device.html#device_ioctl [cmd device_ioctl]]]
+[opt_def "Device module"]
+[opt_def [uri device.html#device_ioctl device_ioctl]]
 Calling interface has changed.
 
-[opt_def [cmd file_properties_dialog]]
+[opt_def "Windows Shell"]
+[opt_def file_properties_dialog]
 Use [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]] instead.
-
-[opt_def [cmd get_active_processor_mask]]
-Removed. Use [uri #get_processor_group_configuration [cmd get_processor_group_configuration]] instead.
 
 [opt_def [uri base.html#get_build_config [cmd get_build_config]]]
 Return value format and content has changed.
@@ -165,7 +182,8 @@ Return value format and content has changed.
 Removed. Use [uri storage.html#find_logical_drives [cmd find_logical_drives]]
 instead.
 
-[opt_def [uri process.html#get_process_info [cmd get_process_info]]]
+[opt_def "Processes and Threads"]
+[opt_def [uri process.html#get_process_info get_process_info]]
 The [cmd -toplevels] option
 is no longer available. 
 Use [uri ui.html#get_toplevel_windows [cmd "get_toplevel_windows -pids"]]
@@ -174,27 +192,27 @@ Also, rate based performance options have been removed.
 Equivalent functionality is available through
 [uri pdh.html "performance counters"] commands.
 
-[opt_def [uri osinfo.html#get_processor_info [cmd get_processor_info]]]
+
+[opt_def "System module"]
+[opt_def get_active_processor_mask]
+Removed. Use [uri #get_processor_group_configuration [cmd get_processor_group_configuration]] instead.
+[opt_def [uri osinfo.html#get_processor_info get_processor_info]]
 Performance related options have been removed.
 Equivalent functionality is available through
 [uri pdh.html#pdh_system_performance_query [cmd pdh_system_performance_query]].
 The command now returns information about the current processor group,
 not the whole system.
-
-[opt_def [cmd get_system_info]]
+[opt_def get_system_info]
 Removed. Equivalent
 functionality is available through the
 [uri pdh.html#pdh_system_performance_query [cmd pdh_system_performance_query]],
 [uri osinfo.html#get_system_sid [cmd get_system_sid]] and
 [uri osinfo.html#get_system_uptime [cmd get_system_uptime]] commands.
 
-[opt_def [uri osinfo.html#get_thread_info [cmd get_thread_info]]]
+[opt_def [uri osinfo.html#get_thread_info get_thread_info]]
 Rate based performance options have been removed.
 Equivalent functionality is available through
 [uri pdh.html "performance counters"] commands.
-
-[opt_def [cmd hostname_to_address]] Removed. Use
-the [uri network.html#resolve_hostname [cmd resolve_hostname]] command instead.
 
 [opt_def [uri base.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]]]
 Returns an additional element - the day of the week.
@@ -225,10 +243,6 @@ Use [uri base.man#trap [cmd trap]] instead.
 The [var errorCode], [var errorResult] and
 [var errorInfo] variables are no longer brought into scope
 automatically in onerror clauses.
-
-[opt_def [cmd get_netif_count], [cmd get_netif6_count]] Removed.
-Returned internal driver interface information which was misleading
-in terms of the interfaces actually visible at the application level.
 
 [opt_def [cmd TwapiThemeDefineValue]] Removed.
 
