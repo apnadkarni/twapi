@@ -258,7 +258,7 @@ that are not in the [const stopped] state.
 [list_end]
 
 The command returns a 
-[uri #recordarrays "record array"] with the following fields.
+[uri base.html#recordarrays "record array"] with the following fields.
 [list_begin opt]
 
 [opt_def [const checkpoint]] Contains the last checkpoint value
@@ -335,7 +335,7 @@ that are in the [const stopped] state.
 that are not in the [const stopped] state.
 [list_end]
 The command returns a 
-[uri #recordarrays "record array"]
+[uri base.html#recordarrays "record array"]
 with the following fields.
 
 [list_begin opt]

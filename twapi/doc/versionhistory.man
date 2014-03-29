@@ -142,9 +142,9 @@ with respect to TWAPI 3.1.
 [opt_def "Users and Groups"]
 
 [opt_def "[uri users.html#get_global_groups get_global_groups] [uri users.html#get_global_group_members get_global_group_members] [uri users.html#get_local_groups get_local_groups] [uri users.html#get_local_group_members get_local_group_members] [uri users.html#get_users get_users]"]
-Commands returns a record array instead of a list when the [cmd -level]
-option is used. Field names have changed.
-
+Commands return [uri base.html#recordarrays "record arrays"]
+instead of a list when the [cmd -level]
+option is used. Field names have changed to match other commands in the module.
 
 [opt_def "Network configuration"]
 
@@ -154,7 +154,6 @@ the [uri network.html#resolve_address [cmd resolve_address]] command instead.
 [opt_def [cmd get_netif_count], [cmd get_netif6_count]] Removed.
 Returned internal driver interface information which was misleading
 in terms of the interfaces actually visible at the application level.
-
 
 [opt_def [cmd hostname_to_address]] Removed. Use
 the [uri network.html#resolve_hostname [cmd resolve_hostname]] command instead.
@@ -166,6 +165,10 @@ were returned as a single flat list.
 
 [opt_def [uri base.html#debuglog [cmd debuglog]]]
 Calling interface has changed.
+
+[opt_def "Services"]
+[opt_def "[uri services.html#get_multiple_service_status get_multiple_service_status] [uri services.html#get_dependent_service_status get_dependent_service_status]"]
+Changed to return [uri base.html#recordarrays "record arrays"].
 
 [opt_def "Device module"]
 [opt_def [uri device.html#device_ioctl device_ioctl]]
