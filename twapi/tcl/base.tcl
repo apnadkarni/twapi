@@ -1300,17 +1300,18 @@ proc twapi::recordarray::get {ra args} {
 }
 
 proc twapi::recordarray::getlist {ra args} {
-    ::twapi::parseargs args {
-        {format.arg list {list dict flat}}
-        key.arg
-    } -ignoreunknown -setvars
-
     # key is an option just to stop in flowing down to _recordarray
     # We do not pass it in
 
     if {[llength $args] == 0} {
         return [lindex $ra 1]
     }
+
+    ::twapi::parseargs args {
+        {format.arg list {list dict flat}}
+        key.arg
+    } -ignoreunknown -setvars
+
 
     return [_recordarray {*}$args -format $format $ra]
 }
