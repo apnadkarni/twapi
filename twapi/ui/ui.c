@@ -331,8 +331,8 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     if (func < 1000) {
         /* Functions taking no arguments */
 
-        HWND (WINAPI *hfn)(void);
-        DWORD (WINAPI *dfn)();
+        HWND (WINAPI *hfn)(void) = NULL;
+        DWORD (WINAPI *dfn)() = NULL;
         if (objc != 0)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         switch (func) {
