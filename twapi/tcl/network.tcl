@@ -393,16 +393,12 @@ proc twapi::get_netif6_info {interface args} {
 proc twapi::get_arp_table {args} {
     array set opts [parseargs args {
         sort
-        ifindex.int
-        validonly
     }]
 
     set arps [list ]
 
     foreach arp [GetIpNetTable $opts(sort)] {
         lassign $arp  ifindex hwaddr ipaddr type
-        if {$opts(validonly) && $type == 2} continue
-        if {[info exists opts(ifindex)] && $opts(ifindex) != $ifindex} continue
         # Token for enry   0     1      2      3        4
         set type [lindex {other other invalid dynamic static} $type]
         if {$type == ""} {
@@ -790,7 +786,7 @@ proc twapi::terminate_tcp_connections {args} {
     # Get connection list and go through matching on each
     # TBD - optimize by precalculating if *ANY* matching is to be done
     # and if not, skip the whole matching sequence
-    foreach conn [eval get_tcp_connections [_get_array_as_options opts]] {
+    foreach conn [twapi::recordarray getlist [get_tcp_connections {*}[_get_array_as_options opts]] -format dict] {
         array set aconn $conn
         # TBD - should we handle integer values of opts(state) ?
         if {[info exists opts(matchstate)] &&
@@ -1255,7 +1251,7 @@ proc twapi::_hosts_to_ip_addrs hosts {
             lappend addrs [Twapi_NormalizeIPAddress $host]
         } else {
             # Not IP address. Try to resolve, ignoring errors
-            if {![catch {hostname_to_address $host -flushcache} hostaddrs]} {
+            if {![catch {resolve_hostname $host} hostaddrs]} {
                 foreach addr $hostaddrs {
                     lappend addrs [Twapi_NormalizeIPAddress $addr]
                 }
