@@ -18,7 +18,7 @@ proc twapi::enumerate_printers {args} {
         lappend result [list [lindex $elem 0] [lindex $elem 1] \
                             [_symbolize_printer_attributes [lindex $elem 2]]]
     }
-    return [list {name server attrs} $result]
+    return [list {-name -server -attrs} $result]
 }
 
 
