@@ -20,13 +20,13 @@ name of the default printer.
 [list_begin definitions]
 [call [cmd enumerate_printers] [opt "[cmd -proximity] [arg PROXIMITY]"]]
 Returns information about the printers on the system.
-The data is returned as a list of sublists. Each sublist corresponds
-to a printer and is a keyed list with the following fields:
+The data is returned as a [uri base.html#recordarrays "record array"]
+with the following fields:
 [list_begin opt]
-[opt_def [cmd name]] The following value is the name of the printer.
-[opt_def [cmd server]] The following value is the server on which
+[opt_def [cmd -name]] The following value is the name of the printer.
+[opt_def [cmd -server]] The following value is the server on which
 the printer resides.
-[opt_def [cmd attrs]] The following value is a list of attributes for
+[opt_def [cmd -attrs]] The following value is a list of attributes for
 the printer. This is a list of zero or more symbols from the following list:
 [const queued], [const direct], [const default], [const shared],
 [const network], [const hidden], [const local], [const enabledevq],

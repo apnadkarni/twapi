@@ -39,7 +39,7 @@ namespace eval twapi::printer::test {
 
         array set printer $rec
         
-        set name $printer(name)
+        set name $printer(-name)
         if {![info exists printers($name)]} {
             lappend msgs "Printer $name not found"
             return
@@ -47,8 +47,8 @@ namespace eval twapi::printer::test {
 
         array set wmiprinter $printers($name)
 
-        if {[string compare -nocase $printer(server) $wmiprinter(servername)]} {
-            lappend msgs "Server name '$wmiprinter(servername)' does not match, expected $printer(server)."
+        if {[string compare -nocase $printer(-server) $wmiprinter(servername)]} {
+            lappend msgs "Server name '$wmiprinter(servername)' does not match, expected $printer(-server)."
         }
 
         switch -exact -- $proximity {
@@ -69,7 +69,7 @@ namespace eval twapi::printer::test {
         Enumerate printers
     } -body {
         set msgs {}
-        foreach printer [twapi::enumerate_printers] {
+        foreach printer [twapi::recordarray getlist [twapi::enumerate_printers] -format dict] {
             validate_printer $printer msgs
         }
         join $msgs \n
@@ -79,7 +79,7 @@ namespace eval twapi::printer::test {
         Enumerate printers -all
     } -body {
         set msgs {}
-        foreach printer [twapi::enumerate_printers -proximity all] {
+        foreach printer [twapi::recordarray getlist [twapi::enumerate_printers -proximity all] -format dict] {
             validate_printer $printer msgs
         }
         join $msgs \n
@@ -89,7 +89,7 @@ namespace eval twapi::printer::test {
         Enumerate printers -local
     } -body {
         set msgs {}
-        foreach printer [twapi::enumerate_printers -proximity local] {
+        foreach printer [twapi::recordarray getlist [twapi::enumerate_printers -proximity local] -format dict] {
             validate_printer $printer msgs local
         }
         join $msgs \n
@@ -99,7 +99,7 @@ namespace eval twapi::printer::test {
         Enumerate printers -remote
     } -body {
         set msgs {}
-        foreach printer [twapi::enumerate_printers -proximity remote] {
+        foreach printer [twapi::recordarray getlist [twapi::enumerate_printers -proximity remote] -format dict] {
             validate_printer $printer msgs remote
         }
         join $msgs \n

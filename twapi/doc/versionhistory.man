@@ -139,6 +139,23 @@ The following table lists incompatibilities and potential incompatibilities
 with respect to TWAPI 3.1.
 [list_begin opt]
 
+[opt_def "Base module"]
+
+[opt_def [uri base.html#debuglog [cmd debuglog]]]
+Calling interface has changed.
+
+
+[opt_def [uri base.html#get_build_config [cmd get_build_config]]]
+Return value format and content has changed.
+
+[opt_def try] Removed
+to prevent conflicts with the [cmd try] command in Tcl 8.6.
+Use [uri base.man#trap [cmd trap]] instead.
+The [var errorCode], [var errorResult] and
+[var errorInfo] variables are no longer brought into scope
+automatically in onerror clauses.
+
+
 [opt_def "Users and Groups"]
 
 [opt_def "[uri users.html#get_global_groups get_global_groups] [uri users.html#get_global_group_members get_global_group_members] [uri users.html#get_local_groups get_local_groups] [uri users.html#get_local_group_members get_local_group_members] [uri users.html#get_users get_users]"]
@@ -176,9 +193,6 @@ the [uri network.html#resolve_hostname [cmd resolve_hostname]] command instead.
 Multidimensional arrays are returned as nested lists. In 3.1, they
 were returned as a single flat list.
 
-[opt_def [uri base.html#debuglog [cmd debuglog]]]
-Calling interface has changed.
-
 [opt_def "Network Shares and Lan Manager"]
 [opt_def "[uri share.html#find_lm_connections find_lm_connections] [uri share.html#find_lm_sessions find_lm_sessions] [uri share.html#find_lm_open_files find_lm_open_files] [uri share.html#get_client_shares get_client_shares] [uri share.html#get_shares get_shares]"]
 Commands return [uri base.html#recordarrays "record arrays"]
@@ -195,11 +209,20 @@ Changed to return [uri base.html#recordarrays "record arrays"].
 Calling interface has changed.
 
 [opt_def "Windows Shell"]
-[opt_def file_properties_dialog]
+[opt_def "file_properties_dialog printer_properties_dialog"] Removed.
 Use [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]] instead.
 
-[opt_def [uri base.html#get_build_config [cmd get_build_config]]]
-Return value format and content has changed.
+
+[opt_def [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]]]
+Defaults the object type to [const file]
+instead of attempting to guess the type.
+
+
+[opt_def [cmd TwapiThemeDefineValue]] Removed.
+
+[opt_def [cmd volume_properties_dialog]] Removed.
+Use [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]] instead.
+
 
 [opt_def [cmd get_logical_drives]]
 Removed. Use [uri storage.html#find_logical_drives [cmd find_logical_drives]]
@@ -212,6 +235,11 @@ is no longer available.
 Use [uri ui.html#get_toplevel_windows [cmd "get_toplevel_windows -pids"]]
 instead.
 Also, rate based performance options have been removed.
+Equivalent functionality is available through
+[uri pdh.html "performance counters"] commands.
+
+[opt_def [uri process.html#get_thread_info get_thread_info]]
+Rate based performance options have been removed.
 Equivalent functionality is available through
 [uri pdh.html "performance counters"] commands.
 
@@ -232,11 +260,6 @@ functionality is available through the
 [uri osinfo.html#get_system_sid [cmd get_system_sid]] and
 [uri osinfo.html#get_system_uptime [cmd get_system_uptime]] commands.
 
-[opt_def [uri osinfo.html#get_thread_info get_thread_info]]
-Rate based performance options have been removed.
-Equivalent functionality is available through
-[uri pdh.html "performance counters"] commands.
-
 [opt_def [uri base.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]]]
 Returns an additional element - the day of the week.
 
@@ -250,27 +273,14 @@ forms of passwords are still accepted by existing commands
 but are deprecated and support will be dropped in a future release.
 Commands new in 4.0 will only work with the new encrypted password forms.
 
-[opt_def [cmd printer_properties_dialog]] Removed.
-Use [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]] instead.
-
-[opt_def [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]]]
-Defaults the object type to [const file]
-instead of attempting to guess the type.
-
 [opt_def "[uri sspi.html SSPI] interface"] API has been completely redone (post-4.0b23)
 and commands in older versions are no longer present.
 
-[opt_def [cmd try]] Removed
-to prevent conflicts with the [cmd try] command in Tcl 8.6.
-Use [uri base.man#trap [cmd trap]] instead.
-The [var errorCode], [var errorResult] and
-[var errorInfo] variables are no longer brought into scope
-automatically in onerror clauses.
+[opt_def "Printers"]
+[opt_def [uri printer.html#enumerate_printers enumerate_printers]]
+Changed to return [uri base.html#recordarrays "record arrays"].
 
-[opt_def [cmd TwapiThemeDefineValue]] Removed.
 
-[opt_def [cmd volume_properties_dialog]] Removed.
-Use [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]] instead.
 
 [list_end]
 
