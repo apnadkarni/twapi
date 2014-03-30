@@ -48,7 +48,6 @@ the loopback adapter.
 If option [cmd -sort] is specified,
 returns the entries sorted by interface index, then 
 IP address.
-[list_end]
 
 [call [cmd get_ipaddr_version] [arg IPADDR]]
 Returns the IP version ([const 4] or [const 6]) of the IP address specified
