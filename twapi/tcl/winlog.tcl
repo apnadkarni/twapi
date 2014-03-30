@@ -230,7 +230,7 @@ if {[twapi::min_os_version 6]} {
         dict set _winlog_handles $hq channel $source
         dict set _winlog_handles $hq direction forward
         dict set _winlog_handles $hq signal $hevent
-        return $hq
+        return [list $hq $hevent]
     }
 
     proc twapi::winlog_clear {source args} {

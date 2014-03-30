@@ -77,13 +77,10 @@ namespace eval twapi::eventlog::test {
 
         set messages {}
         foreach fld {
-            -providername -providerguid -eventid -qualifiers
-            -level -task -opcode -keywordmask -timecreated -eventrecordid
-            -activityid -relatedactivityid -pid -tid -channel -computer
-            -sid -version -levelname -taskname -message
+            -channel -taskname -message -providername -eventid -level -levelname -eventrecordid -computer -sid -timecreated
         } {
             if {![dict exists $e $fld]} {
-                lappend messages "Field $e missing from event"
+                lappend messages "Field $fld missing from event"
             }
         }
         return $messages
@@ -103,6 +100,7 @@ namespace eval twapi::eventlog::test {
         # Note this test may sometimes fail because event log service
         # restricts frequency of notifications to 5 sec intervals
         # For this reason, we also test start and stop in a single test
+        after 6000
         set hevm [twapi::eventlog_monitor_start $hevl {append ::_vwait_result}]
         after 1000;             # Let monitoring take effect
         twapi::eventlog_log "eventlog_monitor test message"
@@ -737,10 +735,9 @@ namespace eval twapi::eventlog::test {
     test winlog_event_count-1.0 {
         winlog_event_count -channel
     } -body {
-        set count1 [twapi::winlog_event_count -channel Application]
-        twapi::eventlog_log "TWAPI test winlog_event_count-1.0" -source Application
-        set count2 [twapi::winlog_event_count -channel Application]
-        expr {$count2 == ($count1 + 1)}
+        twapi::eventlog_log "TWAPI test winlog_event_count-1.0 [clock seconds]" -source Application
+        set count [twapi::winlog_event_count -channel Application]
+        expr {$count > 0}
     } -result 1
 
     test winlog_event_count-2.0 {
@@ -960,21 +957,24 @@ namespace eval twapi::eventlog::test {
     test winlog_subscribe-1.0 {
         Verify asynchronous monitoring of event log
     } -setup {
-        patience eventlog_monitor-1.0
-        # Delay because event log service
+        patience winlog_subscribe-1.0
+        # Note this test may sometimes fail because event log service
         # restricts frequency of notifications to 5 sec intervals
-        # so wait to clear out notifications sent in earlier tests if any
-        # TBD - after 5000
+        # For this reason, we also test start and stop in a single test
+        after 6000
     } -body {
         lassign [twapi::winlog_subscribe Application] hevl hevent
         # The read has to fail before events are sent. So read all
         # events first
-        while {[llength [twapi::winlog_read $hevl]]} {}
-
+        while {[twapi::recordarray size [twapi::winlog_read $hevl]]} {}
         # Write a message
         twapi::eventlog_log "winlog_subscribe test message"
+        twapi::wait_on_handle $hevent -wait 6000
 
-        twapi::wait_on_handle $hevent -wait 5000
+        # NOTE - on XP / 2k3 THIS WILL LIKELY FAIL BECAUSE IT USES
+        # PULSE EVENT WHICH REQUIRES A SEPARATE THREAD TO BE WAITING
+        # WHICH IS WHAT eventlog_monitor does
+
     } -cleanup {
         twapi::winlog_close $hevl
     } -result signalled
