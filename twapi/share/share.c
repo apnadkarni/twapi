@@ -173,8 +173,8 @@ Tcl_Obj *ObjFromSHARE_INFO(
         objc += 5;
         objv[7] = ObjFromUnicode(siP->shi502_passwd ? siP->shi502_passwd : L"");
         objv[6] = ObjFromUnicode(siP->shi502_path);
-        objv[5] = ObjFromDWORD(siP->shi502_current_uses);
-        objv[4] = ObjFromDWORD(siP->shi502_max_uses);
+        objv[5] = ObjFromLong(siP->shi502_current_uses);
+        objv[4] = ObjFromLong(siP->shi502_max_uses);
         objv[3] = ObjFromDWORD(siP->shi502_permissions);
         // FALLTHRU
     case 1:

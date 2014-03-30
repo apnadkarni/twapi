@@ -144,7 +144,7 @@ with respect to TWAPI 3.1.
 [opt_def "[uri users.html#get_global_groups get_global_groups] [uri users.html#get_global_group_members get_global_group_members] [uri users.html#get_local_groups get_local_groups] [uri users.html#get_local_group_members get_local_group_members] [uri users.html#get_users get_users]"]
 Commands return [uri base.html#recordarrays "record arrays"]
 instead of a list when the [cmd -level]
-option is used. Field names have changed to match other commands in the module.
+option is used. Field and optin names have been changed for consistency.
 
 [opt_def "Network configuration"]
 
@@ -178,6 +178,13 @@ were returned as a single flat list.
 
 [opt_def [uri base.html#debuglog [cmd debuglog]]]
 Calling interface has changed.
+
+[opt_def "Network Shares and Lan Manager"]
+[opt_def "[uri share.html#find_lm_connections find_lm_connections] [uri share.html#find_lm_sessions find_lm_sessions] [uri share.html#find_lm_open_files find_lm_open_files] [uri share.html#get_client_shares get_client_shares] [uri share.html#get_shares get_shares]"]
+Commands return [uri base.html#recordarrays "record arrays"]
+instead of a list when the [cmd -level]
+option is used. Field and option names have been changed for consistency.
+
 
 [opt_def "Services"]
 [opt_def "[uri services.html#get_multiple_service_status get_multiple_service_status] [uri services.html#get_dependent_service_status get_dependent_service_status]"]

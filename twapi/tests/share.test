@@ -41,7 +41,7 @@ namespace eval twapi::share::test {
     set testshares(client_share_mapped) "\\\\127.0.0.1\\$testshares(export_name_mapped)"
     set testshares(client_share_unmapped) "\\\\127.0.0.1\\$testshares(export_name_unmapped)"
     set testshares(client_device) [find_unused_drive]
-    
+
     variable shares
     # Get share data from VBScript for verification purposes
     proc fill_shares {{refresh 0}} {
@@ -227,7 +227,7 @@ namespace eval twapi::share::test {
     }
 
     # Fields for LM sessions
-    variable lm_session_fields {-username -clientname -transport -opencount -idleseconds -activeseconds -attrs -clienttype}
+    variable lm_session_fields {-user -clientname -transport -opencount -idleseconds -activeseconds -attrs -clienttype}
 
     # Create a mapped client share
     proc create_mapped_client_share {} {
@@ -251,8 +251,8 @@ namespace eval twapi::share::test {
         }
         exec net use $testshares(client_share_unmapped)
         # Force a session to be created
-        close [open [file join $testshares(client_share_unmapped) dummy] r]
-    }
+        close [open [file join $testshares(client_share_unmapped) dummy] r] 
+   }
 
     proc delete_mapped_client_share {} {
         variable testshares
@@ -281,8 +281,7 @@ namespace eval twapi::share::test {
                 }
             }
         } else {
-            foreach mapping [twapi::get_client_shares] {
-                foreach {local remote} $mapping break
+            foreach {local remote} [twapi::recordarray getlist [twapi::get_client_shares -level 0] -format flat] {
                 if {[string equal -nocase $local $testshares(client_device)]} {
                     if {[equal_paths $remote $testshares(client_share_mapped)]} {
                         # Force a session to be created
@@ -312,8 +311,7 @@ namespace eval twapi::share::test {
                 }
             }
         } else {
-            foreach mapping [twapi::get_client_shares] {
-                foreach {local remote} $mapping break
+            foreach {local remote} [twapi::recordarray getlist [twapi::get_client_shares -level 0] -format flat] {
                 if {[equal_paths $remote $testshares(client_share_unmapped)]} {
                     # Force a session to be created
                     close [open [file join $testshares(client_share_unmapped) dummy] r]
@@ -330,9 +328,21 @@ namespace eval twapi::share::test {
         if {[llength $fields]} {
             set diffs [::setops::symdiff $fields [array names shareinfo]]
             if {[llength $diffs]} {
-                return "Field mismatch. Got fields [join [array names shareinfo] ,], expected [join $fields ,]".
+                return "Field mismatch. Got fields [join [lsort [array names shareinfo]] ,], expected [join [lsort $fields] ,]"
             }
         }
+
+        set errors ""
+        if {[info exists shareinfo(-status)] &&
+            $shareinfo(-status) ni {connected paused lostsession disconnected networkerror connecting reconnecting unknown}} {
+            append errors "Invalid status fields $shareinfo(-status)"
+        }
+
+        if {[info exists shareinfo(-type)] &&
+            $shareinfo(-type) ni {file printer char ipc unknown}} {
+            append errors "Invalid type fields $shareinfo(-type)"
+        }
+
 
         if {[string equal -nocase $testshares(client_share_unmapped) $share]} {
             set comment $testshares(export_comment_unmapped)
@@ -342,10 +352,10 @@ namespace eval twapi::share::test {
             set comment $testshares(export_comment_mapped)
             set remoteshare $testshares(client_share_mapped)
         } else {
-            return ""
+            # Remaining tests are specific to testshares
+            return $errors
         }
 
-        set errors ""
         if {[info exists shareinfo(-comment)] &&
             $shareinfo(-comment) ne $comment} {
             append errors "Comment for $share does not match. Was <$shareinfo(-comment)>, expected <$comment>"
@@ -407,7 +417,6 @@ namespace eval twapi::share::test {
     # Verify multiple session data - sessions is a record array
     proc verify_lm_test_sessions {sessions expected_fields expected_values {mincount 1} {maxcount 100}} {
         set sessions [twapi::recordarray getlist $sessions -format dict]
-
         if {[llength $sessions] < $mincount} {
             return "Expected at least $mincount sessions, found only [llength $sessions]."
         }
@@ -427,7 +436,7 @@ namespace eval twapi::share::test {
     }
 
     # Fields for LM connections
-    variable lm_connection_fields { -activeseconds -clientname -id -opencount -sharename -type -usercount -username}
+    variable lm_connection_fields { -activeseconds -clientname -id -opencount -sharename -type -usercount -user -netname}
 
     # Verify fields in a LM connection. Returns error messages if fail
     proc verify_lm_test_connection {connrec expected_fields expected_values} {
@@ -486,7 +495,7 @@ namespace eval twapi::share::test {
     }
 
     # Fields for LM open files
-    variable lm_openfile_fields {-id -lockcount -path -permissions -username}
+    variable lm_openfile_fields {-id -lockcount -path -permissions -user}
 
     # Verify fields in a LM open file. Returns error messages if fail
     proc verify_lm_test_openfile {filerec expected_fields expected_values} {
@@ -1021,6 +1030,27 @@ namespace eval twapi::share::test {
     test get_client_shares-1.0 {
         Get list of client shares
     } -constraints {
+        systemmodificationok
+    } -setup {
+        create_mapped_client_share
+        create_unmapped_client_share
+    } -body {
+        set found_mapped 0
+        set found_unmapped 0
+        foreach path [twapi::get_client_shares] {
+            if {[string equal -nocase $path $testshares(client_share_unmapped)]} {
+                set found_unmapped 1
+            }
+            if {[string equal -nocase $path $testshares(client_share_mapped)]} {
+                set found_mapped 1
+            }
+        }
+        list $found_mapped  $found_unmapped
+    } -result {1 1}
+
+    test get_client_shares-2.0 {
+        Get list of client shares -level 0
+    } -constraints {
         nt systemmodificationok
     } -setup {
         create_mapped_client_share
@@ -1028,7 +1058,9 @@ namespace eval twapi::share::test {
     } -body {
         set found_mapped 0
         set found_unmapped 0
-        foreach share [twapi::get_client_shares] {
+        set ra [twapi::get_client_shares -level 0]
+        verify_recordarray $ra {-localdevice -remoteshare}
+        foreach share [twapi::recordarray getlist $ra] {
             foreach {device path} $share break
             if {[string equal -nocase $path $testshares(client_share_unmapped)] &&
                 [string length $device] == 0} {
@@ -1040,8 +1072,48 @@ namespace eval twapi::share::test {
                 set found_mapped 1
             }
         }
-        expr {$found_mapped && $found_unmapped}
-    } -result 1
+        list $found_mapped  $found_unmapped
+    } -result {1 1}
+
+
+    test get_client_shares-3.0 { 
+        Get list of client shares -level 1
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        create_mapped_client_share
+        create_unmapped_client_share
+    } -body {
+        set found_mapped 0
+        set found_unmapped 0
+        set ra [twapi::get_client_shares -level 1]
+        verify_recordarray $ra {-password -localdevice -remoteshare -type -opencount -status -usecount}
+        set msgs {}
+        foreach share [twapi::recordarray getlist $ra -format dict] {
+            append msgs [verify_client_share [dict get $share -remoteshare] $share {-localdevice -remoteshare -type -opencount -status -usecount -password}]
+        }
+        set msgs
+    } -result ""
+
+
+    test get_client_shares-4.0 { 
+        Get list of client shares -level 2
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        create_mapped_client_share
+        create_unmapped_client_share
+    } -body {
+        set found_mapped 0
+        set found_unmapped 0
+        set ra [twapi::get_client_shares -level 2]
+        verify_recordarray $ra {-password -localdevice -remoteshare -type -opencount -status -usecount -domain -user}
+        set msgs {}
+        foreach share [twapi::recordarray getlist $ra -format dict] {
+            append msgs [verify_client_share [dict get $share -remoteshare] $share {-localdevice -remoteshare -type -opencount -status -usecount -password -domain -user}]
+        }
+        set msgs
+    } -result ""
 
     ################################################################
 
@@ -1152,53 +1224,53 @@ namespace eval twapi::share::test {
     ###
 
     test find_lm_sessions-3.0 {
-        Find all Lan Manager sessions using -client specified as UNC
+        Find all Lan Manager sessions using -matchclient specified as UNC
     } -constraints {
         nt systemmodificationok
     } -setup {
         create_unmapped_client_share
     } -body {
         # Assumes we are only connected to ourselves on one session
-        verify_lm_test_sessions [::twapi::find_lm_sessions -client \\\\127.0.0.1 -all] $lm_session_fields [list -clientname "\\\\127.0.0.1"] 1
+        verify_lm_test_sessions [::twapi::find_lm_sessions -matchclient \\\\127.0.0.1 -all] $lm_session_fields [list -clientname "\\\\127.0.0.1"] 1
     } -result ""
 
     ###
 
     test find_lm_sessions-3.1 {
-        Find all Lan Manager sessions using -client specified as non-UNC
+        Find all Lan Manager sessions using -matchclient specified as non-UNC
     } -constraints {
         nt systemmodificationok
     } -setup {
         create_unmapped_client_share
     } -body {
         # Assumes we are only connected to ourselves on one session
-        verify_lm_test_sessions [::twapi::find_lm_sessions -client 127.0.0.1 -all] $lm_session_fields [list -clientname "\\\\127.0.0.1"] 1
+        verify_lm_test_sessions [::twapi::find_lm_sessions -matchclient 127.0.0.1 -all] $lm_session_fields [list -clientname "\\\\127.0.0.1"] 1
     } -result ""
 
     ###
 
     test find_lm_sessions-3.2 {
-        Find all Lan Manager sessions using nonmatching -client specified as UNC
+        Find all Lan Manager sessions using nonmatching -matchclient specified as UNC
     } -constraints {
         nt systemmodificationok
     } -setup {
         create_unmapped_client_share
     } -body {
         # Assumes we are only connected to ourselves on one session
-        verify_lm_test_sessions [::twapi::find_lm_sessions -client \\\\nosuchclient -all] $lm_session_fields [list ] 0 0
+        verify_lm_test_sessions [::twapi::find_lm_sessions -matchclient \\\\nosuchclient -all] $lm_session_fields [list ] 0 0
     } -result ""
 
     ###
 
     test find_lm_sessions-3.3 {
-        Find all Lan Manager sessions using nonmatching -client specified as non-UNC
+        Find all Lan Manager sessions using nonmatching -matchclient specified as non-UNC
     } -constraints {
         nt systemmodificationok
     } -setup {
         create_unmapped_client_share
     } -body {
         # Assumes we are only connected to ourselves on one session
-        verify_lm_test_sessions [::twapi::find_lm_sessions -client nosuchclient -all] $lm_session_fields [list ] 0 0
+        verify_lm_test_sessions [::twapi::find_lm_sessions -matchclient nosuchclient -all] $lm_session_fields [list ] 0 0
     } -result ""
 
     ###
@@ -1210,7 +1282,7 @@ namespace eval twapi::share::test {
     } -setup {
         create_unmapped_client_share
     } -body {
-        verify_lm_test_sessions [::twapi::find_lm_sessions -user $::env(USERNAME) -all] $lm_session_fields [list -username $::env(USERNAME)] 1
+        verify_lm_test_sessions [::twapi::find_lm_sessions -matchuser $::env(USERNAME) -all] $lm_session_fields [list -user $::env(USERNAME)] 1
     } -result ""
 
     ###
@@ -1222,7 +1294,7 @@ namespace eval twapi::share::test {
     } -setup {
         create_unmapped_client_share
     } -body {
-        verify_lm_test_sessions [::twapi::find_lm_sessions -user nosuchuser -all] $lm_session_fields [list ] 0 0
+        verify_lm_test_sessions [::twapi::find_lm_sessions -matchuser nosuchuser -all] $lm_session_fields [list ] 0 0
     } -result ""
 
     test find_lm_sessions-5.0 {
@@ -1338,7 +1410,7 @@ namespace eval twapi::share::test {
         create_unmapped_client_share
     } -body {
         ::twapi::end_lm_sessions -user nosuchuser
-        verify_lm_test_sessions [::twapi::find_lm_sessions -user $::env(USERNAME) -all] $lm_session_fields [list ] 1
+        verify_lm_test_sessions [::twapi::find_lm_sessions -matchuser $::env(USERNAME) -all] $lm_session_fields [list ] 1
     } -result ""
 
     ###
@@ -1352,7 +1424,7 @@ namespace eval twapi::share::test {
     } -body {
         # Note - because the client sometimes reconnects, this test might fail
         ::twapi::end_lm_sessions -user $::env(USERNAME)
-        verify_lm_test_sessions [::twapi::find_lm_sessions -user $::env(USERNAME) -all] $lm_session_fields [list ] 0 0
+        verify_lm_test_sessions [::twapi::find_lm_sessions -matchuser $::env(USERNAME) -all] $lm_session_fields [list ] 0 0
     } -result ""
 
     ###
@@ -1371,8 +1443,7 @@ namespace eval twapi::share::test {
             ::twapi::end_lm_sessions -user $::env(USERNAME) -system \\\\127.0.0.1
         }
 
-        puts [::twapi::find_lm_sessions -user $::env(USERNAME) -all]
-        verify_lm_test_sessions [::twapi::find_lm_sessions -user $::env(USERNAME) -all] $lm_session_fields [list ] 0 0
+        verify_lm_test_sessions [::twapi::find_lm_sessions -matchuser $::env(USERNAME) -all] $lm_session_fields [list ] 0 0
         
     } -result "" -returnCodes {0 1}
 
@@ -1392,7 +1463,7 @@ namespace eval twapi::share::test {
             ::twapi::end_lm_sessions -user $::env(USERNAME) -system 127.0.0.1
         }
 
-        verify_lm_test_sessions [::twapi::find_lm_sessions -user $::env(USERNAME) -all] $lm_session_fields [list ] 0 0
+        verify_lm_test_sessions [::twapi::find_lm_sessions -matchuser $::env(USERNAME) -all] $lm_session_fields [list ] 0 0
     } -result ""
 
     ###
@@ -1406,7 +1477,7 @@ namespace eval twapi::share::test {
     } -body {
         # Note - because the client sometimes reconnects, this test might fail
         ::twapi::end_lm_sessions -client \\\\127.0.0.1
-        verify_lm_test_sessions [::twapi::find_lm_sessions -client \\\\127.0.0.1 -all] $lm_session_fields [list ] 0 0
+        verify_lm_test_sessions [::twapi::find_lm_sessions -matchclient \\\\127.0.0.1 -all] $lm_session_fields [list ] 0 0
     } -result ""
 
     ###
@@ -1420,7 +1491,7 @@ namespace eval twapi::share::test {
     } -body {
         # Note - because the client sometimes reconnects, this test might fail
         ::twapi::end_lm_sessions -client 127.0.0.1
-        verify_lm_test_sessions [::twapi::find_lm_sessions -client \\\\127.0.0.1 -all] $lm_session_fields [list ] 0 0
+        verify_lm_test_sessions [::twapi::find_lm_sessions -matchclient \\\\127.0.0.1 -all] $lm_session_fields [list ] 0 0
     } -result ""
 
     ###
@@ -1433,7 +1504,7 @@ namespace eval twapi::share::test {
         create_unmapped_client_share
     } -body {
         ::twapi::end_lm_sessions -client \\\\127.0.0.2
-        verify_lm_test_sessions [::twapi::find_lm_sessions -client \\\\127.0.0.1 -all] $lm_session_fields [list ] 1
+        verify_lm_test_sessions [::twapi::find_lm_sessions -matchclient \\\\127.0.0.1 -all] $lm_session_fields [list ] 1
     } -result ""
 
     ################################################################
@@ -1572,13 +1643,13 @@ namespace eval twapi::share::test {
     ###
 
     test get_lm_session_info-10.0 {
-        Get Lan Manager session information -username
+        Get Lan Manager session information -user
     } -constraints {
         nt systemmodificationok
     } -setup {
         create_unmapped_client_share
     } -body {
-        verify_lm_test_session [::twapi::get_lm_session_info 127.0.0.1 $::env(USERNAME) -username] [list -username] [list -username $::env(USERNAME)]
+        verify_lm_test_session [::twapi::get_lm_session_info 127.0.0.1 $::env(USERNAME) -user] [list -user] [list -user $::env(USERNAME)]
     } -result ""
 
     ###
@@ -1599,7 +1670,7 @@ namespace eval twapi::share::test {
     test find_lm_connections-1.0 {
         Find all Lan Manager connections with no options
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         create_unmapped_client_share
     } -body {
@@ -1611,7 +1682,7 @@ namespace eval twapi::share::test {
     test find_lm_connections-2.0 {
         Find all Lan Manager connections with -all
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         create_unmapped_client_share
     } -body {
@@ -1784,13 +1855,13 @@ namespace eval twapi::share::test {
     ###
 
     test find_lm_connections-11.0 {
-        Find Lan Manager connections getting data -username
+        Find Lan Manager connections getting data -user
     } -constraints {
         nt systemmodificationok
     } -setup {
         create_unmapped_client_share
     } -body {
-        verify_lm_test_connections [::twapi::find_lm_connections -client 127.0.0.1 -username] [list -username] [list ]
+        verify_lm_test_connections [::twapi::find_lm_connections -client 127.0.0.1 -user] [list -user] [list ]
     } -result ""
 
     ################################################################
@@ -1798,7 +1869,7 @@ namespace eval twapi::share::test {
     test find_lm_open_files-1.0 {
         Find files opened through LAN manager sessions
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         create_unmapped_client_share
         set fn "find_lm_open_files-1.0"
@@ -1815,7 +1886,7 @@ namespace eval twapi::share::test {
     test find_lm_open_files-2.0 {
         Find files opened through LAN manager sessions matching a base path
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         create_unmapped_client_share
         set subdir "find_lm_open_files-2.0"
@@ -1838,7 +1909,7 @@ namespace eval twapi::share::test {
     test find_lm_open_files-2.1 {
         Find files opened through LAN manager sessions matching a base path specified in Unix format
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         create_unmapped_client_share
         set subdir "find_lm_open_files-2.0"
@@ -1926,7 +1997,7 @@ namespace eval twapi::share::test {
     ###
 
     test find_lm_open_files-7.0 {
-        Find files opened through LAN manager sessions -username
+        Find files opened through LAN manager sessions -user
     } -constraints {
         nt systemmodificationok
     } -setup {
@@ -1935,7 +2006,7 @@ namespace eval twapi::share::test {
         tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $fn]
         set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
-        verify_lm_test_openfiles [twapi::find_lm_open_files -username] [list -username] [list -username $::env(USERNAME)]
+        verify_lm_test_openfiles [twapi::find_lm_open_files -user] [list -user] [list -user $::env(USERNAME)]
     } -cleanup {
         close $fd
     } -result ""
@@ -1957,12 +2028,27 @@ namespace eval twapi::share::test {
         close $fd
     } -result ""
 
+    test find_lm_open_files-9.0 {
+        Find files opened through LAN manager sessions -user -matchuser
+    } -constraints {
+        nt systemmodificationok
+    } -setup {
+        create_unmapped_client_share
+        set fn "find_lm_open_files-7.0"
+        tcltest::makeFile "" [file join $testshares(export_dir_unmapped) $fn]
+        set fd [open [file join $testshares(client_share_unmapped) $fn] r]
+    } -body {
+        verify_lm_test_openfiles [twapi::find_lm_open_files -user -matchuser $::env(USERNAME)] [list -user] [list -user $::env(USERNAME)]
+    } -cleanup {
+        close $fd
+    } -result ""
+
     ################################################################
 
     test close_lm_open_file-1.0 {
         Close file opened through LAN manager session
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         create_unmapped_client_share
         set fn "close_lm_open_file-1.0"
@@ -1970,7 +2056,7 @@ namespace eval twapi::share::test {
         set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
+        set lm_fid [twapi::recordarray cell [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0 -id]
         twapi::close_lm_open_file $lm_fid
         # Try reading from the file. Should fail since we closed it
         catch {set data [read $fd]}
@@ -1991,7 +2077,7 @@ namespace eval twapi::share::test {
         set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
+        set lm_fid [twapi::recordarray cell [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0 -id]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid] [list ] [list ]
     } -cleanup {
         close $fd
@@ -2002,7 +2088,7 @@ namespace eval twapi::share::test {
     test get_lm_open_file_info-2.0 {
         Get info for file opened through LAN manager session -all
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         create_unmapped_client_share
         set fn "get_lm_open_file_info-2.0"
@@ -2010,7 +2096,7 @@ namespace eval twapi::share::test {
         set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
+        set lm_fid [twapi::recordarray cell [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0 -id]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -all] $lm_openfile_fields [list -id $lm_fid]
     } -cleanup {
         close $fd
@@ -2029,7 +2115,7 @@ namespace eval twapi::share::test {
         set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
+        set lm_fid [twapi::recordarray cell [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0 -id]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -permissions] [list -permissions] [list ]
     } -cleanup {
         close $fd
@@ -2038,7 +2124,7 @@ namespace eval twapi::share::test {
     ###
 
     test get_lm_open_file_info-4.0 {
-        Get info for file opened through LAN manager session -username
+        Get info for file opened through LAN manager session -user
     } -constraints {
         nt systemmodificationok
     } -setup {
@@ -2048,8 +2134,8 @@ namespace eval twapi::share::test {
         set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
-        verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -username] [list -username] [list -username $env(USERNAME)]
+        set lm_fid [twapi::recordarray cell [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0 -id]
+        verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -user] [list -user] [list -user $env(USERNAME)]
     } -cleanup {
         close $fd
     } -result ""
@@ -2067,7 +2153,7 @@ namespace eval twapi::share::test {
         set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
+        set lm_fid [twapi::recordarray cell [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0 -id]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -path] [list -path] [list ]
     } -cleanup {
         close $fd
@@ -2086,7 +2172,7 @@ namespace eval twapi::share::test {
         set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
+        set lm_fid [twapi::recordarray cell [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0 -id]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -lockcount] [list -lockcount] [list ]
     } -cleanup {
         close $fd
@@ -2105,7 +2191,7 @@ namespace eval twapi::share::test {
         set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
+        set lm_fid [twapi::recordarray cell [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0 -id]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -id] [list -id] [list -id $lm_fid]
     } -cleanup {
         close $fd
@@ -2124,7 +2210,7 @@ namespace eval twapi::share::test {
         set fd [open [file join $testshares(client_share_unmapped) $fn] r]
     } -body {
         # Find the file id for the file
-        set lm_fid [lindex [lindex [twapi::find_lm_open_files -system 127.0.0.1 -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0] 1]
+        set lm_fid [twapi::recordarray cell [twapi::find_lm_open_files -system 127.0.0.1 -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0 -id]
         verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -system \\\\127.0.0.1 -all] $lm_openfile_fields [list -id $lm_fid]
     } -cleanup {
         close $fd
@@ -2165,7 +2251,7 @@ namespace eval twapi::share::test {
     test get_client_share_info-2.0 {
         Get info for a mapped client share with no options
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         create_mapped_client_share
     } -body {
@@ -2176,7 +2262,7 @@ namespace eval twapi::share::test {
     test get_client_share_info-2.1 {
         Get info for a mapped client share -all
     } -constraints {
-        nt systemmodificationok
+        systemmodificationok
     } -setup {
         create_mapped_client_share
     } -body {

@@ -242,7 +242,7 @@ Returns the share type of the resource to which the connection is made
 (see [sectref "Share Types"]).
 [opt_def [cmd -usercount]]
 Returns number of users currently using the connection.
-[opt_def [cmd -username]]
+[opt_def [cmd -user]]
 Returns name of the user that made the connection.
 [list_end]
 
@@ -258,13 +258,16 @@ for a list of these options.
 In addition, the following [arg options] specify matching
 criteria that control which records are returned:
 [list_begin opt]
-[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
-on which the command is to be executed. By default, this is the local
-system.
 [opt_def [cmd -basepath] [arg PATHPREFIX]] Specifies that all returned
 files should have begin with [arg PATHPREFIX].
 If [arg PATHPREFIX]
 is an empty string (default), all open files are included.
+[opt_def [cmd -matchuser] [arg USERNAME]] Specifies the name of the
+user whose sessions are to be included. If [arg USERNAME]
+is an empty string (default), all users are included.
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
+on which the command is to be executed. By default, this is the local
+system.
 [list_end]
 
 [call [cmd find_lm_sessions] [opt [arg options]]]
@@ -279,15 +282,15 @@ for a list of these options.
 In addition, the following [arg options] specify matching
 criteria that control which sessions are returned:
 [list_begin opt]
+[opt_def [cmd -matchclient] [arg cLIENTNAME]] Specifies the name of the
+client system whose sessions are to be included. If [arg CLIENTNAME]
+is an empty string (default), all client systems are included.
+[opt_def [cmd -matchuser] [arg USERNAME]] Specifies the name of the
+user whose sessions are to be included. If [arg USERNAME]
+is an empty string (default), all users are included.
 [opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the name of the system
 on which the command is to be executed. By default, this is the local
 system.
-[opt_def [cmd -client] [arg SYSTEMNAME]] Specifies the name of the
-client system whose sessions are to be included. If [arg SYSTEMNAME]
-is an empty string (default), all client systems are included.
-[opt_def [cmd -user] [arg USERNAME]] Specifies the name of the
-user whose sessions are to be included. If [arg USERNAME]
-is an empty string (default), all users are included.
 [list_end]
 
 [call [cmd get_client_share_info] [arg SHAREPATH] [opt [arg options]]]
@@ -296,7 +299,7 @@ by [arg SHAREPATH]. [arg SHAREPATH] may be either a UNC format share
 or a locally mapped device.
 [nl]
 The information returned depends on the specified options and is in
-the form of a flat list of "[arg option] [arg value]" pairs.
+the form of a dictionary.
 [list_begin opt]
 [opt_def [cmd -all]]
 Returns all configuration data for the connected share.
@@ -339,16 +342,12 @@ system.
 [opt_def [cmd -level] [arg LEVEL]]
 Specifies the level of detail to be returned (see below).
 [list_end]
-If the [cmd -level] option is not specified, the returned list
-consists of sublists corresponding to each connected network share. The first
-element of each sublist is the local device (for example [const X:]). This
-may be an empty string if the connection has not been mapped to a local device.
-The second element of the sublist is the name of the server share for
-the connection.
+If the [cmd -level] option is not specified, the returned list contains
+the paths of the remote server shares.
 [nl]
-If [cmd -level] is specified, the command returns
-a nested list of keyed lists, one per share. The fields in each keyed list 
-depend on [arg LEVEL] as follows:
+If [cmd -level] is specified, the command returns a
+[uri base.html#recordarrays "record array"]
+whose fields depend on [arg LEVEL] as follows:
 [list_begin opt]
 [opt_def [const 0]]
 [const -localdevice], [const -remoteshare]
@@ -364,9 +363,6 @@ Refer to
 [uri \#get_client_share_info [cmd get_client_share_info]] for
 a description of these fields.
 
-[call [cmd get_mapped_share_info] [arg SHAREPATH] [opt [arg options]]]
-[emph "This command is no longer available. Use [uri \#get_client_share_info [cmd get_client_share_info]] instead."]
-
 [call [cmd get_share_info] [arg SHARENAME] [opt [arg options]]]
 
 Retrieves information pertaining to the specified share. By default,
@@ -375,7 +371,7 @@ be used to specify the name of a remote system.
 
 [nl]
 The information returned depends on the specified options and is in
-the form of a flat list of "[arg option] [arg value]" pairs.
+the form of a dictionary.
 [list_begin opt]
 [opt_def [cmd -all]] Returns all configuration data for the share.
 [opt_def [cmd -name]] Returns the name of the share as configured. This
@@ -411,15 +407,15 @@ shares (see [sectref "Share Types"]) not to be included in the enumeration.
 [list_end]
 If the [cmd -level] option is not specified, the command returns
 a list of share names. If [cmd -level] is specified the command returns
-a nested list of keyed lists, one per share. The fields in each keyed list 
-depend on [arg LEVEL] as follows:
+a [uri base.html#recordarrays "record array"]
+whose fields depend on [arg LEVEL] as follows:
 [list_begin opt]
 [opt_def [const 0]]
-[const name]
-[opt_def [const 1]] [const name], [const remark], [const type]
+[const -name]
+[opt_def [const 1]] [const -name], [const -remark], [const -type]
 [opt_def [const 2]] [const current_uses],
-[const max_uses], [const netname], [const passwd], [const path],
-[const permissions], [const remark], [const type].
+[const max_uses], [const -netname], [const -passwd], [const -path],
+[const -permissions], [const -remark], [const -type].
 [list_end]
 
 [call [cmd get_lm_open_file_info] [arg FILEID] [opt [arg options]]]
@@ -446,7 +442,7 @@ Returns all data fields.
 [opt_def -permissions] Returns a list of zero or more from among
 [const read], [const write] and [const create] corresponding to the
 access permissions for the opening application.
-[opt_def -username] Returns the name of the user that opened the resource.
+[opt_def -user] Returns the name of the user that opened the resource.
 [list_end]
 
 
@@ -486,7 +482,7 @@ Returns the number of open files, devices and pipes opened in the
 session.
 [opt_def [cmd -transport]]
 Returns the name of the underlying transport over which the session runs.
-[opt_def [cmd -username]]
+[opt_def [cmd -user]]
 Returns the name of the user account under which the session was
 established.
 [list_end]

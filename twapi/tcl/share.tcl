@@ -298,7 +298,6 @@ proc twapi::disconnect_share {sharename args} {
 
 # Get information about a connected share
 proc twapi::get_client_share_info {sharename args} {
-
     if {$sharename eq ""} {
         error "A share name cannot be the empty string"
     }
@@ -319,7 +318,7 @@ proc twapi::get_client_share_info {sharename args} {
     # that else select any of the local devices mapped to it
     # TBD - any better way of finding out a mapping than calling
     # get_client_shares?
-    foreach {elem_device elem_unc} [recordarray getlist [get_client_shares -level 1] -format flat] {
+    foreach {elem_device elem_unc} [recordarray getlist [get_client_shares -level 0] -format flat] {
         if {[string equal -nocase $sharename $elem_unc]} {
             if {$elem_device eq ""} {
                 # Found an entry without a local device. Use it
@@ -385,9 +384,9 @@ proc twapi::get_client_share_info {sharename args} {
     if {$opts(-all) || $opts(-comment) || $opts(-provider)} {
         # Only get this information if we are connected
         if {$shareinfo(-status) eq "connected"} {
-            array set wnetinfo [lindex [Twapi_WNetGetResourceInformation $unc "" 0] 0]
-            set shareinfo(-comment) $wnetinfo(lpComment)
-            set shareinfo(-provider) $wnetinfo(lpProvider)
+            set wnetinfo [lindex [Twapi_WNetGetResourceInformation $unc "" 0] 0]
+            set shareinfo(-comment) [lindex $wnetinfo 6]
+            set shareinfo(-provider) [lindex $wnetinfo 7]
         } else {
             set shareinfo(-comment) ""
             set shareinfo(-provider) ""
@@ -424,12 +423,12 @@ proc twapi::get_client_share_info {sharename args} {
 proc twapi::find_lm_sessions args {
     array set opts [parseargs args {
         all
-        {client.arg ""}
+        {matchclient.arg ""}
         {system.arg ""}
-        {user.arg ""}
+        {matchuser.arg ""}
         transport
         clientname
-        username
+        user
         clienttype
         opencount
         idleseconds
@@ -440,10 +439,10 @@ proc twapi::find_lm_sessions args {
     set level [_calc_minimum_session_info_level opts]
     
     # On all platforms, client must be in UNC format
-    set opts(client) [_make_unc_computername $opts(client)]
+    set opts(matchclient) [_make_unc_computername $opts(matchclient)]
 
     trap {
-        set sessions [_net_enum_helper NetSessionEnum -system $opts(system) -preargs [list $opts(client) $opts(user)] -level $level -fields [SESSION_INFO_$level]]
+        set sessions [_net_enum_helper NetSessionEnum -system $opts(system) -preargs [list $opts(matchclient) $opts(matchuser)] -level $level -fields [SESSION_INFO_$level]]
     } onerror {TWAPI_WIN32 2312} {
         # No session matching the specified client
         set sessions {}
@@ -463,7 +462,7 @@ proc twapi::get_lm_session_info {client user args} {
         {system.arg ""}
         transport
         clientname
-        username
+        user
         clienttype
         opencount
         idleseconds
@@ -526,18 +525,18 @@ proc twapi::find_lm_open_files args {
     array set opts [parseargs args {
         {basepath.arg ""}
         {system.arg ""}
-        {user.arg ""}
+        {matchuser.arg ""}
         all
         permissions
         id
         lockcount
         path
-        username
+        user
     } -maxleftover 0]
 
     set level 3
     if {! ($opts(all) || $opts(permissions) || $opts(lockcount) ||
-           $opts(path) || $opts(username))} {
+           $opts(path) || $opts(user))} {
         # Only id's required
         set level 2
     }
@@ -545,7 +544,7 @@ proc twapi::find_lm_open_files args {
     # TBD - change to use -resume option to _net_enum_helper as there
     # might be a lot of files
     trap {
-        set files [_net_enum_helper NetFileEnum -system $opts(system) -preargs [list [file nativename $opts(basepath)] $opts(user)] -level $level -fields [FILE_INFO_$level]]
+        set files [_net_enum_helper NetFileEnum -system $opts(system) -preargs [list [file nativename $opts(basepath)] $opts(matchuser)] -level $level -fields [FILE_INFO_$level]]
     } onerror {TWAPI_WIN32 2221} {
         # No files matching the user
         set files [list [FILE_INFO_$level] {}]
@@ -563,7 +562,7 @@ proc twapi::get_lm_open_file_info {fid args} {
         id
         lockcount
         path
-        username
+        user
     } -maxleftover 0]
 
     # System name is specified. If NT, make sure it is UNC form
@@ -573,7 +572,7 @@ proc twapi::get_lm_open_file_info {fid args} {
     
     set level 3
     if {! ($opts(all) || $opts(permissions) || $opts(lockcount) ||
-           $opts(path) || $opts(username))} {
+           $opts(path) || $opts(user))} {
         # Only id's required. We actually already have this but don't
         # return it since we want to go ahead and make the call in case
         # the id does not exist
@@ -608,7 +607,7 @@ proc twapi::find_lm_connections args {
         opencount
         usercount
         activeseconds
-        username
+        user
         clientname
         sharename
     } -maxleftover 0]
@@ -629,7 +628,7 @@ proc twapi::find_lm_connections args {
 
     set level 0
     if {$opts(all) || $opts(type) || $opts(opencount) ||
-        $opts(usercount) || $opts(username) ||
+        $opts(usercount) || $opts(user) ||
         $opts(activeseconds) || $opts(clientname) || $opts(sharename)} {
         set level 1
     }
@@ -641,7 +640,7 @@ proc twapi::find_lm_connections args {
     # NOTE fields MUST BE IN SAME ORDER AS VALUES BELOW
     if {! $opts(all)} {
         set fields {}
-        foreach opt {id opencount usercount activeseconds username type} {
+        foreach opt {id opencount usercount activeseconds user type} {
             if {$opts(all) || $opts($opt)} {
                 lappend fields -$opt
             }
@@ -717,7 +716,7 @@ proc twapi::_calc_minimum_session_info_level {v_opts} {
         return 2
     } elseif {$opts(opencount) || $opts(attrs)} {
         return 1
-    } elseif {$opts(clientname) || $opts(username) ||
+    } elseif {$opts(clientname) || $opts(user) ||
         $opts(idleseconds) || $opts(activeseconds)} {
         return 10
     } else {
@@ -734,7 +733,7 @@ proc twapi::_format_lm_sessions {sessions v_opts} {
     if {! $opts(all)} {
         set fields {}
         foreach opt {
-            transport username opencount idleseconds activeseconds
+            transport user opencount idleseconds activeseconds
             clienttype clientname attrs
         } {
             if {$opts(all) || $opts($opt)} {
@@ -759,10 +758,10 @@ proc twapi::_format_lm_sessions {sessions v_opts} {
     # Need to map client name and attrs fields
     set recs {}
     foreach rec [recordarray getlist $sessions] {
-        if {[info exists $client_enum]} {
+        if {[info exists client_enum]} {
             lset rec $client_enum [_make_unc_computername [lindex $rec $client_enum]]
         }
-        if {[info exists $attrs_enum]} {
+        if {[info exists attrs_enum]} {
             set attrs {}
             set flags [lindex $rec $attrs_enum]
             if {$flags & 1} {
@@ -786,7 +785,7 @@ proc twapi::_format_lm_open_files {files v_opts} {
     if {! $opts(all)} {
         set fields {}
         foreach opt {
-            id lockcount path username permissions
+            id lockcount path user permissions
         } {
             if {$opts(all) || $opts($opt)} {
                 lappend fields -$opt
@@ -908,50 +907,6 @@ proc twapi::_make_unc_computername {name} {
     } else {
         return "\\\\[string trimleft $name \\]"
     }
-}
-
-# Maps a USE_INFO struct as returned from C level
-proc twapi::_map_USE_INFO {useinfo} {
-    array set shareinfo $useinfo
-
-    array set result {}
-    foreach {opt field} {
-        -user           username
-        -localdevice    local
-        -remoteshare    remote
-        -usecount       usecount
-        -opencount      refcount
-        -status         status
-        -type           asg_type
-        -domain         domainname
-    } {
-        if {[info exists shareinfo($field)]} {
-            set result($opt) $shareinfo($field)
-        }
-    }
-
-    # Map values to symbols
-
-    if {[info exists result(-status)]} {
-        # Map code 0-5
-        set temp [lindex {connected paused lostsession disconnected networkerror connecting reconnecting} $result(-status)]
-        if {$temp ne ""} {
-            set result(-status) $temp
-        } else {
-            set result(-status) "unknown"
-        }
-    }
-
-    if {[info exists result(-type)]} {
-        set temp [lindex {file printer char ipc} $result(-type)]
-        if {$temp ne ""} {
-            set result(-type) $temp
-        } else {
-            set result(-type) "unknown"
-        }
-    }
-
-    return [array get result]
 }
 
 proc twapi::_map_useinfo_status {status} {
