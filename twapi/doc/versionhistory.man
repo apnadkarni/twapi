@@ -7,13 +7,17 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 4.0.35 Beta"]
+[section "Version 4.0.50 Beta"]
 Major changes in this release are support for Windows event tracing,
 new Windows event logging API, SSL/TLS sockets,
 greatly enhanced support for CryptoAPI including certificate handling,
 access to performance counters,
 enhancements to the COM module and architectural changes for modularity
 and run-time performance.
+[para]
+Make a special note of the list of [emph "Incompatible Changes"]
+at the end of this section. Some of these differences apply to prior
+4.0 betas as well.
 
 [list_begin bullet]
 
@@ -137,9 +141,11 @@ and [uri #get_numa_config [cmd get_numa_config]].
 [para]
 The following table lists incompatibilities and potential incompatibilities
 with respect to TWAPI 3.1.
-[list_begin opt]
 
-[opt_def "Base module"]
+[para]
+Base module
+
+[list_begin opt]
 
 [opt_def [uri base.html#debuglog [cmd debuglog]]]
 Calling interface has changed.
@@ -155,15 +161,22 @@ The [var errorCode], [var errorResult] and
 [var errorInfo] variables are no longer brought into scope
 automatically in onerror clauses.
 
+[list_end]
 
-[opt_def "Users and Groups"]
+Users and Groups
+
+[list_begin opt]
 
 [opt_def "[uri users.html#get_global_groups get_global_groups] [uri users.html#get_global_group_members get_global_group_members] [uri users.html#get_local_groups get_local_groups] [uri users.html#get_local_group_members get_local_group_members] [uri users.html#get_users get_users]"]
 Commands return [uri base.html#recordarrays "record arrays"]
 instead of a list when the [cmd -level]
 option is used. Field and optin names have been changed for consistency.
 
-[opt_def "Network configuration"]
+[list_end]
+
+Network configuration
+
+[list_begin opt]
 
 [opt_def address_to_hostname] Removed. Use
 the [uri network.html#resolve_address [cmd resolve_address]] command instead.
@@ -187,48 +200,72 @@ instead of lists.
 
 [opt_def [cmd hostname_to_address]] Removed. Use
 the [uri network.html#resolve_hostname [cmd resolve_hostname]] command instead.
+[list_end]
 
-[opt_def COM]
+COM
+
+[list_begin opt]
 [opt_def "COM SAFEARRAY"]
 Multidimensional arrays are returned as nested lists. In 3.1, they
 were returned as a single flat list.
 
-[opt_def "Network Shares and Lan Manager"]
+[list_end]
+
+Network Shares and Lan Manager
+
+[list_begin opt]
+
 [opt_def "[uri share.html#find_lm_connections find_lm_connections] [uri share.html#find_lm_sessions find_lm_sessions] [uri share.html#find_lm_open_files find_lm_open_files] [uri share.html#get_client_shares get_client_shares] [uri share.html#get_shares get_shares]"]
 Commands return [uri base.html#recordarrays "record arrays"]
 instead of a list when the [cmd -level]
 option is used. Field and option names have been changed for consistency.
 
+[list_end]
 
-[opt_def "Services"]
+Services
+
+[list_begin opt]
 [opt_def "[uri services.html#get_multiple_service_status get_multiple_service_status] [uri services.html#get_dependent_service_status get_dependent_service_status]"]
 Changed to return [uri base.html#recordarrays "record arrays"].
 
-[opt_def "Device module"]
+[list_end]
+
+Device module
+
+[list_begin opt]
 [opt_def [uri device.html#device_ioctl device_ioctl]]
 Calling interface has changed.
 
-[opt_def "Windows Shell"]
-[opt_def "file_properties_dialog printer_properties_dialog"] Removed.
-Use [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]] instead.
+[list_end]
 
+Windows Shell
+
+[list_begin opt]
+
+[opt_def "file_properties_dialog printer_properties_dialog volume_properties_dialog"] Removed.
+Use [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]] instead.
 
 [opt_def [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]]]
 Defaults the object type to [const file]
 instead of attempting to guess the type.
 
-
 [opt_def [cmd TwapiThemeDefineValue]] Removed.
 
-[opt_def [cmd volume_properties_dialog]] Removed.
-Use [uri shell.html#shell_object_properties_dialog [cmd shell_object_properties_dialog]] instead.
+[list_end]
 
+Storage
+
+[list_begin opt]
 
 [opt_def [cmd get_logical_drives]]
 Removed. Use [uri storage.html#find_logical_drives [cmd find_logical_drives]]
 instead.
 
-[opt_def "Processes and Threads"]
+[list_end]
+
+Processes and Threads
+
+[list_begin opt]
 [opt_def [uri process.html#get_process_info get_process_info]]
 The [cmd -toplevels] option
 is no longer available. 
@@ -243,8 +280,14 @@ Rate based performance options have been removed.
 Equivalent functionality is available through
 [uri pdh.html "performance counters"] commands.
 
+[opt_def [uri process.html#get_device_drivers get_device_drivers]]
+Changed to return [uri base.html#recordarrays "record arrays"].
 
-[opt_def "System module"]
+[list_end]
+
+System module
+
+[list_begin opt]
 [opt_def get_active_processor_mask]
 Removed. Use [uri #get_processor_group_configuration [cmd get_processor_group_configuration]] instead.
 [opt_def [uri osinfo.html#get_processor_info get_processor_info]]
@@ -263,6 +306,12 @@ functionality is available through the
 [opt_def [uri base.html#large_system_time_to_timelist [cmd large_system_time_to_timelist]]]
 Returns an additional element - the day of the week.
 
+[list_end]
+
+Security and CryptoAPI
+
+[list_begin opt]
+
 [opt_def "Password handling"]
 Many commands which take a password as an argument now expect it to be
 passed in encrypted form as returned by 
@@ -275,13 +324,13 @@ Commands new in 4.0 will only work with the new encrypted password forms.
 
 [opt_def "[uri sspi.html SSPI] interface"] API has been completely redone (post-4.0b23)
 and commands in older versions are no longer present.
+[list_end]
 
-[opt_def "Printers"]
+Printers
+
+[list_begin opt]
 [opt_def [uri printer.html#enumerate_printers enumerate_printers]]
 Changed to return [uri base.html#recordarrays "record arrays"].
-
-
-
 [list_end]
 
 [section "Version 3.1"]
