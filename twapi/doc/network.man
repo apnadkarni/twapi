@@ -36,7 +36,7 @@ Flushes the ARP tables associated with the specified network interfaces.
 If no arguments are specified, all interfaces are flushed.
 
 
-[call [cmd get_arp_table] [opt [arg options]]]
+[call [cmd get_arp_table] [opt [cmd -sort]]]
 [emph "Note: This command only retrieves IPv4 tables"]
 [nl]
 Returns the entries in the system's ARP table. Each entry is a sublist
@@ -45,20 +45,10 @@ the IP address and the type. The type is one of [const dynamic],
 [const static], [const other]  or [const invalid]. Note the hardware
 address may be empty, for example when the associated interface is
 the loopback adapter.
-[nl]
-The following options control the returned data:
-[list_begin opt]
-[opt_def [cmd -ifindex] [arg INTERFACEINDEX]]Limits the returned entries
-to those in the ARP table for the specified network interface with index
-[arg INTERFACEINDEX].
-[opt_def [cmd -sort]]Returns the entries sorted by interface index, then 
+If option [cmd -sort] is specified,
+returns the entries sorted by interface index, then 
 IP address.
-[opt_def [cmd -validonly]]Skips entries that are marked invalid.
 [list_end]
-
-[call [cmd get_ip_addresses]]
-[emph "Deprecated."] Returns list of IPv4 addresses for the system.
-Use [uri #get_system_ipaddrs [cmd get_system_ipaddrs]] instead.
 
 [call [cmd get_ipaddr_version] [arg IPADDR]]
 Returns the IP version ([const 4] or [const 6]) of the IP address specified
@@ -359,12 +349,10 @@ In that case, only addresses matching one of those types
 
 [call [cmd get_tcp_connections] [opt [arg options]]]
 Retrieves information about currently active TCP connections similar to
-the Windows [cmd netstat] command. The return value is a list of sublists,
-each corresponding to a single connection.
-[nl]
-The information returned for each connection is a flat list of the form
-"[arg option1] [arg value1] ...". The information returned for each
-connection is controlled through the following options:
+the Windows [cmd netstat] command. The return value is a 
+[uri base.html#recordarrays "record array"]
+whose fields are controlled
+through the following options:
 
 [list_begin opt]
 [opt_def [cmd -all]]
@@ -438,12 +426,10 @@ Only returns those connections whose state is one those specified in
 
 [call [cmd get_udp_connections] [opt [arg options]]]
 Retrieves information about currently active UDP sockets similar to
-the Windows [cmd netstat] command. The return value is a list of sublists,
-each corresponding to a single open socket.
-[nl]
-The information returned for each connection is a flat list of the form
-"[arg option1] [arg value1] ...". The fields returned for each
-connection is controlled through the following options:
+the Windows [cmd netstat] command. The return value is a 
+[uri base.html#recordarrays "record array"]
+whose fields are controlled
+through the following options:
 
 [list_begin opt]
 [opt_def [cmd -all]]

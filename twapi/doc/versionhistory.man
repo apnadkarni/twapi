@@ -151,9 +151,22 @@ option is used. Field names have changed to match other commands in the module.
 [opt_def address_to_hostname] Removed. Use
 the [uri network.html#resolve_address [cmd resolve_address]] command instead.
 
-[opt_def [cmd get_netif_count], [cmd get_netif6_count]] Removed.
+[opt_def [uri network.html#get_arp_table get_arp_table]]
+Returns the ARP table as a [uri base.html#recordarrays "record array"].
+Options [cmd -ifindex] and [cmd -validonly] are no longer available. Use
+record array filtering instead.
+
+[opt_def get_ip_addresses]
+Was deprecated. Now removed
+Use [uri network.html#get_system_ipaddrs [cmd get_system_ipaddrs]] instead.
+
+[opt_def [cmd get_netif_count], get_netif6_count] Removed.
 Returned internal driver interface information which was misleading
 in terms of the interfaces actually visible at the application level.
+
+[opt_def "[uri network.html#get_tcp_connections get_tcp_connections] [uri network.html#get_udp_connections get_udp_connections]"]
+Return connections as [uri base.html#recordarrays "record arrays"]
+instead of lists.
 
 [opt_def [cmd hostname_to_address]] Removed. Use
 the [uri network.html#resolve_hostname [cmd resolve_hostname]] command instead.
