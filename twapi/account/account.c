@@ -147,7 +147,10 @@ Tcl_Obj *ObjFromUSER_INFO(
         objs[13] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_last_logon);
         objs[14] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_last_logoff);
         objs[15] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_acct_expires);
-        objs[16] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_max_storage);
+        if (((USER_INFO_2*)infoP)->usri2_max_storage == (DWORD) -1)
+            objs[16] = ObjFromLong(-1); /* Do not want UINT_MAX */
+        else 
+            objs[16] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_max_storage);
         objs[17] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_units_per_week);
         objs[18] = ObjFromByteArray(((USER_INFO_2*)infoP)->usri2_logon_hours,21);
         objs[19] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_bad_pw_count);
