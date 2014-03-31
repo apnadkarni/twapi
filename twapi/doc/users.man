@@ -92,13 +92,13 @@ Enumerates the locally defined groups.
 Enumerates the members of a local group.
 [opt_def [uri \#get_global_group_members [cmd get_global_group_members]]]
 Enumerates the members of a global group.
-[opt_def [uri \#get_user_local_groups_recursive [cmd get_user_local_groups_recursive]]]
+[opt_def [uri \#get_user_local_groups [cmd get_user_local_groups]]]
 Enumerates the local groups in which a specific user account
 has direct or indirect membership.
 [list_end]
 
 With the exception of
-[uri \#get_user_local_groups_recursive [cmd get_user_local_groups_recursive]],
+[uri \#get_user_local_groups [cmd get_user_local_groups]],
 all these commands follow the same pattern of invocation 
 and use a standard set of options. Without any optional arguments, the
 commands return a simple list of user or group names as appropriate. However, 
@@ -486,7 +486,7 @@ is a member. This includes only groups of which the account is directly
 a member and does [emph not] include indirect membership
 through a global group which is itself a member of a local group.
 See
-[uri \#get_user_local_groups_recursive [cmd get_user_local_groups_recursive]]
+[uri \#get_user_local_groups [cmd get_user_local_groups]]
 for a command that will recursively include groups.
 [opt_def [cmd -logon_hours]]
 Returns a bit string of 1's and 0's corresponding to each hour
@@ -533,10 +533,15 @@ Returns a comma-separated list of upto eight workstations from which
 the user can log in.
 [list_end]
 
-[call [cmd get_user_local_groups_recursive] [arg ACCOUNT] [opt "[cmd -system] [arg SYSTEMNAME]"]]
-Returns the local groups in which the given user account is a member either
-directly or indirectly by belonging to a global group which is a member
-of a local group. This differs from the [cmd -local_groups] option of
+[call [cmd get_user_local_groups] [arg ACCOUNT] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt "[cmd -recurse] [arg BOOLEAN]"]]
+Returns the local groups in which the given user account is a member.
+If [cmd -recurse] is not specified or is specified as [const false],
+only the local groups of which the account is directly a member are
+returned. If [cmd -recurse] is specified as [const true],
+the returned list includes local groups of which the account
+is indirectly a member through its membership in
+a global group which is a member
+of the local group. This differs from the [cmd -local_groups] option of
 the [uri \#get_user_account_info [cmd get_user_account_info]] command.
 [nl]
 The option [cmd -system]

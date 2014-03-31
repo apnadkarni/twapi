@@ -172,6 +172,9 @@ Commands return [uri base.html#recordarrays "record arrays"]
 instead of a list when the [cmd -level]
 option is used. Field and optin names have been changed for consistency.
 
+[opt_def [uri users.html#get_user_local_groups_recursive get_user_local_groups_recursive]]
+[emph Deprecated]. Use [uri users.html#get_user_local_groups get_user_local_groups] with the [cmd -recurse] flag instead.
+
 [list_end]
 
 Network configuration
