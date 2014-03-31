@@ -258,6 +258,24 @@ proc twapi::get_user_account_info {account args} {
     return [array get result]
 }
 
+proc twapi::get_user_global_groups {account args} {
+    parseargs args {
+        system.arg
+        denyonly
+        all
+    } -nulldefault -maxleftover 0 -setvars
+
+    set groups {}
+    foreach elem [NetEnumResult entries [NetUserGetGroups $system [map_account_to_name $account -system $system] 1]] {
+        # 0x10 -> SE_GROUP_USE_FOR_DENY_ONLY
+        set marked_denyonly [expr {[lindex $elem 1] & 0x10}]
+        if {$all || ($denyonly && $marked_denyonly) || !($denyonly || $marked_denyonly)} {
+            lappend groups [lindex $elem 0]
+        }
+    }
+    return $groups
+}
+
 proc twapi::get_user_local_groups {account args} {
     parseargs args {
         system.arg

@@ -5653,6 +5653,51 @@ namespace eval twapi::security::test {
 
     ################################################################
 
+    test get_user_global_groups-1.0 {
+        Get list of global groups that user belongs
+    } -body {
+        set groups [twapi::get_user_global_groups $::env(USERNAME)]
+        expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info $::env(USERNAME) -global_groups] 1]]}
+    } -result 1
+
+    test get_user_global_groups-2.0 {
+        Get list of global groups that user belongs -denyonly
+    } -body {
+        set groups [twapi::get_user_global_groups $::env(USERNAME) -denyonly]
+        llength $groups
+    } -result 0
+
+    test get_user_global_groups-2.1 {
+        Get list of global groups that user belongs -all
+    } -body {
+        set groups [twapi::get_user_global_groups $::env(USERNAME) -all]
+        expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info $::env(USERNAME) -global_groups] 1]]}
+    } -result 1
+
+    test get_user_global_groups-2.2 {
+        Get list of global groups that user belongs -denyonly -all 
+    } -body {
+        set groups [twapi::get_user_global_groups $::env(USERNAME) -denyonly -all]
+        expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info $::env(USERNAME) -global_groups] 1]]}
+    } -result 1
+
+    test get_user_global_groups-3.0 {
+        Get list of global groups that user belongs -system
+    } -body {
+        set groups [twapi::get_user_global_groups $::env(USERNAME) -system $::env(COMPUTERNAME)]
+        expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info $::env(USERNAME) -global_groups] 1]]}
+    } -result 1
+
+    test get_user_global_groups-100.0 {
+        Get list of global groups that user belongs -system
+    } -constraints {
+        TBD
+    } -body {
+        Tests needed to differentiate -includedenyonly 0 and 1
+    } -result 1
+    
+    ################################################################
+
     test get_user_local_groups_recursive-1.0 {
         Get list of local groups that user belongs to directly or indirectly
     } -body {
@@ -5662,7 +5707,7 @@ namespace eval twapi::security::test {
         expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info [twapi::get_current_user] -local_groups] 1]]}
     } -result 1
 
-    test get_user_local_groups_1.0 {
+    test get_user_local_groups-1.0 {
         Get list of local groups that user belongs to directly
     } -body {
         # TBD - need to test this with nested groups - need a domain
@@ -5671,7 +5716,7 @@ namespace eval twapi::security::test {
         expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info [twapi::get_current_user] -local_groups] 1]]}
     } -result 1
 
-    test get_user_local_groups_2.0 {
+    test get_user_local_groups-2.0 {
         Get list of local groups that user belongs to directly -recurse 0
     } -body {
         # TBD - need to test this with nested groups - need a domain
@@ -5680,13 +5725,30 @@ namespace eval twapi::security::test {
         expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info [twapi::get_current_user] -local_groups] 1]]}
     } -result 1
 
-    test get_user_local_groups_2.1 {
+    test get_user_local_groups-2.1 {
         Get list of local groups that user belongs to indirectly -recurse 1
     } -body {
         # TBD - need to test this with nested groups - need a domain
         # for that. Make sure nested groups ARE INCLUDED here
         set groups [twapi::get_user_local_groups [twapi::get_current_user] -recurse 1]
         expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info [twapi::get_current_user] -local_groups] 1]]}
+    } -result 1
+
+    test get_user_local_groups-3.0 {
+        Get list of local groups that user belongs to directly -system
+    } -body {
+        # TBD - need to test this with nested groups - need a domain
+        # for that. Make sure nested groups are not included here
+        set groups [twapi::get_user_local_groups [twapi::get_current_user] -system $::env(COMPUTERNAME)]
+        expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info [twapi::get_current_user] -local_groups] 1]]}
+    } -result 1
+
+    test get_user_local_groups-100.0 {
+        Get list of local groups that -recurse
+    } -constraints {
+        TBD
+    } -body {
+        Tests needed to differentiate -recurse 0/1 with real nested groups
     } -result 1
 
     ################################################################
