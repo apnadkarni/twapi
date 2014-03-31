@@ -92,13 +92,17 @@ Enumerates the locally defined groups.
 Enumerates the members of a local group.
 [opt_def [uri \#get_global_group_members [cmd get_global_group_members]]]
 Enumerates the members of a global group.
+[opt_def [uri \#get_user_global_groups [cmd get_user_global_groups]]]
+Enumerates the global groups in which a specific user account
+has membership.
 [opt_def [uri \#get_user_local_groups [cmd get_user_local_groups]]]
 Enumerates the local groups in which a specific user account
 has direct or indirect membership.
 [list_end]
 
 With the exception of
-[uri \#get_user_local_groups [cmd get_user_local_groups]],
+[uri \#get_user_local_groups [cmd get_user_local_groups]] and
+[uri \#get_user_global_groups [cmd get_user_global_groups]],
 all these commands follow the same pattern of invocation 
 and use a standard set of options. Without any optional arguments, the
 commands return a simple list of user or group names as appropriate. However, 
@@ -532,6 +536,17 @@ Returns RID component of the user's SID.
 Returns a comma-separated list of upto eight workstations from which
 the user can log in.
 [list_end]
+
+[call [cmd get_user_global_groups] [arg ACCOUNT] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt [cmd -all]] [opt [cmd -denyonly]]]
+Returns a list of global groups in which the given user account is a member.
+Without any options, the command will only return those groups
+which are not marked as intended for deny only purposes. If the
+[cmd -denyonly] option is specified, [emph only] such groups are returned.
+If [cmd -all] is specified (which also overrides [cmd -denyonly] if present),
+both types of groups are included in the returned list.
+[nl]
+The option [cmd -system]
+may be used to specify a system as described in [sectref "Standard Options"].
 
 [call [cmd get_user_local_groups] [arg ACCOUNT] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt "[cmd -recurse] [arg BOOLEAN]"]]
 Returns the local groups in which the given user account is a member.

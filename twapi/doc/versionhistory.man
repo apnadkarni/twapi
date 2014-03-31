@@ -108,6 +108,8 @@ Added [uri base.html#tclcast [cmd tclcast]] and
 
 [bullet]
 Added commands
+[uri users.html#get_user_local_groups [cmd get_user_local_groups]],
+[uri users.html#get_user_global_groups [cmd get_user_global_groups]],
 [uri users.html#add_members_to_local_group [cmd add_members_to_local_group]],
 [uri users.html#remove_members_from_local_group [cmd remove_members_from_local_group]]
 and [cmd "-type sid"] option to [uri users.html#add_member_to_local_group [cmd add_member_to_local_group]],
