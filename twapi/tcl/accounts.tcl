@@ -9,7 +9,7 @@ package require twapi_security
 namespace eval twapi {
     record USER_INFO_0 {-name}
     record USER_INFO_1 [concat [USER_INFO_0] {
-        -password -password_age -priv -home_dir -comment -status -script_path
+        -password -password_age -priv -home_dir -comment -flags -script_path
     }]
     record USER_INFO_2 [concat [USER_INFO_1] {
         -auth_flags -full_name -usr_comment -parms 
@@ -144,7 +144,7 @@ proc twapi::get_user_account_info {account args} {
         parms 2
         units_per_week 2
         primary_group_id 4
-        status 1
+        flags 1
         logon_server 2
         country_code 2
         home_dir 1
@@ -172,6 +172,7 @@ proc twapi::get_user_account_info {account args} {
 
     array set opts [parseargs args \
                         [concat [array names fields] sid \
+                             status type password_attrs \
                              [list local_groups global_groups system.arg all]] \
                         -nulldefault]
 
@@ -190,6 +191,12 @@ proc twapi::get_user_account_info {account args} {
                 set level $fields($opt)
             }
         }                
+        if {$opts(status) || $opts(type) || $opts(password_attrs)} {
+            # These fields are based on the flags field
+            if {$level < 1} {
+                set level 1
+            }
+        }
     }
     
     array set result [list ]
@@ -208,16 +215,13 @@ proc twapi::get_user_account_info {account args} {
             set result(-sid) $data(-sid)
         }
 
-
         # Map internal values to more friendly formats
-        if {[info exists result(-status)]} {
-            # UF_LOCKOUT -> 0x10, UF_ACCOUNTDISABLE -> 0x2
-            if {$result(-status) & 0x2} {
-                set result(-status) "disabled"
-            } elseif {$result(-status) & 0x10} {
-                set result(-status) "locked"
-            } else {
-                set result(-status) "enabled"
+        if {$opts(all) || $opts(status) || $opts(type) || $opts(password_attrs)} {
+            array set result [_map_userinfo_flags $data(-flags)]
+            if {! $opts(all)} {
+                if {! $opts(status)} {unset result(-status)}
+                if {! $opts(type)} {unset result(-type)}
+                if {! $opts(password_attrs)} {unset result(-password_attrs)}
             }
         }
 
@@ -254,14 +258,19 @@ proc twapi::get_user_account_info {account args} {
     return [array get result]
 }
 
-proc twapi::get_user_local_groups_recursive {account args} {
-    array set opts [parseargs args {
+proc twapi::get_user_local_groups {account args} {
+    parseargs args {
         system.arg
-    } -nulldefault -maxleftover 0]
+        {recurse.bool 0}
+    } -nulldefault -maxleftover 0 -setvars
 
     # The Net* calls always return structures as lists even when the struct
     # contains only one field so we need to lpick to extract the field
-    return [lpick [NetEnumResult entries [NetUserGetLocalGroups $opts(system) [map_account_to_name $account -system $opts(system)] 0 1]] 0]
+    return [lpick [NetEnumResult entries [NetUserGetLocalGroups $system [map_account_to_name $account -system $system] 0 $recurse]] 0]
+}
+
+proc twapi::get_user_local_groups_recursive {account args} {
+    return [get_user_local_groups $account {*}$args -recurse 1]
 }
 
 
@@ -938,4 +947,62 @@ proc twapi::_set_user_priv_level {username priv_level args} {
         set group [lookup_account_sid $ingroup -system $opts(system)]
         add_member_to_local_group $group $username -system $opts(system)
     }
+}
+
+proc twapi::_map_userinfo_flags {flags} {
+    # UF_LOCKOUT -> 0x10, UF_ACCOUNTDISABLE -> 0x2
+    if {$flags & 0x2} {
+        set status disabled
+    } elseif {$flags & 0x10} {
+        set status locked
+    } else {
+        set status enabled
+    }
+
+    #define UF_TEMP_DUPLICATE_ACCOUNT       0x0100
+    #define UF_NORMAL_ACCOUNT               0x0200
+    #define UF_INTERDOMAIN_TRUST_ACCOUNT    0x0800
+    #define UF_WORKSTATION_TRUST_ACCOUNT    0x1000
+    #define UF_SERVER_TRUST_ACCOUNT         0x2000
+    if {$flags & 0x0200} {
+        set type normal
+    } elseif {$flags & 0x0100} {
+        set type duplicate
+    } elseif {$flags & 0x0800} {
+        set type interdomain_trust
+    } elseif {$flags & 0x1000} {
+        set type workstation_trust
+    } elseif {$flags & 0x2000} {
+        set type server_trust
+    } else {
+        set type unknown
+    }
+
+    set pw {}
+    #define UF_PASSWD_NOTREQD                  0x0020
+    if {$flags & 0x0020} {
+        lappend pw not_required
+    }
+    #define UF_PASSWD_CANT_CHANGE              0x0040
+    if {$flags & 0x0040} {
+        lappend pw cannot_change
+    }
+    #define UF_ENCRYPTED_TEXT_PASSWORD_ALLOWED 0x0080
+    if {$flags & 0x0080} {
+        lappend pw encrypted_text_allowed
+    }
+    #define UF_DONT_EXPIRE_PASSWD                         0x10000
+    if {$flags & 0x10000} {
+        lappend pw no_expiry
+    }
+    #define UF_SMARTCARD_REQUIRED                         0x40000
+    if {$flags & 0x40000} {
+        lappend pw smartcard_required
+    }
+    #define UF_PASSWORD_EXPIRED                          0x800000
+    if {$flags & 0x800000} {
+        lappend pw expired
+    }
+
+    return [list -status $status -type $type -password_attrs $pw]
 }
