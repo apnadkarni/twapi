@@ -61,7 +61,7 @@ namespace eval twapi::security::test {
              -full_name * \
              -units_per_week 168 \
              -primary_group_id 513 \
-             -status "*abled" \
+             -flags * \
              -logon_server "*" \
              -country_code 0 \
              -home_dir * \
@@ -70,7 +70,11 @@ namespace eval twapi::security::test {
              -num_logons * \
              -local_groups "*Administrators*" \
              -last_logon * \
-             -acct_expires "never"]
+             -acct_expires "never" \
+             -status * \
+             -type * \
+             -password_attrs * \
+            ]
 
     # Current logon session
     proc current_logon_session {} {
@@ -1596,7 +1600,7 @@ namespace eval twapi::security::test {
     } -body {
         set kl [twapi::get_users -level 1]
         # NOte field 'priv' is intentionally undocumented
-        verify_recordarray $kl {-comment -status -home_dir -name -password -password_age -priv -script_path }
+        verify_recordarray $kl {-comment -flags -home_dir -name -password -password_age -priv -script_path }
         valid_account_names [twapi::recordarray column $kl -name]
     } -result 1
 
@@ -1606,7 +1610,7 @@ namespace eval twapi::security::test {
         set kl [twapi::get_users -level 2]
         # NOte field 'priv' is intentionally undocumented
         verify_recordarray $kl {
-            -acct_expires -auth_flags -bad_pw_count -code_page -comment -country_code -status -full_name -home_dir -last_logoff -last_logon -logon_hours -logon_server -max_storage -name -num_logons -parms -password -password_age -priv -script_path -units_per_week -usr_comment -workstations
+            -acct_expires -auth_flags -bad_pw_count -code_page -comment -country_code -flags -full_name -home_dir -last_logoff -last_logon -logon_hours -logon_server -max_storage -name -num_logons -parms -password -password_age -priv -script_path -units_per_week -usr_comment -workstations
         }
         expr {
               [valid_account_names [twapi::recordarray column $kl -name]] &&
@@ -1620,7 +1624,7 @@ namespace eval twapi::security::test {
         set kl [twapi::get_users -level 3]
         # NOte field 'priv' is intentionally undocumented
         verify_recordarray $kl {
--acct_expires -auth_flags -bad_pw_count -code_page -comment -country_code -status -full_name -home_dir -home_dir_drive -last_logoff -last_logon -logon_hours -logon_server -max_storage -name -num_logons -parms -password -password_age -password_expired -primary_group_id -priv -profile -script_path -units_per_week -user_id -usr_comment -workstations
+-acct_expires -auth_flags -bad_pw_count -code_page -comment -country_code -flags -full_name -home_dir -home_dir_drive -last_logoff -last_logon -logon_hours -logon_server -max_storage -name -num_logons -parms -password -password_age -password_expired -primary_group_id -priv -profile -script_path -units_per_week -user_id -usr_comment -workstations
         }
         expr {
               [valid_account_names [twapi::recordarray column $kl -name]] &&
@@ -1636,7 +1640,7 @@ namespace eval twapi::security::test {
         set kl [twapi::get_users -level 3 -system [testconfig domain_controller]]
         # NOte field 'priv' is intentionally undocumented
         verify_recordarray $kl {
--acct_expires -auth_flags -bad_pw_count -code_page -comment -country_code -status -full_name -home_dir -home_dir_drive -last_logoff -last_logon -logon_hours -logon_server -max_storage -name -num_logons -parms -password -password_age -password_expired -primary_group_id -priv -profile -script_path -units_per_week -user_id -usr_comment -workstations
+-acct_expires -auth_flags -bad_pw_count -code_page -comment -country_code -flags -full_name -home_dir -home_dir_drive -last_logoff -last_logon -logon_hours -logon_server -max_storage -name -num_logons -parms -password -password_age -password_expired -primary_group_id -priv -profile -script_path -units_per_week -user_id -usr_comment -workstations
         }
         expr {
               [valid_account_names [twapi::recordarray column $kl -name]] &&
@@ -1713,7 +1717,7 @@ namespace eval twapi::security::test {
         set total 0
         while {$more} {
             foreach {more resumehandle count accounts} [twapi::get_users -resume $resumehandle -level 1] break
-            verify_recordarray $accounts {-comment -status -home_dir -name -password -password_age -priv -script_path}
+            verify_recordarray $accounts {-comment -flags -home_dir -name -password -password_age -priv -script_path}
             incr iters
             incr total [twapi::recordarray size $accounts]
             set valid_accounts [expr {$valid_accounts & [valid_account_names [twapi::recordarray column $accounts -name]]}]
@@ -2364,7 +2368,7 @@ namespace eval twapi::security::test {
         array set uinfo [twapi::get_user_account_info $administrator_account_name -all]
         verify_kl_fields [array get uinfo] [array names get_user_account_info_fields]
 
-        # TBD - need more validation
+        # TBD - need more validation and iterate over all user accounts
         # NOTE - Administrator account may be disabled on some systems
 	list \
 	    $uinfo(-sid) \
@@ -2378,10 +2382,13 @@ namespace eval twapi::security::test {
 	    [string match -nocase "*built-in*" $uinfo(-comment)] \
 	    $uinfo(-units_per_week) \
 	    $uinfo(-primary_group_id) \
-	    [string match *abled $uinfo(-status)] \
+            [string is integer $uinfo(-flags)] \
 	    $uinfo(-logon_server) \
 	    $uinfo(-local_groups) \
-	    $uinfo(-acct_expires)
+	    $uinfo(-acct_expires) \
+            [tcl::mathop::in $uinfo(-status) {enabled disabled locked}] \
+            $uinfo(-type) \
+            [setops::diff $uinfo(-password_attrs) {not_required cannot_change encrypted_text_allowed no_expiry smartcard_required expired}]
     } -match list -result [list \
                                $administrator_sid \
                                1 \
@@ -2398,7 +2405,10 @@ namespace eval twapi::security::test {
                                \\\\* \
                                $administrators_account_name \
                                never \
-                               ]
+                               1 \
+                               normal \
+                               "" \
+                              ]
 
     set testnum 1
 
@@ -5645,12 +5655,37 @@ namespace eval twapi::security::test {
 
     test get_user_local_groups_recursive-1.0 {
         Get list of local groups that user belongs to directly or indirectly
-    } -constraints {
-        nt
     } -body {
         # TBD - need to test this with nested groups - need a domain
         # for that. Also need a more robust test expression
         set groups [twapi::get_user_local_groups_recursive [twapi::get_current_user]]
+        expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info [twapi::get_current_user] -local_groups] 1]]}
+    } -result 1
+
+    test get_user_local_groups_1.0 {
+        Get list of local groups that user belongs to directly
+    } -body {
+        # TBD - need to test this with nested groups - need a domain
+        # for that. Make sure nested groups are not included here
+        set groups [twapi::get_user_local_groups [twapi::get_current_user]]
+        expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info [twapi::get_current_user] -local_groups] 1]]}
+    } -result 1
+
+    test get_user_local_groups_2.0 {
+        Get list of local groups that user belongs to directly -recurse 0
+    } -body {
+        # TBD - need to test this with nested groups - need a domain
+        # for that. Make sure nested groups are NOT included here
+        set groups [twapi::get_user_local_groups [twapi::get_current_user] -recurse 0]
+        expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info [twapi::get_current_user] -local_groups] 1]]}
+    } -result 1
+
+    test get_user_local_groups_2.1 {
+        Get list of local groups that user belongs to indirectly -recurse 1
+    } -body {
+        # TBD - need to test this with nested groups - need a domain
+        # for that. Make sure nested groups ARE INCLUDED here
+        set groups [twapi::get_user_local_groups [twapi::get_current_user] -recurse 1]
         expr {[llength $groups] >= [llength [lindex [twapi::get_user_account_info [twapi::get_current_user] -local_groups] 1]]}
     } -result 1
 
