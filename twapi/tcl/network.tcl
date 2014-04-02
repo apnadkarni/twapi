@@ -1228,7 +1228,7 @@ twapi::proc* twapi::_get_all_udp {sort level address_family} {
         set _udp_buf(ptr) [malloc $bufsz]
         set _udp_buf(size) $bufsz
 
-        set bufsz [GetExtendedTcpTable $_udp_buf(ptr) $_udp_buf(size) $sort $address_family $level]
+        set bufsz [GetExtendedUdpTable $_udp_buf(ptr) $_udp_buf(size) $sort $address_family $level]
     }
 
     if ($bufsz) {
