@@ -412,11 +412,18 @@ whose fields depend on [arg LEVEL] as follows:
 [list_begin opt]
 [opt_def [const 0]]
 [const -name]
-[opt_def [const 1]] [const -name], [const -comment], [const -type]
-[opt_def [const 2]] [const -current_conn],
+[opt_def [const 1]]
+Fields at level [const 0] plus [const -comment], [const -type]
+[opt_def [const 2]] 
+Fields at level [const 1] plus [const -current_conn],
 [const -max_conn], [const -name], [const -passwd], [const -path],
 [const -permissions], [const -comment], [const -type].
+[opt_def [const 502]] 
+Fields at level [const 2] plus [const -reserved],
+and [const -secd].
 [list_end]
+See [uri #get_share_info [cmd get_share_info]] for explanation
+of these fields.
 
 [call [cmd get_lm_open_file_info] [arg FILEID] [opt [arg options]]]
 Returns a list of field values pairs containing data
