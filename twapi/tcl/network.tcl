@@ -1167,7 +1167,7 @@ twapi::proc* twapi::_get_all_tcp {sort level address_family} {
     set i 0
     while {$bufsz && [incr i] <= 10} {
         if {! [pointer_null? $_tcp_buf(ptr)]} {
-            free _tcp_buf(ptr)
+            free $_tcp_buf(ptr)
             set _tcp_buf(ptr) NULL
             set _tcp_buf(size) 0
         }
@@ -1220,7 +1220,7 @@ twapi::proc* twapi::_get_all_udp {sort level address_family} {
     set i 0
     while {$bufsz && [incr i] <= 10} {
         if {! [pointer_null? $_udp_buf(ptr)]} {
-            free _udp_buf(ptr)
+            free $_udp_buf(ptr)
             set _udp_buf(ptr) NULL
             set _udp_buf(size) 0
         }
