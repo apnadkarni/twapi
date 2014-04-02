@@ -516,28 +516,31 @@ proc twapi::flush_arp_tables {args} {
 }
 
 # Return the list of TCP connections
-proc twapi::get_tcp_connections {args} {
+twapi::proc* twapi::get_tcp_connections {args} {
     variable tcp_statenames
     variable tcp_statevalues
-    if {![info exists tcp_statevalues]} {
-        array set tcp_statevalues {
-            closed            1
-            listen            2
-            syn_sent          3
-            syn_rcvd          4
-            estab             5
-            fin_wait1         6
-            fin_wait2         7
-            close_wait        8
-            closing           9
-            last_ack         10
-            time_wait        11
-            delete_tcb       12
-        }
-        foreach {name val} [array get tcp_statevalues] {
-            set tcp_statenames($val) $name
-        }
+
+    array set tcp_statevalues {
+        closed            1
+        listen            2
+        syn_sent          3
+        syn_rcvd          4
+        estab             5
+        fin_wait1         6
+        fin_wait2         7
+        close_wait        8
+        closing           9
+        last_ack         10
+        time_wait        11
+        delete_tcb       12
     }
+    foreach {name val} [array get tcp_statevalues] {
+        set tcp_statenames($val) $name
+    }
+} {
+    variable tcp_statenames
+    variable tcp_statevalues
+
     array set opts [parseargs args {
         state
         {ipversion.arg 0}
@@ -1127,7 +1130,12 @@ proc twapi::_hostname_resolve_handler {id status addrandports} {
 # returns. Note level 6 and higher is two orders of magnitude more expensive
 # to get for IPv4 and crashes in Windows for IPv6 (silently downgraded to
 # level 5 for IPv6)
-proc twapi::_get_all_tcp {sort level address_family} {
+twapi::proc* twapi::_get_all_tcp {sort level address_family} {
+    variable _tcp_buf
+    set _tcp_buf(ptr) NULL
+    set _tcp_buf(size) 0
+} {
+    variable _tcp_buf
 
     if {$address_family == 0} {
         return [concat [_get_all_tcp $sort $level 2] [_get_all_tcp $sort $level 23]]
@@ -1141,7 +1149,7 @@ proc twapi::_get_all_tcp {sort level address_family} {
     # GetExtendedTcpTable API exists on this system
     # TBD - modify to do this check only once and not on every call
 
-    if {[catch {twapi::GetExtendedTcpTable NULL 0 $sort $address_family $level} bufsz]} {
+    if {[catch {twapi::GetExtendedTcpTable $_tcp_buf(ptr) $_tcp_buf(size) $sort $address_family $level} bufsz]} {
         # No workee, try AllocateAndGetTcpExTableFromStack
         # Note if GetExtendedTcpTable is not present, ipv6 is not
         # available
@@ -1152,40 +1160,40 @@ proc twapi::_get_all_tcp {sort level address_family} {
         }
     }
 
-    # Allocate the required buffer
-    set buf [twapi::malloc $bufsz]
-    #puts $address_family,$bufsz,[format 0x%x [lindex $buf 0]] ; update ; gets stdin
-    trap {
-        # The required buffer size might change as connections
-        # are added or deleted. So we sit in a loop until
-        # the required size that we get back from the command
-        # is less than or equal to what we supplied
-        while {true} {
-            set reqsz [twapi::GetExtendedTcpTable $buf $bufsz $sort $address_family $level]
-            if {$reqsz <= $bufsz} {
-                # Buffer was large enough. Return the formatted data
-                # Note the finally clause below automatically frees
-                # the buffer so don't do that here!
-                return [Twapi_FormatExtendedTcpTable $buf $address_family $level]
-            }
-            # Need bigger buffer
-            set bufsz $reqsz
-            twapi::free $buf
-            unset buf;          # So if malloc fails, we do not free buf again
-                                # in the finally clause below
-            set buf [twapi::malloc $bufsz]
-            # Loop around and try again
+    # The required buffer size might change as connections
+    # are added or deleted. So we sit in a loop.
+    # Non-0 value indicates buffer was not large enough
+    # For safety, we only retry 10 times
+    set i 0
+    while {$bufsz && [incr i] <= 10} {
+        if {! [pointer_null? $_tcp_buf(ptr)]} {
+            free _tcp_buf(ptr)
+            set _tcp_buf(ptr) NULL
+            set _tcp_buf(size) 0
         }
-    } finally {
-        if {[info exists buf]} {
-            twapi::free $buf
-        }
+        
+        set _tcp_buf(ptr) [malloc $bufsz]
+        set _tcp_buf(size) $bufsz
+
+        set bufsz [GetExtendedTcpTable $_tcp_buf(ptr) $_tcp_buf(size) $sort $address_family $level]
     }
 
+    if ($bufsz) {
+        # Repeated attempts failed
+        win32_error 122
+    }
+
+    return [Twapi_FormatExtendedTcpTable $_tcp_buf(ptr) $address_family $level]
 }
 
 # See comments for _get_all_tcp above except this is for _get_all_udp
-proc twapi::_get_all_udp {sort level address_family} {
+twapi::proc* twapi::_get_all_udp {sort level address_family} {
+    variable _udp_buf
+    set _udp_buf(ptr) NULL
+    set _udp_buf(size) 0
+} {
+    variable _udp_buf
+
     if {$address_family == 0} {
         return [concat [_get_all_udp $sort $level 2] [_get_all_udp $sort $level 23]]
     }
@@ -1196,7 +1204,7 @@ proc twapi::_get_all_udp {sort level address_family} {
 
     # Get required size of buffer. This also verifies that the
     # GetExtendedTcpTable API exists on this system
-    if {[catch {twapi::GetExtendedUdpTable NULL 0 $sort $address_family $level} bufsz]} {
+    if {[catch {twapi::GetExtendedUdpTable $_udp_buf(ptr) $_udp_buf(size) $sort $address_family $level} bufsz]} {
         # No workee, try AllocateAndGetUdpExTableFromStack
         if {$address_family == 2} {
             return [AllocateAndGetUdpExTableFromStack $sort 0]
@@ -1205,35 +1213,30 @@ proc twapi::_get_all_udp {sort level address_family} {
         }
     }
 
-    # Allocate the required buffer
-    set buf [twapi::malloc $bufsz]
-    trap {
-        # The required buffer size might change as connections
-        # are added or deleted. So we sit in a loop until
-        # the required size that we get back from the command
-        # is less than or equal to what we supplied
-        while {true} {
-            set reqsz [twapi::GetExtendedUdpTable $buf $bufsz $sort $address_family $level]
-            if {$reqsz <= $bufsz} {
-                # Buffer was large enough. Return the formatted data
-                # Note the finally clause below automatically frees
-                # the buffer so don't do that here!
-                return [Twapi_FormatExtendedUdpTable $buf $address_family $level]
-            }
-            # Need bigger buffer
-            set bufsz $reqsz
-            twapi::free $buf
-            unset buf;          # So if malloc fails, we do not free buf again
-                                # in the finally clause below
-            set buf [twapi::malloc $bufsz]
-            # Loop around and try again
+    # The required buffer size might change as connections
+    # are added or deleted. So we sit in a loop.
+    # Non-0 value indicates buffer was not large enough
+    # For safety, we only retry 10 times
+    set i 0
+    while {$bufsz && [incr i] <= 10} {
+        if {! [pointer_null? $_udp_buf(ptr)]} {
+            free _udp_buf(ptr)
+            set _udp_buf(ptr) NULL
+            set _udp_buf(size) 0
         }
-    } finally {
-        if {[info exists buf]} {
-            twapi::free $buf
-        }
+        
+        set _udp_buf(ptr) [malloc $bufsz]
+        set _udp_buf(size) $bufsz
+
+        set bufsz [GetExtendedTcpTable $_udp_buf(ptr) $_udp_buf(size) $sort $address_family $level]
     }
 
+    if ($bufsz) {
+        # Repeated attempts failed
+        win32_error 122
+    }
+
+    return [Twapi_FormatExtendedUdpTable $_udp_buf(ptr) $address_family $level]
 }
 
 

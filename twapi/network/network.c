@@ -1339,7 +1339,10 @@ int Twapi_GetExtendedTcpTable(
        
     error = (*fn)(buf, &buf_sz, sorted, family, table_class, 0);
     if (error == NO_ERROR || error == ERROR_INSUFFICIENT_BUFFER) {
-        ObjSetResult(interp, ObjFromInt(buf_sz));
+        /* We used to return buf_sz in success case as well. However
+           it is not clear from latest MSDN docs that buf_sz is meaningful
+           on an success return so we return 0 in this case as indication */
+        ObjSetResult(interp, ObjFromInt(error == NO_ERROR ? 0 : buf_sz));
         return TCL_OK;
     } else {
         return Twapi_AppendSystemError(interp, error);
@@ -1370,7 +1373,10 @@ int Twapi_GetExtendedUdpTable(
     }
     error = (*fn)(buf, &buf_sz, sorted, family, table_class, 0);
     if (error == NO_ERROR || error == ERROR_INSUFFICIENT_BUFFER) {
-        ObjSetResult(interp, ObjFromInt(buf_sz));
+        /* We used to return buf_sz in success case as well. However
+           it is not clear from latest MSDN docs that buf_sz is meaningful
+           on an success return so we return 0 in this case as indication */
+        ObjSetResult(interp, ObjFromInt(error == NO_ERROR ? 0 : buf_sz));
         return TCL_OK;
     } else {
         return Twapi_AppendSystemError(interp, error);
