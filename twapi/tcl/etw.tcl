@@ -1041,13 +1041,10 @@ proc twapi::etw_dump_to_file {args} {
     }
 }
 
-twapi::proc* twapi::etw_dump_to_list {args} {
-    package require twapi_wmi
-} {
+proc twapi::etw_dump_to_list {args} {
     set htraces {}
     set formatter [etw_open_formatter]
     trap {
-        set wmi [wmi_root -root wmi]
         foreach arg $args {
             if {[file exists $arg]} {
                 lappend htraces [etw_open_file $arg]
