@@ -224,13 +224,6 @@ namespace eval twapi::etw::test {
     } -body {
     } -result TBD
 
-    test etw_log_message-1.0 {
-        TBD - etw_log_message
-    } -constraints {
-        TBD
-    } -body {
-    } -result TBD
-
     test etw_variable_tracker-1.0 {
         TBD - etw_variable_tracker
     } -constraints {
