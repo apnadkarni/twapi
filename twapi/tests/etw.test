@@ -597,6 +597,118 @@ namespace eval twapi::etw::test {
 
     ################################################################
 
+    test etw_execution_tracker-1.0 {
+        Tests etw_start_trace/etw_stop_trace/etw_execution_tracker/etw_enable_trace/etw_disable_trace
+    } -constraints {
+        privileged
+    } -setup {
+        twapi::etw_install_twapi_mof
+        proc execution_trace_target args {return [llength $args]}
+    } -body {
+        set etl [new_etl_filepath]
+        set tracename "TWAPITEST_[clock microseconds]"
+        set hprov [twapi::etw_twapi_provider_register]
+        set htrace [twapi::etw_start_trace $tracename -logfile $etl]
+        twapi::etw_enable_provider $htrace [twapi::etw_twapi_provider_guid] -1 5
+        set wait_time 200;      # Need to wait for level changes to effect
+        trace add execution execution_trace_target {enter enterstep leave leavestep} [list ::twapi::etw_execution_tracker $hprov]
+        execution_trace_target
+        twapi::etw_disable_provider $htrace [twapi::etw_twapi_provider_guid]
+        after $wait_time
+        twapi::etw_stop_trace  $htrace
+        # Now see if messages were logged as expected
+        set errors {}
+        set htrace [twapi::etw_open_file $etl]
+        set formatter [twapi::etw_open_formatter]
+        set events [twapi::etw_format_events $formatter {*}[twapi::etw_process_events $htrace]]
+        twapi::etw_close_formatter $formatter
+        set result {}
+        foreach event [twapi::recordarray getlist $events -format dict] {
+            if {[dict get $event -providername] in {TwapiETWEventClass TwapiETWProvider}} {
+                lappend result [dict get $event -properties]
+            }
+        }
+        set result
+    } -result {{Operation enter Command execution_trace_target Code {{}} Result {{}} Context {namespace\ eval\ twapi::etw::test\ \{\n\ \ \ \ namespace\ import\ ::tcltest::test\n\n\ \ \ \ va...}} {Operation enterstep Command {{llength {}}} Code {{}} Result {{}} Context execution_trace_target} {Operation leavestep Command {{llength {}}} Code 0 Result 0 Context execution_trace_target} {Operation enterstep Command {{return 0}} Code {{}} Result {{}} Context execution_trace_target} {Operation leavestep Command {{return 0}} Code 2 Result 0 Context execution_trace_target} {Operation leave Command execution_trace_target Code 0 Result 0 Context {namespace\ eval\ twapi::etw::test\ \{\n\ \ \ \ namespace\ import\ ::tcltest::test\n\n\ \ \ \ va...}}}
+
+    ################################################################
+
+    test etw_variable_tracker-1.0 {
+        Tests etw_start_trace/etw_stop_trace/etw_variable_tracker/etw_enable_trace/etw_disable_trace
+    } -constraints {
+        privileged
+    } -setup {
+        twapi::etw_install_twapi_mof
+        set [namespace current]::etw_tracked_variable 0
+    } -body {
+        set etl [new_etl_filepath]
+        set tracename "TWAPITEST_[clock microseconds]"
+        set hprov [twapi::etw_twapi_provider_register]
+        set htrace [twapi::etw_start_trace $tracename -logfile $etl]
+        twapi::etw_enable_provider $htrace [twapi::etw_twapi_provider_name] -1 5
+        set wait_time 200;      # Need to wait for level changes to effect
+        trace add variable [namespace current]::etw_tracked_variable {read write unset} [list ::twapi::etw_variable_tracker $hprov]
+        set etw_tracked_variable 1
+        set etw_tracked_variable
+        unset etw_tracked_variable
+        twapi::etw_disable_provider $htrace [twapi::etw_twapi_provider_name]
+        after $wait_time
+        twapi::etw_stop_trace  $htrace
+        # Now see if messages were logged as expected
+        set errors {}
+        set htrace [twapi::etw_open_file $etl]
+        set formatter [twapi::etw_open_formatter]
+        set events [twapi::etw_format_events $formatter {*}[twapi::etw_process_events $htrace]]
+        twapi::etw_close_formatter $formatter
+        set result {}
+        foreach event [twapi::recordarray getlist $events -format dict] {
+            if {[dict get $event -providername] in {TwapiETWEventClass TwapiETWProvider}} {
+                lappend result [dict get $event -properties]
+            }
+        }
+        set result
+    } -result {{Operation write Name etw_tracked_variable Index {{}} Value 1 Context {namespace\ eval\ twapi::etw::test\ \{\n\ \ \ \ namespace\ import\ ::tcltest::test\n\n\ \ \ \ va...}} {Operation read Name etw_tracked_variable Index {{}} Value 1 Context {namespace\ eval\ twapi::etw::test\ \{\n\ \ \ \ namespace\ import\ ::tcltest::test\n\n\ \ \ \ va...}} {Operation unset Name etw_tracked_variable Index {{}} Value {{}} Context {namespace\ eval\ twapi::etw::test\ \{\n\ \ \ \ namespace\ import\ ::tcltest::test\n\n\ \ \ \ va...}}}
+
+    ################################################################
+
+    test etw_command_tracker-1.0 {
+        Tests etw_start_trace/etw_stop_trace/etw_command_tracker/etw_enable_trace/etw_disable_trace
+    } -constraints {
+        privileged
+    } -setup {
+        twapi::etw_install_twapi_mof
+        proc command_trace_target args {return [llength $args]}
+    } -body {
+        set etl [new_etl_filepath]
+        set tracename "TWAPITEST_[clock microseconds]"
+        set hprov [twapi::etw_twapi_provider_register]
+        set htrace [twapi::etw_start_trace $tracename -logfile $etl]
+        twapi::etw_enable_provider $htrace [twapi::etw_twapi_provider_guid] -1 5
+        set wait_time 200;      # Need to wait for level changes to effect
+        trace add command [namespace current]::command_trace_target {rename delete} [list ::twapi::etw_command_tracker $hprov]
+        command_trace_target;   # Should not show up in trace
+        rename [namespace current]::command_trace_target command_trace_renamed ; # Should show up in trace
+        rename command_trace_renamed {} ; # Should show up in trace
+        twapi::etw_disable_provider $htrace [twapi::etw_twapi_provider_guid]
+        after $wait_time
+        twapi::etw_stop_trace  $htrace
+        # Now see if messages were logged as expected
+        set errors {}
+        set htrace [twapi::etw_open_file $etl]
+        set formatter [twapi::etw_open_formatter]
+        set events [twapi::etw_format_events $formatter {*}[twapi::etw_process_events $htrace]]
+        twapi::etw_close_formatter $formatter
+        set result {}
+        foreach event [twapi::recordarray getlist $events -format dict] {
+            if {[dict get $event -providername] in {TwapiETWEventClass TwapiETWProvider}} {
+                lappend result [dict get $event -properties]
+            }
+        }
+        set result
+    } -result {{Operation rename OldName ::twapi::etw::test::command_trace_target NewName ::twapi::etw::test::command_trace_renamed Context {namespace\ eval\ twapi::etw::test\ \{\n\ \ \ \ namespace\ import\ ::tcltest::test\n\n\ \ \ \ va...}} {Operation delete OldName ::twapi::etw::test::command_trace_renamed NewName {{}} Context {namespace\ eval\ twapi::etw::test\ \{\n\ \ \ \ namespace\ import\ ::tcltest::test\n\n\ \ \ \ va...}}}
+
+    ################################################################
+
     test etw_update_trace-1.0 {
         etw_update_trace using trace handle -flushtimer
     } -constraints {

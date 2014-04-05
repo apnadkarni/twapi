@@ -226,6 +226,7 @@ proc twapi::format_message {args} {
         return $msg
     }
 
+    # TBD - cache fmtstring -> indices for performance
     set placeholder_indices [regexp -indices -all -inline {%(?:.|(?:[1-9][0-9]?(?:![^!]+!)?))} $msg]
 
     if {[llength $placeholder_indices] == 0} {
