@@ -396,9 +396,9 @@ proc twapi::etw_execution_tracker {htrace command args} {
 
     # Must match Execution event type in MoF definition
     TraceEvent $htrace 3 0 \
-        [encode convertto unicode "$op\0"] \
+        [encoding convertto unicode "$op\0"] \
         [_etw_encode_limited_unicode $command] \
-        [encode convertto unicode "$code\0"] \
+        [encoding convertto unicode "$code\0"] \
         [_etw_encode_limited_unicode $result] \
         [_etw_encode_limited_unicode $context]
 }
@@ -410,10 +410,9 @@ proc twapi::etw_command_tracker {htrace oldname newname op} {
     } else {
         set context ""
     }
-
     # Must match CommandTrace event type in MoF definition
     TraceEvent $htrace 4 0 \
-        [encode converto unicode "$op\0$oldname\0$newname\0"] \
+        [encoding convertto unicode "$op\0$oldname\0$newname\0"] \
         [_etw_encode_limited_unicode $context]
 }
 
