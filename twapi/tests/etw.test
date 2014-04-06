@@ -224,27 +224,6 @@ namespace eval twapi::etw::test {
     } -body {
     } -result TBD
 
-    test etw_variable_tracker-1.0 {
-        TBD - etw_variable_tracker
-    } -constraints {
-        TBD
-    } -body {
-    } -result TBD
-
-    test etw_execution_tracker-1.0 {
-        TBD - etw_execution_tracker
-    } -constraints {
-        TBD
-    } -body {
-    } -result TBD
-
-    test etw_command_tracker-1.0 {
-        TBD - etw_command_tracker
-    } -constraints {
-        TBD
-    } -body {
-    } -result TBD
-
     test etw_parse_mof_event_class-1.0 {
         TBD - etw_parse_mof_event_class
     } -constraints {

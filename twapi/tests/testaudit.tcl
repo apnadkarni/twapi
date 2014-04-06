@@ -79,6 +79,8 @@ array set do_not_test {
     tls_socket               tlsIO
     trapoptions              trap
     trapresult               trap
+    unlock_media             lock_media
+    unprotect_data           protect_data
 }
 set missing {}
 foreach cmd [twapi::_get_public_commands] {
