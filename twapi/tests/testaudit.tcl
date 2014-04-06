@@ -74,6 +74,7 @@ array set do_not_test {
     etw_stop_trace           etw_provider
     namedpipe_server         pipe
     namedpipe_client         pipe
+    pdh_query_refresh        pdh_system_performance_query
     reveal                   conceal
     tls                      tlsIO
     tls_socket               tlsIO
@@ -81,6 +82,17 @@ array set do_not_test {
     trapresult               trap
     unlock_media             lock_media
     unprotect_data           protect_data
+    mof_event                internal
+    mof_event_header         internal
+    tdh_buffer               internal
+    tdh_event                internal
+    tdh_event_buffer_context internal
+    tdh_event_data           internal
+    tdh_event_data_descriptor internal
+    tdh_event_header         internal
+    tdh_logfile_header       internal
+    eject_media              eject
+    load_media               eject
 }
 set missing {}
 foreach cmd [twapi::_get_public_commands] {
