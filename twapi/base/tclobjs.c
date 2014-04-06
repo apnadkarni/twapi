@@ -213,17 +213,11 @@ TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
 
         /* Should be a two element list */
         if (ObjGetElements(NULL, objP, &nobjs, &objs) != TCL_OK ||
-            nobjs != 2) {
-            if (interp)
-                Tcl_AppendResult(interp, "Invalid pointer or opaque value: '",
-                                 s, "'.", NULL);
-            return TCL_ERROR;
-        }
+            nobjs != 2)
+            goto invalid_value;
         if (ObjToDWORD_PTR(NULL, objs[0], &dwp) != TCL_OK) {
-            if (interp)
-                Tcl_AppendResult(interp, "Invalid pointer or opaque value '",
-                                 ObjToString(objs[0]), "'.", NULL);
-            return TCL_ERROR;
+            s = ObjToString(objs[0]);
+            goto invalid_value;
         }
         pv = (void*) dwp;
         s = ObjToString(objs[1]);
@@ -243,6 +237,12 @@ TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
     OPAQUE_REP_VALUE(objP) = pv;
     OPAQUE_REP_CTYPE(objP) = ctype;
     return TCL_OK;
+
+invalid_value: /* s must point to value */
+    if (interp)
+        Tcl_AppendResult(interp, "Invalid pointer or opaque value '",
+                         s, "'.", NULL);
+    return TCL_ERROR;
 }
 
 static void UpdateVariantTypeString(Tcl_Obj *objP)
