@@ -13,6 +13,116 @@ typedef struct _TCPIP_OWNER_MODULE_BASIC_INFO {
     PWCHAR pModuleName;
     PWCHAR pModulePath;
 } TCPIP_OWNER_MODULE_BASIC_INFO;
+
+#define MAX_DHCPV6_DUID_LENGTH          130
+#define MAX_DNS_SUFFIX_STRING_LENGTH    256
+
+typedef enum {
+    TUNNEL_TYPE_NONE = 0,
+    TUNNEL_TYPE_OTHER = 1,
+    TUNNEL_TYPE_DIRECT = 2,
+    TUNNEL_TYPE_6TO4 = 11,
+    TUNNEL_TYPE_ISATAP = 13,
+    TUNNEL_TYPE_TEREDO = 14,
+    TUNNEL_TYPE_IPHTTPS = 15,
+} TUNNEL_TYPE, *PTUNNEL_TYPE;
+
+typedef union _NET_LUID {
+    ULONG64 Value;
+    struct {
+        ULONG64 Reserved  :24;
+        ULONG64 NetLuidIndex  :24;
+        ULONG64 IfType  :16;
+    } Info;
+} NET_LUID, *PNET_LUID, IF_LUID;
+
+typedef GUID NET_IF_NETWORK_GUID;
+
+typedef enum _NET_IF_CONNECTION_TYPE
+{
+    NET_IF_CONNECTION_DEDICATED = 1,
+    NET_IF_CONNECTION_PASSIVE = 2,
+    NET_IF_CONNECTION_DEMAND = 3,
+    NET_IF_CONNECTION_MAXIMUM = 4
+} NET_IF_CONNECTION_TYPE, *PNET_IF_CONNECTION_TYPE;
+
+typedef UINT32 NET_IF_COMPARTMENT_ID, *PNET_IF_COMPARTMENT_ID;
+
+typedef struct _IP_ADAPTER_DNS_SUFFIX {
+struct _IP_ADAPTER_DNS_SUFFIX  *Next;
+  WCHAR                         String[MAX_DNS_SUFFIX_STRING_LENGTH];
+} IP_ADAPTER_DNS_SUFFIX, *PIP_ADAPTER_DNS_SUFFIX;
+
+typedef struct _IP_ADAPTER_WINS_SERVER_ADDRESS_LH {
+union {
+ULONGLONG Alignment;
+struct {
+      ULONG Length;
+      DWORD Reserved;
+    };
+  };
+  struct _IP_ADAPTER_WINS_SERVER_ADDRESS_LH  *Next;
+  SOCKET_ADDRESS                         Address;
+} IP_ADAPTER_WINS_SERVER_ADDRESS_LH, *PIP_ADAPTER_WINS_SERVER_ADDRESS_LH;
+
+typedef struct _IP_ADAPTER_GATEWAY_ADDRESS_LH {
+    union {
+        ULONGLONG Alignment;
+        struct {
+            ULONG Length;
+            DWORD Reserved;
+        };
+    };
+    struct _IP_ADAPTER_GATEWAY_ADDRESS_LH *Next;
+    SOCKET_ADDRESS Address;
+} IP_ADAPTER_GATEWAY_ADDRESS_LH, *PIP_ADAPTER_GATEWAY_ADDRESS_LH;
+
+/* Vista+ IP_ADAPTER_ADDRESSES */
+typedef struct _IP_ADAPTER_ADDRESSES_LH {
+  union {
+    ULONGLONG Alignment;
+    struct {
+      ULONG Length;
+      DWORD IfIndex;
+    };
+  };
+  struct _IP_ADAPTER_ADDRESSES  *Next;
+  PCHAR                              AdapterName;
+  PIP_ADAPTER_UNICAST_ADDRESS        FirstUnicastAddress;
+  PIP_ADAPTER_ANYCAST_ADDRESS        FirstAnycastAddress;
+  PIP_ADAPTER_MULTICAST_ADDRESS      FirstMulticastAddress;
+  PIP_ADAPTER_DNS_SERVER_ADDRESS     FirstDnsServerAddress;
+  PWCHAR                             DnsSuffix;
+  PWCHAR                             Description;
+  PWCHAR                             FriendlyName;
+  BYTE                               PhysicalAddress[MAX_ADAPTER_ADDRESS_LENGTH];
+  DWORD                              PhysicalAddressLength;
+  DWORD                              Flags;
+  DWORD                              Mtu;
+  DWORD                              IfType;
+  IF_OPER_STATUS                     OperStatus;
+  DWORD                              Ipv6IfIndex;
+  DWORD                              ZoneIndices[16];
+  PIP_ADAPTER_PREFIX                 FirstPrefix;
+  ULONG64                            TransmitLinkSpeed;
+  ULONG64                            ReceiveLinkSpeed;
+  PIP_ADAPTER_WINS_SERVER_ADDRESS_LH FirstWinsServerAddress;
+  PIP_ADAPTER_GATEWAY_ADDRESS_LH     FirstGatewayAddress;
+  ULONG                              Ipv4Metric;
+  ULONG                              Ipv6Metric;
+  IF_LUID                            Luid;
+  SOCKET_ADDRESS                     Dhcpv4Server;
+  NET_IF_COMPARTMENT_ID              CompartmentId;
+  NET_IF_NETWORK_GUID                NetworkGuid;
+  NET_IF_CONNECTION_TYPE             ConnectionType;
+  TUNNEL_TYPE                        TunnelType;
+  SOCKET_ADDRESS                     Dhcpv6Server;
+  BYTE                               Dhcpv6ClientDuid[MAX_DHCPV6_DUID_LENGTH];
+  ULONG                              Dhcpv6ClientDuidLength;
+  ULONG                              Dhcpv6Iaid;
+  PIP_ADAPTER_DNS_SUFFIX             FirstDnsSuffix;
+} IP_ADAPTER_ADDRESSES_LH, *PIP_ADAPTER_ADDRESSES_LH;
+
 #endif
 
 typedef struct _TwapiHostnameEvent {
@@ -59,15 +169,10 @@ Tcl_Obj *ObjFromMIB_IPNETROW(Tcl_Interp *interp, const MIB_IPNETROW *netrP);
 Tcl_Obj *ObjFromMIB_IPNETTABLE(Tcl_Interp *interp, MIB_IPNETTABLE *nettP);
 Tcl_Obj *ObjFromMIB_IPFORWARDROW(Tcl_Interp *interp, const MIB_IPFORWARDROW *ipfrP);
 Tcl_Obj *ObjFromMIB_IPFORWARDTABLE(Tcl_Interp *interp, MIB_IPFORWARDTABLE *fwdP);
-Tcl_Obj *ObjFromIP_ADAPTER_INDEX_MAP(Tcl_Interp *interp, IP_ADAPTER_INDEX_MAP *iaimP);
-Tcl_Obj *ObjFromIP_INTERFACE_INFO(Tcl_Interp *interp, IP_INTERFACE_INFO *iiP);
 Tcl_Obj *ObjFromMIB_TCPROW(Tcl_Interp *interp, const MIB_TCPROW *row, int size);
 int ObjToMIB_TCPROW(Tcl_Interp *interp, Tcl_Obj *listObj, MIB_TCPROW *row);
-Tcl_Obj *ObjFromMIB_IPADDRROW(Tcl_Interp *interp, const MIB_IPADDRROW *iparP);
-Tcl_Obj *ObjFromMIB_IPADDRTABLE(Tcl_Interp *interp, MIB_IPADDRTABLE *ipatP);
 Tcl_Obj *ObjFromMIB_IFROW(Tcl_Interp *interp, const MIB_IFROW *ifrP);
 Tcl_Obj *ObjFromMIB_IFTABLE(Tcl_Interp *interp, MIB_IFTABLE *iftP);
-Tcl_Obj *ObjFromIP_ADAPTER_INDEX_MAP(Tcl_Interp *, IP_ADAPTER_INDEX_MAP *iaimP);
 Tcl_Obj *ObjFromMIB_UDPROW(Tcl_Interp *interp, MIB_UDPROW *row, int size);
 Tcl_Obj *ObjFromMIB_TCPTABLE(Tcl_Interp *interp, MIB_TCPTABLE *tab);
 Tcl_Obj *ObjFromMIB_TCPTABLE_OWNER_PID(Tcl_Interp *i, MIB_TCPTABLE_OWNER_PID *tab);
@@ -77,6 +182,17 @@ Tcl_Obj *ObjFromMIB_UDPTABLE_OWNER_PID(Tcl_Interp *, MIB_UDPTABLE_OWNER_PID *tab
 Tcl_Obj *ObjFromMIB_UDPTABLE_OWNER_MODULE(Tcl_Interp *, MIB_UDPTABLE_OWNER_MODULE *tab);
 Tcl_Obj *ObjFromTcpExTable(Tcl_Interp *interp, void *buf);
 Tcl_Obj *ObjFromUdpExTable(Tcl_Interp *interp, void *buf);
+
+#define ObjFromIF_LUID ObjFromNET_LUID
+Tcl_Obj *ObjFromNET_LUID(NET_LUID *nlP)
+{
+    Tcl_Obj *objs[4];
+    objs[0] = ObjFromULONGLONG(nlP->Value);
+    objs[1] = ObjFromULONGLONG(nlP->Info.Reserved);
+    objs[2] = ObjFromULONGLONG(nlP->Info.NetLuidIndex);
+    objs[3] = ObjFromULONGLONG(nlP->Info.IfType);
+    return ObjNewList(4, objs);
+}
 
 /* Returns address family or AF_UNSPEC if s could not be parsed */
 /* GetLastError() is set in latter case */
@@ -217,7 +333,7 @@ int ObjToSOCKADDR_IN(Tcl_Interp *interp, Tcl_Obj *objP, struct sockaddr_in *sinP
     return TCL_OK;
 }
 
-/* Returns NULL on error */
+/* Returns NULL on error. Note saP->lpSockaddr == NULL is not an error */
 static Tcl_Obj *ObjFromSOCKET_ADDRESS(SOCKET_ADDRESS *saP)
 {
 
@@ -229,7 +345,8 @@ static Tcl_Obj *ObjFromSOCKET_ADDRESS(SOCKET_ADDRESS *saP)
             (((SOCKADDR_IN *) (saP->lpSockaddr))->sin_family == AF_INET6
              && saP->iSockaddrLength == sizeof(SOCKADDR_IN6)))) {
         return ObjFromSOCKADDR_address(saP->lpSockaddr);
-        /* Error already set */
+    } else if (saP->lpSockaddr == NULL) {
+        return ObjEmptyList();
     } else {
         SetLastError(ERROR_INVALID_PARAMETER);
     }
@@ -259,28 +376,18 @@ static Tcl_Obj *ObjFromIP_ADDR_STRINGAddress (
 
 static Tcl_Obj *ObjFromIP_ADAPTER_UNICAST_ADDRESS(IP_ADAPTER_UNICAST_ADDRESS *iauaP)
 {
-    Tcl_Obj *objv[16];
+    Tcl_Obj *objv[8];
 
-    objv[0] = STRING_LITERAL_OBJ("-flags");
-    objv[1] = ObjFromDWORD(iauaP->Flags);
-    objv[2] = STRING_LITERAL_OBJ("-address");
-    if (iauaP->Address.lpSockaddr == NULL ||
-        (objv[3] = ObjFromSOCKET_ADDRESS(&iauaP->Address)) == NULL) {
-        /* Did not recognize socket address type */
-        objv[3] = Tcl_NewObj();
-    }
-    objv[4] = STRING_LITERAL_OBJ("-prefixorigin");
-    objv[5] = ObjFromInt(iauaP->PrefixOrigin);
-    objv[6] = STRING_LITERAL_OBJ("-suffixorigin");
-    objv[7] = ObjFromInt(iauaP->SuffixOrigin);
-    objv[8] = STRING_LITERAL_OBJ("-dadstate");
-    objv[9] = ObjFromInt(iauaP->DadState);
-    objv[10] = STRING_LITERAL_OBJ("-validlifetime");
-    objv[11] = ObjFromULONG(iauaP->ValidLifetime);
-    objv[12] = STRING_LITERAL_OBJ("-preferredlifetime");
-    objv[13] = ObjFromULONG(iauaP->PreferredLifetime);
-    objv[14] = STRING_LITERAL_OBJ("-leaselifetime");
-    objv[15] = ObjFromULONG(iauaP->LeaseLifetime);
+    objv[0] = ObjFromDWORD(iauaP->Flags);
+    objv[1] = ObjFromSOCKET_ADDRESS(&iauaP->Address);
+    if (objv[1] == NULL)
+        objv[1] = ObjEmptyList();
+    objv[2] = ObjFromInt(iauaP->PrefixOrigin);
+    objv[3] = ObjFromInt(iauaP->SuffixOrigin);
+    objv[4] = ObjFromInt(iauaP->DadState);
+    objv[5] = ObjFromULONG(iauaP->ValidLifetime);
+    objv[6] = ObjFromULONG(iauaP->PreferredLifetime);
+    objv[7] = ObjFromULONG(iauaP->LeaseLifetime);
 
 
     return ObjNewList(ARRAYSIZE(objv), objv);
@@ -289,15 +396,13 @@ static Tcl_Obj *ObjFromIP_ADAPTER_UNICAST_ADDRESS(IP_ADAPTER_UNICAST_ADDRESS *ia
 
 static Tcl_Obj *ObjFromIP_ADAPTER_ANYCAST_ADDRESS(IP_ADAPTER_ANYCAST_ADDRESS *iaaaP)
 {
-    Tcl_Obj *objv[4];
+    Tcl_Obj *objv[2];
 
-    objv[0] = STRING_LITERAL_OBJ("-flags");
-    objv[1] = ObjFromDWORD(iaaaP->Flags);
-    objv[2] = STRING_LITERAL_OBJ("-address");
-    if (iaaaP->Address.lpSockaddr == NULL ||
-        (objv[3] = ObjFromSOCKET_ADDRESS(&iaaaP->Address)) == NULL) {
+    objv[0] = ObjFromDWORD(iaaaP->Flags);
+    objv[1] = ObjFromSOCKET_ADDRESS(&iaaaP->Address);
+    if (objv[0] == NULL) {
         /* Did not recognize socket address type */
-        objv[3] = Tcl_NewObj();
+        objv[0] = ObjEmptyList();
     }
 
     return ObjNewList(ARRAYSIZE(objv), objv);
@@ -313,10 +418,10 @@ static Tcl_Obj *ObjFromIP_ADAPTER_PREFIX(IP_ADAPTER_PREFIX *iapP)
     objv[0] = STRING_LITERAL_OBJ("-flags");
     objv[1] = ObjFromDWORD(iapP->Flags);
     objv[2] = STRING_LITERAL_OBJ("-address");
-    if (iapP->Address.lpSockaddr == NULL ||
-        (objv[3] = ObjFromSOCKET_ADDRESS(&iapP->Address)) == NULL) {
+    objv[3] = ObjFromSOCKET_ADDRESS(&iapP->Address);
+    if (objv[3] == NULL) {
         /* Did not recognize socket address type */
-        objv[3] = Tcl_NewObj();
+        objv[3] = ObjEmptyList();
     }
     objv[4] = STRING_LITERAL_OBJ("-prefixlength");
     objv[5] = ObjFromDWORD(iapP->PrefixLength);
@@ -326,130 +431,131 @@ static Tcl_Obj *ObjFromIP_ADAPTER_PREFIX(IP_ADAPTER_PREFIX *iapP)
 
 Tcl_Obj *ObjFromIP_ADAPTER_ADDRESSES(IP_ADAPTER_ADDRESSES *iaaP)
 {
-    Tcl_Obj *objv[34];
+    Tcl_Obj *objv[33];
+    int objc;
     Tcl_Obj *fieldObjs[16];
+    IP_ADAPTER_ADDRESSES_LH *ilhP = NULL;
     IP_ADAPTER_UNICAST_ADDRESS *unicastP;
     IP_ADAPTER_ANYCAST_ADDRESS *anycastP;
     IP_ADAPTER_MULTICAST_ADDRESS *multicastP;
     IP_ADAPTER_DNS_SERVER_ADDRESS *dnsserverP;
     IP_ADAPTER_PREFIX *prefixP;
+    IP_ADAPTER_DNS_SUFFIX *dnssuffixP;
+    IP_ADAPTER_WINS_SERVER_ADDRESS_LH *winsserverP;
+    IP_ADAPTER_GATEWAY_ADDRESS_LH *gatewayP;
+    Tcl_Obj *objP;
     int i;
     
-    objv[0] = STRING_LITERAL_OBJ("-ifindex");
-    objv[1] = ObjFromDWORD(iaaP->IfIndex);
-    objv[2] = STRING_LITERAL_OBJ("-adaptername");
-    objv[3] = ObjFromString(iaaP->AdapterName);
-    objv[4] = STRING_LITERAL_OBJ("-unicastaddresses");
-    objv[5] = ObjEmptyList();
+    objv[0] = ObjFromDWORD(iaaP->IfIndex);
+    objv[1] = ObjFromString(iaaP->AdapterName);
+    objv[2] = ObjEmptyList();
     unicastP = iaaP->FirstUnicastAddress;
     while (unicastP) {
-        ObjAppendElement(NULL, objv[5], ObjFromIP_ADAPTER_UNICAST_ADDRESS(unicastP));
+        ObjAppendElement(NULL, objv[2], ObjFromIP_ADAPTER_UNICAST_ADDRESS(unicastP));
         unicastP = unicastP->Next;
     }
-    objv[6] = STRING_LITERAL_OBJ("-anycastaddresses");
-    objv[7] = ObjEmptyList();
+    objv[3] = ObjEmptyList();
     anycastP = iaaP->FirstAnycastAddress;
     while (anycastP) {
-        ObjAppendElement(NULL, objv[7], ObjFromIP_ADAPTER_ANYCAST_ADDRESS(anycastP));
+        ObjAppendElement(NULL, objv[3], ObjFromIP_ADAPTER_ANYCAST_ADDRESS(anycastP));
         anycastP = anycastP->Next;
     }
-    objv[8] = STRING_LITERAL_OBJ("-multicastaddresses");
-    objv[9] = ObjEmptyList();
+    objv[4] = ObjEmptyList();
     multicastP = iaaP->FirstMulticastAddress;
     while (multicastP) {
-        ObjAppendElement(NULL, objv[9], ObjFromIP_ADAPTER_MULTICAST_ADDRESS(multicastP));
+        ObjAppendElement(NULL, objv[4], ObjFromIP_ADAPTER_MULTICAST_ADDRESS(multicastP));
         multicastP = multicastP->Next;
     }
-    objv[10] = STRING_LITERAL_OBJ("-dnsservers");
-    objv[11] = ObjEmptyList();
+    objv[5] = ObjEmptyList();
     dnsserverP = iaaP->FirstDnsServerAddress;
     while (dnsserverP) {
-        ObjAppendElement(NULL, objv[11], ObjFromIP_ADAPTER_DNS_SERVER_ADDRESS(dnsserverP));
+        ObjAppendElement(NULL, objv[5], ObjFromIP_ADAPTER_DNS_SERVER_ADDRESS(dnsserverP));
         dnsserverP = dnsserverP->Next;
     }
 
-    objv[12] = STRING_LITERAL_OBJ("-dnssuffix");
-    objv[13] = ObjFromUnicode(iaaP->DnsSuffix ? iaaP->DnsSuffix : L"");
-
-    objv[14] = STRING_LITERAL_OBJ("-description");
-    objv[15] = ObjFromUnicode(iaaP->Description ? iaaP->Description : L"");
-    objv[16] = STRING_LITERAL_OBJ("-friendlyname");
-    objv[17] = ObjFromUnicode(iaaP->FriendlyName ? iaaP->FriendlyName : L"");
-
-    objv[18] = STRING_LITERAL_OBJ("-physicaladdress");
-    objv[19] = ObjFromByteArray(iaaP->PhysicalAddress, iaaP->PhysicalAddressLength);
-
-    objv[20] = STRING_LITERAL_OBJ("-flags");
-    objv[21] = ObjFromDWORD(iaaP->Flags);
-
-    objv[22] = STRING_LITERAL_OBJ("-mtu");
-    objv[23] = ObjFromDWORD(iaaP->Mtu);
-
-    objv[24] = STRING_LITERAL_OBJ("-type");
-    objv[25] = ObjFromDWORD(iaaP->IfType);
-
-    objv[26] = STRING_LITERAL_OBJ("-operstatus");
-    objv[27] = ObjFromDWORD(iaaP->OperStatus);
+    objv[6] = ObjFromUnicode(iaaP->DnsSuffix);
+    objv[7] = ObjFromUnicode(iaaP->Description);
+    objv[8] = ObjFromUnicode(iaaP->FriendlyName);
+    objv[9] = ObjFromByteArray(iaaP->PhysicalAddress, iaaP->PhysicalAddressLength);
+    objv[10] = ObjFromDWORD(iaaP->Flags);
+    objv[11] = ObjFromDWORD(iaaP->Mtu);
+    objv[12] = ObjFromDWORD(iaaP->IfType);
+    objv[13] = ObjFromDWORD(iaaP->OperStatus);
 
     /*
      * Remaining fields are only available with XP SP1 or later. Check
      * length against the size of our struct definition.
      */
 
-    objv[28] = STRING_LITERAL_OBJ("-ipv6ifindex");
-    objv[30] = STRING_LITERAL_OBJ("-zoneindices");
-    objv[32] = STRING_LITERAL_OBJ("-prefixes");
     if (iaaP->Length >= sizeof(*iaaP)) {
-        objv[29] = ObjFromDWORD(iaaP->Ipv6IfIndex);
+        objv[14] = ObjFromDWORD(iaaP->Ipv6IfIndex);
         for (i=0; i < 16; ++i) {
             fieldObjs[i] = ObjFromDWORD(iaaP->ZoneIndices[i]);
         }
-        objv[31] = ObjNewList(16, fieldObjs);
-
-        objv[33] = ObjEmptyList();
+        objv[15] = ObjNewList(16, fieldObjs);
+        objv[16] = ObjEmptyList();
         prefixP = iaaP->FirstPrefix;
         while (prefixP) {
-            ObjAppendElement(NULL, objv[33],
+            ObjAppendElement(NULL, objv[16],
                                      ObjFromIP_ADAPTER_PREFIX(prefixP));
             prefixP = prefixP->Next;
         }
     } else {
-        objv[29] = ObjFromDWORD(0);
-        objv[31] = Tcl_NewObj(); /* Empty object */
-        ObjIncrRefs(objv[31]);
-        objv[33] = objv[31];
+        objv[14] = ObjFromDWORD(0);
+        objv[15] = ObjEmptyList(); /* Empty object */
+        ObjIncrRefs(objv[15]);
+        objv[16] = objv[15];
     }
 
-    return ObjNewList(ARRAYSIZE(objv), objv);
-}
-
-
-Tcl_Obj *ObjFromMIB_IPADDRROW(Tcl_Interp *interp, const MIB_IPADDRROW *iparP)
-{
-    Tcl_Obj *objv[5];
-
-    objv[0] = IPAddrObjFromDWORD(iparP->dwAddr);
-    objv[1] = ObjFromDWORD(iparP->dwIndex);
-    objv[2] = IPAddrObjFromDWORD(iparP->dwMask);
-    objv[3] = IPAddrObjFromDWORD(iparP->dwBCastAddr);
-    objv[4] = ObjFromDWORD(iparP->dwReasmSize);
-    return ObjNewList(5, objv);
-}
-
-Tcl_Obj *ObjFromMIB_IPADDRTABLE(Tcl_Interp *interp, MIB_IPADDRTABLE *ipatP)
-{
-    DWORD i;
-    Tcl_Obj *resultObj = ObjEmptyList();
-
-    for (i=0; i < ipatP->dwNumEntries; ++i) {
-        ObjAppendElement(interp, resultObj,
-                                 ObjFromMIB_IPADDRROW(interp,
-                                                          &ipatP->table[i])
-            );
+    if (iaaP->Length < sizeof(*ilhP)) {
+        return ObjNewList(17, objv);
     }
-    return resultObj;
+
+    ilhP = (IP_ADAPTER_ADDRESSES_LH *)iaaP;
+
+    objv[17] = ObjFromULONGLONG(ilhP->TransmitLinkSpeed);
+    objv[18] = ObjFromULONGLONG(ilhP->ReceiveLinkSpeed);
+    objv[19] = ObjEmptyList();
+    winsserverP = ilhP->FirstWinsServerAddress;
+    while (winsserverP) {
+        objP = ObjFromSOCKET_ADDRESS(&winsserverP->Address);
+        ObjAppendElement(NULL, objv[19], objP ? objP : ObjEmptyList());
+        winsserverP = winsserverP->Next;
+    }
+    objv[20] = ObjEmptyList();
+    gatewayP = ilhP->FirstGatewayAddress;
+    while (gatewayP) {
+        objP = ObjFromSOCKET_ADDRESS(&gatewayP->Address);
+        ObjAppendElement(NULL, objv[20], objP ? objP : ObjEmptyList());
+        gatewayP = gatewayP->Next;
+    }
+    objv[21] = ObjFromULONG(ilhP->Ipv4Metric);
+    objv[22] = ObjFromULONG(ilhP->Ipv6Metric);
+    objv[23] = ObjFromIF_LUID(&ilhP->Luid);
+    objv[24] = ObjFromSOCKET_ADDRESS(&ilhP->Dhcpv4Server);
+    if (objv[24] == NULL)
+        objv[24] = ObjEmptyList();
+    objv[25] = ObjFromULONG(ilhP->CompartmentId);
+    objv[26] = ObjFromGUID(&ilhP->NetworkGuid);
+    objv[27] = ObjFromULONG(ilhP->ConnectionType);
+    objv[28] = ObjFromULONG(ilhP->TunnelType);
+    objv[29] = ObjFromSOCKET_ADDRESS(&ilhP->Dhcpv6Server);
+    if (objv[29] == NULL)
+        objv[29] = ObjEmptyList();
+    objv[30] = ObjFromByteArray(ilhP->Dhcpv6ClientDuid, ilhP->Dhcpv6ClientDuidLength);
+    objv[31] = ObjFromULONG(ilhP->Dhcpv6Iaid);
+    objv[32] = ObjEmptyList();
+    dnssuffixP = ilhP->FirstDnsSuffix;
+    while (dnssuffixP) {
+        ObjAppendElement(NULL, objv[32], ObjFromUnicodeLimited(dnssuffixP->String, MAX_DNS_SUFFIX_STRING_LENGTH, NULL));
+        dnssuffixP = dnssuffixP->Next;
+    }
+
+    return ObjNewList(33, objv);
 }
 
+
+#ifdef NOTUSED
 Tcl_Obj *ObjFromMIB_IFROW(Tcl_Interp *interp, const MIB_IFROW *ifrP)
 {
     Tcl_Obj *objv[22];
@@ -487,7 +593,9 @@ Tcl_Obj *ObjFromMIB_IFROW(Tcl_Interp *interp, const MIB_IFROW *ifrP)
 
     return ObjNewList(sizeof(objv)/sizeof(objv[0]), objv);
 }
+#endif
 
+#ifdef NOTUSED
 Tcl_Obj *ObjFromMIB_IFTABLE(Tcl_Interp *interp, MIB_IFTABLE *iftP)
 {
     DWORD i;
@@ -501,6 +609,7 @@ Tcl_Obj *ObjFromMIB_IFTABLE(Tcl_Interp *interp, MIB_IFTABLE *iftP)
     }
     return resultObj;
 }
+#endif
 
 
 Tcl_Obj *ObjFromMIB_IPNETROW(Tcl_Interp *interp, const MIB_IPNETROW *netrP)
@@ -563,29 +672,6 @@ Tcl_Obj *ObjFromMIB_IPFORWARDTABLE(Tcl_Interp *interp, MIB_IPFORWARDTABLE *fwdP)
     }
     return resultObj;
 }
-
-Tcl_Obj *ObjFromIP_ADAPTER_INDEX_MAP(Tcl_Interp *interp, IP_ADAPTER_INDEX_MAP *iaimP)
-{
-    Tcl_Obj *objv[2];
-    objv[0] = ObjFromDWORD(iaimP->Index);
-    objv[1] = ObjFromUnicode(iaimP->Name);
-    return ObjNewList(2, objv);
-}
-
-Tcl_Obj *ObjFromIP_INTERFACE_INFO(Tcl_Interp *interp, IP_INTERFACE_INFO *iiP)
-{
-    int i;
-    Tcl_Obj *resultObj = ObjEmptyList();
-
-    for (i=0; i < iiP->NumAdapters; ++i) {
-        ObjAppendElement(interp, resultObj,
-                                 ObjFromIP_ADAPTER_INDEX_MAP(interp,
-                                                                 &iiP->Adapter[i])
-            );
-    }
-    return resultObj;
-}
-
 
 Tcl_Obj *ObjFromMIB_TCPROW(Tcl_Interp *interp, const MIB_TCPROW *row, int size)
 {
@@ -1235,20 +1321,7 @@ int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index)
     return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }
 
-
-
-
-int Twapi_GetInterfaceInfo(TwapiInterpContext *ticP)
-{
-    return TwapiIpConfigTableHelper(
-        ticP,
-        GetInterfaceInfo,
-        ObjFromIP_INTERFACE_INFO,
-        0,
-        0
-        );
-}
-
+#ifdef NOTUSED
 int Twapi_GetIfEntry(Tcl_Interp *interp, int if_index)
 {
     int error;
@@ -1262,7 +1335,9 @@ int Twapi_GetIfEntry(Tcl_Interp *interp, int if_index)
     ObjSetResult(interp, ObjFromMIB_IFROW(interp, &ifr));
     return TCL_OK;
 }
+#endif
 
+#ifdef NOTUSED
 int Twapi_GetIfTable(TwapiInterpContext *ticP, int sort)
 {
     return TwapiIpConfigTableHelper(
@@ -1273,18 +1348,7 @@ int Twapi_GetIfTable(TwapiInterpContext *ticP, int sort)
         sort
         );
 }
-
-int Twapi_GetIpAddrTable(TwapiInterpContext *ticP, int sort)
-{
-    return TwapiIpConfigTableHelper(
-        ticP,
-        GetIpAddrTable,
-        ObjFromMIB_IPADDRTABLE,
-        1,
-        sort
-        );
-}
-
+#endif
 
 int Twapi_GetIpNetTable(TwapiInterpContext *ticP, int sort)
 {
@@ -1573,6 +1637,7 @@ static int Twapi_GetAddrInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                      GETINT(hints.ai_family),
                      GETINT(hints.ai_protocol),
                      GETINT(hints.ai_socktype),
+                     GETINT(hints.ai_flags),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -1905,8 +1970,6 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             return Twapi_GetNetworkParams(ticP);
         case 2:
             return Twapi_GetAdaptersInfo(ticP);
-        case 3:
-            return Twapi_GetInterfaceInfo(ticP);
         }
     } else if (func < 300) {
         if (objc != 3)
@@ -1921,12 +1984,15 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             switch (func) {
             case 201:
                 return Twapi_GetPerAdapterInfo(ticP, dw);
-            case 202:
-                return Twapi_GetIfEntry(interp, dw);
-            case 203:
-                return Twapi_GetIfTable(ticP, dw);
-            case 204:
-                return Twapi_GetIpAddrTable(ticP, dw);
+            case 202: // UNUSED
+                // return Twapi_GetIfEntry(interp, dw);
+                break;
+            case 203: // UNUSED
+                //return Twapi_GetIfTable(ticP, dw);
+                break;
+            case 204: // UNUSED
+                // OBSOLETE return Twapi_GetIpAddrTable(ticP, dw);
+                break;
             case 205:
                 return Twapi_GetIpNetTable(ticP, dw);
             case 206:
@@ -2036,12 +2102,10 @@ static int TwapiNetworkInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     static struct alias_dispatch_s NetDispatch[] = {
         DEFINE_ALIAS_CMD(GetNetworkParams, 1),
         DEFINE_ALIAS_CMD(GetAdaptersInfo,  2),
-        DEFINE_ALIAS_CMD(GetInterfaceInfo,  3),
         DEFINE_ALIAS_CMD(SetTcpEntry,  101),
         DEFINE_ALIAS_CMD(GetPerAdapterInfo,  201),
         DEFINE_ALIAS_CMD(GetIfEntry,  202),
         DEFINE_ALIAS_CMD(GetIfTable,  203),
-        DEFINE_ALIAS_CMD(GetIpAddrTable,  204),
         DEFINE_ALIAS_CMD(GetIpNetTable,  205),
         DEFINE_ALIAS_CMD(GetIpForwardTable,  206),
         DEFINE_ALIAS_CMD(FlushIpNetTable,  207),

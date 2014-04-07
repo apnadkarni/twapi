@@ -29,7 +29,7 @@ This is noted where applicable.
 [section Commands]
 [list_begin definitions]
 
-[call [cmd flush_arp_tables] [opt "[arg INTERFACEINDEX]..."]]
+[call [cmd flush_arp_tables] [opt "[arg INTERFACENAME]..."]]
 [emph "Note: This command only affects IPv4 tables"]
 [nl]
 Flushes the ARP tables associated with the specified network interfaces.
@@ -54,136 +54,17 @@ Returns the IP version ([const 4] or [const 6]) of the IP address specified
 as [arg IPADDR]. Returns [const 0] if [arg IPADDR] is not a valid IPv4 or
 IPv6 address.
 
-[call [cmd get_netif_indices]]
-
-Network interfaces in the system are identified by integer indices. This
-command retrieves the list of indices for the IPv4 network interfaces
-in the system. Use [uri #get_netif6_indices [cmd get_netif6_indices]] to
-retrieve the list of IPv6 indices.
-
-[call [cmd get_netif6_indices]]
-
-Network interfaces in the system are identified by integer indices. This
-command retrieves the list of indices for the IPv6 network interfaces
-in the system. Use [uri #get_netif_indices [cmd get_netif_indices]] to
-retrieve the list of IPv4 indices.
-
-[call [cmd get_netif_info] [arg NETWORKINTERFACE] [opt [arg options]]]
+[call [cmd get_network_interface_info] [arg NETWORKINTERFACE] [opt [arg options]]]
 
 Returns various information about the configuration of a network interface.
-[arg NETWORKINTERFACE] must be the index of a
-network interface or a name identifying the interface.
-[nl]
-[emph "Note: This command only returns information for IPv4 interfaces."]
-Use [uri #get_netif6_info [cmd get_netif6_info]] to retrieve information
-for IPv6 interfaces.
+[arg NETWORKINTERFACE] must be the name of a
+network interface as returned by
+[uri #get_network_interfaces [cmd get_network_interfaces]].
 
 [nl]
 The information returned
-depends on the options specified and is in the form of a flat list of
-the form "[arg option1] [arg value1] ...". If a specific option is not
-valid or relevant for the interface, it is omitted from the returned fields.
-
-[nl]
-The following options may be
-specified:
-[list_begin opt]
-[opt_def [cmd -adapterdescription]]Returns a description of the adapter
-associated with the interface.
-[opt_def [cmd -adapterindex]]Returns the index of the adapter
-associated with the interface.
-[opt_def [cmd -adaptername]]Returns the name of the adapter
-associated with the interface.
-[opt_def [cmd -adminstatus]]Returns 1 or 0 depending on whether the interface
-has been administratively enabled or not.
-[opt_def [cmd -all]] Returns all option values.
-[opt_def [cmd -autoconfigactive]]Returns 1 if the interface has been
-autoconfigured with an address, and 0 otherwise.
-[opt_def [cmd -autoconfigenabled]]Returns 1 if autoconfiguration is
-enabled on the interface if a DHCP server cannot be found, and 0 otherwise.
-[opt_def [cmd -defaultgateway]]Returns the address of the default
-gateway on the interface.
-[opt_def [cmd -description]]Returns a description of the interface.
-[opt_def [cmd -dhcpenabled]]Returns 1 if DHCP is enabled on the
-interface, else 0.
-[opt_def [cmd -dhcpleaseend]]Returns the time, in seconds since Jan 1, 1970,
-that the DHCP lease will expire.
-[opt_def [cmd -dhcpleasestart]]Returns the time, in seconds since Jan 1, 1970,
-that the DHCP lease was obtained.
-[opt_def [cmd -dhcpserver]]Returns the address of the DHCP server
-on the network interface.
-[opt_def [cmd -dnsservers]]Returns a list of DNS servers on that interface.
-[opt_def [cmd -havewins]]Returns 1 if the interface uses WINS, else 0.
-[opt_def [cmd -ifindex]]Returns the interface index. This is the same
-as [arg INTERFACEINDEX] unless the latter is specified as a name.
-[opt_def [cmd -ifname]]Returns the name of the network interface.
-[opt_def [cmd -inbytes]]Returns the number of bytes received through
-this interface.
-[opt_def [cmd -indiscards]]Returns the number of incoming packets on this
-interface that were discarded even though they had no errors.
-[opt_def [cmd -inerrors]]Returns the number of incoming packets on this
-interface that were discarded because of errors.
-[opt_def [cmd -innonunicastpkts]]Returns the number of broadcast
-or multicast packets received through this interface.
-[opt_def [cmd -inunicastpkts]]Returns the number of unicast packets
-received through this interface.
-[opt_def [cmd -inunknownprotocols]]Returns the number of incoming packets
-on this interface that were discarded because of the protocol was unknown.
-[opt_def [cmd -laststatuschange]]Returns the last time the operational
-status changed.
-[opt_def [cmd -ipaddresses]]Returns a list sublists
-containing the IP addresses and masks for the interface.
-[opt_def [cmd -mtu]]Returns the maximum transmission unit of the interface.
-[opt_def [cmd -operstatus]]Returns the operational status of the interface.
-This is one of the values [const nonoperational], [const wanunreachable],
-[const disconnected], [const wanconnecting],
-[const wanconnected], [const operational].
-[opt_def [cmd -outbytes]]Returns the number of bytes transmitted through
-this interface.
-[opt_def [cmd -outdiscards]]Returns the number of outgoing packets on this
-interface that were discarded even though they had no errors.
-[opt_def [cmd -outerrors]]Returns the number of outgoing packets on this
-interface that were discarded because of errors.
-[opt_def [cmd -outnonunicastpkts]]Returns the number of broadcast
-or multicast packets transmitted through this interface.
-[opt_def [cmd -outqlen]]Returns the output queue length on this interface.
-[opt_def [cmd -outunicastpkts]]Returns the number of unicast packets
-transmitted through this interface.
-[opt_def [cmd -physicaladdress]]Returns the physical address of the
-network interface.
-[opt_def [cmd -primarywins]]Returns the address of the primary WINS
-server, if any.
-[opt_def [cmd -reassemblysize]]Returns the maximum size of a reassembled
-packet that is supported by the interface.
-[opt_def [cmd -secondarywins]]Returns the address of the secondary WINS
-server, if any.
-[opt_def [cmd -speed]]Returns the speed of the network interface in bits
-per second.
-[opt_def [cmd -type]] Returns the network interface type. This is an
-integer value as defined by [uri http://www.iana.org/assignments/ianaiftype-mib.  IANA]. Some common values are [const 6] (Ethernet), [const 9] (token
-ring), [const 23] (PPP), [const 24] (loopback), [const 71] (802.11 
-wireless), [const 131] (tunneling) and [const 144] (IEEE 1394 Firewire).
-[list_end]
-
-
-[call [cmd get_netif6_info] [arg NETWORKINTERFACE] [opt [arg options]]]
-
-Returns various information about the configuration of a network interface.
-[arg NETWORKINTERFACE] must be the index of a IPv6
-network interface, the name identifying the interface 
-(see the [cmd -adaptername] option), or the friendly name 
-(as returned by the [cmd -friendlyname] option). If the friendly name
-is ambiguous, an exception is generated.
-[nl]
-[emph "Note: This command only returns information for IPv6 interfaces."]
-Use [uri #get_netif_info [cmd get_netif_info]] to retrieve information
-for IPv4 interfaces.
-
-[nl]
-The information returned
-depends on the options specified and is in the form of a flat list of
-the form "[arg option1] [arg value1] ...". If a specific option is not
-valid or relevant for the interface, it is omitted from the returned fields.
+depends on the options specified and is in the form of a dictionary
+whose keys depend on the options specified:
 
 [nl]
 The following options may be
@@ -203,9 +84,8 @@ interface, else 0.
 Each element in the list is a dictionary, with the key [cmd -address]
 containing the address of the server. Other keys in the
 dictionary should be ignored.
-[opt_def [cmd -ipv6ifindex]]Returns the interface index. This is the same
-as [arg INTERFACEINDEX] unless the latter is specified as a name or
-friendly name.
+[opt_def [cmd -ipv4ifindex]]Returns the IP V4 interface index.
+[opt_def [cmd -ipv6ifindex]]Returns the IP V6 interface index.
 [opt_def [cmd -multicastaddresses]]Returns list of multicast addresses
 associated with the interface. Each element in the list is a dictionary,
 with the key [cmd -address] containing the address. Other keys in
@@ -230,8 +110,6 @@ Other keys in the dictionary should be ignored.
 integer value as defined by [uri http://www.iana.org/assignments/ianaiftype-mib.  IANA]. Some common values are [const 6] (Ethernet), [const 9] (token
 ring), [const 23] (PPP), [const 24] (loopback), [const 71] (802.11 
 wireless), [const 131] (tunneling) and [const 144] (IEEE 1394 Firewire).
-of [const ethernet], [const tokenring], [const fddi],
-[const ppp], [const loopback], [const slip] or [const other].
 [opt_def [cmd -unicastaddresses]]Returns list of unicast addresses
 associated with the interface. Each element in the list is a dictionary,
 with the key [cmd -address] containing the address. Other keys in
@@ -261,6 +139,14 @@ name resolution.
 [opt_def [cmd -routingenabled]] Returns 1 if routing is enabled on the system
 and 0 otherwise.
 [list_end]
+
+[call [cmd get_network_interfaces]]
+Returns a list of network interface names.
+
+[call [cmd get_network_interfaces_detail]]
+Returns a [uri base.html#recordarrays "record array"] containing
+data about all the network interfaces on the system.
+
 
 [call [cmd get_outgoing_interface] [arg DESTADDR]]
 [emph "Note: This command is only supported for IPv4."]

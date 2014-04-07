@@ -41,12 +41,7 @@ namespace eval twapi::network::test {
             -modulepath
             -bindtime
     }
-    proc validate_netif_indices {indices} {
-        foreach i $indices {
-            if {![string is integer $i]} {return 0}
-        }
-        return 1
-    }
+
     proc resolvable_hostname {} {
         # Has both IPv4 and IPv6
         return ftp.netbsd.org
@@ -171,8 +166,8 @@ namespace eval twapi::network::test {
             }
         }
 
-        if {[lsearch -exact [twapi::get_netif_indices] $route(-ifindex)] < 0} {
-            return "Field -ifindex ($route(-ifindex)) not found in list of network interface indices"
+        if {![string is integer -strict $route(-ifindex)]} {
+            return "Field -ifindex ($route(-ifindex)) not an integer"
         }
 
         foreach fld {metric1 metric2 metric3 metric4 metric5 age nexthopas policy} {
@@ -199,8 +194,8 @@ namespace eval twapi::network::test {
         if {![oneof {dynamic static other invalid} $type]} {
             lappend msgs "Invalid arp entry type $type"
         }
-        if {[lsearch -exact [twapi::get_netif_indices] $netif] < 0} {
-            lappend msgs "Interface index $netif not valid."
+        if {![string is integer -strict $netif]} {
+            lappend msgs "Interface index $netif not an integer."
         }
         if {![valid_ip_address $ipaddr]} {
             lappend "Invalid IP address $ipaddr in ARP table"
@@ -212,62 +207,7 @@ namespace eval twapi::network::test {
         return $msgs
     }
 
-    proc validate_netif {netifdata msgs} {
-        array set netif $netifdata
-
-        if {[info exists netif(-adapterindex)] &&
-            [lsearch -exact [twapi::get_netif_indices] $netif(-adapterindex)] < 0} {
-            lappend msgs "Adapter index $netif(-adapterindex) not found"
-        }
-        if {[info exists netif(-physicaladdress)] &&
-            $netif(-physicaladdress) ne ""} {
-            if {![regexp {^[[:xdigit:]]{2}-{5}[[:xdigit:]]{2}$} $netif(-physicaladdress)]} {
-                lappend msgs "Invalid h/w address $netif(-physicaladdress)."
-            }
-        }
-
-        foreach opt {
-            -defaultgateway -dhcpserver
-        } {
-            if {[info exists netif($opt)] &&
-                (! [valid_ip_address $netif($opt)])} {
-                lappend msgs "Invalid IP address '$netif($opt)' for $opt."
-            }
-        }
-
-        foreach opt {
-            -dnsservers -ipaddresses
-        } {
-            if {[info exists netif($opt)] &&
-                ! [validate_ip_addresses $netif($opt)]} {
-                lappend msgs "Invalid IP addresses '$netif($opt)' for $opt."
-            }
-        }
-
-        foreach opt {
-            -adminstatus -autoconfigactive -autoconfigenabled -dhcpenabled
-            -havewins } {
-            if {[info exists netif($opt)] &&
-                ! [string is boolean -strict $netif($opt)]} {
-                lappend msgs "Invalid non-boolean value '$netif($opt)' for $opt."
-            }
-        }
-
-        foreach opt {
-            -dhcpleaseend -dhcpleasestart -ifindex -inbytes -indiscards
-            -inerrors -innonunicastpkts -inunknownprotocols -laststatuschange
-            -mtu -outbytes -outdiscards -outerrors -outnonunicastpkts -outqlen
-            -outunicastpkts -reassemblysize -speed
-        } {
-            if {[info exists netif($opt)] &&
-                ! [string is integer -strict $netif($opt)]} {
-                lappend msgs "Invalid non-integer value '$netif($opt)' for $opt."
-            }
-        }
-
-    }
-
-    proc validate_netif6 {netifdata msgs} {
+    proc validate_network_interface {netifdata msgs} {
         array set netif $netifdata
 
         if {[info exists netif(-physicaladdress)] &&
@@ -306,7 +246,7 @@ namespace eval twapi::network::test {
         }
 
         foreach opt {
-            -type -operstatus -ipv6ifindex 
+            -type -operstatus -ipv6ifindex -ipv4ifindex
         } {
             if {[info exists netif($opt)] &&
                 ! [string is integer -strict $netif($opt)]} {
@@ -375,65 +315,6 @@ namespace eval twapi::network::test {
 
     ################################################################
 
-    test get_netif_indices-1.0 {
-        Get network interface indices
-    } -body {
-        set indices [twapi::get_netif_indices]
-        set bad_indices [list ]
-        foreach i $indices {
-            if {! [string is integer $i]} {
-                lappend bad_indices $i
-            }
-        }
-        set bad_indices
-    } -result ""
-
-    ################################################################
-
-    test get_netif6_indices-1.0 {
-        Get network interface indices
-    } -constraints {
-        ipv6
-    } -body {
-        set indices [twapi::get_netif6_indices]
-        set bad_indices [list ]
-        foreach i $indices {
-            if {! [string is integer $i]} {
-                lappend bad_indices $i
-            }
-        }
-        set bad_indices
-    } -result ""
-
-    ################################################################
-
-    test get_network_info-1.0 {
-        Get all network information
-    } -constraints {
-        nt
-    } -body {
-        if {[twapi::min_os_version 5]} {
-            array unset netinfo
-            array set netinfo [twapi::get_network_info -all]
-            verify_kl_fields [array get netinfo] {
-                -arpproxyenabled -dhcpscopeid -dnsenabled -dnsservers
-                -domain -hostname -interfaces -ipaddresses -routingenabled
-            }
-            expr {
-                  [string is boolean $netinfo(-arpproxyenabled)] &&
-                  [string is boolean $netinfo(-dnsenabled)] &&
-                  [validate_ip_addresses $netinfo(-dnsservers)] &&
-                  [validate_netif_indices $netinfo(-interfaces)] &&
-                  [validate_ip_addresses $netinfo(-ipaddresses)] &&
-                  [string is boolean $netinfo(-routingenabled)]
-              }
-        } else {
-            # NT 4 - command should throw an error
-            set result [catch {twapi::get_network_info -all} msg]
-        }
-    } -result 1
-
-    ################################################################
 
     test ipaddr_to_hwaddr-1.0 {
         Get the hardware address for an IP address
@@ -553,12 +434,35 @@ namespace eval twapi::network::test {
     test get_outgoing_interface-1.0 {
         Get the outgoing interface for a connection
     } -body {
-        expr {
-              [lsearch -exact [twapi::get_netif_indices] [twapi::get_outgoing_interface 8.8.8.8]] >= 0
-          }
+        # TBD - need a better test
+        string is integer -strict [twapi::get_outgoing_interface 8.8.8.8]
     } -result 1
 
     ################################################################
+
+    test get_network_info-1.0 {
+        Get all network information
+    } -constraints {
+        nt
+    } -body {
+        if {[twapi::min_os_version 5]} {
+            array unset netinfo
+            array set netinfo [twapi::get_network_info -all]
+            verify_kl_fields [array get netinfo] {
+                -arpproxyenabled -dhcpscopeid -dnsenabled -dnsservers
+                -domain -hostname -routingenabled
+            }
+            expr {
+                  [string is boolean $netinfo(-arpproxyenabled)] &&
+                  [string is boolean $netinfo(-dnsenabled)] &&
+                  [validate_ip_addresses $netinfo(-dnsservers)] &&
+                  [string is boolean $netinfo(-routingenabled)]
+              }
+        } else {
+            # NT 4 - command should throw an error
+            set result [catch {twapi::get_network_info -all} msg]
+        }
+    } -result 1
 
     set testnum 1
     foreach {field validation} {
@@ -568,8 +472,6 @@ namespace eval twapi::network::test {
         -dnsservers      "validate_ip_addresses"
         -domain          "string match *"
         -hostname        "string match *"
-        -interfaces      "validate_netif_indices"
-        -ipaddresses     "validate_ip_addresses"
         -routingenabled  "string is boolean"
     } {
         test get_network_info-[incr testnum].0 "Verify get_network_info $field" -constraints {
@@ -583,33 +485,12 @@ namespace eval twapi::network::test {
 
     ################################################################
 
-    test get_netif_info-1.0 {
+    test get_network_interface_info-1.0 {
+        Get network interface info
     } -body {
         set msgs ""
-        foreach ind [twapi::get_netif_indices] {
-            set netif [twapi::get_netif_info $ind -all]
-            set fields {
-                -physicaladdress -innonunicastpkts -inunknownprotocols -inerrors -adminstatus -outdiscards -inbytes -laststatuschange -outbytes -ifindex -outqlen -inunicastpkts -outunicastpkts -autoconfigenabled -autoconfigactive -indiscards -description -outnonunicastpkts -outerrors -mtu -dnsservers -ipaddresses -ifname -speed -reassemblysize -type -operstatus
-            }
-            if {[twapi::kl_get $netif -type] != 24} {
-                lappend fields -adapterdescription -defaultgateway -dhcpleaseend -secondarywins -dhcpenabled -adaptername -primarywins -havewins -dhcpserver -dhcpleasestart -adapterindex
-            }
-            verify_kl_fields $netif $fields
-            validate_netif $netif msgs
-        }
-        join $msgs \n
-    } -result ""
-
-    ################################################################
-
-    test get_netif6_info-1.0 {
-        Get IPv6 interface info
-    } -constraints {
-        ipv6
-    } -body {
-        set msgs ""
-        foreach ind [twapi::get_netif6_indices] {
-            set netif [twapi::get_netif6_info $ind -all]
+        foreach ind [twapi::get_network_interfaces] {
+            set netif [twapi::get_network_interface_info $ind -all]
             set fields {
                 -adaptername
                 -anycastaddresses
@@ -618,6 +499,7 @@ namespace eval twapi::network::test {
                 -dnsservers
                 -dnssuffix
                 -friendlyname
+                -ipv4ifindex
                 -ipv6ifindex
                 -multicastaddresses
                 -operstatus
@@ -628,34 +510,10 @@ namespace eval twapi::network::test {
                 -zoneindices
             }                
             verify_kl_fields $netif $fields
-            validate_netif6 $netif msgs
+            validate_network_interface $netif msgs
         }
         join $msgs \n
     } -result ""
-
-    test get_netif6_info-2.0 {
-        Get IPv6 interface info using adapter name
-    } -constraints {
-        ipv6
-    } -body {
-        set ind [lindex [twapi::get_netif6_indices] 0]
-        set netif_name [twapi::kl_get [twapi::get_netif6_info $ind -adaptername] -adaptername]
-        string equal [twapi::get_netif6_info $ind -friendlyname -type] [twapi::get_netif6_info $netif_name -friendlyname -type]
-    } -result 1
-
-    test get_netif6_info-3.0 {
-        Get IPv6 interface info using friendly name
-    } -constraints {
-        ipv6
-    } -body {
-        set ind [lindex [twapi::get_netif6_indices] 0]
-        set netif_name [twapi::kl_get [twapi::get_netif6_info $ind -friendlyname] -friendlyname]
-        string equal [twapi::get_netif6_info $ind -adaptername -type] [twapi::get_netif6_info $netif_name -adaptername -type]
-    } -result 1
-
-
-
-    ################################################################
 
     ################################################################
 
@@ -1089,9 +947,12 @@ namespace eval twapi::network::test {
         Get UDP connections -modulename
     } -body {
         set modulename [twapi::recordarray cell [twapi::get_udp_connections -all -matchlocalport $udp_system_port] 0 -modulename]
-        expr {[file exists [file join $::env(WINDIR) system32 $modulename]] ||
+        expr {
+              [string equal -nocase $modulename dnscache] || 
+              [file exists [file join $::env(WINDIR) system32 $modulename]] ||
               [file exists [file join $::env(WINDIR) system32 ${modulename}.exe]] ||
-              [file exists [file join $::env(WINDIR) system32 ${modulename}.dll]]}
+              [file exists [file join $::env(WINDIR) system32 ${modulename}.dll]]
+          }
     } -result 1
 
     set testnum 1
