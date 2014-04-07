@@ -137,6 +137,7 @@ typedef struct _TwapiHostnameEvent {
         char *hostname;      /* ckalloc'ed (used for addr->hostname) */
     };
     int family;                 /* AF_UNSPEC, AF_INET or AF_INET6 */
+    int ai_flags;                  /* Flags for ai_flags field in hint */
     char name[1];           /* Holds query for hostname->addr */
     /* VARIABLE SIZE SINCE name[] IS ARBITRARY SIZE */
 } TwapiHostnameEvent;
@@ -1766,7 +1767,7 @@ static DWORD WINAPI TwapiHostnameHandler(TwapiHostnameEvent *theP)
 
     TwapiZeroMemory(&hints, sizeof(hints));
     hints.ai_family = theP->family;
-
+    hints.ai_flags = theP->ai_flags;
     theP->tcl_ev.proc = TwapiHostnameEventProc;
     theP->status = getaddrinfo(theP->name, "0", &hints, &theP->addrinfolist);
     TwapiEnqueueTclEvent(theP->ticP, &theP->tcl_ev);
@@ -1782,11 +1783,13 @@ static int Twapi_ResolveHostnameAsyncObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     TwapiHostnameEvent *theP;
     DWORD winerr;
     int family;
+    int hint_flags;
 
     ERROR_IF_UNTHREADED(ticP->interp);
 
     if (TwapiGetArgs(ticP->interp, objc-1, objv+1,
                      GETASTRN(name, len), ARGUSEDEFAULT, GETINT(family),
+                     ARGUSEDEFAULT, GETINT(hint_flags),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -1803,6 +1806,7 @@ static int Twapi_ResolveHostnameAsyncObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     TwapiInterpContextRef(ticP, 1); /* So it does not go away */
     theP->addrinfolist = NULL;
     theP->family = family;
+    theP->ai_flags = hint_flags;
     CopyMemory(theP->name, name, len+1);
 
     if (QueueUserWorkItem(TwapiHostnameHandler, theP, WT_EXECUTEDEFAULT)) {
@@ -1925,6 +1929,7 @@ static int Twapi_ResolveAddressAsyncObjCmd(TwapiInterpContext *ticP, Tcl_Interp 
     TwapiInterpContextRef(ticP, 1); /* So it does not go away */
     theP->hostname = NULL;
     theP->family = family;
+    theP->ai_flags = 0;
 
     /* We do not syntactically validate address string here. All failures
        are delivered asynchronously */
