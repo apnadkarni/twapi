@@ -636,6 +636,52 @@ namespace eval twapi::network::test {
         expr {($hostname eq "[resolvable_hostname]") && ($status eq "success") && [llength $ipaddrs] && [validate_ip_addresses $ipaddrs 6]}
     } -result 1
 
+    test resolve_hostname-5.0 {
+        Map host name to both IPv4 and IPv6 address
+    } -constraints {
+        ipv6
+    } -body {
+        # Note this may fail pre-Vista
+        set v4count 0
+        set v6count 0
+        foreach ipaddr [twapi::resolve_hostname [resolvable_hostname]] {
+            if {[valid_ip_address $ipaddr 4]} {
+                incr v4count
+            } elseif {[valid_ip_address $ipaddr 6]} {
+                incr v6count
+            } else {
+                error "Invalid ipaddr $ipaddr"
+            }
+        }
+        list [expr {$v4count > 0}] [expr {$v6count > 0}]
+    } -result {1 1}
+
+    test resolve_hostname-5.1 {
+        Map host name to IPv4 and IPv6 address asynchronous
+    } -constraints {
+        ipv6
+    } -body {
+        set ::resolve_hostname_result [list ]
+        twapi::resolve_hostname [resolvable_hostname] -async {lappend ::resolve_hostname_result}
+        vwait ::resolve_hostname_result
+        lassign $::resolve_hostname_result  hostname status ipaddrs
+        set v4count 0
+        set v6count 0
+        foreach ipaddr $ipaddrs {
+            if {[valid_ip_address $ipaddr 4]} {
+                incr v4count
+            } elseif {[valid_ip_address $ipaddr 6]} {
+                incr v6count
+            } else {
+                error "Invalid ipaddr $ipaddr"
+            }
+        }
+        list [expr {$v4count > 0}] \
+            [expr {$v6count > 0}] \
+            [string equal -nocase $hostname [resolvable_hostname]] \
+            [string equal $status "success"]
+    } -result {1 1 1 1}
+
     ################################################################
 
     test resolve_address-1.0 {
