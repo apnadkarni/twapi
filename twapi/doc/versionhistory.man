@@ -93,7 +93,13 @@ TclOO in newer Tcl versions (8.6b2 and later)
 Added [uri com.html#define_dispatch_prototypes [cmd define_dispatch_prototypes]].
 
 [bullet]
-Added [uri base.html#recordarrays [cmd recordarray]] command.
+Added [uri network.html#get_network_interfaces [cmd get_network_interfaces]]
+and [uri network.html#get_network_interfaces_detail [cmd get_network_interfaces_detail]].
+
+[bullet]
+Added the common data format [emph "record array"] for collections
+returned by many commands and the corresponding
+[uri base.html#recordarrays [cmd recordarray]] command.
 
 [bullet]
 Added [uri input.html#get_keyboard_layout_name [cmd get_keyboard_layout_name]].
@@ -186,6 +192,9 @@ Network configuration
 [opt_def address_to_hostname] Removed. Use
 the [uri network.html#resolve_address [cmd resolve_address]] command instead.
 
+[opt_def [uri network.html#flush_arp_tables flush_arp_tables]]
+Takes interface names as arguments instead of interface indices.
+
 [opt_def [uri network.html#get_arp_table get_arp_table]]
 Returns the ARP table as a [uri base.html#recordarrays "record array"].
 Options [cmd -ifindex] and [cmd -validonly] are no longer available. Use
@@ -198,6 +207,11 @@ Use [uri network.html#get_system_ipaddrs [cmd get_system_ipaddrs]] instead.
 [opt_def [cmd get_netif_count], get_netif6_count] Removed.
 Returned internal driver interface information which was misleading
 in terms of the interfaces actually visible at the application level.
+
+[opt_def "get_netif_indices get_netif6_indices"]
+Removed. Use interface names as returned by 
+[uri network.html#get_network_interfaces [cmd get_network_interfaces]]
+instead.
 
 [opt_def "[uri network.html#get_tcp_connections get_tcp_connections] [uri network.html#get_udp_connections get_udp_connections]"]
 Return connections as [uri base.html#recordarrays "record arrays"]
