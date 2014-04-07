@@ -432,25 +432,6 @@ proc twapi::kl_flatten {list_of_kl args} {
 }
 
 
-# Print the specified fields of a keyed list
-proc twapi::kl_print {kl args} {
-    # If only one arg, just print value without label
-    if {[llength $args] == 1} {
-        puts [kl_get $kl [lindex $args 0]]
-        return
-    }
-    if {[llength $args] == 0} {
-        array set arr $kl
-        parray arr
-    }
-    foreach field $args {
-        puts "$field: [kl_get $kl $field]"
-    }
-    return
-}
-
-
-
 # Return an array as a list of -index value pairs
 proc twapi::_get_array_as_options {v_arr} {
     upvar $v_arr arr

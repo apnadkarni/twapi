@@ -1,23 +1,53 @@
 #
-# Copyright (c) 2004, Ashok P. Nadkarni
+# Copyright (c) 2004-2104, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
 
 namespace eval twapi {
+    record IP_ADAPTER_ADDRESSES_XP {
+        -ipv4ifindex -adaptername -unicastaddresses -anycastaddresses
+        -multicastaddresses -dnsservers -dnssuffix -description
+        -friendlyname -physicaladdress -flags -mtu -type -operstatus
+        -ipv6ifindex -zoneindices -prefixes
+    }
+
+    if {[min_os_version 6]} {
+        record IP_ADAPTER_ADDRESSES [list {*}[IP_ADAPTER_ADDRESSES_XP] -transmitspeed -receivespeed -winsaddresses -gatewayaddresses -ipv4metric -ipv6metric -luid -dhcpv4server -compartmentid -networkguid -connectiontype -tunneltype -dhcpv6server -dhcpv6clientduid -dhcpv6iaid -dnssuffixes]
+    } else {
+        record IP_ADAPTER_ADDRESSES [IP_ADAPTER_ADDRESSES_XP]
+    }
+
+    record IP_ADAPTER_UNICAST_ADDRESS {
+        -flags -address -prefixorigin -suffixorigin -dadstate -validlifetime -preferredlifetime -leaselifetime 
+    }
+
+    record IP_ADAPTER_ANYCAST_ADDRESS {-flags -address}
+    record IP_ADAPTER_MULTICAST_ADDRESS [IP_ADAPTER_ANYCAST_ADDRESS]
+    record IP_ADAPTER_DNS_SERVER_ADDRESS [IP_ADAPTER_ANYCAST_ADDRESS]
 }
 
-# TBD - Tcl interface to GetIfTable ?
+proc twapi::get_network_interfaces {} {
+    # 0x20 -> SKIP_FRIENDLYNAME
+    # 0x0f -> SKIP_DNS_SERVER, SKIP_UNICAST/MULTICAST/ANYCAST
+    return [lpick [GetAdaptersAddresses 0 0x2f] [enum [IP_ADAPTER_ADDRESSES] -adaptername]]
+}
+
+proc twapi::get_network_interfaces_detail {} {
+    return [recordarray get [list [IP_ADAPTER_ADDRESSES] [GetAdaptersAddresses 0 0]] -slice [IP_ADAPTER_ADDRESSES_XP]]
+}
 
 # Get the list of local IP addresses
 proc twapi::get_system_ipaddrs {args} {
     array set opts [parseargs args {
         {ipversion.arg 0}
         {types.arg unicast}
+        adaptername.arg
     } -maxleftover 0]
 
     # 0x20 -> SKIP_FRIENDLYNAME
-    set flags 0x27
+    # 0x08 -> SKIP_DNS_SERVER
+    set flags 0x2f
     if {"all" in $opts(types)} {
         set flags 0x20
     } else {
@@ -33,32 +63,25 @@ proc twapi::get_system_ipaddrs {args} {
         # Not installed, so no addresses
         return {}
     }
+
     foreach entry $entries {
-        foreach fld {-unicastaddresses -anycastaddresses -multicastaddresses} {
-            foreach addrset [kl_get $entry $fld] {
-                lappend addrs [kl_get $addrset -address]
-            }
+        if {[info exists opts(adaptername)] &&
+            [string compare -nocase [IP_ADAPTER_ADDRESSES -adaptername $entry] $opts(adaptername)]} {
+            continue
+        }
+
+        foreach rec [IP_ADAPTER_ADDRESSES -unicastaddresses $entry] {
+            lappend addrs [IP_ADAPTER_UNICAST_ADDRESS -address $rec]
+        }
+        foreach rec [IP_ADAPTER_ADDRESSES -anycastaddresses $entry] {
+            lappend addrs [IP_ADAPTER_ANYCAST_ADDRESS -address $rec]
+        }
+        foreach rec [IP_ADAPTER_ADDRESSES -multicastaddresses $entry] {
+            lappend addrs [IP_ADAPTER_MULTICAST_ADDRESS -address $rec]
         }
     }
 
     return [lsort -unique $addrs]
-}
-
-interp alias {} twapi::get_ip_addresses {} twapi::get_system_ipaddrs -ipversion 4 -types unicast
-
-
-# Get the list of interfaces
-proc twapi::get_netif_indices {} {
-    return [lindex [get_network_info -interfaces] 1]
-}
-
-proc twapi::get_netif6_indices {} {
-    trap {
-        return [twapi::kl_flatten [twapi::GetAdaptersAddresses 23 8] -ipv6ifindex]
-    } onerror {TWAPI_WIN32 232} {
-        # No IP v6 installed
-        return {}
-    }
 }
 
 # Get network related information
@@ -75,7 +98,7 @@ proc twapi::get_network_info {args} {
     }
 
     array set opts [parseargs args \
-                        [concat [list all ipaddresses interfaces] \
+                        [concat [list all] \
                              [array names getnetworkparams_opts]]]
     set result [list ]
     foreach opt [array names getnetworkparams_opts] {
@@ -86,223 +109,11 @@ proc twapi::get_network_info {args} {
         lappend result -$opt [lindex $netparams $getnetworkparams_opts($opt)]
     }
 
-    if {$opts(all) || $opts(ipaddresses) || $opts(interfaces)} {
-        set addrs     [list ]
-        set interfaces [list ]
-        foreach entry [GetIpAddrTable 0] {
-            set addr [lindex $entry 0]
-            if {[string compare $addr "0.0.0.0"]} {
-                lappend addrs $addr
-            }
-            lappend interfaces [lindex $entry 1]
-        }
-        if {$opts(all) || $opts(ipaddresses)} {
-            lappend result -ipaddresses $addrs
-        }
-        if {$opts(all) || $opts(interfaces)} {
-            lappend result -interfaces $interfaces
-        }
-    }
-
     return $result
 }
 
 
-twapi::proc* twapi::get_netif_info {interface args} {
-    variable GetIfEntry_opts
-    variable GetIpAddrTable_opts
-    variable GetAdaptersInfo_opts
-    variable GetPerAdapterInfo_opts
-    variable GetInterfaceInfo_opts
-
-    # Various pieces of information come from different sources. Moreover,
-    # the same information may be available from multiple APIs. In addition
-    # older versions of Windows may not have all the APIs. So we try
-    # to first get information from older API's whenever we have a choice
-    # These tables map fields to positions in the corresponding API result.
-    # -1 means rerieving is not as simple as simply indexing into a list
-
-    # GetIfEntry is available from NT4 SP4 onwards
-    array set GetIfEntry_opts {
-        type                2
-        mtu                 3
-        speed               4
-        physicaladdress     5
-        adminstatus         6
-        operstatus          7
-        laststatuschange    8
-        inbytes             9
-        inunicastpkts      10
-        innonunicastpkts   11
-        indiscards         12
-        inerrors           13
-        inunknownprotocols 14
-        outbytes           15
-        outunicastpkts     16
-        outnonunicastpkts  17
-        outdiscards        18
-        outerrors          19
-        outqlen            20
-        description        21
-    }
-
-    # GetIpAddrTable also exists in NT4 SP4+
-    array set GetIpAddrTable_opts {
-        ipaddresses -1
-        ifindex     -1
-        reassemblysize -1
-    }
-
-    # Win2K and up
-    array set GetAdaptersInfo_opts {
-        adaptername     0
-        adapterdescription     1
-        adapterindex    3
-        dhcpenabled     5
-        defaultgateway  7
-        dhcpserver      8
-        havewins        9
-        primarywins    10
-        secondarywins  11
-        dhcpleasestart 12
-        dhcpleaseend   13
-    }
-
-    # Win2K and up
-    array set GetPerAdapterInfo_opts {
-        autoconfigenabled 0
-        autoconfigactive  1
-        dnsservers        2
-    }
-
-    # Win2K and up
-    array set GetInterfaceInfo_opts {
-        ifname  -1
-    }
-
-} {
-    variable GetIfEntry_opts
-    variable GetIpAddrTable_opts
-    variable GetAdaptersInfo_opts
-    variable GetPerAdapterInfo_opts
-    variable GetInterfaceInfo_opts
-
-    array set opts [parseargs args \
-                        [concat [list all unknownvalue.arg] \
-                             [array names GetIfEntry_opts] \
-                             [array names GetIpAddrTable_opts] \
-                             [array names GetAdaptersInfo_opts] \
-                             [array names GetPerAdapterInfo_opts] \
-                             [array names GetInterfaceInfo_opts]]]
-
-    array set result [list ]
-
-    set IfOperStatusTokens {
-        0 nonoperational
-        1 wanunreachable
-        2 disconnected
-        3 wanconnecting
-        4 wanconnected
-        5 operational
-    }
-
-    set nif $interface
-    if {![string is integer $nif]} {
-        set nif [GetAdapterIndex $nif]
-    }
-
-    if {$opts(all) || $opts(ifindex)} {
-        # This really is only useful if $interface had been specified as a name
-        set result(-ifindex) $nif
-    }
-
-    # Several options need the type so make the GetIfEntry call always
-    set values [GetIfEntry $nif]
-    foreach opt [array names GetIfEntry_opts] {
-        if {$opts(all) || $opts($opt)} {
-            set result(-$opt) [lindex $values $GetIfEntry_opts($opt)]
-        }
-    }
-    set type [lindex $values $GetIfEntry_opts(type)]
-
-    if {$opts(all) ||
-        [_array_non_zero_entry opts [array names GetIpAddrTable_opts]]} {
-        # Collect all the entries, sort by index, then pick out what
-        # we want. This assumes there may be multiple entries with the
-        # same ifindex
-        foreach entry [GetIpAddrTable 0] {
-            lassign  $entry  addr ifindex netmask broadcast reasmsize
-            lappend ipaddresses($ifindex) [list $addr $netmask $broadcast]
-            set reassemblysize($ifindex) $reasmsize
-        }
-        foreach opt {ipaddresses reassemblysize} {
-            if {$opts(all) || $opts($opt)} {
-                if {![info exists ${opt}($nif)]} {
-                    error "No interface exists with index $nif"
-                }
-                set result(-$opt) [set ${opt}($nif)]
-            }
-        }
-    }
-
-    if {$opts(all) ||
-        [_array_non_zero_entry opts [array names GetAdaptersInfo_opts]]} {
-        foreach entry [GetAdaptersInfo] {
-            if {$nif != [lindex $entry 3]} continue; # Different interface
-            foreach opt [array names GetAdaptersInfo_opts] {
-                if {$opts(all) || $opts($opt)} {
-                    set result(-$opt) [lindex $entry $GetAdaptersInfo_opts($opt)]
-                }
-            }
-        }
-    }
-
-    if {$opts(all) ||
-        [_array_non_zero_entry opts [array names GetPerAdapterInfo_opts]]} {
-        if {$type == 24} {
-            # Loopback - we have to make this info up
-            set values {0 0 {}}
-        } else {
-            set values [GetPerAdapterInfo $nif]
-        }
-        foreach opt [array names GetPerAdapterInfo_opts] {
-            if {$opts(all) || $opts($opt)} {
-                set result(-$opt) [lindex $values $GetPerAdapterInfo_opts($opt)]
-            }
-        }
-    }
-
-    if {$opts(all) || $opts(ifname)} {
-        array set ifnames [eval concat [GetInterfaceInfo]]
-        if {$type == 24} {
-            set result(-ifname) "loopback"
-        } else {
-            if {![info exists ifnames($nif)]} {
-                error "No interface exists with index $nif"
-            }
-            set result(-ifname) $ifnames($nif)
-        }
-    }
-
-    if {[info exists result(-physicaladdress)]} {
-        set result(-physicaladdress) [_hwaddr_binary_to_string $result(-physicaladdress)]
-    }
-    foreach opt {-primarywins -secondarywins} {
-        if {[info exists result($opt)]} {
-            if {[string equal $result($opt) "0.0.0.0"]} {
-                set result($opt) ""
-            }
-        }
-    }
-    if {[info exists result(-operstatus)] &&
-        [dict exists $IfOperStatusTokens $result(-operstatus)]} {
-        set result(-operstatus) [dict get $IfOperStatusTokens $result(-operstatus)]
-    }
-
-    return [array get result]
-}
-
-proc twapi::get_netif6_info {interface args} {
+proc twapi::get_network_interface_info {interface args} {
     array set opts [parseargs args {
         all
         adaptername
@@ -312,6 +123,7 @@ proc twapi::get_netif6_info {interface args} {
         dnsservers
         dnssuffix
         friendlyname
+        ipv4ifindex
         ipv6ifindex
         multicastaddresses
         operstatus
@@ -320,70 +132,60 @@ proc twapi::get_netif6_info {interface args} {
         type
         unicastaddresses
         zoneindices
-    } -maxleftover 0]
+
+        {ipversion.arg 0}
+    } -maxleftover 0 -hyphenated]
     
-    set haveindex [string is integer -strict $interface]
+    set ipversion [_ipversion_to_af $opts(-ipversion)]
 
     set flags 0
-    if {! $opts(all)} {
-        if {! $opts(unicastaddresses)} { incr flags 0x1 }
-        if {! $opts(anycastaddresses)} { incr flags 0x2 }
-        if {! $opts(multicastaddresses)} { incr flags 0x4 }
-        if {! $opts(dnsservers)} { incr flags 0x8 }
-        if {(! $opts(friendlyname)) && $haveindex} { incr flags 0x20 }
+    if {! $opts(-all)} {
+        # If not asked for some fields, don't bother getting them
+        if {! $opts(-unicastaddresses)} { incr flags 0x1 }
+        if {! $opts(-anycastaddresses)} { incr flags 0x2 }
+        if {! $opts(-multicastaddresses)} { incr flags 0x4 }
+        if {! $opts(-dnsservers)} { incr flags 0x8 }
+        if {! $opts(-friendlyname)} { incr flags 0x20 }
 
-        if {$opts(prefixes)} { incr flags 0x10 }
+        if {$opts(-prefixes)} { incr flags 0x10 }
     } else {
         incr flags 0x10;        # Want prefixes also
     }
     
-    set entries {}
-    trap {
-        set entries [GetAdaptersAddresses 23 $flags]
-    } onerror {TWAPI_WIN32 232} {
-        error "IPv6 not installed."
-    }
-    if {$haveindex} {
-        foreach entry $entries {
-            if {[kl_get $entry -ipv6ifindex] == $interface} {
-                set found $entry
-                break
-            }
-        }
-    } else {
-        foreach entry $entries {
-            if {[string equal -nocase [kl_get $entry -adaptername] $interface] ||
-                [string equal -nocase [kl_get $entry -friendlyname] $interface]} {
-                if {[info exists found]} {
-                    error "More than one interface found matching '$interface'"
-                }
-                set found $entry
-            }
-        }
-    }
-
-    # $found is the matching entry
-    if {![info exists found]} {
+    set entries [GetAdaptersAddresses $ipversion $flags]
+    set nameindex [enum [IP_ADAPTER_ADDRESSES] -adaptername]
+    set entry [lsearch -nocase -exact -inline -index $nameindex $entries $interface]
+    if {[llength $entry] == 0} {
         error "No interface matching '$interface'."
     }
 
-    array set result {}
-    foreach opt {
-        ipv6ifindex adaptername unicastaddresses anycastaddresses
-        multicastaddresses dnsservers dnssuffix description
-        friendlyname physicaladdress type operstatus zoneindices prefixes
-    } {
-        if {$opts(all) || $opts($opt)} {
-            set result(-$opt) [kl_get $found -$opt]
+    array set result [IP_ADAPTER_ADDRESSES $entry]
+    if {$opts(-all) || $opts(-dhcpenabled)} {
+        set result(-dhcpenabled) [expr {($result(-flags) & 0x4) != 0}]
+    }
+    # Note even if -all is specified, we still loop through because
+    # the fields of IP_ADAPTER_ADDRESSES are a superset of options
+    foreach opt [IP_ADAPTER_ADDRESSES] {
+        # Select only those fields that have an option defined
+        # and that option is selected
+        if {!([info exists opts($opt)] && ($opts(-all) || $opts($opt)))} {
+            unset result($opt)
         }
     }
-
-    if {$opts(all) || $opts(dhcpenabled)} {
-        set result(-dhcpenabled) [expr {([kl_get $found -flags] & 0x4) != 0}]
-    }
-
     if {[info exists result(-physicaladdress)]} {
         set result(-physicaladdress) [_hwaddr_binary_to_string $result(-physicaladdress)]
+    }
+    if {[info exists result(-unicastaddresses)]} {
+        set result(-unicastaddresses) [recordarray getlist [list [IP_ADAPTER_UNICAST_ADDRESS] $result(-unicastaddresses)] -format dict]
+    }
+    if {[info exists result(-multicastaddresses)]} {
+        set result(-multicastaddresses) [recordarray getlist [list [IP_ADAPTER_MULTICAST_ADDRESS] $result(-multicastaddresses)] -format dict]
+    }
+    if {[info exists result(-anycastaddresses)]} {
+        set result(-anycastaddresses) [recordarray getlist [list [IP_ADAPTER_ANYCAST_ADDRESS] $result(-anycastaddresses)] -format dict]
+    }
+    if {[info exists result(-dnsservers)]} {
+        set result(-dnsservers) [recordarray getlist [list [IP_ADAPTER_DNS_SERVER_ADDRESS] $result(-dnsservers)] -format dict]
     }
 
     return [array get result]
@@ -426,12 +228,12 @@ proc twapi::ipaddr_to_hwaddr {ipaddr {varname ""}} {
     # If could not get from ARP table, see if it is one of our own
     # Ignore errors
     if {![info exists result]} {
-        foreach ifindex [get_netif_indices] {
+        foreach ifc [get_network_interfaces] {
             catch {
-                array set netifinfo [get_netif_info $ifindex -ipaddresses -physicaladdress]
-                # Search list of ipaddresses
-                foreach elem $netifinfo(-ipaddresses) {
-                    if {[lindex $elem 0] eq $ipaddr && $netifinfo(-physicaladdress) ne ""} {
+                array set netifinfo [get_network_interface_info $ifc -unicastaddresses -physicaladdress]
+                if {$netifinfo(-physicaladdress) eq ""} continue
+                foreach elem $netifinfo(-unicastaddresses) {
+                    if {[dict get $elem -address] eq $ipaddr} {
                         set result $netifinfo(-physicaladdress)
                         break
                     }
@@ -472,14 +274,18 @@ proc twapi::hwaddr_to_ipaddr {hwaddr {varname ""}} {
     # If could not get from ARP table, see if it is one of our own
     # Ignore errors
     if {![info exists result]} {
-        foreach ifindex [get_netif_indices] {
+        foreach ifc [get_network_interfaces] {
             catch {
-                array set netifinfo [get_netif_info $ifindex -ipaddresses -physicaladdress]
-                # Search list of ipaddresses
+                array set netifinfo [get_network_interface_info $ifc -unicastaddresses -physicaladdress]
+                if {$netifinfo(-physicaladdress) eq ""} continue
                 set ifhwaddr [string map {- ""} $netifinfo(-physicaladdress)]
                 if {[string equal -nocase $hwaddr $ifhwaddr]} {
-                    set result [lindex [lindex $netifinfo(-ipaddresses) 0] 0]
-                    break
+                    foreach elem $netifinfo(-unicastaddresses) {
+                        if {[dict get $elem -address] ne ""} {
+                            set result [dict get $elem -address]
+                            break
+                        }
+                    }
                 }
             }
             if {[info exists result]} {
@@ -506,11 +312,16 @@ proc twapi::hwaddr_to_ipaddr {hwaddr {varname ""}} {
 # Flush the arp table for a given interface
 proc twapi::flush_arp_tables {args} {
     if {[llength $args] == 0} {
-        set args [get_netif_indices]
+        set args [get_network_interfaces]
     }
-    foreach ix $args {
-        if {[lindex [get_netif_info $ix -type] 1] != 24} {
-            FlushIpNetTable $ix
+    foreach arg $args {
+        array set ifc [get_network_interface_info $arg -type -ipv4ifindex]
+        if {$ifc(-type) != 24} {
+            trap {
+                FlushIpNetTable $ifc(-ipv4ifindex)
+            } onerror {TWAPI_WIN32 1168} {
+                # Ignore - flush not supported for that interface type
+            }
         }
     }
 }
