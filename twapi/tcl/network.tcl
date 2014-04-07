@@ -692,12 +692,17 @@ proc twapi::resolve_hostname {name args} {
     } -maxleftover 0]
 
     set opts(ipversion) [_ipversion_to_af $opts(ipversion)]
+    set flags 0
+    if {[min_os_version 6] && $opts(ipversion) == 0} {
+        # IPv6 not returned if AF_UNSPEC specified unless AI_ALL is set
+        set flags 0x100;        # AI_ALL
+    }
 
     # If async option, we will call back our internal function which
     # will update the cache and then invoke the caller's script
     if {[info exists opts(async)]} {
         variable _hostname_handler_scripts
-        set id [Twapi_ResolveHostnameAsync $name $opts(ipversion)]
+        set id [Twapi_ResolveHostnameAsync $name $opts(ipversion) $flags]
         set _hostname_handler_scripts($id) [list $name $opts(async)]
         return ""
     }
@@ -705,9 +710,8 @@ proc twapi::resolve_hostname {name args} {
     # Resolve address synchronously
     set addrs [list ]
     trap {
-        foreach endpt [twapi::getaddrinfo $name 0 $opts(ipversion)] {
-            lassign $endpt addr port
-            lappend addrs $addr
+        foreach endpt [twapi::getaddrinfo $name 0 $opts(ipversion) 0 0 $flags] {
+            lappend addrs [lindex $endpt 0]
         }
     } onerror {TWAPI_WIN32 11001} {
         # Ignore - 11001 -> no such host, so just return empty list
