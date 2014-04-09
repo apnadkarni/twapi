@@ -495,21 +495,32 @@ static TCL_RESULT RecordInstanceObjCmd(
                 goto nargs_error;
             objP = RecordGetField(interp, fieldsObj, objv[2], objv[3]);
             break;
-        case 1: // set RECORD FIELD VALUE
-            if (objc != 5)
+        case 1: // set RECORD FIELD VALUE ?FIELD VALUE...?
+            if (objc < 5 || ((objc-3) & 1))
                 goto nargs_error;
-            if (ObjToEnum(interp, fieldsObj, objv[3], &field_index) != TCL_OK ||
-                ObjListLength(interp, objv[2], &i) != TCL_OK)
-                break;
-            if (i <= field_index) {
-                ObjSetStaticResult(interp, "too few values in record");
-                break;
-            }
             if (Tcl_IsShared(objv[2]))
                 objP = ObjDuplicate(objv[2]);
             else
                 objP = objv[2];
-            Tcl_ListObjReplace(interp, objP, field_index, 1, 1, &objv[4]);
+            for (j = 3; j < objc; j += 2) {
+                if (ObjToEnum(interp, fieldsObj, objv[j], &field_index) != TCL_OK ||
+                    ObjListLength(interp, objv[2], &i) != TCL_OK) {
+                    break;
+                }
+                if (i <= field_index) {
+                    ObjSetStaticResult(interp, "too few values in record");
+                    break;
+                }
+                Tcl_ListObjReplace(interp, objP, field_index, 1, 1, &objv[j+1]);
+            }
+
+            if (j < objc) {
+                /* Loop terminated because of error */
+                if (objP != objv[2])
+                    ObjDecrRefs(objP); /* We dup'ed so release it */
+                objP = NULL;
+            }
+
             break;
         case 2: // select RECORD FIELDLIST
             if (objc != 4)
