@@ -97,6 +97,15 @@ namespace eval twapi {
         }
         return $result
     }
+
+    # twine list of n items
+    proc ntwine {fields l} {
+        set ntwine {}
+        foreach e $l {
+            lappend ntwine [twine $fields $e]
+        }
+        return $ntwine
+    }
 }
 
 # Make twapi versions the same as the base module versions
