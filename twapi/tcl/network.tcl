@@ -34,7 +34,20 @@ proc twapi::get_network_interfaces {} {
 }
 
 proc twapi::get_network_interfaces_detail {} {
-    return [recordarray get [list [IP_ADAPTER_ADDRESSES] [GetAdaptersAddresses 0 0]] -slice [IP_ADAPTER_ADDRESSES_XP]]
+    set recs {}
+    # We only return fields common to all platforms
+    set fields [IP_ADAPTER_ADDRESSES_XP]
+    foreach rec [GetAdaptersAddresses 0 0] {
+        set rec [IP_ADAPTER_ADDRESSES set $rec \
+                     -physicaladdress [_hwaddr_binary_to_string [IP_ADAPTER_ADDRESSES -physicaladdress $rec]] \
+                     -unicastaddresses [ntwine [IP_ADAPTER_UNICAST_ADDRESS] [IP_ADAPTER_ADDRESSES -unicastaddresses $rec]] \
+                     -multicastaddresses [ntwine [IP_ADAPTER_MULTICAST_ADDRESS] [IP_ADAPTER_ADDRESSES -multicastaddresses $rec]] \
+                     -anycastaddresses [ntwine [IP_ADAPTER_ANYCAST_ADDRESS] [IP_ADAPTER_ADDRESSES -anycastaddresses $rec]] \
+                     -dnsservers [ntwine [IP_ADAPTER_DNS_SERVER_ADDRESS] [IP_ADAPTER_ADDRESSES -dnsservers $rec]]]
+
+        lappend recs [IP_ADAPTER_ADDRESSES select $rec $fields]
+    }
+    return [list $fields $recs]
 }
 
 # Get the list of local IP addresses
@@ -176,16 +189,16 @@ proc twapi::get_network_interface_info {interface args} {
         set result(-physicaladdress) [_hwaddr_binary_to_string $result(-physicaladdress)]
     }
     if {[info exists result(-unicastaddresses)]} {
-        set result(-unicastaddresses) [recordarray getlist [list [IP_ADAPTER_UNICAST_ADDRESS] $result(-unicastaddresses)] -format dict]
+        set result(-unicastaddresses) [ntwine [IP_ADAPTER_UNICAST_ADDRESS] $result(-unicastaddresses)]
     }
     if {[info exists result(-multicastaddresses)]} {
-        set result(-multicastaddresses) [recordarray getlist [list [IP_ADAPTER_MULTICAST_ADDRESS] $result(-multicastaddresses)] -format dict]
+        set result(-multicastaddresses) [ntwine [IP_ADAPTER_MULTICAST_ADDRESS] $result(-multicastaddresses)]
     }
     if {[info exists result(-anycastaddresses)]} {
-        set result(-anycastaddresses) [recordarray getlist [list [IP_ADAPTER_ANYCAST_ADDRESS] $result(-anycastaddresses)] -format dict]
+        set result(-anycastaddresses) [ntwine [IP_ADAPTER_ANYCAST_ADDRESS] $result(-anycastaddresses)]
     }
     if {[info exists result(-dnsservers)]} {
-        set result(-dnsservers) [recordarray getlist [list [IP_ADAPTER_DNS_SERVER_ADDRESS] $result(-dnsservers)] -format dict]
+        set result(-dnsservers) [ntwine [IP_ADAPTER_DNS_SERVER_ADDRESS] $result(-dnsservers)]
     }
 
     return [array get result]
