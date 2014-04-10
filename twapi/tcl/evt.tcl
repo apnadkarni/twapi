@@ -458,7 +458,12 @@ twapi::proc* twapi::_evt_decode_event_system_fields {hevt} {
 } {
     variable _evt
     set _evt(render_buffer) [Twapi_EvtRenderValues $_evt(system_render_context_handle) $hevt $_evt(render_buffer)]
-    return [Twapi_ExtractEVT_RENDER_VALUES $_evt(render_buffer)]
+    set rec [Twapi_ExtractEVT_RENDER_VALUES $_evt(render_buffer)]
+    return [evt_system_fields set $rec \
+                -providername [atomize [evt_system_fields -providername $rec]] \
+                -providerguid [atomize [evt_system_fields -providerguid $rec]] \
+                -channel [atomize [evt_system_fields -channel $rec]] \
+                -computer [atomize [evt_system_fields -computer $rec]]]
 }
 
 # TBD - document. Returns a list of user data values
