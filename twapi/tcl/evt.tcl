@@ -7,18 +7,7 @@
 # Event log handling for Vista and later
 
 namespace eval twapi {
-    # Various structures that we maintain / cache for efficiency as they
-    # are commonly used are kept in the _evt array with the following keys:
-    #  system_render_context_handle - is the handle to a rendering
-    #    context for the system portion of an event
-    #  user_render_context_handle - is the handle to a rendering
-    #    context for the user data portion of an event
-    #  render_buffer - is NULL or holds a pointer to the buffer used to retrieve
-    #    values so does not have to be reallocated every time.
-    #  publisher_handles - caches publisher names to their meta information.
-    #    This is a dictionary indexed with nested keys - 
-    #     publisher, session, lcid. TBD - need a mechanism to clear ?
-    variable _evt
+    variable _evt;              # See _evt_init
 
     # System event fields in order returned by _evt_decode_event_system_fields
     twapi::record evt_system_fields  {
@@ -31,10 +20,34 @@ namespace eval twapi {
     proc _evt_init {} {
         variable _evt
 
+        # Various structures that we maintain / cache for efficiency as they
+        # are commonly used are kept in the _evt array with the following keys:
+
+        # system_render_context_handle - is the handle to a rendering
+        #    context for the system portion of an event
         set _evt(system_render_context_handle) [evt_render_context_system]
+
+        # user_render_context_handle - is the handle to a rendering
+        #    context for the user data portion of an event
         set _evt(user_render_context_handle) [evt_render_context_user]
+
+        # render_buffer - is NULL or holds a pointer to the buffer used to
+        #    retrieve values so does not have to be reallocated every time.
         set _evt(render_buffer) NULL
+
+        # publisher_handles - caches publisher names to their meta information.
+        #    This is a dictionary indexed with nested keys - 
+        #     publisher, session, lcid. TBD - need a mechanism to clear ?
         set _evt(publisher_handles) [dict create]
+
+        # -levelname - dict of publisher name / level number to level names
+        set _evt(-levelname) {}
+
+        # -taskname - dict of publisher name / task number to task name
+        set _evt(-taskname) {}
+
+        # -opcodename - dict of publisher name / opcode number to opcode name
+        set _evt(-opcodename) {}
 
         # No-op the proc once init is done
         proc _evt_init {} {}
@@ -463,7 +476,6 @@ twapi::proc* twapi::evt_decode_events {hevts args} {
     variable _evt
 
     array set opts [parseargs args {
-        hpublisher.arg
         {values.arg NULL}
         {session.arg NULL}
         {logfile.arg ""}
@@ -489,47 +501,67 @@ twapi::proc* twapi::evt_decode_events {hevts args} {
 
     foreach hevt $hevts {
         set decoded [_evt_decode_event_system_fields $hevt]
-        if {[info exists opts(-hpublisher)]} {
-            set hpub $opts(-hpublisher)
-        } else {
-            # Get publisher from hevt
-            set publisher [evt_system_fields -providername $decoded]
-            if {! [dict exists $_evt(publisher_handles) $publisher $opts(-session) $opts(-lcid)]} {
-                if {[catch {
-                    dict set _evt(publisher_handles) $publisher $opts(-session) $opts(-lcid) [EvtOpenPublisherMetadata $opts(-session) $publisher $opts(-logfile) $opts(-lcid) 0]
-                }]} {
-                    # TBD - debug log
-                    dict set _evt(publisher_handles) $publisher $opts(-session) $opts(-lcid) NULL
+        # Get publisher from hevt
+        set publisher [evt_system_fields -providername $decoded]
+
+        if {! [dict exists $_evt(publisher_handles) $publisher $opts(-session) $opts(-lcid)]} {
+            if {[catch {
+                dict set _evt(publisher_handles) $publisher $opts(-session) $opts(-lcid) [EvtOpenPublisherMetadata $opts(-session) $publisher $opts(-logfile) $opts(-lcid) 0]
+            }]} {
+                # TBD - debug log
+                dict set _evt(publisher_handles) $publisher $opts(-session) $opts(-lcid) NULL
+            }
+        }
+        set hpub [dict get $_evt(publisher_handles) $publisher $opts(-session) $opts(-lcid)]
+
+        # See if cached values are present for -levelname -taskname
+        # and -opcodename. TBD - can -keywords be added to this ?
+        foreach {intopt opt callflag} {-level -levelname 2 -task -taskname 3 -opcode -opcodename 4} {
+            if {$opts($opt)} {
+                set ival [evt_system_fields $intopt $decoded]
+                if {[dict exists $_evt($opt) $publisher $ival]} {
+                    lappend decoded [dict get $_evt($opt) $publisher $ival]
+                } else {
+                    # Not cached. Look it up. Value of 0 -> null so
+                    # just use ignorestring if specified.
+                    if {$ival == 0 && [info exists opts(-ignorestring)]} {
+                        set optval $opts(-ignorestring)
+                    } else {
+                        if {[info exists opts(-ignorestring)]} {
+                            if {[EvtFormatMessage $hpub $hevt 0 $opts(-values) $callflag optval]} {
+                                dict set _evt($opt) $publisher $ival $optval
+                            } else {
+                                # Note result not cached if not found since
+                                # ignorestring may be different on every call
+                                set optval $opts(-ignorestring)
+                            }
+                        } else {
+                            # -ignorestring not specified so
+                            # will raise error if not found
+                            set optval [EvtFormatMessage $hpub $hevt 0 $opts(-values) $callflag]
+                            dict set _evt($opt) $publisher $ival [atomize $optval]
+                        }
+                    }
+                    lappend decoded $optval
                 }
             }
-            set hpub [dict get $_evt(publisher_handles) $publisher $opts(-session) $opts(-lcid)]
         }
 
+        # Non-cached fields
         # ORDER MUST BE SAME AS decoded_fields ABOVE
-        foreach {opt optind} {
-            -levelname 2
-            -taskname 3
-            -opcodename 4
+        foreach {opt callflag} {
             -keywords 5
             -xml 9
         } {
             if {$opts($opt)} {
-                if {$opt in {-level -task -opcode} &&
-                    [evt_system_fields $opt $decoded] == 0 &&
-                    [info exists opts(-ignorestring)]} {
-                    # Don't bother making the call. 0 -> null
-                    lappend decoded $opts(-ignorestring)
-                } else {
-                    if {[info exists opts(-ignorestring)]} {
-                        if {[EvtFormatMessage $hpub $hevt 0 $opts(-values) $optind message]} {
-                            lappend decoded $message
-                        } else {
-                            lappend decoded $opts(-ignorestring)
-                        }
-                    } else {
-                        lappend decoded [EvtFormatMessage $hpub $hevt 0 $opts(-values) $optind]
+                if {[info exists opts(-ignorestring)]} {
+                    if {! [EvtFormatMessage $hpub $hevt 0 $opts(-values) $callflag optval]} {
+                        set optval $opts(-ignorestring)
                     }
+                } else {
+                    set optval [EvtFormatMessage $hpub $hevt 0 $opts(-values) $optind]
                 }
+                lappend decoded $optval
             }
         }
 
