@@ -16,6 +16,8 @@ load_twapi_package twapi_crypto
 namespace eval twapi::crypto::test {
     namespace import ::tcltest::test
 
+    # WARNING: return value combines stdout and stderr so the two
+    # can be intermixed. Take into consideration when matching
     proc openssl {args} {
         if {[file exists [file join [pwd] .. openssl bin openssl.exe]]} {
             set cmd [list [file join [pwd] .. openssl bin openssl.exe]]
@@ -32,7 +34,16 @@ namespace eval twapi::crypto::test {
         if {[file exists $cfg]} {
             set ::env(OPENSSL_CONF) $cfg
         }
-        return [exec {*}$cmd {*}$args 2>@1]
+        set stderr_temp [file join [temp_crypto_dir_path] twapi-openssl-stderr.tmp]
+        set status 0
+        if {[catch {exec {*}$cmd {*}$args 2> $stderr_temp} stdout options]} {
+            if {[lindex [dict get $options -errorcode] 0] eq "CHILDSTATUS"} {
+                error [read_binary $stderr_temp]
+            } else {
+                return -options $options -level 0 $stdout
+            }
+        }
+        return [list $stdout [read_binary $stderr_temp]]
     }
 
     # TBD - add tests, including SSL, were data is passed in fragmented
@@ -1398,7 +1409,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
-    } -result www.google.com
+    } -result *.google.com
 
     ################################################################
 
@@ -1412,8 +1423,11 @@ namespace eval twapi::crypto::test {
         Export a certificate store with empty password - openssl
     } -body {
         set path [write_test_file [twapi::cert_store_export_pfx [samplestore] ""]]
-        openssl pkcs12 -in $path -info -passin pass:
-    } -result {(\sCertificate bag){6}} -match regexp
+        lassign [openssl pkcs12 -in $path -info -passin pass:] stdout stderr
+        list \
+            [regexp -all {issuer=/CN=twapitest(ca|intermediate)/C=IN/O=Tcl/OU=twapi} $stdout] \
+            [regexp -all {Certificate bag} $stderr] 
+    } -result {7 7}
 
     test cert_store_export_pfx-2.0 {
         Export a certificate store with non empty password
@@ -1425,8 +1439,11 @@ namespace eval twapi::crypto::test {
         Export a certificate store with password - openssl
     } -body {
         set path [write_test_file [twapi::cert_store_export_pfx [samplestore] [twapi::conceal pkcspass]]]
-        openssl pkcs12 -in $path -info -passin pass:pkcspass
-    } -result {(\sCertificate bag){6}} -match regexp
+        lassign [openssl pkcs12 -in $path -info -passin pass:pkcspass] stdout stderr
+        list \
+            [regexp -all {issuer=/CN=twapitest(ca|intermediate)/C=IN/O=Tcl/OU=twapi} $stdout] \
+            [regexp -all {Certificate bag} $stderr] 
+    } -result {7 7}
 
     test cert_store_export_pfx-2.2 {
         Export a certificate store with password - openssl (fail)
@@ -1452,16 +1469,16 @@ namespace eval twapi::crypto::test {
         Export a certificate store with password - -exportprivatekeys false, openssl
     } -body {
         set path [write_test_file [twapi::cert_store_export_pfx [storewithkeys] [twapi::conceal pkcspass] -exportprivatekeys false]]
-        set output [openssl pkcs12 -in $path -info -passin pass:pkcspass -noout]
-        list [llength [regexp -all -inline "Shrouded Keybag" $output]] [llength [regexp -all -inline "Certificate bag" $output]] 
+        lassign [openssl pkcs12 -in $path -info -passin pass:pkcspass -noout] stdout stderr
+        list [llength [regexp -all -inline "Shrouded Keybag" $stderr]] [llength [regexp -all -inline "Certificate bag" $stderr]] 
     } -result {0 7}
 
     test cert_store_export_pfx-3.2 {
         Export a certificate store with password - -exportprivatekeys 1, openssl
     } -body {
         set path [write_test_file [twapi::cert_store_export_pfx [storewithkeys] [twapi::conceal pkcspass] -exportprivatekeys 1]]
-        set output [openssl pkcs12 -in $path -info -passin pass:pkcspass -noout]
-        list [llength [regexp -all -inline "Shrouded Keybag" $output]] [llength [regexp -all -inline "Certificate bag" $output]] 
+        lassign [openssl pkcs12 -in $path -info -passin pass:pkcspass -noout] stdout stderr
+        list [llength [regexp -all -inline "Shrouded Keybag" $stderr]] [llength [regexp -all -inline "Certificate bag" $stderr]] 
     } -result {7 7}
 
     test cert_store_export_pfx-4.0 {
@@ -1487,7 +1504,7 @@ namespace eval twapi::crypto::test {
         Export a certificate store with password - -exportprivatekeys 1, openssl
     } -body {
         set path [write_test_file [twapi::cert_store_export_pkcs12 [storewithkeys] [twapi::conceal pkcspass] -exportprivatekeys 1]]
-        set output [openssl pkcs12 -in $path -info -passin pass:pkcspass -noout]
+        lassign [openssl pkcs12 -in $path -info -passin pass:pkcspass -noout] stdout output
         list [llength [regexp -all -inline "Shrouded Keybag" $output]] [llength [regexp -all -inline "Certificate bag" $output]] 
     } -result {7 7}
 
@@ -1497,7 +1514,7 @@ namespace eval twapi::crypto::test {
         Export a certificate store as pkcs7
     } -body {
         set path [write_test_file [twapi::cert_store_export_pkcs7 [samplestore]]]
-        set output [openssl pkcs7 -in $path -noout -inform der -print_certs]
+        lassign [openssl pkcs7 -in $path -noout -inform der -print_certs] output stderr
         llength [regexp -inline -all {subject=/CN=twapitest} $output]
     } -result 6
 
@@ -1505,7 +1522,7 @@ namespace eval twapi::crypto::test {
         Export a certificate store as pkcs7 -encoding der
     } -body {
         set path [write_test_file [twapi::cert_store_export_pkcs7 [samplestore] -encoding der]]
-        set output [openssl pkcs7 -in $path -noout -inform der -print_certs]
+        lassign [openssl pkcs7 -in $path -noout -inform der -print_certs] output stderr
         llength [regexp -inline -all {subject=/CN=twapitest} $output]
     } -result 6
 
@@ -1513,7 +1530,7 @@ namespace eval twapi::crypto::test {
         Export a certificate store as pkcs7 -encoding pem
     } -body {
         set path [write_test_file [twapi::cert_store_export_pkcs7 [samplestore] -encoding pem]]
-        set output [openssl pkcs7 -in $path -noout -print_certs]
+        lassign [openssl pkcs7 -in $path -noout -print_certs] output stderr
         llength [regexp -inline -all {subject=/CN=twapitest} $output]
     } -result 6
 
@@ -2583,9 +2600,10 @@ namespace eval twapi::crypto::test {
         set x509_name "CN=$subject SSL Client, O=Twapi Open Source, OU=test"
         set req [twapi::cert_request_create $x509_name $crypt keyexchange -purpose client]
         set path [write_test_file $req wb]
-        set output [openssl req -inform der -in $path -noout -text -verify]
-        regexp "^Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Key Encipherment, Key Agreement\n.+X509v3 Extended Key Usage: critical.+TLS Web Client Authentication\n.+verify OK$" $output
-    } -result 1
+        lassign [openssl req -inform der -in $path -noout -text -verify] stdout stderr
+        list [regexp "Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Key Encipherment, Key Agreement\n.+X509v3 Extended Key Usage: critical.+TLS Web Client Authentication\n.+" $stdout] \
+            [string match "*verify OK*" $stderr]
+    } -result {1 1}
     
     test cert_request_create-1.1 {
         Create a certificate request for a TLS server (PEM)
@@ -2597,9 +2615,10 @@ namespace eval twapi::crypto::test {
         set x509_name "CN=$subject SSL Server, O=Twapi Open Source, OU=test"
         set req [twapi::cert_request_create $x509_name $crypt keyexchange -purpose server -encoding pem]
         set path [write_test_file $req w]
-        set output [openssl req -in $path -noout -text -verify]
-        regexp "^Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Key Encipherment, Key Agreement\n.+X509v3 Extended Key Usage: critical.+TLS Web Server Authentication\n.+verify OK$" $output
-    } -result 1
+        lassign [openssl req -in $path -noout -text -verify] stdout stderr
+        list [regexp "Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Key Encipherment, Key Agreement\n.+X509v3 Extended Key Usage: critical.+TLS Web Server Authentication\n" $stdout] \
+            [string match "*verify OK*" $stderr]
+    } -result {1 1}
     
     test cert_request_create-1.2 {
         Create a certificate request with no options
@@ -2611,9 +2630,10 @@ namespace eval twapi::crypto::test {
         set x509_name "CN=$subject No Options, O=Twapi Open Source, OU=test"
         set req [twapi::cert_request_create $x509_name $crypt keyexchange]
         set path [write_test_file $req wb]
-        set output [openssl req -in $path -inform der -noout -text -verify]
-        regexp "^Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE\\s+Signature Algorithm:.+verify OK$" $output
-    } -result 1
+        lassign [openssl req -in $path -inform der -noout -text -verify] stdout stderr
+        list [regexp "Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE\\s+Signature Algorithm:" $stdout] \
+            [string match "*verify OK*" $stderr]
+    } -result {1 1}
 
     test cert_request_create-1.3 {
         Create a full certificate request (PEM)
@@ -2630,12 +2650,13 @@ namespace eval twapi::crypto::test {
                      -enhkeyusage [list {client_auth code_signing email_protection ipsec_end_system  ipsec_tunnel ipsec_user server_auth timestamp_signing ocsp_signing} 0] \
                      -altnames $altnames]
         set path [write_test_file $req w]
-        set output [openssl req -in $path -noout -text -verify]
+        lassign [openssl req -in $path -noout -text -verify] stdout stderr
         
         # Single regexp overflows the stack so we need break it up
-        list [regexp "^Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Non Repudiation, Key Encipherment, Data Encipherment, Key Agreement, Certificate Sign, CRL Sign\\s+X509v3 Extended Key Usage:\\s+OCSP Signing, TLS Web Server Authentication, IPSec End System, IPSec Tunnel, TLS Web Client Authentication, IPSec User, Code Signing, Time Stamping, E-mail Protection\\s" $output] \
-            [regexp ".+X509v3 Subject Alternative Name:.+email:${subject}@twapitest.com, DNS:${subject}.twapitest.com, URI:http://${subject}.twapitest.com, DirName:/CN=${subject}altname, IP Address:127.0.0.1.+verify OK$" $output]
-    } -result {1 1}
+        list [regexp "Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Non Repudiation, Key Encipherment, Data Encipherment, Key Agreement, Certificate Sign, CRL Sign\\s+X509v3 Extended Key Usage:\\s+OCSP Signing, TLS Web Server Authentication, IPSec End System, IPSec Tunnel, TLS Web Client Authentication, IPSec User, Code Signing, Time Stamping, E-mail Protection\\s" $stdout] \
+            [regexp ".+X509v3 Subject Alternative Name:.+email:${subject}@twapitest.com, DNS:${subject}.twapitest.com, URI:http://${subject}.twapitest.com, DirName:/CN=${subject}altname, IP Address:127.0.0.1" $stdout] \
+            [string match "*verify OK*" $stderr]
+    } -result {1 1 1}
 
 
     ################################################################
@@ -2678,7 +2699,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set subject twapitest-[clock microseconds]
         set x509_name "/CN=$subject/O=Twapi/OU=test"
-        set req [openssl req -new -batch -nodes -keyout [tcltest::makeFile "" $subject.key] -subj $x509_name]
+        lassign [openssl req -new -batch -nodes -keyout [tcltest::makeFile "" $subject.key] -subj $x509_name] req stderr
     } -body {
         set csr [twapi::cert_request_parse $req -encoding pem]
         list \
