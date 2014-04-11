@@ -1317,6 +1317,7 @@ proc twapi::get_security_descriptor_integrity {secd args} {
     if {[min_os_version 6]} {
         foreach ace [get_acl_aces [get_security_descriptor_sacl $secd]] {
             if {[get_ace_type $ace] eq "mandatory_label"} {
+                if {! [dict get [get_ace_inheritance $ace] -self]} continue; # Does not apply to itself
                 set integrity [_sid_to_integrity [get_ace_sid $ace] {*}$args]
                 set rights [get_ace_rights $ace -resourcetype mandatory_label]
                 return [list $integrity $rights]
