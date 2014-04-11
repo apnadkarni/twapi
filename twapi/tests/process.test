@@ -978,6 +978,7 @@ namespace eval ::twapi::process::test {
         # Now forcibly terminate
         twapi::end_process $notepad_pid -force -wait 500 -exitcode 3
         # TBD - how can check the exit code for the process?
+        after 100
         twapi::process_exists $notepad_pid
     } -result 0
     
