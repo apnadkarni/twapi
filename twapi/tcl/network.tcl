@@ -27,13 +27,13 @@ namespace eval twapi {
     record IP_ADAPTER_DNS_SERVER_ADDRESS [IP_ADAPTER_ANYCAST_ADDRESS]
 }
 
-proc twapi::get_network_interfaces {} {
+proc twapi::get_network_adapters {} {
     # 0x20 -> SKIP_FRIENDLYNAME
     # 0x0f -> SKIP_DNS_SERVER, SKIP_UNICAST/MULTICAST/ANYCAST
     return [lpick [GetAdaptersAddresses 0 0x2f] [enum [IP_ADAPTER_ADDRESSES] -adaptername]]
 }
 
-proc twapi::get_network_interfaces_detail {} {
+proc twapi::get_network_adapters_detail {} {
     set recs {}
     # We only return fields common to all platforms
     set fields [IP_ADAPTER_ADDRESSES_XP]
@@ -126,7 +126,7 @@ proc twapi::get_network_info {args} {
 }
 
 
-proc twapi::get_network_interface_info {interface args} {
+proc twapi::get_network_adapter_info {interface args} {
     array set opts [parseargs args {
         all
         adaptername
@@ -139,6 +139,7 @@ proc twapi::get_network_interface_info {interface args} {
         ipv4ifindex
         ipv6ifindex
         multicastaddresses
+        mtu
         operstatus
         physicaladdress
         prefixes
@@ -241,9 +242,9 @@ proc twapi::ipaddr_to_hwaddr {ipaddr {varname ""}} {
     # If could not get from ARP table, see if it is one of our own
     # Ignore errors
     if {![info exists result]} {
-        foreach ifc [get_network_interfaces] {
+        foreach ifc [get_network_adapters] {
             catch {
-                array set netifinfo [get_network_interface_info $ifc -unicastaddresses -physicaladdress]
+                array set netifinfo [get_network_adapter_info $ifc -unicastaddresses -physicaladdress]
                 if {$netifinfo(-physicaladdress) eq ""} continue
                 foreach elem $netifinfo(-unicastaddresses) {
                     if {[dict get $elem -address] eq $ipaddr} {
@@ -287,9 +288,9 @@ proc twapi::hwaddr_to_ipaddr {hwaddr {varname ""}} {
     # If could not get from ARP table, see if it is one of our own
     # Ignore errors
     if {![info exists result]} {
-        foreach ifc [get_network_interfaces] {
+        foreach ifc [get_network_adapters] {
             catch {
-                array set netifinfo [get_network_interface_info $ifc -unicastaddresses -physicaladdress]
+                array set netifinfo [get_network_adapter_info $ifc -unicastaddresses -physicaladdress]
                 if {$netifinfo(-physicaladdress) eq ""} continue
                 set ifhwaddr [string map {- ""} $netifinfo(-physicaladdress)]
                 if {[string equal -nocase $hwaddr $ifhwaddr]} {
@@ -325,10 +326,10 @@ proc twapi::hwaddr_to_ipaddr {hwaddr {varname ""}} {
 # Flush the arp table for a given interface
 proc twapi::flush_arp_tables {args} {
     if {[llength $args] == 0} {
-        set args [get_network_interfaces]
+        set args [get_network_adapters]
     }
     foreach arg $args {
-        array set ifc [get_network_interface_info $arg -type -ipv4ifindex]
+        array set ifc [get_network_adapter_info $arg -type -ipv4ifindex]
         if {$ifc(-type) != 24} {
             trap {
                 FlushIpNetTable $ifc(-ipv4ifindex)
