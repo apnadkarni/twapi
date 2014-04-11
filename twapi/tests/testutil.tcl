@@ -108,6 +108,12 @@ proc read_file {path} {
     return [read $fd][close $fd]
 }
 
+proc read_binary {path} {
+    set fd [open $path r]
+    fconfigure $fd -translation binary
+    return [read $fd][close $fd]
+}
+
 # Create a new user with a random password
 proc create_user_with_password {uname {system ""}} {
     # Sometimes the password will be rejected because it contains
