@@ -207,7 +207,7 @@ namespace eval twapi::network::test {
         return $msgs
     }
 
-    proc validate_network_interface {netifdata msgs} {
+    proc validate_network_adapter {netifdata msgs} {
         array set netif $netifdata
 
         if {[info exists netif(-physicaladdress)] &&
@@ -246,7 +246,7 @@ namespace eval twapi::network::test {
         }
 
         foreach opt {
-            -type -operstatus -ipv6ifindex -ipv4ifindex
+            -type -operstatus -ipv6ifindex -ipv4ifindex -mtu
         } {
             if {[info exists netif($opt)] &&
                 ! [string is integer -strict $netif($opt)]} {
@@ -485,12 +485,52 @@ namespace eval twapi::network::test {
 
     ################################################################
 
-    test get_network_interface_info-1.0 {
-        Get network interface info
+    test get_network_adapters-1.0 {
+        Get names of network adapters
+    } -body {
+        expr {[llength [twapi::get_network_adapters]] > 0}
+    } -result 1
+
+    ################################################################
+
+    test get_network_adapters_detail-1.0 {
+        Get details of network adapters
+    } -body {
+        set fields {
+            -adaptername
+            -anycastaddresses
+            -description
+            -dnsservers
+            -dnssuffix
+            -flags
+            -friendlyname
+            -ipv4ifindex
+            -ipv6ifindex
+            -mtu
+            -multicastaddresses
+            -operstatus
+            -physicaladdress
+            -prefixes
+            -type
+            -unicastaddresses
+            -zoneindices
+        }                
+        set msgs ""
+        foreach adapter [twapi::recordarray getlist [twapi::get_network_adapters_detail] -format dict] {
+            verify_kl_fields $adapter $fields
+            validate_network_adapter $adapter msgs
+        }
+        join $msgs \n
+    } -result ""
+
+    ################################################################
+
+    test get_network_adapter_info-1.0 {
+        Get network adapter info
     } -body {
         set msgs ""
-        foreach ind [twapi::get_network_interfaces] {
-            set netif [twapi::get_network_interface_info $ind -all]
+        foreach ind [twapi::get_network_adapters] {
+            set netif [twapi::get_network_adapter_info $ind -all]
             set fields {
                 -adaptername
                 -anycastaddresses
@@ -501,6 +541,7 @@ namespace eval twapi::network::test {
                 -friendlyname
                 -ipv4ifindex
                 -ipv6ifindex
+                -mtu
                 -multicastaddresses
                 -operstatus
                 -physicaladdress
@@ -510,7 +551,7 @@ namespace eval twapi::network::test {
                 -zoneindices
             }                
             verify_kl_fields $netif $fields
-            validate_network_interface $netif msgs
+            validate_network_adapter $netif msgs
         }
         join $msgs \n
     } -result ""

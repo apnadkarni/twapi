@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Network configuration" n ""]
-[copyright "2004-2011, Ashok P. Nadkarni"]
+[copyright "2004-2014, Ashok P. Nadkarni"]
 [moddesc "Network related commands"]
 [titledesc "Commands related to network configuration"]
 [require twapi_network]
@@ -54,12 +54,12 @@ Returns the IP version ([const 4] or [const 6]) of the IP address specified
 as [arg IPADDR]. Returns [const 0] if [arg IPADDR] is not a valid IPv4 or
 IPv6 address.
 
-[call [cmd get_network_interface_info] [arg NETWORKINTERFACE] [opt [arg options]]]
+[call [cmd get_network_adapter_info] [arg NETWORKINTERFACE] [opt [arg options]]]
 
 Returns various information about the configuration of a network interface.
 [arg NETWORKINTERFACE] must be the name of a
 network interface as returned by
-[uri #get_network_interfaces [cmd get_network_interfaces]].
+[uri #get_network_adapters [cmd get_network_adapters]].
 
 [nl]
 The information returned
@@ -84,8 +84,12 @@ interface, else 0.
 Each element in the list is a dictionary, with the key [cmd -address]
 containing the address of the server. Other keys in the
 dictionary should be ignored.
+[opt_def [cmd -dnssuffix]] Returns the DNS suffix for the adapter.
+[opt_def [cmd -friendlyname]] Returns the friendly name of the adapter
+suitable for display to users.
 [opt_def [cmd -ipv4ifindex]]Returns the IP V4 interface index.
 [opt_def [cmd -ipv6ifindex]]Returns the IP V6 interface index.
+[opt_def [cmd -mtu]]Returns the MTU size for the adapter.
 [opt_def [cmd -multicastaddresses]]Returns list of multicast addresses
 associated with the interface. Each element in the list is a dictionary,
 with the key [cmd -address] containing the address. Other keys in
@@ -114,6 +118,7 @@ wireless), [const 131] (tunneling) and [const 144] (IEEE 1394 Firewire).
 associated with the interface. Each element in the list is a dictionary,
 with the key [cmd -address] containing the address. Other keys in
 the dictionary should be ignored.
+[opt_def [cmd -zoneindices]] Returns list of IPv6 scope IDs.
 [list_end]
 
 [call [cmd get_network_info] [opt [arg options]]]
@@ -140,13 +145,58 @@ name resolution.
 and 0 otherwise.
 [list_end]
 
-[call [cmd get_network_interfaces]]
+[call [cmd get_network_adapters]]
 Returns a list of network interface names.
 
-[call [cmd get_network_interfaces_detail]]
+[call [cmd get_network_adapters_detail]]
 Returns a [uri base.html#recordarrays "record array"] containing
-data about all the network interfaces on the system.
-
+detailed information about all the network interfaces on the system.
+The record array contains the following fields:
+[list_begin opt]
+[opt_def [cmd -adaptername]]
+The name of the adapter.
+[opt_def [cmd -anycastaddresses]]List of anycast addresses
+associated with the interface. Each element in the list is a dictionary,
+with the key [cmd -address] containing the address. Other keys in the
+dictionary should be ignored.
+[opt_def [cmd -description]]Description of the interface.
+[opt_def [cmd -dnsservers]]Returns a list of DNS servers on that interface.
+Each element in the list is a dictionary, with the key [cmd -address]
+containing the address of the server. Other keys in the
+dictionary should be ignored.
+[opt_def [cmd -dnssuffix]] The DNS suffix for the adapter.
+[opt_def [cmd -flags]] Undocumented.
+[opt_def [cmd -friendlyname]] The friendly name of the adapter.
+[opt_def [cmd -ipv4ifindex]]The IP V4 interface index.
+[opt_def [cmd -ipv6ifindex]]The IP V6 interface index.
+[opt_def [cmd -mtu]]The MTU size for the adapter.
+[opt_def [cmd -multicastaddresses]]Multicast addresses
+associated with the interface. Each element in the list is a dictionary,
+with the key [cmd -address] containing the address. Other keys in
+the dictionary should be ignored.
+[opt_def [cmd -operstatus]]Operational status of the interface
+as defined in [uri http://www.ietf.org/rfc/rfc2863.txt RFC2863]. Some
+common values are [const 1] (up), [const 2] (down), [const 3] (testing mode),
+[const 4] (unknown state), [const 5] (dormant), [const 6] (not present),
+[const 7] (lower layer is down).
+[opt_def [cmd -physicaladdress]]Physical address of the
+network interface.
+[opt_def [cmd -prefixes]]List of address prefixes
+associated with the interface. Each element in the list is a dictionary,
+with the key [cmd -address] containing the address and the key
+[cmd -prefixlength] containing the number of bits in the prefix.
+Other keys in the dictionary should be ignored.
+[opt_def [cmd -type]]Network interface type. This is an
+integer value as defined by [uri http://www.iana.org/assignments/ianaiftype-mib.  IANA]. Some common values are [const 6] (Ethernet), [const 9] (token
+ring), [const 23] (PPP), [const 24] (loopback), [const 71] (802.11 
+wireless), [const 131] (tunneling) and [const 144] (IEEE 1394 Firewire).
+[opt_def [cmd -unicastaddresses]]List of unicast addresses
+associated with the interface. Each element in the list is a dictionary,
+with the key [cmd -address] containing the address. Other keys in
+the dictionary should be ignored.
+[opt_def [cmd -zoneindices]]
+List of IPv6 scope IDs.
+[list_end]
 
 [call [cmd get_outgoing_interface] [arg DESTADDR]]
 [emph "Note: This command is only supported for IPv4."]
