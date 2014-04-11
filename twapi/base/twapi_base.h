@@ -3,6 +3,12 @@
 
 extern OSVERSIONINFOW gTwapiOSVersionInfo;
 
+typedef struct _TwapiBaseSettings {
+    unsigned int use_unicode_obj; /* Whether to use utf8 or wide chars when
+                                     creating strings */
+} TwapiBaseSettings;
+extern TwapiBaseSettings gBaseSettings;
+
 /* Contains per-interp context specific to the base module. Hangs off
  * the module.pval field in a TwapiInterpContext.
  */

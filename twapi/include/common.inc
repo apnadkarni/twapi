@@ -65,18 +65,8 @@ PACKAGE=$(MODULENAME)
 TWAPI_WIN_HEADER_VERSION = 0x0501
 !endif
 
-# Selects whether we create Unicode UCS-2 or UTF-8 objects.
-# Note both support same range of characters. The choice depends
-# on speed of object creation versus memory.
-# Note it is OK to mix modules that define this with those that do not
-!ifndef USE_UNICODE_OBJ
-USE_UNICODE_OBJ = 1
-!endif
-
-
 # Any additional libraries for the module
 # EXTRALIBS =
-
 
 ################ Command line Defines ################
 # Optionally define these on the command line
@@ -294,10 +284,6 @@ CFLAGS    = $(CDEBUG) /c /nologo /DWIN32 /D_WIN32 /D_WINDOWS -DTCL_THREADS=1 -D_
 
 !if "$(MACHINE)" == "AMD64" && $(VCVER) < 9
 CFLAGS = $(CFLAGS) /Wp64
-!endif
-
-!ifdef USE_UNICODE_OBJ
-CFLAGS = $(CFLAGS) /DUSE_UNICODE_OBJ=$(USE_UNICODE_OBJ)
 !endif
 
 # What version of shell32.dll to use. XP or later -> IE 6
