@@ -564,7 +564,7 @@ twapi::proc* twapi::evt_decode_events {hevts args} {
                         set optval $opts(-ignorestring)
                     }
                 } else {
-                    set optval [EvtFormatMessage $hpub $hevt 0 $opts(-values) $optind]
+                    set optval [EvtFormatMessage $hpub $hevt 0 $opts(-values) $callflag]
                 }
                 lappend decoded $optval
             }
