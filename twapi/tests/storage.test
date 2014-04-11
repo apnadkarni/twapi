@@ -1038,7 +1038,12 @@ namespace eval twapi::disk::test {
         close $fd
     } -body {
         set ::filesystem_monitor_result ""
-        set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler [list renameold $fn2 renamenew $fn modified $fn]]]
+        if {[twapi::min_os_version 6 2]} {
+            set expected [list renameold $fn2 renamenew $fn]
+        } else {
+            set expected [list renameold $fn2 renamenew $fn modified $fn]
+        }
+        set monitor_id [twapi::begin_filesystem_monitor $dir [list [namespace current]::filesystem_monitor_handler $expected]]
         set after_id [after 2000 "set ::filesystem_monitor_result timeout"]
         file rename [file join $dir $fn2] [file join $dir $fn]
         vwait ::filesystem_monitor_result

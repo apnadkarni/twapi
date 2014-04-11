@@ -851,7 +851,7 @@ namespace eval twapi::pdh::test {
         pdh_system_performance_query with no args
     } -body {
         lsort [twapi::pdh_system_performance_query]
-    } -result {commit_limit committed_bytes committed_percent disk_bytes_rate disk_read_rate disk_readbytes_rate disk_transfer_rate disk_write_rate disk_writebytes_rate event_count handle_count idle_utilization idle_utilization_per_cpu interrupt_utilization interrupt_utilization_per_cpu memory_free_kb mutex_count page_fault_rate page_input_rate page_output_rate privileged_utilization privileged_utilization_per_cpu process_count processor_utilization processor_utilization_per_cpu section_count semaphore_count thread_count user_utilization user_utilization_per_cpu}
+    } -result {commit_limit committed_bytes committed_percent disk_bytes_rate disk_idle_percent disk_read_rate disk_readbytes_rate disk_transfer_rate disk_write_rate disk_writebytes_rate event_count handle_count idle_utilization idle_utilization_per_cpu interrupt_utilization interrupt_utilization_per_cpu memory_free_kb memory_free_mb mutex_count page_fault_rate page_input_rate page_output_rate privileged_utilization privileged_utilization_per_cpu process_count processor_utilization processor_utilization_per_cpu section_count semaphore_count thread_count user_utilization user_utilization_per_cpu}
 
     test pdh_system_performance_query-2.0 {
         pdh_system_performance_query with all args
@@ -861,7 +861,7 @@ namespace eval twapi::pdh::test {
         lsort [dict keys [twapi::pdh_query_get $qh]]
     } -cleanup {
         twapi::pdh_query_close $qh
-    } -result {commit_limit committed_bytes committed_percent disk_bytes_rate disk_read_rate disk_readbytes_rate disk_transfer_rate disk_write_rate disk_writebytes_rate event_count handle_count idle_utilization idle_utilization_per_cpu interrupt_utilization interrupt_utilization_per_cpu memory_free_kb mutex_count page_fault_rate page_input_rate page_output_rate privileged_utilization privileged_utilization_per_cpu process_count processor_utilization processor_utilization_per_cpu section_count semaphore_count thread_count user_utilization user_utilization_per_cpu}
+    } -result {commit_limit committed_bytes committed_percent disk_bytes_rate disk_idle_percent disk_read_rate disk_readbytes_rate disk_transfer_rate disk_write_rate disk_writebytes_rate event_count handle_count idle_utilization idle_utilization_per_cpu interrupt_utilization interrupt_utilization_per_cpu memory_free_kb memory_free_mb mutex_count page_fault_rate page_input_rate page_output_rate privileged_utilization privileged_utilization_per_cpu process_count processor_utilization processor_utilization_per_cpu section_count semaphore_count thread_count user_utilization user_utilization_per_cpu}
 
     test pdh_system_performance_query-3.0 {
         pdh_system_performance_query -commit_limit
