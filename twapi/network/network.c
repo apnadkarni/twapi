@@ -433,7 +433,6 @@ static Tcl_Obj *ObjFromIP_ADAPTER_PREFIX(IP_ADAPTER_PREFIX *iapP)
 Tcl_Obj *ObjFromIP_ADAPTER_ADDRESSES(IP_ADAPTER_ADDRESSES *iaaP)
 {
     Tcl_Obj *objv[33];
-    int objc;
     Tcl_Obj *fieldObjs[16];
     IP_ADAPTER_ADDRESSES_LH *ilhP = NULL;
     IP_ADAPTER_UNICAST_ADDRESS *unicastP;
