@@ -1373,7 +1373,7 @@ namespace eval twapi::com::test {
     } -body {
         set sa [twapi::tclcast list ""]
         [testobj] GetApplicationNames sa
-        set sa
+        twapi::variant_value $sa
     } -result {abc def ghi}
 
 
