@@ -4086,11 +4086,10 @@ Tcl_Obj *ObjFromUnicodeN(const Tcl_UniChar *ws, int len)
     if (ws == NULL)
         return ObjFromEmptyString(); /* TBD - log ? */
 
-#if USE_UNICODE_OBJ
-    return Tcl_NewUnicodeObj(ws, len);
-#else
-    return TwapiUtf8ObjFromUnicode(ws, len);
-#endif
+    if (gBaseSettings.use_unicode_obj)
+        return Tcl_NewUnicodeObj(ws, len);
+    else
+        return TwapiUtf8ObjFromUnicode(ws, len);
 }
 
 Tcl_Obj *ObjFromUnicode(const Tcl_UniChar *ws)
@@ -4098,11 +4097,10 @@ Tcl_Obj *ObjFromUnicode(const Tcl_UniChar *ws)
     if (ws == NULL)
         return ObjFromEmptyString(); /* TBD - log ? */
 
-#if USE_UNICODE_OBJ
-    return Tcl_NewUnicodeObj(ws, -1);
-#else
-    return TwapiUtf8ObjFromUnicode(ws, -1);
-#endif
+    if (gBaseSettings.use_unicode_obj)
+        return Tcl_NewUnicodeObj(ws, -1);
+    else
+        return TwapiUtf8ObjFromUnicode(ws, -1);
 }
 
 char *ObjToString(Tcl_Obj *objP)

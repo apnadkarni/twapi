@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Ashok P. Nadkarni
+ * Copyright (c) 2010-2014, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -39,6 +39,9 @@ typedef struct _TwapiRegisteredPointer {
  * Globals
  */
 OSVERSIONINFOW gTwapiOSVersionInfo;
+TwapiBaseSettings gBaseSettings = {
+    1,                          /* use_unicode_obj, controlled via Tcl_LinkVar */
+};
 GUID gTwapiNullGuid;             /* Initialized to all zeroes */
 struct TwapiTclVersion gTclVersion;
 static int gTclIsThreaded;
@@ -235,6 +238,7 @@ int Twapi_base_Init(Tcl_Interp *interp)
     Tcl_CreateNamespace(interp, "::twapi", NULL, NULL);
     Tcl_SetVar2(interp, "::twapi::version", MODULENAME, MODULEVERSION, 0);
     Tcl_SetVar2(interp, "::twapi::settings", "log_limit", "100", 0);
+    Tcl_LinkVar(interp, "::twapi::settings(use_unicode_obj)", &gBaseSettings.use_unicode_obj, TCL_LINK_ULONG);
 
     /* Allocate a context that will be passed around in all interpreters */
     ticP = TwapiRegisterModule(interp,  gTwapiModuleHandle, &gBaseModule, NEW_TIC);
