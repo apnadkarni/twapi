@@ -1,8 +1,14 @@
 #
-# Copyright (c) 2008 Ashok P. Nadkarni
+# Copyright (c) 2008-2014 Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
+
+namespace eval twapi {
+    struct _PREVENT_MEDIA_REMOVAL {
+            BOOLEAN PreventMediaRemoval;
+    }
+}
 
 # TBD - document
 
@@ -478,11 +484,7 @@ proc twapi::_decode_PARTITION_INFORMATION_EX_binary {bin off} {
 
 #  IOCTL_STORAGE_EJECT_MEDIA
 interp alias {} twapi::eject {} twapi::eject_media
-twapi::proc* twapi::eject_media device {
-    struct _PREVENT_MEDIA_REMOVAL {
-            BOOLEAN PreventMediaRemoval;
-    }
-} {
+proc twapi::eject_media device {
     # http://support.microsoft.com/default.aspx?scid=KB;EN-US;Q165721&
     set h [_open_disk_device $device]
     trap {
@@ -512,7 +514,7 @@ interp alias {} twapi::load_media {} twapi::_issue_disk_ioctl 0x2d480c
 
 proc twapi::_lock_media {lock device} {
     # IOCTL_STORAGE_MEDIA_REMOVAL
-    _issue_disk_ioctl 0x2d4804 $device -input [list {{bool 0}} $lock]
+    _issue_disk_ioctl 0x2d4804 $device -input [_PREVENT_MEDIA_REMOVAL $lock]
 }
 interp alias {} twapi::lock_media {} twapi::_lock_media 1
 interp alias {} twapi::unlock_media {} twapi::_lock_media 0
