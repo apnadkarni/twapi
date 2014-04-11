@@ -5244,6 +5244,7 @@ namespace eval twapi::security::test {
         close [open $fn w+]
     } -body {
         twapi::set_resource_integrity file $dir 8192 1 -recurseobjects true
+
         list [twapi::get_resource_integrity file $dir] \
             [twapi::get_resource_integrity file $subdir] \
             [twapi::get_resource_integrity file $fn]

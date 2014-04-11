@@ -19,8 +19,9 @@ namespace eval twapi::shell::test {
 
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
-    ::tcltest::testConstraint haveprinter [llength [wmic_values Win32_Printer name]]
-
+    if {![catch {set wmic_printers [wmic_values Win32_Printer name]}]} {
+        ::tcltest::testConstraint haveprinter [llength $wmic_printers]
+    }
     proc check_csidl {csidl {allow_empty 0}} {
         set path [twapi::get_shell_folder $csidl]
 
@@ -556,9 +557,8 @@ namespace eval twapi::shell::test {
         nt
     } -body {
         set path [file join [twapi::get_shell_folder common_admintools] services.lnk]
-        array set data [twapi::read_shortcut $path -rawpath]
-        string match -nocase *%systemroot%* $data(-path)
-    } -result 1
+        string tolower [dict get [twapi::read_shortcut $path -rawpath] -path]
+    } -result "%(systemroot|windir)%" -match regexp
 
     test read_shortcut-3.1 {
         Verify -shortnames option
@@ -843,7 +843,7 @@ namespace eval twapi::shell::test {
         pause "After hitting Return, you MAY see a shell dialog prompt for recycle confirmation. Please Select YES."
         twapi::recycle_file $path -confirm true
         yesno "Did you see a prompt for confirmation of file deletion ?"
-    } -result 1
+    } -result [expr {! [twapi::min_os_version 6 2]}]
 
     test recycle_file-2.1 {
         Recycle a file with -confirm false
@@ -862,7 +862,7 @@ namespace eval twapi::shell::test {
         pause "After hitting Return, you MAY see a shell ERROR dialog for deletion error."
         list [catch {twapi::recycle_file nosuchfile.noexist -showerror true}] \
             [yesno "recycle_file-3.0: Did you see a ERROR dialog pertaining to file deletion error?"]
-    } -result {1 1}
+    } -result [list 1 [expr {! [twapi::min_os_version 6 2]}]]
 
     test recycle_file-3.1 {
         Recycle a file with -showerror false
