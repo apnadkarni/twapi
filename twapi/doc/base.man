@@ -208,6 +208,21 @@ Specifies that the return value should only include the fields
 specified in [arg FIELDLIST] and in that order.
 [list_end]
 
+Here is an example that returns a plain list of PID of processes 
+that have a privileged port
+(any port under 1024) open. [cmd get_tcp_connections] returns a record array.
+
+[example_begin]
+recordarray getlist [lb]get_tcp_connections[rb] -filter {{-localport < 1024}} -slice -pid -format flat
+[example_end]
+
+Another example, which shows all services that are marked as interacting
+with the desktop, returned as a dictionary keyed by the service name.
+
+[example_begin]
+recordarray getdict [lb]get_multiple_service_status[rb] -filter {{interactive == 1}} -key name
+[example_end]
+
 [section "Utility commands"]
 [uri \#parseargs [cmd parseargs]]
 parses an argument list based on specified options.
