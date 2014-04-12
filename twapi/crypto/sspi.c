@@ -1127,7 +1127,7 @@ static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_In
             is_unisp = 0;
         } else {
             TwapiReturnErrorEx(interp, TWAPI_UNSUPPORTED_TYPE,
-                               Tcl_ObjPrintf("Non-default authentication is not supported for SSPI package %s.", packageP));
+                               Tcl_ObjPrintf("Non-default authentication is not supported for SSPI package %s.", ObjToString(objv[2])));
             goto vamoose;
         }
     }
