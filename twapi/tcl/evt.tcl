@@ -496,6 +496,7 @@ twapi::proc* twapi::evt_decode_events {hevts args} {
         
     # SAME ORDER AS _evt_decode_event_system_fields
     set decoded_fields [evt_system_fields]
+    set decoded_events {}
     
     # ORDER MUST BE SAME AS order in which values are appended below
     foreach opt {-levelname -taskname -opcodename -keywords -xml -message} {
