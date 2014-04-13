@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003-2012, Ashok P. Nadkarni
+# Copyright (c) 2003-2014, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -119,6 +119,12 @@ namespace eval twapi::security::test {
         }
     }
 
+
+    proc security_test_directory {} {
+        set dir [tcltest::makeDirectory [clock microseconds]]
+        proc security_test_directory {} "return $dir"
+        return $dir
+    }
 
     ################################################################
 
@@ -1073,7 +1079,12 @@ namespace eval twapi::security::test {
         set tid [gets_timeout $child]
         tclsh_slave_puts $child { twapi::impersonate_self identification }
         # Wait a bit till the command is obeyed by child
-        tclsh_slave_wait $child
+        if {0} {
+            Child cannot read from fd after impersonation so don't do this
+             tclsh_slave_wait $child
+        } else {
+            after 1000
+        }
         set tok [twapi::open_thread_token -access token_query -tid $tid]
     } -body {
         twapi::get_token_impersonation_level $tok
@@ -1354,7 +1365,8 @@ namespace eval twapi::security::test {
         set tok [twapi::open_process_token]
     } -body {
         lassign [twapi::get_token_info $tok -restrictedgroups] opt names
-        list $opt [expr {[valid_account_names $names]}]
+        # TBD - not all systems have restricted groups. Create one ?
+        list $opt [expr {[llength $names] == 0 || [valid_account_names $names]}]
     } -cleanup {
         twapi::close_token $tok
     } -result {-restrictedgroups 1}
@@ -2272,7 +2284,7 @@ namespace eval twapi::security::test {
         twapi::unlock_user $test_account_name
     } -result ""
 
-    test unlock_user-1.0 {
+    test unlock_user-1.1 {
         Unlock a user account (negative test)
     } -constraints {
         nt systemmodificationok
@@ -2387,7 +2399,7 @@ namespace eval twapi::security::test {
 	    $uinfo(-primary_group_id) \
             [string is integer $uinfo(-flags)] \
 	    $uinfo(-logon_server) \
-	    $uinfo(-local_groups) \
+	    [expr {[lsearch -nocase $uinfo(-local_groups) $administrators_account_name] >= 0}] \
 	    $uinfo(-acct_expires) \
             [tcl::mathop::in $uinfo(-status) {enabled disabled locked}] \
             $uinfo(-type) \
@@ -2406,7 +2418,7 @@ namespace eval twapi::security::test {
                                513 \
                                1 \
                                \\\\* \
-                               $administrators_account_name \
+                               1 \
                                never \
                                1 \
                                normal \
@@ -4965,7 +4977,7 @@ namespace eval twapi::security::test {
         set fn "twapi-test-get_resource_security_descriptor-7.0"
         tcltest::makeFile "" $fn
     } -body {
-        set path [file join [tcltest::temporaryDirectory] $fn]
+        set path [file join [security_test_directory] $fn]
         set fd [open $path w+]
         ::twapi::IsValidSecurityDescriptor [::twapi::get_resource_security_descriptor file [twapi::get_tcl_channel_handle $fd read] -handle]
     } -cleanup {
@@ -4978,21 +4990,21 @@ namespace eval twapi::security::test {
     test get_resource_integrity-1.0 {
         Get the integer integrity of a file resource
     } -body {
-        twapi::get_resource_integrity file [system_drive_root]
-    } -result [expr {[twapi::min_os_version 6] ? "12288 system_mandatory_label_no_write_up" : ""}]
+        twapi::get_resource_integrity file $low_integrity_file
+    } -result [expr {[twapi::min_os_version 6] ? "4096 system_mandatory_label_no_write_up" : ""}]
 
     test get_resource_integrity-1.1 {
         Get the raw integrity of a file resource
     } -body {
-        twapi::get_resource_integrity file [system_drive_root] -raw
-    } -result [expr {[twapi::min_os_version 6] ? "S-1-16-12288 system_mandatory_label_no_write_up" : ""}]
+        twapi::get_resource_integrity file $low_integrity_file -raw
+    } -result [expr {[twapi::min_os_version 6] ? "S-1-16-4096 system_mandatory_label_no_write_up" : ""}]
 
 
     test get_resource_integrity-1.2 {
         Get the label integrity of a file resource
     } -body {
-        twapi::get_resource_integrity file [system_drive_root] -label
-    } -result [expr {[twapi::min_os_version 6] ? "high system_mandatory_label_no_write_up" : ""}]
+        twapi::get_resource_integrity file $low_integrity_file -label
+    } -result [expr {[twapi::min_os_version 6] ? "low system_mandatory_label_no_write_up" : ""}]
 
 
 
@@ -5113,7 +5125,7 @@ namespace eval twapi::security::test {
         set fn "twapi-test-set_resource_security_descriptor-1.0"
         tcltest::makeDirectory $fn
     } -body {
-        set path [file join [tcltest::temporaryDirectory] $fn]
+        set path [file join [security_test_directory] $fn]
 	set secd [twapi::new_security_descriptor]
         twapi::set_resource_security_descriptor file $path $secd
     } -returnCodes error -result "Must specify at least one of the options -all, -dacl, -sacl, -owner, -group or -mandatory_label"
@@ -5125,7 +5137,7 @@ namespace eval twapi::security::test {
     } -constraints {
         win6
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [security_test_directory] [clock clicks]]
         close [open $fn w+]
     } -body {
         twapi::set_resource_integrity file $fn medium system_mandatory_label_no_write_up
@@ -5137,7 +5149,7 @@ namespace eval twapi::security::test {
     } -constraints {
         win6
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [security_test_directory] [clock clicks]]
         close [open $fn w+]
     } -body {
         twapi::set_resource_integrity file $fn low system_mandatory_label_no_read_up
@@ -5149,7 +5161,7 @@ namespace eval twapi::security::test {
     } -constraints {
         win6
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [security_test_directory] [clock clicks]]
         close [open $fn w+]
     } -body {
         twapi::set_resource_integrity file $fn untrusted {system_mandatory_label_no_write_up system_mandatory_label_no_read_up system_mandatory_label_no_execute_up}
@@ -5161,7 +5173,7 @@ namespace eval twapi::security::test {
     } -constraints {
         win6
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [security_test_directory] [clock clicks]]
         close [open $fn w+]
     } -body {
         twapi::set_resource_integrity file $fn high {system_mandatory_label_no_write_up system_mandatory_label_no_read_up system_mandatory_label_no_execute_up}
@@ -5173,7 +5185,7 @@ namespace eval twapi::security::test {
     } -constraints {
         win6
     } -setup {
-        set fn [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set fn [file join [security_test_directory] [clock clicks]]
         close [open $fn w+]
     } -body {
         twapi::set_resource_integrity file $fn 8192 7
@@ -5185,7 +5197,7 @@ namespace eval twapi::security::test {
     } -constraints {
         win6
     } -setup {
-        set dir [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set dir [file join [security_test_directory] [clock clicks]]
         file mkdir $dir
         set subdir [file join $dir subdir]
         file mkdir $subdir
@@ -5203,7 +5215,7 @@ namespace eval twapi::security::test {
     } -constraints {
         win6
     } -setup {
-        set dir [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set dir [file join [security_test_directory] [clock clicks]]
         file mkdir $dir
         set subdir [file join $dir subdir]
         file mkdir $subdir
@@ -5221,7 +5233,7 @@ namespace eval twapi::security::test {
     } -constraints {
         win6
     } -setup {
-        set dir [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set dir [file join [security_test_directory] [clock clicks]]
         file mkdir $dir
         set subdir [file join $dir subdir]
         file mkdir $subdir
@@ -5239,7 +5251,7 @@ namespace eval twapi::security::test {
     } -constraints {
         win6
     } -setup {
-        set dir [file join [tcltest::temporaryDirectory] [clock clicks]]
+        set dir [file join [security_test_directory] [clock clicks]]
         file mkdir $dir
         set subdir [file join $dir subdir]
         file mkdir $subdir
@@ -6191,7 +6203,7 @@ namespace eval twapi::security::test {
     } -constraints {
         win6
     } -body {
-        set fn [file join [tcltest::temporaryDirectory] [clock seconds]]
+        set fn [file join [security_test_directory] [clock seconds]]
         set secd [twapi::set_security_descriptor_integrity [twapi::new_security_descriptor] low 1]
         twapi::close_handle [twapi::create_file $fn -secd $secd]
         twapi::get_resource_integrity file $fn -label

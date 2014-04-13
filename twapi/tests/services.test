@@ -281,6 +281,11 @@ namespace eval twapi::services::test {
     proc verify_service_status {svcname v_svcinfo {missing {}} {refresh 0}} {
         upvar $v_svcinfo svcinfo
 
+        if {$svcinfo(servicetype) eq "kernel_driver"} {
+            # No way to verify via wmic
+            return
+        }
+
         fill_services $refresh
 
         # TBD - add better checking against fill_services
@@ -1002,8 +1007,9 @@ namespace eval twapi::services::test {
     test set_service_configuration-4.0 {
         Verify set_service_configuration -interactive 1 option
     } -constraints {
-        systemmodificationok
+        systemmodificationok TBD
     } -body {
+        # TBD - on vista and later interactive depends on a registry flag
         check_set_service_configuration -interactive 1
     } -result ""
 

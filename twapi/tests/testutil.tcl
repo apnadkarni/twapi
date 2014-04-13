@@ -1183,9 +1183,12 @@ proc stop_commandline {} {
 
 # Starts a Tcl shell that will read commands and execute them
 proc tclsh_slave_start {} {
+    # testlog "Starting slave"
     set fd [open "| [list [::tcltest::interpreter]]" r+]
     fconfigure $fd -buffering line -blocking 0 -eofchar {}
-    tclsh_slave_verify_started $fd
+    if {[catch {tclsh_slave_verify_started $fd} msg]} {
+        error $msg
+    }
     #puts $fd [list source [file join $::twapi_test_script_dir testutil.tcl]]
     #puts $fd start_commandline
     return $fd
@@ -1195,9 +1198,9 @@ proc tclsh_slave_verify_started {fd} {
     # not output result unless it is a tty.
     tclsh_slave_puts $fd {
         source testutil.tcl
-        testlog "SLAVE [pid] STARTED"
-        load_twapi_package
+        # testlog "SLAVE process [pid] STARTED"
         if {[catch {
+            load_twapi_package
             fconfigure stdout -buffering line -encoding utf-8
             fconfigure stdin -buffering line -encoding utf-8 -eofchar {}
             puts [info tclversion]
@@ -1210,6 +1213,7 @@ proc tclsh_slave_verify_started {fd} {
 
     if {[catch {
         set ver [gets_timeout $fd]
+        testlog "Got version $ver"
     } msg]} {
         #close $fd
         testlog $msg
@@ -1280,7 +1284,7 @@ proc expect {fd expected {ms 1000}} {
 # ms is not total timeout, rather it's max time to wait for single read.
 # As long as slave keeps writing, we will keep reading.
 proc tclsh_slave_wait {fd {ms 1000}} {
-    set marker "Ready: [clock clicks]"
+    set marker "Ready:[clock clicks]"
     tclsh_slave_puts $fd "puts {$marker}"
     set elapsed 0
     while {$elapsed < $ms} {
