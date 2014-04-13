@@ -173,7 +173,9 @@ if {[twapi::min_os_version 6]} {
         # are acceptable. This last happens when another EvtNext is done
         # after an NO_MORE_ITEMS is already returned.
         if {$status == 0 || $status == 259 || $status == 1460 || $status == 4317} {
-            return {}
+            # Even though $events is empty, still pass it in so it returns
+            # an empty record array in the correct format.
+            return [evt_decode_events $events -lcid $lcid -ignorestring "" -message -levelname -taskname]
         } else {
             win32_error $status
         }
