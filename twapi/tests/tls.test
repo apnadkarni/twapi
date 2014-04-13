@@ -78,6 +78,7 @@ if {[lsearch [namespace children] ::tcltest] == -1} {
 
 eval tcltest::configure $argv
 
+::tcltest::testConstraint vista [expr {![string match 5.* $::tcl_platform(osVersion)]}]
 
 proc dputs {msg} { return ; puts stderr $msg ; flush stderr }
 
@@ -511,7 +512,7 @@ if [info exists Port] {
     set Port [expr {$tlsServerPort + [pid]%1024}]
 }
 
-test tlsIO-2.2 {Validate option -myport -myaddr: success} {socket stdio} {
+test tlsIO-2.2 {Validate option -myport -myaddr: success} {socket stdio vista} {
     removeFile script
     set f [open script w]
     puts $f [basicServerScript 8828]
@@ -643,7 +644,7 @@ test tlsIO-3.1 {Validate server non-blocking -verifier: name mismatch} {socket s
 } {{SSL/TLS negotiation failed. Verifier callback returned false.} EOF}
 
 incr Port
-test tlsIO-3.2 {Validate server non-blocking -verifier altname: success} {socket stdio} {
+test tlsIO-3.2 {Validate server non-blocking -verifier altname: success} {socket stdio vista} {
     removeFile script
     set f [open script w]
     puts $f [asyncServerScript 8828 altserverCreds]
@@ -929,17 +930,24 @@ test tls_socket-client-3.2 {
 test tls_socket-client-4.0 {
     Test www.howsmyssl.com
 } -setup {
-    package require http
     package require json
 } -body {
-    http::register https 443 ::twapi::tls_socket
-    set tok [http::geturl https://www.howsmyssl.com/a/check]
-    set response [json::json2dict [http::data $tok]]
-    list [http::status $tok] [dict get $response rating]
+    # XP by default will pick sslv2 and remote will abort
+    # so explicitly pick tls1 always. We will get a rating of
+    # Bad returned because protocol is not tls1.1 or tls1.2
+    set screds [twapi::sspi_schannel_credentials -protocols tls1]
+    set creds [twapi::sspi_acquire_credentials -role client -package unisp -credentials $screds]
+    set rating Bad
+    set so [twapi::tls_socket -credentials $creds www.howsmyssl.com 443]
+    fconfigure $so -translation binary -buffering none
+    puts $so "GET https://www.howsmyssl.com/a/check HTTP/1.0\r\n\r\n"
+    set data [read $so]
+    set hdr_end [string first \r\n\r\n $data]
+    set response [json::json2dict [string range $data $hdr_end+4 end]]
+    dict get $response rating
 } -cleanup {
-    http::unregister https
-    http::cleanup $tok
-} -result {ok {Probably Okay}}
+    twapi::sspi_free_credentials $creds
+} -result Bad
 
 test tls_socket-client-5.0 {
     Test tv.eurosport.com - bad certificate name
