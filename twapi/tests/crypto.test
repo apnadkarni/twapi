@@ -798,7 +798,7 @@ namespace eval twapi::crypto::test {
             }
             set hcert $hcert2
         }
-        expr {$count > 10}
+        expr {$count > 5}
     } -cleanup {
         twapi::cert_store_release $hstore
     } -result 1
@@ -963,10 +963,10 @@ namespace eval twapi::crypto::test {
         set matches 0
         set cert NULL
         while {1} {
-            set cert [twapi::cert_store_find_certificate $hstore issuer_substring microsoft $cert]
+            set cert [twapi::cert_store_find_certificate $hstore issuer_substring geotrust $cert]
             if {$cert eq ""} break
             incr count
-            incr matches [string match -nocase *microsoft* [twapi::cert_issuer_name $cert -name rdn]]
+            incr matches [string match -nocase *geotrust* [twapi::cert_issuer_name $cert -name rdn]]
         }
         list [expr {$count > 1}] [expr {$count == $matches}]
     } -cleanup {
@@ -1214,10 +1214,10 @@ namespace eval twapi::crypto::test {
         set matches 0
         set cert NULL
         while {1} {
-            set cert [twapi::cert_store_find_certificate $hstore subject_substring microsoft $cert]
+            set cert [twapi::cert_store_find_certificate $hstore subject_substring verisign $cert]
             if {$cert eq ""} break
             incr count
-            incr matches [string match -nocase *microsoft* [twapi::cert_subject_name $cert -name rdn]]
+            incr matches [string match -nocase *verisign* [twapi::cert_subject_name $cert -name rdn]]
         }
         list [expr {$count > 1}] [expr {$count == $matches}]
     } -cleanup {

@@ -37,6 +37,9 @@ namespace eval twapi::security::test {
     variable guest_sid [name2sid $guest_account_name]
     variable administrator_sid [name2sid $administrator_account_name]
 
+    # Low Integrity file
+    variable low_integrity_file [file join [file dirname $::env(LOCALAPPDATA)] LocalLow]
+
     # Define expected values for various get_user_account_info fields
     # assuming [string match -nocase comparison] and Administrator account
     variable get_user_account_info_fields
@@ -4716,27 +4719,27 @@ namespace eval twapi::security::test {
     test get_security_descriptor_integrity-1.0 {
         Get the integer integrity field of a security descriptor
     } -setup {
-        set secd [twapi::get_resource_security_descriptor file [system_drive_root] -mandatory_label]
+        set secd [twapi::get_resource_security_descriptor file $low_integrity_file -mandatory_label]
     } -body {
         twapi::get_security_descriptor_integrity $secd
-    } -result [expr {[twapi::min_os_version 6] ? "12288 system_mandatory_label_no_write_up" : ""}]
+    } -result [expr {[twapi::min_os_version 6] ? "4096 system_mandatory_label_no_write_up" : ""}]
 
     test get_security_descriptor_integrity-1.1 {
         Get the raw integrity field of a security descriptor
     } -setup {
-        set secd [twapi::get_resource_security_descriptor file [system_drive_root] -mandatory_label]
+        set secd [twapi::get_resource_security_descriptor file $low_integrity_file -mandatory_label]
     } -body {
         twapi::get_security_descriptor_integrity $secd -raw
-    } -result [expr {[twapi::min_os_version 6] ? "S-1-16-12288 system_mandatory_label_no_write_up" : ""}]
+    } -result [expr {[twapi::min_os_version 6] ? "S-1-16-4096 system_mandatory_label_no_write_up" : ""}]
 
 
     test get_security_descriptor_integrity-1.2 {
         Get the label integrity field of a security descriptor
     } -setup {
-        set secd [twapi::get_resource_security_descriptor file [system_drive_root] -mandatory_label]
+        set secd [twapi::get_resource_security_descriptor file  $low_integrity_file -mandatory_label]
     } -body {
         twapi::get_security_descriptor_integrity $secd -label
-    } -result [expr {[twapi::min_os_version 6] ? "high system_mandatory_label_no_write_up" : ""}]
+    } -result [expr {[twapi::min_os_version 6] ? "low system_mandatory_label_no_write_up" : ""}]
 
 
 
