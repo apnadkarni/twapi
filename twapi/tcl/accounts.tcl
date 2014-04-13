@@ -852,10 +852,10 @@ proc twapi::_change_user_info_flags {username mask values args} {
     } -nulldefault -maxleftover 0]
 
     # Get current flags
-    array set data [NetUserGetInfo $opts(system) $username 1]
+    set flags [USER_INFO_1 -flags [NetUserGetInfo $opts(system) $username 1]]
 
     # Turn off mask bits and write flags back
-    set flags [expr {$data(flags) & (~ $mask)}]
+    set flags [expr {$flags & (~ $mask)}]
     # Set the specified bits
     set flags [expr {$flags | ($values & $mask)}]
 
