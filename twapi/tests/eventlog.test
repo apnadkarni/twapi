@@ -944,7 +944,7 @@ namespace eval twapi::eventlog::test {
             error "No events in event log"
         }
     } -body {
-        set backup [file join $::env(TEMP) twapi_events_clear_test.bak]
+        set backup [file join $::env(TEMP) twapi_events_clear_test_[clock microseconds].bak]
         set count1 [twapi::winlog_event_count -channel Application]
         twapi::winlog_clear Application -backup $backup
         set count2 [twapi::winlog_event_count -channel Application]

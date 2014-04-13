@@ -180,7 +180,7 @@ namespace eval twapi::device::test {
     } -body {
         # This does a very rudimentary check. The get_volume_info test
         # in disk module is more comprehensive
-        set bin [twapi::device_ioctl $device_handle 0x560000]
+        set bin [twapi::device_ioctl $device_handle 0x560000 -outputcount 32]
         binary scan $bin i nextents
     } -result 1
 

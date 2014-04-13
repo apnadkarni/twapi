@@ -117,8 +117,12 @@ namespace eval twapi::apputil::test {
     } -body {
         # trim is needed because extra batch file % params result
         # in extra blanks in teh command line
-        lrange [split [string trim [twapi::get_command_line]]] 1 end
-    } -result [linsert $argv 0 $argv0] -match list
+        set line [string trim [twapi::get_command_line]]
+        regsub {\s+} $line { } line
+        # Don't try to match more than first couple of args. QUoting etc.
+        # makes it difficult
+        lrange [split $line] 1 2
+    } -result [list $argv0 [lindex $argv 0]] -match list
 
     ################################################################
 

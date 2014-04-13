@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006-2010, Ashok P. Nadkarni
+# Copyright (c) 2006-2014, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -1346,6 +1346,8 @@ namespace eval twapi::com::test {
 
     test variant_param_passing-safearray-2.100 {
         Check type of safearray cast when list is empty
+    } -constraints {
+        expected_to_fail TBD
     } -body {
         # This is expected to fail in the current implementation because
         # there is no way to pass the type through if the safearray is
