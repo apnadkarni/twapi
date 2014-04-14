@@ -2774,7 +2774,9 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
 {
     char *s;
     VARTYPE vt;
-    Tcl_Obj *elemObj;
+    Tcl_Obj **objs;
+    int nobjs;
+    int i;
 
     switch (TwapiGetTclType(objP)) {
     case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
@@ -2807,15 +2809,60 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
 
         /* We do not know the type of each SAFEARRAY element. Guess on element value */
         vt = VT_VARIANT;   /* In case we cannot tell */
-        if (ObjListIndex(NULL, objP, 0, &elemObj) == TCL_OK && elemObj) {
-            switch (TwapiGetTclType(elemObj)) {
+        if (ObjGetElements(NULL, objP, &nobjs, &objs) != TCL_OK)
+            return vt;          /* Should not really happen */
+        if (nobjs) {
+            /* Base our guess on the first type. Note we don't coerce it
+               since we might want to pass "1" as a string, not int.
+               If *remaining* elements do not match that type after coercion,
+               we fall back to VT_VARIANT.
+            */
+            switch (TwapiGetTclType(objs[0])) {
             case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
-            case TWAPI_TCLTYPE_BOOLEANSTRING: vt = VT_BOOL; break;
-            case TWAPI_TCLTYPE_INT:           vt = VT_I4; break;
-            case TWAPI_TCLTYPE_WIDEINT:       vt = VT_I8; break;
-            case TWAPI_TCLTYPE_DOUBLE:        vt = VT_R8; break;
-            case TWAPI_TCLTYPE_STRING:        vt = VT_BSTR; break;
-            }            
+            case TWAPI_TCLTYPE_BOOLEANSTRING:
+                vt = VT_BOOL;
+                for (i = 1; i < nobjs; ++ i) {
+                    int bval;
+                    if (ObjToBoolean(NULL, objs[i], &bval) != TCL_OK) {
+                        vt = VT_VARIANT;
+                        break;
+                    }
+                }
+                break;
+            case TWAPI_TCLTYPE_INT:
+                vt = VT_I4;
+                for (i = 1; i < nobjs; ++ i) {
+                    int ival;
+                    if (ObjToLong(NULL, objs[i], &ival) != TCL_OK) {
+                        vt = VT_VARIANT;
+                        break;
+                    }
+                }
+                break;
+            case TWAPI_TCLTYPE_WIDEINT:
+                vt = VT_I8;
+                for (i = 1; i < nobjs; ++ i) {
+                    Tcl_WideInt wide;
+                    if (ObjToWideInt(NULL, objs[i], &wide) != TCL_OK) {
+                        vt = VT_VARIANT;
+                        break;
+                    }
+                }
+                break;
+            case TWAPI_TCLTYPE_DOUBLE:
+                vt = VT_R8;
+                for (i = 1; i < nobjs; ++ i) {
+                    double dbl;
+                    if (ObjToDouble(NULL, objs[i], &dbl) != TCL_OK) {
+                        vt = VT_VARIANT;
+                        break;
+                    }
+                }
+                break;
+            case TWAPI_TCLTYPE_STRING:
+                vt = VT_BSTR;
+                break;
+            }
         }
         return vt | VT_ARRAY;
 
