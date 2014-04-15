@@ -38,6 +38,7 @@ static struct TWAPI_ERROR_MAP error_map[] = {
     {TWAPI_INVALID_COMMAND_SCOPE, "Command cannot be called in this scope."},
     {TWAPI_SCRIPT_ERROR, "Script error."},
     {TWAPI_INVALID_DATA, "Invalid data."},
+    {TWAPI_INVALID_PTR, "Invalid pointer."},
 };
 #define TWAPI_ERROR_MAP_SIZE (sizeof(error_map)/sizeof(error_map[0]))
 

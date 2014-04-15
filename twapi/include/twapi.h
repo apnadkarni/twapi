@@ -347,6 +347,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_INVALID_COMMAND_SCOPE 20
 #define TWAPI_SCRIPT_ERROR 21
 #define TWAPI_INVALID_DATA 22
+#define TWAPI_INVALID_PTR 23
 
 /*
  * Map TWAPI error codes into Win32 error code format.
