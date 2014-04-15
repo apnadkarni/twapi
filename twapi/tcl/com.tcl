@@ -3073,6 +3073,11 @@ twapi::class create ::twapi::Automation {
         return [$_proxy @Interface $addref]
     }
 
+    # Validates internal structures
+    method -validate {} {
+        twapi::ValidateIUnknown [my -interface 0]
+    }
+
     # Set/return the GUID for the interface
     method -interfaceguid {{guid ""}} {
         my variable _proxy
