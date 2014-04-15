@@ -1450,7 +1450,7 @@ TCL_RESULT ObjToUSHORT(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP)
 {
     int lval;
 
-    TWAPI_ASSERT(sizeof(WORD) == sizeof(unsignd short));
+    TWAPI_ASSERT(sizeof(WORD) == sizeof(unsigned short));
     if (ObjToRangedInt(interp, obj, 0, USHRT_MAX, &lval) != TCL_OK)
         return TCL_ERROR;
     *wordP = (WORD) lval;
