@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2006-2012, Ashok P. Nadkarni
+ * Copyright (c) 2006-2014, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -92,6 +92,33 @@ typedef struct Twapi_EventSink {
 } Twapi_EventSink;
 
 
+#if TWAPI_ENABLE_ASSERT
+/* Note this should be called only in debug mode. See SDK docs for
+   IsBad*Ptr functions */
+static TCL_RESULT TwapiValidateIUnknownPtr(Tcl_Interp *interp, IUnknown *ifcP)
+{
+    if (IsBadReadPtr(ifcP, sizeof(*ifcP))) {
+        ObjSetResult(interp, Tcl_ObjPrintf("Bad IUnknown pointer %lx.", (Tcl_WideInt) ifcP));
+        return TCL_ERROR;
+    }
+    if (IsBadReadPtr(ifcP->lpVtbl, sizeof(*(ifcP->lpVtbl)))) {
+        ObjSetResult(interp, Tcl_ObjPrintf("Bad IUnknown->lpVtbl pointer %lx->%lx.", (Tcl_WideInt) ifcP, (Tcl_WideInt) ifcP->lpVtbl));
+        return TCL_ERROR;
+    }
+    if (IsBadCodePtr((FARPROC) ifcP->lpVtbl->QueryInterface)) {
+        ObjSetResult(interp, Tcl_ObjPrintf("Bad IUnknown->lpVtbl->QueryInterface pointer %lx->%lx->%lx.", (Tcl_WideInt) ifcP, (Tcl_WideInt) ifcP->lpVtbl, (Tcl_WideInt) ifcP->lpVtbl->QueryInterface));
+        return TCL_ERROR;
+    }
+    if (IsBadCodePtr((FARPROC) ifcP->lpVtbl->AddRef)) {
+        ObjSetResult(interp, Tcl_ObjPrintf("Bad IUnknown->lpVtbl->AddRef pointer %lx->%lx->%lx.", (Tcl_WideInt) ifcP, (Tcl_WideInt) ifcP->lpVtbl, (Tcl_WideInt) ifcP->lpVtbl->AddRef));
+        return TCL_ERROR;
+    }
+    if (IsBadCodePtr((FARPROC) ifcP->lpVtbl->Release)) {
+        ObjSetResult(interp, Tcl_ObjPrintf("Bad IUnknown->lpVtbl->Release pointer %lx->%lx->%lx.", (Tcl_WideInt) ifcP, (Tcl_WideInt) ifcP->lpVtbl, (Tcl_WideInt) ifcP->lpVtbl->Release));
+    }
+    return TCL_OK;
+}
+#endif
 
 static HRESULT STDMETHODCALLTYPE Twapi_EventSink_QueryInterface(
     IDispatch *this,
@@ -716,6 +743,14 @@ int Twapi_IDispatch_InvokeObjCmd(
             /* Yep, one of those funky results */
             if (SUCCEEDED(V_I4(&dispargP[0]))) {
                 /* Yes return status is success, pick up return value */
+                /* We Release all VT_DISPATCH and VT_UNKNOWN when exiting
+                   to match the AddRef in TwapiMakeVariantParam. Since we
+                   are holding on to this one, make an extra AddRef */
+                if (dispargP[nparams].vt == VT_DISPATCH ||
+                    dispargP[nparams].vt == VT_UNKNOWN) {
+                    if (dispargP[nparams].punkVal != NULL)
+                        dispargP[nparams].punkVal->lpVtbl->AddRef(dispargP[nparams].punkVal);
+                }
                 ObjSetResult(interp, ObjFromVARIANT(&dispargP[nparams], 0));
             } else {
                 /* Hmm, toplevel HRESULT is success, retval HRESULT is not
@@ -726,6 +761,16 @@ int Twapi_IDispatch_InvokeObjCmd(
             }
         } else {
             if (retvar_vt != VT_VOID) {
+                /* See comment above */
+                /* Note also that retvar_vt comes from the TYPEDEF and may
+                   not be same as dispargP[0].vt so make sure to check against
+                   the latter. (retvar_vt can be VT_PTR and the concrete
+                   type VT_DISPATCH for example)
+                */
+                if (dispargP[0].vt == VT_DISPATCH || dispargP[0].vt == VT_UNKNOWN) {
+                    if (dispargP[0].punkVal != NULL)
+                        dispargP[0].punkVal->lpVtbl->AddRef(dispargP[0].punkVal);
+                }
                 ObjSetResult(interp, ObjFromVARIANT(&dispargP[0], 0));
             }
         }
@@ -739,6 +784,12 @@ int Twapi_IDispatch_InvokeObjCmd(
             if (paramflagsP[j] & PARAMFLAG_FOUT) {
                 if (Tcl_ObjSetVar2(interp, objv[i], NULL, ObjFromVARIANT(&dispargP[j], 0), TCL_LEAVE_ERR_MSG) == NULL)
                     goto vamoose;
+                /* See comment above regarding AddRef */
+                if (dispargP[j].vt == VT_DISPATCH ||
+                    dispargP[j].vt == VT_UNKNOWN) {
+                    if (dispargP[j].punkVal != NULL)
+                        dispargP[j].punkVal->lpVtbl->AddRef(dispargP[j].punkVal);
+                }
             }
         }
 
@@ -822,10 +873,9 @@ int Twapi_IDispatch_InvokeObjCmd(
          * - if the VT_BYREF flag is set, do not do anything with
          *   the variant. The referenced variant will also be released if
          *   necessary in the loop and that is sufficient.
-         * - VT_DISPATCH and VT_UNKNOWN - do not call VariantClear because
-         *   that will decrement their ref count and potentially free
-         *   them which we do not want as we are actually passing the
-         *   objects up and are not actually done with them.
+         * - VT_DISPATCH and VT_UNKNOWN - call VariantClear because
+         *   that will decrement their ref count to match the AddRef
+         *   in TwapiMakeVariantParam
          * - VT_ARRAY and VT_BSTR - need to be released. Note for VT_ARRAY
          *   if it contains IDispatch or IUnknown, they would already
          *   have been AddRef'ed in the safearray extraction code and
@@ -835,7 +885,7 @@ int Twapi_IDispatch_InvokeObjCmd(
          */
         for (i = 0; i < nargalloc; ++i) {
             VARTYPE vt = V_VT(&dispargP[i]);
-            if (vt == VT_BSTR ||
+            if (vt == VT_BSTR || vt == VT_DISPATCH || vt == VT_UNKNOWN ||
                 ((vt & VT_ARRAY) && ! (vt & VT_BYREF)))
                 VariantClear(&dispargP[i]);
         }
@@ -1040,8 +1090,6 @@ int Twapi_ITypeLib_GetLibAttr(Tcl_Interp *interp, ITypeLib *tlP)
 /*
  * Converts a parameter definition in Tcl format into the corresponding
  * VARIANT to be passed to IDispatch::Invoke.
- * IMPORTANT: The created VARIANT must be cleared by calling
- * TwapiClearVariantParam
  * varP is the variant to construct, refvarP is the
  * variant to use if a level of indirection is needed.
  * Both must have been VariantInit'ed.
@@ -1050,6 +1098,17 @@ int Twapi_ITypeLib_GetLibAttr(Tcl_Interp *interp, ITypeLib *tlP)
  * valueObj is either the name of the variable containing the value
  * to be passed (if the parameter is out or inout) or the actual
  * value itself.
+ *
+ * IMPORTANT - the VARIANT must be cleared after calling Invoke
+ * so that associated resource can be released. This includes BSTRs
+ * for which memory is allocated, and IUnknown/IDispatch pointers
+ * which are AddRef'ed. The latter is done because some COM
+ * components/methods, like Word's Paragraph.Add, do a VariantClear
+ * even on passed parameters EVEN WHEN they are INPUT only.
+ * To deal with these, we 
+ * AddRef interfaces here and then clear them after an Invoke if the
+ * the variant type is still VT_UNKNOWN or VT_DISPATCH (if the COM
+ * component, clears them itself, the type will be VT_EMPTY).
  */
 int TwapiMakeVariantParam(
     Tcl_Interp *interp,
@@ -1293,15 +1352,8 @@ int TwapiMakeVariantParam(
             goto vamoose;
         target_vt = V_VT(targetP); /* Just to ensure consistency as it might have been changed */
 
-        /*
-         * If it is a IN or OUT param, no need to muck with ref counts.
-         * If it is an INOUT though, we need to AddRef as the COM object
-         * will call Release on it before overwriting the value and we
-         * do not want our comobj target to be released.
-         */
-        if ((targetP->vt == VT_DISPATCH || targetP->vt == VT_UNKNOWN)
-            &&
-            (*paramflagsP & (PARAMFLAG_FIN | PARAMFLAG_FOUT)) == (PARAMFLAG_FIN | PARAMFLAG_FOUT)) {
+        /* See comments for function */
+        if (targetP->vt == VT_DISPATCH || targetP->vt == VT_UNKNOWN) {
             /* Both pdispVal and punkVal are really the same field and same
                vtbl layout so no need to distinguish  */
             if (targetP->punkVal != NULL)
@@ -1678,6 +1730,10 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             ObjSetStaticResult(interp, "NULL interface pointer.");
             return TCL_ERROR;
         }
+#if TWAPI_ENABLE_ASSERT
+        if (TwapiValidateIUnknownPtr(interp, pv) != TCL_OK)
+            return TCL_ERROR;
+#endif
     }
 
     /* We want stronger type checking so we have to convert the interface
@@ -1716,6 +1772,11 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             /* Note this is not a method but a function call */
             result.type = TRT_EXCEPTION_ON_ERROR;
             result.value.ival = OleRun(ifc.unknown);
+            break;
+        case 5: // ValidateIUnknown
+            /* No-op when asserts not enabled. If asserts enabled,
+               validation is done at top of function itself */
+            result.type = TRT_EMPTY;
             break;
         }
     } else if (func < 200) {
@@ -2509,6 +2570,8 @@ vamoose:
     SysFreeString(bstr1);        /* OK if bstr is NULL */
     SysFreeString(bstr2);
     SysFreeString(bstr3);
+
+    TWAPI_ASSERT(HeapValidate(GetProcessHeap(), 0, 0));
     return tcl_status;
 
 badargs:
@@ -2649,6 +2712,7 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(IUnknown_AddRef, 2),
         DEFINE_FNCODE_CMD(Twapi_IUnknown_QueryInterface, 3),
         DEFINE_FNCODE_CMD(OleRun, 4), // Note - function, NOT method
+        DEFINE_FNCODE_CMD(ValidateIUnknown, 5),
 
         DEFINE_FNCODE_CMD(IDispatch_GetTypeInfoCount, 101),
         DEFINE_FNCODE_CMD(IDispatch_GetTypeInfo, 102),
