@@ -369,7 +369,7 @@ int Twapi_RecordArrayHelperObjCmd(
                 break;
             }
             for (j = 0; j < nslice_fields; ++j) {
-                TWAPI_ASSERT(slice_fieldsindices[j] < nvalues); /* Follows from prior checks */
+                TWAPI_ASSERT(slice_fieldindices[j] < nvalues); /* Follows from prior checks */
                 slice_values[j] = values[slice_fieldindices[j]];
             }
             if (format == RA_DICT)
