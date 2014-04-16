@@ -1262,7 +1262,8 @@ namespace eval twapi::com::test {
     test variant_param_passing-safearray-2.4 {
         Check type of safearray cast (double)
     } -body {
-        [testobj] JMPSetDataVector [twapi::safearray double {-100 -200 -300}]
+        set l [list [incr i] [incr i] [incr i]]
+        [testobj] JMPSetDataVector [twapi::safearray double $l]
     } -result 8197
 
     test variant_param_passing-safearray-2.5 {
@@ -1342,6 +1343,17 @@ namespace eval twapi::com::test {
     } -body {
         [testobj] JMPSetDataVector [twapi::safearray boolean {1 false true 0}]
     } -result 8203
+
+    test variant_param_passing-safearray-2.18 {
+        Check type of safearray cast (variant)
+    } -body {
+        # Keep ival as a *variable* with value *0*.
+        # We want to ensure "0" does not get shimmered back to int
+        # as part of the lindex operation in the safearray proc
+        set ival 0
+        set l [list $ival [incr ival] [incr ival]]
+        [testobj] JMPSetDataVector [twapi::safearray variant $l]
+    } -result 8204
 
 
     test variant_param_passing-safearray-2.100 {

@@ -258,6 +258,7 @@ static void UpdateVariantTypeString(Tcl_Obj *objP)
         objP->bytes[0] = 0;
         break;
     default:
+        /* String rep should already be there. */
         Tcl_Panic("Unexpected VT type (%d) in Tcl_Obj VARIANT", VARIANT_REP_VT(objP));
     }
 }
@@ -358,7 +359,7 @@ int Twapi_InternalCastObjCmd(
     Tcl_Obj *CONST objv[]
 )
 {
-    Tcl_Obj *objP;
+    Tcl_Obj *objP = NULL;
     Tcl_ObjType *typeP;
     const char *typename;
     int i;
@@ -367,11 +368,21 @@ int Twapi_InternalCastObjCmd(
     if (objc != 3)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
+    /* NOTE
+     * ALWAYS DUP/CREATE NEW object and do not convert it in place.
+     * This reduces the chances of it shimmering back to a different
+     * type. An example test case is illustrated in test
+     * case variant_param_passing-safearray-2.18. The safearray conversion
+     * in that test converts "0" to variant ("") but that would
+     * get shimmered back to an int in the safearray proc lindex call.
+     * We want to prevent this.
+     */
+
     typename = ObjToString(objv[1]);
 
     if (*typename == '\0') {
-        /* No type, keep as is */
-        return ObjSetResult(interp, objv[2]);
+        /* No type, make pure string */
+        return ObjSetResult(interp, ObjFromString(ObjToString(objv[2])));
     }
         
     /*
@@ -384,8 +395,9 @@ int Twapi_InternalCastObjCmd(
      * We do this even before GetObjType because "booleanString" is not
      * even a registered type in Tcl.
      *
-     * We can't do anything about wideInt because Tcl_NewDoubleObj, Tcl_GetDoubleFromObj,
-     * SetDoubleFromAny, will also return an int Tcl_Obj if the vallue fits in the 32 bits.
+     * We can't do anything about wideInt because Tcl_NewWideIntObj,
+     * and SetWideIntFromAny, will also return an
+     * int Tcl_Obj if the value fits in the 32 bits.
      */
     if (STREQ(typename, "double")) {
         double dval;
@@ -405,30 +417,12 @@ int Twapi_InternalCastObjCmd(
 
     typeP = Tcl_GetObjType(typename);
     if (typeP) {
-        if (objv[2]->typePtr == typeP) {
-            /* If type is already correct, no need to do anything */
-            objP = objv[2];
-        } else {
-            /*
-             * Need to convert it. If not shared, do in place else allocate
-             * new object
-             */
-
+        objP = ObjDuplicate(objv[2]);
+        if (objP->typePtr != typeP) {
             if (typeP->setFromAnyProc == NULL)
-                goto error_handler;
-
-            if (Tcl_IsShared(objv[2])) {
-                objP = ObjDuplicate(objv[2]);
-            } else {
-                objP = objv[2];
-            }
-        
-
+                goto convert_error;
             if (Tcl_ConvertToType(interp, objP, typeP) == TCL_ERROR) {
-                if (objP != objv[2]) {
-                    ObjDecrRefs(objP);
-                }
-                return TCL_ERROR;
+                goto error_handler;
             }
         }
 
@@ -441,7 +435,7 @@ int Twapi_InternalCastObjCmd(
         case VT_EMPTY:
         case VT_NULL:
             if (ObjCharLength(objv[2]) != 0)
-                goto error_handler;
+                goto convert_error;
             objP = ObjFromEmptyString();
             Tcl_InvalidateStringRep(objP);
             objP->typePtr = &gVariantType;
@@ -450,8 +444,11 @@ int Twapi_InternalCastObjCmd(
         }
     }
 
-error_handler:
+convert_error:
     Tcl_AppendResult(interp, "Cannot convert '", ObjToString(objv[2]), "' to type '", typename, "'", NULL);
+error_handler:
+    if (objP)
+        ObjDecrRefs(objP);
     return TCL_ERROR;
 }
 
@@ -3273,7 +3270,7 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
 
         /* Dunno how to handle these */
     case VT_RECORD|VT_BYREF:
-    case VT_VARIANT: /* Note VT_VARIANT is illegal */
+    case VT_VARIANT: /* Note VT_VARIANT is illegal in a concrete VARIANT */
     default:
         break;
     }
