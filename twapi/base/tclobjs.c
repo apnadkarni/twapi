@@ -376,6 +376,8 @@ int Twapi_InternalCastObjCmd(
      * in that test converts "0" to variant ("") but that would
      * get shimmered back to an int in the safearray proc lindex call.
      * We want to prevent this.
+     *
+     * TBD - may be we can optimize this if the object is unshared ?
      */
 
     typename = ObjToString(objv[1]);
