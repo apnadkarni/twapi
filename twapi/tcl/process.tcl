@@ -1396,9 +1396,12 @@ proc twapi::get_process_commandline {pid args} {
         # Access denied
         set cmdline $opts(noaccess)
     } onerror {TWAPI_WIN32 299} {
-        # Only par
-t of the Read* could be completed
+        # Only part of the Read* could be completed
         # Access denied
+        set cmdline $opts(noaccess)
+    } onerror {TWAPI_WIN32 87} {
+        # The parameter is incorrect
+        # Access denied (or should it be noexist?)
         set cmdline $opts(noaccess)
     } finally {
         if {[info exists hpid]} {
