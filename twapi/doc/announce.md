@@ -1,9 +1,11 @@
-# Tcl Windows API (TWAPI) 4.0b40 BETA 2
+# Tcl Windows API (TWAPI) 4.0b54 BETA 3
 
-This is the second beta release of TWAPI 4.0.
+This is the third beta release of TWAPI 4.0. Note there have been API
+changes since the previous beta release. The API is now frozen for 4.0
+and it is hoped that this will be the final 4.0 beta.
 
   * Project home page is at http://twapi.sourceforge.net.
-  * V4.0 Beta 2 documentation is at http://twapi.sourceforge.net/v4.0-dev.
+  * V4.0 Beta 3 documentation is at http://twapi.sourceforge.net/v4.0-dev.
 
 ## Supported platforms
 
