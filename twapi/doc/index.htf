@@ -1,14 +1,3 @@
-<div class='news'>
-<dl>
-<dt>Dec 14, 2011:</dt>
-<dd>Tcl Windows API extension 3.1.17 released</dd>
-<dt>Jan 28, 2011:</dt>
-<dd>Tcl Windows API extension 3.0.29 released</dd>
-<dt>Oct 31, 2010:</dt>
-<dd>Tcl Windows API extension 2.2.5 (security update) released</dd>
-</dl>
-</div>
-
 <p>
   The Tcl Windows API (TWAPI) extension
   provides Tcl bindings to over 500 functions in the
