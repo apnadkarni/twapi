@@ -139,8 +139,8 @@ a consumer to read events from multiple traces and merges
 them as needed.
 
 [para]
-TWAPI provides the high-level [uri #etw_dump_to_file [cmd etw_dump_to_file]]
-and [uri #etw_dump_to_list [cmd etw_dump_to_list]]
+TWAPI provides the high-level [uri #etw_dump [cmd etw_dump]] and 
+[uri #etw_dump_to_file [cmd etw_dump_to_file]]
 commands which can read and format events. 
 
 [para]
@@ -628,6 +628,13 @@ Closes and releases resources associated with a ETW formatter handle
 returned by a previous call to
 [uri #etw_open_formatter [cmd etw_open_formatter]].
 
+[call [cmd etw_dump_to_list] [arg "LOGSOURCE ?LOGSOURCE ...?"]]
+Extracts events from one or more ETW log files or real time trace,
+returning them as a [uri base.html#recordarray "record array"].
+Each [arg LOGSOURCE] argument must be the path to a ETW log file or
+the name of a ETW real time trace. At most one real time trace
+can be specified.
+
 [call [cmd etw_dump_to_file] [opt [arg options]] [opt [arg "LOGSOURCE LOGSOURCE ..."]]]
 Extracts events from one or more ETW log files or real time trace
 and writes them out in
@@ -660,16 +667,6 @@ pairs of the field name from the event's MOF definition and the corresponding
 value. If the MOF definition is not available, the field name is
 [const MofData] and the corresponding value is a hexadecimal representation
 of the binary data.
-
-[call [cmd etw_dump_to_list] [arg "LOGSOURCE ?LOGSOURCE ...?"]]
-Extracts events from one or more ETW log files or real time trace,
-formats them and returns them as a list.
-Each [arg LOGSOURCE] argument must be the path to a ETW log file or
-the name of a ETW real time trace. At most one real time trace
-can be specified.
-[nl]
-Each element of the list is in the form returned by
-[uri #etw_format_events [cmd etw_format_events]].
 
 [call [cmd etw_close_session] [arg HTRACE]]
 Closes an event trace previously opened by a call to
