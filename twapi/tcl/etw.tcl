@@ -55,22 +55,14 @@ namespace eval twapi {
 
     #
     # These record definitions match the lists constructed in the ETW C code
+    # Note these are purposely formatted on single line so the record fieldnames
+    # print better.
 
     # Buffer header (EVENT_TRACE_LOGFILE)
-    record etw_event_trace_logfile {
-        logfile logger_name current_time buffers_read trace_logfile_header
-        buffer_size filled kernel_trace
-    }
+    record etw_event_trace_logfile {logfile logger_name current_time buffers_read trace_logfile_header buffer_size filled kernel_trace}
 
     # TRACE_LOGFILE_HEADER
-    record etw_trace_logfile_header {
-        buffer_size
-        version_major version_minor version_submajor version_subminor
-        provider_version processor_count end_time timer_resolution 
-        max_file_size logfile_mode buffers_written pointer_size events_lost
-        cpu_mhz time_zone boot_time perf_frequency start_time reserved_flags
-        buffers_lost
-    }
+    record etw_trace_logfile_header {buffer_size version_major version_minor version_submajor version_subminor provider_version processor_count end_time timer_resolution max_file_size logfile_mode buffers_written pointer_size events_lost cpu_mhz time_zone boot_time perf_frequency start_time reserved_flags buffers_lost }
 
     # TDH based event definitions
 
@@ -79,47 +71,26 @@ namespace eval twapi {
     record tdh_event_header { flags event_property tid pid timestamp
         kernel_time user_time processor_time activity_id descriptor provider_guid}
     record tdh_event_buffer_context { processor logger_id }
-    record tdh_event_data {event_guid
-        decoder provider_name level_name channel_name keyword_names
-        task_name opcode_name message localized_provider_name
-        activity_id related_activity_id properties }
+    record tdh_event_data {event_guid decoder provider_name level_name channel_name keyword_names task_name opcode_name message localized_provider_name activity_id related_activity_id properties }
 
     record tdh_event_data_descriptor {id version channel level opcode task keywords}
 
     # Definitions for EVENT_TRACE_LOGFILE
-    record tdh_buffer { logfile logger current_time buffers_read
-        header buffer_size filled kernel_trace }
+    record tdh_buffer { logfile logger current_time buffers_read header buffer_size filled kernel_trace }
 
-    record tdh_logfile_header { size major_version minor_version
-        sub_version subminor_version provider_version processor_count
-        end_time resolution max_file_size logfile_mode buffers_written
-        pointer_size events_lost cpu_mhz timezone boot_time
-        perf_frequency start_time reserved_flags buffers_lost }
+    record tdh_logfile_header { size major_version minor_version sub_version subminor_version provider_version processor_count end_time resolution max_file_size logfile_mode buffers_written pointer_size events_lost cpu_mhz timezone boot_time perf_frequency start_time reserved_flags buffers_lost }
 
     # MOF based event definitions
     record mof_event {header instance_id parent_instance_id parent_guid data}
-    record mof_event_header {type level version tid pid timestamp guid
-        kernel_time user_time processor_time}
+    record mof_event_header {type level version tid pid timestamp guid kernel_time user_time processor_time}
 
     # Standard app visible event definitions. These are made
     # compatible with the evt_* routines
-    record etw_event {-eventid -version -channel -level -opcode -task -keywordmask -timecreated -tid -pid -providerguid
-        -usertime -kerneltime
-        -providername -eventguid
-        -channelname -levelname -opcodename -taskname -keywords
-        -properties
-        -message
-        -sid
-    }
+    record etw_event {-eventid -version -channel -level -opcode -task -keywordmask -timecreated -tid -pid -providerguid -usertime -kerneltime -providername -eventguid -channelname -levelname -opcodename -taskname -keywords -properties -message -sid}
 
     # Record for EVENT_TRACE_PROPERTIES
     # TBD - document
-    record etw_trace_properties {
-        logfile trace_name trace_guid buffer_size min_buffers max_buffers
-        max_file_size logfile_mode flush_timer enable_flags clock_resolution
-        age_limit buffer_count free_buffers events_lost buffers_written
-        log_buffers_lost real_time_buffers_lost logger_tid
-    }
+    record etw_trace_properties {logfile trace_name trace_guid buffer_size min_buffers max_buffers max_file_size logfile_mode flush_timer enable_flags clock_resolution age_limit buffer_count free_buffers events_lost buffers_written log_buffers_lost real_time_buffers_lost logger_tid}
 }
 
 
@@ -1059,6 +1030,27 @@ proc twapi::etw_dump_to_list {args} {
         etw_close_formatter $formatter
     }
 }
+
+proc twapi::etw_dump {args} {
+    set htraces {}
+    set formatter [etw_open_formatter]
+    trap {
+        foreach arg $args {
+            if {[file exists $arg]} {
+                lappend htraces [etw_open_file $arg]
+            } else {
+                lappend htraces [etw_open_session $arg]
+            }
+        }
+        return [recordarray get [etw_format_events $formatter {*}[etw_process_events {*}$htraces]]]
+    } finally {
+        foreach htrace $htraces {
+            etw_close_session $htrace
+        }
+        etw_close_formatter $formatter
+    }
+}
+
 
 proc twapi::etw_start_trace {session_name args} {
     variable _etw_trace_controllers
