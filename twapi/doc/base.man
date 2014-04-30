@@ -148,6 +148,8 @@ Returns values for a specified field for all records.
 [opt_def [uri #recordarrayconcat [cmd "recordarray concat"]]]
 Returns a record array containing records from one or more 
 record arrays.
+[opt_def [uri #recordarrayforeach [cmd "recordarray foreach"]]]
+Iterates over the records in the record array.
 [opt_def [uri #recordarrayfields [cmd "recordarray fields"]]]
 Returns field names for the records in the record array.
 [opt_def [uri #recordarrayget [cmd "recordarray get"]]]
@@ -803,6 +805,12 @@ for the format of [arg FILTERLIST].
 Returns a record array containing records from one or more 
 [uri #recordarrays "record arrays"]. 
 The fields in each record array must be the same.
+
+[call [cmd "recordarray foreach"] [arg ARRAYVAR] [arg RECORDARRAY] [arg BODY]]
+Iterates over all records in a recordarray. For each record, sets
+the array variable [arg ARRAYVAR] to the
+current record and evaluates [arg BODY] in the caller's context.
+The keys of [arg ARRAYVAR] are the field names of the record array.
 
 [call [cmd "recordarray fields"] [arg RECORDARRAY]]
 Returns field names for the records in the [uri #recordarrays "record array"].

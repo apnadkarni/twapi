@@ -682,7 +682,7 @@ the [uri #etw_event [cmd etw_event]] command.
 
 [call [cmd etw_format_events] [arg FORMATTER] [opt "[arg BUFDESC] [arg EVENTLIST]..."]]
 Processes the list of raw ETW events and 
-returns a list of formatted events.
+returns a record array of formatted events.
 [arg BUFDESC] and [arg EVENTLIST] are the event buffer descriptor and
 the list of raw events for the event buffer as returned by
 [uri #etw_process_events [cmd etw_process_events]] or as passed
@@ -820,7 +820,7 @@ event buffer descriptor, and a list of raw event records.
 
 The callback should pass both
 these arguments to [uri #etw_format_events [cmd etw_format_events]] which
-in turn will return a list of formatted events.
+in turn will return a record array of formatted events.
 
 [nl]
 To terminate processing of events before all events from the traces are
