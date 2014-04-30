@@ -2899,28 +2899,31 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
     }
 }
 
-
+/* On error leaves variant in VT_EMPTY state */
 TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYPE vt)
 {
     HRESULT hr;
     long lval;
+    TCL_RESULT res;
 
     if (vt & VT_ARRAY) {
-        if (ObjToSAFEARRAY(interp, objP, &varP->parray, &vt) != TCL_OK)
+        if (ObjToSAFEARRAY(interp, objP, &varP->parray, &vt) != TCL_OK) {
+            varP->vt = VT_EMPTY;
             return TCL_ERROR;
-        V_VT(varP) = vt;
+        }
+        varP->vt = vt;
         return TCL_OK;
     }
 
-    varP->vt = vt;
     switch (vt) {
     case VT_EMPTY:
     case VT_NULL:
+        res = TCL_OK;
         break;
-    case VT_I2:   return ObjToSHORT(interp, objP, &V_I2(varP));
-    case VT_UI2:  return ObjToUSHORT(interp, objP, &V_UI2(varP));
-    case VT_I1:   return ObjToCHAR(interp, objP, &V_I1(varP));
-    case VT_UI1:   return ObjToUCHAR(interp, objP, &V_UI1(varP));
+    case VT_I2:   res = ObjToSHORT(interp, objP, &V_I2(varP)); break;
+    case VT_UI2:  res = ObjToUSHORT(interp, objP, &V_UI2(varP)); break;
+    case VT_I1:   res = ObjToCHAR(interp, objP, &V_I1(varP)); break;
+    case VT_UI1:   res = ObjToUCHAR(interp, objP, &V_UI1(varP)); break;
 
     /* For compatibility reasons, allow interchangeable signed/unsigned ints */
     case VT_I4:
@@ -2928,47 +2931,43 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
     case VT_INT:
     case VT_UINT:
     case VT_HRESULT:
-        if (ObjToLong(interp, objP, &lval) != TCL_OK)
-            return TCL_ERROR;
-        switch (vt) {
-        case VT_I4:
-        case VT_INT:
-        case VT_HRESULT:
-            vt = VT_I4;        /* VT_INT and VT_HRESULT cannot be marshalled */
-            V_I4(varP) = lval;
-            break;
-        case VT_UI4:
-        case VT_UINT:
-            vt = VT_UI4;        /* VT_UINT cannot be marshalled */
-            V_UI4(varP) = lval;
-            break;
+        res = ObjToLong(interp, objP, &lval);
+        if (res == TCL_OK) {
+            switch (vt) {
+            case VT_I4:
+            case VT_INT:
+            case VT_HRESULT:
+                vt = VT_I4;        /* VT_INT and VT_HRESULT cannot be marshalled */
+                V_I4(varP) = lval;
+                break;
+            case VT_UI4:
+            case VT_UINT:
+                vt = VT_UI4;        /* VT_UINT cannot be marshalled */
+                V_UI4(varP) = lval;
+                break;
+            }
         }
-
-        varP->vt = vt;
         break;
 
     case VT_R4:
     case VT_R8:
-        if (ObjToDouble(interp, objP, &varP->dblVal) != TCL_OK)
-            return TCL_ERROR;
-        varP->vt = VT_R8;
-        if (vt == VT_R4) {
-            hr = VariantChangeType(varP, varP, 0, VT_R4);
-            if (FAILED(hr)) {
-                Twapi_AppendSystemError(interp, hr);
-                return TCL_ERROR;
+        res = ObjToDouble(interp, objP, &varP->dblVal);
+        if (res == TCL_OK) {
+            varP->vt = VT_R8;       /* Needed for VariantChangeType */
+            if (vt == VT_R4) {
+                hr = VariantChangeType(varP, varP, 0, VT_R4);
+                if (FAILED(hr))
+                    res = Twapi_AppendSystemError(interp, hr);
             }
         }
         break;
 
     case VT_CY:
-        if (ObjToCY(interp, objP, & V_CY(varP)) != TCL_OK)
-            return TCL_ERROR;
+        res = ObjToCY(interp, objP, & V_CY(varP));
         break;
 
     case VT_DATE:
-        if (ObjToDouble(interp, objP, & V_DATE(varP)) != TCL_OK)
-            return TCL_ERROR;
+        res = ObjToDouble(interp, objP, & V_DATE(varP));
         break;
 
     case VT_VARIANT:
@@ -2985,68 +2984,73 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
          * We only base our logic here on values. Any type information
          * from Tcl_Obj.typePtr should have been considered by the caller.
          */
+        res = TCL_OK;
         if (ObjToLong(NULL, objP, &varP->lVal) == TCL_OK) {
-            varP->vt = VT_I4;
+            vt = VT_I4;
         } else if (ObjToDouble(NULL, objP, &varP->dblVal) == TCL_OK) {
-            varP->vt = VT_R8;
+            vt = VT_R8;
         } else if (ObjToIDispatch(NULL, objP, &varP->pdispVal) == TCL_OK) {
-            varP->vt = VT_DISPATCH;
+            vt = VT_DISPATCH;
         } else if (ObjToIUnknown(NULL, objP, &varP->punkVal) == TCL_OK) {
-            varP->vt = VT_UNKNOWN;
+            vt = VT_UNKNOWN;
 #if 0
         } else if (ObjCharLength(objP) == 0) {
-            varP->vt = VT_NULL;
+            vt = VT_NULL;
 #endif
         } else {
             /* Cannot guess type, just pass as a BSTR */
-            if (ObjToBSTR(interp, objP, &varP->bstrVal) != TCL_OK)
-                return TCL_ERROR;
-            varP->vt = VT_BSTR;
+            vt = VT_BSTR;
+            res = ObjToBSTR(interp, objP, &varP->bstrVal);
         }
-
         break;
 
     case VT_BSTR:
-        return ObjToBSTR(interp, objP, &varP->bstrVal);
-
+        res = ObjToBSTR(interp, objP, &varP->bstrVal);
+        break;
 
     case VT_DISPATCH:
-        return ObjToIDispatch(interp, objP, (void **)&varP->pdispVal);
+        res = ObjToIDispatch(interp, objP, (void **)&varP->pdispVal);
+        break;
 
     case VT_VOID: /* FALLTHRU */
     case VT_ERROR:
         /* Treat as optional argument */
-        varP->vt = VT_ERROR;
+        vt = VT_ERROR;
         varP->scode = DISP_E_PARAMNOTFOUND;
+        res = TCL_OK;
         break;
 
     case VT_BOOL:
-        if (ObjToBoolean(interp, objP, &varP->intVal) != TCL_OK)
-            return TCL_ERROR;
-        varP->boolVal = varP->intVal ? VARIANT_TRUE : VARIANT_FALSE;
-        varP->vt = VT_BOOL;
+        res = ObjToBoolean(interp, objP, &varP->intVal);
+        if (res == TCL_OK)
+            varP->boolVal = varP->intVal ? VARIANT_TRUE : VARIANT_FALSE;
         break;
 
     case VT_UNKNOWN:
-        return ObjToIUnknown(interp, objP, (void **) &varP->punkVal);
+        res = ObjToIUnknown(interp, objP, (void **) &varP->punkVal);
+        break;
 
     case VT_DECIMAL:
-        return ObjToDECIMAL(interp, objP, & V_DECIMAL(varP));
+        res = ObjToDECIMAL(interp, objP, & V_DECIMAL(varP));
+        break;
 
     case VT_I8:
     case VT_UI8:
-        varP->vt = VT_I8;
-        return ObjToWideInt(interp, objP, &varP->llVal);
+        vt = VT_I8;
+        res = ObjToWideInt(interp, objP, &varP->llVal);
+        break;
 
     default:
         ObjSetResult(interp,
                           Tcl_ObjPrintf("Invalid or unsupported VARTYPE (%d)",
                                         vt));
-        return TCL_ERROR;
+        res = TCL_ERROR;
+        break;
     }
 
-    return TCL_OK;
+    varP->vt = res == TCL_OK ? vt : VT_EMPTY;
 
+    return res;
 }
 
 
