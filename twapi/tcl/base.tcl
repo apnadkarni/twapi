@@ -1348,6 +1348,35 @@ proc twapi::recordarray::getdict {ra args} {
     return [_recordarray {*}$args -format $format -key $key $ra]
 }
 
+# TBD - document
+proc twapi::recordarray::foreach {arrayvarname ra body} {
+    upvar 1 $arrayvarname var
+
+    # TBD - Can this be optimized by prepending a ::foreach to body
+    # and executing that in uplevel 1 ?
+
+    ::foreach rec [getlist $ra -format dict] {
+        array set var $rec
+        set code [catch {uplevel 1 $body} result]
+        switch -exact -- $code {
+            0 {}
+            1 {
+                return -errorinfo $::errorInfo -errorcode $::errorCode -code error $result
+            }
+            3 {
+                return;          # break
+            }
+            4 {
+                # continue
+            }
+            default {
+                return -code $code $result
+            }
+        }
+    }
+    return
+}
+
 proc twapi::recordarray::rename {ra renames} {
     set new_fields {}
     foreach field [lindex $ra 0] {
@@ -1381,7 +1410,7 @@ proc twapi::recordarray::concat {args} {
 }
 
 namespace eval twapi::recordarray {
-    namespace export cell column concat fields get getdict getlist index range rename size
+    namespace export cell column concat fields foreach get getdict getlist index range rename size
     namespace ensemble create
 }
 
