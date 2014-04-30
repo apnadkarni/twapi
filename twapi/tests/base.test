@@ -3724,6 +3724,37 @@ namespace eval twapi::base::test {
         xx $ra
     } -result foo -returnCodes error
 
+    test recordarray-13.7 {
+        recordarray foreach -filter
+    } -setup {
+        set ra {{a b} {{1 2} {3 4} {0 0}}}
+        unset -nocomplain arr
+    } -body {
+        set l {}
+        list [twapi::recordarray foreach arr $ra -filter {{a < 3}} {lappend l [array get arr]}] $l
+    } -result {{} {{a 1 b 2} {a 0 b 0}}}
+
+    test recordarray-13.8 {
+        recordarray foreach -slice
+    } -setup {
+        set ra {{a b} {{1 2} {3 4} {0 0}}}
+        unset -nocomplain arr
+    } -body {
+        set l {}
+        list [twapi::recordarray foreach arr $ra -slice b {lappend l [array get arr]}] $l
+    } -result {{} {{b 2} {b 4} {b 0}}}
+
+    test recordarray-13.9 {
+        recordarray foreach -filter
+    } -setup {
+        set ra {{a b} {{1 2} {3 4} {0 0}}}
+        unset -nocomplain arr
+    } -body {
+        set l {}
+        list [twapi::recordarray foreach arr $ra -slice {b} -filter {{a < 3}} {lappend l [array get arr]}] $l
+    } -result {{} {{b 2} {b 0}}}
+
+
     ################################################################
 
     test badargs-1.0 {

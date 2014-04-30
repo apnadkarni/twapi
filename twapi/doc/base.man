@@ -806,11 +806,14 @@ Returns a record array containing records from one or more
 [uri #recordarrays "record arrays"]. 
 The fields in each record array must be the same.
 
-[call [cmd "recordarray foreach"] [arg ARRAYVAR] [arg RECORDARRAY] [arg BODY]]
+[call [cmd "recordarray foreach"] [arg ARRAYVAR] [arg RECORDARRAY] [opt [arg options]] [arg BODY]]
 Iterates over all records in a recordarray. For each record, sets
 the array variable [arg ARRAYVAR] to the
 current record and evaluates [arg BODY] in the caller's context.
 The keys of [arg ARRAYVAR] are the field names of the record array.
+[nl]
+[arg options] may include the [cmd -slice] and [cmd -filter]
+options as described in [sectref "Record arrays"].
 
 [call [cmd "recordarray fields"] [arg RECORDARRAY]]
 Returns field names for the records in the [uri #recordarrays "record array"].

@@ -1349,13 +1349,21 @@ proc twapi::recordarray::getdict {ra args} {
 }
 
 # TBD - document
-proc twapi::recordarray::foreach {arrayvarname ra body} {
+proc twapi::recordarray::foreach {arrayvarname ra args} {
+
+    if {[llength $args] == 0} {
+        badargs! "No script supplied"
+    }
+
+    set body [lindex $args end]
+    set args [lrange $args 0 end-1]
+
     upvar 1 $arrayvarname var
 
     # TBD - Can this be optimized by prepending a ::foreach to body
     # and executing that in uplevel 1 ?
 
-    ::foreach rec [getlist $ra -format dict] {
+    ::foreach rec [getlist $ra {*}$args -format dict] {
         array set var $rec
         set code [catch {uplevel 1 $body} result]
         switch -exact -- $code {
