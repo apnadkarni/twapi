@@ -1398,10 +1398,10 @@ static TCL_RESULT TwapiTdhPropertyValue(
             ULONG   len;
         } string;
         GUID guid;
-        FILETIME ftime;
         SYSTEMTIME stime;
         char *bin;
     } u;
+    FILETIME ftime;
     ULONG remain = prop_size;
     DWORD dw;
     Tcl_Interp *interp = ticP->interp;
@@ -1459,14 +1459,18 @@ static TCL_RESULT TwapiTdhPropertyValue(
         else
             goto size_error;
         return TCL_OK;
+
     case TDH_INTYPE_FILETIME:
-        EXTRACT(u.ftime, FILETIME);
-        *valueObjP = ObjFromFILETIME(&u.ftime);
-        return TCL_OK;
+        EXTRACT(ftime, FILETIME);
+        if (! FileTimeToSystemTime(&ftime, &u.stime)) {
+            *valueObjP = ObjFromFILETIME(&ftime);
+            return TCL_OK;
+        }
+        break;
+
     case TDH_INTYPE_SYSTEMTIME:
         EXTRACT(u.stime, SYSTEMTIME);
-        *valueObjP = ObjFromSYSTEMTIME(&u.stime);
-        return TCL_OK;
+        break;
 
     case TDH_INTYPE_COUNTEDSTRING:
     case TDH_INTYPE_REVERSEDCOUNTEDSTRING:
@@ -1539,6 +1543,19 @@ static TCL_RESULT TwapiTdhPropertyValue(
     
     /* Now format based on output type */
     switch (epiP->nonStructType.InType) {
+    case TDH_INTYPE_FILETIME:
+    case TDH_INTYPE_SYSTEMTIME:
+        if (epiP->nonStructType.OutType == TDH_OUTTYPE_DATETIME) {
+            /* We don't use any of the time formatting functions because they
+               seem to ignore the milliseconds part */
+            *valueObjP = Tcl_ObjPrintf("%4.4d-%2.2d-%2.2dT%2.2d:%2.2d:%2.2d.%3.3dZ",
+                                       u.stime.wYear, u.stime.wMonth, u.stime.wDay,
+                                       u.stime.wHour, u.stime.wMinute, u.stime.wSecond,
+                                       u.stime.wMilliseconds);
+        } else
+            *valueObjP = ObjFromSYSTEMTIME(&u.stime);
+        break;
+
     case TDH_INTYPE_UNICODESTRING:
     case TDH_INTYPE_COUNTEDSTRING:
     case TDH_INTYPE_REVERSEDCOUNTEDSTRING:
