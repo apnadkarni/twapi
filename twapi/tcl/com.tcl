@@ -1418,14 +1418,15 @@ twapi::class create ::twapi::IDispatchProxy {
             # HERE WE ONLY DO THE CHECK FOR COMOBJ. The AddRef checks are
             # DONE IN THE C CODE (if necessary)
 
-            set i 0
+            set iarg -1
             set args2 {}
             foreach arg $args {
+                incr iarg
                 # TBD - optimize this loop
-                set argtype  [lindex $prototype 4 $i 0]
+                set argtype  [lindex $prototype 4 $iarg 0]
                 set argflags 0
-                if {[llength [lindex $prototype 4 $i 1]]} {
-                    set argflags [lindex $prototype 4 $i 1 0]
+                if {[llength [lindex $prototype 4 $iarg 1]]} {
+                    set argflags [lindex $prototype 4 $iarg 1 0]
                 }
                 if {$argflags & 1} {
                     # IN param
