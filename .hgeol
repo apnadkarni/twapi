@@ -22,3 +22,4 @@ makefile = native
 **.docx = BIN
 **.doc = BIN
 **.msi = BIN
+**.etl = BIN
