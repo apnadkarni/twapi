@@ -3636,6 +3636,94 @@ namespace eval twapi::base::test {
         twapi::recordarray range $ra 2 4
     } -result {{a b c} {{{2 0} {2 1} {2 2}}}}
 
+    test recordarray-13.0 {
+        recordarray foreach empty
+    } -setup {
+        set ra {}
+        unset -nocomplain arr
+    } -body {
+        twapi::recordarray foreach arr $ra {} 
+    } -result {}
+
+    test recordarray-13.1 {
+        recordarray foreach empty
+    } -setup {
+        set ra {{a b} {}}
+        unset -nocomplain arr
+    } -body {
+        set l {}
+        list [twapi::recordarray foreach arr $ra {lappend l [array get arr]}] $l
+    } -result {{} {}}
+
+    test recordarray-13.2 {
+        recordarray foreach
+    } -setup {
+        set ra {{a b} {{1 2} {3 4}}}
+        unset -nocomplain arr
+    } -body {
+        set l {}
+        list [twapi::recordarray foreach arr $ra {lappend l [array get arr]}] $l
+    } -result {{} {{a 1 b 2} {a 3 b 4}}}
+
+    test recordarray-13.3 {
+        recordarray foreach break
+    } -setup {
+        set ra {{a b} {{1 2} {3 4}}}
+        unset -nocomplain arr
+    } -body {
+        set l {}
+        list [twapi::recordarray foreach arr $ra {
+            lappend l [array get arr]
+            break
+        }] $l
+    } -result {{} {{a 1 b 2}}}
+
+    test recordarray-13.4 {
+        recordarray foreach continue
+    } -setup {
+        set ra {{a b} {{1 2} {3 4}}}
+        unset -nocomplain arr
+    } -body {
+        set l {}
+        list [twapi::recordarray foreach arr $ra {
+            lappend l [array get arr]
+            continue
+            lappend l shouldnotbeappended
+        }] $l
+    } -result {{} {{a 1 b 2} {a 3 b 4}}}
+
+    test recordarray-13.5 {
+        recordarray foreach return
+    } -setup {
+        set ra {{a b} {{1 2} {3 4}}}
+        unset -nocomplain arr
+    } -body {
+        proc xx {ra} {
+            set l {}
+            list [twapi::recordarray foreach arr $ra {
+                lappend l [array get arr]
+                return $l
+            }] $l
+        }
+        xx $ra
+    } -result {{a 1 b 2}}
+
+    test recordarray-13.6 {
+        recordarray foreach return
+    } -setup {
+        set ra {{a b} {{1 2} {3 4}}}
+        unset -nocomplain arr
+    } -body {
+        proc xx {ra} {
+            set l {}
+            list [twapi::recordarray foreach arr $ra {
+                lappend l [array get arr]
+                error foo
+            }] $l
+        }
+        xx $ra
+    } -result foo -returnCodes error
+
     ################################################################
 
     test badargs-1.0 {
