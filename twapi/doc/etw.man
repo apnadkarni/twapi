@@ -559,6 +559,13 @@ function by Tcl's [cmd "trace add execution"] command.
 [cmd etw_execution_tracker] can be used as the callback similar
 to the example in [sectref "Tcl ETW traces"].
 
+[call [cmd etw_install_twapi_mof]]
+Installs the TWAPI Managed Object Format (MOF) definition for the event
+trace formats used by TWAPI. This command needs to be called on the
+system where a ETW consumer will be parsing TWAPI logged events.
+The definition can be removed by calling 
+[uri #etw_uninstall_twapi_mof [cmd etw_uninstall_twapi_mof]].
+
 [call [cmd etw_log_message] [arg HPROVIDER] [arg MESSAGE] [opt [arg LEVEL]]]
 Writes an event containing the [arg MESSAGE] string to the event trace
 attached to the provider handle [arg HPROVIDER] returned
@@ -608,6 +615,9 @@ function by Tcl's [cmd "trace add variable"] command and this command
 can be used as the callback as in the example
 in [sectref "Tcl ETW traces"].
 
+[call [cmd etw_uninstall_twapi_mof]]
+Uninstalls the TWAPI Managed Object Format (MOF) definition for the event
+trace formats used by TWAPI.
 
 [call [cmd etw_unregister_provider] [arg PROVIDERHANDLE]]
 Unregisters a previously registered provider. [arg PROVIDERHANDLE] is
@@ -766,18 +776,6 @@ specific event within a provider.
 
 [list_end]
 
-
-
-
-
-
-[call [cmd etw_install_twapi_mof]]
-Installs the TWAPI Managed Object Format (MOF) definition for the event
-trace formats used by TWAPI. This command needs to be called on the
-system where a ETW consumer will be parsing TWAPI logged events.
-The definition can be removed by calling 
-[uri #etw_uninstall_twapi_mof [cmd etw_uninstall_twapi_mof]].
-
 [call [cmd etw_open_file] [arg PATH]]
 Opens a log file containing ETW events and returns a trace handle to it
 which can be passed to [uri #etw_process_events [cmd etw_process_events]].
@@ -826,16 +824,12 @@ in turn will return a record array of formatted events.
 To terminate processing of events before all events from the traces are
 consumed, the callback can execute
 [example "return -code break"]
-The options [cmd -start] and [cmd end] can be specified to limit the
+The options [cmd -start] and [cmd -end] can be specified to limit the
 time interval for which events are processed. Both
 [arg STARTTIME] and [arg ENDTIME] must be specified in the same format as
 [uri osinfo.html\#get_system_time [cmd get_system_time]]. You can use
 [uri base.html#secs_since_1970_to_large_system_time [cmd secs_since_1970_to_large_system_time]]
 to convert the format used by Tcl's [cmd clock] command to this format.
-
-[call [cmd etw_uninstall_twapi_mof]]
-Uninstalls the TWAPI Managed Object Format (MOF) definition for the event
-trace formats used by TWAPI.
 
 [list_end]
 
