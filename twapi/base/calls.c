@@ -1397,6 +1397,13 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             dw2 += nelems;      /* Keep count of how many we added */
         }
         break;
+    case 10042: // GetProcAddress
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETASTR(cP),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_DWORD_PTR;
+        result.value.dwp = (DWORD_PTR) GetProcAddress(h, cP);
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -2293,6 +2300,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CredUIConfirmCredentials, 10039),
         DEFINE_FNCODE_CMD(enum, 10040),
         DEFINE_FNCODE_CMD(lconcat, 10041),
+        DEFINE_FNCODE_CMD(GetProcAddress, 10042),
     };
 
     static struct alias_dispatch_s AliasDispatch[] = {
