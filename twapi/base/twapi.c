@@ -238,7 +238,7 @@ int Twapi_base_Init(Tcl_Interp *interp)
     Tcl_CreateNamespace(interp, "::twapi", NULL, NULL);
     Tcl_SetVar2(interp, "::twapi::version", MODULENAME, MODULEVERSION, 0);
     Tcl_SetVar2(interp, "::twapi::settings", "log_limit", "100", 0);
-    Tcl_LinkVar(interp, "::twapi::settings(use_unicode_obj)", &gBaseSettings.use_unicode_obj, TCL_LINK_ULONG);
+    Tcl_LinkVar(interp, "::twapi::settings(use_unicode_obj)", (char *)&gBaseSettings.use_unicode_obj, TCL_LINK_ULONG);
 
     /* Allocate a context that will be passed around in all interpreters */
     ticP = TwapiRegisterModule(interp,  gTwapiModuleHandle, &gBaseModule, NEW_TIC);
