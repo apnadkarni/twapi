@@ -1,37 +1,11 @@
 #
-# Copyright (c) 2007-2013, Ashok P. Nadkarni
+# Copyright (c) 2007-2014, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
 
 namespace eval twapi {}
 
-if {0} {
-    makeing a sample cert
-set cert [cert_create_self_signed_from_crypt_context "CN=twapisamplecert, C=IN, O=opensource, OU=twapi" $crypt -purpose {ca sslserver sslclient} -keyusage {crl_sign data_encipherment digital_signature key_agreement key_cert_sign key_encipherment non_repudiation} -enhkeyusage {client_auth code_signing email_protection ipsec_end_system  ipsec_tunnel ipsec_user server_auth timestamp_signing ocsp_signing} -end {2020 12 31 23 59 59 0} -altnames [list email nobody@twapitest.com dns twapitest.com url http://url.twapitest.com directory [cert_name_to_blob "CN=twapisamplealtname"] ip [binary format c4 {127 0 0 1}]] -capathlen 2]
-}
-
-if {0} {
-    TBD - associating private key with cert
-    from http://stackoverflow.com/questions/749654/associate-private-key-to-certificate-for-pfxexportcertstoreex:
-
-Apparently, CertSetCertificateContextProperty(p, CERT_KEY_PROV_HANDLE_PROP_ID ...)
-
-is not good. Need to do this instead:
-
-CRYPT_KEY_PROV_INFO kpi;
-ZeroMemory( & kpi, sizeof(kpi) );
-kpi.pwszContainerName = "my-container-name";
-kpi.dwProvType = PROV_RSA_FULL;
-kpi.dwKeySpec = AT_KEYEXCHANGE;
-kpi.dwFlags = CRYPT_MACHINE_KEYSET;
-CertSetCertificateContextProperty( pCert, CERT_KEY_PROV_INFO_PROP_ID, 0, & kpi);
-It's critical that provider name and other crap match the information that was used to generate actual key. It's not needed to set provider handle or any of that stuff. It also must be done before CertAddCertificateContextToStore.
-
-This is the only way that I found to attach private key to a certificate.
-}
-
-################################################################
 ### Data protection
 
 proc twapi::protect_data {data args} {
