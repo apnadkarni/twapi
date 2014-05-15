@@ -148,8 +148,6 @@ Returns values for a specified field for all records.
 [opt_def [uri #recordarrayconcat [cmd "recordarray concat"]]]
 Returns a record array containing records from one or more 
 record arrays.
-[opt_def [uri #recordarrayforeach [cmd "recordarray foreach"]]]
-Iterates over the records in the record array.
 [opt_def [uri #recordarrayfields [cmd "recordarray fields"]]]
 Returns field names for the records in the record array.
 [opt_def [uri #recordarrayget [cmd "recordarray get"]]]
@@ -163,6 +161,8 @@ Returns a list containing a subset of the records and
 fields.
 [opt_def [uri #recordarrayindex [cmd "recordarray index"]]]
 Returns the record at a specified position in list or dictionary format.
+[opt_def [uri #recordarrayforeach [cmd "recordarray iterate"]]]
+Iterates over the records in the record array.
 [opt_def [uri #recordarrayrange [cmd "recordarray range"]]]
 Returns a new record array containing records in the specified range.
 [opt_def [uri #recordarrayrename [cmd "recordarray rename"]]]
@@ -806,15 +806,6 @@ Returns a record array containing records from one or more
 [uri #recordarrays "record arrays"]. 
 The fields in each record array must be the same.
 
-[call [cmd "recordarray foreach"] [arg ARRAYVAR] [arg RECORDARRAY] [opt [arg options]] [arg BODY]]
-Iterates over all records in a recordarray. For each record, sets
-the array variable [arg ARRAYVAR] to the
-current record and evaluates [arg BODY] in the caller's context.
-The keys of [arg ARRAYVAR] are the field names of the record array.
-[nl]
-[arg options] may include the [cmd -slice] and [cmd -filter]
-options as described in [sectref "Record arrays"].
-
 [call [cmd "recordarray fields"] [arg RECORDARRAY]]
 Returns field names for the records in the [uri #recordarrays "record array"].
 
@@ -846,6 +837,15 @@ Returns the record at a specified position in the
 [uri #recordarrays "record array"]. The
 options [cmd -format] and [cmd -slice] as described in
 [sectref "Record arrays"] control the fields returned and their format.
+
+[call [cmd "recordarray iterate"] [arg ARRAYVAR] [arg RECORDARRAY] [opt [arg options]] [arg BODY]]
+Iterates over all records in a recordarray. For each record, sets
+the array variable [arg ARRAYVAR] to the
+current record and evaluates [arg BODY] in the caller's context.
+The keys of [arg ARRAYVAR] are the field names of the record array.
+[nl]
+[arg options] may include the [cmd -slice] and [cmd -filter]
+options as described in [sectref "Record arrays"].
 
 [call [cmd "recordarray range"] [arg RECORDARRAY] [arg LOW] [arg HIGH]]
 Returns a new [uri #recordarrays "record array"]

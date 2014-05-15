@@ -1348,8 +1348,7 @@ proc twapi::recordarray::getdict {ra args} {
     return [_recordarray {*}$args -format $format -key $key $ra]
 }
 
-# TBD - document
-proc twapi::recordarray::foreach {arrayvarname ra args} {
+proc twapi::recordarray::iterate {arrayvarname ra args} {
 
     if {[llength $args] == 0} {
         badargs! "No script supplied"
@@ -1363,7 +1362,7 @@ proc twapi::recordarray::foreach {arrayvarname ra args} {
     # TBD - Can this be optimized by prepending a ::foreach to body
     # and executing that in uplevel 1 ?
 
-    ::foreach rec [getlist $ra {*}$args -format dict] {
+    foreach rec [getlist $ra {*}$args -format dict] {
         array set var $rec
         set code [catch {uplevel 1 $body} result]
         switch -exact -- $code {
@@ -1418,7 +1417,7 @@ proc twapi::recordarray::concat {args} {
 }
 
 namespace eval twapi::recordarray {
-    namespace export cell column concat fields foreach get getdict getlist index range rename size
+    namespace export cell column concat fields get getdict getlist index iterate range rename size
     namespace ensemble create
 }
 
