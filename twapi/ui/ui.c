@@ -809,9 +809,9 @@ static int Twapi_UiCallWStructObjCmd(ClientData clientdata, Tcl_Interp *interp, 
     res = TCL_OK;
     switch (func) {
     case 1: // SetWindowPlacement
-        res = ParseCStruct(interp, memlifoP, objP, 0, &dw, &pv);
+        res = TwapiCStructParse(interp, memlifoP, objP, 0, &dw, &pv);
         if (res == TCL_OK) {
-            if (! SetWindowPlacement(hwnd, pv))
+            if (SetWindowPlacement(hwnd, pv))
                 result.type = TRT_EMPTY;
             else
                 result.type = TRT_GETLASTERROR;
