@@ -1547,8 +1547,9 @@ TWAPI_EXTERN void Twapi_MakeCallAlias(Tcl_Interp *interp, char *fn, char *callcm
 TWAPI_EXTERN TCL_RESULT Twapi_CheckThreadedTcl(Tcl_Interp *interp);
 
 /* Cstruct calls */
-TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj);
-TWAPI_EXTERN TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
+TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *, Tcl_Obj *);
+TWAPI_EXTERN TCL_RESULT TwapiCStructSize(Tcl_Interp *, Tcl_Obj *, int *);
+TWAPI_EXTERN TCL_RESULT TwapiCStructParse (Tcl_Interp *interp, MemLifo *memlifoP,
                                       Tcl_Obj *csvalObj, DWORD flags, DWORD *sizeP, void **ppv);
 /* ParseCStruct flags definitions */
 #define CSTRUCT_ALLOW_NULL 0x1

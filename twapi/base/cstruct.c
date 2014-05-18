@@ -93,11 +93,11 @@ static void UpdateCStructTypeString(Tcl_Obj *objP)
 /* These string are chosen to match the ones used in VARIANT. No
    particular reason, just consistency */
 static const char *cstruct_types[] = {
-    "bool", "i1", "ui1", "i2", "ui2", "i4", "ui4", "i8", "ui8", "r8", "lpstr", "lpwstr", "cbsize", "handle", "struct", NULL
+    "bool", "i1", "ui1", "i2", "ui2", "i4", "ui4", "i8", "ui8", "r8", "lpstr", "lpwstr", "cbsize", "handle", "psid", "struct", NULL
 };
 enum cstruct_types_enum {
     CSTRUCT_BOOLEAN, CSTRUCT_CHAR, CSTRUCT_UCHAR, CSTRUCT_SHORT, CSTRUCT_USHORT, CSTRUCT_INT, CSTRUCT_UINT, CSTRUCT_INT64, CSTRUCT_UINT64,
-    CSTRUCT_DOUBLE, CSTRUCT_STRING, CSTRUCT_WSTRING, CSTRUCT_CBSIZE, CSTRUCT_HANDLE, CSTRUCT_STRUCT
+    CSTRUCT_DOUBLE, CSTRUCT_STRING, CSTRUCT_WSTRING, CSTRUCT_CBSIZE, CSTRUCT_HANDLE, CSTRUCT_PSID, CSTRUCT_STRUCT
 };
 TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
 {
@@ -176,6 +176,7 @@ TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
             elem_size = sizeof(int);
             break;
         case CSTRUCT_HANDLE: elem_size = sizeof(HANDLE); break;
+        case CSTRUCT_PSID: elem_size = sizeof(PSID); break;
         case CSTRUCT_STRUCT:
             if (ndefs < 4)
                 goto invalid_def; /* Struct descriptor missing */
@@ -241,7 +242,7 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
                                       DWORD size, void *pv)
 {
     Tcl_Obj **objPP;
-    unsigned int i, nobjs;
+    unsigned int i, nobjs, len;
     TCL_RESULT res;
 
     csP->nrefs += 1;            /* So it is not shimmered away underneath us */
@@ -291,6 +292,35 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
         case CSTRUCT_UINT64: fn = ObjToWideInt; break; // TBD-handles unsigned ?
         case CSTRUCT_DOUBLE: fn = ObjToDouble; break;
         case CSTRUCT_HANDLE: fn = ObjToHANDLE; break;
+        case CSTRUCT_PSID: 
+            if (count) {
+                for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
+                    PSID sidP;
+                    if (! ConvertStringSidToSidA(ObjToString(arrayObj[j]), &sidP))
+                        goto invalid_def;
+                    len = GetLengthSid(sidP);
+                    *(PSID*)pv2 = MemLifoAlloc(memlifoP, len, NULL);
+                    if (! CopySid(len, *(PSID*)pv2, sidP)) {
+                        LocalFree(sidP);
+                        goto invalid_def;
+                    }
+                    LocalFree(sidP);
+                }                
+            } else {
+                PSID sidP;
+                if (! ConvertStringSidToSidA(ObjToString(objPP[i]), &sidP))
+                    goto invalid_def;
+                len = GetLengthSid(sidP);
+                *(PSID*)pv2 = MemLifoAlloc(memlifoP, len, NULL);
+                if (! CopySid(len, *(PSID*)pv2, sidP)) {
+                    LocalFree(sidP);
+                    goto invalid_def;
+                }
+                LocalFree(sidP);
+                
+            }
+            continue;
+
         case CSTRUCT_STRING:
             if (count) {
                 for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
@@ -375,7 +405,7 @@ error_return:
     return TCL_ERROR;
 }
 
-TCL_RESULT ParseCStruct (Tcl_Interp *interp, MemLifo *memlifoP,
+TCL_RESULT TwapiCStructParse (Tcl_Interp *interp, MemLifo *memlifoP,
                          Tcl_Obj *csvalObj, DWORD flags, DWORD *sizeP, void **ppv)
 {
     Tcl_Obj **objPP;
@@ -487,6 +517,27 @@ static TCL_RESULT ObjFromCStructHelper(Tcl_Interp *interp, void *pv, unsigned in
         case CSTRUCT_STRING: EXTRACT(char*, ObjFromString); break;
         case CSTRUCT_WSTRING: EXTRACT(WCHAR*, ObjFromUnicode); break;
         case CSTRUCT_CBSIZE: EXTRACT(DWORD, ObjFromDWORD); break;
+        case CSTRUCT_PSID:
+            if (include_key) objs[objindex++] = csP->fields[i].name;
+            if (count) {
+                arrayObj = ObjNewList(count, NULL);
+                for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
+                    Tcl_Obj *elemObj;
+
+                    if (ObjFromSID(interp, *(PSID*)pv2, &elemObj) != TCL_OK) {
+                        ObjDecrRefs(arrayObj);
+                        goto error_return;
+                    }
+                    ObjAppendElement(NULL, arrayObj, elemObj);
+                }
+                objs[objindex++] = arrayObj;
+            } else {
+                if (ObjFromSID(interp, *(PSID*)pv2, &objs[objindex]) != TCL_OK)
+                    goto error_return;
+                objindex++;
+            }
+            break;
+
         case CSTRUCT_STRUCT:
             if (include_key) objs[objindex++] = csP->fields[i].name;
             if (count) {
@@ -526,12 +577,33 @@ error_return:
 
 TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes, Tcl_Obj *csObj, DWORD flags, Tcl_Obj **objPP)
 {
-    if (ObjCastToCStruct(interp, csObj) != TCL_OK)
-        return TCL_ERROR;
+    Tcl_Obj *objP;
+    TCL_RESULT res;
 
-    return ObjFromCStructHelper(interp, pv, nbytes, CSTRUCT_REP(csObj), flags, objPP);
+    if (ObjCastToCStruct(interp, csObj) == TCL_OK &&
+        ObjFromCStructHelper(interp, pv, nbytes, CSTRUCT_REP(csObj), flags, &objP) == TCL_OK) {
+        if (objPP)
+            *objPP = objP;
+        else
+            ObjSetResult(interp, objP);
+        return TCL_OK;
+    }
+    return TCL_ERROR;
 }
 
+
+TCL_RESULT TwapiCStructSize(Tcl_Interp *interp, Tcl_Obj *csObj, int *szP)
+{
+    TwapiCStructRep *csP;
+    TCL_RESULT res;
+    res = ObjCastToCStruct(interp, csObj);
+    if (res != TCL_OK)
+        return res;
+        
+    csP = CSTRUCT_REP(csObj);
+    *szP = csP->size;
+    return TCL_OK;
+}
 
 
 #if TWAPI_ENABLE_INSTRUMENTATION

@@ -163,6 +163,25 @@ Administrator ashok
 0 0 4 {{-name -comment} {{S-1-5-21-1957994488-1801674531-839522115-500 1 Administrator} {S-1-5-21-1957994488-1801674531-839522115-1003 1 ashok}}}
 [example_end]
 
+[section "Global Account Settings"]
+Certain account settings are applicable across all accounts in a security
+database, either the local SAM database, or Active Directory in case
+of domain controllers. The following commands allow for retrieval and
+modification of these settings.
+
+[list_begin opt]
+[opt_def [uri #get_lockout_policy [cmd get_lockout_policy]]]
+Returns the policy settings for account lockouts, such as
+lockout duration.
+[opt_def [uri #get_password_policy [cmd get_password_policy]]]
+Returns the policy settings for account passwords, such as minimum
+password length.
+[opt_def [uri #set_lockout_policy [cmd set_lockout_policy]]]
+Modifies the global policy settings for account lockouts.
+[opt_def [uri #set_password_policy [cmd set_password_policy]]]
+Modifies the global policy settings for account passwords.
+[list_end]
+
 [section Commands]
 [list_begin definitions]
 
@@ -441,6 +460,47 @@ Refer to the documentation of
 [uri #get_local_group_info [cmd get_local_group_info]]
 for a description of these fields.
 
+[call [cmd get_lockout_policy] [opt [arg SYSTEMNAME]]]
+Returns the security database policy for account lockout settings.
+These may pertain to the SAM database or in the case of domain controllers,
+Active Directory. [arg SYSTEMNAME] is the NetBIOS or DNS name of the system
+to be queried and defaults to the local system.
+[nl]
+The returned value is a dictionary with the following fields:
+[list_begin opt]
+[opt_def lockout_duration]
+Number of seconds that a locked account remains locked.
+[opt_def lockout_observation_window]
+Maximum time in seconds that can elapse between failed logon events
+before the account is locked out.
+[opt_def lockout_threshold]
+Number of logon failures before an account is locked out.
+[list_end]
+
+[call [cmd get_password_policy] [opt [arg SYSTEMNAME]]]
+Returns the security database policy settings for account passwords.
+These may pertain to the SAM database or in the case of domain controllers,
+Active Directory. [arg SYSTEMNAME] is the NetBIOS or DNS name of the system
+to be queried and defaults to the local system.
+[nl]
+The returned value is a dictionary with the following fields:
+[list_begin opt]
+[opt_def force_logoff]
+Number of seconds before a user is forced to log off. A value
+of [const never] means the user is never forced to log off.
+[opt_def max_passwd_age] 
+Maximum allowable password age in seconds. A value of [const none]
+indicates no limit.
+[opt_def min_passwd_age]
+Minimum allowable time in seconds before a password can be changed.
+[opt_def min_passwd_len]
+Minimum allowable password length.
+[opt_def password_hist_len]
+Length of the password history. New passwords must not match any
+passwords in the password history.
+[list_end]
+
+
 [call [cmd get_user_account_info] [arg ACCOUNT] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt [arg options]]]
 
 Returns attributes and properties of a user account as a list of
@@ -690,6 +750,26 @@ in the Windows SDK for valid values.
 Removes the user account specified by [arg USERNAME] from the global group
 [arg GROUPNAME]. The option [cmd -system]
 may be used to specify a system as described in [sectref "Standard Options"].
+
+[call [cmd set_lockout_policy] [arg DURATION] [arg OBSERVEWINDOW] [arg THRESHOLD] [opt [arg SYSTEMNAME]]]
+Sets the security database policy account lockout settings.
+These may pertain to the SAM database or in the case of domain controllers,
+Active Directory. [arg SYSTEMNAME] is the NetBIOS or DNS name of the system
+to be queried and defaults to the local system.
+[arg DURATION], [arg OBSERVEWINDOW] and [arg THRESHOLD] correspond
+to the [cmd lockout_duration], [cmd lockout_observation_window]
+and [cmd lockout_threshold] values returned by
+[uri #get_lockout_policy [cmd get_lockout_policy]].
+
+[call [cmd set_password_policy] [arg SETTING] [arg VALUE] [opt [arg SYSTEMNAME]]]
+Sets the security database policy settings for account passwords.
+These may pertain to the SAM database or in the case of domain controllers,
+Active Directory. [arg SYSTEMNAME] is the NetBIOS or DNS name of the system
+to be queried and defaults to the local system.
+[nl]
+[arg SETTING] is the name of a setting as returned by
+[uri #get_password_policy [cmd get_password_policy]] and [arg VALUE]
+is the value to be assigned to it.
 
 [call [cmd set_user_account_info] [arg account] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt [arg options]]]
 

@@ -1453,15 +1453,26 @@ proc twapi::struct {struct_name s} {
             {^__int64$} {set type i8}
             {^unsigned\s+__int64$} {set type ui8}
             {^double$} {set type r8}
+            {^LPCSTR$} -
+            {^LPSTR$} -
             {^char\s*\*$} {set type lpstr}
+            {^LPCWSTR$} -
+            {^LPWSTR$} -
             {^WCHAR\s*\*$} {set type lpwstr}
             {^HANDLE$} {set type handle}
+            {^PSID$} {set type psid}
             {^struct\s+([[:alnum:]_]+)$} {
                 # Embedded struct. It should be defined already. Calling
-                # it with no args returns its definition. Note type
-                # could be passed as Tcl command! That's ok. If worried
-                # should be using a safe interp anyways.
-                set child [uplevel 1 [lrange $matchvar 1 1]]
+                # it with no args returns its definition but doing that
+                # to retrieve the definition could be a security hole
+                # (could be passed any Tcl command!) if unwary apps
+                # pass in input from unknown sources. So we explicitly
+                # remember definitions instead.
+                set child_name [lindex $matchvar 1]
+                if {![info exists _struct_defs($child_name)]} {
+                    error "Unknown struct $child_name"
+                }
+                set child $_struct_defs($child_name)
                 set type struct
             }
             default {error "Unknown type $type"}
@@ -1491,6 +1502,7 @@ proc twapi::struct {struct_name s} {
         }
     } [list $l]]
     uplevel 1 [list proc $struct_name args $proc_body]
+    set _struct_defs($struct_name) $l
     return
 }
 
