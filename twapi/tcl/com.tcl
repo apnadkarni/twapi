@@ -3138,7 +3138,12 @@ twapi::class create ::twapi::Automation {
 
         # TBD - need more comprehensive test cases when return/break/continue
         # are used in the script
+
         # First get IEnumVariant iterator using the _NewEnum method
+        # TBD - As per MS OLE Automation spec, it appears _NewEnum
+        # MUST have dispid -4. Can we use this information when
+        # this object does not have an associated interface guid or
+        # when no prototype is available ?
         set enumerator [my -get _NewEnum]
         # This gives us an IUnknown.
         ::twapi::trap {
