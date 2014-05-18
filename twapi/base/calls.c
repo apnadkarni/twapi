@@ -1505,7 +1505,7 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
 #if TWAPI_ENABLE_INSTRUMENTATION
         CHECK_NARGS(interp, objc, 1);
         mark = MemLifoPushMark(ticP->memlifoP);
-        result.value.ival = ParseCStruct(interp, ticP->memlifoP, objv[0], 0, &dw, &pv);
+        result.value.ival = TwapiCStructParse(interp, ticP->memlifoP, objv[0], 0, &dw, &pv);
         if (result.value.ival != TCL_OK)
             result.type = TRT_TCL_RESULT;
         else {
@@ -2321,7 +2321,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(cstruct_dumpdef, 13),
     };
 
-    struct tcl_dispatch_s TclDispatch[] = {
+    static struct tcl_dispatch_s TclDispatch[] = {
         DEFINE_TCL_CMD(Call, Twapi_CallObjCmd),
         DEFINE_TCL_CMD(parseargs, Twapi_ParseargsObjCmd),
         DEFINE_TCL_CMD(trap, Twapi_TrapObjCmd),
@@ -2623,6 +2623,8 @@ TCL_RESULT Twapi_LsaQueryInformationPolicy (
     Tcl_Obj  *objs[5];
     LSA_HANDLE lsaH;
     int        infoclass;
+    ULONG      ul, ul2;
+    PPOLICY_AUDIT_EVENT_OPTIONS audit_optP;
 
     if (objc != 2 ||
         ObjToOpaque(interp, objv[0], (void **) &lsaH, "LSA_HANDLE") != TCL_OK ||
@@ -2664,6 +2666,17 @@ TCL_RESULT Twapi_LsaQueryInformationPolicy (
 
         break;
 
+    case PolicyAuditEventsInformation:
+        ul = ((POLICY_AUDIT_EVENTS_INFO *) buf)->MaximumAuditEventCount;
+        objs[0] = ObjFromBoolean(((POLICY_AUDIT_EVENTS_INFO *) buf)->AuditingMode);
+        objs[1] = ObjNewList(ul, NULL);
+        audit_optP = ((POLICY_AUDIT_EVENTS_INFO *) buf)->EventAuditingOptions;
+        for (ul2 = 0; ul2 < ul; ++ul2, ++audit_optP) {
+            ObjAppendElement(NULL, objs[1], ObjFromDWORD(*audit_optP));
+        }
+        ObjSetResult(interp, ObjNewList(2, objs));
+        break;
+        
     default:
         ObjSetStaticResult(interp, "Invalid/unsupported information class");
         retval = TCL_ERROR;

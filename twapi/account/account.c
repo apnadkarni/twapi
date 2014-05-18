@@ -382,7 +382,7 @@ int Twapi_NetLocalGroupGetInfo(
     return TwapiNetUserOrGroupGetInfoHelper(interp, servername, groupname, level, 2);
 }
 
-static int Twapi_NetUserAdd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_NetUserAddObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     DWORD       priv, flags;
     NET_API_STATUS status;
@@ -578,6 +578,90 @@ int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     return TwapiSetResult(interp, &result);
 }
 
+static int Twapi_NetUserModalsGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TCL_RESULT res;
+    MemLifo *memlifoP = ticP->memlifoP;
+    MemLifoMarkHandle mark;
+    DWORD level, sz;
+    Tcl_Obj *structObj, *objP;
+    LPWSTR server_name;
+    LPBYTE pv;
+    NET_API_STATUS status;
+
+    mark = MemLifoPushMark(memlifoP);
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETEMPTYASNULL(server_name),
+                         GETINT(level), GETOBJ(structObj), ARGEND);
+    if (res == TCL_OK) {
+        switch (level) {
+        case 0: sz = sizeof(USER_MODALS_INFO_0); break;
+        case 1: sz = sizeof(USER_MODALS_INFO_1); break;
+        case 2: sz = sizeof(USER_MODALS_INFO_2); break;
+        case 3: sz = sizeof(USER_MODALS_INFO_3); break;
+        default:
+            res = TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+        }
+        if (res == TCL_OK) {
+            status = NetUserModalsGet(server_name, level, &pv);
+            if (status == NERR_Success) {
+                res = ObjFromCStruct(interp, pv, sz, structObj, CSTRUCT_RETURN_DICT, NULL);
+                NetApiBufferFree(pv);
+            } else
+                res = Twapi_AppendSystemError(interp, status);
+        }
+    }
+
+    MemLifoPopMark(mark);
+    return res;
+}
+
+static int Twapi_NetUserModalsSetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TCL_RESULT res;
+    MemLifo *memlifoP = ticP->memlifoP;
+    MemLifoMarkHandle mark;
+    DWORD level, sz, actual_sz;
+    Tcl_Obj *objP;
+    LPWSTR server_name;
+    void *pv;
+    NET_API_STATUS status;
+
+    mark = MemLifoPushMark(memlifoP);
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETEMPTYASNULL(server_name),
+                         GETINT(level), GETOBJ(objP), ARGEND);
+    if (res == TCL_OK) {
+        switch (level) {
+        case 0: sz = sizeof(USER_MODALS_INFO_0); break;
+        case 1: sz = sizeof(USER_MODALS_INFO_1); break;
+        case 2: sz = sizeof(USER_MODALS_INFO_2); break;
+        case 3: sz = sizeof(USER_MODALS_INFO_3); break;
+        case 1001: sz = sizeof(USER_MODALS_INFO_1001); break;
+        case 1002: sz = sizeof(USER_MODALS_INFO_1002); break;
+        case 1003: sz = sizeof(USER_MODALS_INFO_1003); break;
+        case 1004: sz = sizeof(USER_MODALS_INFO_1004); break;
+        case 1005: sz = sizeof(USER_MODALS_INFO_1005); break;
+        case 1006: sz = sizeof(USER_MODALS_INFO_1006); break;
+        case 1007: sz = sizeof(USER_MODALS_INFO_1007); break;
+        default:
+            res = TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+        }
+        if (res == TCL_OK) {
+            res = TwapiCStructParse(interp, memlifoP, objP, 0, &actual_sz, &pv);
+            if (res == TCL_OK) {
+                if (sz != actual_sz)
+                    res = TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+                else {
+                    status = NetUserModalsSet(server_name, level, pv, NULL);
+                    if (status != NERR_Success)
+                        res = Twapi_AppendSystemError(interp, status);
+                }
+            }
+        }
+    }
+
+    MemLifoPopMark(mark);
+    return res;
+}
 
 static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -1005,20 +1089,21 @@ static int TwapiAcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(NetGroupGetUsers, 9),
     };
 
+    struct tcl_dispatch_s TclDispatch[] = {
+        DEFINE_TCL_CMD(NetUserModalsGet, Twapi_NetUserModalsGetObjCmd),
+        DEFINE_TCL_CMD(NetUserModalsSet, Twapi_NetUserModalsSetObjCmd),
+        DEFINE_TCL_CMD(Twapi_NetUserSetInfo, Twapi_NetUserSetInfoObjCmd),
+        DEFINE_TCL_CMD(Twapi_NetLocalGroupMembers, Twapi_NetLocalGroupMembersObjCmd),
+        DEFINE_TCL_CMD(NetUserAdd, Twapi_NetUserAddObjCmd),
+        DEFINE_TCL_CMD(Twapi_SetNetEnumBufSize, Twapi_SetNetEnumBufSizeObjCmd), /* For testing purposes */
+    };
+
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(AcctCallDispatch), AcctCallDispatch, Twapi_AcctCallObjCmd);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(AcctCallNetEnumGetDispatch), AcctCallNetEnumGetDispatch, Twapi_AcctCallNetEnumGetObjCmd);
-
-    /* Create the underlying call dispatch commands */
-    Tcl_CreateObjCommand(interp, "twapi::Twapi_NetUserSetInfo", Twapi_NetUserSetInfoObjCmd, ticP, NULL);
+    TwapiDefineTclCmds(interp, ARRAYSIZE(TclDispatch), TclDispatch, ticP);
 
     /* TBD - write Tcl commands to add / delete multiple members at a time */
     /* TBD - write Tcl commands to add / delete SIDs */
-    Tcl_CreateObjCommand(interp, "twapi::Twapi_NetLocalGroupMembers", Twapi_NetLocalGroupMembersObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::NetUserAdd", Twapi_NetUserAdd, ticP, NULL);
-
-    /* Set buffer size for testing purposes. Should really be grouped with
-       other commands but they all take server and user parameters */
-    Tcl_CreateObjCommand(interp, "twapi::Twapi_SetNetEnumBufSize", Twapi_SetNetEnumBufSizeObjCmd, NULL, NULL);
 
     return TCL_OK;
 }

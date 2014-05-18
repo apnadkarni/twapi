@@ -30,6 +30,7 @@ namespace eval twapi {
     record GROUP_INFO_3 {-name -comment -sid -attributes}
 
     record NetEnumResult {moredata hresume totalentries entries}
+
 }
 
 # Add a new user account
@@ -843,6 +844,8 @@ proc twapi::get_logon_session_info {luid args} {
 }
 
 
+
+
 # Set/reset the given bits in the usri3_flags field for a user account
 # mask indicates the mask of bits to set. values indicates the values
 # of those bits
@@ -1023,4 +1026,120 @@ proc twapi::_map_userinfo_flags {flags} {
     }
 
     return [list -status $status -type $type -password_attrs $pw]
+}
+
+twapi::proc* twapi::_define_user_modals {} {
+    struct _USER_MODALS_INFO_0 {
+        DWORD min_passwd_len;
+        DWORD max_passwd_age;
+        DWORD min_passwd_age;
+        DWORD force_logoff;
+        DWORD password_hist_len;
+    }
+    struct _USER_MODALS_INFO_1 {
+        DWORD  role;
+        LPWSTR primary;
+    }
+    struct _USER_MODALS_INFO_2 {
+        LPWSTR domain_name;
+        PSID   domain_id;
+    }
+    struct _USER_MODALS_INFO_3 {
+        DWORD lockout_duration;
+        DWORD lockout_observation_window;
+        DWORD lockout_threshold;
+    }
+    struct _USER_MODALS_INFO_1001 {
+        DWORD min_passwd_len;
+    }
+    struct _USER_MODALS_INFO_1002 {
+        DWORD max_passwd_age;
+    }
+    struct _USER_MODALS_INFO_1003 {
+        DWORD min_passwd_age;
+    }
+    struct _USER_MODALS_INFO_1004 {
+        DWORD force_logoff;
+    }
+    struct _USER_MODALS_INFO_1005 {
+        DWORD password_hist_len;
+    }
+    struct _USER_MODALS_INFO_1006 {
+        DWORD role;
+    }
+    struct _USER_MODALS_INFO_1007 {
+        LPWSTR primary;
+    }
+} {
+}
+
+twapi::proc* twapi::get_password_policy {{server_name ""}} {
+    _define_user_modals
+} {
+    set result [NetUserModalsGet $server_name 0 [_USER_MODALS_INFO_0]]
+    dict with result {
+        if {$force_logoff == 4294967295 || $force_logoff == -1} {
+            set force_logoff never
+        }
+        if {$max_passwd_age == 4294967295 || $max_passwd_age == -1} {
+            set max_passwd_age none
+        }
+    }
+    return $result
+}
+
+# TBD - doc & test
+twapi::proc* twapi::get_system_role {{server_name ""}} {
+    _define_user_modals
+} {
+    return [NetUserModalsGet $server_name 1 [_USER_MODALS_INFO_1]]
+}
+
+# TBD - doc & test
+twapi::proc* twapi::get_system_domain {{server_name ""}} {
+    _define_user_modals
+} {
+    return [NetUserModalsGet $server_name 2 [_USER_MODALS_INFO_2]]
+}
+
+twapi::proc* twapi::get_lockout_policy {{server_name ""}} {
+    _define_user_modals
+} {
+    return [NetUserModalsGet $server_name 3 [_USER_MODALS_INFO_3]]
+}
+
+# TBD - doc & test
+twapi::proc* twapi::set_password_policy {name val {server_name ""}} {
+    _define_user_modals
+} {
+    switch -exact $name {
+        min_passwd_len {
+            NetUserModalsSet $server_name 1001 [_USER_MODALS_INFO_1001 $val]
+        }
+        max_passwd_age {
+            if {$val eq "none"} {
+                set val 4294967295
+            }
+            NetUserModalsSet $server_name 1002 [_USER_MODALS_INFO_1002 $val]
+        }
+        min_passwd_age {
+            NetUserModalsSet $server_name 1003 [_USER_MODALS_INFO_1003 $val]
+        }
+        force_logoff {
+            if {$val eq "never"} {
+                set val 4294967295
+            }
+            NetUserModalsSet $server_name 1004 [_USER_MODALS_INFO_1004 $val]
+        }
+        password_hist_len {
+            NetUserModalsSet $server_name 1005 [_USER_MODALS_INFO_1005 $val]
+        }
+    }
+}
+
+# TBD - doc & test
+twapi::proc* twapi::set_lockout_policy {duration observe_window threshold {server_name ""}} {
+    _define_user_modals
+} {
+    NetUserModalsSet $server_name 3 [_USER_MODALS_INFO_3 $duration $observe_window $threshold]
 }

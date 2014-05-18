@@ -128,18 +128,314 @@ namespace eval twapi::security::test {
 
     ################################################################
 
+    test get_password_policy-1.0 {
+        get password policy
+    } -body {
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy]
+        list [string is integer -strict $arr(min_passwd_len)] \
+            [string is integer -strict $arr(min_passwd_age)] \
+            [string is integer -strict $arr(password_hist_len)] \
+            [expr {
+                   $arr(max_passwd_age) eq "none" ||
+                   [string is integer -strict $arr(max_passwd_age)]
+               }] \
+            [expr {
+                   $arr(force_logoff) eq "never" ||
+                   [string is integer -strict $arr(force_logoff)]
+               }]
+    } -result {1 1 1 1 1}
+
+    test get_password_policy-1.1 {
+        get password policy SYSTEM
+    } -body {
+        if {[indomain]} {
+            set system [testconfig domain_controller]
+        } else {
+            set system $::env(COMPUTERNAME)
+        }
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy $system]
+        list [string is integer -strict $arr(min_passwd_len)] \
+            [string is integer -strict $arr(min_passwd_age)] \
+            [string is integer -strict $arr(password_hist_len)] \
+            [expr {
+                   $arr(max_passwd_age) eq "none" ||
+                   [string is integer -strict $arr(max_passwd_age)]
+               }] \
+            [expr {
+                   $arr(force_logoff) eq "never" ||
+                   [string is integer -strict $arr(force_logoff)]
+               }]
+    } -result {1 1 1 1 1}
+
+    ################################################################
+
+    test set_password_policy-1.0 {
+        set_password_policy min_passwd_len
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy]
+    } -body {
+        twapi::set_password_policy min_passwd_len 3
+        dict get [twapi::get_password_policy] min_passwd_len
+    } -cleanup {
+        twapi::set_password_policy min_passwd_len $arr(min_passwd_len)
+    } -result 3
+
+    test set_password_policy-1.1 {
+        set_password_policy min_passwd_len SYSTEM
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        if {[indomain]} {
+            set system [testconfig domain_controller]
+        } else {
+            set system $::env(COMPUTERNAME)
+        }
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy $system]
+    } -body {
+        twapi::set_password_policy min_passwd_len 5 $system
+        dict get [twapi::get_password_policy $system] min_passwd_len
+    } -cleanup {
+        twapi::set_password_policy min_passwd_len $arr(min_passwd_len) $system
+    } -result 5
+
+    test set_password_policy-2.0 {
+        set_password_policy min_passwd_age
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy]
+    } -body {
+        twapi::set_password_policy min_passwd_age 98765
+        dict get [twapi::get_password_policy] min_passwd_age
+    } -cleanup {
+        twapi::set_password_policy min_passwd_age $arr(min_passwd_age)
+    } -result 98765
+
+    test set_password_policy-2.1 {
+        set_password_policy min_passwd_age SYSTEM
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        if {[indomain]} {
+            set system [testconfig domain_controller]
+        } else {
+            set system $::env(COMPUTERNAME)
+        }
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy $system]
+    } -body {
+        twapi::set_password_policy min_passwd_age 12345 $system
+        dict get [twapi::get_password_policy $system] min_passwd_age
+    } -cleanup {
+        twapi::set_password_policy min_passwd_len $arr(min_passwd_age) $system
+    } -result 12345
+
+    test set_password_policy-3.0 {
+        set_password_policy max_passwd_age
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy]
+    } -body {
+        twapi::set_password_policy max_passwd_age 100000
+        dict get [twapi::get_password_policy] max_passwd_age
+    } -cleanup {
+        twapi::set_password_policy max_passwd_age $arr(max_passwd_age)
+    } -result 100000
+
+    test set_password_policy-3.1 {
+        set_password_policy max_passwd_age SYSTEM
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        if {[indomain]} {
+            set system [testconfig domain_controller]
+        } else {
+            set system $::env(COMPUTERNAME)
+        }
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy $system]
+    } -body {
+        twapi::set_password_policy max_passwd_age 123456 $system
+        dict get [twapi::get_password_policy $system] max_passwd_age
+    } -cleanup {
+        twapi::set_password_policy max_passwd_len $arr(max_passwd_age) $system
+    } -result 123456
+
+    test set_password_policy-3.2 {
+        set_password_policy max_passwd_age none
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy]
+    } -body {
+        twapi::set_password_policy max_passwd_age none
+        dict get [twapi::get_password_policy] max_passwd_age
+    } -cleanup {
+        twapi::set_password_policy max_passwd_age $arr(max_passwd_age)
+    } -result none
+
+    test set_password_policy-4.0 {
+        set_password_policy force_logoff
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy]
+    } -body {
+        twapi::set_password_policy force_logoff 100000
+        dict get [twapi::get_password_policy] force_logoff
+    } -cleanup {
+        twapi::set_password_policy force_logoff $arr(force_logoff)
+    } -result 100000
+
+    test set_password_policy-4.1 {
+        set_password_policy force_logoff SYSTEM
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        if {[indomain]} {
+            set system [testconfig domain_controller]
+        } else {
+            set system $::env(COMPUTERNAME)
+        }
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy $system]
+    } -body {
+        twapi::set_password_policy force_logoff 123456 $system
+        dict get [twapi::get_password_policy $system] force_logoff
+    } -cleanup {
+        twapi::set_password_policy max_passwd_len $arr(force_logoff) $system
+    } -result 123456
+
+    test set_password_policy-4.2 {
+        set_password_policy force_logoff never
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy]
+    } -body {
+        twapi::set_password_policy force_logoff never
+        dict get [twapi::get_password_policy] force_logoff
+    } -cleanup {
+        twapi::set_password_policy force_logoff $arr(force_logoff)
+    } -result never
+
+    test set_password_policy-5.0 {
+        set_password_policy password_hist_len
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy]
+    } -body {
+        twapi::set_password_policy password_hist_len 98765
+        dict get [twapi::get_password_policy] password_hist_len
+    } -cleanup {
+        twapi::set_password_policy password_hist_len $arr(password_hist_len)
+    } -result 98765
+
+    test set_password_policy-5.1 {
+        set_password_policy password_hist_len SYSTEM
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        if {[indomain]} {
+            set system [testconfig domain_controller]
+        } else {
+            set system $::env(COMPUTERNAME)
+        }
+        unset -nocomplain arr
+        array set arr [twapi::get_password_policy $system]
+    } -body {
+        twapi::set_password_policy password_hist_len 12345 $system
+        dict get [twapi::get_password_policy $system] password_hist_len
+    } -cleanup {
+        twapi::set_password_policy min_passwd_len $arr(password_hist_len) $system
+    } -result 12345
+
+    ################################################################
+
+    test get_lockout_policy-1.0 {
+        get lockout policy
+    } -body {
+        unset -nocomplain arr
+        array set arr [twapi::get_lockout_policy]
+        list [string is integer -strict $arr(lockout_duration)] \
+            [string is integer -strict $arr(lockout_observation_window)] \
+            [string is integer -strict $arr(lockout_threshold)]
+    } -result {1 1 1}
+
+    test get_lockout_policy-1.1 {
+        get lockout policy SYSTEM
+    } -body {
+        if {[indomain]} {
+            set system [testconfig domain_controller]
+        } else {
+            set system $::env(COMPUTERNAME)
+        }
+        unset -nocomplain arr
+        array set arr [twapi::get_lockout_policy $system]
+        list [string is integer -strict $arr(lockout_duration)] \
+            [string is integer -strict $arr(lockout_observation_window)] \
+            [string is integer -strict $arr(lockout_threshold)]
+    } -result {1 1 1}
+
+    ################################################################
+
+    test set_lockout_policy-1.0 {
+        set_lockout_policy 
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        unset -nocomplain arr
+        array set arr [twapi::get_lockout_policy]
+    } -body {
+        twapi::set_lockout_policy 1234 4321 7
+        twapi::get_lockout_policy
+    } -cleanup {
+        twapi::set_lockout_policy $arr(lockout_duration) $arr(lockout_observation_window) $arr(lockout_threshold)
+    } -result {lockout_duration 1234 lockout_observation_window 4321 lockout_threshold 7}
+
+    test set_lockout_policy-1.1 {
+        set_lockout_policy SYSTEM
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        if {[indomain]} {
+            set system [testconfig domain_controller]
+        } else {
+            set system $::env(COMPUTERNAME)
+        }
+        unset -nocomplain arr
+        array set arr [twapi::get_lockout_policy $system]
+    } -body {
+        twapi::set_lockout_policy 4321 1234 4 $system
+        twapi::get_lockout_policy $system
+    } -cleanup {
+        twapi::set_lockout_policy $arr(lockout_duration) $arr(lockout_observation_window) $arr(lockout_threshold) $system
+    } -result {lockout_duration 4321 lockout_observation_window 1234 lockout_threshold 4}
+
+    ################################################################
+
     test get_account_rights-1.0 {
         Get account rights
-    } -constraints {
-        nt
     } -body {
         expr {[lsearch -exact [twapi::get_account_rights $administrators_account_name] SeInteractiveLogonRight] >= 0}
     } -result 1
 
     test get_account_rights-1.1 {
         Get account rights with -system
-    } -constraints {
-        nt
     } -body {
         expr {[lsearch -exact [twapi::get_account_rights $administrators_account_name -system $::env(COMPUTERNAME)] SeInteractiveLogonRight] >= 0}
     } -result 1
@@ -148,24 +444,18 @@ namespace eval twapi::security::test {
 
     test find_accounts_with_right-1.0 {
         Find accounts with a right
-    } -constraints {
-        nt
     } -body {
         expr {[lsearch -exact [twapi::find_accounts_with_right SeInteractiveLogonRight] S-1-5-32-544] >= 0}
     } -result 1
 
     test find_accounts_with_right-1.1 {
         Find accounts with a right with -system
-    } -constraints {
-        nt
     } -body {
         expr {[lsearch -exact [twapi::find_accounts_with_right SeInteractiveLogonRight -system $::env(COMPUTERNAME)] S-1-5-32-544] >= 0}
     } -result 1
 
     test find_accounts_with_right-2.0 {
         Find accounts with a right with -name
-    } -constraints {
-        nt
     } -body {
         expr {[lsearch -exact [twapi::find_accounts_with_right SeInteractiveLogonRight -name] $administrators_account_name] >= 0}
     } -result 1

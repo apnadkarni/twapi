@@ -1,13 +1,13 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Version History" "n" ""]
-[copyright "2003-2013 Ashok P. Nadkarni"]
+[copyright "2003-2014 Ashok P. Nadkarni"]
 [moddesc "TWAPI Version History"]
 [titledesc "Tcl Windows API extension version history"]
 [description]
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 4.0.50 Beta"]
+[section "Version 4.0"]
 Major changes in this release are support for Windows event tracing,
 new Windows event logging API, SSL/TLS sockets,
 greatly enhanced support for CryptoAPI including certificate handling,
@@ -106,10 +106,6 @@ returned by many commands and the corresponding
 Added [uri input.html#get_keyboard_layout_name [cmd get_keyboard_layout_name]].
 
 [bullet]
-Added [uri base.html#get_build_config [cmd get_build_config]] to
-return build information.
-
-[bullet]
 Added [uri base.html#tclcast [cmd tclcast]] and
 [uri base.html#tcltype [cmd tcltype]].
 
@@ -121,6 +117,14 @@ Added commands
 [uri users.html#remove_members_from_local_group [cmd remove_members_from_local_group]]
 and [cmd "-type sid"] option to [uri users.html#add_member_to_local_group [cmd add_member_to_local_group]],
 [uri users.html#remove_member_from_local_group [cmd remove_member_from_local_group]].
+
+[bullet]
+Added commands
+[uri users.html#get_password_policy [cmd get_password_policy]],
+[uri users.html#get_lockout_policy [cmd get_lockout_policy]],
+[uri users.html#set_password_policy [cmd set_password_policy]] and
+[uri users.html#set_lockout_policy [cmd set_lockout_policy]]
+for dealing with global account settings.
 
 [bullet]
 Added [cmd -runas] to
@@ -146,9 +150,13 @@ Added [uri #get_processor_group_config [cmd get_processor_group_config]]
 and [uri #get_numa_config [cmd get_numa_config]].
 [list_end]
 
+[bullet]
+Added [uri base.html#get_build_config [cmd get_build_config]] to
+return build information.
+
 [emph "INCOMPATIBLE CHANGES"]
 [para]
-The following table lists incompatibilities and potential incompatibilities
+The following tables list incompatibilities and potential incompatibilities
 with respect to TWAPI 3.1.
 
 [para]
