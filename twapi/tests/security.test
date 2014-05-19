@@ -38,7 +38,11 @@ namespace eval twapi::security::test {
     variable administrator_sid [name2sid $administrator_account_name]
 
     # Low Integrity file
-    variable low_integrity_file [file join [file dirname $::env(LOCALAPPDATA)] LocalLow]
+    if {[info exists env(LOCALAPPDATA)]} {
+        variable low_integrity_file [file join [file dirname $::env(LOCALAPPDATA)] LocalLow]
+    } else {
+        variable low_integrity_file $::env(APPDATA); # Does not really matter
+    }
 
     # Define expected values for various get_user_account_info fields
     # assuming [string match -nocase comparison] and Administrator account
@@ -2865,16 +2869,16 @@ namespace eval twapi::security::test {
         set total 0
         while {$more} {
             foreach {more resumehandle count groups} [twapi::get_global_groups -resume $resumehandle -level 2 -system $remote] break
-            verify_list_kl_fields $groups {name comment attributes group_id}
+            verify_recordarray $groups {-name -comment -attributes -group_id}
+            valid_account_names [twapi::recordarray column $groups -name]
             incr iters
-            incr total [llength $groups]
-            set valid_groups [expr {$valid_groups & [valid_account_names [twapi::kl_flatten $groups name] $remote]}]
+            incr total [twapi::recordarray size $groups]
         }
-        list [expr {$iters > 1}] $valid_groups [expr {$total > $ngroups}]
+        expr {$iters > 1}
     } -cleanup {
         twapi::Twapi_SetNetEnumBufSize -1; # Reset buffer size
         # Groups are cleaned up locally
-    } -result {1 1 1}
+    } -result 1
 
 
     ################################################################
@@ -5959,6 +5963,9 @@ namespace eval twapi::security::test {
 
     ################################################################
 
+    # TBD - the following tests will fail on a domain environment because
+    # adadmin is not on the local system. Change to add -system DOMAINCONTLLER
+    # where necessary.
     test get_user_global_groups-1.0 {
         Get list of global groups that user belongs
     } -body {
