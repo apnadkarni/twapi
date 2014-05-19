@@ -590,6 +590,7 @@ namespace eval twapi::etw::test {
         set htrace [twapi::etw_start_trace $tracename -logfile $etl]
         twapi::etw_enable_provider $htrace [twapi::etw_twapi_provider_guid] -1 5
         set wait_time 200;      # Need to wait for level changes to effect
+        after $wait_time
         trace add execution execution_trace_target {enter enterstep leave leavestep} [list ::twapi::etw_execution_tracker $hprov]
         execution_trace_target
         twapi::etw_disable_provider $htrace [twapi::etw_twapi_provider_guid]
@@ -626,6 +627,7 @@ namespace eval twapi::etw::test {
         set htrace [twapi::etw_start_trace $tracename -logfile $etl]
         twapi::etw_enable_provider $htrace [twapi::etw_twapi_provider_name] -1 5
         set wait_time 200;      # Need to wait for level changes to effect
+        after $wait_time
         trace add variable [namespace current]::etw_tracked_variable {read write unset} [list ::twapi::etw_variable_tracker $hprov]
         set etw_tracked_variable 1
         set etw_tracked_variable
@@ -664,6 +666,7 @@ namespace eval twapi::etw::test {
         set htrace [twapi::etw_start_trace $tracename -logfile $etl]
         twapi::etw_enable_provider $htrace [twapi::etw_twapi_provider_guid] -1 5
         set wait_time 200;      # Need to wait for level changes to effect
+        after $wait_time
         trace add command [namespace current]::command_trace_target {rename delete} [list ::twapi::etw_command_tracker $hprov]
         command_trace_target;   # Should not show up in trace
         rename [namespace current]::command_trace_target command_trace_renamed ; # Should show up in trace
