@@ -1179,6 +1179,17 @@ namespace eval twapi::ui::test {
         kill $np_pid -wait $end_process_timeout
     } -result ""
 
+    test redraw_window-1.1 {
+        Redraw a window -force
+    } -setup {
+        set np_pid [notepad_exec]
+        set np_win [notepad_top $np_pid]
+    } -body {
+        twapi::redraw_window $np_win -force
+    } -cleanup {
+        kill $np_pid -wait $end_process_timeout
+    } -result ""
+
     ################################################################
 
     test move_window-1.0 {
