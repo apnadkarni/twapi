@@ -234,7 +234,7 @@ namespace eval twapi::security::test {
         twapi::set_password_policy min_passwd_age 12345 $system
         dict get [twapi::get_password_policy $system] min_passwd_age
     } -cleanup {
-        twapi::set_password_policy min_passwd_len $arr(min_passwd_age) $system
+        twapi::set_password_policy min_passwd_age $arr(min_passwd_age) $system
     } -result 12345
 
     test set_password_policy-3.0 {
@@ -339,11 +339,11 @@ namespace eval twapi::security::test {
         unset -nocomplain arr
         array set arr [twapi::get_password_policy]
     } -body {
-        twapi::set_password_policy password_hist_len 98765
+        twapi::set_password_policy password_hist_len 1
         dict get [twapi::get_password_policy] password_hist_len
     } -cleanup {
         twapi::set_password_policy password_hist_len $arr(password_hist_len)
-    } -result 98765
+    } -result 1
 
     test set_password_policy-5.1 {
         set_password_policy password_hist_len SYSTEM
@@ -358,11 +358,11 @@ namespace eval twapi::security::test {
         unset -nocomplain arr
         array set arr [twapi::get_password_policy $system]
     } -body {
-        twapi::set_password_policy password_hist_len 12345 $system
+        twapi::set_password_policy password_hist_len 9 $system
         dict get [twapi::get_password_policy $system] password_hist_len
     } -cleanup {
         twapi::set_password_policy min_passwd_len $arr(password_hist_len) $system
-    } -result 12345
+    } -result 9
 
     ################################################################
 
@@ -401,11 +401,11 @@ namespace eval twapi::security::test {
         unset -nocomplain arr
         array set arr [twapi::get_lockout_policy]
     } -body {
-        twapi::set_lockout_policy 1234 4321 7
+        twapi::set_lockout_policy 1000 500 7
         twapi::get_lockout_policy
     } -cleanup {
         twapi::set_lockout_policy $arr(lockout_duration) $arr(lockout_observation_window) $arr(lockout_threshold)
-    } -result {lockout_duration 1234 lockout_observation_window 4321 lockout_threshold 7}
+    } -result {lockout_duration 1000 lockout_observation_window 500 lockout_threshold 7}
 
     test set_lockout_policy-1.1 {
         set_lockout_policy SYSTEM
@@ -420,11 +420,11 @@ namespace eval twapi::security::test {
         unset -nocomplain arr
         array set arr [twapi::get_lockout_policy $system]
     } -body {
-        twapi::set_lockout_policy 4321 1234 4 $system
+        twapi::set_lockout_policy 2000 1000 4 $system
         twapi::get_lockout_policy $system
     } -cleanup {
         twapi::set_lockout_policy $arr(lockout_duration) $arr(lockout_observation_window) $arr(lockout_threshold) $system
-    } -result {lockout_duration 4321 lockout_observation_window 1234 lockout_threshold 4}
+    } -result {lockout_duration 2000 lockout_observation_window 1000 lockout_threshold 4}
 
     ################################################################
 
