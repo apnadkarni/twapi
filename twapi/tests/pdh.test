@@ -21,7 +21,7 @@ namespace eval twapi::pdh::test {
 
     proc verify_cpu_utilization_counters {expected_key result} {
         lassign $result key val
-        if {[twapi::min_os_version 6]} {
+        if {[twapi::min_os_version 6 1]} {
             if {[string equal $expected_key $key] &&
                 [string is double [dict get $val _Total]] &&
                 [string is double [dict get $val 0,_Total]] &&
