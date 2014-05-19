@@ -1786,6 +1786,62 @@ proc twapi::credentials {{pattern {}}} {
     return $ret
 }
 
+# TBD - document after implementing AuditQuerySystemPolicy and friends
+# for Vista & later
+proc twapi::get_audit_policy {lsah} {
+    lassign [LsaQueryInformationPolicy $lsah 2] enabled audit_masks
+    set settings {}
+    foreach name {
+        system  logon  object_access  privilege_use  detailed_tracking
+        policy_change  account_management  directory_service_access
+        account_logon
+    } mask $audit_masks {
+        # Copied from the Perl Win32 book.
+        set setting {}
+        if {$mask == 0 || ($mask & 4)} {
+            set setting {}
+        } elseif {$mask & 3} {
+            if {$mask & 1} { lappend setting log_on_success }
+            if {$mask & 2} { lappend setting log_on_failure }
+        } else {
+            error "Unexpected audit mask value $mask"
+        }
+        lappend settings $name $setting
+    }
+
+    return [list $enabled $settings]
+}
+
+
+# TBD - document after implementing AuditQuerySystemPolicy and friends
+# for Vista & later
+proc twapi::set_audit_policy {lsah enable settings} {
+    set audit_masks {}
+    # NOTE: the order here MUST match the enum definition for 
+    # POLICY_AUDIT_EVENT_TYPE  (see SDK docs)
+    foreach name {
+        system  logon  object_access  privilege_use  detailed_tracking
+        policy_change  account_management  directory_service_access
+        account_logon
+    } {
+        set mask 0; # POLICY_AUDIT_EVENT_UNCHANGED
+        if {[dict exists $settings $name]} {
+            set setting [dict get $settings $name]
+            # 4 -> POLICY_AUDIT_EVENT_NONE resets existing FAILURE|SUCCESS
+            set mask 4
+            if {"log_on_success" in $setting} {
+                set mask [expr {$mask | 1}]; # POLICY_AUDIT_EVENT_SUCCESS
+            }
+            if {"log_on_failure" in $setting} {
+                set mask [expr {$mask | 2}]; # POLICY_AUDIT_EVENT_FAILURE
+            }
+        }
+        lappend audit_masks $mask
+    }
+
+    Twapi_LsaSetInformationPolicy_AuditEvents $lsah $enable $audit_masks
+}
+
 # Returns true if null security descriptor
 proc twapi::_null_secd {secd} {
     if {[llength $secd] == 0} {
