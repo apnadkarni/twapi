@@ -242,7 +242,7 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
                                       DWORD size, void *pv)
 {
     Tcl_Obj **objPP;
-    unsigned int i, nobjs, len;
+    unsigned int i, nobjs;
     TCL_RESULT res;
 
     csP->nrefs += 1;            /* So it is not shimmered away underneath us */
@@ -578,7 +578,6 @@ error_return:
 TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes, Tcl_Obj *csObj, DWORD flags, Tcl_Obj **objPP)
 {
     Tcl_Obj *objP;
-    TCL_RESULT res;
 
     if (ObjCastToCStruct(interp, csObj) == TCL_OK &&
         ObjFromCStructHelper(interp, pv, nbytes, CSTRUCT_REP(csObj), flags, &objP) == TCL_OK) {
