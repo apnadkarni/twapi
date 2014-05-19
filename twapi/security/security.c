@@ -1121,7 +1121,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 result.value.ival = TCL_ERROR;
             } else {
                 POLICY_AUDIT_EVENTS_INFO paei;
-                paei.AuditingMode = dw2;
+                paei.AuditingMode = dw2 ? TRUE : FALSE;
                 paei.EventAuditingOptions = iP;
                 paei.MaximumAuditEventCount = nobjs;
                 result.type = TRT_NTSTATUS;
