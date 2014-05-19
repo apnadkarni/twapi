@@ -866,11 +866,16 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
         TOKEN_PRIVILEGES *tokprivsP;
         PCREDENTIALW *credsPP;
     } u;
+    LSA_HANDLE lsah;
     ULONG  lsa_count;
     LSA_UNICODE_STRING *lsa_strings;
     TwapiResult result;
     int func = PtrToInt(clientdata);
     WCHAR *passwordP;
+    Tcl_Obj **objPP;
+    DWORD nobjs;
+    int *iP;
+
 
     /* These will be freed at end of routine if not NULL! */
     daclP = saclP = NULL;
@@ -1098,6 +1103,36 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     } else {
         /* Arbitrary args */
         switch (func) {
+        case 10012:
+            CHECK_NARGS(interp, objc, 3);
+            if (ObjToOpaque(interp, objv[0], (void **) &lsah, "LSA_HANDLE") != TCL_OK ||
+                ObjToBoolean(interp, objv[1], &dw2) != TCL_OK ||
+                ObjGetElements(interp, objv[2], &nobjs, &objPP) != TCL_OK) {
+                return TCL_ERROR;
+            }
+            iP = TwapiPushFrame(sizeof(int) * nobjs, NULL);
+            for (dw = 0; dw < nobjs; ++dw) {
+                if (ObjToInt(interp, objPP[dw], &iP[dw]) != TCL_OK)
+                    break;
+            }
+            if (dw < nobjs) {
+                /* Failed to convert to int */
+                result.type = TRT_TCL_RESULT;
+                result.value.ival = TCL_ERROR;
+            } else {
+                POLICY_AUDIT_EVENTS_INFO paei;
+                paei.AuditingMode = dw2;
+                paei.EventAuditingOptions = iP;
+                paei.MaximumAuditEventCount = nobjs;
+                result.type = TRT_NTSTATUS;
+                result.value.ival = LsaSetInformationPolicy(lsah,
+                                                            PolicyAuditEventsInformation,
+                                                            &paei);
+            }
+
+            TwapiPopFrame();
+            break;
+
         case 10013:
             if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETHANDLE(h2),
@@ -1327,6 +1362,7 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_SetTokenOwner, 4003),
         DEFINE_FNCODE_CMD(Twapi_LsaEnumerateAccountRights, 4004),
 
+        DEFINE_FNCODE_CMD(Twapi_LsaSetInformationPolicy_AuditEvents, 10012),
         DEFINE_FNCODE_CMD(UnloadUserProfile, 10013), // TBD - Tcl
         DEFINE_FNCODE_CMD(LogonUser, 10014),
         DEFINE_FNCODE_CMD(LsaAddAccountRights, 10015),
