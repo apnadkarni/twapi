@@ -283,6 +283,8 @@ proc xsplit [list str [list regexp "\[\t \r\n\]+"]] {
 
 # Validate IP address
 proc valid_ip_address {ipaddr {ipver 0}} {
+    load_twapi_package twapi_network
+
     set addrver [twapi::get_ipaddr_version $ipaddr]
     if {$addrver == 0} { return 0 }
     if {$ipver && $addrver != $ipver} { return 0 }
