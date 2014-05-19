@@ -584,7 +584,7 @@ static int Twapi_NetUserModalsGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
     MemLifo *memlifoP = ticP->memlifoP;
     MemLifoMarkHandle mark;
     DWORD level, sz;
-    Tcl_Obj *structObj, *objP;
+    Tcl_Obj *structObj;
     LPWSTR server_name;
     LPBYTE pv;
     NET_API_STATUS status;
