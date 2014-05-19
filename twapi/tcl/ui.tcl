@@ -879,10 +879,10 @@ proc twapi::get_window_at_location {x y} {
 # Marks a screen region as invalid forcing a redraw
 proc twapi::invalidate_screen_region {args} {
     array set opts [parseargs args {
-        {hwin.int 0}
+        {hwin.arg 0}
         rect.arg
         bgerase
-    } -nulldefault]
+    } -nulldefault -maxleftover 0]
 
     InvalidateRect $opts(hwin) $opts(rect) $opts(bgerase)
 }

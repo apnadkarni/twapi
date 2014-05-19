@@ -1970,7 +1970,7 @@ namespace eval twapi::ui::test {
         set np_win [notepad_top $np_pid]
     } -body {
         # TBD - how to check results?
-        twapi::invalidate_screen_region $np_win
+        twapi::invalidate_screen_region -hwin $np_win
     } -cleanup {
         kill $np_pid -wait $end_process_timeout
     } -result ""
@@ -1982,7 +1982,7 @@ namespace eval twapi::ui::test {
         set np_win [notepad_top $np_pid]
     } -body {
         # TBD - how to check results?
-        twapi::invalidate_screen_region $np_win -bgerase
+        twapi::invalidate_screen_region -hwin $np_win -bgerase
     } -cleanup {
         kill $np_pid -wait $end_process_timeout
     } -result ""
