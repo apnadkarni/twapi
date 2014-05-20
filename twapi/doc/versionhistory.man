@@ -148,11 +148,12 @@ commands to [uri base.html#trap [cmd trap]].
 [bullet]
 Added [uri #get_processor_group_config [cmd get_processor_group_config]]
 and [uri #get_numa_config [cmd get_numa_config]].
-[list_end]
 
 [bullet]
 Added [uri base.html#get_build_config [cmd get_build_config]] to
 return build information.
+
+[list_end]
 
 [emph "INCOMPATIBLE CHANGES"]
 [para]
