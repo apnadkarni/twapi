@@ -1,11 +1,9 @@
-# Tcl Windows API (TWAPI) 4.0b54 BETA 3
+# Tcl Windows API (TWAPI) 4.0.61
 
-This is the third beta release of TWAPI 4.0. Note there have been API
-changes since the previous beta release. The API is now frozen for 4.0
-and it is hoped that this will be the final 4.0 beta.
+This is the official release of TWAPI 4.0.
 
-  * Project home page is at http://twapi.sourceforge.net.
-  * V4.0 Beta 3 documentation is at http://twapi.sourceforge.net/v4.0-dev.
+  * Project home page is at http://twapi.sourceforge.net
+  * V4.0 documentation is at http://twapi.sourceforge.net/v4.0
 
 ## Supported platforms
 
@@ -23,18 +21,18 @@ performance counters, enhancements to the COM module and architectural
 changes for modularity and run-time performance.
 
 For a complete list, including INCOMPATIBLE CHANGES, see 
-http://twapi.sourceforge.net/v4.0-dev/versionhistory.html
+http://twapi.sourceforge.net/v4.0/versionhistory.html
 
 ## Distributions
 
 TWAPI is distributed in multiple formats.
-See http://twapi.sourceforge.net/v4.0-dev/installation.html for the details
+See http://twapi.sourceforge.net/v4.0/installation.html for the details
 and the pros and cons of each format.
 
 ## TWAPI Summary
 
 The Tcl Windows API (TWAPI) extension provides
-access to over 500 functions in the Windows API
+access to over 600 functions in the Windows API
 from within the Tcl scripting language.
 
 Functions in the following areas are implemented:
