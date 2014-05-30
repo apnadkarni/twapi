@@ -1043,9 +1043,20 @@ proc twapi::dispatch_prototype_get {guid name lcid invkind vproto} {
 # picked up from prototype since it might be empty.
 interp alias {} twapi::_dispatch_prototype_set {} twapi::dispatch_prototype_set
 proc twapi::dispatch_prototype_set {guid name lcid invkind proto} {
+    # If the prototype does not contain the 5th element (params)
+    # it is a constructed prototype and we do NOT cache it as the
+    # disp id can change. Note empty prototypes are cached so
+    # we don't keep looking up something that does not exist
+    # Bug 130
+
+    if {[llength $proto] == 4} {
+        return
+    }
+
     variable _dispatch_prototype_cache
     set invkind [_string_to_invkind $invkind]
     set _dispatch_prototype_cache($guid,$name,$lcid,$invkind) $proto
+    return
 }
 
 # Explicitly set prototypes for a guid 
@@ -1053,7 +1064,7 @@ proc twapi::dispatch_prototype_set {guid name lcid invkind proto} {
 # Each prototype must contain the LCID and invkind fields
 proc twapi::_dispatch_prototype_load {guid protolist} {
     foreach {name proto} $protolist {
-        _dispatch_prototype_set $guid $name [lindex $proto 1] [lindex $proto 2] $proto
+        dispatch_prototype_set $guid $name [lindex $proto 1] [lindex $proto 2] $proto
     }
 }
 
@@ -1654,7 +1665,7 @@ twapi::class create ::twapi::IDispatchProxy {
         }
 
         # We do have a guid, store the proto in cache (even if negative)
-        ::twapi::_dispatch_prototype_set $_guid $name $lcid $invkind $proto
+        ::twapi::dispatch_prototype_set $_guid $name $lcid $invkind $proto
 
         # If we have the proto return it
         if {[llength $proto]} {
@@ -1684,7 +1695,7 @@ twapi::class create ::twapi::IDispatchProxy {
         }
         
         # Store it as *original* lcid.
-        ::twapi::_dispatch_prototype_set $_guid $name $lcid $invkind $proto
+        ::twapi::dispatch_prototype_set $_guid $name $lcid $invkind $proto
         
         return $proto
     }
@@ -2534,7 +2545,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                     dict for {name namedata} [dict get $guiddata -$type] {
                         dict for {lcid lciddata} $namedata {
                             dict for {invkind proto} $lciddata {
-                                ::twapi::_dispatch_prototype_set \
+                                ::twapi::dispatch_prototype_set \
                                     $guid $name $lcid $invkind $proto
                             }
                         }
@@ -2629,7 +2640,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                         dict for {name namedata} [dict get $guiddata -$type] {
                             dict for {lcid lciddata} $namedata {
                                 dict for {invkind proto} $lciddata {
-                                    append code [list ::twapi::_dispatch_prototype_set \
+                                    append code [list ::twapi::dispatch_prototype_set \
                                                      $guid $name $lcid $invkind $proto]
                                     append code \n
                                 }
