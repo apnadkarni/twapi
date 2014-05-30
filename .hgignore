@@ -20,6 +20,7 @@ syntax: glob
 temp
 build
 dist
+dist-4.0.61
 doc/chm-build
 doc/website-build
 doc/website
@@ -30,6 +31,7 @@ TAGS
 Thumbs.db
 SyncToy*
 Release*/*
+
 
 # TEA based intermediate files
 autom4te.cache/*
