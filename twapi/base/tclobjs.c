@@ -50,6 +50,9 @@ static struct vt_token_pair vt_base_tokens[] = {
     {VT_USERDEFINED, "userdefined"},
     {VT_EMPTY, "empty"},
     {VT_NULL, "null"},
+    {VT_TWAPI_VARNAME, "outvar"} /* TWAPI-specific hack to indicate contents
+                                    to be treated as a variable name. Used
+                                    for tclcast */
 };
 
 /* Support up to these many dimensions in a SAFEARRAY */
@@ -257,6 +260,7 @@ static void UpdateVariantTypeString(Tcl_Obj *objP)
         objP->bytes = ckalloc(1);
         objP->bytes[0] = 0;
         break;
+    case VT_TWAPI_VARNAME: /* Fall through */
     default:
         /* String rep should already be there. */
         Tcl_Panic("Unexpected VT type (%d) in Tcl_Obj VARIANT", VARIANT_REP_VT(objP));
@@ -273,7 +277,6 @@ static void DupVariantType(Tcl_Obj *srcP, Tcl_Obj *dstP)
     dstP->typePtr = &gVariantType;
     dstP->internalRep = srcP->internalRep;
 }
-
 
 int TwapiInitTclTypes(void)
 {
@@ -388,6 +391,10 @@ int Twapi_InternalCastObjCmd(
     }
         
     /*
+     * We special case int because Tcl will convert 0x80000000 to wide int
+     * but we want it to be passed as 32-bits in case of some COM calls.
+     * which will barf for VT_I8
+     *
      * We special case double, because SetAnyFromProc will optimize to lowest
      * compatible type, so for example casting 1 to double will result in an
      * int object. We want to force it to double.
@@ -401,6 +408,13 @@ int Twapi_InternalCastObjCmd(
      * and SetWideIntFromAny, will also return an
      * int Tcl_Obj if the value fits in the 32 bits.
      */
+    if (STREQ(typename, "int")) {
+        int ival;
+        if (ObjToInt(interp, objv[2], &ival) == TCL_ERROR)
+            return TCL_ERROR;
+        return ObjSetResult(interp, ObjFromInt(ival));
+    }
+
     if (STREQ(typename, "double")) {
         double dval;
         if (ObjToDouble(interp, objv[2], &dval) == TCL_ERROR)
@@ -417,6 +431,7 @@ int Twapi_InternalCastObjCmd(
         return ObjSetResult(interp, objP);
     }
 
+    objP = NULL;
     typeP = Tcl_GetObjType(typename);
     if (typeP) {
         objP = ObjDuplicate(objv[2]);
@@ -427,24 +442,26 @@ int Twapi_InternalCastObjCmd(
                 goto error_handler;
             }
         }
-
-        return ObjSetResult(interp, objP);
-    }
-
-    /* Not a registered Tcl type. See if one of ours */
-    if (LookupBaseVTToken(NULL, typename, &vt) == TCL_OK) {
-        switch (vt) {
-        case VT_EMPTY:
-        case VT_NULL:
-            if (ObjCharLength(objv[2]) != 0)
-                goto convert_error;
-            objP = ObjFromEmptyString();
-            Tcl_InvalidateStringRep(objP);
-            objP->typePtr = &gVariantType;
-            VARIANT_REP_VT(objP) = vt;
-            return ObjSetResult(interp, objP);
+    } else {
+        /* Not a registered Tcl type. See if one of ours */
+        if (LookupBaseVTToken(NULL, typename, &vt) == TCL_OK) {
+            switch (vt) {
+            case VT_EMPTY:
+            case VT_NULL:
+                if (ObjCharLength(objv[2]) != 0)
+                    goto convert_error;
+                /* Fall thru */
+            case VT_TWAPI_VARNAME:
+                objP = ObjDuplicate(objv[2]);
+                ObjToString(objP);  /* Make sure string rep exists */
+                objP->typePtr = &gVariantType;
+                VARIANT_REP_VT(objP) = vt;
+            }
         }
     }
+
+    if (objP)
+        return ObjSetResult(interp, objP);
 
 convert_error:
     Tcl_AppendResult(interp, "Cannot convert '", ObjToString(objv[2]), "' to type '", typename, "'", NULL);
@@ -2776,6 +2793,10 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
     Tcl_Obj **objs;
     int nobjs;
     int i;
+    Tcl_WideInt wide;
+
+    /* Return should be purely based on current type ptr of Tcl_Obj,
+       NOT heuristics so be careful not to shimmer BEFORE checking */
 
     switch (TwapiGetTclType(objP)) {
     case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
@@ -2784,7 +2805,13 @@ VARTYPE ObjTypeToVT(Tcl_Obj *objP)
     case TWAPI_TCLTYPE_INT:
         return VT_I4;
     case TWAPI_TCLTYPE_WIDEINT:
-        return VT_I8;
+        /* For compatibility with some COM types, we want to return VT_I4
+           if value fits in 32-bits irrespective of sign */
+        if (ObjToWideInt(NULL, objP, &wide) == TCL_OK &&
+            (wide & 0xffffffff00000000) == 0)
+            return VT_I4;
+        else
+            return VT_I8;
     case TWAPI_TCLTYPE_DOUBLE:
         return VT_R8;
     case TWAPI_TCLTYPE_BYTEARRAY:
@@ -2931,7 +2958,7 @@ TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYP
     case VT_INT:
     case VT_UINT:
     case VT_HRESULT:
-        res = ObjToLong(interp, objP, &lval);
+        res = ObjToInt(interp, objP, &lval);
         if (res == TCL_OK) {
             switch (vt) {
             case VT_I4:
