@@ -1318,6 +1318,8 @@ TWAPI_INLINE Tcl_Obj *ObjFromFARPROC(FARPROC fn) {
 /* The following macros assume objP_ typePtr points to Twapi's gVariantType */
 #define VARIANT_REP_VALUE(objP_) ((objP_)->internalRep.ptrAndLongRep.ptr)
 #define VARIANT_REP_VT(objP_)  ((objP_)->internalRep.ptrAndLongRep.value)
+/* TWAPI-specific hack to indicate contents to be treated as a variable name. */
+#define VT_TWAPI_VARNAME (VT_EMPTY|VT_BYREF)
 
 /* The following macros assume objP_ typePtr points to Twapi's gOpaqueType */
 #define OPAQUE_REP_VALUE(objP_) ((objP_)->internalRep.twoPtrValue.ptr1)

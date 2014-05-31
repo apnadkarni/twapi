@@ -69,15 +69,8 @@ proc twapi::CoCreateInstance {clsid iunknown context iid} {
     return [Twapi_CoCreateInstance $clsid $iunknown $context $iid $iidname]
 }
 
-# Get the CLSID for a ProgID
-proc twapi::progid_to_clsid {progid} {
-    return [CLSIDFromProgID $progid]
-}
-
-# Get the ProgID for a CLSID
-proc twapi::clsid_to_progid {progid} {
-    return [ProgIDFromCLSID $progid]
-}
+proc twapi::progid_to_clsid {progid} { return [CLSIDFromProgID $progid] }
+proc twapi::clsid_to_progid {progid} { return [ProgIDFromCLSID $progid] }
 
 #
 # Create a new object and get an interface to it
@@ -626,6 +619,8 @@ proc twapi::_variant_values_from_safearray {sa ndims {raw false} {addref false}}
     return $result
 }
 
+# TBD - document
+proc twapi::outvar {varname} { return [Twapi_InternalCast outvar $varname] }
 
 # TBD - document
 # Returns a string value from a formatted variant value pair {VT_xxx value}

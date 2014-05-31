@@ -1560,6 +1560,19 @@ namespace eval twapi::com::test {
 
     ################################################################
 
+    test outvar-1.0 {
+        Verify outvar results in COM parameter passed as an out param
+    } -setup {
+        set regprov [twapi::comobj_object winmgmts://./root/default:StdRegProv]
+    } -cleanup {
+        $regprov -destroy
+    } -body {
+        list [$regprov GetStringValue 0x80000002 {SOFTWARE\Microsoft\Wbem\Scripting} "Default Namespace" [twapi::outvar x]] $x
+    } -result {0 {8 {root\cimv2}}}
+
+
+    ################################################################
+
     if {[info exists testobj]} {
         $testobj destroy
     }

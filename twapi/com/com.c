@@ -1166,8 +1166,19 @@ int TwapiMakeVariantParam(
     *paramflagsP = PARAMFLAG_FIN; // In case no paramflags
 
     if (paramc == 0) {
-        /* We did not have parameter info. Assume VT_VARIANT and use heuristics */
+        /* No parameter info. Assume VT_VARIANT and use heuristics */
         vt = VT_VARIANT;
+        /* As a special case, it might be an output parameter. See if
+           valueObj is supplied and if it is marked as a variable name
+        */
+        if (valueObj) {
+            VARTYPE value_vt = ObjTypeToVT(valueObj);
+            if (value_vt == VT_TWAPI_VARNAME) {
+                /* Treat as an output parameter */
+                *paramflagsP = PARAMFLAG_FOUT;
+                vt = VT_EMPTY;
+            }
+        }
     }
     else if (paramc > 1) {
         /* If no value supplied as positional parameter, see if it is 
@@ -1225,7 +1236,7 @@ int TwapiMakeVariantParam(
      * VARIANT
      */
 
-    /* Note we have already checked previously that typec == 1 or 2 */
+    /* Note we have already checked previously that typec == 0/1/2 */
     if (typec == 2) {
         /* Only VT_PTR and VT_SAFEARRAY can have typec == 2 */
 
@@ -1296,8 +1307,8 @@ int TwapiMakeVariantParam(
      * to construct the variant structure.
      */
     if (! (*paramflagsP & PARAMFLAG_FIN)) {
-        /* PARAMFLAG_OUT only. Just init to zero and type convert below */
-        // TBD - Huh? What type conversion below ?
+        /* PARAMFLAG_OUT only. */
+        // TBD - should we init to VT_EMPTY ?
         V_VT(targetP) = VT_I4;
         V_I4(targetP) = 0;
     } else {
