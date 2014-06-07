@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "COM" n ""]
-[copyright "2006-2012 Ashok P. Nadkarni"]
+[copyright "2006-2014 Ashok P. Nadkarni"]
 [moddesc "COM client support"]
 [titledesc "Commands for accessing COM servers"]
 [require twapi_com]
@@ -475,6 +475,9 @@ the passed value to a specific type. So for example, to force the
 passed parameter to be treated as a boolean, and not an integer,
 the application could call a method as follows:
 [example "\$obj Visible [lb]tclcast boolean 1[rb]"]
+As a special case, the [uri #outvar [cmd outvar]] command indicates 
+that the passed string is the name of a variable in which to store an output
+parameter value.
 
 [para]
 Sometimes the COM component may  not provide type information
@@ -690,11 +693,23 @@ See [sectref "Navigating Objects"] for an example.
 [call [cmd comobj?] [arg COMOBJ]]
 Returns 1 if the [arg COMOBJ] refers to a [cmd COMOBJ] object and 0 otherwise.
 
-[call [cmd comobj_idispatch] [arg IDISPATCHINTERFACE]]
-Creates a COM wrapper object for the specified IDispatch or IDispatchEx
-interface. Caller must hold a reference (count) to [arg IDISPATCHINTERFACE]
-that will be released by the COM wrapper object when it is destroyed.
-If caller wants to use [arg IDISPATCHINTERFACE] for its own purpose,
+[call [cmd comobj_destroy] [opt [arg COMOBJ]...]]
+Called to invoke the [cmd -destroy] method on one or more COM wrapper
+object. Errors generated when destroying an object are ignored and the
+command continues to destroy remaining objects.
+
+[call [cmd comobj_idispatch] [arg IDISPATCH] [opt [arg ADDREF]]]
+Returns a COM wrapper object for the specified IDispatch or IDispatchEx
+interface. 
+
+If [arg ADDREF] is false (default), 
+caller must hold a reference (count) to [arg IDISPATCH].
+If [arg ADDREF] is true, the command will increment the reference count
+for [arg IDISPATCH].
+
+In both cases, [arg IDISPATCH] will
+will be released by the COM wrapper object when it is destroyed.
+If caller wants to use [arg IDISPATCH] for its own purpose,
 it must do an additional
 [cmd IUnknown_AddRef] itself to ensure the interface is not released
 when the returned COM wrapper instance is destroyed.
@@ -821,6 +836,11 @@ its [cmd Release] method.
 [call [cmd name_to_iid] [arg INTERFACENAME]]
 Returns the unique interface identifier (IID) for the specified
 interface name, for example [const IDispatch].
+
+[call [cmd outvar] [arg VARNAME]]
+Used to indicate that a passed parameter to a COM method is the name
+of a variable in which to store an output parameter value.
+This is useful when type information is not available for a COM object.
 
 [call [cmd progid_to_clsid] [arg PROGID]]
 Returns the CLSID for a given PROGID. For example, 
