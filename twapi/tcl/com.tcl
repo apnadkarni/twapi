@@ -152,20 +152,16 @@ proc twapi::com_create_instance {clsid args} {
     }
 }
 
-
-#
-# Creates an object command for a COM object from IDispatch or IDispatchEx
-# Caller must hold a reference (count) to ifc that it hands off to comobj.
-# If caller wants to use ifc for its own purpose, it must do an additional
-# AddRef itself to ensure the interface is not released.
-proc twapi::comobj_idispatch {ifc} {
+proc twapi::comobj_idispatch {ifc {addref 0}} {
     if {[pointer_null? $ifc]} {
         return ::twapi::comobj_null
     }
 
     if {[pointer? $ifc IDispatch]} {
+        if {$addref} { IUnknown_AddRef $ifc }
         set proxyobj [IDispatchProxy new $ifc]
     } elseif {[pointer? $ifc IDispatchEx]} {
+        if {$addref} { IUnknown_AddRef $ifc }
         set proxyobj [IDispatchExProxy new $ifc]
     } else {
         error "'$ifc' does not reference an IDispatch interface"
@@ -224,6 +220,11 @@ proc twapi::comobj {comid args} {
     }
 }
 
+proc twapi::comobj_destroy args {
+    foreach arg $args {
+        catch {$arg -destroy}
+    }
+}
 
 # Return an interface to a typelib
 # TBD - document
@@ -619,7 +620,6 @@ proc twapi::_variant_values_from_safearray {sa ndims {raw false} {addref false}}
     return $result
 }
 
-# TBD - document
 proc twapi::outvar {varname} { return [Twapi_InternalCast outvar $varname] }
 
 # TBD - document
