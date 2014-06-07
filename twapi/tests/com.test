@@ -315,7 +315,7 @@ namespace eval twapi::com::test {
     }
 
     test comobj-9.0 {
-        Bind scripts to comobj events using -bind
+        Bind scripts to comobj events using -bind using raw interfaces
     } -setup {
         package require twapi_wmi
         set wmi [twapi::wmi_root]
@@ -362,6 +362,63 @@ namespace eval twapi::com::test {
     } -result 1
 
 
+    # Handler invoked when a process is started. Difference from process_start_handler
+    # is that this does not do AddRef itself
+    proc process_start_handler_2 {wmi_event args} {
+        if {$wmi_event eq "OnObjectReady"} {
+            # First arg is a IDispatch interface of the event object
+            # Create a TWAPI COM object out of it
+            set ifc [lindex $args 0]
+            set event_obj [::twapi::comobj_idispatch $ifc true]
+            set name [$event_obj ProcessName]
+            if {[string equal -nocase $name notepad.exe]} {
+                set ::comobj_process_starts_test \
+                    [list [$event_obj ProcessID] $name]
+            }
+
+            # Get rid of the event object
+            $event_obj -destroy
+        }
+    }
+
+    test comobj-9.1 {
+        Bind scripts to comobj events using -bind using comobj
+    } -setup {
+        package require twapi_wmi
+        set wmi [twapi::wmi_root]
+    } -cleanup {
+        $wmi -destroy
+    } -body {
+        # Create an WMI event sink
+        set process_event_sink [twapi::comobj wbemscripting.swbemsink]
+
+        # Attach our handler to it
+        set process_event_sink_id [$process_event_sink -bind [namespace current]::process_start_handler_2]
+        $wmi ExecNotificationQueryAsync $process_event_sink "select * from Win32_ProcessStartTrace"
+
+        # Wait for wmi
+        after 1000
+        set np_pid [notepad_exec]
+        set after_id [after 5000 {set ::comobj_process_starts_test {}}]
+        vwait ::comobj_process_starts_test
+        after cancel $after_id
+        
+        # Cancel event notifications
+        $process_event_sink Cancel
+
+        # Unbind our callback
+        $process_event_sink -unbind $process_event_sink_id
+
+        # Get rid of all objects
+        $process_event_sink -destroy
+
+        kill $np_pid -force
+        expr {
+              [lindex $::comobj_process_starts_test 0] == $np_pid &&
+              [string equal -nocase [lindex $::comobj_process_starts_test 1] notepad.exe]
+          }
+    } -result 1
+
     ###
 
     test comobj-10.0 {
@@ -396,8 +453,6 @@ namespace eval twapi::com::test {
 
     test comobj-11.0 {
         Destroy comobj
-    } -constraints {
-        nt
     } -body {
         set wscript [twapi::comobj wscript.shell]
         $wscript -destroy
@@ -1570,6 +1625,40 @@ namespace eval twapi::com::test {
         list [$regprov GetStringValue 0x80000002 {SOFTWARE\Microsoft\Wbem\Scripting} "Default Namespace" [twapi::outvar x]] $x
     } -result {0 {8 {root\cimv2}}}
 
+    ################################################################
+
+    test comobj_destroy-1.0 {
+        comobj_destroy - no args
+    } -body {
+        twapi::comobj_destroy
+    } -result ""
+
+    test comobj_destroy-2.0 {
+        comobj_destroy - one arg
+    } -setup {
+        set wscript [twapi::comobj wscript.shell]
+    } -body {
+        list [twapi::comobj_destroy $wscript] [llength [info commands $wscript]]
+    } -result [list "" 0]
+
+    test comobj_destroy-2.1 {
+        comobj_destroy - multiple arg
+    } -setup {
+        set wscript [twapi::comobj wscript.shell]
+        set wscript2 [twapi::comobj wscript.shell]
+    } -body {
+        list [twapi::comobj_destroy $wscript $wscript2] [llength [info commands $wscript]] [llength [info commands $wscript]]
+    } -result [list "" 0 0]
+
+    test comobj_destroy-2.2 {
+        comobj_destroy - bad arg
+    } -setup {
+        set wscript [twapi::comobj wscript.shell]
+        set wscript2 [twapi::comobj wscript.shell]
+    } -body {
+        $wscript -destroy
+        list [twapi::comobj_destroy $wscript $wscript2] [llength [info commands $wscript]] [llength [info commands $wscript]]
+    } -result [list "" 0 0]
 
     ################################################################
 

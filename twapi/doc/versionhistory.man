@@ -7,6 +7,14 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
+[section "Version 4.1"]
+This is a minor release with bug fixes and minor enhancements.
+
+[list_begin bullet]
+[bullet]
+Added the [uri com.html#outvar [cmd outvar]] command.
+[list_end]
+
 [section "Version 4.0"]
 Major changes in this release are support for Windows event tracing,
 new Windows event logging API, SSL/TLS sockets,
