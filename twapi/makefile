@@ -94,7 +94,17 @@ twapi twapi-bin twapi-modular twapi-lib: $(@)-build
 !else
 twapi twapi-bin twapi-modular: $(@)-build "$(DISTDIR)\$@\pkgindex.tcl"
         $(COPY) LICENSE "$(DISTDIR)\$@"
-	$(COPY) doc\announce$(TWAPI_MAJOR)$(TWAPI_MINOR).txt "$(DISTDIR)\$@\README.TXT"
+!if "$(TWAPI_RELEASETYPE)" == "."
+	$(COPY) doc\announce$(TWAPI_MAJOR)$(TWAPI_MINOR).md "$(DISTDIR)\$@\README.TXT"
+!else
+	copy << "$(DISTDIR)\$@\README.TXT"
+This directory holds the development version of TWAPI.
+Documentation is at http://twapi.magicsplat.com/v$(TWAPI_MAJOR).$(TWAPI_MINOR)-dev
+
+Note development releases are not fully regression tested
+and features are liable to be changed or removed.
+<<KEEP
+!endif
 	cd "$(DISTDIR)" && $(ZIP) -r "$@-$(TWAPI_VERSION).zip" $@
 	if exist "$(USERPROFILE)\Downloads\twapi" $(COPY) "$(DISTDIR)\$@-$(TWAPI_VERSION).zip" "$(USERPROFILE)\Downloads\twapi"
 
