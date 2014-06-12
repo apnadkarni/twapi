@@ -547,10 +547,11 @@ the command will wait until the service is paused or until
 This command sets up the mechanisms that allow a Tcl application
 to act as a Windows service. It must be only called when the application
 is started by the Windows SCM as a Windows service, else it will fail
-silently. The command does not return until the service is ready to exit.
-Rather, it invokes the service handlers that implement each service in
-response to notifications received from the system as described below.
-
+silently. The command installs 
+the service handlers that implement each service in
+response to notifications received from the system as described below
+and returns. The application must be running the Tcl event loop for
+the service handlers to run, for example through the [cmd vwait] Tcl command.
 [nl]
 [arg SERVICES] is a list of
 [arg "SERVICENAME HANDLER"] pairs that describe the services that
@@ -765,7 +766,7 @@ of these indicates the nature of the session change and is one of
 [nl] The second additional argument is the session identifier for which
 the event is being reported.
 
-[opt_def [const user_defined]]
+[opt_def [const userdefined]]
 The [const userdefined]
 control is strictly application-dependent and not used by the SCM.
 User defined controls can be sent to a service using command line
