@@ -870,7 +870,7 @@ proc twapi::update_service_status {name seq state args} {
             }
         }
         if {$all_stopped} {
-            uplevel #0 [linsert $service_state($name,script) end all_stopped]
+            uplevel #0 [linsert $service_state($name,script) end all_stopped $name 0]
         }
     }
 
