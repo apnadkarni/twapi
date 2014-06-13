@@ -182,7 +182,6 @@ proc twapi::get_service_internal_name {name args} {
     return $internal_name
 }
 
-# Get the display name of a service
 proc twapi::get_service_display_name {name args} {
     array set opts [parseargs args {system.arg database.arg} -nulldefault]
     # 0x00020000 -> STANDARD_RIGHTS_READ
@@ -201,8 +200,6 @@ proc twapi::get_service_display_name {name args} {
     return $display_name
 }
 
-
-# Start the specified service
 proc twapi::start_service {name args} {
     array set opts [parseargs args {
         system.arg
@@ -224,8 +221,45 @@ proc twapi::start_service {name args} {
     return [wait {twapi::get_service_state $name -system $opts(system) -database $opts(database)} running $opts(wait)]
 }
 
+# TBD - document and test
+proc twapi::notify_service {name code args} {
+    array set opts [parseargs args {
+        system.arg
+        database.arg
+        ignorecodes.arg
+    } -nulldefault]
 
-# Send a control code to the specified service
+    if {[string is integer -strict $code] && $code >= 128 && $code <= 255} {
+        # 0x100 -> SERVICE_USER_DEFINED_CONTROL 
+        set access 0x100
+    } elseif {$code eq "paramchange"} {
+        # 0x40 -> SERVICE_PAUSE_CONTINUE
+        set access 0x40
+        set code 6;             # PARAMCHANGE
+    } else {
+        badargs! "Invalid service notification code \"$code\"."
+    }
+
+    set scm [OpenSCManager $opts(system) $opts(database) 0x00020000]
+    trap {
+        set svch [OpenService $scm $name $access]
+    } finally {
+        CloseServiceHandle $scm
+    }
+    
+    trap {
+        ControlService $svch $code
+    } onerror {TWAPI_WIN32} {
+        if {[lsearch -exact -integer $opts(ignorecodes) [lindex $::errorCode 1]] < 0} {
+            # Not one of the error codes we can ignore. 
+            rethrow
+        }
+    } finally {
+        CloseServiceHandle $svch
+    }
+    return
+}
+
 proc twapi::control_service {name code access finalstate args} {
     array set opts [parseargs args {
         system.arg
