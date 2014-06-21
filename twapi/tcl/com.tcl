@@ -2363,7 +2363,20 @@ twapi::class create ::twapi::ITypeInfoProxy {
             set flags [my GetImplTypeFlags $i]
             # default 0x1, source 0x2
             if {($flags & 3) == 3} {
-                return [my @GetRefTypeInfoFromIndex $i]
+                # Our source interface implementation can only handle IDispatch
+                # so check if the source interface is that else keep looking.
+                # We even ignore dual interfaces because we cannot then
+                # assume caller will use the dispatch version
+                set ti [my @GetRefTypeInfoFromIndex $i]
+                array set typeinfo [$ti GetTypeAttr]
+                # typekind == 4 -> IDispatch,
+                # flags - 0x1000 -> dispatchable, 0x40 -> dual
+                if {$typeinfo(typekind) == 4 &&
+                    ($typeinfo(wTypeFlags) & 0x1000) &&
+                    !($typeinfo(wTypeFlags) & 0x40)} {
+                    return $ti
+                }
+                $ti destroy
             }
         }
         return ""
