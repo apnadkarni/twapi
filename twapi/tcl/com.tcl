@@ -152,17 +152,17 @@ proc twapi::com_create_instance {clsid args} {
     }
 }
 
-proc twapi::comobj_idispatch {ifc {addref 0}} {
+proc twapi::comobj_idispatch {ifc {addref 0} {objclsid ""}} {
     if {[pointer_null? $ifc]} {
         return ::twapi::comobj_null
     }
 
     if {[pointer? $ifc IDispatch]} {
         if {$addref} { IUnknown_AddRef $ifc }
-        set proxyobj [IDispatchProxy new $ifc]
+        set proxyobj [IDispatchProxy new $ifc $objclsid]
     } elseif {[pointer? $ifc IDispatchEx]} {
         if {$addref} { IUnknown_AddRef $ifc }
-        set proxyobj [IDispatchExProxy new $ifc]
+        set proxyobj [IDispatchExProxy new $ifc $objclsid]
     } else {
         error "'$ifc' does not reference an IDispatch interface"
     }
@@ -178,6 +178,7 @@ proc twapi::comobj_object {path args} {
         {interface.arg IDispatch {IDispatch IDispatchEx}}
     } -maxleftover 0]
 
+    set clsid ""
     if {[info exists opts(progid)]} {
         # TBD - document once we have a test case for this
         # Specify which app to use to open the file.
@@ -191,10 +192,11 @@ proc twapi::comobj_object {path args} {
             IUnknown_Release $ipersistfile
         }
     } else {
+        # TBD - can we get the CLSID for this case
         set idisp [::twapi::Twapi_CoGetObject $path {} [name_to_iid $opts(interface)] $opts(interface)]
     }
 
-    return [comobj_idispatch $idisp]
+    return [comobj_idispatch $idisp 0 $clsid]
 }
 
 #
@@ -211,12 +213,12 @@ proc twapi::comobj {comid args} {
         twapi::trap {
             # Get the IDispatch interface
             set idisp [IUnknown_QueryInterface $iunk {{00020400-0000-0000-C000-000000000046}}]
-            return [comobj_idispatch $idisp]
+            return [comobj_idispatch $idisp 0 $clsid]
         } finally {
             IUnknown_Release $iunk
         }
     } else {
-        return [comobj_idispatch [com_create_instance $clsid -interface $opts(interface) -raw {*}$args]]
+        return [comobj_idispatch [com_create_instance $clsid -interface $opts(interface) -raw {*}$args] 0 $clsid]
     }
 }
 
@@ -1268,7 +1270,7 @@ twapi::class create ::twapi::IUnknownProxy {
     # Note caller must hold ref on the ifc. This ref is passed to
     # the proxy object and caller must not make use of that ref
     # unless it does an AddRef on it.
-    constructor {ifc} {
+    constructor {ifc {objclsid ""}} {
 
         if {[::twapi::pointer_null? $ifc]} {
             error "Attempt to register a NULL interface"
@@ -1276,6 +1278,9 @@ twapi::class create ::twapi::IUnknownProxy {
 
         my variable _ifc
         set _ifc $ifc
+
+        my variable _clsid
+        set _clsid $objclsid
 
         # We keep an internal reference count instead of explicitly
         # calling out to the object's AddRef/Release every time.
@@ -1360,6 +1365,12 @@ twapi::class create ::twapi::IUnknownProxy {
             ::twapi::IUnknown_AddRef $_ifc
         }
         return $_ifc
+    }
+
+    # Returns out class id
+    method @Clsid {} {
+        my variable _clsid
+        return $_clsid
     }
 
     twapi_exportall
@@ -1783,8 +1794,9 @@ twapi::class create ::twapi::IDispatchProxy {
         return $_guid
     }
 
-    method @GetCoClassTypeInfo {{co_clsid ""}} {
+    method @GetCoClassTypeInfo {} {
         my variable _ifc
+
         # We can get the typeinfo for the coclass in one of two ways:
         # If the object supports IProvideClassInfo, we use it. Else
         # we try the following:
@@ -1805,6 +1817,7 @@ twapi::class create ::twapi::IDispatchProxy {
             # Note - do not do anything with ti_ifc here, EVEN on error
         }
 
+        set co_clsid [my @Clsid]
         if {$co_clsid eq ""} {
             # E_FAIL
             twapi::win32_error 0x80004005 "Could not get ITypeInfo for coclass: object does not support IProvideClassInfo and clsid not specified."
@@ -2709,7 +2722,7 @@ twapi::class create ::twapi::ITypeLibProxy {
         superclass ::twapi::Automation
         constructor {args} {
             set ifc [twapi::com_create_instance "%s" -interface IDispatch -raw {*}$args]
-            next [twapi::IDispatchProxy new $ifc]
+            next [twapi::IDispatchProxy new $ifc $guid]
             set ifc_guid "%s"
             if {[string length $ifc_guid]} {
                 my -interfaceguid $ifc_guid
@@ -3207,10 +3220,7 @@ twapi::class create ::twapi::Automation {
         # Get the coclass typeinfo and  locate the source interface
         # within it and retrieve disp id mappings
         ::twapi::trap {
-            # TBD - where can we get co_clsid from ? Ask from caller?
-            # Or part of automation class ?
-            set co_clsid "";    # TBD - temp placeholder
-            set coti [$_proxy @GetCoClassTypeInfo $co_clsid]
+            set coti [$_proxy @GetCoClassTypeInfo]
 
             # $coti is the coclass information. Get dispids for the default
             # source interface for events and its guid
