@@ -7,6 +7,25 @@
  * Utility functions used by the COM module
  */
 
+/*
+ * TBD - IMPLEMENTING COM SERVER 
+ HINTS
+Implementing IDispatch can be easy or hard. (Assuming you cannot use ATL).
+
+The easy way is to not support TypeInfo (return 0 from GetTypeInfoCount and E_NOTIMPL from GetTypeInfo. Nobody should call it.).
+
+Then all you have to support is GetIDsOfNames and Invoke. It's just a big lookup table essentially.
+
+For GetIDsOfNames, return DISP_E_UNKNOWNNAME if cNames != 1. You aren't going to support argument names. Then you just have to lookup rgszNames[0] in your mapping of names-to-ids.
+
+Finally, implement Invoke. Ignore everything except pDispParams and pVarResult. Use VariantChangeType to coerce the parameters to the types you expect, and pass to your implementation. Set the return value and return. Done.
+
+The hard way is to use ITypeInfo and all that. I've never done it and wouldn't. ATL makes it easy so just use ATL.
+
+If picking the hard way, Good luck.
+*/
+
+
 #include "twapi.h"
 
 #ifndef TWAPI_SINGLE_MODULE
@@ -2565,6 +2584,25 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             hr = CoCreateInstance(&guid, ifc.unknown, dw1, &guid2,
                                   &result.value.ifc.p);
             break;
+        case 10013: // MkParseDisplayName
+            if (objc != 2)
+                goto badargs;
+            if (ObjToOpaque(interp, objv[0], &pv, "IBindCtx") != TCL_OK)
+                goto ret_error;
+            hr = MkParseDisplayName(pv, ObjToUnicode(objv[1]),
+                                    &dw1, &ifc.moniker);
+            if (hr == S_OK || hr == MK_E_SYNTAX) {
+                if (hr == MK_E_SYNTAX) {
+                    ifc.moniker = 0;
+                    hr = S_OK;
+                }
+                result.type = TRT_OBJV;
+                objs[0] = ObjFromDWORD(dw1);
+                objs[1] = ObjFromOpaque(ifc.moniker, "IMoniker");
+                result.value.objv.nobj = 2;
+                result.value.objv.objPP = objs;
+            }
+            break;
         }
     }
 
@@ -2770,7 +2808,7 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(IRecordInfo_RecordInit, 512),
         DEFINE_FNCODE_CMD(IRecordInfo_GetFieldNames, 513),
 
-        DEFINE_FNCODE_CMD(IMoniker_GetDisplayName,601),
+        DEFINE_FNCODE_CMD(IMoniker_GetDisplayName,601), // TBD - Tcl?
 
         DEFINE_FNCODE_CMD(IEnumVARIANT_Clone, 701),
         DEFINE_FNCODE_CMD(IEnumVARIANT_Reset, 702),
@@ -2818,7 +2856,7 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(ProgIDFromCLSID, 10010),
         DEFINE_FNCODE_CMD(CLSIDFromProgID, 10011),
         DEFINE_FNCODE_CMD(Twapi_CoCreateInstance, 10012),
-        
+        DEFINE_FNCODE_CMD(MkParseDisplayName, 10013),
     };
 
     static struct alias_dispatch_s ComAliasDispatch[] = {
