@@ -1807,7 +1807,7 @@ twapi::class create ::twapi::IDispatchProxy {
 
         if {$co_clsid eq ""} {
             # E_FAIL
-            win32_error 0x80004005 "Could not get ITypeInfo for coclass: object does not support IProvideClassInfo and clsid not specified."
+            twapi::win32_error 0x80004005 "Could not get ITypeInfo for coclass: object does not support IProvideClassInfo and clsid not specified."
         }
 
         set ti [my @GetTypeInfo]
@@ -1823,7 +1823,7 @@ twapi::class create ::twapi::IDispatchProxy {
             } else {
                 return [$tl @GetTypeInfoOfGuid $co_clsid]
             }
-            win32_error 0x80004005 "Could not find coclass."; # E_FAIL
+            twapi::win32_error 0x80004005 "Could not find coclass."; # E_FAIL
         } finally {
             if {[info exists ti]} {
                 $ti Release
@@ -2937,7 +2937,7 @@ twapi::class create ::twapi::Automation {
     # a reference to it, it must do an *additional* AddRef on it to
     # keep it from going away when the Automation object releases it.
     constructor {proxy {lcid 0}} {
-        my variable   _proxy   _lcid   _sinks   _connection_pts
+        my variable _proxy _lcid  _sinks _connection_pts
 
         set type [$proxy @Type]
         if {$type ne "IDispatch" && $type ne "IDispatchEx"} {
@@ -3241,7 +3241,7 @@ twapi::class create ::twapi::Automation {
                     ::twapi::IUnknown_Release [set $ifc]
                 }
             }
-            rethrow
+            twapi::rethrow
         } finally {
             # In all cases, release any interfaces we created
             # Note connpt_ifc and sink_ifc are released at unbind time except
