@@ -4,29 +4,11 @@
  *
  * See the file LICENSE for license
  *
- * Utility functions used by the COM module
+ * TWAPI COM module
  */
 
-/*
- * TBD - IMPLEMENTING COM SERVER 
- HINTS
-Implementing IDispatch can be easy or hard. (Assuming you cannot use ATL).
-
-The easy way is to not support TypeInfo (return 0 from GetTypeInfoCount and E_NOTIMPL from GetTypeInfo. Nobody should call it.).
-
-Then all you have to support is GetIDsOfNames and Invoke. It's just a big lookup table essentially.
-
-For GetIDsOfNames, return DISP_E_UNKNOWNNAME if cNames != 1. You aren't going to support argument names. Then you just have to lookup rgszNames[0] in your mapping of names-to-ids.
-
-Finally, implement Invoke. Ignore everything except pDispParams and pVarResult. Use VariantChangeType to coerce the parameters to the types you expect, and pass to your implementation. Set the return value and return. Done.
-
-The hard way is to use ITypeInfo and all that. I've never done it and wouldn't. ATL makes it easy so just use ATL.
-
-If picking the hard way, Good luck.
-*/
-
-
 #include "twapi.h"
+#include "twapi_com.h"
 
 #ifndef TWAPI_SINGLE_MODULE
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
@@ -48,67 +30,6 @@ static TwapiModuleDef gModuleDef = {
     NULL,
     0
 };
-
-/*
- * Event sink definitions
- */
-HRESULT STDMETHODCALLTYPE Twapi_EventSink_QueryInterface(
-    IDispatch *this,
-    REFIID riid,
-    void **ifcPP);
-ULONG STDMETHODCALLTYPE Twapi_EventSink_AddRef(IDispatch *this);
-ULONG STDMETHODCALLTYPE Twapi_EventSink_Release(IDispatch *this);
-HRESULT STDMETHODCALLTYPE Twapi_EventSink_GetTypeInfoCount(
-    IDispatch *this,
-    UINT *pctP);
-HRESULT STDMETHODCALLTYPE Twapi_EventSink_GetTypeInfo(
-    IDispatch *this,
-    UINT tinfo,
-    LCID lcid,
-    ITypeInfo **tiPP);
-HRESULT STDMETHODCALLTYPE Twapi_EventSink_GetIDsOfNames(
-    IDispatch *this,
-    REFIID   riid,
-    LPOLESTR *namesP,
-    UINT namesc,
-    LCID lcid,
-    DISPID *rgDispId);
-HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
-    IDispatch *this,
-    DISPID dispIdMember,
-    REFIID riid,
-    LCID lcid,
-    WORD flags,
-    DISPPARAMS *dispparamsP,
-    VARIANT *resultvarP,
-    EXCEPINFO *excepP,
-    UINT *argErrP);
-
-
-/* Vtbl for Twapi_EventSink */
-static struct IDispatchVtbl Twapi_EventSink_Vtbl = {
-    Twapi_EventSink_QueryInterface,
-    Twapi_EventSink_AddRef,
-    Twapi_EventSink_Release,
-    Twapi_EventSink_GetTypeInfoCount,
-    Twapi_EventSink_GetTypeInfo,
-    Twapi_EventSink_GetIDsOfNames,
-    Twapi_EventSink_Invoke
-};
-
-
-
-
-/*
- *  TBD - does this (related methods) need to be made thread safe?
- */
-typedef struct Twapi_EventSink {
-    interface IDispatch idispP; /* Must be first field */
-    IID iid;                    /* IID for this event sink interface */
-    int refc;                   /* Ref count */
-    TwapiInterpContext *ticP;   /* Interpreter and related context */
-    Tcl_Obj *cmd;               /* Stores the callback command arg list */
-} Twapi_EventSink;
 
 
 #if TWAPI_ENABLE_ASSERT
@@ -138,26 +59,6 @@ static TCL_RESULT TwapiValidateIUnknownPtr(Tcl_Interp *interp, IUnknown *ifcP)
     return TCL_OK;
 }
 #endif
-
-static HRESULT STDMETHODCALLTYPE Twapi_EventSink_QueryInterface(
-    IDispatch *this,
-    REFIID riid,
-    void **ifcPP)
-{
-
-    if (!IsEqualIID(riid, &((Twapi_EventSink *)this)->iid) &&
-        !IsEqualIID(riid, &IID_IUnknown) &&
-        !IsEqualIID(riid, &IID_IDispatch)) {
-        /* Not a supported interface */
-        *ifcPP = NULL;
-        return E_NOINTERFACE;
-    }
-
-    this->lpVtbl->AddRef(this);
-    *ifcPP = this;
-    return S_OK;
-}
-
 
 Tcl_Obj *ObjFromCONNECTDATA (const CONNECTDATA *cdP)
 {
@@ -363,220 +264,6 @@ static Tcl_Obj *ObjFromFUNCDESC(Tcl_Interp *interp, FUNCDESC *fdP, ITypeInfo *ti
     return resultObj;
 }
 
-
-static ULONG STDMETHODCALLTYPE Twapi_EventSink_AddRef(IDispatch *this)
-{
-    ((Twapi_EventSink *)this)->refc += 1;
-    return ((Twapi_EventSink *)this)->refc;
-}
-
-static ULONG STDMETHODCALLTYPE Twapi_EventSink_Release(IDispatch *this)
-{
-    Twapi_EventSink *me = (Twapi_EventSink *) this;
-
-    me->refc -= 1;
-    if (((Twapi_EventSink *)this)->refc == 0) {
-        if (me->ticP)
-            TwapiInterpContextUnref(me->ticP, 1);
-        if (me->cmd)
-            ObjDecrRefs(me->cmd);
-        TwapiFree(this);
-        return 0;
-    } else
-        return ((Twapi_EventSink *)this)->refc;
-}
-
-static HRESULT STDMETHODCALLTYPE Twapi_EventSink_GetTypeInfoCount
-(
-    IDispatch *this,
-    UINT *pctP
-)
-{
-    /* We do not provide type information */
-    if (pctP)
-        *pctP = 0;
-    return S_OK;
-}
-
-
-static HRESULT STDMETHODCALLTYPE Twapi_EventSink_GetTypeInfo(
-    IDispatch *this,
-    UINT tinfo,
-    LCID lcid,
-    ITypeInfo **tiPP)
-{
-    return E_NOTIMPL;
-}
-
-static HRESULT STDMETHODCALLTYPE Twapi_EventSink_GetIDsOfNames(
-    IDispatch *this,
-    REFIID   riid,
-    LPOLESTR *namesP,
-    UINT namesc,
-    LCID lcid,
-    DISPID *rgDispId)
-{
-    return E_NOTIMPL;
-}
-
-static HRESULT STDMETHODCALLTYPE Twapi_EventSink_Invoke(
-    IDispatch *this,
-    DISPID dispid,
-    REFIID riid,
-    LCID lcid,
-    WORD flags,
-    DISPPARAMS *dispparamsP,
-    VARIANT *retvarP,
-    EXCEPINFO *excepP,
-    UINT *argErrP)
-{
-    Twapi_EventSink *me = (Twapi_EventSink *) this;
-    int     i;
-    HRESULT hr;
-    Tcl_Obj **cmdobjv;
-    Tcl_Obj **cmdprefixv;
-    int     cmdobjc;
-    Tcl_InterpState savedState;
-    Tcl_Interp *interp;
-
-    if (me == NULL || me->ticP == NULL || me->ticP->interp == NULL)
-        return E_POINTER;
-
-    if (me->ticP->thread != Tcl_GetCurrentThread())
-        Tcl_Panic("Twapi_EventSink_Invoke called from non-interpreter thread");
-
-    interp = me->ticP->interp;
-    if (Tcl_InterpDeleted(interp))
-        return E_POINTER;
-
-    if (ObjGetElements(NULL, me->cmd, &cmdobjc, &cmdprefixv) != TCL_OK) {
-        /* Internal error - should not happen. Should we log background error?*/
-        return E_FAIL;
-    }
-
-    /* Note we  will tack on 3 additional fixed arguments plus dispparms */
-    /* TBD - where is this freed ? */
-    cmdobjv = MemLifoPushFrame(me->ticP->memlifoP, (cmdobjc+4) * sizeof(*cmdobjv), NULL);
-    
-    for (i = 0; i < cmdobjc; ++i) {
-        cmdobjv[i] = cmdprefixv[i];
-    }
-
-    cmdobjv[cmdobjc] = ObjFromLong(dispid);
-    cmdobjv[cmdobjc+1] = ObjFromLong(lcid);
-    cmdobjv[cmdobjc+2] = ObjFromInt(flags);
-    cmdobjc += 3;
-
-    /* Add the passed parameters */
-    cmdobjv[cmdobjc] = ObjNewList(0, NULL);
-    if (dispparamsP) {
-        /* Note parameters are in reverse order */
-        for (i = dispparamsP->cArgs - 1; i >= 0 ; --i) {
-            ObjAppendElement(
-                NULL,
-                cmdobjv[cmdobjc],
-                ObjFromVARIANT(&dispparamsP->rgvarg[i], 0)
-                );
-        }
-    }
-    ++cmdobjc;
-                 
-    for (i = 0; i < cmdobjc; ++i) {
-        ObjIncrRefs(cmdobjv[i]); /* Protect while we are using it.
-                                         Required by Tcl_EvalObjv */
-    }
-
-    /*
-     * Before eval'ing, addref ourselves so we don't get deleted in a
-     * recursive callback
-     */
-    this->lpVtbl->AddRef(this);
-
-    /* TBD - is this safe as we are being called from the message dispatch
-       loop? Or should we queue to pending callback queue ? But in that
-       case we cannot get results back as we can't block in this thread
-       as the script invocation will also be in this thread. Also, is
-       the Tcl_SaveInterpState/RestoreInterpState really necessary ?
-       Note tclWinDde also evals in this fashion.
-    */
-    /* If hr is not TCL_OK, it is a HRESULT error code */
-    savedState = Tcl_SaveInterpState(interp, TCL_OK);
-    Tcl_ResetResult (interp);
-    hr = Tcl_EvalObjv(interp, cmdobjc, cmdobjv, TCL_EVAL_GLOBAL);
-    if (hr != TCL_OK) {
-        Tcl_BackgroundError(interp);
-        if (excepP) {
-            TwapiZeroMemory(excepP, sizeof(*excepP));
-            excepP->scode = hr;
-        }
-    } else {
-        /* TBD - appropriately init retvarP from ObjGetResult keeping
-         * in mind that the retvarP by be BYREF as well.
-         */
-        if (retvarP)
-            VariantInit(retvarP);
-        hr = S_OK;
-    }
-    Tcl_RestoreInterpState(interp, savedState);
-
-    /* Free the objects we allocated */
-    for (i = 0; i < cmdobjc; ++i) {
-        ObjDecrRefs(cmdobjv[i]);
-    }
-
-    MemLifoPopFrame(me->ticP->memlifoP);
-
-    /* Undo the AddRef we did before */
-    this->lpVtbl->Release(this);
-    /* this/me may be invalid at this point! Make sure we don't access them */
-
-    return hr;
-}
-
-/*
- * Called from a script create a event sink. Returns the IDispatch interface
- * that can be used as an event sink.
- * 
- */
-int Twapi_ComEventSinkObjCmd(
-    TwapiInterpContext *ticP,
-    Tcl_Interp *interp,
-    int objc,
-    Tcl_Obj *CONST objv[])
-{
-    Twapi_EventSink *sinkP;
-    IID iid;
-    HRESULT hr;
-
-    TWAPI_ASSERT(ticP->interp == interp);
-
-    if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "IID CMD");
-        return TCL_ERROR;
-    }
-    
-    hr = IIDFromString(ObjToUnicode(objv[1]), &iid);
-    if (FAILED(hr)) {
-        Twapi_AppendSystemError(interp, hr);
-        return TCL_ERROR;
-    }
-
-    /* This is the sink object. Memory is freed when the object is released */
-    sinkP = TwapiAlloc(sizeof(*sinkP));
-
-    /* Fill in the cmdargs slots from the arguments */
-    sinkP->idispP.lpVtbl = &Twapi_EventSink_Vtbl;
-    sinkP->iid = iid;
-    TwapiInterpContextRef(ticP, 1);
-    sinkP->ticP = ticP;
-    sinkP->refc = 1;
-    ObjIncrRefs(objv[2]);
-    sinkP->cmd = objv[2];
-
-    ObjSetResult(interp, ObjFromIUnknown(sinkP));
-
-    return TCL_OK;
-}
 
 int Twapi_IDispatch_InvokeObjCmd(
     TwapiInterpContext *ticP,
@@ -2871,8 +2558,8 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
                          Twapi_CallCOMTicObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::IDispatch_Invoke",
                          Twapi_IDispatch_InvokeObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::ComEventSink",
-                         Twapi_ComEventSinkObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::Twapi_ComServer",
+                         Twapi_ComServerObjCmd, ticP, NULL);
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(ComDispatch), ComDispatch, Twapi_CallCOMObjCmd);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(ComAliasDispatch), ComAliasDispatch, "twapi::ComTicCall");
