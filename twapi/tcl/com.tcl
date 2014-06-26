@@ -3246,6 +3246,7 @@ twapi::class create ::twapi::Automation {
             # Finally, create our sink object
             # TBD - need to make sure Automation object is not deleted or
             # should the callback itself check?
+            # TBD - what guid should we be passing? CLSID or IID ?
             set sink_ifc [::twapi::Twapi_ComServer $srcinfo(-guid) $srcinfo(-memidmap) [list ::twapi::_eventsink_callback [self] $script]]
 
             # OK, we finally have everything we need. Tell the event source
@@ -3352,123 +3353,183 @@ proc twapi::_comobj_cleanup {} {
 # WARNING: do not use any fancy TclOO features because it has to
 # run under 8.5/metoo as well
 
-twapi::class create twapi::ComServer {
-    constructor {progid clsid version}  {
-        my variable _meta
+twapi::class create twapi::ComFactory {
+    constructor {clsid member_map create_command_prefix} {
+        my variable _clsid _create_command_prefix _member_map _ifc
 
-        if {(! [string is integer -strict $version]) || $version <= 0} {
-            twapi::badargs! "Value specified for -version must be a positive integer"
-        }
-        if {![regexp {^[[:alpha:]][.[:alnum:]]*$} $progid]} {
-            twapi::badargs! "Invalid PROGID syntax"
-        }
-        set _meta(progid) $progid
-        set _meta(clsid)  [twapi::canonicalize_guid $clsid]
-        set _meta(version) $version
+        set _clsid $clsid
+        set _member_map $member_map
+        set _create_command_prefix $create_command_prefix
+
+        set _ifc [twapi::Twapi_ClassFactory $_clsid [list [self] create_instance]]
     }
 
-    method -register {args} {
-        my variable _meta
-        
-        array set opts [twapi::parseargs args {
-            {scope.arg user {user system}}
-            service.arg
-            script.arg
-        } -maxleftover 0]
+    destructor {
+        # App MUST explicitly destroy objects before exiting
+        my variable _class_registation_id
+        if {[info exists _class_registation_id]} {
+            CoRevokeClassObject $_class_registation_id
+        }
+    }
 
-        switch -exact -- $opts(scope) {
-            user {
+    # Called from Twapi_ClassFactory_CreateInstance to create a new object
+    method create_instance {iid} {
+        my variable _create_command_prefix _member_map
+        set obj_prefix [{*}$_create_command_prefix]
+        twapi::trap {
+            # Since we are not holding on to this interface ourselves,
+            # we can pass it on without AddRef'ing it
+            return [twapi::Twapi_ComServer $iid $_member_map $obj_prefix]
+        } onerror {} {
+            $obj_prefix destroy
+            twapi::rethrow
+        }
+    }
+
+    method register {} {
+        my variable _clsid _create_command_prefix _member_map _ifc _class_registration_id
+        # 0x4 -> CLSCTX_LOCAL_SERVER
+        # 0x6 -> REGCLS_MULTI_SEPARATE | REGCLS_SUSPENDED
+        set _class_registration_id [twapi::CoRegisterClassObject $_clsid $_ifc 0x4 0x6]
+        return
+    }
+    
+}
+
+proc twapi::comserver_factory {clsid member_map command_prefix {name {}}} {
+    if {$name ne ""} {
+        uplevel 1 [list [namespace current]::ComFactory create $name $clsid $member_map $command_prefix]
+    } else {
+        uplevel 1 [list [namespace current]::ComFactory new $clsid $member_map $command_prefix]
+    }
+}
+
+proc twapi::run_comservers {} {
+    # TBD - what if no class objects ?
+    CoResumeClassObjects
+
+    # This is set from the C code when we are not serving up any
+    # COM objects (either event callbacks or com servers)
+    vwait [namespace current]::com_shutdown_signal
+}
+
+proc twapi::suspend_comservers {} {
+    CoSuspendClassObjects
+}
+
+proc twapi::install_comserver {progid clsid version args} {
+    array set opts [twapi::parseargs args {
+        {scope.arg user {user system}}
+        service.arg
+        script.arg
+    } -maxleftover 0]
+
+    if {(! [string is integer -strict $version]) || $version <= 0} {
+        twapi::badargs! "Invalid version '$version'. Must be a positive integer"
+    }
+    if {![regexp {^[[:alpha:]][.[:alnum:]]*$} $progid]} {
+        twapi::badargs! "Invalid PROGID syntax '$progid'"
+    }
+    set clsid [twapi::canonicalize_guid $clsid]
+
+    switch -exact -- $opts(scope) {
+        user {
+            if {![info exists opts(script)]} {
+                twapi::badargs! "Option -script must be specified if -scope is \"user\""
+            }
+            set regpath HKEY_CURRENT_USER
+            set exepath_valuename LocalServer32
+            set exepath_value "[file nativename  [file attributes [file normalize [info nameofexecutable]] -shortname]] [file nativename [file attributes [file normalize $opts(script)] -shortname]]"
+        }
+        system {
+            set regpath HKEY_LOCAL_MACHINE
+            if {[info exists opts(service)]} {
+                twapi::badargs! "Option -script and -service cannot be specified together."
+                set exepath_valuename LocalService
+                set exepath_value $opts(service)
+            } else {
                 if {![info exists opts(script)]} {
-                    twapi::badargs! "Option -script must be specified if -scope is \"user\""
+                    twapi::badargs! "One of  -script or -service must be specified."
                 }
-                set regpath HKEY_CURRENT_USER
                 set exepath_valuename LocalServer32
                 set exepath_value "[file nativename  [file attributes [file normalize [info nameofexecutable]] -shortname]] [file nativename [file attributes [file normalize $opts(script)] -shortname]]"
             }
-            system {
-                set regpath HKEY_LOCAL_MACHINE
-                if {[info exists opts(service)]} {
-                    twapi::badargs! "Option -script and -service cannot be specified together."
-                    set exepath_valuename LocalService
-                    set exepath_value $opts(service)
-                } else {
-                    if {![info exists opts(script)]} {
-                        twapi::badargs! "One of  -script or -service must be specified."
-                    }
-                    set exepath_valuename LocalServer32
-                    set exepath_value "[file nativename  [file attributes [file normalize [info nameofexecutable]] -shortname]] [file nativename [file attributes [file normalize $opts(script)] -shortname]]"
-                }
-            }
-            default {
-                twapi::badargs! "Invalid class registration scope '$opts(scope)'. Must be 'user' or 'system'"
-            }
         }
-
-        set progid_path "$regpath\\Software\\Classes\\$_meta(progid)"
-
-        # Set the registry under the progid and progid.version
-        registry set "$progid_path\\CLSID" "" $_meta(clsid)
-        registry set "$progid_path\\CurVer" "" "$_meta(progid).$_meta(version)"
-        if {[info exists opts(Name)]} {
-            registry set "$progid_path" "" $opts(name)
+        default {
+            twapi::badargs! "Invalid class registration scope '$opts(scope)'. Must be 'user' or 'system'"
         }
-
-        append progid_path ".$_meta(version)"
-        registry set "$progid_path\\CLSID" "" $_meta(clsid)
-        if {[info exists opts(Name)]} {
-            registry set "$progid_path" "" $opts(name)
-        }
-        
-        # Set the registry under the clsid
-        set clsid_path "$regpath\\Software\\Classes\\CLSID\\$_meta(clsid)"
-        registry set "$clsid_path\\ProgID" "" "$_meta(progid).$opts(version)"
-        registry set "$clsid_path\\VersionIndependentProgID" "" "$_meta(progid)"
-        registry set "$clsid_path\\$exepath_valuename" "" $exepath_value
-
-        return
     }
 
-    method -unregister {} {
-        my variable _meta
-        
-        # We will unregister this version and the version independent
-        # progid if it matches this version
+    set progid_path "$regpath\\Software\\Classes\\$progid"
 
-        array set opts [twapi::parseargs args {
-            {scope.arg user {user system}}
-        } -maxleftover 0]
-
-        switch -exact -- $opts(scope) {
-            user { set regpath HKEY_CURRENT_USER }
-            system { set regpath HKEY_LOCAL_MACHINE }
-            default {
-                twapi::badargs! "Invalid class registration scope '$opts(scope)'. Must be 'user' or 'system'"
-            }
-        }
-
-        # Do not want to delete the whole Classes in case _meta(progid)
-        # is empty string because of some bug!
-        if {$_meta(clsid) eq ""} {
-            error "CLSID is empty"
-        }
-        if {$_meta(progid) eq ""} {
-            error "ProgID is empty"
-        }
-        set clsid_path "$regpath\\Software\\Classes\\CLSID\\$_meta(clsid)"
-        set progid_path "$regpath\\Software\\Classes\\$_meta(progid)"
-        set version_path "$regpath\\Software\\Classes\\$_meta(progid).$_meta(version)"
-        if {![catch {registry get "$progid_path\\CurVer" ""} curver]} {
-            if {$curver eq "$_meta(progid).$_meta(version)"} {
-                registry delete $progid_path
-            }
-        }
-
-        registry delete $clsid_path
-        registry delete $version_path
-
-        return
+    # Set the registry under the progid and progid.version
+    registry set "$progid_path\\CLSID" "" $clsid
+    registry set "$progid_path\\CurVer" "" "$progid.$version"
+    if {[info exists opts(Name)]} {
+        registry set "$progid_path" "" $opts(name)
     }
 
-    twapi_exportall
+    append progid_path ".$version"
+    registry set "$progid_path\\CLSID" "" $clsid
+    if {[info exists opts(Name)]} {
+        registry set "$progid_path" "" $opts(name)
+    }
+    
+    # Set the registry under the clsid
+    set clsid_path "$regpath\\Software\\Classes\\CLSID\\$clsid"
+    registry set "$clsid_path\\ProgID" "" "$progid.$version"
+    registry set "$clsid_path\\VersionIndependentProgID" "" "$progid"
+    registry set "$clsid_path\\$exepath_valuename" "" $exepath_value
+
+    return
 }
+
+proc twapi::uninstall_comserver {progid} {
+    
+    if {$progid eq ""} {
+        badargs! "Invalid empty ProgID"
+    }
+
+    set clsid [progid_to_clsid $progid]; # Also protects against bogus progids
+
+    # Do NOT want to delete the CLSID key by mistake. Note above
+    # call will return a valid value if progid is "CLSID" so does not
+    # serve as a guard against that
+    if {[string equal -nocase $progid CLSID]} {
+        badargs! "Attempt to delete protected key 'CLSID'"
+    }
+
+    # Should not be emtpy at this point but do not want to delete the 
+    # whole Classes tree in case progid or clsid are empty strings
+    # because of some bug! That would be an epic disaster so try and
+    # protect.
+    if {$clsid eq ""} {
+        badargs! "CLSID corresponding to PROGID '$progid' is empty"
+    }
+    
+    array set opts [twapi::parseargs args {
+        {scope.arg user {user system}}
+    } -maxleftover 0]
+
+    switch -exact -- $opts(scope) {
+        user { set regpath HKEY_CURRENT_USER }
+        system { set regpath HKEY_LOCAL_MACHINE }
+        default {
+            badargs! "Invalid class registration scope '$opts(scope)'. Must be 'user' or 'system'"
+        }
+    }
+
+    # One final check before we blow stuff away. Earlier checks should have
+    # already caught this but yet another safeguard
+    if {[catch {registry get "$regpath\\Software\\Classes\\$progid\\CLSID" ""} clsid2] || ! [IsEqualCLSID $clsid2 $clsid]} {
+        badargs! "ProgID $progid does not exist or does not match expected CLSID"
+    }
+
+    # Finally delete the keys and hope we have not trashed the system
+    registry delete "$regpath\\Software\\Classes\\CLSID\\$clsid"
+    registry delete "$regpath\\Software\\Classes\\$progid"
+
+    return
+}
+
 

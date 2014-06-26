@@ -1196,7 +1196,7 @@ void TwapiFreePIDL(LPITEMIDLIST idlistP)
     }
 }
 
-Tcl_Obj *ObjFromGUID(GUID *guidP)
+Tcl_Obj *ObjFromGUID(const GUID *guidP)
 {
     wchar_t  str[40];
     Tcl_Obj *obj;
