@@ -369,7 +369,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_ComServer_Invoke(
                     goto vamoose;
                 }
             }
-            cmdobjv[cmdobjc] = ObjFromVARIANT(&dispparamsP->rgvarg[i], 0);
+            cmdobjv[cmdobjc] = ObjFromVARIANT(&dispparamsP->rgvarg[i], 1);
             ObjIncrRefs(cmdobjv[cmdobjc]);
             ++cmdobjc;
         }

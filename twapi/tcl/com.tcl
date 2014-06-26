@@ -697,13 +697,19 @@ proc twapi::_eventsink_callback {comobj script callee args} {
     }
 
     set retcode [catch {
-        set converted_params [list ]
-        foreach param $args {
-            # Note we do NOT ask variant_value to do AddRef.
-            # Called script has to do that if holding on to them.
-            lappend converted_params [variant_value $param true]
+        if {1} {
+            # Now, unlike before, we invoked with cooked values so
+            # no need to call variant_value
+            uplevel \#0 $script [list $callee] $args
+        } else {
+            set converted_params [list ]
+            foreach param $args {
+                # Note we do NOT ask variant_value to do AddRef.
+                # Called script has to do that if holding on to them.
+                lappend converted_params [variant_value $param true]
+            }
+            uplevel \#0 $script [list $callee] $converted_params
         }
-        set result [uplevel \#0 $script [list $callee] $converted_params]
     } result]
 
     if {$::twapi::log_config(twapi_com) && $retcode} {
