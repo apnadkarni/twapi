@@ -448,6 +448,7 @@ static void Twapi_Cleanup(ClientData clientdata)
 {
     /* TBD - do we need to protect against more than one call ? */
 
+
     // Commented out CoUninitialize for the time being.
     // If there are event sinks in use, and the application exits
     // when the main window is closed, then Twapi_Cleanup gets
@@ -461,6 +462,13 @@ static void Twapi_Cleanup(ClientData clientdata)
     // we do not call this.
     // Note that Tk destroy binding runs as thread finalization
     // which happens AFTER process finalization (where we get called)
+
+    /* TBD - may be call Tcl_CreateThreadExitHandler in Twapi_Init to
+       CoUninitialize on thread exit since thread exit handlers are
+       called AFTER process exit handlers. See which other calls 
+       from below should go there.
+    */
+
 #if 0
     CoUninitialize();
 #endif

@@ -502,6 +502,7 @@ int Twapi_IDispatch_InvokeObjCmd(
         status = TCL_OK;
     } else {
         /* Failure, fill in exception and return error */
+        /* TBD - perhaps we should fill in the error opts dictionary instead of the errorCode? */
         Tcl_ResetResult(interp); /* Clear out any left-over from arg checking */
         if (hr == DISP_E_EXCEPTION) {
             Tcl_Obj *errorcode_extra[12]; /* Extra argument for error code */
@@ -1386,6 +1387,40 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
     return TCL_OK;
 }
 
+
+/* Dispatcher for calling COM functions with no args */
+int Twapi_CallCOMNoArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    HRESULT hr;
+    TwapiResult result;
+    int func = PtrToInt(clientdata);
+
+    if (objc != 1)
+        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+
+    hr = S_OK;
+    result.type = TRT_BADFUNCTIONCODE;
+
+    switch (func) {
+    case 1: // CoSuspendClassObjects
+        result.type = TRT_EMPTY;
+        hr = CoSuspendClassObjects();
+        break;
+    case 2: // CoResumeClassObjects
+        result.type = TRT_EMPTY;
+        hr = CoResumeClassObjects();
+        break;
+    }
+    
+    if (FAILED(hr)) {
+        result.type = TRT_EXCEPTION_ON_ERROR;
+        result.value.ival = hr;
+    }
+
+    /* Note when hr == 0, result.type can be BADFUNCTION code! */
+    return TwapiSetResult(interp, &result);
+
+}
 
 /* Dispatcher for calling COM object methods */
 int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
@@ -2290,10 +2325,26 @@ int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
                 result.value.objv.objPP = objs;
             }
             break;
+        case 10014: // CoRegisterClassObject
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETGUID(guid), GETVOIDP(pv),
+                             GETINT(dw1), GETINT(dw2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_DWORD;
+            hr = CoRegisterClassObject(&guid, pv, dw1, dw2, &result.value.ival);
+            break;
+        case 10015: // CoRevokeClassObject
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETINT(dw1), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EMPTY;
+            hr = CoRevokeClassObject(dw1);
+            break;
         }
     }
 
-    if (hr != S_OK) {
+    if (FAILED(hr)) {
         result.type = TRT_EXCEPTION_ON_ERROR;
         result.value.ival = hr;
     }
@@ -2319,7 +2370,7 @@ ret_error:
 }
 
 
-/* Dispatcher for calling COM object methods that require a TwapiInterpContext */
+/* Dispatcher for calling COM methods that require a TwapiInterpContext */
 int Twapi_CallCOMTicObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     void *ifc;
@@ -2401,6 +2452,7 @@ int Twapi_CallCOMTicObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int obj
             goto badargs;
         CHECK_INTEGER_OBJ(interp, dw1, objv[3]);
         return TwapiIEnumNextHelper(ticP, ifc, dw1, 0, 0);
+
     }
 
     if (hr != S_OK) {
@@ -2419,9 +2471,6 @@ null_interface_error:
     return TCL_ERROR;
 }
 
-
-
-
 #if 0
 // TBD Only on Win2k3
 EXCEPTION_ON_ERROR RegisterTypeLibForUser(
@@ -2436,12 +2485,14 @@ EXCEPTION_ON_ERROR UnRegisterTypeLibForUser(
     int  syskind);
 #endif
 
-
-
-
 static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     /* TBD - break apart commands that do not require a ticP */
+
+    static struct fncode_dispatch_s ComNoArgsDispatch[] = {
+        DEFINE_FNCODE_CMD(CoSuspendClassObjects, 1),
+        DEFINE_FNCODE_CMD(CoResumeClassObjects, 2),
+    };
 
     static struct fncode_dispatch_s ComDispatch[] = {
         DEFINE_FNCODE_CMD(IUnknown_Release, 1),
@@ -2544,6 +2595,8 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CLSIDFromProgID, 10011),
         DEFINE_FNCODE_CMD(Twapi_CoCreateInstance, 10012),
         DEFINE_FNCODE_CMD(MkParseDisplayName, 10013),
+        DEFINE_FNCODE_CMD(CoRegisterClassObject, 10014),
+        DEFINE_FNCODE_CMD(CoRevokeClassObject, 10015),
     };
 
     static struct alias_dispatch_s ComAliasDispatch[] = {
@@ -2560,7 +2613,10 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
                          Twapi_IDispatch_InvokeObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::Twapi_ComServer",
                          Twapi_ComServerObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::Twapi_ClassFactory",
+                         Twapi_ClassFactoryObjCmd, ticP, NULL);
 
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(ComNoArgsDispatch), ComNoArgsDispatch, Twapi_CallCOMNoArgsObjCmd);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(ComDispatch), ComDispatch, Twapi_CallCOMObjCmd);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(ComAliasDispatch), ComAliasDispatch, "twapi::ComTicCall");
 

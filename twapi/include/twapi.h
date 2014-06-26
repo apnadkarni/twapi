@@ -1471,7 +1471,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromPOINT(POINT *ptP);
 TWAPI_EXTERN int ObjToPOINT (Tcl_Interp *interp, Tcl_Obj *obj, POINT *ptP);
 
 /* GUIDs and UUIDs */
-TWAPI_EXTERN Tcl_Obj *ObjFromGUID(GUID *guidP);
+TWAPI_EXTERN Tcl_Obj *ObjFromGUID(const GUID *guidP);
 TWAPI_EXTERN int ObjToGUID(Tcl_Interp *interp, Tcl_Obj *objP, GUID *guidP);
 TWAPI_EXTERN int ObjToGUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, GUID **guidPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromUUID (UUID *uuidP);
