@@ -3427,7 +3427,7 @@ proc twapi::install_comserver {progid clsid version args} {
     array set opts [twapi::parseargs args {
         {scope.arg user {user system}}
         service.arg
-        script.arg
+        command.arg
     } -maxleftover 0]
 
     if {(! [string is integer -strict $version]) || $version <= 0} {
@@ -3440,25 +3440,27 @@ proc twapi::install_comserver {progid clsid version args} {
 
     switch -exact -- $opts(scope) {
         user {
-            if {![info exists opts(script)]} {
-                twapi::badargs! "Option -script must be specified if -scope is \"user\""
+            if {![info exists opts(command)]} {
+                twapi::badargs! "Option -command must be specified if -scope is \"user\""
             }
             set regpath HKEY_CURRENT_USER
             set exepath_valuename LocalServer32
-            set exepath_value "[file nativename  [file attributes [file normalize [info nameofexecutable]] -shortname]] [file nativename [file attributes [file normalize $opts(script)] -shortname]]"
+            set exepath_value $opts(command)
         }
         system {
             set regpath HKEY_LOCAL_MACHINE
             if {[info exists opts(service)]} {
-                twapi::badargs! "Option -script and -service cannot be specified together."
+                if {[info exists opts(command)]} {
+                    twapi::badargs! "Options -command and -service cannot be specified together."
+                }
                 set exepath_valuename LocalService
                 set exepath_value $opts(service)
             } else {
-                if {![info exists opts(script)]} {
-                    twapi::badargs! "One of  -script or -service must be specified."
+                if {![info exists opts(command)]} {
+                    twapi::badargs! "One of -command or -service must be specified."
                 }
                 set exepath_valuename LocalServer32
-                set exepath_value "[file nativename  [file attributes [file normalize [info nameofexecutable]] -shortname]] [file nativename [file attributes [file normalize $opts(script)] -shortname]]"
+                set exepath_value $opts(command)
             }
         }
         default {
