@@ -11,6 +11,11 @@ Windows includes a facility, Event Tracing for Windows (ETW), that allows
 the kernel and applications to log events that can either be written to
 a file or consumed in real time. This module provides access to this facility.
 
+This documentation is reference material for commands related to ETW.
+For more introductory material
+and a guide with examples, see the [emph "Event Tracing"] chapter in the
+[uri http://www.magicsplat.com/book "Tcl on Windows"] online book.
+
 [section "Overview"]
 
 [para]

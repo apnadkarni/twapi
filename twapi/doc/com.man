@@ -1,25 +1,27 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "COM" n ""]
 [copyright "2006-2014 Ashok P. Nadkarni"]
-[moddesc "COM client support"]
-[titledesc "Commands for accessing COM servers"]
+[moddesc "Component Object Model"]
+[titledesc "Commands for COM servers and clients"]
 [require twapi_com]
 [description]
 
-[para]
-This module provides commands for supporting COM clients.
-TWAPI's COM support is limited to client side calls only and does not
-provide facilities for writing COM components. Like other scripting
-languages like VBScript and Javascript, TWAPI's COM support is focused
+This module provides commands for implementing COM clients and servers
+in Tcl. Like other scripting
+languages such as VBScript and Javascript, TWAPI's COM support is focused
 on Automation objects through their [cmd IDispatch] and
-[cmd IDispatchEx] interfaces. This provides the ability to script
+[cmd IDispatchEx] interfaces. This provides Tcl clients the ability to script
 Windows applications such as Microsoft Office and Internet Explorer
 as well as admistrative interfaces such as Active Directory and 
 Windows Management Instrumentation.
+Similarly, the COM server support enables writing COM components in Tcl
+that can be accessed by any COM client that can access COM automation.
 [para]
-This documentation assumes some familiarity with COM programming
-concepts such as COM interfaces, COM automation, 
-PROGID and CLSID identifier types etc.
+This documentation is reference material that assumes familiarity with
+COM programming concepts such as COM interfaces, automation, PROGID
+and CLSID identifier types and so on. For more introductory material
+and a guide with examples, see the COM chapter in the
+[uri http://www.magicsplat.com/book "Tcl on Windows"] online book.
 
 [section "COM API layers"]
 
