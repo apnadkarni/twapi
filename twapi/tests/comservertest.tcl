@@ -10,9 +10,24 @@ if {[file exists [file join $dist_dir pkgIndex.tcl]]} {
 }
 package require twapi
 
+proc find_wish {} {
+    if {[info commands wm] eq ""} {
+        set dir [file dirname [info nameofexecutable]]
+        set wishes [glob -directory $dir wish*.exe]
+        if {[llength $wishes] != 1} {
+            error "Multiple wish wishes found"
+        }
+        set wish [file normalize [lindex $wishes 0]]
+    } else {
+        # We are running wish already
+        set wish [info nameofexecutable]
+    }
+
+    return [file nativename [file attributes $wish -shortname]]
+}
 
 proc install {} {
-    twapi::install_comserver $::comserver(progid) $::comserver(clsid) 1 -script $::comserver(script)
+    twapi::install_comserver $::comserver(progid) $::comserver(clsid) 1 -command "[find_wish] [file attributes $::comserver(script) -shortname]"
 }
 
 proc uninstall {} {
@@ -53,4 +68,7 @@ proc run {} {
     factory destroy
 }
 
+catch {wm withdraw .}
 run
+# Since we might be in Wish, explicitly exit
+exit
