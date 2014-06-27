@@ -11,6 +11,11 @@ This module provides procedures for managing and controlling
 Windows services and also allows for writing Windows services
 in Tcl.
 
+This documentation is reference material for commands related to
+Windows services. For more introductory material
+and a guide with examples, see the [emph "Windows Services"] chapter in the
+[uri http://www.magicsplat.com/book "Tcl on Windows"] online book.
+
 [section "Service Configuration and Monitoring"]
 
 [para]

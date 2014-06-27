@@ -1,6 +1,6 @@
 array set comserver {
     clsid {{332B8252-2249-4B34-BAD3-81259F2A2842}}
-    progid TwapiComserver.Test
+    progid TwapiComServer.Test
 }
 set comserver(script) [file normalize [info script]]
 

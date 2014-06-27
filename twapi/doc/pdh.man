@@ -10,6 +10,12 @@
 This package provides procedures related to retrieving Windows
 performance counters.
 
+This documentation is reference material for related commands.
+For more introductory material
+and a guide with examples, see the [emph "Performance Counters"]
+chapter in the
+[uri http://www.magicsplat.com/book "Tcl on Windows"] online book.
+
 [section "Performance Objects"]
 To get a list of performance objects on a system, call
 [uri #pdh_enumerate_objects [cmd pdh_enumerate_objects]].
