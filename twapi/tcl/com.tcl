@@ -3490,7 +3490,7 @@ proc twapi::install_comserver {progid clsid version args} {
     return
 }
 
-proc twapi::uninstall_comserver {progid} {
+proc twapi::uninstall_comserver {progid args} {
     
     if {$progid eq ""} {
         badargs! "Invalid empty ProgID"
@@ -3527,8 +3527,17 @@ proc twapi::uninstall_comserver {progid} {
 
     # One final check before we blow stuff away. Earlier checks should have
     # already caught this but yet another safeguard
-    if {[catch {registry get "$regpath\\Software\\Classes\\$progid\\CLSID" ""} clsid2] || ! [IsEqualCLSID $clsid2 $clsid]} {
+    if {[catch {registry get "$regpath\\Software\\Classes\\$progid\\CLSID" ""} clsid2] || ! [IsEqualGUID $clsid2 $clsid]} {
         badargs! "ProgID $progid does not exist or does not match expected CLSID"
+    }
+
+    # See if we need to delete the linked current version
+    if {! [catch {
+        registry get "$regpath\\Software\\Classes\\$progid\\CurVer" ""
+    } curver]} {
+        if {[string match -nocase ${progid}.* $curver]} {
+            registry delete "$regpath\\Software\\Classes\\$curver"
+        }
     }
 
     # Finally delete the keys and hope we have not trashed the system
