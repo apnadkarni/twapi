@@ -56,13 +56,22 @@ proc run {} {
             error "Unknown command. Must be one of /regserver, /unregserver or /embedding"
         }
     }
-    twapi::class create TestComserver {
-        method Sum args {
-            return [tcl::mathop::+ {*}$args]
+    twapi::class create TestComServer {
+        constructor {} {
+            my variable _interp
+            set _interp [interp create -safe]
         }
-        export Sum
+        method Eval script {
+            my variable _interp
+            return [$_interp eval $script]
+        }
+        method EvalArgs args {
+            my variable _interp
+            return [$_interp eval $args]
+        }
+        export Eval EvalArgs
     }
-    twapi::comserver_factory $::comserver(clsid) {0 Sum} {TestComserver new} factory
+    twapi::comserver_factory $::comserver(clsid) {0 Eval 1 EvalArgs} {TestComServer new} factory
     factory register
     twapi::run_comservers
     factory destroy
