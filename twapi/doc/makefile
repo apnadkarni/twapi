@@ -37,6 +37,7 @@ MANFILES= \
 	base.man \
 	ui.man \
 	com.man \
+	comserver.man \
 	shell.man \
 	input.man \
 	multimedia.man \
