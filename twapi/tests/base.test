@@ -886,6 +886,15 @@ namespace eval twapi::base::test {
 
     ################################################################
 
+    test new_guid-1.0 {
+        Generate a new guid
+    } -body {
+        twapi::new_guid
+    } -result {^\{[[:xdigit:]]{8}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{4}-[[:xdigit:]]{12}\}$} -match regexp
+
+
+    ################################################################
+
     test large_system_time_to_secs_since_1970-1.0 {
         Convert clock epoch base in large system time units to epoch seconds
     } -constraints {
