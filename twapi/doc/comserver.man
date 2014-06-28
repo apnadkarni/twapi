@@ -1,0 +1,170 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "COM servers" n ""]
+[copyright "2014 Ashok P. Nadkarni"]
+[moddesc "Component Object Model (server)"]
+[titledesc "Commands for COM servers"]
+[require twapi_com]
+[description]
+
+This module provides commands for implementing COM clients and servers
+in Tcl. For writing COM clients, see the [uri com.html "COM client"] module.
+
+TWAPI's COM server support enables writing COM components in Tcl
+that can be accessed by any COM client that can access COM automation
+components through the IDispatch interface.
+[para]
+This documentation is reference material that assumes familiarity with
+COM programming concepts such as COM interfaces, automation, PROGID
+and CLSID identifier types and so on. For more introductory material
+and a guide with examples, see the COM chapter in the
+[uri http://www.magicsplat.com/book "Tcl on Windows"] online book.
+
+[section "Overview"]
+
+COM components may be implemented as DLL's which run inside the client
+process, termed [emph in-process], or as separate processes, termed as
+[emph localserver] or [emph out-of-process]. TWAPI only supports the
+implementation of the latter type of component.
+
+Information about COM components is stored in the Windows registry
+including the DLL or executable in which it is implemented.
+When a client attempts to create a COM object that is implemented as
+an out-of-process component, the Windows Service Control Manager (SCM)
+looks up executable command line for the passed CLSID in the registry
+and starts up a new process if there is
+not one already running that can service the request. The new process
+registers [emph "class factories"] with the SCM for each type of
+component implemented by the process 
+(a single executable may house more than one component classes).
+The appropriate class factory is
+then invoked to create an object which is then returned to the client.
+
+Implementing a COM component thus involves:
+
+[list_begin bullet]
+[bullet]
+Writing the Tcl code that provides the functionality of the component(s)
+[bullet]
+Installing the component by registering its class with the Service
+Control Manager (SCM).
+[bullet]
+Registering the component class [emph "factory objects"] with the
+SCM when the process is started
+[bullet]
+Cleanly shutting down when so notified by the SCM.
+[list_end]
+
+Note that implementing a component using TWAPI does [emph not] require
+you to write an IDL file or generate a COM type library.
+
+[section "Implementing component functionality"]
+
+The core functionality can be implemented by any Tcl command, with
+optional prefix arguments, that takes some action or
+returns a result based on a method or property name and
+their parameters that are passed as additional arguments.
+Thus it may be implemented by a TclOO object,
+a namespace ensemble or even a simple proc with a switch statement.
+Thus the following class suffices as a COM object.
+[example_begin]
+oo::class create Calculator {
+    variable Interp
+    constructor {} {
+        set Interp [lb]interp create -safe[rb]
+    }
+    method add args {
+        return [lb]$Interp eval [lb]list ::tcl::mathop::+ {*}$args[rb][rb]
+    }
+    method multiply args {
+        return [lb]$Interp eval [lb]list ::tcl::mathop::* {*}$args[rb][rb]
+    }
+}
+[example_end]
+Note this class is oblivious to the fact that it is a COM object.
+
+
+
+[section Commands]
+
+[list_begin definitions]
+
+[call [cmd comserver_factory] [arg CLSID] [arg MEMBER_MAP] [arg CREATE_COMMAND] [opt [arg FACTORYNAME]]]
+
+Creates a COM component factory that will be used by COM clients to 
+create objects of the COM class identified by [arg CLSID]. [arg MEMBER_MAP]
+is a dictionary mapping integer DISPID values to the method and property
+names for the class. [arg CREATE_COMMAND] is a command prefix that is to
+be invoked in the global namespace
+to create new objects when requested by COM clients. Note these
+objects do not have to be TclOO objects but any command form that can
+be invoked by appending the appropriate method name from [arg MEMBER_MAP]
+and arguments passed by the client. For example, a suitably implemented
+namespace ensemble would do as well.
+[nl]
+The return value is a factory command object with two methods, neither
+of which take arguments. The [cmd register] method should be used to register
+the factory with the system's Service Control Manager (SCM) so that it can
+invoked to create new objects on a client's request. The registration
+is only activated after the application calls
+[uri #run_comservers [cmd run_comservers]].
+The other method
+is [cmd destroy] which should be called when the factory is to be unregistered 
+with the SCM. This [emph must] be called before the application exits.
+[nl]
+Other methods of the command object are intended for internal use and 
+should not be directly invoked.
+
+[call [cmd install_comserver] [arg PROGID] [arg CLSID] [arg VERSION] [opt [arg options]]]
+Installs the specified component on a system so it can be invoked by 
+COM clients. The following options may be specified with the command:
+[list_begin opt]
+[opt_def [cmd -command] [arg COMMANDLINE]]
+Specifies 
+that the SCM should start a process to handle client requests for the
+component. [arg COMMANDLINE] should be the program and
+associated parameters for the process to be started.
+This option is mutually exclusive with the [cmd -service] option.
+[opt_def [cmd -scope] [arg SCOPE]]
+If [arg SCOPE] is [const user] (default), the component is installed
+only for the current user. If [arg SCOPE] is [const system] it is
+installed for the entire system.
+[opt_def [cmd -service] [arg SERVICENAME]]
+Installs the component as a service. When a client attempts to access
+the component, the SCM will start the service [arg SERVICENAME]. Note
+that the service itself must have been 
+[uri services.man#create_service installed] previously. This option
+is mutually exclusive with [cmd -command].
+[list_end]
+
+[call [cmd resume_factories]]
+Activates all COM factories in the process so that they can respond to
+client requests.
+
+[call [cmd start_factories] [opt [arg CMDPREFIX]]]
+
+Activates all COM factories in the process so that they can respond to
+client requests. If no arguments are specified, the command will not
+return as long as there are COM servers active. It will run the Tcl
+event loop servicing requests until all clients have disconnected.
+If [arg CMDPREFIX] is specified, the command returns right away after
+activating the COM factories. In this case, the caller is responsible
+for running the event loop so that client requests can be processed.
+[arg CMDPREFIX] is a command prefix that
+will be called when all clients have disconnected and it is safe to
+exit.
+
+[call [cmd suspend_factories]]
+Temporarily suspends all COM factories in the process. They will
+not respond to requests for creating objects until 
+they are reactivated with [uri #resume_factories [cmd resume_factories]].
+
+[call [cmd uninstall_comserver] [arg PROGID] [opt "[cmd -scope] [arg SCOPE]"]]
+Uninstalls the specified component from the system. [arg SCOPE] may
+be [const user] (default) or [const system] as described in
+[uri #install_comserver [cmd install_comserver]].
+
+[list_end]
+
+[keywords COM]
+
+[manpage_end]

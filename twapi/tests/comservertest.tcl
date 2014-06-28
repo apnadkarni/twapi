@@ -73,11 +73,12 @@ proc run {} {
     }
     twapi::comserver_factory $::comserver(clsid) {0 Eval 1 EvalArgs} {TestComServer new} factory
     factory register
-    twapi::run_comservers
+    twapi::start_factories
     factory destroy
 }
 
 catch {wm withdraw .}
+console show
 run
 # Since we might be in Wish, explicitly exit
 exit

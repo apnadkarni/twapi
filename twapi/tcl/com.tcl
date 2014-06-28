@@ -3367,21 +3367,25 @@ twapi::class create twapi::ComFactory {
         set _member_map $member_map
         set _create_command_prefix $create_command_prefix
 
-        set _ifc [twapi::Twapi_ClassFactory $_clsid [list [self] create_instance]]
+        set _ifc [twapi::Twapi_ClassFactory $_clsid [list [self] _create_instance]]
     }
 
     destructor {
+        # TBD - what happens if factory is destroyed while objects still
+        # exist ?
         # App MUST explicitly destroy objects before exiting
-        my variable _class_registation_id
-        if {[info exists _class_registation_id]} {
-            CoRevokeClassObject $_class_registation_id
+        my variable _class_registration_id
+        if {[info exists _class_registration_id]} {
+            twapi::CoRevokeClassObject $_class_registration_id
         }
     }
 
     # Called from Twapi_ClassFactory_CreateInstance to create a new object
-    method create_instance {iid} {
+    # Should not be called from elsewhere
+    method _create_instance {iid} {
         my variable _create_command_prefix _member_map
-        set obj_prefix [{*}$_create_command_prefix]
+        # Note [list {*}$foo] != $foo - consider when foo contains a ";"
+        set obj_prefix [uplevel #0 [list {*}$_create_command_prefix]]
         twapi::trap {
             # Since we are not holding on to this interface ourselves,
             # we can pass it on without AddRef'ing it
@@ -3400,6 +3404,7 @@ twapi::class create twapi::ComFactory {
         return
     }
     
+    export _create_instance
 }
 
 proc twapi::comserver_factory {clsid member_map command_prefix {name {}}} {
@@ -3410,17 +3415,27 @@ proc twapi::comserver_factory {clsid member_map command_prefix {name {}}} {
     }
 }
 
-proc twapi::run_comservers {} {
+proc twapi::start_factories {{cmd {}}} {
     # TBD - what if no class objects ?
     CoResumeClassObjects
+
+    if {[llength $cmd]} {
+        # TBD - normalize $cmd so to run in right namespace etc.
+        trace add variable [namspace current]::com_shutdown_signal write $cmd
+        return
+    }
 
     # This is set from the C code when we are not serving up any
     # COM objects (either event callbacks or com servers)
     vwait [namespace current]::com_shutdown_signal
 }
 
-proc twapi::suspend_comservers {} {
+proc twapi::suspend_factories {} {
     CoSuspendClassObjects
+}
+
+proc twapi::resume_factories {} {
+    CoResumeClassObjects
 }
 
 proc twapi::install_comserver {progid clsid version args} {

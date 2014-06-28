@@ -1,21 +1,22 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "COM" n ""]
 [copyright "2006-2014 Ashok P. Nadkarni"]
-[moddesc "Component Object Model"]
-[titledesc "Commands for COM servers and clients"]
+[moddesc "Component Object Model (client)"]
+[titledesc "Commands for COM clients"]
 [require twapi_com]
 [description]
 
-This module provides commands for implementing COM clients and servers
-in Tcl. Like other scripting
+This module provides commands for implementing COM clients
+in Tcl. For implementing COM servers, see the
+[uri comserver.html "COM server"] module.
+
+Like other scripting
 languages such as VBScript and Javascript, TWAPI's COM support is focused
 on Automation objects through their [cmd IDispatch] and
 [cmd IDispatchEx] interfaces. This provides Tcl clients the ability to script
 Windows applications such as Microsoft Office and Internet Explorer
 as well as admistrative interfaces such as Active Directory and 
 Windows Management Instrumentation.
-Similarly, the COM server support enables writing COM components in Tcl
-that can be accessed by any COM client that can access COM automation.
 [para]
 This documentation is reference material that assumes familiarity with
 COM programming concepts such as COM interfaces, automation, PROGID
@@ -50,7 +51,7 @@ are both refered to as "object" unless the distinction is significant.
 
 [list_end]
 
-[section "Creation and Destruction of COM automation objects"]
+[section "Creation and Destruction of automation objects"]
 
 [para]
 A COM automation proxy object is created through the 
