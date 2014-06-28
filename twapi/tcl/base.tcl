@@ -938,6 +938,10 @@ proc twapi::nil_uuid {} {
     return [UuidCreateNil]
 }
 
+proc twapi::new_guid {} {
+    return [canonicalize_guid [new_uuid]]
+}
+
 # Get a handle to a LSA policy. TBD - document
 proc twapi::get_lsa_policy_handle {args} {
     array set opts [parseargs args {

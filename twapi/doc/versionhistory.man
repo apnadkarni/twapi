@@ -8,11 +8,17 @@
 Summarizes the list of changes for each version of TWAPI.
 
 [section "Version 4.1"]
-This is a minor release with bug fixes and minor enhancements.
+The major change in this release is support for writing COM servers in Tcl.
 
 [list_begin bullet]
+
+[bullet]
+Added the [uri comserver.html "COM server"] module.
 [bullet]
 Added the [uri com.html#outvar [cmd outvar]] command.
+[bullet]
+Added the [uri base.html#new_guid [cmd new_guid]] command.
+
 [list_end]
 
 [section "Version 4.0"]
