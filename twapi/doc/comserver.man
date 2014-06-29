@@ -26,6 +26,7 @@ process, termed [emph in-process], or as separate processes, termed as
 [emph localserver] or [emph out-of-process]. TWAPI only supports the
 implementation of the latter type of component.
 
+[para]
 Information about COM components is stored in the Windows registry
 including the DLL or executable in which it is implemented.
 When a client attempts to create a COM object that is implemented as
@@ -39,6 +40,7 @@ component implemented by the process
 The appropriate class factory is
 then invoked to create an object which is then returned to the client.
 
+[para]
 Implementing a COM component thus involves:
 
 [list_begin bullet]
@@ -65,24 +67,50 @@ returns a result based on a method or property name and
 their parameters that are passed as additional arguments.
 Thus it may be implemented by a TclOO object,
 a namespace ensemble or even a simple proc with a switch statement.
-Thus the following class suffices as a COM object.
-[example_begin]
-oo::class create Calculator {
-    variable Interp
-    constructor {} {
-        set Interp [lb]interp create -safe[rb]
-    }
-    method add args {
-        return [lb]$Interp eval [lb]list ::tcl::mathop::+ {*}$args[rb][rb]
-    }
-    method multiply args {
-        return [lb]$Interp eval [lb]list ::tcl::mathop::* {*}$args[rb][rb]
-    }
-}
-[example_end]
-Note this class is oblivious to the fact that it is a COM object.
 
+[section "Installing a COM class"]
+Installing a COM class involves creating the appropriate entries 
+in the Windows registry as documented in the Windows SDK. 
+Although these entries may be created by any means such as 
+through a [example .rgs] file, TWAPI provides the 
+[uri #install_comserver [cmd install_comserver]] command
+for the purpose. Once installed, the executable will be started by the
+SCM whenever a client creates an object of the class.
 
+[section "Registering a class factory"]
+
+When the executable containing a component begins execution, it must
+register [emph factories] for the classes it implements. These are
+invoked by the SCM to create objects belonging to a class.
+[para]
+The [uri #comserver_factory [cmd comserver_factory]] creates a new
+factory for a component class. This returns a Tcl command object.
+Registering the class factory with SCM is done by invoking the 
+[cmd register] method on this class.
+
+[section "Activating COM factories"]
+
+When a factory is registered, it is in suspended mode where it does
+not respond to requests for object creation. The command
+[uri #start_factories [cmd start_factories]] activates all
+factories in the process. They are then
+invoked whenever a client
+instantiates a new object. Method calls are passed on to the 
+class implementation and return values are passed back to the client.
+[para]
+For this to work, the application must be running the Tcl event loop
+as COM uses Windows messages to dispatch client calls to the
+implementing server.
+
+[section "Shutting down"]
+When the process is no longer used by the SCM and there are no running
+COM objects resident in it, it is notified as described in
+the documentation for [uri #start_factories [cmd start_factories]].
+It must then clean up by calling the [cmd destroy]
+method on the class factory command objects returned by the
+[uri #comserver_factory [cmd comserver_factory]] method.
+The process may continue running beyond this point but the factories
+must be destroyed regardless.
 
 [section Commands]
 
@@ -165,6 +193,5 @@ be [const user] (default) or [const system] as described in
 
 [list_end]
 
-[keywords COM]
 
 [manpage_end]
