@@ -996,6 +996,6 @@ system error message for [arg WINERROR] is appended to it.
 
 [list_end]
 
-[keywords "format messages" "messages" "system messages" "environment string" "expand environment strings" "argument parsing" "option parsing" "version" "TWAPI version" "time conversion" "SID" "user account" "error handling" "error messages" "exception handling" password credentials]
+[keywords "format messages" "messages" "system messages" "environment string" "expand environment strings" "argument parsing" "option parsing" "version" "TWAPI version" "time conversion" "SID" "user account" "error handling" "error messages" "exception handling" UUID GUID password credentials]
 
 [manpage_end]
