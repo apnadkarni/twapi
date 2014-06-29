@@ -876,6 +876,6 @@ and milliseconds.
 
 [list_end]
 
-[keywords COM]
+[keywords COM "COM clients" automation component "type library"]
 
 [manpage_end]
