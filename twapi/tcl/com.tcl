@@ -3438,6 +3438,32 @@ proc twapi::resume_factories {} {
     CoResumeClassObjects
 }
 
+# TBD - document
+proc twapi::install_comserver_script {progid clsid version script_path args} {
+    array set opts [twapi::parseargs args {
+        {scope.arg user {user system}}
+    } -maxleftover 0]
+
+    set script_path [file attributes [file normalize $script_path] -shortname]
+
+    # Try to locate the wish executable to run the component
+    if {[info commands wm] eq ""} {
+        set dir [file dirname [info nameofexecutable]]
+        set wishes [glob -nocomplain -directory $dir wish*.exe]
+        if {[llength $wishes] == 0} {
+            error "Could not locate wish program."
+        }
+        set wish [lindex $wishes 0]
+    } else {
+        # We are running wish already
+        set wish [info nameofexecutable]
+    }
+
+    set exe_path [file nativename [file attributes $wish -shortname]]
+
+    return [install_comserver $progid $clsid $version -command "$exe_path $script_path" -scope $opts(scope)]
+}
+
 proc twapi::install_comserver {progid clsid version args} {
     array set opts [twapi::parseargs args {
         {scope.arg user {user system}}
@@ -3448,8 +3474,8 @@ proc twapi::install_comserver {progid clsid version args} {
     if {(! [string is integer -strict $version]) || $version <= 0} {
         twapi::badargs! "Invalid version '$version'. Must be a positive integer"
     }
-    if {![regexp {^[[:alpha:]][.[:alnum:]]*$} $progid]} {
-        twapi::badargs! "Invalid PROGID syntax '$progid'"
+    if {![regexp {^[[:alpha:]][[:alnum:]]*\.[[:alpha:]][[:alnum:]]*$} $progid]} {
+        badargs! "Invalid PROGID syntax '$progid'"
     }
     set clsid [twapi::canonicalize_guid $clsid]
 
@@ -3508,28 +3534,21 @@ proc twapi::install_comserver {progid clsid version args} {
 }
 
 proc twapi::uninstall_comserver {progid args} {
-    
-    if {$progid eq ""} {
-        badargs! "Invalid empty ProgID"
+    # Note "CLSID" itself is a valid ProgID (it has a CLSID key below it)
+    # Also we want to protect against horrible errors that blow away
+    # entire branches if progid is empty, wrong value, etc.
+    # So only work with keys of the form X.X
+    if {![regexp {^[[:alpha:]][[:alnum:]]*\.[[:alpha:]][[:alnum:]]*$} $progid]} {
+        badargs! "Invalid PROGID syntax '$progid'"
     }
 
-    set clsid [progid_to_clsid $progid]; # Also protects against bogus progids
-
-    # Do NOT want to delete the CLSID key by mistake. Note above
-    # call will return a valid value if progid is "CLSID" so does not
-    # serve as a guard against that
+    # Do NOT want to delete the CLSID key by mistake. Note below checks
+    # will not protect against this since they will return a valid value 
+    # if progid is "CLSID" since that has a CLSID key below it as well.
     if {[string equal -nocase $progid CLSID]} {
         badargs! "Attempt to delete protected key 'CLSID'"
     }
 
-    # Should not be emtpy at this point but do not want to delete the 
-    # whole Classes tree in case progid or clsid are empty strings
-    # because of some bug! That would be an epic disaster so try and
-    # protect.
-    if {$clsid eq ""} {
-        badargs! "CLSID corresponding to PROGID '$progid' is empty"
-    }
-    
     array set opts [twapi::parseargs args {
         {scope.arg user {user system}}
     } -maxleftover 0]
@@ -3542,12 +3561,22 @@ proc twapi::uninstall_comserver {progid args} {
         }
     }
 
-    # One final check before we blow stuff away. Earlier checks should have
-    # already caught this but yet another safeguard
-    if {[catch {registry get "$regpath\\Software\\Classes\\$progid\\CLSID" ""} clsid2] || ! [IsEqualGUID $clsid2 $clsid]} {
-        badargs! "ProgID $progid does not exist or does not match expected CLSID"
+    if {0} {
+        # Do NOT use this. If running under elevated, it will ignore
+        # HKEY_CURRENT_USER.
+        set clsid [progid_to_clsid $progid]; # Also protects against bogus progids
+    } else {
+        set clsid [registry get "$regpath\\Software\\Classes\\$progid\\CLSID" ""]
     }
 
+    # Should not be empty at this point but do not want to delete the 
+    # whole Classes tree in case progid or clsid are empty strings
+    # because of some bug! That would be an epic disaster so try and
+    # protect.
+    if {$clsid eq ""} {
+        badargs! "CLSID corresponding to PROGID '$progid' is empty"
+    }
+    
     # See if we need to delete the linked current version
     if {! [catch {
         registry get "$regpath\\Software\\Classes\\$progid\\CurVer" ""
