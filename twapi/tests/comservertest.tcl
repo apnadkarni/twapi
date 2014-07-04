@@ -14,8 +14,8 @@ proc find_wish {} {
     if {[info commands wm] eq ""} {
         set dir [file dirname [info nameofexecutable]]
         set wishes [glob -directory $dir wish*.exe]
-        if {[llength $wishes] != 1} {
-            error "Multiple wish wishes found"
+        if {[llength $wishes] == 0} {
+            error "No wish executable found"
         }
         set wish [file normalize [lindex $wishes 0]]
     } else {
@@ -31,6 +31,7 @@ proc install {} {
 }
 
 proc uninstall {} {
+    puts $::comserver(progid)
     twapi::uninstall_comserver $::comserver(progid)
 }
 
@@ -78,7 +79,6 @@ proc run {} {
 }
 
 catch {wm withdraw .}
-console show
 run
 # Since we might be in Wish, explicitly exit
 exit
