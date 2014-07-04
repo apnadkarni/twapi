@@ -3439,12 +3439,9 @@ proc twapi::resume_factories {} {
 }
 
 # TBD - document
-proc twapi::install_comserver_script {progid clsid version script_path args} {
-    array set opts [twapi::parseargs args {
-        {scope.arg user {user system}}
-    } -maxleftover 0]
+proc twapi::install_coclass_script {progid clsid version script_path args} {
 
-    set script_path [file attributes [file normalize $script_path] -shortname]
+    set script_path [file normalize $script_path]
 
     # Try to locate the wish executable to run the component
     if {[info commands wm] eq ""} {
@@ -3461,15 +3458,36 @@ proc twapi::install_comserver_script {progid clsid version script_path args} {
 
     set exe_path [file nativename [file attributes $wish -shortname]]
 
-    return [install_comserver $progid $clsid $version -command "$exe_path $script_path" -scope $opts(scope)]
+    return [install_comserver $progid $clsid $version $exe_path {*}$args -outproc -params "\"$script_path\" $params"]
 }
 
-proc twapi::install_comserver {progid clsid version args} {
+proc twapi::install_coclass {progid clsid version path args} {
     array set opts [twapi::parseargs args {
         {scope.arg user {user system}}
-        service.arg
-        command.arg
+        appid.arg
+        appname.arg
+        inproc
+        outproc
+        service
+        params.arg
+        name.arg
     } -maxleftover 0]
+
+    switch [tcl::mathop::+ $opts(inproc) $opts(outproc) $opts(service)] {
+        0 {
+            # Need to figure out the type
+            switch [file extension $path] {
+                .exe { set opts(outproc) 1 }
+                .ocx -
+                .dll { set opts(inproc) 1 }
+                default { set opts(service) 1 }
+            }
+        }
+        1 {}
+        default {
+            badargs! "Only one of -inproc, -outproc or -service may be specified"
+        }
+    }
 
     if {(! [string is integer -strict $version]) || $version <= 0} {
         twapi::badargs! "Invalid version '$version'. Must be a positive integer"
@@ -3477,63 +3495,76 @@ proc twapi::install_comserver {progid clsid version args} {
     if {![regexp {^[[:alpha:]][[:alnum:]]*\.[[:alpha:]][[:alnum:]]*$} $progid]} {
         badargs! "Invalid PROGID syntax '$progid'"
     }
-    set clsid [twapi::canonicalize_guid $clsid]
-
-    switch -exact -- $opts(scope) {
-        user {
-            if {![info exists opts(command)]} {
-                twapi::badargs! "Option -command must be specified if -scope is \"user\""
-            }
-            set regpath HKEY_CURRENT_USER
-            set exepath_valuename LocalServer32
-            set exepath_value $opts(command)
-        }
-        system {
-            set regpath HKEY_LOCAL_MACHINE
-            if {[info exists opts(service)]} {
-                if {[info exists opts(command)]} {
-                    twapi::badargs! "Options -command and -service cannot be specified together."
-                }
-                set exepath_valuename LocalService
-                set exepath_value $opts(service)
-            } else {
-                if {![info exists opts(command)]} {
-                    twapi::badargs! "One of -command or -service must be specified."
-                }
-                set exepath_valuename LocalServer32
-                set exepath_value $opts(command)
-            }
-        }
-        default {
-            twapi::badargs! "Invalid class registration scope '$opts(scope)'. Must be 'user' or 'system'"
-        }
+    set clsid [canonicalize_guid $clsid]
+    if {![info exists opts(appid)]} {
+        # This is what dcomcnfg and oleview do - default to the CLSID
+        set opts(appid) $clsid
+    } else {
+        set opts(appid) [canonicalize_guid $opts(appid)]
     }
 
-    set progid_path "$regpath\\Software\\Classes\\$progid"
+    if {$opts(scope) eq "user"} {
+        if {$opts(service)} {
+            twapi::badargs! "Option -service cannot be specified if -scope is \"user\""
+        }
+        set regtop HKEY_CURRENT_USER
+    } else {
+        set regtop HKEY_LOCAL_MACHINE
+    }
+
+    set progid_path "$regtop\\Software\\Classes\\$progid"
+    set clsid_path "$regtop\\Software\\Classes\\CLSID\\$clsid"
+    set appid_path "$regtop\\Software\\Classes\\AppID\\$clsid"
+
+    if {$opts(service)} {
+        # TBD
+        badargs! "Option -service is not implemented"
+    } elseif {$opts(outproc)} {
+        if {[info exists opts(params)]} {
+            registry set "$clsid_path\\LocalServer32" "" "\"[file nativename [file normalize $path]]\" $opts(params)"
+        } else {
+            registry set "$clsid_path\\LocalServer32" "" "\"[file nativename [file normalize $path]]\""
+        }
+        # TBD - We do not quote path for ServerExecutable, should we ?
+        registry set "$clsid_path\\LocalServer32" "ServerExecutable" [file nativename [file normalize $path]]
+    } else {
+        # TBD - We do not quote path here either, should we ?
+        registry set "$clsid_path\\InprocServer32" "" [file nativename [file normalize $path]]
+    }
+    
+    registry set "$clsid_path\\ProgID" "" "$progid.$version"
+    registry set "$clsid_path\\VersionIndependentProgID" "" $progid
 
     # Set the registry under the progid and progid.version
     registry set "$progid_path\\CLSID" "" $clsid
     registry set "$progid_path\\CurVer" "" "$progid.$version"
-    if {[info exists opts(Name)]} {
-        registry set "$progid_path" "" $opts(name)
+    if {[info exists opts(name)]} {
+        registry set $progid_path "" $opts(name)
     }
 
     append progid_path ".$version"
     registry set "$progid_path\\CLSID" "" $clsid
-    if {[info exists opts(Name)]} {
-        registry set "$progid_path" "" $opts(name)
+    if {[info exists opts(name)]} {
+        registry set $progid_path "" $opts(name)
     }
     
-    # Set the registry under the clsid
-    set clsid_path "$regpath\\Software\\Classes\\CLSID\\$clsid"
-    registry set "$clsid_path\\ProgID" "" "$progid.$version"
-    registry set "$clsid_path\\VersionIndependentProgID" "" "$progid"
-    registry set "$clsid_path\\$exepath_valuename" "" $exepath_value
+    registry set $clsid_path "AppID" $opts(appid)
+    registry set $appid_path;   # Always create the key even if nothing below
+    if {[info exists opts(appname)]} {
+        registry set $appid_path "" $opts(appname)
+    }
+    
+    if {$opts(service)} {
+        registry set $appid_path "LocalService" $path
+        if {[info exists opts(params)]} {
+            registry set $appid_path "ServiceParameters" $opts(params)
+        }
+    }
 
     return
 }
 
-proc twapi::uninstall_comserver {progid args} {
+proc twapi::uninstall_coclass {progid args} {
     # Note "CLSID" itself is a valid ProgID (it has a CLSID key below it)
     # Also we want to protect against horrible errors that blow away
     # entire branches if progid is empty, wrong value, etc.
@@ -3551,11 +3582,12 @@ proc twapi::uninstall_comserver {progid args} {
 
     array set opts [twapi::parseargs args {
         {scope.arg user {user system}}
+        keepappid
     } -maxleftover 0]
 
     switch -exact -- $opts(scope) {
-        user { set regpath HKEY_CURRENT_USER }
-        system { set regpath HKEY_LOCAL_MACHINE }
+        user { set regtop HKEY_CURRENT_USER }
+        system { set regtop HKEY_LOCAL_MACHINE }
         default {
             badargs! "Invalid class registration scope '$opts(scope)'. Must be 'user' or 'system'"
         }
@@ -3566,7 +3598,7 @@ proc twapi::uninstall_comserver {progid args} {
         # HKEY_CURRENT_USER.
         set clsid [progid_to_clsid $progid]; # Also protects against bogus progids
     } else {
-        set clsid [registry get "$regpath\\Software\\Classes\\$progid\\CLSID" ""]
+        set clsid [registry get "$regtop\\Software\\Classes\\$progid\\CLSID" ""]
     }
 
     # Should not be empty at this point but do not want to delete the 
@@ -3579,16 +3611,28 @@ proc twapi::uninstall_comserver {progid args} {
     
     # See if we need to delete the linked current version
     if {! [catch {
-        registry get "$regpath\\Software\\Classes\\$progid\\CurVer" ""
+        registry get "$regtop\\Software\\Classes\\$progid\\CurVer" ""
     } curver]} {
         if {[string match -nocase ${progid}.* $curver]} {
-            registry delete "$regpath\\Software\\Classes\\$curver"
+            registry delete "$regtop\\Software\\Classes\\$curver"
+        }
+    }
+
+    # See if we need to delete the APPID
+    if {! $opts(keepappid)} {
+        if {! [catch {
+            registry get "$regtop\\Software\\Classes\\CLSID\\$clsid" "AppID"
+        } appid]} {
+            # Validate it is a real GUID
+            if {![catch {canonicalize_guid $appid}]} {
+                registry delete "$regtop\\Software\\Classes\\AppID\\$appid"
+            }
         }
     }
 
     # Finally delete the keys and hope we have not trashed the system
-    registry delete "$regpath\\Software\\Classes\\CLSID\\$clsid"
-    registry delete "$regpath\\Software\\Classes\\$progid"
+    registry delete "$regtop\\Software\\Classes\\CLSID\\$clsid"
+    registry delete "$regtop\\Software\\Classes\\$progid"
 
     return
 }
