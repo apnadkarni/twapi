@@ -50,30 +50,31 @@ cmd /c buildall64.cmd %1
 
 :dobuild
 :: Doing actual build
-IF "x%1" == "x" goto build_twapi
-IF NOT "x%1" == "xtwapi" goto check_twapi_bin
+@if "x%1" == "x" goto build_twapi
+@if NOT "x%1" == "xtwapi" goto check_twapi_bin
 :build_twapi
-@echo BUILDING twapi
+@echo BUILDING twapi %CPU%
 nmake /nologo /a /s twapi
 
 :check_twapi_bin
-IF "x%1" == "x" goto build_twapi_bin
-IF NOT "x%1" == "xtwapi_bin" goto check_twapi_mod
+@if "x%1" == "x" goto build_twapi_bin
+@if NOT "x%1" == "xtwapi_bin" goto check_twapi_mod
 :build_twapi_bin
-@echo BUILDING twapi-bin
+@echo BUILDING twapi-bin %CPU%
 nmake /nologo /a /s twapi-bin
 
-
 :check_twapi_mod
-IF "x%1" == "x" goto build_twapi_mod
-IF NOT "x%1" == "xtwapi_bin" goto build_lib
+@if "x%1" == "x" goto build_twapi_mod
+@if NOT "x%1" == "xtwapi_modular" goto check_twapi_lib
 :build_twapi_mod
-@echo BUILDING twapi-modular
+@echo BUILDING twapi-modular %CPU%
 nmake /nologo /a /s twapi-modular
 
-IF "x%1" == "x" goto build_lib
-IF NOT "x%1" == "xtwapi_lib" goto vamoose
+:check_twapi_lib
+@if "x%1" == "x" goto build_lib
+@if NOT "x%1" == "xtwapi_lib" goto vamoose
 :build_lib
+@echo BUILDING twapi-lib %CPU%
 nmake /nologo /a /s twapi-lib
 
 :vamoose
