@@ -3438,8 +3438,12 @@ proc twapi::resume_factories {} {
     CoResumeClassObjects
 }
 
-# TBD - document
 proc twapi::install_coclass_script {progid clsid version script_path args} {
+    # Need to extract params so we can prefix script name
+    set saved_args $args
+    array set opts [parseargs args {
+        params.arg
+    } -ignoreunknown]
 
     set script_path [file normalize $script_path]
 
@@ -3458,7 +3462,11 @@ proc twapi::install_coclass_script {progid clsid version script_path args} {
 
     set exe_path [file nativename [file attributes $wish -shortname]]
 
-    return [install_comserver $progid $clsid $version $exe_path {*}$args -outproc -params "\"$script_path\" $params"]
+    set params "\"$script_path\""
+    if {[info exists opts(params)]} {
+        append params " $params"
+    }
+    return [install_coclass $progid $clsid $version $exe_path {*}$args -outproc -params $params]
 }
 
 proc twapi::install_coclass {progid clsid version path args} {
