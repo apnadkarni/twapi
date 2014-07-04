@@ -648,7 +648,6 @@ static HRESULT STDMETHODCALLTYPE Twapi_ClassFactory_CreateInstance (
 
     Tcl_RestoreInterpState(interp, savedState);
 
-vamoose:
     if (cmdobjv) {
         for (i = 0; i < cmdobjc; ++i) {
             ObjDecrRefs(cmdobjv[i]);
@@ -693,8 +692,6 @@ int Twapi_ClassFactoryObjCmd(
     Twapi_ClassFactory *cfP;
     CLSID clsid;
     HRESULT hr;
-    Tcl_Obj **memidObjs;
-    int i, nmemids;
 
     TWAPI_ASSERT(ticP->interp == interp);
 
