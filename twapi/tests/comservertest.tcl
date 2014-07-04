@@ -27,12 +27,11 @@ proc find_wish {} {
 }
 
 proc install {} {
-    twapi::install_comserver $::comserver(progid) $::comserver(clsid) 1 -command "[find_wish] [file attributes $::comserver(script) -shortname]"
+    twapi::install_coclass $::comserver(progid) $::comserver(clsid) 1 [find_wish] -params [file attributes $::comserver(script) -shortname]
 }
 
 proc uninstall {} {
-    puts $::comserver(progid)
-    twapi::uninstall_comserver $::comserver(progid)
+    twapi::uninstall_coclass $::comserver(progid)
 }
 
 proc run {} {
