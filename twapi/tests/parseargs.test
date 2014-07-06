@@ -667,6 +667,27 @@ namespace eval twapi::parseargs::test {
         list $opts(b) $opts(c) $vargs
     } -result [list abc 0 "-a 2 extraarg"]
 
+
+    test parseargs-12.0 {
+        Verify parsing of arguments of type sym
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a x -b n extraarg}
+        array set opts [twapi::parseargs vargs {{a.sym x {x 0 y 1}} {b.sym n {m 2 n 3}} {c.sym i {i 4 j 5}}}]
+        expr {
+              [llength $vargs] == 1 &&
+              [string equal [lindex $vargs 0] "extraarg"] &&
+              $opts(a) == 0 && $opts(b) == 3 && $opts(c) == 4}
+    } -result 1
+
+    test parseargs-12.1 {
+        Verify parsing of arguments of type sym not matching enumerated values
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a x -b o}
+        array set opts [twapi::parseargs vargs {{a.sym x {x 0 y 1}} {b.sym n {m 2 n 3}} {c.sym i {i 4 j 5}}}]
+    } -returnCodes {error} -result "Invalid value 'o' specified for option '-b'."
+
     ################################################################
 
     ::tcltest::cleanupTests
