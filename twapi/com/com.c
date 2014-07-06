@@ -32,6 +32,16 @@ static TwapiModuleDef gModuleDef = {
 };
 
 
+TWAPI_INLINE static TCL_RESULT ParsePCOAUTHIDENTITY(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *objP,
+    COAUTHIDENTITY **coaiPP
+    )
+{
+    /* COAUTHINDENTITY is same as SEC_WINNT_AUTH_IDENTITY */
+    return ParsePSEC_WINNT_AUTH_IDENTITY(ticP, objP, (SEC_WINNT_AUTH_IDENTITY_W **)coaiPP);
+}
+
 #if TWAPI_ENABLE_ASSERT
 /* Note this should be called only in debug mode. See SDK docs for
    IsBad*Ptr functions */
@@ -1387,9 +1397,175 @@ int TwapiIEnumNextHelper(TwapiInterpContext *ticP,
     return TCL_OK;
 }
 
+static TCL_RESULT ParsePCOAUTHINFO(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *objP,
+    COAUTHINFO **coauPP
+    )
+{
+    Tcl_Obj **objs;
+    int nobjs;
+    COAUTHINFO *coauP;
+
+    if (ObjGetElements(ticP->interp, objP, &nobjs, &objs) != TCL_OK)
+        return TCL_ERROR;
+
+    if (nobjs == 0) {
+        *coauPP = NULL;
+        return TCL_OK;
+    }
+
+    coauP = MemLifoAlloc(ticP->memlifoP, sizeof(*coauP), NULL);
+    if (TwapiGetArgsEx(ticP, nobjs, objs,
+                       GETINT(coauP->dwAuthnSvc),
+                       GETINT(coauP->dwAuthzSvc),
+                       GETWSTR(coauP->pwszServerPrincName),
+                       GETINT(coauP->dwAuthnLevel),
+                       GETINT(coauP->dwImpersonationLevel),
+                       ARGSKIP,
+                       GETINT(coauP->dwCapabilities), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    if (ParsePCOAUTHIDENTITY(ticP, objs[5], &coauP->pAuthIdentityData) != TCL_OK)
+        return TCL_ERROR;
+
+    *coauPP = coauP;
+    return TCL_OK;
+    
+}
+
+
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParsePCOSERVERINFO(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *objP,
+    COSERVERINFO **cosiPP
+    )
+{
+    Tcl_Obj **objs;
+    int nobjs;
+    COSERVERINFO *cosiP;
+
+    if (ObjGetElements(ticP->interp, objP, &nobjs, &objs) != TCL_OK)
+        return TCL_ERROR;
+
+    if (nobjs == 0) {
+        *cosiPP = NULL;
+        return TCL_OK;
+    }
+
+    cosiP = MemLifoAlloc(ticP->memlifoP, sizeof(*cosiP), NULL);
+    if (TwapiGetArgsEx(ticP, nobjs, objs,
+                       GETINT(cosiP->dwReserved1),
+                       GETWSTR(cosiP->pwszName),
+                       ARGSKIP,
+                       GETINT(cosiP->dwReserved2), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    if (ParsePCOAUTHINFO(ticP, objs[2], &cosiP->pAuthInfo) != TCL_OK)
+        return TCL_ERROR;
+
+    *cosiPP = cosiP;
+    return TCL_OK;
+}
+
+
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParsePMULTI_QI(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *objP,
+    DWORD *nmqiP,
+    MULTI_QI **mqiPP
+    )
+{
+    Tcl_Obj **objs;
+    int nobjs;
+    MULTI_QI *mqiP;
+    int i;
+
+    if (ObjGetElements(ticP->interp, objP, &nobjs, &objs) != TCL_OK)
+        return TCL_ERROR;
+
+    if (nobjs == 0) {
+        *nmqiP = 0;
+        *mqiPP = NULL;
+        return TCL_OK;
+    }
+
+    mqiP = MemLifoZeroes(ticP->memlifoP, nobjs * sizeof(*mqiP));
+    for (i = 0; i < nobjs; ++i) {
+        mqiP[i].pIID = MemLifoAlloc(ticP->memlifoP,sizeof(IID), NULL);
+        if (ObjToGUID(ticP->interp, objs[i], (GUID*)mqiP[i].pIID) != TCL_OK)
+            return TCL_ERROR;
+    }
+
+    *nmqiP = nobjs;
+    *mqiPP = mqiP;
+    return TCL_OK;
+}
+
+static Tcl_Obj *ObjFromNMULTI_QI(DWORD nmqi, MULTI_QI *mqiP)
+{
+    Tcl_Obj *mqiObj;
+    Tcl_Obj *objs[3];
+    DWORD dw;
+
+    mqiObj = ObjNewList(nmqi, NULL);
+    for (dw = 0; dw < nmqi; ++dw) {
+        objs[0] = ObjFromGUID(mqiP[dw].pIID);
+        if (mqiP[dw].hr == S_OK) {
+            objs[1] = ObjFromIUnknown(mqiP[dw].pItf);
+            if (mqiP[dw].pItf == NULL)
+                mqiP[dw].hr = E_NOINTERFACE; /* Just to be safe */
+        } else
+            objs[1] = ObjFromIUnknown(NULL);
+        objs[2] = ObjFromLong(mqiP[dw].hr);
+        ObjAppendElement(NULL, mqiObj, ObjNewList(3, objs));
+    }
+    return mqiObj;
+}
+
+
+static TCL_RESULT Twapi_CoCreateInstanceExObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    MemLifoMarkHandle mark;
+    IUnknown *ifc_outer;
+    IID clsid;
+    TCL_RESULT res;
+    DWORD nmqi;
+    MULTI_QI *mqiP;
+    DWORD dwClsCtx;
+    COSERVERINFO *cosiP;
+    HRESULT hr;
+    Tcl_Obj *objP;
+
+    mark = MemLifoPushMark(ticP->memlifoP);
+    if (TwapiGetArgsEx(ticP, objc-1, objv+1,
+                       GETGUID(clsid), ARGSKIP, GETINT(dwClsCtx),
+                       ARGSKIP, ARGSKIP, ARGEND) == TCL_OK &&
+        ObjToIUnknown(interp, objv[2], (void **)&ifc_outer) == TCL_OK &&
+        ParsePCOSERVERINFO(ticP, objv[4], &cosiP) == TCL_OK &&
+        ParsePMULTI_QI(ticP, objv[5], &nmqi, &mqiP) == TCL_OK) {
+
+        hr = CoCreateInstanceEx(&clsid, ifc_outer, dwClsCtx, cosiP, nmqi, mqiP);
+        if (hr == S_OK || hr == CO_S_NOTALLINTERFACES) {
+            ObjSetResult(interp, ObjFromNMULTI_QI(nmqi, mqiP));
+            res = TCL_OK;
+        } else {
+            Twapi_AppendSystemError(interp, hr);
+            res = TCL_ERROR;
+        }
+    } else
+        res = TCL_ERROR;
+
+vamoose:
+    MemLifoPopMark(mark);
+    return res;
+}
+
 
 /* Dispatcher for calling COM functions with no args */
-int Twapi_CallCOMNoArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_CallCOMNoArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HRESULT hr;
     TwapiResult result;
@@ -1423,7 +1599,7 @@ int Twapi_CallCOMNoArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
 }
 
 /* Dispatcher for calling COM object methods */
-int Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     union {
         IUnknown *unknown;
@@ -2371,7 +2547,7 @@ ret_error:
 
 
 /* Dispatcher for calling COM methods that require a TwapiInterpContext */
-int Twapi_CallCOMTicObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_CallCOMTicObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     void *ifc;
     int func;
@@ -2615,6 +2791,8 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
                          Twapi_ComServerObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::Twapi_ClassFactory",
                          Twapi_ClassFactoryObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CoCreateInstanceEx",
+                         Twapi_CoCreateInstanceExObjCmd, ticP, NULL);
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(ComNoArgsDispatch), ComNoArgsDispatch, Twapi_CallCOMNoArgsObjCmd);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(ComDispatch), ComDispatch, Twapi_CallCOMObjCmd);

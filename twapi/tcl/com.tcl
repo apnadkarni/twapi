@@ -72,9 +72,7 @@ proc twapi::CoCreateInstance {clsid iunknown context iid} {
 proc twapi::progid_to_clsid {progid} { return [CLSIDFromProgID $progid] }
 proc twapi::clsid_to_progid {progid} { return [ProgIDFromCLSID $progid] }
 
-#
-# Create a new object and get an interface to it
-# Generates exception if no such interface
+
 # TBD - document
 proc twapi::com_create_instance {clsid args} {
     array set opts [parseargs args {
@@ -84,6 +82,10 @@ proc twapi::com_create_instance {clsid args} {
         enableaaa.bool
         {nocustommarshal.bool false 0x1000}
         {interface.arg IUnknown}
+        {authenticationservice none {none winnt kerberos}}
+        {impersonationlevel.arg default {default anonymous identification impersonation delegation}}
+        {credentials.arg {}}
+        server.arg
         raw
     } -maxleftover 0]
 
@@ -125,17 +127,30 @@ proc twapi::com_create_instance {clsid args} {
         }
     }
 
+    if {[info exists opts(server)]} {
+        set impersonation [dict get {default 0 anonymous 1 identification 2 impersonation 3 delegation 4} $opts(impersonationlevel)]
+        set authsvc [dict get {none 0 winnt 10 kerberos 16} $opts(authenticationservice)]
+        set coserverinfo [list 0 $opts(server) $blanket 0]
+    } else {
+        set coserverinfo {}
+    }
+
     lassign [_resolve_iid $opts(interface)] iid iid_name
 
-    # In some cases, like Microsoft Office getting an interface other
-    # than IUnknown fails.
-    # We need to get IUnknown, wait for the object to run, and then
-    # get the desired interface from IUnknown.
-    #  We could check for a specific error code but no guarantee that
-    #  the error is same in all versions so we catch and retry on all errors
-    if {[catch {set ifc [Twapi_CoCreateInstance $clsid NULL $flags $iid $iid_name]}]} {
+    # Microsoft Office (and maybe others) have some, uhhm, quirks.
+    # If they are loaded as inproc, all calls to retrieve an interface other 
+    # than IUnknown fails. We have to get the IUnknown interface,
+    # call OleRun and then retrieve the desired interface.
+    # This does not happen if the localserver model was requested.
+    # We could check for a specific error code but no guarantee that
+    # the error is same in all versions so we catch and retry on all errors
+    if {[catch {set ifcs [CoCreateInstanceEx $clsid NULL $flags $coserverinfo [list $iid]]}]} {
         # Try through IUnknown
-        set iunk [Twapi_CoCreateInstance $clsid NULL $flags [_iid_iunknown] IUnknown]
+        set ifcs [CoCreateInstanceEx $clsid NULL $flags $coserverinfo [list [_iid_iunknown]]]
+        if {[lindex $ifcs 0 2] != 0} {
+            win32_error [lindex $ifcs 0 2]
+        }
+        set iunk [lindex $ifcs 0 1]
         trap {
             # Wait for it to run, then get desired interface from it
             twapi::OleRun $iunk
@@ -143,14 +158,23 @@ proc twapi::com_create_instance {clsid args} {
         } finally {
             IUnknown_Release $iunk
         }
+    } else {
+        if {[lindex $ifcs 0 2] != 0} {
+            win32_error [lindex $ifcs 0 2]
+        }
+        set ifc [lindex $ifcs 0 1]
     }
 
+    # All interfaces are returned typed as IUnknown by the C level
+    # even though they are actually the requested type
+    set ifc [cast_handle $ifc $iid_name]
     if {$opts(raw)} {
         return $ifc
     } else {
         return [make_interface_proxy $ifc]
     }
 }
+
 
 proc twapi::comobj_idispatch {ifc {addref 0} {objclsid ""}} {
     if {[pointer_null? $ifc]} {
