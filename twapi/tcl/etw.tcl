@@ -1068,12 +1068,12 @@ proc twapi::etw_start_trace {session_name args} {
         flushtimer.int
         enableflags.int
         {filemode.arg circular {sequential append rotate circular}}
-        {clockresolution.arg system}
+        {clockresolution.sym system {qpc 1  system 2 cpucycle 3}}
         {private.bool 0 0x800}
         {realtime.bool 0 0x100}
         {secure.bool 0 0x80}
         {privateinproc.bool 0 0x20800}
-        {sequence.arg none {none local global}}
+        {sequence.sym none {none 0 local 0x8000 global 0x4000}}
         {paged.bool 0 0x01000000}
         {preallocate.bool 0 0x20}
     } -maxleftover 0]
@@ -1142,13 +1142,13 @@ proc twapi::etw_start_trace {session_name args} {
         }
     }
 
-    set logfilemode [expr {$logfilemode | [dict! {none 0 local 0x8000 global 0x4000} $opts(sequence)]}]
+    set logfilemode [expr {$logfilemode | $opts(sequence)}]
 
     set logfilemode [tcl::mathop::| $logfilemode $opts(realtime) $opts(private) $opts(privateinproc) $opts(secure) $opts(paged) $opts(preallocate)]
 
     lappend params -logfilemode $logfilemode
 
-    if {$opts(filemode) eq "append" && $opts(clockresolution) ne "system"} {
+    if {$opts(filemode) eq "append" && $opts(clockresolution) != 2} {
         error "Option -clockresolution must be set to 'system' if -filemode is append"
     }
 
@@ -1157,7 +1157,7 @@ proc twapi::etw_start_trace {session_name args} {
         error "Option -maxfilesize must also be specified with -preallocate or -filemodenewfile."
     }
 
-    lappend params -clockresolution [dict! {qpc 1 system 2 cpucycle 3} $opts(clockresolution)]
+    lappend params -clockresolution $opts(clockresolution)
 
     trap {
         set h [StartTrace $session_name $params]

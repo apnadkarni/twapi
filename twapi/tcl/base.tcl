@@ -1086,7 +1086,7 @@ proc twapi::read_credentials {args} {
         username.arg
         password.arg
         persist.bool
-        {type.arg generic {domain generic runas}}
+        {type.sym generic {domain 0 generic 0x40000 runas 0x80000}}
         {forceui.bool 0 0x80}
         {showsaveoption.bool true}
         {expectconfirmation.bool 0 0x20000}
@@ -1110,7 +1110,7 @@ proc twapi::read_credentials {args} {
         }
     }
 
-    incr flags [dict get {domain 0 generic 0x40000 runas 0x80000} $opts(type)]
+    incr flags $opts(type)
 
     return [CredUICmdLinePromptForCredentials $opts(target) NULL $opts(winerror) $opts(username) $opts(password) $opts(persist) $flags]
 }
@@ -1123,7 +1123,7 @@ proc twapi::credentials_dialog {args} {
         username.arg
         password.arg
         persist.bool
-        {type.arg generic {domain generic runas}}
+        {type.sym generic {domain 0 generic 0x40000 runas 0x80000}}
         {forceui.bool 0 0x80}
         {showsaveoption.bool true}
         {expectconfirmation.bool 0 0x20000}
@@ -1157,7 +1157,7 @@ proc twapi::credentials_dialog {args} {
         }
     }
 
-    incr flags [dict get {domain 0 generic 0x40000 runas 0x80000} $opts(type)]
+    incr flags $opts(type)
 
     return [CredUIPromptForCredentials [list $opts(parent) $opts(message) $opts(caption) $opts(bitmap)] $opts(target) NULL $opts(winerror) $opts(username) $opts(password) $opts(persist) $flags]
 }
