@@ -688,11 +688,15 @@ is required.
 [arg OPTTYPE] should be separated
 from the name with a [cmd .] and specifies the type of the option.
 It must have one of the following values: [cmd arg],
-[cmd bool], [cmd int], or [cmd switch]. In
+[cmd bool], [cmd int], [cmd sym] or [cmd switch]. In
 the first three cases, the argument following the option is taken
 as the value of the option and must be of an appropriate type:
 an arbitrary string, a boolean value ([const "0, 1, off, on, false, true"])
-or an integer respectively. If the option type is [cmd switch], or is
+or an integer respectively. If [arg OPTTYPE] is [const sym], the
+argument following the option is the key into the dictionary
+[arg VALUEOPTS] and the returned value of the option is the mapped
+value from this dictionary.
+If the option type is [cmd switch], or is
 not specified at all, then
 the option is not associated with any value and is treated as a binary switch.
 [nl]
@@ -704,6 +708,8 @@ If [arg VALUEOPTS] is specified for option types [cmd arg] or [cmd int],
 it is treated as a list of
 allowed values for the option. If an option's value is not in the
 list, the command will return an error. 
+For option type [cmd sym], [arg VALUEOPTS] is a dictionary as
+described previously.
 If the option type is [cmd bool] or [cmd switch], [arg VALUEOPTS]
 is the treated as the value to return when the value of the option
 is boolean true (by default [const 1] is returned). This is commonly
