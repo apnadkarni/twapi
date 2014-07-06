@@ -216,7 +216,7 @@ static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
                 if (ObjGetElements(interp, elems[2], &nvalid, &validObjs) != TCL_OK)
                     goto error_handler;
                 if (nvalid == 0) {
-                    ObjSetStaticResult(interp, "Empty validity list");
+                    ObjSetStaticResult(interp, "Empty validity list.");
                     goto error_handler;
                 }
                 if (curP->type == OPT_SYM && (nvalid & 1)) {
