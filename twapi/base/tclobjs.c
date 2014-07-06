@@ -4585,3 +4585,44 @@ TCL_RESULT ObjToEnum(Tcl_Interp *interp, Tcl_Obj *enumsObj, Tcl_Obj *nameObj,
     *valP = nameObj->internalRep.ptrAndLongRep.value;
     return TCL_OK;
 }
+
+TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (
+    TwapiInterpContext *ticP,
+    Tcl_Obj *authObj,
+    SEC_WINNT_AUTH_IDENTITY_W **swaiPP
+    )
+{
+    Tcl_Obj *passwordObj;
+    LPWSTR    password;
+    Tcl_Obj **objv;
+    int objc;
+    TCL_RESULT res;
+    SEC_WINNT_AUTH_IDENTITY_W *swaiP;
+    
+    if ((res = ObjGetElements(ticP->interp, authObj, &objc, &objv)) != TCL_OK)
+        return res;
+
+    if (objc == 0) {
+        *swaiPP = NULL;
+        return TCL_OK;
+    }
+
+    swaiP = MemLifoAlloc(ticP->memlifoP, sizeof(*swaiP), NULL);
+    swaiP->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
+    res = TwapiGetArgsEx(ticP, objc, objv,
+                         GETWSTRN(swaiP->User, swaiP->UserLength),
+                         GETWSTRN(swaiP->Domain, swaiP->DomainLength),
+                         GETOBJ(passwordObj),
+                         ARGEND);
+    if (res != TCL_OK)
+        return res;
+
+    password = ObjDecryptPassword(passwordObj, &swaiP->PasswordLength);
+    swaiP->Password = MemLifoCopy(ticP->memlifoP, password, sizeof(WCHAR)*(swaiP->PasswordLength+1));
+    TwapiFreeDecryptedPassword(password, swaiP->PasswordLength);
+
+    *swaiPP = swaiP;
+    return TCL_OK;
+}
+
+

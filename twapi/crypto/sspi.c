@@ -539,46 +539,6 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
 }
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
-static TCL_RESULT ParseSEC_WINNT_AUTH_IDENTITY (
-    TwapiInterpContext *ticP,
-    Tcl_Obj *authObj,
-    SEC_WINNT_AUTH_IDENTITY_W **swaiPP
-    )
-{
-    Tcl_Obj *passwordObj;
-    LPWSTR    password;
-    Tcl_Obj **objv;
-    int objc;
-    TCL_RESULT res;
-    SEC_WINNT_AUTH_IDENTITY_W *swaiP;
-    
-    if ((res = ObjGetElements(ticP->interp, authObj, &objc, &objv)) != TCL_OK)
-        return res;
-
-    if (objc == 0) {
-        *swaiPP = NULL;
-        return TCL_OK;
-    }
-
-    swaiP = MemLifoAlloc(ticP->memlifoP, sizeof(*swaiP), NULL);
-    swaiP->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
-    res = TwapiGetArgsEx(ticP, objc, objv,
-                         GETWSTRN(swaiP->User, swaiP->UserLength),
-                         GETWSTRN(swaiP->Domain, swaiP->DomainLength),
-                         GETOBJ(passwordObj),
-                         ARGEND);
-    if (res != TCL_OK)
-        return res;
-
-    password = ObjDecryptPassword(passwordObj, &swaiP->PasswordLength);
-    swaiP->Password = MemLifoCopy(ticP->memlifoP, password, sizeof(WCHAR)*(swaiP->PasswordLength+1));
-    TwapiFreeDecryptedPassword(password, swaiP->PasswordLength);
-
-    *swaiPP = swaiP;
-    return TCL_OK;
-}
-
-
 static TCL_RESULT ParseSCHANNEL_CRED (
     TwapiInterpContext *ticP,
     Tcl_Obj *authObj,
@@ -1122,7 +1082,7 @@ static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_In
             /* TBD - SDK has the comment that for RPC this memory
                must be valid for the lifetime of the binding handle. Is
                that true for SSPI also. Test */
-            if (ParseSEC_WINNT_AUTH_IDENTITY(ticP, authObj, &(SEC_WINNT_AUTH_IDENTITY_W *)pv) != TCL_OK)
+            if (ParsePSEC_WINNT_AUTH_IDENTITY(ticP, authObj, &(SEC_WINNT_AUTH_IDENTITY_W *)pv) != TCL_OK)
                 goto vamoose;
             is_unisp = 0;
         } else {
