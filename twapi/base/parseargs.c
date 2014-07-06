@@ -286,15 +286,16 @@ error_handler: /* Tcl error result must have been set */
 }
 
 
-static Tcl_Obj *TwapiParseargsBadValue (const char *error_type,
-                                        Tcl_Obj *value,
-                                        Tcl_Obj *opt_name, int opt_name_len)
+static void TwapiParseargsSetResultBadValue (Tcl_Interp *interp, const char *error_type,
+                                    Tcl_Obj *value,
+                                    Tcl_Obj *opt_name, int opt_name_len)
 {
     /* TBD - limit length of value */
-    return Tcl_ObjPrintf("%s value '%s' specified for option '-%.*s'",
-                         error_type ? error_type : "Invalid",
-                         ObjToString(value),
-                         opt_name_len, ObjToString(opt_name));
+    ObjSetResult(interp,
+                 Tcl_ObjPrintf("%s value '%s' specified for option '-%.*s'.",
+                               error_type ? error_type : "Invalid",
+                               ObjToString(value),
+                               opt_name_len, ObjToString(opt_name)));
 }
 
 static void TwapiParseargsUnknownOption(Tcl_Interp *interp, char *badopt, struct OptionDescriptor *opts, int nopts)
@@ -484,37 +485,16 @@ int Twapi_ParseargsObjCmd(
      * values, using defaults for unspecified options
      */
     for (k = 0; k < nopts ; ++k) {
-        Tcl_Obj **validObjs;
-        int       nvalid;
-        int       ivalid;
         Tcl_Obj  *objP;
 
-        ivalid = 0;
-        nvalid = 0;
-        validObjs = NULL;
-        switch (opts[k].type) {
-        case OPT_SWITCH:
-            /* This ignores defaults and doesn't treat valid_values as a list */
-            break;
-        default:
-            /* For all opts except SYM, SWITCH and BOOL, valid_values is a list */
-            if (opts[k].valid_values) {
-                /* Construct array of allowed values if specified.
-                 * Since we created the list ourselves, call cannot fail
-                 */
-                (void) ObjGetElements(NULL, opts[k].valid_values,
-                                              &nvalid, &validObjs);
-            }
-            /* FALLTHRU to check for defaults */
-        case OPT_SYM:
-        case OPT_BOOL:
+        /* OPT_SWITCH ignores defaults */
+        if (opts[k].type != OPT_SWITCH) {
             if (valuesP[k] == NULL) {
                 /* Option not specified. Check for a default and use it */
                 if (opts[k].def_value == NULL && !nulldefault)
                     continue;       /* No default, so skip */
                 valuesP[k] = opts[k].def_value;
             }
-            break;
         }
 
         /* Do value type checking */
@@ -523,63 +503,80 @@ int Twapi_ParseargsObjCmd(
             /* If no explicit default, but have a -nulldefault switch,
              * (else we would have continued above), return 0
              */
-            if (valuesP[k] == NULL) {
-                /* TBD - does this leak if further args have errors ? */
-                valuesP[k] = ObjFromInt(0);
-            }
+            if (valuesP[k] == NULL)
+                wide = 0;
             else if (ObjToWideInt(interp, valuesP[k], &wide) == TCL_ERROR) {
-                (void) ObjSetResult(interp,
-                                         TwapiParseargsBadValue("Non-integer",
-                                                                valuesP[k],
-                                                                opts[k].name,
-                                                                opts[k].name_len));
+                TwapiParseargsSetResultBadValue(interp, "Non-integer",
+                                       valuesP[k],
+                                       opts[k].name,
+                                       opts[k].name_len);
                 goto error_return;
             }
 
             /* Check list of allowed values if specified */
             if (opts[k].valid_values) {
+                Tcl_Obj **validObjs;
+                int nvalid, ivalid;
+                if (ObjGetElements(interp, opts[k].valid_values, &nvalid, &validObjs) != TCL_OK)
+                    goto error_return;
                 for (ivalid = 0; ivalid < nvalid; ++ivalid) {
                     Tcl_WideInt valid_wide;
                     if (ObjToWideInt(interp, validObjs[ivalid], &valid_wide) == TCL_ERROR) {
-                        (void) ObjSetResult(interp, TwapiParseargsBadValue(
-                                             "Non-integer enumeration",
-                                             valuesP[k],
-                                             opts[k].name, opts[k].name_len));
+                        TwapiParseargsSetResultBadValue(
+                            interp,
+                            "Non-integer enumeration",
+                            validObjs[ivalid],
+                            opts[k].name, opts[k].name_len);
                         goto error_return;
                     }
                     if (valid_wide == wide)
                         break;
                 }
+                if (ivalid == nvalid) {
+                    TwapiParseargsSetResultBadValue(interp, "Invalid",
+                                                    valuesP[k],
+                                                    opts[k].name,
+                                                    opts[k].name_len);
+                    goto error_return;
+                }
             }
+            if (valuesP[k] == NULL)
+                valuesP[k] = ObjFromInt(0); /* Deals with -nulldefault case. */
             break;
 
         case OPT_ANY:
             /* If no explicit default, but have a -nulldefault switch,
              * (else we would have continued above), return ""
              */
-            if (valuesP[k] == NULL) {
-                /* TBD - does this leak if further args have errors ? */
-                valuesP[k] = ObjFromEmptyString();
-            }
-
             /* Check list of allowed values if specified */
             if (opts[k].valid_values) {
+                Tcl_Obj **validObjs;
+                int nvalid, ivalid;
+                char *s;
+                if (ObjGetElements(interp, opts[k].valid_values, &nvalid, &validObjs) != TCL_OK)
+                    goto error_return;
+                s = valuesP[k] ? ObjToString(valuesP[k]) : "";
                 for (ivalid = 0; ivalid < nvalid; ++ivalid) {
-                    if (!lstrcmpA(ObjToString(validObjs[ivalid]),
-                                  ObjToString(valuesP[k])))
+                    if (!lstrcmpA(ObjToString(validObjs[ivalid]), s))
                         break;
                 }
+                if (ivalid == nvalid) {
+                    TwapiParseargsSetResultBadValue(interp, "Invalid",
+                                                    valuesP[k],
+                                                    opts[k].name,
+                                                    opts[k].name_len);
+                    goto error_return;
+                }
             }
+            if (valuesP[k] == NULL)
+                valuesP[k] = ObjFromEmptyString(); /* Deals with -nulldefault */
+
             break;
 
         case OPT_SYM:
             /* If no explicit default, but have a -nulldefault switch,
              * (else we would have continued above), return ""
              */
-            if (valuesP[k] == NULL) {
-                /* TBD - does this leak if further args have errors ? */
-                valuesP[k] = ObjFromEmptyString();
-            }
             
             /* Check list of allowed values if specified */
             if (opts[k].valid_values) {
@@ -589,15 +586,15 @@ int Twapi_ParseargsObjCmd(
                 if (symvalObj) {
                     valuesP[k] = symvalObj;
                 } else {
-                    (void) ObjSetResult(
-                        interp, TwapiParseargsBadValue(NULL,
-                                                       valuesP[k],
-                                                       opts[k].name,
-                                                       opts[k].name_len)
-                        );
+                    TwapiParseargsSetResultBadValue(interp, NULL,
+                                                    valuesP[k],
+                                                    opts[k].name,
+                                                    opts[k].name_len);
                     goto error_return;
                 }
             }
+            if (valuesP[k] == NULL)
+                valuesP[k] = ObjFromEmptyString(); /* Deals with -nulldefault */
             break;
 
         case OPT_SWITCH:
@@ -607,12 +604,10 @@ int Twapi_ParseargsObjCmd(
                 valuesP[k] = ObjFromBoolean(0);
             else {
                 if (ObjToBoolean(interp, valuesP[k], &j) == TCL_ERROR) {
-                    (void) ObjSetResult(
-                        interp, TwapiParseargsBadValue("Non-boolean",
-                                                       valuesP[k],
-                                                       opts[k].name,
-                                                       opts[k].name_len)
-                        );
+                    TwapiParseargsSetResultBadValue(interp, "Non-boolean",
+                                                    valuesP[k],
+                                                    opts[k].name,
+                                                    opts[k].name_len);
                     goto error_return;
                 }
                 if (j && opts[k].valid_values) {
@@ -631,20 +626,6 @@ int Twapi_ParseargsObjCmd(
 
         default:
             break;
-        }
-
-        /* Check if validity checks succeeded */
-        if (validObjs) {
-            if (ivalid == nvalid) {
-                Tcl_Obj *invalidObj = TwapiParseargsBadValue("Invalid",
-                                                             valuesP[k],
-                                                             opts[k].name,
-                                                             opts[k].name_len);
-                Tcl_AppendStringsToObj(invalidObj, ". Must be one of ", NULL);
-                TwapiAppendObjArray(invalidObj, nvalid, validObjs, ", ");
-                (void) ObjSetResult(interp, invalidObj);
-                goto error_return;
-            }
         }
 
         /* Tack it on to result */
