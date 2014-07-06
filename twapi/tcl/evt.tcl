@@ -231,7 +231,7 @@ proc twapi::evt_event_info {hevt args} {
     set result {}
     foreach opt $args {
         lappend result $opt [EvtGetEventInfo $hevt \
-                                 [dict get {-queryids 0 -path 1}]]
+                                 [dict get {-queryids 0 -path 1} $opt]]
     }
     return $result
 }
