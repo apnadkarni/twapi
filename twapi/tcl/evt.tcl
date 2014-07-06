@@ -416,7 +416,7 @@ proc twapi::evt_query {args} {
         channel.arg
         {query.arg *}
         {ignorequeryerrors 0 0x1000}
-        {direction.arg forward}
+        {direction.sym forward {forward 0x100 reverse 0x200 backward 0x200}}
     } -maxleftover 0]
 
     if {([info exists opts(file)] && [info exists opts(channel)]) ||
@@ -425,7 +425,7 @@ proc twapi::evt_query {args} {
     }
     
     set flags $opts(ignorequeryerrors)
-    incr flags [dict get {forward 0x100 reverse 0x200 backward 0x200} $opts(direction)]
+    incr flags $opts(direction)
 
     if {[info exists opts(file)]} {
         set path [_evt_normalize_path $opts(file)]
