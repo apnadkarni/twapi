@@ -137,7 +137,7 @@ namespace eval twapi::parseargs::test {
             {b.arg bdefault {xvalue bvalue zvalue}}
             {c.arg cdefault {xvalue bvalue cvalue}}
         }]
-    } -returnCodes {error} -result "Invalid value 'avalue' specified for option '-a'. Must be one of zvalue, xvalue, yvalue"
+    } -returnCodes {error} -result "Invalid value 'avalue' specified for option '-a'."
 
     test parseargs-2.4 {
         Verify parsing of missing options of type any with -nulldefault
@@ -222,7 +222,7 @@ namespace eval twapi::parseargs::test {
         unset -nocomplain opts
         set vargs {-a not_an_int extraarg}
         array set opts [twapi::parseargs vargs {{a.int 2} {b.int 100}}]
-    } -returnCodes {error} -result "Non-integer value 'not_an_int' specified for option '-a'"
+    } -returnCodes {error} -result "Non-integer value 'not_an_int' specified for option '-a'."
 
     test parseargs-3.6 {
         Verify parsing of arguments of type int matching enumerated values
@@ -257,7 +257,7 @@ namespace eval twapi::parseargs::test {
             {b.arg 0 {1 2 3}}
             {c.arg 0 {1 2 3}}
         }]
-    } -returnCodes {error} -result "Invalid value '0' specified for option '-a'. Must be one of 1, 2, 3"
+    } -returnCodes {error} -result "Invalid value '0' specified for option '-a'."
 
     test parseargs-3.8 {
         Verify parsing of missing options of type int with -nulldefault
@@ -368,7 +368,7 @@ namespace eval twapi::parseargs::test {
         unset -nocomplain opts
         set vargs {-a not_a_bool extraarg}
         array set opts [twapi::parseargs vargs {{a.bool 1} {b.int 100}}]
-    } -returnCodes {error} -result "Non-boolean value 'not_a_bool' specified for option '-a'"
+    } -returnCodes {error} -result "Non-boolean value 'not_a_bool' specified for option '-a'."
 
     test parseargs-4.8 {
         Verify parsing of arguments of type bool return mapped true value
