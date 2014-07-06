@@ -19,6 +19,7 @@ struct OptionDescriptor {
 #define OPT_BOOL   1
 #define OPT_INT    2
 #define OPT_SWITCH 3
+#define OPT_SYM    4
     char        first;          /* First char of name[] */
 };
 
@@ -199,6 +200,8 @@ static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
                 curP->type = OPT_BOOL;
             else if (STREQ(type, "switch"))
                 curP->type = OPT_SWITCH;
+            else if (STREQ(type, "sym"))
+                curP->type = OPT_SYM;
             else
                 goto error_handler;
         }
@@ -208,6 +211,18 @@ static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
             ObjIncrRefs(elems[1]);
 
             if (nelems > 2) {
+                Tcl_Obj **validObjs;
+                int nvalid;
+                if (ObjGetElements(interp, elems[2], &nvalid, &validObjs) != TCL_OK)
+                    goto error_handler;
+                if (nvalid == 0) {
+                    ObjSetStaticResult(interp, "Empty validity list");
+                    goto error_handler;
+                }
+                if (curP->type == OPT_SYM && (nvalid & 1)) {
+                    ObjSetStaticResult(interp, "Dictionary must have even number of elements");
+                    goto error_handler;
+                }
                 /* Value must be in the specified list or for BOOL and SWITCH
                    value to use for 'true' */
                 curP->valid_values = elems[2];
@@ -275,8 +290,10 @@ static Tcl_Obj *TwapiParseargsBadValue (const char *error_type,
                                         Tcl_Obj *value,
                                         Tcl_Obj *opt_name, int opt_name_len)
 {
+    /* TBD - limit length of value */
     return Tcl_ObjPrintf("%s value '%s' specified for option '-%.*s'",
-                         error_type, ObjToString(value),
+                         error_type ? error_type : "Invalid",
+                         ObjToString(value),
                          opt_name_len, ObjToString(opt_name));
 }
 
@@ -480,7 +497,7 @@ int Twapi_ParseargsObjCmd(
             /* This ignores defaults and doesn't treat valid_values as a list */
             break;
         default:
-            /* For all opts except SWITCH and BOOL, valid_values is a list */
+            /* For all opts except SYM, SWITCH and BOOL, valid_values is a list */
             if (opts[k].valid_values) {
                 /* Construct array of allowed values if specified.
                  * Since we created the list ourselves, call cannot fail
@@ -489,6 +506,7 @@ int Twapi_ParseargsObjCmd(
                                               &nvalid, &validObjs);
             }
             /* FALLTHRU to check for defaults */
+        case OPT_SYM:
         case OPT_BOOL:
             if (valuesP[k] == NULL) {
                 /* Option not specified. Check for a default and use it */
@@ -506,6 +524,7 @@ int Twapi_ParseargsObjCmd(
              * (else we would have continued above), return 0
              */
             if (valuesP[k] == NULL) {
+                /* TBD - does this leak if further args have errors ? */
                 valuesP[k] = ObjFromInt(0);
             }
             else if (ObjToWideInt(interp, valuesP[k], &wide) == TCL_ERROR) {
@@ -539,6 +558,7 @@ int Twapi_ParseargsObjCmd(
              * (else we would have continued above), return ""
              */
             if (valuesP[k] == NULL) {
+                /* TBD - does this leak if further args have errors ? */
                 valuesP[k] = ObjFromEmptyString();
             }
 
@@ -548,6 +568,34 @@ int Twapi_ParseargsObjCmd(
                     if (!lstrcmpA(ObjToString(validObjs[ivalid]),
                                   ObjToString(valuesP[k])))
                         break;
+                }
+            }
+            break;
+
+        case OPT_SYM:
+            /* If no explicit default, but have a -nulldefault switch,
+             * (else we would have continued above), return ""
+             */
+            if (valuesP[k] == NULL) {
+                /* TBD - does this leak if further args have errors ? */
+                valuesP[k] = ObjFromEmptyString();
+            }
+            
+            /* Check list of allowed values if specified */
+            if (opts[k].valid_values) {
+                Tcl_Obj *symvalObj;
+                if (ObjDictGet(interp, opts[k].valid_values, valuesP[k], &symvalObj) != TCL_OK)
+                    goto error_return; // Really should not happen
+                if (symvalObj) {
+                    valuesP[k] = symvalObj;
+                } else {
+                    (void) ObjSetResult(
+                        interp, TwapiParseargsBadValue(NULL,
+                                                       valuesP[k],
+                                                       opts[k].name,
+                                                       opts[k].name_len)
+                        );
+                    goto error_return;
                 }
             }
             break;
