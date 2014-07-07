@@ -1419,7 +1419,7 @@ static TCL_RESULT ParsePCOAUTHINFO(
     if (TwapiGetArgsEx(ticP, nobjs, objs,
                        GETINT(coauP->dwAuthnSvc),
                        GETINT(coauP->dwAuthzSvc),
-                       GETWSTR(coauP->pwszServerPrincName),
+                       GETEMPTYASNULL(coauP->pwszServerPrincName),
                        GETINT(coauP->dwAuthnLevel),
                        GETINT(coauP->dwImpersonationLevel),
                        ARGSKIP,
