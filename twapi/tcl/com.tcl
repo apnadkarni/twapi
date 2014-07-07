@@ -3556,7 +3556,7 @@ proc twapi::install_coclass {progid clsid version path args} {
 
     set progid_path "$regtop\\Software\\Classes\\$progid"
     set clsid_path "$regtop\\Software\\Classes\\CLSID\\$clsid"
-    set appid_path "$regtop\\Software\\Classes\\AppID\\$clsid"
+    set appid_path "$regtop\\Software\\Classes\\AppID\\$opts(appid)"
 
     if {$opts(service)} {
         # TBD
