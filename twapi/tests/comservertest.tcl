@@ -1,6 +1,7 @@
 array set comserver {
     clsid {{332B8252-2249-4B34-BAD3-81259F2A2842}}
     progid TwapiComServer.Test
+    appid {{01CD2456-0922-4B26-B7A9-8CA067D66A74}}
 }
 set comserver(script) [file normalize [info script]]
 
@@ -27,11 +28,11 @@ proc find_wish {} {
 }
 
 proc install {} {
-    twapi::install_coclass $::comserver(progid) $::comserver(clsid) 1 [find_wish] -params [file attributes $::comserver(script) -shortname]
+    twapi::install_coclass $::comserver(progid) $::comserver(clsid) 1 [find_wish] -params [file attributes $::comserver(script) -shortname] -appid $::comserver(appid) -appname "TWAPI COMSERVER TEST APP" -name "TWAPI COMSERVER TEST" -scope system
 }
 
 proc uninstall {} {
-    twapi::uninstall_coclass $::comserver(progid)
+    twapi::uninstall_coclass $::comserver(progid) -scope system
 }
 
 proc run {} {
