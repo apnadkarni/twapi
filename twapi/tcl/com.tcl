@@ -82,10 +82,13 @@ proc twapi::com_create_instance {clsid args} {
         enableaaa.bool
         {nocustommarshal.bool false 0x1000}
         {interface.arg IUnknown}
-        {authenticationservice none {none winnt kerberos}}
-        {impersonationlevel.arg default {default anonymous identification impersonation delegation}}
+        {authenticationservice.sym none {none 0 winnt 10 kerberos 16}}
+        {impersonationlevel.sym default {default 0 anonymous 1 identification 2 impersonation 3 delegation 4}}
         {credentials.arg {}}
-        server.arg
+        {serverprincipal.arg {}}
+        {authenticationlevel.sym default {default 0 none 1 connect 2 call 3 packet 4 packetintegrity 5 privacy 6}}
+        {mutualauth.bool 0 0x1}
+        system.arg
         raw
     } -maxleftover 0]
 
@@ -127,10 +130,17 @@ proc twapi::com_create_instance {clsid args} {
         }
     }
 
-    if {[info exists opts(server)]} {
-        set impersonation [dict get {default 0 anonymous 1 identification 2 impersonation 3 delegation 4} $opts(impersonationlevel)]
-        set authsvc [dict get {none 0 winnt 10 kerberos 16} $opts(authenticationservice)]
-        set coserverinfo [list 0 $opts(server) $blanket 0]
+    if {[info exists opts(system)]} {
+        set coserverinfo [list 0 $opts(system) \
+                              [list $opts(authenticationservice) \
+                                   0 \
+                                   $opts(serverprincipal) \
+                                   $opts(authenticationlevel) \
+                                   $opts(impersonationlevel) \
+                                   $opts(credentials) \
+                                   $opts(mutualauth) \
+                                   ] \
+                              0]
     } else {
         set coserverinfo {}
     }
