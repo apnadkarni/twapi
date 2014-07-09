@@ -286,6 +286,11 @@ canceled (via [uri #cancel_wait_on_handle [cmd cancel_wait_on_handle]]).
 Returns an encrypted binary string corresponding to [arg PLAINTEXT].
 [uri #reveal [cmd reveal]] can be used to decrypt the result.
 
+[call [cmd confirm_credentials] [arg TARGET] [arg VALIDITY]]
+Informs the Windows Credentials Manager that the previously obtained
+credentials for the specified [arg TARGET] are valid or not. See
+[uri #read_credentials [cmd read_credentials]].
+
 [call [cmd create_file] [arg PATH] [opt [arg options]]]
 This is a thin wrapper around the Win32 [cmd CreateFile] function that returns
 a handle to a file or device. The wrapper primarily provides mnemonics
