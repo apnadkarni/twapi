@@ -1564,6 +1564,49 @@ vamoose:
 }
 
 
+static TCL_RESULT Twapi_CoSetProxyBlanketObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    MemLifoMarkHandle mark;
+    Tcl_Obj *proxyObj, *idObj;
+    IUnknown *ifc;
+    TCL_RESULT res;
+    SEC_WINNT_AUTH_IDENTITY_W *swaiP;
+    COAUTHINFO *coauP;
+    HRESULT hr;
+    DWORD authz, authn, authn_level, impersonation_level, capabilities;
+    LPWSTR principal_name;
+
+    mark = MemLifoPushMark(ticP->memlifoP);
+    if (TwapiGetArgsEx(ticP, objc-1, objv+1,
+                       GETOBJ(proxyObj),
+                       GETINT(authn),
+                       GETINT(authz),
+                       GETEMPTYASNULL(principal_name),
+                       GETINT(authn_level),
+                       GETINT(impersonation_level),
+                       GETOBJ(idObj),
+                       GETINT(capabilities), ARGEND) == TCL_OK &&
+        ObjToLPVOID(interp, objv[1], (void **)&ifc) == TCL_OK &&
+        ParsePSEC_WINNT_AUTH_IDENTITY(ticP, idObj, &swaiP) == TCL_OK) {
+
+        hr = CoSetProxyBlanket(ifc, authn, authz, principal_name,
+                               authn_level, impersonation_level,
+                               swaiP, capabilities);
+        if (SUCCEEDED(hr))
+            res = TCL_OK;
+        else {
+            Twapi_AppendSystemError(interp, hr);
+            res = TCL_ERROR;
+        }
+    } else
+        res = TCL_ERROR;
+
+vamoose:
+    MemLifoPopMark(mark);
+    return res;
+}
+
+
 /* Dispatcher for calling COM functions with no args */
 static TCL_RESULT Twapi_CallCOMNoArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -2793,6 +2836,8 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
                          Twapi_ClassFactoryObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CoCreateInstanceEx",
                          Twapi_CoCreateInstanceExObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CoSetProxyBlanket",
+                         Twapi_CoSetProxyBlanketObjCmd, ticP, NULL);
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(ComNoArgsDispatch), ComNoArgsDispatch, Twapi_CallCOMNoArgsObjCmd);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(ComDispatch), ComDispatch, Twapi_CallCOMObjCmd);

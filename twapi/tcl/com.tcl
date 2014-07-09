@@ -74,6 +74,29 @@ proc twapi::clsid_to_progid {progid} { return [ProgIDFromCLSID $progid] }
 
 
 # TBD - document
+proc twapi::com_security_blanket {args} {
+    # mutualauth.bool - docs for EOLE_AUTHENTICATION_CAPABILITIES. Learning
+    # DCOM says it is only for CoInitializeSecurity. Either way, 
+    # that option is not applicable here
+    parseargs args {
+        {authenticationservice.sym default {default 0xffffffff none 0 winnt 10 kerberos 16}}
+        {serverprincipal.arg {}}
+        {authenticationlevel.sym default {default 0 none 1 connect 2 call 3 packet 4 packetintegrity 5 privacy 6}}
+        {impersonationlevel.sym default {default 0 anonymous 1 identification 2 impersonation 3 delegation 4}}
+        {credentials.arg {}}
+        cloaking.arg
+    } -maxleftover 0 -setvars
+
+    if {![info exists cloaking]} {
+        set eoac 0x800;         # EOAC_DEFAULT
+    } else {
+        set eoac [dict! {none 0 static 0x20 dynamic 0x40} $cloaking]
+    }
+
+    return [list $authenticationservice 0 $serverprincipal $authenticationlevel $impersonationlevel $credentials $eoac]
+}
+
+# TBD - document
 proc twapi::com_create_instance {clsid args} {
     array set opts [parseargs args {
         {model.arg any}
@@ -83,11 +106,12 @@ proc twapi::com_create_instance {clsid args} {
         {nocustommarshal.bool false 0x1000}
         {interface.arg IUnknown}
         {authenticationservice.sym none {none 0 winnt 10 kerberos 16}}
-        {impersonationlevel.sym default {default 0 anonymous 1 identification 2 impersonation 3 delegation 4}}
+        {impersonationlevel.sym impersonation {anonymous 1 identification 2 impersonation 3 delegation 4}}
         {credentials.arg {}}
         {serverprincipal.arg {}}
         {authenticationlevel.sym default {default 0 none 1 connect 2 call 3 packet 4 packetintegrity 5 privacy 6}}
         {mutualauth.bool 0 0x1}
+        securityblanket.arg
         system.arg
         raw
     } -maxleftover 0]
@@ -145,6 +169,15 @@ proc twapi::com_create_instance {clsid args} {
         set coserverinfo {}
     }
 
+    # If remote, set the specified security blanket on the proxy. Note
+    # that the blanket settings passed to CoCreateInstanceEx are used
+    # only for activation and do NOT get passed down to method calls.
+    # If a remote component is activated with specific identity, we
+    # assume method calls require the same security settings.
+    if {[info exists opts(credentials)] && ![info exists opts(securityblanket)]} {
+        set opts(securityblanket) [com_security_blanket -credentials $opts(credentials)]
+    }
+
     lassign [_resolve_iid $opts(interface)] iid iid_name
 
     # Microsoft Office (and maybe others) have some, uhhm, quirks.
@@ -154,13 +187,27 @@ proc twapi::com_create_instance {clsid args} {
     # This does not happen if the localserver model was requested.
     # We could check for a specific error code but no guarantee that
     # the error is same in all versions so we catch and retry on all errors
-    if {[catch {set ifcs [CoCreateInstanceEx $clsid NULL $flags $coserverinfo [list $iid]]}]} {
+    # 3rd element of each sublist is status. Non-0 -> Failure code
+    if {[catch {set ifcs [CoCreateInstanceEx $clsid NULL $flags $coserverinfo [list $iid]]}] || [lindex $ifcs 0 2] != 0} {
         # Try through IUnknown
         set ifcs [CoCreateInstanceEx $clsid NULL $flags $coserverinfo [list [_iid_iunknown]]]
+
         if {[lindex $ifcs 0 2] != 0} {
             win32_error [lindex $ifcs 0 2]
         }
         set iunk [lindex $ifcs 0 1]
+
+        # Need to set security blanket if specified before invoking any method
+        # else will get access denied
+        if {[info exists $opts(securityblanket)]} {
+            trap {
+                CoSetProxyBlanket $iunk {*}$opts(securityblanket)
+            } onerror {} {
+                IUnknown_Release $iunk
+                rethrow
+            }
+        }
+
         trap {
             # Wait for it to run, then get desired interface from it
             twapi::OleRun $iunk
@@ -169,10 +216,16 @@ proc twapi::com_create_instance {clsid args} {
             IUnknown_Release $iunk
         }
     } else {
-        if {[lindex $ifcs 0 2] != 0} {
-            win32_error [lindex $ifcs 0 2]
-        }
         set ifc [lindex $ifcs 0 1]
+    }
+
+    if {[info exists opts(securityblanket)]} {
+        trap {
+            CoSetProxyBlanket $ifc {*}$opts(securityblanket)
+        } onerror {} {
+            IUnknown_Release $ifc
+            rethrow
+        }
     }
 
     # All interfaces are returned typed as IUnknown by the C level
@@ -3430,11 +3483,23 @@ twapi::class create twapi::ComFactory {
         }
     }
 
-    method register {} {
+    method register {args} {
         my variable _clsid _create_command_prefix _member_map _ifc _class_registration_id
-        # 0x4 -> CLSCTX_LOCAL_SERVER
+        twapi::parseargs args {
+            {model.arg any}
+        } -setvars -maxleftover 0
+        set model_flags 0
+        foreach m $model {
+            switch -exact -- $m {
+                any           {twapi::setbits model_flags 20}
+                localserver   {twapi::setbits model_flags 4}
+                remoteserver  {twapi::setbits model_flags 16}
+                default {twapi::badargs! "Invalid COM class model '$m'"}
+            }
+        }
+        
         # 0x6 -> REGCLS_MULTI_SEPARATE | REGCLS_SUSPENDED
-        set _class_registration_id [twapi::CoRegisterClassObject $_clsid $_ifc 0x4 0x6]
+        set _class_registration_id [twapi::CoRegisterClassObject $_clsid $_ifc $model_flags 0x6]
         return
     }
     
