@@ -3121,8 +3121,8 @@ twapi::class create ::twapi::Automation {
         }
 
         # Try getting a IDispatchEx interface
-        set proxy_ex [$_proxy @QueryInterface IDispatchEx]
-        if {$proxy_ex eq ""} {
+        if {[catch {$_proxy @QueryInterface IDispatchEx} proxy_ex] ||
+            $proxy_ex eq ""} {
             set _have_dispex 0
             error $ermsg $erinfo $ercode
         }
