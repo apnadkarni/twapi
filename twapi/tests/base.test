@@ -3806,6 +3806,32 @@ namespace eval twapi::base::test {
 
     ################################################################
 
+    test read_credentials-1.0 {
+        read_credentials
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result ""
+
+    test credentials_dialog-1.0 {
+        credentials_dialog
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result ""
+
+    test confirm_credentials-1.0 {
+        confirm_credentials
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result ""
+
+    ################################################################
+
     #
     # Clean up
     ::tcltest::cleanupTests
