@@ -1762,7 +1762,6 @@ proc twapi::reset_thread_token {} {
     SetThreadToken NULL NULL
 }
 
-
 proc twapi::credentials {{pattern {}}} {
     trap {
         set raw [CredEnumerate  $pattern 0]
@@ -1775,9 +1774,9 @@ proc twapi::credentials {{pattern {}}} {
     foreach cred $raw {
         set rec [twine {flags type target comment lastwritten credblob persist attributes targetalias username} $cred]
         dict with rec {
-            set type [dictk {
+            set type [dict* {
                 1 generic 2 domain_password 3 domain_certificate 4 domain_visible_password 5 generic_certificate 6 domain_extended} $type]
-            set persist [dictk {
+            set persist [dict* {
                 1 session 2 local_machine 3 enterprise
             } $persist]
         }

@@ -6508,6 +6508,16 @@ namespace eval twapi::security::test {
 
     ################################################################
 
+    test credentials-1.0 {
+        credentials TBD
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
     cleanup_populated_accounts_and_groups
 
     if {![catch {twapi::lookup_account_name $test_account_name}]} {
