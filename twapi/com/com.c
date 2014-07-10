@@ -1537,7 +1537,6 @@ static TCL_RESULT Twapi_CoCreateInstanceExObjCmd(TwapiInterpContext *ticP, Tcl_I
     DWORD dwClsCtx;
     COSERVERINFO *cosiP;
     HRESULT hr;
-    Tcl_Obj *objP;
 
     mark = MemLifoPushMark(ticP->memlifoP);
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
@@ -1558,7 +1557,6 @@ static TCL_RESULT Twapi_CoCreateInstanceExObjCmd(TwapiInterpContext *ticP, Tcl_I
     } else
         res = TCL_ERROR;
 
-vamoose:
     MemLifoPopMark(mark);
     return res;
 }
@@ -1571,7 +1569,6 @@ static TCL_RESULT Twapi_CoSetProxyBlanketObjCmd(TwapiInterpContext *ticP, Tcl_In
     IUnknown *ifc;
     TCL_RESULT res;
     SEC_WINNT_AUTH_IDENTITY_W *swaiP;
-    COAUTHINFO *coauP;
     HRESULT hr;
     DWORD authz, authn, authn_level, impersonation_level, capabilities;
     LPWSTR principal_name;
@@ -1601,7 +1598,6 @@ static TCL_RESULT Twapi_CoSetProxyBlanketObjCmd(TwapiInterpContext *ticP, Tcl_In
     } else
         res = TCL_ERROR;
 
-vamoose:
     MemLifoPopMark(mark);
     return res;
 }
