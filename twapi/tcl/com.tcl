@@ -306,6 +306,8 @@ proc twapi::comobj {comid args} {
     if {$opts(active)} {
         set iunk [GetActiveObject $clsid]
         twapi::trap {
+            # TBD - do we need to deal with security blanket here? How do
+            # know what blanket is to be used on an already active object?
             # Get the IDispatch interface
             set idisp [IUnknown_QueryInterface $iunk {{00020400-0000-0000-C000-000000000046}}]
             return [comobj_idispatch $idisp 0 $clsid]
@@ -1498,19 +1500,19 @@ twapi::class create ::twapi::IUnknownProxy {
         return
     }
 
-    method @SetProxyBlanket blanket {
+    method @SetSecurityBlanket blanket {
         my variable _ifc _blanket
         # In-proc components will not support IClientSecurity interface
         # and will raise an error. That's the for the caller to be careful
         # about.
-        CoSetProxyBlanket $_ifc {*}$blanket
+        twapi::CoSetProxyBlanket $_ifc {*}$blanket
         set _blanket $blanket
-        return $blanket
+        return
     }
 
-    method @GetProxyBlanket {} {
+    method @GetSecurityBlanket {} {
         my variable _blanket
-        return
+        return $_blanket
     }
     
 
