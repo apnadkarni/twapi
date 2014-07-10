@@ -180,6 +180,8 @@ proc twapi::com_create_instance {clsid args} {
 
     lassign [_resolve_iid $opts(interface)] iid iid_name
 
+    # TBD - is all this OleRun still necessary or is there a check we can make
+    # before going down that path ?
     # Microsoft Office (and maybe others) have some, uhhm, quirks.
     # If they are loaded as inproc, all calls to retrieve an interface other 
     # than IUnknown fails. We have to get the IUnknown interface,
@@ -3113,6 +3115,15 @@ twapi::class create ::twapi::Automation {
             $proxy Release;     # Even on error, responsible for releasing
             error "Automation objects do not support interfaces of type '$type'"
         }
+        if {$type eq "IDispatchEx"} {
+            my variable _have_dispex
+            # If _have_dispex variable
+            #   - does not exist, have not tried to get IDispatchEx yet
+            #   - is 0, have tried but failed
+            #   - is 1, already have IDispatchEx
+            set _have_dispex 1
+        }
+
         set _proxy $proxy
         set _lcid $lcid
         array set _sinks {}
@@ -3158,6 +3169,8 @@ twapi::class create ::twapi::Automation {
                 return [::twapi::variant_value $vtval]
             }
         } onerror {} {
+            # TBD - should we only drop down below to check for IDispatchEx
+            # for specific error codes. Right now we do it for all.
             set erinfo $::errorInfo
             set ercode $::errorCode
             set ermsg [::twapi::trapresult]
