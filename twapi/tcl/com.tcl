@@ -174,7 +174,7 @@ proc twapi::com_create_instance {clsid args} {
     # only for activation and do NOT get passed down to method calls.
     # If a remote component is activated with specific identity, we
     # assume method calls require the same security settings.
-    if {[info exists opts(credentials)] && ![info exists opts(securityblanket)]} {
+    if {[llength $opts(credentials)] && ![info exists opts(securityblanket)]} {
         set opts(securityblanket) [com_security_blanket -credentials $opts(credentials)]
     }
 
@@ -199,7 +199,7 @@ proc twapi::com_create_instance {clsid args} {
 
         # Need to set security blanket if specified before invoking any method
         # else will get access denied
-        if {[info exists $opts(securityblanket)]} {
+        if {[info exists opts(securityblanket)]} {
             trap {
                 CoSetProxyBlanket $iunk {*}$opts(securityblanket)
             } onerror {} {
