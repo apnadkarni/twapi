@@ -219,22 +219,30 @@ proc twapi::com_create_instance {clsid args} {
         set ifc [lindex $ifcs 0 1]
     }
 
-    if {[info exists opts(securityblanket)]} {
-        trap {
-            CoSetProxyBlanket $ifc {*}$opts(securityblanket)
-        } onerror {} {
-            IUnknown_Release $ifc
-            rethrow
-        }
-    }
-
     # All interfaces are returned typed as IUnknown by the C level
     # even though they are actually the requested type
     set ifc [cast_handle $ifc $iid_name]
     if {$opts(raw)} {
+        if {[info exists opts(securityblanket)]} {
+            trap {
+                CoSetProxyBlanket $ifc {*}$opts(securityblanket)
+            } onerror {} {
+                IUnknown_Release $ifc
+                rethrow
+            }
+        }
         return $ifc
     } else {
-        return [make_interface_proxy $ifc]
+        set proxy [make_interface_proxy $ifc]
+        if {[info exists opts(securityblanket)]} {
+            trap {
+                $proxy @SetSecurityBlanket $opts(securityblanket)
+            } onerror {} {
+                catch {$proxy Release}
+                rethrow
+            }
+        }
+        return $proxy
     }
 }
 
@@ -305,7 +313,9 @@ proc twapi::comobj {comid args} {
             IUnknown_Release $iunk
         }
     } else {
-        return [comobj_idispatch [com_create_instance $clsid -interface $opts(interface) -raw {*}$args] 0 $clsid]
+        set proxy [com_create_instance $clsid -interface $opts(interface) {*}$args]
+        $proxy @SetCLSID $clsid
+        return [Automation new $proxy]
     }
 }
 
@@ -1268,6 +1278,7 @@ proc twapi::_interface_proxy_tracer {ifc oldname newname op} {
 # of the interface and must solely invoke operations through the
 # returned proxy object. When done with the object, call the Release
 # method on it, NOT destroy.
+# TBD - how does this interact with security blankets ?
 proc twapi::make_interface_proxy {ifc} {
     variable _interface_proxies
 
@@ -1362,7 +1373,6 @@ twapi::class create ::twapi::IUnknownProxy {
     # the proxy object and caller must not make use of that ref
     # unless it does an AddRef on it.
     constructor {ifc {objclsid ""}} {
-
         if {[::twapi::pointer_null? $ifc]} {
             error "Attempt to register a NULL interface"
         }
@@ -1372,6 +1382,9 @@ twapi::class create ::twapi::IUnknownProxy {
 
         my variable _clsid
         set _clsid $objclsid
+
+        my variable _blanket;   # Security blanket
+        set _blanket [list ]
 
         # We keep an internal reference count instead of explicitly
         # calling out to the object's AddRef/Release every time.
@@ -1424,12 +1437,22 @@ twapi::class create ::twapi::IUnknownProxy {
 
     # Same as QueryInterface except return "" instead of exception
     # if interface not found and returns proxy object instead of interface
-    method @QueryInterface {name_or_iid} {
+    method @QueryInterface {name_or_iid {set_blanket 0}} {
+        my variable _blanket
         ::twapi::trap {
-            return [::twapi::make_interface_proxy [my QueryInterface $name_or_iid]]
+            set proxy [::twapi::make_interface_proxy [my QueryInterface $name_or_iid]]
+            if {$set_blanket && [llength $_blanket]} {
+                $proxy @SetSecurityBlanket $_blanket
+            }
+            return $proxy
         } onerror {TWAPI_WIN32 0x80004002} {
             # No such interface, return "", don't generate error
             return ""
+        } onerror {} {
+            if {[info exists proxy]} {
+                catch {$proxy Release}
+            }
+            rethrow
         }
     }
 
@@ -1458,11 +1481,38 @@ twapi::class create ::twapi::IUnknownProxy {
         return $_ifc
     }
 
-    # Returns out class id
+    # Returns out class id - old deprecated - use GetCLSID
     method @Clsid {} {
         my variable _clsid
         return $_clsid
     }
+
+    method @GetCLSID {} {
+        my variable _clsid
+        return $_clsid
+    }
+
+    method @SetCLSID {clsid} {
+        my variable _clsid
+        set _clsid $clsid
+        return
+    }
+
+    method @SetProxyBlanket blanket {
+        my variable _ifc _blanket
+        # In-proc components will not support IClientSecurity interface
+        # and will raise an error. That's the for the caller to be careful
+        # about.
+        CoSetProxyBlanket $_ifc {*}$blanket
+        set _blanket $blanket
+        return $blanket
+    }
+
+    method @GetProxyBlanket {} {
+        my variable _blanket
+        return
+    }
+    
 
     twapi_exportall
 }
@@ -3121,7 +3171,7 @@ twapi::class create ::twapi::Automation {
         }
 
         # Try getting a IDispatchEx interface
-        if {[catch {$_proxy @QueryInterface IDispatchEx} proxy_ex] ||
+        if {[catch {$_proxy @QueryInterface IDispatchEx 1} proxy_ex] ||
             $proxy_ex eq ""} {
             set _have_dispex 0
             error $ermsg $erinfo $ercode
@@ -3385,6 +3435,12 @@ twapi::class create ::twapi::Automation {
             unset _sinks($sinkid)
         }
         return
+    }
+
+    # TBD - document
+    method -securityblanket blanket {
+        my variable _proxy
+        $_proxy @SetProxyBlanket $blanket
     }
 
     method unknown {name args} {
