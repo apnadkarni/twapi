@@ -97,6 +97,45 @@ proc twapi::com_security_blanket {args} {
 }
 
 # TBD - document
+proc twapi::com_initialize_security {args} {
+    # TBD - mutualauth?
+    parseargs args {
+        {authenticationlevel.sym default {default 0 none 1 connect 2 call 3 packet 4 packetintegrity 5 privacy 6}}
+        {impersonationlevel.sym impersonation {anonymous 1 identification 2 impersonation 3 delegation 4}}
+        {cloaking.sym none {none 0 static 0x20 dynamic 0x40}}
+        secd.arg
+        appid.arg
+        authenticationservices.arg
+    } -maxleftover 0 -setvars
+    
+    if {[info exists secd] && [info exists appid]} {
+        badargs! "Only one of -secd and -appid can be specified."
+    }
+
+    set eoac $cloaking
+    if {[info exists appid]} {
+        incr eoac 8;     # 8 -> EOAC_APPID
+        set secarg $appid
+    } else {
+        if {[info exists secd]} {
+            set secarg $secd
+        } else {
+            set secarg {}
+        }
+    }
+
+    set authlist {}
+    if {[info exists authenticationservices]} {
+        foreach authsvc $authenticationservices {
+            lappend authlist [list [dict! {spnego 9 winnt 10 kerberos 16} [lindex $authsvc 0]] 0 [lindex $authsvc 1]]
+        }
+    }
+
+    CoInitializeSecurity $secarg "" "" $authenticationlevel $impersonationlevel $authlist $eoac ""
+}
+
+
+# TBD - document
 proc twapi::com_create_instance {clsid args} {
     array set opts [parseargs args {
         {model.arg any}
