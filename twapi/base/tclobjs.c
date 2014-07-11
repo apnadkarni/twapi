@@ -3884,7 +3884,7 @@ Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
  * to the given string representation. Note that the owner, group, sacl
  * and dacl fields of the descriptor point to dynamic memory as well!
  */
-int ObjToPSECURITY_DESCRIPTOR(
+TCL_RESULT ObjToPSECURITY_DESCRIPTOR(
     Tcl_Interp *interp,
     Tcl_Obj *secdObj,
     SECURITY_DESCRIPTOR **secdPP

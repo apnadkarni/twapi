@@ -29,7 +29,7 @@ static struct TWAPI_ERROR_MAP error_map[] = {
     {TWAPI_REGISTER_WAIT_FAILED, "Could not register thread pool wait."},
     {TWAPI_BUG_INVALID_STATE_FOR_OP, "Internal error: requested operation is not valid for current state."},
     {TWAPI_OUT_OF_RANGE, "Value is out of range."},
-    {TWAPI_UNSUPPORTED_TYPE, "Unsupported type."},
+    {TWAPI_UNSUPPORTED_TYPE, "Unsupported type, format or function."},
     {TWAPI_REGISTERED_POINTER_EXISTS, "Attempt to register duplicate pointer."},
     {TWAPI_REGISTERED_POINTER_TAG_MISMATCH, "Type of pointer does not match registered type."},
     {TWAPI_REGISTERED_POINTER_NOTFOUND, "Pointer is not registered. Probably invalid or already freed."},
