@@ -687,6 +687,14 @@ namespace eval twapi::parseargs::test {
         set vargs {-a x -b o}
         array set opts [twapi::parseargs vargs {{a.sym x {x 0 y 1}} {b.sym n {m 2 n 3}} {c.sym i {i 4 j 5}}}]
     } -returnCodes {error} -result "Invalid value 'o' specified for option '-b'."
+    test parseargs-12.2 {
+        Verify parsing of arguments of type sym not matching enumerated values but integer
+    } -body {
+        unset -nocomplain opts
+        set vargs {-a x -b 99}
+        array set opts [twapi::parseargs vargs {{a.sym x {x 0 y 1}} {b.sym n {m 2 n 3}} {c.sym i {i 4 j 5}}}]
+        list $opts(a) $opts(b) $opts(c)
+    } -result {0 99 4}
 
     ################################################################
 

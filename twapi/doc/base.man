@@ -698,7 +698,8 @@ the first three cases, the argument following the option is taken
 as the value of the option and must be of an appropriate type:
 an arbitrary string, a boolean value ([const "0, 1, off, on, false, true"])
 or an integer respectively. If [arg OPTTYPE] is [const sym], the
-argument following the option is the key into the dictionary
+the option value is expected to be an integer or a 
+a key into the dictionary
 [arg VALUEOPTS] and the returned value of the option is the mapped
 value from this dictionary.
 If the option type is [cmd switch], or is
