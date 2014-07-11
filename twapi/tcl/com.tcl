@@ -63,6 +63,7 @@ proc twapi::CoGetObject {name bindopts iid} {
     return [Twapi_CoGetObject $name $bindopts $iid $iidname]
 }
 
+# TBD - replace with CoCreateInstanceEx
 proc twapi::CoCreateInstance {clsid iunknown context iid} {
     set iidname void
     catch {set iidname [registry get HKEY_CLASSES_ROOT\\Interface\\$iid ""]}
@@ -204,6 +205,13 @@ proc twapi::com_create_instance {clsid args} {
                                    $opts(mutualauth) \
                                    ] \
                               0]
+        set activation_blanket \
+            [com_security_blanket \
+                 -authenticationservice $opts(authenticationservice) \
+                 -serverprincipal $opts(serverprincipal) \
+                 -authenticationlevel $opts(authenticationlevel) \
+                 -impersonationlevel $opts(impersonationlevel) \
+                 -credentials $opts(credentials)]
     } else {
         set coserverinfo {}
     }
@@ -261,8 +269,13 @@ proc twapi::com_create_instance {clsid args} {
     }
 
     # All interfaces are returned typed as IUnknown by the C level
-    # even though they are actually the requested type
+    # even though they are actually the requested type.
     set ifc [cast_handle $ifc $iid_name]
+
+    if {[info exists activation_blanket]} {
+        _com_set_iunknown_proxy $ifc $activation_blanket
+    }
+
     if {$opts(raw)} {
         if {[info exists opts(securityblanket)]} {
             trap {
@@ -3550,6 +3563,17 @@ proc twapi::_comobj_cleanup {} {
     }
 }
 
+# In order for servers to release objects properly, the IUnknown interface
+# must have the same security settings as were used in the object creation
+# call. This is a helper for that.
+proc twapi::_com_set_iunknown_proxy {ifc blanket} {
+    set iunk [Twapi_IUnknown_QueryInterface $ifc [_iid_iunknown] IUnknown]
+    trap {
+        CoSetProxyBlanket $iunk {*}$blanket
+    } finally {
+        IUnknown_Release $iunk
+    }
+}
 
 #################################################################
 # COM server implementation
