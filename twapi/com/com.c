@@ -1526,6 +1526,57 @@ static Tcl_Obj *ObjFromNMULTI_QI(DWORD nmqi, MULTI_QI *mqiP)
 }
 
 
+/* Caller responsible for ticP->memlifoP memory release */
+TCL_RESULT ParsePSOLE_AUTHENTICATION_LIST(TwapiInterpContext *ticP,
+                                          Tcl_Obj *authlistObj,
+                                          SOLE_AUTHENTICATION_LIST **salPP
+    )
+{
+    Tcl_Obj **objs;
+    int i, nobjs;
+    Tcl_Interp *interp = ticP->interp;
+    SOLE_AUTHENTICATION_LIST *salP;
+
+    if (ObjGetElements(interp, authlistObj, &nobjs, &objs) != TCL_OK)
+        return TCL_ERROR;
+
+    if (nobjs == 0) {
+        *salPP = NULL;
+        return TCL_OK;
+    }
+
+    salP = MemLifoAlloc(ticP->memlifoP, sizeof(*salP), NULL);
+    salP->cAuthInfo = nobjs;
+    salP->aAuthInfo = MemLifoAlloc(ticP->memlifoP, nobjs*sizeof(SOLE_AUTHENTICATION_INFO), NULL);
+    for (i = 0; i < nobjs; ++i) {
+        Tcl_Obj **elems;
+        int nelems;
+        DWORD authn, authz;
+        if (ObjGetElements(interp, objs[i], &nelems, &elems) != TCL_OK)
+            return TCL_ERROR;
+        if (nelems != 3 ||
+            ObjToLong(interp, elems[0], &authn) != TCL_OK ||
+            ObjToLong(interp, elems[1], &authz) != TCL_OK) {
+            ObjSetStaticResult(ticP->interp, "Invalid SOLE_AUTHENTICATION_INFO structure");
+            return TCL_ERROR;
+        }
+        if (authz != RPC_C_AUTHZ_NONE ||
+            (authn != RPC_C_AUTHN_WINNT &&
+             authn != RPC_C_AUTHN_GSS_KERBEROS &&
+             authn != RPC_C_AUTHN_GSS_NEGOTIATE)) {
+            return TwapiReturnErrorMsg(interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported authentication service.");
+        }
+        salP->aAuthInfo[i].dwAuthnSvc = authn;
+        salP->aAuthInfo[i].dwAuthzSvc = authz;
+        if (ParsePSEC_WINNT_AUTH_IDENTITY(ticP, elems[2], (SEC_WINNT_AUTH_IDENTITY_W **)&salP->aAuthInfo[i].pAuthInfo) != TCL_OK)
+            return TCL_ERROR;
+    }
+
+    *salPP = salP;
+    return TCL_OK;
+}
+
+
 static TCL_RESULT Twapi_CoCreateInstanceExObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     MemLifoMarkHandle mark;
@@ -1564,7 +1615,6 @@ static TCL_RESULT Twapi_CoCreateInstanceExObjCmd(TwapiInterpContext *ticP, Tcl_I
 
 static TCL_RESULT Twapi_CoSetProxyBlanketObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    MemLifoMarkHandle mark;
     Tcl_Obj *proxyObj, *idObj;
     IUnknown *ifc;
     TCL_RESULT res;
@@ -1572,6 +1622,7 @@ static TCL_RESULT Twapi_CoSetProxyBlanketObjCmd(TwapiInterpContext *ticP, Tcl_In
     HRESULT hr;
     DWORD authz, authn, authn_level, impersonation_level, capabilities;
     LPWSTR principal_name;
+    MemLifoMarkHandle mark;
 
     mark = MemLifoPushMark(ticP->memlifoP);
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
@@ -1601,6 +1652,69 @@ static TCL_RESULT Twapi_CoSetProxyBlanketObjCmd(TwapiInterpContext *ticP, Tcl_In
     MemLifoPopMark(mark);
     return res;
 }
+
+
+static TCL_RESULT Twapi_CoInitializeSecurityObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    DWORD authn_level, impersonation_level, capabilities;
+    Tcl_Obj *authListObj;
+    MemLifoMarkHandle mark;
+    SECURITY_DESCRIPTOR *secdP;
+    SOLE_AUTHENTICATION_LIST *sole_auth_listP;
+    GUID appid;
+    TCL_RESULT res;
+    HRESULT hr;
+
+    res = TCL_ERROR;
+    mark = MemLifoPushMark(ticP->memlifoP);
+    if (TwapiGetArgsEx(ticP, objc-1, objv+1,
+                       ARGSKIP, /* Security descriptor/AppID */
+                       ARGSKIP, /* Auth services, ignored, let COM choose */
+                       ARGSKIP, /* Reserved, not used */
+                       GETINT(authn_level),
+                       GETINT(impersonation_level),
+                       GETOBJ(authListObj),
+                       GETINT(capabilities),
+                       ARGSKIP, /* Reserved, not used */
+                       ARGEND) == TCL_OK) {
+        if (capabilities & EOAC_ACCESS_CONTROL) {
+            ObjSetStaticResult(interp, "EOAC_ACCESS_CONTROL not supported");
+            goto vamoose;
+        }
+
+        if (ParsePSOLE_AUTHENTICATION_LIST(ticP, authListObj, &sole_auth_listP)
+            != TCL_OK)
+            goto vamoose;
+
+        if (capabilities & EOAC_APPID) {
+            /* Settings are based on AppID */
+            if (ObjToGUID(interp, objv[1], &appid) != TCL_OK)
+                goto vamoose;
+            secdP = (SECURITY_DESCRIPTOR *) &appid;
+        } else {
+            if (ObjToPSECURITY_DESCRIPTOR(interp, objv[1], &secdP) != TCL_OK)
+                goto vamoose;
+        }
+
+        hr = CoInitializeSecurity(secdP, -1, NULL, NULL,
+                                  authn_level, impersonation_level,
+                                  sole_auth_listP, capabilities, NULL);
+        if ((capabilities & EOAC_APPID) == 0 && secdP)
+            TwapiFree(secdP);
+
+        if (SUCCEEDED(hr))
+            res = TCL_OK;
+        else {
+            Twapi_AppendSystemError(interp, hr);
+            res = TCL_ERROR;
+        }
+    }
+
+vamoose:
+    MemLifoPopMark(mark);
+    return res;
+}
+
 
 
 /* Dispatcher for calling COM functions with no args */
@@ -2507,19 +2621,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             result.type = TRT_GUID;
             hr = CLSIDFromProgID(ObjToUnicode(objv[0]), &result.value.guid);
             break;
-        case 10012: // CoCreateInstance
-            if (TwapiGetArgs(interp, objc, objv,
-                             GETGUID(guid), ARGSKIP, GETINT(dw1),
-                             GETGUID(guid2), GETASTR(cP),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            if (ObjToIUnknown(interp, objv[1], (void **)&ifc.unknown)
-                != TCL_OK)
-                goto ret_error;
-            result.type = TRT_INTERFACE;
-            result.value.ifc.name = cP;
-            hr = CoCreateInstance(&guid, ifc.unknown, dw1, &guid2,
-                                  &result.value.ifc.p);
+        case 10012: // UNUSED
             break;
         case 10013: // MkParseDisplayName
             if (objc != 2)
@@ -2808,7 +2910,6 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(GetActiveObject, 10009),
         DEFINE_FNCODE_CMD(ProgIDFromCLSID, 10010),
         DEFINE_FNCODE_CMD(CLSIDFromProgID, 10011),
-        DEFINE_FNCODE_CMD(Twapi_CoCreateInstance, 10012),
         DEFINE_FNCODE_CMD(MkParseDisplayName, 10013),
         DEFINE_FNCODE_CMD(CoRegisterClassObject, 10014),
         DEFINE_FNCODE_CMD(CoRevokeClassObject, 10015),
@@ -2822,19 +2923,17 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(IEnumConnections_Next, 5),
     };
 
-    Tcl_CreateObjCommand(interp, "twapi::ComTicCall",
-                         Twapi_CallCOMTicObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::IDispatch_Invoke",
-                         Twapi_IDispatch_InvokeObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::Twapi_ComServer",
-                         Twapi_ComServerObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::Twapi_ClassFactory",
-                         Twapi_ClassFactoryObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CoCreateInstanceEx",
-                         Twapi_CoCreateInstanceExObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CoSetProxyBlanket",
-                         Twapi_CoSetProxyBlanketObjCmd, ticP, NULL);
+    static struct tcl_dispatch_s TclDispatch[] = {
+        DEFINE_TCL_CMD(ComTicCall, Twapi_CallCOMTicObjCmd),
+        DEFINE_TCL_CMD(IDispatch_Invoke, Twapi_IDispatch_InvokeObjCmd),
+        DEFINE_TCL_CMD(Twapi_ComServer, Twapi_ComServerObjCmd),
+        DEFINE_TCL_CMD(Twapi_ClassFactory, Twapi_ClassFactoryObjCmd),
+        DEFINE_TCL_CMD(CoCreateInstanceEx, Twapi_CoCreateInstanceExObjCmd),
+        DEFINE_TCL_CMD(CoSetProxyBlanket, Twapi_CoSetProxyBlanketObjCmd),
+        DEFINE_TCL_CMD(CoInitializeSecurity, Twapi_CoInitializeSecurityObjCmd),
+    };
 
+    TwapiDefineTclCmds(interp, ARRAYSIZE(TclDispatch), TclDispatch, ticP);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(ComNoArgsDispatch), ComNoArgsDispatch, Twapi_CallCOMNoArgsObjCmd);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(ComDispatch), ComDispatch, Twapi_CallCOMObjCmd);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(ComAliasDispatch), ComAliasDispatch, "twapi::ComTicCall");
