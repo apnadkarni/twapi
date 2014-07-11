@@ -574,18 +574,21 @@ int Twapi_ParseargsObjCmd(
             break;
 
         case OPT_SYM:
-            /* If no explicit default, but have a -nulldefault switch,
-             * (else we would have continued above), return ""
-             */
-            
             /* Check list of allowed values if specified */
-            if (opts[k].valid_values) {
-                Tcl_Obj *symvalObj;
-                if (ObjDictGet(interp, opts[k].valid_values, valuesP[k], &symvalObj) != TCL_OK)
-                    goto error_return; // Really should not happen
-                if (symvalObj) {
-                    valuesP[k] = symvalObj;
-                } else {
+            if (valuesP[k] == NULL)
+                valuesP[k] = ObjFromLong(0); /* Deals with -nulldefault */
+            else {
+                Tcl_WideInt wide;
+                if (opts[k].valid_values) {
+                    Tcl_Obj *symvalObj;
+                    if (ObjDictGet(interp, opts[k].valid_values, valuesP[k], &symvalObj) != TCL_OK)
+                        goto error_return; // Invalid dict - should not happen
+                    if (symvalObj) {
+                        valuesP[k] = symvalObj;
+                    }
+                }
+                /* If passed value is numeric, we allow it */
+                if (ObjToWideInt(NULL, valuesP[k], &wide) == TCL_ERROR) {
                     TwapiParseargsSetResultBadValue(interp, NULL,
                                                     valuesP[k],
                                                     opts[k].name,
@@ -593,8 +596,6 @@ int Twapi_ParseargsObjCmd(
                     goto error_return;
                 }
             }
-            if (valuesP[k] == NULL)
-                valuesP[k] = ObjFromEmptyString(); /* Deals with -nulldefault */
             break;
 
         case OPT_SWITCH:
