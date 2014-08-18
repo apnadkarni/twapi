@@ -543,10 +543,7 @@ and you should use COM interfaces instead wherever possible.
    - The =COM= module of the [[#twapi][TWAPI]] extension (32- and 64-bit)
    See entries below for example usage.
 ** How can Tcl act as a COM server?
-   Both the [[#tcom][TCOM]] extension and [[#optcl][Optcl]] extensions support implementation
-   of 32-bit COM servers in Tcl. There is currently no support for 64-bit
-   COM implementations but this is not strictly required as 64-bit
-   COM clients should still be able to invoke 32-bit COM servers.
+   All of the above packages can be used to implement COM components.
 ** How can I automate Internet Explorer with Tcl?
    Automation of IE using COM is done by creating an instance using
    the PROGID =InternetExplorer.Application= and calling methods
