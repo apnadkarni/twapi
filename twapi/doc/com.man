@@ -97,7 +97,7 @@ Internet Explorer through its properties and methods.
 
 [para]
 Start up Internet Explorer (note it will not be visible yet)
-[example "set ie \[comobj InternetExplorer.Application -enableaaa\]"]
+[example "set ie \[comobj InternetExplorer.Application -enableaaa 1\]"]
 
 Automation objects can be associated with a default property that is
 retrieved if no property or method are specified. 
@@ -299,7 +299,7 @@ them.
 
 [example_begin]
 proc print_event args {puts "Received: [lb]join $args ,[rb]"}
-set ie [lb]comobj InternetExplorer.Application -enableaaa[rb]
+set ie [lb]comobj InternetExplorer.Application -enableaaa 1[rb]
 $ie Visible true
 set bind_id [lb]$ie -bind print_event[rb]
 $ie Navigate http://www.tcl.tk

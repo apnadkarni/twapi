@@ -3883,6 +3883,9 @@ Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
  * Returns a pointer to dynamic memory containing a structure corresponding
  * to the given string representation. Note that the owner, group, sacl
  * and dacl fields of the descriptor point to dynamic memory as well!
+ * Note some functions that use this, such as CoInitializeSecurity
+ * require the security descriptor to be in absolute format so do not
+ * change this function to return a self-relative descriptor
  */
 TCL_RESULT ObjToPSECURITY_DESCRIPTOR(
     Tcl_Interp *interp,
