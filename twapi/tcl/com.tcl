@@ -80,13 +80,17 @@ proc twapi::com_security_blanket {args} {
     # DCOM says it is only for CoInitializeSecurity. Either way, 
     # that option is not applicable here
     parseargs args {
-        {authenticationservice.sym default {default 0xffffffff none 0 winnt 10 kerberos 16}}
+        {authenticationservice.arg default}
         {serverprincipal.arg {}}
-        {authenticationlevel.sym default {default 0 none 1 connect 2 call 3 packet 4 packetintegrity 5 privacy 6}}
-        {impersonationlevel.sym default {default 0 anonymous 1 identification 2 impersonation 3 delegation 4}}
+        {authenticationlevel.arg default}
+        {impersonationlevel.arg default}
         {credentials.arg {}}
         cloaking.arg
     } -maxleftover 0 -setvars
+
+    set authenticationservice [_com_name_to_authsvc $authenticationservice]
+    set authenticationlevel [_com_name_to_authsvc $authenticationlevel]
+    set impersonationlevel [_com_name_to_impersonation $impersonationlevel]
 
     if {![info exists cloaking]} {
         set eoac 0x800;         # EOAC_DEFAULT
@@ -98,11 +102,47 @@ proc twapi::com_security_blanket {args} {
 }
 
 # TBD - document
+proc twapi::com_query_client_blanket {} {
+    return [_com_query_blanket]
+}
+# TBD - document
+proc twapi::com_query_proxy_blanket {ifc} {
+    return [_com_query_blanket $ifc]
+}
+proc twapi::_com_query_blanket {args} {
+    if {[llength $args]} {
+        lassign [CoQueryProxyBlanket [lindex $args 0]] authn authz server authlevel implevel client capabilities
+    } else {
+        lassign [CoQueryClientBlanket] authn authz server authlevel implevel client capabilities
+    }
+    if {$capabilities & 0x20} {
+        # EOAC_STATIC_CLOAKING
+        set cloaking static
+    } elseif {$capabilities & 0x40} {
+        set cloaking dynamic
+    } else {
+        set cloaking none
+    }
+
+    return [list \
+                -authenticationservice [_com_authsvc_to_name $authn] \
+                -authorizationservice [dict* {0 none 1 name 2 dce} $authz] \
+                -serverprincipal $server \
+                -authenticationlevel [_com_authlevel_to_name $authlevel] \
+                -impersonationlevel [_com_impersonation_to_name $implevel] \
+                -clientprincipal $client \
+                -cloaking $cloaking \
+               ]
+            
+}
+
+# TBD - document
 proc twapi::com_initialize_security {args} {
     # TBD - mutualauth?
+    # TBD - securerefs?
     parseargs args {
-        {authenticationlevel.sym default {default 0 none 1 connect 2 call 3 packet 4 packetintegrity 5 privacy 6}}
-        {impersonationlevel.sym impersonation {anonymous 1 identification 2 impersonation 3 delegation 4}}
+        {authenticationlevel.arg default}
+        {impersonationlevel.arg impersonation}
         {cloaking.sym none {none 0 static 0x20 dynamic 0x40}}
         secd.arg
         appid.arg
@@ -112,6 +152,9 @@ proc twapi::com_initialize_security {args} {
     if {[info exists secd] && [info exists appid]} {
         badargs! "Only one of -secd and -appid can be specified."
     }
+
+    set impersonationlevel [_com_name_to_impersonation $impersonationlevel]
+    set authenticationlevel [_com_name_to_authlevel $authenticationlevel]
 
     set eoac $cloaking
     if {[info exists appid]} {
@@ -128,7 +171,7 @@ proc twapi::com_initialize_security {args} {
     set authlist {}
     if {[info exists authenticationservices]} {
         foreach authsvc $authenticationservices {
-            lappend authlist [list [dict! {spnego 9 winnt 10 kerberos 16} [lindex $authsvc 0]] 0 [lindex $authsvc 1]]
+            lappend authlist [list [_com_name_to_authsvc [lindex $authsvc 0]] 0 [lindex $authsvc 1]]
         }
     }
 
@@ -145,16 +188,20 @@ proc twapi::com_create_instance {clsid args} {
         enableaaa.bool
         {nocustommarshal.bool false 0x1000}
         {interface.arg IUnknown}
-        {authenticationservice.sym none {none 0 winnt 10 kerberos 16}}
-        {impersonationlevel.sym impersonation {anonymous 1 identification 2 impersonation 3 delegation 4}}
+        {authenticationservice.arg none}
+        {impersonationlevel.arg impersonation}
         {credentials.arg {}}
         {serverprincipal.arg {}}
-        {authenticationlevel.sym default {default 0 none 1 connect 2 call 3 packet 4 packetintegrity 5 privacy 6}}
+        {authenticationlevel.arg default}
         {mutualauth.bool 0 0x1}
         securityblanket.arg
         system.arg
         raw
     } -maxleftover 0]
+
+    set opts(authenticationservice) [_com_name_to_authsvc $opts(authenticationservice)]
+    set opts(authenticationlevel) [_com_name_to_authsvc $opts(authenticationlevel)]
+    set opts(impersonationlevel) [_com_name_to_impersonation $opts(impersonationlevel)]
 
     # CLSCTX_NO_CUSTOM_MARSHAL ?
     set flags $opts(nocustommarshal)
@@ -3575,10 +3622,81 @@ proc twapi::_com_set_iunknown_proxy {ifc blanket} {
     }
 }
 
+
+twapi::proc* twapi::_init_authnames {} {
+    variable _com_authsvc_to_name 
+    variable _com_name_to_authsvc
+    variable _com_impersonation_to_name
+    variable _com_name_to_impersonation
+    variable _com_authlevel_to_name
+    variable _com_name_to_authlevel
+
+    set _com_authsvc_to_name {0 none 9 spnego 10 winnt 14 schannel 16 kerberos 0xffffffff default}
+    set _com_name_to_authsvc [swapl $_com_authsvc_to_name]
+    set _com_name_to_impersonation {default 0 anonymous 1 identification 2 impersonation 3 delegation 4}
+    set _com_impersonation_to_name [swapl $_com_name_to_impersonation]
+    set _com_name_to_authlevel {default 0 none 1 connect 2 call 3 packet 4 packetintegrity 5 privacy 6}
+    set _com_authlevel_to_name [swapl $_com_name_to_authlevel]
+} {
+}
+
+twapi::proc* twapi::_com_authsvc_to_name {authsvc} {
+    _init_authnames
+} {
+    variable _com_authsvc_to_name
+    return [dict* $_com_authsvc_to_name $authsvc]
+}
+
+twapi::proc* twapi::_com_name_to_authsvc {name} {
+    _init_authnames
+} {
+    variable _com_name_to_authsvc
+    if {[string is integer -strict $name]} {
+        return $name
+    }
+    return [dict! $_com_name_to_authsvc $name]
+}
+
+twapi::proc* twapi::_com_authlevel_to_name {authlevel} {
+    _init_authnames
+} {
+    variable _com_authlevel_to_name
+    return [dict* $_com_authlevel_to_name $authlevel]
+}
+
+twapi::proc* twapi::_com_name_to_authlevel {name} {
+    _init_authnames
+} {
+    variable _com_name_to_authlevel
+    if {[string is integer -strict $name]} {
+        return $name
+    }
+    return [dict! $_com_name_to_authlevel $name]
+}
+
+
+twapi::proc* twapi::_com_impersonation_to_name {imp} {
+    _init_authnames
+} {
+    variable _com_impersonation_to_name
+    return [dict* $_com_impersonation_to_name $imp]
+}
+
+twapi::proc* twapi::_com_name_to_impersonation {name} {
+    _init_authnames
+} {
+    variable _com_name_to_impersonation
+    if {[string is integer -strict $name]} {
+        return $name
+    }
+    return [dict! $_com_name_to_impersonation $name]
+}
+
 #################################################################
 # COM server implementation
 # WARNING: do not use any fancy TclOO features because it has to
 # run under 8.5/metoo as well
+# TBD - test scripts?
 
 twapi::class create twapi::ComFactory {
     constructor {clsid member_map create_command_prefix} {

@@ -70,6 +70,50 @@ static TCL_RESULT TwapiValidateIUnknownPtr(Tcl_Interp *interp, IUnknown *ifcP)
 }
 #endif
 
+struct TwapiBlanket {
+    DWORD authn;
+    DWORD authz;
+    OLECHAR *server;
+    DWORD authn_level;
+    DWORD imp_level;
+    RPC_AUTH_IDENTITY_HANDLE auth_info;
+    DWORD capabilities;
+};
+
+Tcl_Obj *ObjFromTwapiBlanket(struct TwapiBlanket *blanketP)
+{
+    Tcl_Obj *objs[7];
+
+    objs[0] = ObjFromLong(blanketP->authn);
+    objs[1] = ObjFromLong(blanketP->authz);
+    objs[2] = ObjFromUnicode(blanketP->server);
+    objs[3] = ObjFromLong(blanketP->authn_level);
+    objs[4] = ObjFromLong(blanketP->imp_level);
+    if (blanketP->auth_info) {
+        switch (blanketP->authn) {
+        case RPC_C_AUTHN_WINNT:
+        case RPC_C_AUTHN_GSS_KERBEROS:
+            objs[5] = ObjFromUnicode(blanketP->auth_info);
+            break;
+        case RPC_C_AUTHN_GSS_SCHANNEL:
+            // TBD - certificate
+            // May be use CertSerializeCertificateStoreElement
+            // or CertCreateCertificateContext or
+            // CertDuplicateCertificateContext or
+            // read the pcbEncoded part of the CERT_CONTEXT
+            // to return certificate. Cannot just return pointer
+            // because it is valid only for duration of callback
+            // FALLTHRU for now
+        default:
+            objs[5] = ObjFromEmptyString();
+            break;
+        }
+    } else
+        objs[5] = ObjFromEmptyString();
+    objs[6] = ObjFromLong(blanketP->capabilities);
+    return ObjNewList(ARRAYSIZE(objs), objs);
+}
+
 Tcl_Obj *ObjFromCONNECTDATA (const CONNECTDATA *cdP)
 {
     Tcl_Obj *objv[2];
@@ -77,8 +121,6 @@ Tcl_Obj *ObjFromCONNECTDATA (const CONNECTDATA *cdP)
     objv[1] = ObjFromLong(cdP->dwCookie);
     return ObjNewList(2, objv);
 }
-
-
 
 /* Returns a Tcl_Obj corresponding to a type descriptor. */
 static Tcl_Obj *ObjFromTYPEDESC(Tcl_Interp *interp, TYPEDESC *tdP, ITypeInfo *tiP)
@@ -1723,6 +1765,7 @@ static TCL_RESULT Twapi_CallCOMNoArgsObjCmd(ClientData clientdata, Tcl_Interp *i
     HRESULT hr;
     TwapiResult result;
     int func = PtrToInt(clientdata);
+    struct TwapiBlanket blanket;
 
     if (objc != 1)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -1738,6 +1781,21 @@ static TCL_RESULT Twapi_CallCOMNoArgsObjCmd(ClientData clientdata, Tcl_Interp *i
     case 2: // CoResumeClassObjects
         result.type = TRT_EMPTY;
         hr = CoResumeClassObjects();
+        break;
+    case 3: // CoQueryClientBlanket
+        blanket.capabilities = 0;
+        hr = CoQueryClientBlanket(&blanket.authn, &blanket.authz, &blanket.server, &blanket.authn_level, &blanket.imp_level, &blanket.auth_info, &blanket.capabilities);
+        if (FAILED(hr))
+            break;
+        result.type = TRT_OBJ;
+        result.value.obj = ObjFromTwapiBlanket(&blanket);
+        CoTaskMemFree(blanket.server);   /* Ok if NULL */
+        break;
+    case 4:
+        hr = CoRevertToSelf();
+        break;
+    case 5:
+        hr = CoImpersonateClient();
         break;
     }
     
@@ -1774,7 +1832,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
     } ifc;
     HRESULT hr;
     TwapiResult result;
-    DWORD dw1,dw2,dw3;
+    DWORD dw1,dw2,dw3,dw4,dw5;
     BSTR bstr1 = NULL;          /* Initialize for tracking frees! */
     BSTR bstr2 = NULL;
     BSTR bstr3 = NULL;
@@ -1785,12 +1843,13 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
     TYPEKIND tk;
     LPWSTR s;
     WORD w, w2;
-    Tcl_Obj *objs[4];
+    Tcl_Obj *objs[7];
     FUNCDESC *funcdesc;
     VARDESC  *vardesc;
     char *cP;
     int func = PtrToInt(clientdata);
     Tcl_Obj *sObj;
+    struct TwapiBlanket blanket;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -1858,6 +1917,15 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             /* No-op when asserts not enabled. If asserts enabled,
                validation is done at top of function itself */
             result.type = TRT_EMPTY;
+            break;
+        case 6: // CoQueryProxyBlanket
+            blanket.capabilities = 0;
+            hr = CoQueryProxyBlanket(ifc.unknown, &blanket.authn, &blanket.authz, &blanket.server, &blanket.authn_level, &blanket.imp_level, &blanket.auth_info, &blanket.capabilities);
+            if (FAILED(hr))
+                break;
+            result.type = TRT_OBJ;
+            result.value.obj = ObjFromTwapiBlanket(&blanket);
+            CoTaskMemFree(blanket.server);   /* Ok if NULL */
             break;
         }
     } else if (func < 200) {
@@ -2622,7 +2690,6 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             hr = CLSIDFromProgID(ObjToUnicode(objv[0]), &result.value.guid);
             break;
         case 10012: // UNUSED
-            break;
         case 10013: // MkParseDisplayName
             if (objc != 2)
                 goto badargs;
@@ -2809,6 +2876,9 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     static struct fncode_dispatch_s ComNoArgsDispatch[] = {
         DEFINE_FNCODE_CMD(CoSuspendClassObjects, 1),
         DEFINE_FNCODE_CMD(CoResumeClassObjects, 2),
+        DEFINE_FNCODE_CMD(CoQueryClientBlanket, 3),
+        DEFINE_FNCODE_CMD(com_revert_to_self, 4),
+        DEFINE_FNCODE_CMD(com_impersonate_client, 5),
     };
 
     static struct fncode_dispatch_s ComDispatch[] = {
@@ -2817,6 +2887,7 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_IUnknown_QueryInterface, 3),
         DEFINE_FNCODE_CMD(OleRun, 4), // Note - function, NOT method
         DEFINE_FNCODE_CMD(ValidateIUnknown, 5),
+        DEFINE_FNCODE_CMD(CoQueryProxyBlanket, 6),
 
         DEFINE_FNCODE_CMD(IDispatch_GetTypeInfoCount, 101),
         DEFINE_FNCODE_CMD(IDispatch_GetTypeInfo, 102),
