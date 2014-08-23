@@ -1766,6 +1766,8 @@ static TCL_RESULT Twapi_CallCOMNoArgsObjCmd(ClientData clientdata, Tcl_Interp *i
     TwapiResult result;
     int func = PtrToInt(clientdata);
     struct TwapiBlanket blanket;
+    SOLE_AUTHENTICATION_SERVICE *authsvcP;
+    DWORD dw, dw2;
 
     if (objc != 1)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -1797,6 +1799,20 @@ static TCL_RESULT Twapi_CallCOMNoArgsObjCmd(ClientData clientdata, Tcl_Interp *i
     case 5:
         hr = CoImpersonateClient();
         break;
+    case 6:
+        hr = CoQueryAuthenticationServices(&dw2, &authsvcP);
+        if (FAILED(hr))
+            break;
+        result.type = TRT_OBJ;
+        result.value.obj = ObjNewList(dw2, NULL);
+        for (dw = 0; dw < dw2; ++dw) {
+            Tcl_Obj *objs[3];
+            objs[0] = ObjFromInt(authsvcP[dw].dwAuthnSvc);
+            objs[1] = ObjFromInt(authsvcP[dw].dwAuthzSvc);
+            objs[2] = ObjFromUnicode(authsvcP[dw].pPrincipalName);
+            ObjAppendElement(NULL, result.value.obj, ObjNewList(3, objs));
+        }
+        CoTaskMemFree(authsvcP);
     }
     
     if (FAILED(hr)) {
@@ -2877,8 +2893,9 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CoSuspendClassObjects, 1),
         DEFINE_FNCODE_CMD(CoResumeClassObjects, 2),
         DEFINE_FNCODE_CMD(CoQueryClientBlanket, 3),
-        DEFINE_FNCODE_CMD(com_revert_to_self, 4),
-        DEFINE_FNCODE_CMD(com_impersonate_client, 5),
+        DEFINE_FNCODE_CMD(com_revert_to_self, 4), // TBD doc
+        DEFINE_FNCODE_CMD(com_impersonate_client, 5), // TBD doc
+        DEFINE_FNCODE_CMD(CoQueryAuthenticationServices, 6), // TBD doc
     };
 
     static struct fncode_dispatch_s ComDispatch[] = {
