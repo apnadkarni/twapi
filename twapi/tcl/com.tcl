@@ -89,7 +89,7 @@ proc twapi::com_security_blanket {args} {
     } -maxleftover 0 -setvars
 
     set authenticationservice [_com_name_to_authsvc $authenticationservice]
-    set authenticationlevel [_com_name_to_authsvc $authenticationlevel]
+    set authenticationlevel [_com_name_to_authlevel $authenticationlevel]
     set impersonationlevel [_com_name_to_impersonation $impersonationlevel]
 
     if {![info exists cloaking]} {
@@ -142,7 +142,7 @@ proc twapi::com_initialize_security {args} {
     # TBD - securerefs?
     parseargs args {
         {authenticationlevel.arg default}
-        {impersonationlevel.arg impersonation}
+        {impersonationlevel.arg impersonate}
         {cloaking.sym none {none 0 static 0x20 dynamic 0x40}}
         secd.arg
         appid.arg
@@ -189,7 +189,7 @@ proc twapi::com_create_instance {clsid args} {
         {nocustommarshal.bool false 0x1000}
         {interface.arg IUnknown}
         {authenticationservice.arg none}
-        {impersonationlevel.arg impersonation}
+        {impersonationlevel.arg impersonate}
         {credentials.arg {}}
         {serverprincipal.arg {}}
         {authenticationlevel.arg default}
@@ -200,7 +200,7 @@ proc twapi::com_create_instance {clsid args} {
     } -maxleftover 0]
 
     set opts(authenticationservice) [_com_name_to_authsvc $opts(authenticationservice)]
-    set opts(authenticationlevel) [_com_name_to_authsvc $opts(authenticationlevel)]
+    set opts(authenticationlevel) [_com_name_to_authlevel $opts(authenticationlevel)]
     set opts(impersonationlevel) [_com_name_to_impersonation $opts(impersonationlevel)]
 
     # CLSCTX_NO_CUSTOM_MARSHAL ?
@@ -265,7 +265,7 @@ proc twapi::com_create_instance {clsid args} {
 
     # If remote, set the specified security blanket on the proxy. Note
     # that the blanket settings passed to CoCreateInstanceEx are used
-    # only for activation and do NOT get passed down to method calls.
+    # only for activation and do NOT get passed down to method calls
     # If a remote component is activated with specific identity, we
     # assume method calls require the same security settings.
     if {[llength $opts(credentials)] && ![info exists opts(securityblanket)]} {
@@ -282,7 +282,7 @@ proc twapi::com_create_instance {clsid args} {
     # call OleRun and then retrieve the desired interface.
     # This does not happen if the localserver model was requested.
     # We could check for a specific error code but no guarantee that
-    # the error is same in all versions so we catch and retry on all errors
+    # the error is same in all versions so we catch and retry on all errors.
     # 3rd element of each sublist is status. Non-0 -> Failure code
     if {[catch {set ifcs [CoCreateInstanceEx $clsid NULL $flags $coserverinfo [list $iid]]}] || [lindex $ifcs 0 2] != 0} {
         # Try through IUnknown
@@ -320,6 +320,9 @@ proc twapi::com_create_instance {clsid args} {
     set ifc [cast_handle $ifc $iid_name]
 
     if {[info exists activation_blanket]} {
+        # In order for servers to release objects properly, the IUnknown 
+        # interface must have the same security settings as were used in 
+        # the object creation
         _com_set_iunknown_proxy $ifc $activation_blanket
     }
 
@@ -3631,9 +3634,9 @@ twapi::proc* twapi::_init_authnames {} {
     variable _com_authlevel_to_name
     variable _com_name_to_authlevel
 
-    set _com_authsvc_to_name {0 none 9 spnego 10 winnt 14 schannel 16 kerberos 0xffffffff default}
+    set _com_authsvc_to_name {0 none 9 negotiate 10 ntlm 14 schannel 16 kerberos 0xffffffff default}
     set _com_name_to_authsvc [swapl $_com_authsvc_to_name]
-    set _com_name_to_impersonation {default 0 anonymous 1 identification 2 impersonation 3 delegation 4}
+    set _com_name_to_impersonation {default 0 anonymous 1 identify 2 impersonate 3 delegate 4}
     set _com_impersonation_to_name [swapl $_com_name_to_impersonation]
     set _com_name_to_authlevel {default 0 none 1 connect 2 call 3 packet 4 packetintegrity 5 privacy 6}
     set _com_authlevel_to_name [swapl $_com_name_to_authlevel]
