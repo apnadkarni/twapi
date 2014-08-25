@@ -749,6 +749,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         };
         LSA_OBJECT_ATTRIBUTES lsa_oattr;
         Tcl_WideInt wide;
+        SECURITY_DESCRIPTOR *secdP;
     } u;
     DWORD dw, dw2;
     DWORD_PTR dwp;
@@ -766,6 +767,35 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     ++objv;;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
+    case 1003: // Twapi_FormatBinarySECURITY_DESCRIPTOR
+        if (ObjToPSECURITY_DESCRIPTOR(interp, objv[0], &u.secdP) != TCL_OK)
+            return TCL_ERROR;
+        dw = 0;
+        MakeSelfRelativeSD(u.secdP, NULL, &dw);
+        dw2 = GetLastError();
+        if (dw2 != ERROR_INSUFFICIENT_BUFFER)
+            return Twapi_AppendSystemError(interp, dw2);
+        result.value.obj = ObjFromByteArray(NULL, dw);
+        pv = ObjToByteArray(result.value.obj, &dw);
+        dw2 = MakeSelfRelativeSD(u.secdP, pv, &dw);
+        TwapiFreeSECURITY_DESCRIPTOR(u.secdP);
+        if (! dw2) {
+            ObjDecrRefs(result.value.obj);
+            return TwapiReturnSystemError(interp);
+        }
+        result.type = TRT_OBJ;
+        break;
+
+    case 1004: // Twapi_ParseBinarySECURITY_DESCRIPTOR_RELATIVE
+        u.secdP = ObjToByteArray(objv[0], &dw);
+        if (dw >= sizeof(SECURITY_DESCRIPTOR_RELATIVE) && IsValidSecurityDescriptor(u.secdP) && (u.secdP->Control & SE_SELF_RELATIVE)) {
+            result.type = TRT_OBJ;
+            result.value.obj = ObjFromSECURITY_DESCRIPTOR(interp, u.secdP);
+        } else {
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "Invalid security descriptor");
+        }
+        break;
+
     case 1005: // hex64
         if (ObjToWideInt(interp, objv[0], &u.wide) != TCL_OK)
             return TCL_ERROR;
@@ -2234,6 +2264,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     };
 
     static struct fncode_dispatch_s CallOneArgDispatch[] = {
+        DEFINE_FNCODE_CMD(Twapi_FormatBinarySECURITY_DESCRIPTOR, 1003),
+        DEFINE_FNCODE_CMD(Twapi_ParseBinarySECURITY_DESCRIPTOR, 1004),
         DEFINE_FNCODE_CMD(hex64, 1005),
         DEFINE_FNCODE_CMD(reveal, 1006),
         DEFINE_FNCODE_CMD(conceal, 1007),
