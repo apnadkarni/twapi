@@ -477,6 +477,12 @@ proc twapi::_init_security_defs {} {
         WRITE_DAC                      0x00040000
         WRITE_OWNER                    0x00080000
         SYNCHRONIZE                    0x00100000
+
+        COM_RIGHTS_EXECUTE 1
+        COM_RIGHTS_EXECUTE_LOCAL 2
+        COM_RIGHTS_EXECUTE_REMOTE 4
+        COM_RIGHTS_ACTIVATE_LOCAL 8
+        COM_RIGHTS_ACTIVATE_REMOTE 16
     }
 
     if {[min_os_version 6]} {
@@ -644,6 +650,10 @@ proc twapi::_access_mask_to_rights {access_mask {type ""}} {
                 WINSTA_ACCESSCLIPBOARD WINSTA_CREATEDESKTOP
                 WINSTA_WRITEATTRIBUTES WINSTA_ACCESSGLOBALATOMS
                 WINSTA_EXITWINDOWS WINSTA_ENUMERATE WINSTA_READSCREEN }
+            com { COM_RIGHTS_EXECUTE COM_RIGHTS_EXECUTE_LOCAL 
+                COM_RIGHTS_EXECUTE_REMOTE COM_RIGHTS_ACTIVATE_LOCAL 
+                COM_RIGHTS_ACTIVATE_REMOTE 
+            }
         }
 
         if {[min_os_version 6]} {
