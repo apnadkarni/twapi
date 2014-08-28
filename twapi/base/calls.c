@@ -787,7 +787,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
 
     case 1004: // Twapi_ParseBinarySECURITY_DESCRIPTOR_RELATIVE
-        u.secdP = ObjToByteArray(objv[0], &dw);
+        u.secdP = (SECURITY_DESCRIPTOR *) ObjToByteArray(objv[0], &dw);
         if (dw >= sizeof(SECURITY_DESCRIPTOR_RELATIVE) && IsValidSecurityDescriptor(u.secdP) && (u.secdP->Control & SE_SELF_RELATIVE)) {
             result.type = TRT_OBJ;
             result.value.obj = ObjFromSECURITY_DESCRIPTOR(interp, u.secdP);
@@ -2264,8 +2264,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     };
 
     static struct fncode_dispatch_s CallOneArgDispatch[] = {
-        DEFINE_FNCODE_CMD(Twapi_FormatBinarySECURITY_DESCRIPTOR, 1003),
-        DEFINE_FNCODE_CMD(Twapi_ParseBinarySECURITY_DESCRIPTOR, 1004),
+        DEFINE_FNCODE_CMD(encode_security_descriptor, 1003), // TBD - doc
+        DEFINE_FNCODE_CMD(decode_security_descriptor, 1004), // TBD - doc
         DEFINE_FNCODE_CMD(hex64, 1005),
         DEFINE_FNCODE_CMD(reveal, 1006),
         DEFINE_FNCODE_CMD(conceal, 1007),
