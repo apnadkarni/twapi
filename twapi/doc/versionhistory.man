@@ -15,6 +15,12 @@ The major change in this release is support for writing COM servers in Tcl.
 [bullet]
 Added the [uri comserver.html "COM server"] module.
 [bullet]
+Added COM security related commands
+[uri com.html#com_initialize_security [cmd com_initialize_security]],
+[uri com.html#com_security_blanket [cmd com_security_blanket]],
+[uri com.html#com_make_credentials [cmd com_make_credentials]]
+and [cmd -securityblanket] option to comobjs.
+[bullet]
 Added the [uri com.html#outvar [cmd outvar]] command.
 [bullet]
 Added the [uri base.html#new_guid [cmd new_guid]] command.
