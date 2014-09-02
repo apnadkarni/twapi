@@ -500,6 +500,23 @@ DISPID (roughly, the index into the dispatch table). Note this requires
 some detailed knowledge of the COM component, like the GUID and the
 DISPID values for the member methods and properties.
 
+[section Security]
+When accessing COM components that are remote or run locally in a separate
+process, the transport connection is secured based on configuration
+specified by both the client and the server. These settings, termed
+the [emph "security blanket"], are negotiated between the two and include
+the authentication service provider, the authentication level, the
+impersonation level, and identity. Clients can specify their requirements 
+using the [uri #com_security_blanket [cmd com_security_blanket]]
+command and retrieve a security blanket for a COM automation proxy
+with the [cmd -securityblanket] option. Process-wide settings can be
+specified with the [uri #com_initialize_security [cmd com_initialize_security]]
+command.
+
+For the server side, refer to [uri comserver.html "COM server"] documentation.
+
+
+
 [section Commands]
 
 [list_begin definitions]
@@ -511,6 +528,99 @@ Returns the PROGID for a given CLSID. For example,
 InternetExplorer.Application.1
 [example_end]
 
+[call [cmd com_initialize_security] [opt [arg options]]]
+Sets process-wide defaults for [uri #security "security blanket"] negotiation.
+The specified option values are used as defaults for COM access.
+This command can be called only once per process and must be called
+before any other COM command; otherwise an error is raised.
+If COM access is done before this command is called, it is implicitly called 
+with defaults configured in the system registry for either the component
+or the system.
+
+The following options may be specified:
+
+[list_begin opt]
+[opt_def [cmd -appid]] The AppID to use to configure security. Cannot be
+used together with the [cmd -secd] option.
+[opt_def [cmd -authenticationlevel] [arg AUTHLEVEL]]
+Specifies the authentication settings for securing the transport
+connection. [arg AUTHLEVEL] must be one of
+[const none], [const connect], [const call], [const packet],
+[const packetintegrity] or [const privacy].
+[opt_def [cmd -authenticationservice] [arg AUTHPROVIDERNAME]]
+Specifies the service provider to use for authenticating connections.
+[arg AUTHPROVIDERNAME] must be one of [const none], [const negotiate], 
+[const ntlm], [const schannel], or [const kerberos].
+[opt_def [cmd -cloaking] [arg CLOAK]]
+Specifies how identity should be cloaked when credentials are not specified.
+[arg CLOAK] may be one of [const none] in which case the credentials
+in the process token are used, [const static] in which case the thread token
+at the time of the first call is used for subsequent calls until
+another call to [cmd com_security_blanket], or [const dynamic] in which
+the token used is the thread token at the time of each call.
+Only used for the client side.
+[opt_def [cmd -impersonationlevel] [arg IMPERSONATIONLEVEL]]
+Specified the level at which the server is allowed to impersonate
+the client. [arg IMPERSONATIONLEVEL] must be one of 
+[const anonymous], [const identify], [const impersonate] or
+[const delegate].
+[opt_def [cmd -secd] [arg SECD]]
+A security descriptor that controls client access to the component. Used for
+the server side only. Cannot be used with the [cmd -appid] option.
+[list_end]
+
+Refer to the Windows SDK for a description of the various option values.
+
+[call [cmd com_make_credentials] [arg USERNAME] [arg PASSWORD] [arg DOMAIN]]
+Returns a descriptor containing credentials to be used for authenticating
+with a remote COM server. The account with name [arg USERNAME] in
+the domain or workgroup [arg DOMAIN] will be presented to the remote
+server.
+[arg PASSWORD] should be in 
+[uri base.html#passwordprotection "encrypted form"] as returned by
+by the [uri base.html#read_credentials [cmd read_credentials]] or
+[uri base.html#conceal [cmd conceal]] commands.
+
+[call [cmd com_security_blanket] [opt [arg options]]]
+Returns a [uri #security "security blanket"] descriptor based on the specified
+options. The following options may be specified to control the settings
+in the security blanket:
+
+[list_begin opt]
+[opt_def [cmd -authenticationlevel] [arg AUTHLEVEL]]
+Specifies the authentication settings for securing the transport
+connection. [arg AUTHLEVEL] must be one of
+[const none], [const connect], [const call], [const packet],
+[const packetintegrity] or [const privacy].
+[opt_def [cmd -authenticationservice] [arg AUTHPROVIDERNAME]]
+Specifies the service provider to use for authenticating connections.
+[arg AUTHPROVIDERNAME] must be one of [const none], [const negotiate], 
+[const ntlm], [const schannel], or [const kerberos].
+[opt_def [cmd -cloaking] [arg CLOAK]]
+Specifies how identity should be cloaked when credentials are not specified.
+[arg CLOAK] may be one of [const none] in which case the credentials
+in the process token are used, [const static] in which case the thread token
+at the time of the first call is used for subsequent calls until
+another call to [cmd com_security_blanket], or [const dynamic] in which
+the token used is the thread token at the time of each call.
+[opt_def [cmd -credentials] [arg CREDENTIALS]]
+Specifies the credentials to be specified by the client for authenticating
+to the server. These should be constructed using 
+[uri #com_make_credentials [cmd com_make_credentials]].
+[opt_def [cmd -impersonationlevel] [arg IMPERSONATIONLEVEL]]
+Specified the level at which the server is allowed to impersonate
+the client. [arg IMPERSONATIONLEVEL] must be one of 
+[const anonymous], [const identify], [const impersonate] or
+[const delegate].
+[opt_def [cmd -serviceprincipal] [arg NAME]]
+Specifies the server principal name.
+[list_end]
+
+Refer to the Windows SDK for a description of the various option values.
+Unspecified options default to the defaults negotiated by the system either
+based on a prior call to 
+[uri #com_initialize_security [cmd com_initialize_security]]
+or configured system-wide defaults.
 
 [call [cmd comobj] [arg PROGID_OR_CLSID] [opt [arg options]]]
 
@@ -539,6 +649,21 @@ If [const true], the returned object is attached to an
 existing COM instance instead of creating a new one. 
 If no instances are running, an error is generated.
 Other options are ignored if this option is specified.
+
+[opt_def [cmd -authenticationlevel] [arg AUTHLEVEL]]
+Sets the authentication level for the security blanket for the connection
+used for activating a remote object.
+See [uri #com_security_blanket [cmd com_security_blanket]] for details.
+
+[opt_def [cmd -authenticationservice] [arg AUTHSVC]]
+Sets the authentication service provider for the connection
+used for activating a remote object.
+See [uri #com_security_blanket [cmd com_security_blanket]] for details.
+
+[opt_def [cmd -credentials] [arg CREDENTIALS]]
+Specifies the credentials to be specified by the client for authenticating
+to the server. These should be constructed using 
+[uri #com_make_credentials [cmd com_make_credentials]].
 
 [opt_def [cmd -disablelog] [arg BOOLEAN]]
 If specified as true, disables logging of failures.
@@ -569,13 +694,17 @@ This corresponds to setting the flag
 If this option is not specified, neither of the flags is set in the
 underlying call to [cmd CoCreateInstance].
 
+[opt_def [cmd -impersonationlevel] [arg LEVEL]]
+Sets the impersonation level for the security blanket for the connection
+used for activating a remote object.
+See [uri #com_security_blanket [cmd com_security_blanket]] for details.
+
 [opt_def [cmd -interface] [arg IDISPATCHINTERFACE]]
 By default, the command will bind to the object's [cmd IDispatch] interface.
 If the object is known to support the [cmd IDispatchEx] interface as well,
 this option may be used to specify that should be used
 instead. [arg IDISPATCHINTERFACE] must be [cmd IDispatch] or 
 [cmd IDispatchEx].
-
 
 [opt_def [cmd -model] [arg MODELLIST]]
 Specifies which of the COM hosting models are acceptable. [arg MODELLIST]
@@ -588,6 +717,16 @@ acceptable.
 If true, the object creation will fail if it uses custom marshalling.
 Corresponds to the flag
 [uri "http://msdn.microsoft.com/en-us/library/windows/desktop/ms693716(v=vs.85).aspx" [const CLSCTX_NO_CUSTOM_MARSHAL]].
+
+[opt_def [cmd -securityblanket] [arg BLANKET]]
+The security blanket to use when invoking methods on a remote COM server.
+Note this is separate from the security blanket used for activation based
+on options like [cmd -credentials], [cmd -authenticationlevel] etc.
+If unspecified but [cmd -credentials] is specified, defaults to those
+same credentials.
+
+[opt_def [cmd -serviceprincipal] [arg NAME]]
+Specifies the server principal name for a remote component.
 
 [list_end]
 
@@ -670,6 +809,13 @@ See [sectref "COM Collections"] for an example.
 
 [call "[arg COMOBJ] [cmd -print]"]
 Prints to stdout the methods and properties of the object. Used for debugging.
+
+[call "[arg COMOBJ] [cmd -securityblanket]" [opt [arg BLANKET]]]
+If [arg BLANKET] is not specified, returns the
+[uri #security "security blanket"] in use for the remote object.
+If [arg BLANKET] is specified, it must be a security blanket as returned
+by the [uri #com_security_blanket [cmd com_security_blanket]] command.
+In that case, it is set as the new security blanket.
 
 [call "[arg COMOBJ] [cmd -set]" [arg PROPERTY] [arg VALUE] [opt "[arg VALUE] ..."]]
 Sets the value of the specified property. Additional optional parameters may be

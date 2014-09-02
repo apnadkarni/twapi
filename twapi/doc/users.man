@@ -698,10 +698,11 @@ account.
 [opt_def [cmd -script_path] [arg PATH]] Sets the path to the
 logon script for the account.
 [opt_def [cmd -password] [arg PASSWORD]] Sets the password for the account.
-[arg PASSWORD] but should be in 
+[arg PASSWORD] should be in 
 [uri base.html#passwordprotection "encrypted form"] as returned by
 by the [uri base.html#read_credentials [cmd read_credentials]] or
-[uri base.html#conceal [cmd conceal]] commands.[list_end]
+[uri base.html#conceal [cmd conceal]] commands.
+[list_end]
 
 [call [cmd remove_member_from_local_group] [arg GROUPNAME] [arg ACCOUNTNAME] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt "[cmd -type] [const name|sid]"]]
 
