@@ -700,6 +700,17 @@ namespace eval twapi::com::test {
         TBD - comobj methods with optional arguments
     } -result TBD
 
+
+    ###
+
+    test comobj-22.0 {
+        comobj -securityblanket
+    } -constraints {
+        TBD
+    } -body {
+        TBD - comobj -securityblanket
+    } -result TBD
+
     ################################################################
     
     test comobj_idispatch-1.0 {
@@ -1659,6 +1670,24 @@ namespace eval twapi::com::test {
         $wscript -destroy
         list [twapi::comobj_destroy $wscript $wscript2] [llength [info commands $wscript]] [llength [info commands $wscript]]
     } -result [list "" 0 0]
+
+    ################################################################
+
+    test com_security_blanket-1.0 {
+        com_security_blanket-1.0
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test com_make_credentials-1.0 {
+        com_make_credentials-1.0
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
 
     ################################################################
 

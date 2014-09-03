@@ -73,7 +73,6 @@ proc twapi::CoCreateInstance {clsid iunknown context iid} {
 proc twapi::progid_to_clsid {progid} { return [CLSIDFromProgID $progid] }
 proc twapi::clsid_to_progid {progid} { return [ProgIDFromCLSID $progid] }
 
-# TBD - test
 proc twapi::com_security_blanket {args} {
     # mutualauth.bool - docs for EOLE_AUTHENTICATION_CAPABILITIES. Learning
     # DCOM says it is only for CoInitializeSecurity. Either way, 
@@ -177,7 +176,6 @@ proc twapi::com_initialize_security {args} {
     CoInitializeSecurity $secarg "" "" $authenticationlevel $impersonationlevel $authlist $eoac ""
 }
 
-# TBD - test
 proc twapi::com_make_credentials {username password domain} {
     return [list $username $domain $password]
 }
@@ -3557,7 +3555,6 @@ twapi::class create ::twapi::Automation {
         return
     }
 
-    # TBD - test
     method -securityblanket {args} {
         my variable _proxy
         if {[llength $args]} {
