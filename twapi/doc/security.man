@@ -154,6 +154,14 @@ described in the following table.
 
 [list_begin opt]
 
+[opt_def COM]
+[const com_rights_execute],
+[const com_rights_execute_local],
+[const com_rights_execute_remote],
+[const com_rights_activate_local],
+[const com_rights_activate_remote]
+
+
 [opt_def Desktops]
 [const desktop_readobjects],
 [const desktop_createwindow],
@@ -163,10 +171,10 @@ described in the following table.
 [const desktop_journalplayback],
 [const desktop_enumerate],
 [const desktop_writeobjects],
-[const desktop_switchdesktop].
+[const desktop_switchdesktop]
 
 [opt_def Events]
-[const event_all_access], [const event_modify_state].
+[const event_all_access], [const event_modify_state]
 
 [opt_def Files]
 [const file_all_access],

@@ -269,8 +269,14 @@ proc twapi::com_create_instance {clsid args} {
     # only for activation and do NOT get passed down to method calls
     # If a remote component is activated with specific identity, we
     # assume method calls require the same security settings.
-    if {[llength $opts(credentials)] && ![info exists opts(securityblanket)]} {
-        set opts(securityblanket) [com_security_blanket -credentials $opts(credentials)]
+
+    if {([info exists activation_blanket] || [llength $opts(credentials)]) &&
+        ![info exists opts(securityblanket)]} {
+        if {[info exists activation_blanket]} {
+            set opts(securityblanket) $activation_blanket
+        } else {
+            set opts(securityblanket) [com_security_blanket -credentials $opts(credentials)]
+        }
     }
 
     lassign [_resolve_iid $opts(interface)] iid iid_name
