@@ -1795,9 +1795,11 @@ static TCL_RESULT Twapi_CallCOMNoArgsObjCmd(ClientData clientdata, Tcl_Interp *i
         break;
     case 4:
         hr = CoRevertToSelf();
+        result.type = TRT_EMPTY;
         break;
     case 5:
         hr = CoImpersonateClient();
+        result.type = TRT_EMPTY;
         break;
     case 6:
         hr = CoQueryAuthenticationServices(&dw2, &authsvcP);
