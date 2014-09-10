@@ -1657,7 +1657,7 @@ static TCL_RESULT Twapi_CoCreateInstanceExObjCmd(TwapiInterpContext *ticP, Tcl_I
 
 static TCL_RESULT Twapi_CoSetProxyBlanketObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    Tcl_Obj *proxyObj, *idObj;
+    Tcl_Obj *proxyObj, *credsObj;
     IUnknown *ifc;
     TCL_RESULT res;
     SEC_WINNT_AUTH_IDENTITY_W *swaiP;
@@ -1665,19 +1665,38 @@ static TCL_RESULT Twapi_CoSetProxyBlanketObjCmd(TwapiInterpContext *ticP, Tcl_In
     DWORD authz, authn, authn_level, impersonation_level, capabilities;
     LPWSTR principal_name;
     MemLifoMarkHandle mark;
+    int principal_name_tag, creds_tag;
 
     mark = MemLifoPushMark(ticP->memlifoP);
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
                        GETOBJ(proxyObj),
                        GETINT(authn),
                        GETINT(authz),
+                       GETINT(principal_name_tag),
                        GETEMPTYASNULL(principal_name),
                        GETINT(authn_level),
                        GETINT(impersonation_level),
-                       GETOBJ(idObj),
+                       GETINT(creds_tag),
+                       GETOBJ(credsObj),
                        GETINT(capabilities), ARGEND) == TCL_OK &&
         ObjToLPVOID(interp, objv[1], (void **)&ifc) == TCL_OK &&
-        ParsePSEC_WINNT_AUTH_IDENTITY(ticP, idObj, &swaiP) == TCL_OK) {
+        ParsePSEC_WINNT_AUTH_IDENTITY(ticP, credsObj, &swaiP) == TCL_OK) {
+
+        switch (principal_name_tag) {
+        case 0:
+            /* Select based on negotiated CoInitializeSecurity blanket */
+            principal_name = (LPWSTR) COLE_DEFAULT_PRINCIPAL;
+            break;
+        case 1:
+            /* Keep unchanged */
+            principal_name = NULL;
+            break;
+        case 2:
+        default: break;
+        }
+
+        if (creds_tag == 0)
+            swaiP = (SEC_WINNT_AUTH_IDENTITY_W *) COLE_DEFAULT_AUTHINFO;
 
         hr = CoSetProxyBlanket(ifc, authn, authz, principal_name,
                                authn_level, impersonation_level,
@@ -1786,7 +1805,8 @@ static TCL_RESULT Twapi_CallCOMNoArgsObjCmd(ClientData clientdata, Tcl_Interp *i
         break;
     case 3: // CoQueryClientBlanket
         blanket.capabilities = 0;
-        hr = CoQueryClientBlanket(&blanket.authn, &blanket.authz, &blanket.server, &blanket.authn_level, &blanket.imp_level, &blanket.auth_info, &blanket.capabilities);
+        blanket.imp_level = 0;  /* CoQueryClientBlanket says pImpLevel must be NULL */
+        hr = CoQueryClientBlanket(&blanket.authn, &blanket.authz, &blanket.server, &blanket.authn_level, NULL, &blanket.auth_info, &blanket.capabilities);
         if (FAILED(hr))
             break;
         result.type = TRT_OBJ;
