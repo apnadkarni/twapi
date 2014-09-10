@@ -605,15 +605,20 @@ another call to [cmd com_security_blanket], or [const dynamic] in which
 the token used is the thread token at the time of each call.
 [opt_def [cmd -credentials] [arg CREDENTIALS]]
 Specifies the credentials to be specified by the client for authenticating
-to the server. These should be constructed using 
-[uri #com_make_credentials [cmd com_make_credentials]].
+to the server. If specified and non-empty, these should be constructed using 
+[uri #com_make_credentials [cmd com_make_credentials]]. If 
+[arg CREDENTIALS] is specified as an empty list, the credentials of the
+current thread token, or process token if thread token is not present,
+are used. If the option is not specified, the blanket indicates that
+the existing credentials are to be kept.
 [opt_def [cmd -impersonationlevel] [arg IMPERSONATIONLEVEL]]
 Specified the level at which the server is allowed to impersonate
 the client. [arg IMPERSONATIONLEVEL] must be one of 
 [const anonymous], [const identify], [const impersonate] or
 [const delegate].
 [opt_def [cmd -serviceprincipal] [arg NAME]]
-Specifies the server principal name.
+Specifies the server principal name. If unspecified, existing 
+principal name is kept.
 [list_end]
 
 Refer to the Windows SDK for a description of the various option values.
