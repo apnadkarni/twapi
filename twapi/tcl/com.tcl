@@ -79,10 +79,10 @@ proc twapi::com_security_blanket {args} {
     # that option is not applicable here
     parseargs args {
         {authenticationservice.arg default}
-        {serverprincipal.arg {}}
+        serverprincipal.arg
         {authenticationlevel.arg default}
         {impersonationlevel.arg default}
-        {credentials.arg {}}
+        credentials.arg
         cloaking.arg
     } -maxleftover 0 -setvars
 
@@ -96,23 +96,56 @@ proc twapi::com_security_blanket {args} {
         set eoac [dict! {none 0 static 0x20 dynamic 0x40} $cloaking]
     }
 
-    return [list $authenticationservice 0 $serverprincipal $authenticationlevel $impersonationlevel $credentials $eoac]
+    if {[info exists credentials]} {
+        # Credentials specified. Empty list -> NULL, ie use thread token
+        set creds_tag 1
+    } else {
+        # Credentials not to be changed
+        set creds_tag 0
+        set credentials {};     # Ignored
+    }
+
+    if {[info exists serverprincipal]} {
+        if {$serverprincipal eq ""} {
+            set serverprincipaltag 0; # Default based on com_initialize_security
+        } else {
+            set serverprincipaltag 2
+        }
+    } else {
+        set serverprincipaltag 1; # Unchanged server principal
+        set serverprincipal ""
+    }
+
+    return [list $authenticationservice 0 $serverprincipaltag $serverprincipal $authenticationlevel $impersonationlevel $creds_tag $credentials $eoac]
 }
 
 # TBD - document
 proc twapi::com_query_client_blanket {} {
-    return [_com_query_blanket]
+    lassign [CoQueryClientBlanket] authn authz server authlevel implevel client capabilities
+    if {$capabilities & 0x20} {
+        # EOAC_STATIC_CLOAKING
+        set cloaking static
+    } elseif {$capabilities & 0x40} {
+        set cloaking dynamic
+    } else {
+        set cloaking none
+    }
+
+    # Note there is no implevel set as CoQueryClientBlanket does
+    # not return that information and implevel is a dummy value
+    return [list \
+                -authenticationservice [_com_authsvc_to_name $authn] \
+                -authorizationservice [dict* {0 none 1 name 2 dce} $authz] \
+                -serverprincipal $server \
+                -authenticationlevel [_com_authlevel_to_name $authlevel] \
+                -clientprincipal $client \
+                -cloaking $cloaking \
+               ]
 }
+
 # TBD - document
 proc twapi::com_query_proxy_blanket {ifc} {
-    return [_com_query_blanket $ifc]
-}
-proc twapi::_com_query_blanket {args} {
-    if {[llength $args]} {
-        lassign [CoQueryProxyBlanket [lindex $args 0]] authn authz server authlevel implevel client capabilities
-    } else {
-        lassign [CoQueryClientBlanket] authn authz server authlevel implevel client capabilities
-    }
+    lassign [CoQueryProxyBlanket [lindex $args 0]] authn authz server authlevel implevel client capabilities
     if {$capabilities & 0x20} {
         # EOAC_STATIC_CLOAKING
         set cloaking static
