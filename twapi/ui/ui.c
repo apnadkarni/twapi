@@ -10,6 +10,7 @@
 
 /*
 TBD functions:
+Maybe use InternalGetWindowText instead of GetWindowText
 EnumThreadWindows
 GetKeyboardState
 TileWindows
@@ -646,6 +647,13 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_HDC;
             result.value.hval = GetWindowDC(hwnd);
             break;
+        case 27:
+            result.value.ival = GetDlgCtrlID(hwnd);
+            if (result.value.ival)
+                result.type = TRT_DWORD;
+            else
+                result.type = TRT_GETLASTERROR;
+            break;
         }
         if (bfn) {
             result.type = TRT_BOOL;
@@ -686,6 +694,13 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         case 507:
             result.type = TRT_HMONITOR;
             result.value.hval = MonitorFromWindow(hwnd, dw);
+            break;
+        case 508:
+            result.value.hwin = GetDlgItem(hwnd, dw);
+            if (result.value.hwin)
+                result.type = TRT_HWND;
+            else
+                result.type = TRT_GETLASTERROR;
             break;
         }        
     } else {
@@ -909,6 +924,7 @@ static int TwapiUiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(EnumChildWindows, 24),
         DEFINE_FNCODE_CMD(GetWindowText, 25),
         DEFINE_FNCODE_CMD(GetWindowDC, 26),
+        DEFINE_FNCODE_CMD(GetDlgCtrlID, 27), // TBD - Tcl
         DEFINE_FNCODE_CMD(GetAncestor, 501),
         DEFINE_FNCODE_CMD(GetWindow, 502),
         DEFINE_FNCODE_CMD(ShowWindow, 503),
@@ -916,6 +932,7 @@ static int TwapiUiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(EnableWindow, 505),
         DEFINE_FNCODE_CMD(ShowOwnedPopups, 506),
         DEFINE_FNCODE_CMD(MonitorFromWindow, 507),
+        DEFINE_FNCODE_CMD(GetDlgItem, 508), // TBD - Tcl
         DEFINE_FNCODE_CMD(SetWindowText, 1001),
         DEFINE_FNCODE_CMD(IsChild, 1002),
         DEFINE_FNCODE_CMD(InvalidateRect, 1004),     // TBD - Tcl 
