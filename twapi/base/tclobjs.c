@@ -3406,22 +3406,16 @@ PSID TwapiGetSidFromStringRep(char *strP)
 }
 
 /* Tcl_Obj to SID - the object may hold the SID string rep, a binary
-   or a list of ints. If the object is an empty string, *sidPP is
-   stored as NULL. Else the SID is dynamically allocated and a pointer to it is
+   or a list of ints. If the object is an empty string, error returned.
+   Else the SID is dynamically allocated and a pointer to it is
    stored in *sidPP. Caller must release it by calling TwapiFree
 */
-int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
+TCL_RESULT ObjToPSIDNonNull(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
 {
     char *s;
     DWORD   len;
     SID  *sidP;
     DWORD winerror;
-
-    s = ObjToStringN(obj, &len);
-    if (len == 0) {
-        *sidPP = NULL;
-        return TCL_OK;
-    }
 
     *sidPP = TwapiGetSidFromStringRep(ObjToString(obj));
     if (*sidPP)
@@ -3445,6 +3439,27 @@ int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
         }
     }
     return Twapi_AppendSystemError(interp, winerror);
+}
+
+
+
+/* Tcl_Obj to SID - the object may hold the SID string rep, a binary
+   or a list of ints. If the object is an empty string, *sidPP is
+   stored as NULL. Else the SID is dynamically allocated and a pointer to it is
+   stored in *sidPP. Caller must release it by calling TwapiFree
+*/
+TCL_RESULT ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
+{
+    char *s;
+    DWORD   len;
+
+    s = ObjToStringN(obj, &len);
+    if (len == 0) {
+        *sidPP = NULL;
+        return TCL_OK;
+    }
+
+    return ObjToPSIDNonNull(interp, obj, sidPP);
 }
 
 /* Convert a ACE object to a Tcl list. interp may be NULL */

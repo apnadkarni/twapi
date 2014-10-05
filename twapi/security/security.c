@@ -865,6 +865,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
         LSA_UNICODE_STRING lsa_ustr;
         TOKEN_PRIVILEGES *tokprivsP;
         PCREDENTIALW *credsPP;
+        char sid[SECURITY_MAX_SID_SIZE];
     } u;
     LSA_HANDLE lsah;
     ULONG  lsa_count;
@@ -872,6 +873,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     TwapiResult result;
     int func = PtrToInt(clientdata);
     WCHAR *passwordP;
+    Tcl_Obj *objP;
     Tcl_Obj **objPP;
     DWORD nobjs;
     int *iP;
@@ -1103,6 +1105,65 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     } else {
         /* Arbitrary args */
         switch (func) {
+        case 10007: // EqualSid
+            result.type = TRT_TCL_RESULT;
+            result.value.ival =
+                TwapiGetArgs(interp, objc, objv, GETVAR(osidP, ObjToPSIDNonNull), 
+                             GETVAR(gsidP, ObjToPSIDNonNull), ARGEND);
+            if (result.value.ival != TCL_OK)
+                break;
+            result.type = TRT_BOOL;
+            result.value.bval = EqualSid(osidP, gsidP);
+            break;
+        case 10008: // IsWellKnownSid
+            result.type = TRT_TCL_RESULT;
+            result.value.ival = TwapiGetArgs(interp, objc, objv, GETVAR(osidP, ObjToPSIDNonNull),
+                                             GETINT(dw), ARGEND);
+            if (result.value.ival != TCL_OK)
+                break;
+            result.type = TRT_BOOL;
+            result.value.bval = IsWellKnownSid(osidP, dw);
+            break;
+        case 10009: // GetWindowsAccountDomainSid
+            result.type = TRT_TCL_RESULT;
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETVAR(osidP, ObjToPSID), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            dw2 = sizeof(u.sid);
+            if (GetWindowsAccountDomainSid(osidP, (PSID) &u.sid, &dw2)) {
+                if (ObjFromSID(interp, (PSID) &u.sid, &result.value.obj) == TCL_OK)
+                    result.type = TRT_OBJ;
+                else
+                    result.value.ival = TCL_ERROR;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+        case 10010: // EqualDomainSid
+            result.type = TRT_BOOL;
+            if (TwapiGetArgs(interp, objc, objv, GETVAR(osidP, ObjToPSID), 
+                             GETVAR(gsidP, ObjToPSID), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            if (EqualDomainSid(osidP, gsidP, &result.value.bval))
+                result.type = TRT_BOOL;
+            else
+                result.type = TRT_GETLASTERROR;
+            break;
+
+        case 10011: // CreateWellKnownSid
+            result.type = TRT_TCL_RESULT;
+            if (TwapiGetArgs(interp, objc, objv, GETINT(dw),
+                             GETVAR(osidP, ObjToPSID), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            dw2 = sizeof(u.sid);
+            if (CreateWellKnownSid(dw, osidP, (PSID) &u.sid, &dw2)) {
+                if (ObjFromSID(interp, (PSID) &u.sid, &result.value.obj) == TCL_OK)
+                    result.type = TRT_OBJ;
+                else
+                    result.value.ival = TCL_ERROR;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+
         case 10012:
             CHECK_NARGS(interp, objc, 3);
             if (ObjToOpaque(interp, objv[0], (void **) &lsah, "LSA_HANDLE") != TCL_OK ||
@@ -1362,6 +1423,11 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_SetTokenOwner, 4003),
         DEFINE_FNCODE_CMD(Twapi_LsaEnumerateAccountRights, 4004),
 
+        DEFINE_FNCODE_CMD(equal_sids, 10007),
+        DEFINE_FNCODE_CMD(IsWellKnownSid, 10008),
+        DEFINE_FNCODE_CMD(get_sid_domain, 10009),
+        DEFINE_FNCODE_CMD(sids_from_same_domain, 10010),
+        DEFINE_FNCODE_CMD(CreateWellKnownSid, 10011),
         DEFINE_FNCODE_CMD(Twapi_LsaSetInformationPolicy_AuditEvents, 10012),
         DEFINE_FNCODE_CMD(UnloadUserProfile, 10013), // TBD - Tcl
         DEFINE_FNCODE_CMD(LogonUser, 10014),

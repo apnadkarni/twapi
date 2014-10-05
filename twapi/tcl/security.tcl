@@ -338,6 +338,20 @@ if {[twapi::min_os_version 6]} {
     }
 }
 
+# TBD - document
+proc twapi::well_known_sid {sidname args} {
+    parseargs args {
+        {domainsid.arg {}}
+    } -maxleftover 0 -setvars
+
+    return [CreateWellKnownSid [_map_well_known_sid_name $sidname] $domainsid]
+}
+
+# TBD - document
+proc twapi::is_well_known_sid {sid sidname} {
+    return [IsWellKnownSid $sid [_map_well_known_sid_name $sidname]]
+}
+
 # Get the user account associated with a token
 proc twapi::get_token_user {tok args} {
 
@@ -1969,3 +1983,102 @@ proc twapi::_map_impersonation_level ilevel {
     }
 }
 
+proc twapi::_map_well_known_sid_name {sidname} {
+    return [dict* {
+        null 0
+        world 1
+        local 2
+        creatorowner 3
+        creatorgroup 4
+        creatorownerserver 5
+        creatorgroupserver 6
+        ntauthority 7
+        dialup 8
+        network 9
+        batch 10
+        interactive 11
+        service 12
+        anonymous 13
+        proxy 14
+        enterprisecontrollers 15
+        self 16
+        authenticateduser 17
+        restrictedcode 18
+        terminalserver 19
+        remotelogonid 20
+        logonids 21
+        localsystem 22
+        localservice 23
+        networkservice 24
+        builtindomain 25
+        builtinadministrators 26
+        builtinusers 27
+        builtinguests 28
+        builtinpowerusers 29
+        builtinaccountoperators 30
+        builtinsystemoperators 31
+        builtinprintoperators 32
+        builtinbackupoperators 33
+        builtinreplicator 34
+        builtinprewindows2000compatibleaccess 35
+        builtinremotedesktopusers 36
+        builtinnetworkconfigurationoperators 37
+        accountadministrator 38
+        accountguest 39
+        accountkrbtgt 40
+        accountdomainadmins 41
+        accountdomainusers 42
+        accountdomainguests 43
+        accountcomputers 44
+        accountcontrollers 45
+        accountcertadmins 46
+        accountschemaadmins 47
+        accountenterpriseadmins 48
+        accountpolicyadmins 49
+        accountrasandiasservers 50
+        ntlmauthentication 51
+        digestauthentication 52
+        schannelauthentication 53
+        thisorganization 54
+        otherorganization 55
+        builtinincomingforesttrustbuilders 56
+        builtinperfmonitoringusers 57
+        builtinperfloggingusers 58
+        builtinauthorizationaccess 59
+        builtinterminalserverlicenseservers 60
+        builtindcomusers 61
+        builtiniusers 62
+        iuser 63
+        builtincryptooperators 64
+        untrustedlabel 65
+        lowlabel 66
+        mediumlabel 67
+        highlabel 68
+        systemlabel 69
+        writerestrictedcode 70
+        creatorownerrights 71
+        cacheableprincipalsgroup 72
+        noncacheableprincipalsgroup 73
+        enterprisereadonlycontrollers 74
+        accountreadonlycontrollers 75
+        builtineventlogreadersgroup 76
+        newenterprisereadonlycontrollers 77
+        builtincertsvcdcomaccessgroup 78
+        mediumpluslabel 79
+        locallogon 80
+        consolelogon 81
+        thisorganizationcertificate 82
+        applicationpackageauthority 83
+        builtinanypackage 84
+        capabilityinternetclient 85
+        capabilityinternetclientserver 86
+        capabilityprivatenetworkclientserver 87
+        capabilitypictureslibrary 88
+        capabilityvideoslibrary 89
+        capabilitymusiclibrary 90
+        capabilitydocumentslibrary 91
+        capabilitysharedusercertificates 92
+        capabilityenterpriseauthentication 93
+        capabilityremovablestorage 94
+    } [string tolower $sidname]]
+}

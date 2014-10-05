@@ -1415,7 +1415,8 @@ TWAPI_EXTERN void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsa
 TWAPI_EXTERN int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj,
                         LSA_UNICODE_STRING **arrayP, ULONG *countP);
 TWAPI_EXTERN PSID TwapiGetSidFromStringRep(char *strP);
-TWAPI_EXTERN int ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP);
+TWAPI_EXTERN TCL_RESULT ObjToPSID(Tcl_Interp *, Tcl_Obj *obj, PSID *sidPP);
+TWAPI_EXTERN TCL_RESULT ObjToPSIDNonNull(Tcl_Interp *, Tcl_Obj *, PSID *sidPP);
 TWAPI_EXTERN int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSIDNoFail(SID *sidP);
 

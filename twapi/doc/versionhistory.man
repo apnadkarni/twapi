@@ -25,6 +25,13 @@ Added the [uri com.html#outvar [cmd outvar]] command.
 [bullet]
 Added the [uri base.html#new_guid [cmd new_guid]] command.
 
+[bullet]
+Added SID related commands
+[uri security.html#well_known_sid [cmd well_known_sid]],
+[uri security.html#is_well_known_sid [cmd is_well_known_sid]],
+[uri security.html#get_sid_domain [cmd get_sid_domain]],
+[uri security.html#sids_from_same_domain [cmd sids_from_same_domain]].
+
 [list_end]
 
 [section "Version 4.0"]
