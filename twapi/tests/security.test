@@ -15,6 +15,7 @@ source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_security
 package require twapi_account;  # TBD - split into two test files
 package require twapi_process;  # TBD - remove the need for this
+package require twapi_os;       # For get_system_sid
 twapi::get_users;               # To force loading
 twapi::get_process_ids;         # To force loading - TBD
 
@@ -6515,6 +6516,197 @@ namespace eval twapi::security::test {
     } -body {
         TBD
     } -result TBD
+
+    ################################################################
+
+    set n -1
+    foreach {sidname sid} {
+        null S-1-0-0
+        world S-1-1-0
+        local S-1-2-0
+        creatorowner S-1-3-0
+        creatorgroup S-1-3-1
+        ntauthority S-1-5
+        interactive S-1-5-4
+        self S-1-5-10
+        authenticateduser S-1-5-11
+        remotelogonid S-1-5-14
+        builtindomain S-1-5-32
+        builtinadministrators S-1-5-32-544
+        builtinusers S-1-5-32-545
+        builtinguests S-1-5-32-546
+        localsystem S-1-5-18
+        localservice S-1-5-19
+        networkservice S-1-5-20
+        null S-1-0-0
+    } {
+        test well_known_sid-1.[incr n] "Well known sid $sidname" \
+            -body "twapi::well_known_sid $sidname" \
+            -result $sid
+        test well_known_sid-1.[incr n] "Well known sid $sidname" \
+            -body "twapi::well_known_sid $sidname -domainsid \[twapi::get_system_sid\]" \
+            -result $sid
+    }
+
+    set n -1
+    foreach {sidname rid} {
+        accountadministrator 500
+        accountguest 501
+        accountdomainadmins 512
+        accountdomainusers 513
+        accountdomainguests 514
+    } {
+        test well_known_sid-2.[incr n] "Well known sid $sidname" \
+            -body "twapi::well_known_sid $sidname -domainsid \[twapi::get_system_sid\]" \
+            -result [twapi::get_system_sid]-$rid
+    }
+
+    test well_known_sid-3.0 {
+        Invalid sid name
+    } -body {
+        twapi::well_known_sid abc
+    } -result {expected integer but got "abc"} -returnCodes error
+
+    test well_known_sid-3.1 {
+        Invalid domain sid
+    } -body {
+        list [catch {twapi::well_known_sid null -domainsid abc}] [errorcode]
+    } -result {1 {TWAPI_WIN32 1337}}
+
+    ################################################################
+
+    set n -1
+    foreach sidname {
+        null
+        world
+        local
+        creatorowner
+        creatorgroup
+        interactive
+        self
+        authenticateduser
+        remotelogonid
+        builtindomain
+        builtinadministrators
+        builtinusers
+        builtinguests
+        localsystem
+        localservice
+        networkservice
+        null
+        accountadministrator
+        accountguest
+        accountdomainadmins
+        accountdomainusers
+        accountdomainguests
+    } {
+        test is_well_known_sid-1.[incr n] "Is well known sid $sidname" \
+            -body "twapi::is_well_known_sid \[twapi::well_known_sid $sidname -domainsid \[twapi::get_system_sid\]\] $sidname" \
+            -result 1
+    }
+
+    test is_well_known_sid-2.0 {
+        Not matching well known sid
+    } -body {
+        twapi::is_well_known_sid [twapi::well_known_sid world] null
+    } -result 0
+
+    test is_well_known_sid-2.1 {
+        Not matching well known sid
+    } -body {
+        twapi::is_well_known_sid [twapi::well_known_sid accountadministrator -domainsid [twapi::get_system_sid]] accountguest
+    } -result 0
+
+    test is_well_known_sid-2.2 {
+        Invalid sid
+    } -body {
+        list [catch {twapi::is_well_known_sid abc accountguest}] [errorcode]
+    } -result {1 {TWAPI_WIN32 1337}}
+
+    ################################################################
+
+    test get_sid_domain-1.0 {
+        Get SID domain
+    } -body {
+        twapi::get_sid_domain [twapi::well_known_sid accountadministrator -domainsid  [twapi::get_system_sid]]
+    } -result [twapi::get_system_sid]
+
+    test get_sid_domain-2.0 {
+        Get SID domain
+    } -body {
+        list [catch {twapi::get_sid_domain abc}] [errorcode]
+    } -result {1 {TWAPI_WIN32 1337}}
+
+    ################################################################
+
+    test sids_from_same_domain-1.0 {
+        Sids from same domain
+    } -body {
+        set admin [twapi::well_known_sid accountadministrator -domainsid [twapi::get_system_sid]]
+        set guest [twapi::well_known_sid accountguest -domainsid [twapi::get_system_sid]]
+        twapi::sids_from_same_domain $admin $guest
+    } -result 1
+
+    test sids_from_same_domain-1.1 {
+        Sids not from same domain
+    } -body {
+        set admin [twapi::well_known_sid accountadministrator -domainsid [twapi::get_system_sid]]
+        set admins [twapi::well_known_sid builtinadministrators]
+        twapi::sids_from_same_domain $admin $admins
+    } -result 0
+
+    test sids_from_same_domain-2.0 {
+        Invalid sid
+    } -body {
+        set admins [twapi::well_known_sid builtinadministrators]
+        list [catch {twapi::sids_from_same_domain abc $admins}] [errorcode]
+    } -result {1 {TWAPI_WIN32 1337}}
+
+    test sids_from_same_domain-2.1 {
+        Invalid sid
+    } -body {
+        set admins [twapi::well_known_sid builtinadministrators]
+        list [catch {twapi::sids_from_same_domain $admins abc}] [errorcode]
+    } -result {1 {TWAPI_WIN32 1337}}
+
+    ################################################################
+
+    test equal_sids-1.0 {
+        Equal Sids
+    } -body {
+        set guest [twapi::well_known_sid accountguest -domainsid [twapi::get_system_sid]]
+        twapi::equal_sids [string toupper $guest] [string tolower $guest]
+    } -result 1
+
+    test equal_sids-1.1 {
+        Unequal Sids from different domains
+    } -body {
+        set admin [twapi::well_known_sid accountadministrator -domainsid [twapi::get_system_sid]]
+        set admins [twapi::well_known_sid builtinadministrators]
+        twapi::equal_sids $admin $admins
+    } -result 0
+
+    test equal_sids-1.2 {
+        Unequal Sids from same domains
+    } -body {
+        set admin [twapi::well_known_sid accountadministrator -domainsid [twapi::get_system_sid]]
+        set guest [twapi::well_known_sid accountguest -domainsid [twapi::get_system_sid]]
+        twapi::equal_sids $admin $guest
+    } -result 0
+
+    test equal_sids-2.0 {
+        Invalid sid
+    } -body {
+        set admins [twapi::well_known_sid builtinadministrators]
+        list [catch {twapi::equal_sids abc $admins}] [errorcode]
+    } -result {1 {TWAPI_WIN32 1337}}
+
+    test equal_sids-2.1 {
+        Invalid sid
+    } -body {
+        set admins [twapi::well_known_sid builtinadministrators]
+        list [catch {twapi::equal_sids $admins abc}] [errorcode]
+    } -result {1 {TWAPI_WIN32 1337}}
 
     ################################################################
 
