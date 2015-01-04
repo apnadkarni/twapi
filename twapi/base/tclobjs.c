@@ -3412,7 +3412,6 @@ PSID TwapiGetSidFromStringRep(char *strP)
 */
 TCL_RESULT ObjToPSIDNonNull(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
 {
-    char *s;
     DWORD   len;
     SID  *sidP;
     DWORD winerror;

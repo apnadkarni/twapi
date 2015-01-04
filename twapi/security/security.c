@@ -873,7 +873,6 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     TwapiResult result;
     int func = PtrToInt(clientdata);
     WCHAR *passwordP;
-    Tcl_Obj *objP;
     Tcl_Obj **objPP;
     DWORD nobjs;
     int *iP;
