@@ -1684,6 +1684,11 @@ If unspecified, the local computer is used.
 
 See [uri http://msdn.microsoft.com/en-us/library/windows/desktop/aa379650(v=vs.85).aspx] for meaning of each name.
 
+In many cases, the command will also accept the name of the account 
+on US English systems
+in lieu of the above tokens. For example, you can specify
+[const Administrators] instead of [const builtinadministrators].
+
 
 [list_end]
 

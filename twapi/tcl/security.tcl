@@ -338,7 +338,6 @@ if {[twapi::min_os_version 6]} {
     }
 }
 
-# TBD - document
 proc twapi::well_known_sid {sidname args} {
     parseargs args {
         {domainsid.arg {}}
@@ -347,7 +346,6 @@ proc twapi::well_known_sid {sidname args} {
     return [CreateWellKnownSid [_map_well_known_sid_name $sidname] $domainsid]
 }
 
-# TBD - document
 proc twapi::is_well_known_sid {sid sidname} {
     return [IsWellKnownSid $sid [_map_well_known_sid_name $sidname]]
 }
@@ -1500,20 +1498,21 @@ proc twapi::new_luid {} {
 # Get the description of a privilege
 proc twapi::get_privilege_description {priv} {
     if {[catch {LookupPrivilegeDisplayName "" $priv} desc]} {
-        switch -exact -- $priv {
-            # The above function will only return descriptions for
-            # privileges, not account rights. Hard code descriptions
-            # for some account rights
-            SeBatchLogonRight { set desc "Log on as a batch job" }
-            SeDenyBatchLogonRight { set desc "Deny logon as a batch job" }
-            SeDenyInteractiveLogonRight { set desc "Deny logon locally" }
-            SeDenyNetworkLogonRight { set desc "Deny access to this computer from the network" }
-            SeDenyServiceLogonRight { set desc "Deny logon as a service" }
-            SeInteractiveLogonRight { set desc "Log on locally" }
-            SeNetworkLogonRight { set desc "Access this computer from the network" }
-            SeServiceLogonRight { set desc "Log on as a service" }
-            default {set desc ""}
-        }
+        # The above function will only return descriptions for
+        # privileges, not account rights. Hard code descriptions
+        # for some account rights
+        set desc [dict* {
+            SeBatchLogonRight "Log on as a batch job" 
+            SeDenyBatchLogonRight "Deny logon as a batch job"
+            SeDenyInteractiveLogonRight "Deny interactive logon"
+            SeDenyNetworkLogonRight "Deny access to this computer from the network"
+            SeRemoteInteractiveLogonRight "Remote interactive logon"
+            SeDenyRemoteInteractiveLogonRight "Deny interactive remote logon"
+            SeDenyServiceLogonRight "Deny logon as a service"
+            SeInteractiveLogonRight "Log on locally"
+            SeNetworkLogonRight "Access this computer from the network"
+            SeServiceLogonRight "Log on as a service"
+        } $priv]
     }
     return $desc
 }
@@ -1984,7 +1983,77 @@ proc twapi::_map_impersonation_level ilevel {
 }
 
 proc twapi::_map_well_known_sid_name {sidname} {
-    return [dict* {
+    if {[string is integer -strict $sidname]} {
+        return $sidname
+    }
+
+    set sidname [string tolower $sidname]
+    set sidname [dict* {
+         administrator accountadministrator
+         {cert publishers} accountcertadmins
+         {domain computers} accountcomputers
+         {domain controllers} accountcontrollers
+         {domain admins} accountdomainadmins
+         {domain guests} accountdomainguests
+         {domain users} accountdomainusers
+         {enterprise admins} accountenterpriseadmins
+         guest accountguest
+         krbtgt accountkrbtgt
+         {read-only domain controllers} accountreadonlycontrollers
+         {schema admins} accountschemaadmins
+         {anonymous logon} anonymous
+         {authenticated users} authenticateduser
+         batch batch
+         administrators builtinadministrators
+         {all application packages} builtinanypackage
+         {backup operators} builtinbackupoperators
+         {distributed com users} builtindcomusers
+         builtin builtindomain
+         {event log readers} builtineventlogreadersgroup
+         guests builtinguests
+         {performance log users} builtinperfloggingusers
+         {performance monitor users} builtinperfmonitoringusers
+         {power users} builtinpowerusers
+         {remote desktop users} builtinremotedesktopusers
+         replicator builtinreplicator
+         users builtinusers
+         {console logon} consolelogon
+         {creator group} creatorgroup
+         {creator group server} creatorgroupserver
+         {creator owner} creatorowner
+         {owner rights} creatorownerrights
+         {creator owner server} creatorownerserver
+         dialup dialup
+         {digest authentication} digestauthentication
+         {enterprise domain controllers} enterprisecontrollers
+         {enterprise read-only domain controllers beta} enterprisereadonlycontrollers
+         {high mandatory level} highlabel
+         interactive interactive
+         local local
+         {local service} localservice
+         system localsystem
+         {low mandatory level} lowlabel
+         {medium mandatory level} mediumlabel
+         {medium plus mandatory level} mediumpluslabel
+         network network
+         {network service} networkservice
+         {enterprise read-only domain controllers} newenterprisereadonlycontrollers
+         {ntlm authentication} ntlmauthentication
+         {null sid} null
+         proxy proxy
+         {remote interactive logon} remotelogonid
+         restricted restrictedcode
+         {schannel authentication} schannelauthentication
+         self self
+         service service
+         {system mandatory level} systemlabel
+         {terminal server user} terminalserver
+         {untrusted mandatory level} untrustedlabel
+         everyone world
+         {write restricted} writerestrictedcode
+    } $sidname]
+
+    return [dict! {
         null 0
         world 1
         local 2
@@ -2080,5 +2149,6 @@ proc twapi::_map_well_known_sid_name {sidname} {
         capabilitysharedusercertificates 92
         capabilityenterpriseauthentication 93
         capabilityremovablestorage 94
-    } [string tolower $sidname]]
+    } $sidname]
 }
+
