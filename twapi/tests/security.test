@@ -6533,8 +6533,11 @@ namespace eval twapi::security::test {
         remotelogonid S-1-5-14
         builtindomain S-1-5-32
         builtinadministrators S-1-5-32-544
+        Administrators S-1-5-32-544
         builtinusers S-1-5-32-545
+        Users S-1-5-32-545
         builtinguests S-1-5-32-546
+        Guests S-1-5-32-546
         localsystem S-1-5-18
         localservice S-1-5-19
         networkservice S-1-5-20
