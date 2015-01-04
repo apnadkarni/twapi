@@ -1870,7 +1870,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
     } ifc;
     HRESULT hr;
     TwapiResult result;
-    DWORD dw1,dw2,dw3,dw4,dw5;
+    DWORD dw1,dw2,dw3;
     BSTR bstr1 = NULL;          /* Initialize for tracking frees! */
     BSTR bstr2 = NULL;
     BSTR bstr3 = NULL;
