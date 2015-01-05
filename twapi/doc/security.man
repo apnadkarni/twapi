@@ -673,8 +673,9 @@ Returns a list of access rights contained within an ACE. This is a list
 of symbolic constants and bit masks as described in [sectref "Access Rights"].
 The option [cmd -resourcetype] may be used to map the access rights to symbolic
 constants for a specific type of resource. [arg RESOURCETYPE] must be
-one of [const file], [const pipe], [const service],
-[const registry], [const process], [const thread] or [const token].
+one of [const file], [const pipe], [const policy], [const process], 
+[const registry], [const service], [const thread], [const token] or
+[const winsta].
 [nl]
 If the [cmd -raw] option is specified, the access rights are returned as a
 single hex bitmask.
@@ -1204,12 +1205,12 @@ and should be a list of one or more constants described in
 [nl]
 The following options may be specified when creating an ACE:
 [list_begin opt]
-[opt_def [cmd -self] [arg BOOLEAN]] If the specified value is 1 (default),
-the ACE applies to the object to which it is attached.
-If the specified value is 0, then
-the created ACE does not apply to the object with which it is attached.
-In this case, it only applies to the descendents of that object as
-indicated by the other options.
+[opt_def [cmd -auditsuccess] [arg BOOLEAN]]
+Specified that the ACE should log permitted accesses to a resource.
+Ignored if the ACE type is not [const audit].
+[opt_def [cmd -auditfailure] [arg BOOLEAN]]
+Specified that the ACE should log failed accesses to a resource.
+Ignored if the ACE type is not [const audit].
 [opt_def [cmd -recursecontainers] [arg BOOLEAN]] If the specified value is 1,
 the ACE is also applied to all descendents of the object to which the ACE is
 attached that are themselves containers. For example, in the case of a file
@@ -1228,6 +1229,12 @@ have effect at all levels below the container object to which the ACE is
 applied. If the value is 1, the ACE is only applied to the immediate
 children of the container object. This option has no effect if neither
 [cmd -recurseobjects] nor [cmd -recursecontainers] is specified.
+[opt_def [cmd -self] [arg BOOLEAN]] If the specified value is 1 (default),
+the ACE applies to the object to which it is attached.
+If the specified value is 0, then
+the created ACE does not apply to the object with which it is attached.
+In this case, it only applies to the descendents of that object as
+indicated by the other options.
 
 [list_end]
 
