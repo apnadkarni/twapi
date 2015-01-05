@@ -701,6 +701,8 @@ proc twapi::new_ace {type account rights args} {
         {recursecontainers.bool 0 2}
         {recurseobjects.bool 0 1}
         {recurseonelevelonly.bool 0 4}
+        {auditsuccess.bool 0 0x40}
+        {auditfailure.bool 0 0x80}
     }]
 
     set sid [map_account_to_sid $account]
@@ -723,6 +725,10 @@ proc twapi::new_ace {type account rights args} {
                              $opts(recurseonelevelonly)}]
     if {! $opts(self)} {
         incr inherit_flags 8; #INHERIT_ONLY_ACE
+    }
+
+    if {$type eq "audit"} {
+        set inherit_flags [expr {$inherit_flags | $opts(auditsuccess) | $opts(auditfailure)}]
     }
 
     return [list $typecode $inherit_flags $access_mask $sid]
@@ -782,6 +788,19 @@ proc twapi::set_ace_sid {ace account} {
     return [lreplace $ace 3 3 [map_account_to_sid $account]]
 }
 
+
+# Get audit flags - TBD document and test
+proc twapi::get_ace_audit {ace} {
+    set audit {}
+    set mask [lindex $ace 1]
+    if {$mask & 0x40} {
+        lappend audit "success"
+    }
+    if {$mask & 0x80} {
+        lappend audit "failure"
+    }
+    return $audit
+}
 
 # Get the inheritance options
 proc twapi::get_ace_inheritance {ace} {
@@ -934,9 +953,15 @@ proc twapi::get_ace_text {ace args} {
         set rights [join $rights ", "]
     }
 
-    append result "${offset}Type: [string totitle [get_ace_type $ace]]\n"
-    append result "${offset}User: [map_account_to_name [get_ace_sid $ace]]\n"
+    set acetype [get_ace_type $ace]
+    append result "${offset}Type: [string totitle $acetype]\n"
+    set user [get_ace_sid $ace]
+    catch {append user " ([map_account_to_name [get_ace_sid $ace]])"}
+    append result "${offset}User: $user\n"
     append result "${offset}Rights: $rights\n"
+    if {$acetype eq "audit"} {
+        append result "${offset}Audit conditions: [join [get_ace_audit $ace] {, }]\n"
+    }
     append result $inherit_text
 
     return $result
