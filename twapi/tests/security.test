@@ -3940,6 +3940,20 @@ namespace eval twapi::security::test {
           }
     } -result 1
 
+    test new_ace-6.0 {
+        TBD - new_ace -auditfailure and -auditsuccess
+    } -constraints {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test get_ace_audit-1.0 {
+        TBD - get_ace_audit
+    } -constraints {
+        TBD
+    } -result TBD
+
     ################################################################
 
     test get_ace_type-1.0 {
@@ -5921,6 +5935,12 @@ namespace eval twapi::security::test {
     } -body {
         twapi::get_ace_text [twapi::new_ace deny $::env(username) "file_read_ea"] -resourcetype file
     } -result Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*file_read_ea -match regexp
+
+    test get_ace_text-3.0 {
+        TBD - get_ace_text SACL
+    } -constraints {
+        TBD
+    } -result TBD
 
     ################################################################
 
