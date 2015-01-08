@@ -750,6 +750,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         LSA_OBJECT_ATTRIBUTES lsa_oattr;
         Tcl_WideInt wide;
         SECURITY_DESCRIPTOR *secdP;
+        PACL *aclP;
     } u;
     DWORD dw, dw2;
     DWORD_PTR dwp;
@@ -767,6 +768,13 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     ++objv;;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
+    case 1002: // IsValidACL
+        u.aclP = NULL;
+        result.type = TRT_BOOL;
+        result.value.bval = (ObjToPACL(interp, objv[0], &u.aclP) == TCL_OK);
+        if (u.aclP)
+            TwapiFree(u.aclP);
+        break;
     case 1003: // Twapi_FormatBinarySECURITY_DESCRIPTOR
         if (ObjToPSECURITY_DESCRIPTOR(interp, objv[0], &u.secdP) != TCL_OK)
             return TCL_ERROR;
@@ -821,7 +829,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             return TCL_ERROR;
         TwapiResult_SET_PTR(result, void*, (void*)dwp);
         break;
-    case 1009:
+    case 1009: // IsValidSid
         u.sidP = NULL;
         result.type = TRT_BOOL;
         result.value.bval = (ObjToPSID(interp, objv[0], &u.sidP) == TCL_OK);
@@ -2264,6 +2272,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     };
 
     static struct fncode_dispatch_s CallOneArgDispatch[] = {
+        DEFINE_FNCODE_CMD(IsValidACL, 1002), // TBD - doc
         DEFINE_FNCODE_CMD(encode_security_descriptor, 1003), // TBD - doc
         DEFINE_FNCODE_CMD(decode_security_descriptor, 1004), // TBD - doc
         DEFINE_FNCODE_CMD(hex64, 1005),

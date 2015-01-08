@@ -36,6 +36,10 @@ Added SID related commands
 Added [cmd -auditsuccess] and [cmd -auditfailure] to
 [uri security.html#new_ace] for constructing SACL ACEs.
 
+[bullet]
+Added [uri security.html#get_token_default_dacl [cmd get_token_default_dacl]]
+and [uri security.html#get_token_origin [cmd get_token_origin]].
+
 [list_end]
 
 [section "Version 4.0"]

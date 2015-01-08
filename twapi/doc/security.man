@@ -53,6 +53,8 @@ to [uri \#close_token [cmd close_token]] in order to release resources.
 The command [uri #get_token_info [cmd get_token_info]] retrieves
 information from a token. Individual pieces of the token can also
 be retrieved via commands [uri \#get_token_user [cmd get_token_user]],
+[uri \#get_token_default_dacl [cmd get_token_default_dacl]],
+[uri \#get_token_origin [cmd get_token_origin]],
 [uri \#get_token_groups [cmd get_token_groups]],
 [uri \#get_token_primary_group [cmd get_token_primary_group]],
 [uri \#get_token_owner [cmd get_token_owner]],
@@ -868,8 +870,6 @@ following:
 [const dacl_defaulted],
 [const sacl_present],
 [const sacl_defaulted],
-[const dacl_auto_inherit_req],
-[const sacl_auto_inherit_req],
 [const dacl_auto_inherited],
 [const sacl_auto_inherited],
 [const dacl_protected],
@@ -909,6 +909,10 @@ primarily useful for debugging and troubleshooting purposes.
 
 [call [cmd get_sid_domain] [arg SID]]
 Returns the SID of the domain containing the specified SID.
+
+[call [cmd get_token_default_dacl] [arg TOKEN]]
+Returns the DACL stored in the token which will be used as the defaulted
+DACL when a new resource is created with no security descriptor specified.
 
 [call [cmd get_token_elevation] [arg TOKEN]]
 On systems that support Windows UAC, this command returns one of
@@ -1040,6 +1044,12 @@ an empty list indicating no integrity policy is in effect.
 [call [cmd get_token_linked_token] [arg TOKEN]]
 If [arg TOKEN] is an elevated or limited token, this command returns the
 corresponding limited or elevated token linked to it.
+
+[call [cmd get_token_origin] [arg TOKEN]]
+Returns the LUID of the logon session that created the logon session
+containing token [arg TOKEN] except if the token's logon resulted from
+network authentication in which case the command returns
+a zero LUID.
 
 [call [cmd get_token_owner] [arg TOKEN] [opt [cmd -name]]]
 Returns the SID of the entity (user, group, etc.)
@@ -1207,10 +1217,10 @@ The following options may be specified when creating an ACE:
 [list_begin opt]
 [opt_def [cmd -auditsuccess] [arg BOOLEAN]]
 Specified that the ACE should log permitted accesses to a resource.
-Ignored if the ACE type is not [const audit].
+Ignored if the ACE type is not [const audit]. Defaults to [const true].
 [opt_def [cmd -auditfailure] [arg BOOLEAN]]
 Specified that the ACE should log failed accesses to a resource.
-Ignored if the ACE type is not [const audit].
+Ignored if the ACE type is not [const audit]. Defaults to [const true].
 [opt_def [cmd -recursecontainers] [arg BOOLEAN]] If the specified value is 1,
 the ACE is also applied to all descendents of the object to which the ACE is
 attached that are themselves containers. For example, in the case of a file
@@ -1245,14 +1255,15 @@ to prepopulate the ACL with a list of ACE elements.
 [call [cmd new_luid]]
 Returns a [uri \#uniqueidentifiers LUID].
 
-[call [cmd new_restricted_dacl] [arg ACCOUNTS] [arg RIGHTS]]
+[call [cmd new_restricted_dacl] [arg ACCOUNTS] [arg RIGHTS] [opt [arg options]]]
 Returns a new DACL where the access rights specified by [arg RIGHTS]
 are granted to the accounts included in [arg ACCOUNTS]. Other accounts
 are implicitly denied. Accounts
 may be specified using either the account names or SID's. [arg RIGHTS]
 is a list of symbolic constants and bit masks as described
 in [sectref "Access Rights"].
-
+Any additional options are passed to [uri #new_ace [cmd new_ace]]
+for creating the ACE's in the DACL.
 
 [call [cmd new_security_descriptor] [opt [arg options]]]
 Returns a new [uri \#securitydescriptors "security descriptor"].
