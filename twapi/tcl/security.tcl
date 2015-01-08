@@ -106,6 +106,7 @@ proc twapi::close_token {tok} {
 
 proc twapi::get_token_info {tok args} {
     array set opts [parseargs args {
+        defaultdacl
         disabledprivileges
         elevation
         enabledprivileges
@@ -115,6 +116,7 @@ proc twapi::get_token_info {tok args} {
         integritylabel
         linkedtoken
         logonsession
+        origin
         primarygroup
         primarygroupsid
         privileges
@@ -140,6 +142,12 @@ proc twapi::get_token_info {tok args} {
             if {$opts(disabledprivileges)} {
                 lappend result -disabledprivileges [lindex $privs 1]
             }
+        }
+        if {$opts(defaultdacl)} {
+            lappend result -defaultdacl [get_token_default_dacl $tok]
+        }
+        if {$opts(origin)} {
+            lappend result -origin [get_token_origin $tok]
         }
         if {$opts(linkedtoken)} {
             lappend result -linkedtoken [get_token_linked_token $tok]
@@ -528,6 +536,15 @@ proc twapi::get_token_primary_group {tok args} {
     return [ _get_token_sid_field $tok 5 $args]
 }
 
+proc twapi::get_token_default_dacl {tok} {
+    # TokenDefaultDacl -> 6
+    return [GetTokenInformation $tok 6]
+}
+
+proc twapi::get_token_origin {tok} {
+    # TokenOrigin -> 17
+    return [GetTokenInformation $tok 17]
+}
 
 # Return the source of an access token
 proc twapi::get_token_source {tok} {
@@ -701,8 +718,8 @@ proc twapi::new_ace {type account rights args} {
         {recursecontainers.bool 0 2}
         {recurseobjects.bool 0 1}
         {recurseonelevelonly.bool 0 4}
-        {auditsuccess.bool 0 0x40}
-        {auditfailure.bool 0 0x80}
+        {auditsuccess.bool 1 0x40}
+        {auditfailure.bool 1 0x80}
     }]
 
     set sid [map_account_to_sid $account]
@@ -976,12 +993,12 @@ proc twapi::new_acl {{aces ""}} {
 }
 
 # Creates an ACL that gives the specified rights to specified trustees
-proc twapi::new_restricted_dacl {accounts rights} {
+proc twapi::new_restricted_dacl {accounts rights args} {
     set access_mask [_access_rights_to_mask $rights]
 
     set aces {}
     foreach account $accounts {
-        lappend aces [new_ace allow $account $access_mask]
+        lappend aces [new_ace allow $account $access_mask {*}$args]
     }
 
     return [new_acl $aces]
@@ -1069,9 +1086,11 @@ proc twapi::get_security_descriptor_control {secd} {
         lappend retval sacl_defaulted
     }
     if {$control & 0x0100} {
+        # Not documented because should not actually appear when reading a secd
         lappend retval dacl_auto_inherit_req
     }
     if {$control & 0x0200} {
+        # Not documented because should not actually appear when reading a secd
         lappend retval sacl_auto_inherit_req
     }
     if {$control & 0x0400} {

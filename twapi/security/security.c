@@ -15,7 +15,6 @@ static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
 /*
-TBD - get_wellknown_sid - returns well known sid's such as administrators group
 TBD - the SID data type handling needs to be cleaned up
  */
 
@@ -519,17 +518,19 @@ int Twapi_GetTokenInformation(
         result = TCL_OK;
         break;
 
-#ifdef TBD
-        Only implemented in W2K3
     case TokenOrigin:
         resultObj = ObjFromLUID(
             &((TOKEN_ORIGIN *)infoP)->OriginatingLogonSession );
         result = TCL_OK;
         break;
-#endif
+
+    case TokenDefaultDacl:
+        resultObj = ObjFromACL(interp, ((TOKEN_DEFAULT_DACL *)infoP)->DefaultDacl);
+        if (resultObj)
+            result = TCL_OK;
+        break;
 
     case TokenSessionReference:
-    case TokenDefaultDacl:
         ObjSetStaticResult(interp, "Unsupported token information type");
         break;
 
@@ -569,7 +570,7 @@ int Twapi_AdjustTokenPrivileges(
     WIN32_ERROR winerr;
     TCL_RESULT tcl_result = TCL_ERROR;
 
-    buf_size = 128;             /* TBD - instrument */
+    buf_size = 128;             /* TBD - instrument or use LIFO */
     bufP = TwapiAlloc(buf_size);
     ret = AdjustTokenPrivileges(tokenH, disableAll, tokprivP,
                                 buf_size,
