@@ -750,7 +750,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         LSA_OBJECT_ATTRIBUTES lsa_oattr;
         Tcl_WideInt wide;
         SECURITY_DESCRIPTOR *secdP;
-        PACL *aclP;
+        ACL *aclP;
     } u;
     DWORD dw, dw2;
     DWORD_PTR dwp;

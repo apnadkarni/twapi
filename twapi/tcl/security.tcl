@@ -1711,7 +1711,7 @@ proc twapi::_map_resource_symbol_to_type {sym {named true}} {
         registrywow6432key { return 12 }
     }
 
-    error "Resource type '$restype' not valid"
+    error "Resource type '$sym' not valid"
 }
 
 # Valid LUID syntax
