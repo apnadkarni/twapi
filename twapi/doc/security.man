@@ -64,7 +64,7 @@ and
 
 [para]
 The commands [uri \#get_token_privileges [cmd get_token_privileges]],
-[uri \#check_enabled_token_privileges [cmd check_enabled_token_privileges]]
+[uri \#check_enabled_privileges [cmd check_enabled_privileges]]
 and [uri \#get_token_privileges_and_attrs [cmd get_token_privileges_and_attrs]]
 retrieve information related
 to the privileges associated with a token. The commands
@@ -512,7 +512,7 @@ For a tutorial and discussion of these issues, refer to the
 Appends the list of ACEs in [arg ACELIST] to the entries in the given ACL.
 Returns the modified ACL.
 
-[call [cmd check_enabled_privileges] [arg PRIVILEGES] [opt [cmd -any]]]
+[call [cmd check_enabled_privileges] [arg TOKEN] [arg PRIVILEGES] [opt [cmd -any]]]
 Without the [cmd -any] option,
 the command returns 1 if the given list of privileges is enabled in the
 token, and 0 otherwise. If the option [cmd -any] is specified, the command

@@ -475,7 +475,7 @@ int Twapi_GetTokenInformation(
 
     case TokenSource:
         resultObj = ObjNewList(0, NULL);
-        obj = ObjFromStringN(((TOKEN_SOURCE *)infoP)->SourceName, 8);
+        obj = ObjFromStringLimited(((TOKEN_SOURCE *)infoP)->SourceName, 8, NULL);
         ObjAppendElement(interp, resultObj, obj);
         obj =
             ObjFromLUID(&((TOKEN_SOURCE *)infoP)->SourceIdentifier);
