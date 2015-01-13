@@ -14,6 +14,7 @@
 #include <dbt.h>
 #include <initguid.h>           // Instantiate ioevent.h guids
 #include <ioevent.h>            // Custom GUID definitions
+#include <cfgmgr32.h>           /* PnP CM_* calls */
 
 #ifndef TWAPI_SINGLE_MODULE
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
@@ -1122,7 +1123,8 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
     HWND   hwnd;
     LPVOID pv;
     Tcl_Obj *sObj, *s2Obj;
-    DWORD dw;
+    DWORD dw, dw2;
+    CONFIGRET cret;
     union {
         WCHAR buf[MAX_PATH+1];
         struct {
@@ -1140,6 +1142,51 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
 
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
+    case 56: // CM_Reenumerate_DevNode_Ex
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETINT(dw2),
+                         ARGUSEDEFAULT, GETHANDLET(h, HMACHINE),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_CONFIGRET;
+        result.value.ival = CM_Reenumerate_DevNode_Ex(dw, dw2, h);
+        break;
+        
+    case 57: // CM_Locate_DevNode_Ex
+        if (TwapiGetArgs(interp, objc-2, objv+2, ARGSKIP, GETINT(dw),
+                         ARGUSEDEFAULT,
+                         GETHANDLET(h, HMACHINE),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        cret = CM_Locate_DevNode_ExW(&result.value.ival,
+                                        ObjToUnicode(objv[2]), dw, h);
+        if (cret == CR_SUCCESS)
+            result.type = TRT_DWORD;
+        else {
+            result.type = TRT_CONFIGRET;
+            result.value.ival = cret;
+        }
+        break;
+        
+    case 58: // CM_Disconnect_Machine
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETHANDLET(h, HMACHINE),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_CONFIGRET;
+        result.value.ival = CM_Disconnect_Machine(h);
+        break;
+
+    case 59: // CM_Connect_Machine
+        CHECK_NARGS(interp, objc, 3);
+        cret = CM_Connect_MachineW(ObjToLPWSTR_NULL_IF_EMPTY(objv[2]), &result.value.hval);
+        
+        if (cret == CR_SUCCESS)
+            result.type = TRT_HMACHINE;
+        else {
+            result.type = TRT_CONFIGRET;
+            result.value.ival = cret;
+        }
+        break;
+
     case 60: // SetupDiCreateDeviceInfoListExW
         guidP = &guid;
         if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -1269,10 +1316,14 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
 
 static int TwapiDeviceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
-    /* Dispatch function codes start at 60 for historical reasons.
+    /* Dispatch function codes as below for historical reasons.
        Nothing magic but change Twapi_DeviceCallObjCmd accordingly 
     */
     static struct alias_dispatch_s DeviceAliasDispatch[] = {
+        DEFINE_ALIAS_CMD(CM_Reenumerate_DevNode_Ex, 56),
+        DEFINE_ALIAS_CMD(CM_Locate_DevNode_Ex, 57),
+        DEFINE_ALIAS_CMD(CM_Disconnect_Machine, 58),
+        DEFINE_ALIAS_CMD(CM_Connect_Machine, 59),
         DEFINE_ALIAS_CMD(SetupDiCreateDeviceInfoListEx, 60),
         DEFINE_ALIAS_CMD(SetupDiGetClassDevsEx, 61),
         DEFINE_ALIAS_CMD(SetupDiEnumDeviceInfo, 62),
