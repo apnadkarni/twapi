@@ -665,6 +665,13 @@ namespace eval twapi::device::test {
         Need to find a way to know which physical disk path to use
     } -result ""
 
+    ################################################################
+
+    test rescan_devices-1.0 {
+        Rescan devices
+    } -constraints {
+        TBD
+    } -result TBD
 
     ################################################################
 

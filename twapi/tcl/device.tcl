@@ -10,12 +10,14 @@ namespace eval twapi {
     }
 }
 
-# TBD - document
+proc twapi::rescan_devices {} {
+    CM_Reenumerate_DevNode_Ex [CM_Locate_DevNode_Ex "" 0] 0
+}
+
 
 # Callback invoked for device changes.
 # Does some processing of passed data and then invokes the
 # real callback script
-
 proc twapi::_device_notification_handler {id args} {
     variable _device_notifiers
     set idstr "devnotifier#$id"
