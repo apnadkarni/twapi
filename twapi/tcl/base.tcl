@@ -512,6 +512,14 @@ proc twapi::_access_rights_to_mask {args} {
         variable security_defs
         set rights 0
         foreach right [concat {*}$args] {
+            # The mandatory label access rights are not in security_defs
+            # because we do not want them to mess up the int->name mapping
+            # for DACL's
+            set right [dict* {
+                system_mandatory_label_no_write_up 1
+                system_mandatory_label_no_read_up  2
+                system_mandatory_label_no_execute_up 4
+            } $right]
             if {![string is integer $right]} {
                 if {[catch {set right $security_defs([string toupper $right])}]} {
                     error "Invalid access right symbol '$right'"
