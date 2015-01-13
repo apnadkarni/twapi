@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003-2009, Ashok P. Nadkarni
+# Copyright (c) 2003-2014, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -943,6 +943,22 @@ proc twapi::sort_aces {aces} {
                 $inherited_aces(alarm_callback_object)]
 }
 
+# Pretty print an ACL
+proc twapi::get_acl_text {acl args} {
+    array set opts [parseargs args {
+        {resourcetype.arg raw}
+        {offset.arg ""}
+    } -maxleftover 0]
+
+    set count 0
+    set result "$opts(offset)Rev: [get_acl_rev $acl]\n"
+    foreach ace [get_acl_aces $acl] {
+        append result "$opts(offset)ACE #[incr count]\n"
+        append result [get_ace_text $ace -offset "$opts(offset)  " -resourcetype $opts(resourcetype)]
+    }
+    return $result
+}
+
 # Pretty print an ACE
 proc twapi::get_ace_text {ace args} {
     array set opts [parseargs args {
@@ -1498,20 +1514,26 @@ proc twapi::get_security_descriptor_text {secd args} {
     }
     append result "Group:\t$name\n"
 
-    set acl [get_security_descriptor_dacl $secd]
-    append result "DACL Rev: [get_acl_rev $acl]\n"
-    set index 0
-    foreach ace [get_acl_aces $acl] {
-        append result "\tDACL Entry [incr index]\n"
-        append result "[get_ace_text $ace -offset "\t    " -resourcetype $opts(resourcetype)]"
-    }
-
-    set acl [get_security_descriptor_sacl $secd]
-    append result "SACL Rev: [get_acl_rev $acl]\n"
-    set index 0
-    foreach ace [get_acl_aces $acl] {
-        append result "\tSACL Entry $index\n"
-        append result "[get_ace_text $ace -offset "\t    " -resourcetype $opts(resourcetype)]"
+    if {0} {
+        set acl [get_security_descriptor_dacl $secd]
+        append result "DACL Rev: [get_acl_rev $acl]\n"
+        set index 0
+        foreach ace [get_acl_aces $acl] {
+            append result "\tDACL Entry [incr index]\n"
+            append result "[get_ace_text $ace -offset "\t    " -resourcetype $opts(resourcetype)]"
+        }
+        set acl [get_security_descriptor_sacl $secd]
+        append result "SACL Rev: [get_acl_rev $acl]\n"
+        set index 0
+        foreach ace [get_acl_aces $acl] {
+            append result "\tSACL Entry $index\n"
+            append result [get_ace_text $ace -offset "\t    " -resourcetype $opts(resourcetype)]
+        }
+    } else {
+        append result "DACL:\n"
+        append result [get_acl_text [get_security_descriptor_dacl $secd] -offset "  " -resourcetype $opts(resourcetype)]
+        append result "SACL:\n"
+        append result [get_acl_text [get_security_descriptor_sacl $secd] -offset "  " -resourcetype $opts(resourcetype)]
     }
 
     return $result
@@ -1957,8 +1979,10 @@ proc twapi::_sid_to_integrity {sid args} {
         return untrusted
     } elseif {$integrity < 8192} {
         return low
+    } elseif {$integrity < 8448} {
+        return mediumplus
     } elseif {$integrity < 12288} {
-        return medium
+        return mediumplus
     } elseif {$integrity < 16384} {
         return high
     } else {
@@ -1978,6 +2002,7 @@ proc twapi::_integrity_to_sid {integrity} {
             untrusted { set integrity S-1-16-0 }
             low { set integrity S-1-16-4096 }
             medium { set integrity S-1-16-8192 }
+            mediumplus { set integrity S-1-16-8448 }
             high { set integrity S-1-16-12288 }
             system { set integrity S-1-16-16384 }
             S-1-16-* {
