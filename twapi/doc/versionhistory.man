@@ -40,6 +40,9 @@ Added [cmd -auditsuccess] and [cmd -auditfailure] to
 Added [uri security.html#get_token_default_dacl [cmd get_token_default_dacl]]
 and [uri security.html#get_token_origin [cmd get_token_origin]].
 
+[bullet]
+Added [uri device.html#rescan_devices [cmd rescan_devices]].
+
 [list_end]
 
 [section "Version 4.0"]
