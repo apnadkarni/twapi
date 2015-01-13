@@ -647,6 +647,8 @@ typedef enum {
     TRT_TWAPI_ERROR = 49,          /* TWAPI error code in ival*/
     TRT_HRGN = 50,
     TRT_HMODULE = 51,
+    TRT_HMACHINE = 52,
+    TRT_CONFIGRET = 53,         /* PnP Manager status (CM_* calls) */
 } TwapiResultType;
 
 typedef struct {

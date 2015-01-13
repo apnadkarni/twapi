@@ -1013,7 +1013,8 @@ level is returned as the raw SID value as stored internally by Windows in
 the token. Alternatively, if the [cmd -label] is specified the corresponding
 integrity level range label is returned which is one of
 [const untrusted] (0-4095), [const low] (4096-8191),
-[const medium] (8192-12287, [const high] (12288-16383) or
+[const medium] (8192-8447), [const mediumplus] (8448-12287),
+[const high] (12288-16383) or
 [const system] (anything higher).
 [nl]
 On systems that do not support integrity levels, this command always returns
@@ -1559,7 +1560,7 @@ between 0 and 65535, a
 a SID value defined for a integrity level by Windows, or
 one of
 [const untrusted] (0), [const low] (4096),
-[const medium] (8192, [const high] (12288) or
+[const medium] (8192), [const mediumplus] (8448), [const high] (12288) or
 [const system].
 [nl]
 On systems that do not support integrity levels, this command will raise

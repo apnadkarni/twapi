@@ -614,6 +614,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_SC_HANDLE:
     case TRT_LSA_HANDLE:
     case TRT_HDEVINFO:
+    case TRT_HMACHINE:
     case TRT_HRGN:
     case TRT_HKEY:
         if (resultP->value.hval == NULL) {
@@ -646,6 +647,9 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
             break;
         case TRT_HDEVINFO:
             typenameP = "HDEVINFO";
+            break;
+        case TRT_HMACHINE:
+            typenameP = "HMACHINE";
             break;
         case TRT_HRGN:
             typenameP = "HRGN";
@@ -752,6 +756,13 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_TWAPI_ERROR:
         if (resultP->value.ival != TWAPI_NO_ERROR)
             return TwapiReturnError(interp, resultP->value.ival);
+        break;
+
+    case TRT_CONFIGRET:
+        if (resultP->value.ival != 0) {
+            ObjSetResult(interp, Tcl_ObjPrintf("PnP Manager returned error code %d", resultP->value.ival));
+            return TCL_ERROR;
+        }
         break;
 
     default:
