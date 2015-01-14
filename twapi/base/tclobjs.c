@@ -1158,10 +1158,11 @@ Tcl_Obj *ObjFromPIDL(LPCITEMIDLIST pidl)
 */
 int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP)
 {
-    int      numbytes;
+    int      numbytes, len;
     LPITEMIDLIST idsP;
 
     idsP = (LPITEMIDLIST) ObjToByteArray(objP, &numbytes);
+    len = numbytes;
     if (numbytes < 2) {
         *idsPP = NULL;              /* Empty string */
         return TCL_OK;
@@ -1188,14 +1189,14 @@ int ObjToPIDL(Tcl_Interp *interp, Tcl_Obj *objP, LPITEMIDLIST *idsPP)
         }
     }
 
-    *idsPP = CoTaskMemAlloc(numbytes);
+    *idsPP = CoTaskMemAlloc(len);
     if (*idsPP == NULL) {
         if (interp)
             ObjSetStaticResult(interp, "CoTaskMemAlloc failed in SHChangeNotify");
         return TCL_ERROR;
     }
 
-    CopyMemory(*idsPP, idsP, numbytes);
+    CopyMemory(*idsPP, idsP, len);
 
     return TCL_OK;
 }
