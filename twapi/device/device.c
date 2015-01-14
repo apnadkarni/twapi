@@ -1276,7 +1276,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
             result.type = TRT_GETLASTERROR;
         break;
     case 67:
-        if (TwapiGetArgs(interp, objc, objv,
+        if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETHANDLET(h, HDEVINFO),
                          GETVAR(u.dev.sp_devinfo_data, ObjToSP_DEVINFO_DATA),
                          ARGEND) != TCL_OK)
@@ -1327,11 +1327,11 @@ static int TwapiDeviceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(SetupDiCreateDeviceInfoListEx, 60),
         DEFINE_ALIAS_CMD(SetupDiGetClassDevsEx, 61),
         DEFINE_ALIAS_CMD(SetupDiEnumDeviceInfo, 62),
-        DEFINE_ALIAS_CMD(SetupDiGetDeviceRegistryProperty, 63),
+        DEFINE_ALIAS_CMD(Twapi_SetupDiGetDeviceRegistryProperty, 63),
         DEFINE_ALIAS_CMD(SetupDiEnumDeviceInterfaces, 64),
         DEFINE_ALIAS_CMD(SetupDiGetDeviceInterfaceDetail, 65),
         DEFINE_ALIAS_CMD(device_setup_class_guid_to_name, 66), //SetupDiClassNameFromGuidEx
-        DEFINE_ALIAS_CMD(get_device_element_instance_id, 67), //SetupDiGetDeviceInstanceId
+        DEFINE_ALIAS_CMD(device_element_instance_id, 67), //SetupDiGetDeviceInstanceId
         DEFINE_ALIAS_CMD(SetupDiClassGuidsFromNameEx, 68),
         DEFINE_ALIAS_CMD(close_devinfoset, 70), //SetupDiDestroyDeviceInfoList
         DEFINE_ALIAS_CMD(Twapi_RegisterDeviceNotification, 71),
