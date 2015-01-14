@@ -512,8 +512,10 @@ identifier for the icon as returned by
 [uri "#systemtrayaddicon" [cmd "systemtray addicon"]].
 
 [call [cmd write_shortcut] [arg SHORTCUTPATH] [opt [arg options]]]
-Writes or creates a shortcut. [arg SHORTCUTPATH] specifies the path of
-the shortcut itself. The following options control the contents of the
+Writes or creates a shortcut. [arg SHORTCUTPATH] must be the
+full absolute path of the shortcut. 
+
+The following options control the contents of the
 shortcut.
 
 [list_begin opt]

@@ -712,12 +712,37 @@ namespace eval twapi::shell::test {
         file delete $path
     } -result 1
 
-    test write_shortcut-10.0 {
+    test write_shortcut-3.0 {
         Write a shortcut using a PIDL
-    } -constraints {
-        TBD
+    } -setup {
+        set target [write_test_file ""]
     } -body {
-    } -result ""
+        set path [file join [tcltest::temporaryDirectory] [clock clicks].lnk]
+        twapi::write_shortcut $path -path $target
+        set shortcut [twapi::read_shortcut $path]
+        file delete $path
+        twapi::write_shortcut $path -idl [dict get $shortcut -idl]
+        set shortcut [twapi::read_shortcut $path]
+        same_file $target [dict get $shortcut -path]
+    } -cleanup {
+        file delete $path
+    } -result 1
+
+    test write_shortcut-4.0 {
+        Verify write_shortcut accepts same options as read_shortcut - Bug 138
+    } -setup {
+        set target [write_test_file ""]
+    } -body {
+        set path [file join [tcltest::temporaryDirectory] [clock clicks].lnk]
+        twapi::write_shortcut $path -path $target
+        set shortcut [twapi::read_shortcut $path]
+        file delete $path
+        twapi::write_shortcut $path {*}$shortcut
+        set shortcut2 [twapi::read_shortcut $path]
+        same_file $target [dict get $shortcut2 -path]
+    } -cleanup {
+        file delete $path
+    } -result 1
 
     ################################################################
 
