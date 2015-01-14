@@ -126,6 +126,8 @@ proc twapi::stop_device_notifier {idstr} {
 
 
 # Retrieve a device information set for a device setup or interface class
+# TBD - documenet -pnpname can be GUID of PnP or symbolic name
+#  like USB, PCI, PCMCIA, SCSI
 proc twapi::update_devinfoset {args} {
     array set opts [parseargs args {
         {guid.arg ""}
@@ -193,14 +195,14 @@ proc twapi::get_devinfoset_registry_properties {hdevinfo args} {
 
             # Get all specified property values
             foreach prop $args {
-                set prop [_device_registry_sym_to_code $prop]
+                set intprop [_device_registry_sym_to_code $prop]
                 trap {
                     lappend item $prop \
                         [list success \
-                             [Twapi_SetupDiGetDeviceRegistryProperty \
-                                  $hdevinfo $devinfo_data $prop]]
+                             [SetupDiGetDeviceRegistryProperty \
+                                  $hdevinfo $devinfo_data $intprop]]
                 } onerror {} {
-                    lappend item $prop [list fail $::errorCode]
+                    lappend item $prop [list fail [list [trapresult] $::errorCode]]
                 }
             }
             lappend result $item
@@ -300,10 +302,13 @@ proc twapi::_init_device_registry_code_maps {} {
     set _device_registry_code_syms {
         devicedesc hardwareid compatibleids unused0 service unused1
         unused2 class classguid driver configflags mfg friendlyname
-        location physical capabilities ui upperfilters lowerfilters
-        bustypeguid legacybustype busnumber enumerator security
-        security devtype exclusive characteristics address ui device
-        removal removal removal install location
+        location_information physical_device_object_name capabilities
+        ui_number upperfilters lowerfilters
+        bustypeguid legacybustype busnumber enumerator_name security
+        security_sds devtype exclusive characteristics address
+        ui_number_desc_format device_power_data
+        removal_policy removal_policy_hw_default removal_policy_override
+        install_state location_paths base_containerid
     }
 
     set i 0
