@@ -179,6 +179,23 @@ proc twapi::get_devinfoset_elements {hdevinfo} {
     return $result
 }
 
+# Given a device information set, returns the device elements within it
+proc twapi::get_devinfoset_instance_ids {hdevinfo} {
+    set result [list ]
+    set i 0
+    trap {
+        while {true} {
+            lappend result [device_element_instance_id $hdevinfo [SetupDiEnumDeviceInfo $hdevinfo $i]]
+            incr i
+        }
+    } onerror {TWAPI_WIN32 259} {
+        # Fine, Just means no more items
+    }
+
+    return $result
+}
+
+
 # Given a device information set, returns a list of specified registry
 # properties for all elements of the set
 # args is list of properties to retrieve
@@ -199,7 +216,7 @@ proc twapi::get_devinfoset_registry_properties {hdevinfo args} {
                 trap {
                     lappend item $prop \
                         [list success \
-                             [SetupDiGetDeviceRegistryProperty \
+                             [Twapi_SetupDiGetDeviceRegistryProperty \
                                   $hdevinfo $devinfo_data $intprop]]
                 } onerror {} {
                     lappend item $prop [list fail [list [trapresult] $::errorCode]]
@@ -209,8 +226,10 @@ proc twapi::get_devinfoset_registry_properties {hdevinfo args} {
 
             incr i
         }
-    } onerror {TWAPI_WIN32 259} {
+    } onerror {TWAPI_WIN32 0x103} {
         # Fine, Just means no more items
+    } onerror {TWAPI_WIN32 0x80070103} {
+        # Fine, Just means no more items (HRESULT version of above code)
     }
 
     return $result
