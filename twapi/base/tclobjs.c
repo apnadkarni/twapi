@@ -509,6 +509,7 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
 {
     char *typenameP;
     Tcl_Obj *resultObj = NULL;
+    DWORD dw;
 
     switch (resultP->type) {
     case TRT_GETLASTERROR:      /* Error in GetLastError() */
@@ -764,6 +765,10 @@ TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
             return TCL_ERROR;
         }
         break;
+
+    case TRT_GETLASTERROR_SETUPAPI:
+        dw = GetLastError();
+        return Twapi_AppendSystemError(interp, HRESULT_FROM_SETUPAPI(dw));
 
     default:
         ObjSetStaticResult(interp, "Unknown TwapiResultType type code passed to TwapiSetResult");
