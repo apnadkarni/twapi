@@ -128,7 +128,7 @@ proc twapi::stop_device_notifier {idstr} {
 # Retrieve a device information set for a device setup or interface class
 # TBD - documenet -pnpenumerator can be GUID of PnP or symbolic name
 #  like USB, PCI, PCMCIA, SCSI
-proc twapi::update_devinfoset {args} {
+proc twapi::devinfoset {args} {
     array set opts [parseargs args {
         {guid.arg ""}
         {classtype.arg setup {interface setup}}
@@ -164,7 +164,7 @@ proc twapi::update_devinfoset {args} {
 
 
 # Given a device information set, returns the device elements within it
-proc twapi::get_devinfoset_elements {hdevinfo} {
+proc twapi::devinfoset_elements {hdevinfo} {
     set result [list ]
     set i 0
     trap {
@@ -182,7 +182,7 @@ proc twapi::get_devinfoset_elements {hdevinfo} {
 }
 
 # Given a device information set, returns the device elements within it
-proc twapi::get_devinfoset_instance_ids {hdevinfo} {
+proc twapi::devinfoset_instance_ids {hdevinfo} {
     set result [list ]
     set i 0
     trap {
@@ -199,11 +199,20 @@ proc twapi::get_devinfoset_instance_ids {hdevinfo} {
     return $result
 }
 
+# Returns a device instance element from a devinfoset
+proc twapi::devinfoset_element {hdevinfo instance_id} {
+    return [SetupDiOpenDeviceInfo $hdevinfo $instance_id 0 0]
+}
+
+# Get the registry property for a devinfoset element
+proc twapi::devinfoset_element_registry_property {hdevinfo develem prop} {
+    Twapi_SetupDiGetDeviceRegistryProperty $hdevinfo $develem [_device_registry_sym_to_code $prop]
+}
 
 # Given a device information set, returns a list of specified registry
 # properties for all elements of the set
 # args is list of properties to retrieve
-proc twapi::get_devinfoset_registry_properties {hdevinfo args} {
+proc twapi::devinfoset_registry_properties {hdevinfo args} {
     set result [list ]
     trap {
         # Keep looping until there is an error saying no more items
@@ -243,7 +252,7 @@ proc twapi::get_devinfoset_registry_properties {hdevinfo args} {
 # Given a device information set, returns specified device interface
 # properties
 # TBD - document ?
-proc twapi::get_devinfoset_interface_details {hdevinfo guid args} {
+proc twapi::devinfoset_interface_details {hdevinfo guid args} {
     set result [list ]
 
     array set opts [parseargs args {
