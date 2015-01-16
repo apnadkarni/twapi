@@ -1632,11 +1632,39 @@ int ObjToLUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, LUID **luidPP)
 }
 
 
+Tcl_Obj *ObjFromEXPAND_SZW(WCHAR *ws)
+{
+    DWORD sz, required;
+    WCHAR buf[MAX_PATH+1], *bufP;
+    Tcl_Obj *objP;
+
+    bufP = buf;
+    sz = ARRAYSIZE(buf);
+    required = ExpandEnvironmentStringsW(ws, bufP, sz);
+    if (required > sz) {
+        // Need a bigger buffer
+        bufP = TwapiPushFrame(required*sizeof(WCHAR), NULL);
+        sz = required;
+        required = ExpandEnvironmentStringsW(ws, bufP, sz);
+    }
+    if (required <= 0 || required > sz)
+        objP = ObjFromUnicode(ws); /* Something went wrong, return as is */
+    else {
+        --required;         /* Terminating null */
+        objP = ObjFromUnicodeN(bufP, required);
+    }
+
+    if (bufP != buf)
+        TwapiPopFrame();
+    return objP;
+}
+
 Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
                          BYTE *bufP, int count)
 {
     Tcl_Obj *objv[2];
     char *typestr = NULL;
+    WCHAR *ws;
 
     switch (regtype) {
     case REG_LINK:
@@ -1653,10 +1681,11 @@ Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
          * As per MS docs, may not always be null terminated.
          * If it is, we need to strip off the null.
          */
+        ws = (WCHAR *)bufP;
         count /= 2;             /*  Assumed to be Unicode. */
-        if (count && bufP[count-1] == 0)
+        if (count && ws[count-1] == 0)
             --count;        /* Do not include \0 */
-        objv[1] = ObjFromUnicodeN((WCHAR *)bufP, count);
+        objv[1] = ObjFromUnicodeN(ws, count);
         break;
             
     case REG_DWORD_BIG_ENDIAN:
@@ -1700,6 +1729,72 @@ badformat:
     return NULL;
 }
 
+
+Tcl_Obj *ObjFromRegValueCooked(Tcl_Interp *interp, int regtype,
+                         BYTE *bufP, int count)
+{
+    WCHAR *ws;
+    int terminated = 0;
+
+    switch (regtype) {
+    case REG_LINK:
+    case REG_SZ:
+    case REG_EXPAND_SZ:
+        /*
+         * As per MS docs, may not always be null terminated.
+         * If it is, we need to strip off the null.
+         */
+        ws = (WCHAR *)bufP;
+        count /= 2;             /*  Assumed to be Unicode. */
+        if (count && ws[count-1] == 0) {
+            terminated = 1;
+            --count;        /* Do not include \0 */
+        }
+        if (regtype != REG_EXPAND_SZ || count == 0)
+            return ObjFromUnicodeN(ws, count);
+        else {
+            /* Expand expects null terminated */
+            if (terminated)
+                return ObjFromEXPAND_SZW(ws);
+            else {
+                Tcl_Obj *objP;
+                WCHAR *ws2 = TwapiPushFrame(sizeof(WCHAR)*(count+1), NULL);
+                memcpy(ws2, ws, sizeof(WCHAR)*count);
+                ws2[count] = 0;
+                objP = ObjFromEXPAND_SZW(ws2);
+                TwapiPopFrame();
+                return objP;
+            }
+        }
+        break;
+            
+    case REG_DWORD_BIG_ENDIAN:
+        if (count != 4)
+            goto badformat;
+        return ObjFromLong(swap4(*(unsigned long *)bufP));
+
+    case REG_DWORD:
+        if (count != 4)
+            goto badformat;
+        return ObjFromLong(*(long *)bufP);
+
+    case REG_QWORD:
+        if (count != 8)
+            goto badformat;
+        return ObjFromWideInt(*(Tcl_WideInt *)bufP);
+
+    case REG_MULTI_SZ:
+        return ObjFromMultiSz((LPCWSTR) bufP, count/2);
+
+    case REG_BINARY:  // FALLTHRU
+    default:
+        return ObjFromByteArray(bufP, count);
+    }
+
+badformat:
+    ObjSetStaticResult(interp, "Badly formatted registry value");
+    return NULL;
+}
 
 TCL_RESULT ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *argcP)
 {

@@ -752,6 +752,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         SECURITY_DESCRIPTOR *secdP;
         ACL *aclP;
     } u;
+    SHORT i16;
     DWORD dw, dw2;
     DWORD_PTR dwp;
     LPWSTR s;
@@ -903,28 +904,8 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.value.bval = (ObjToGUID(NULL, objv[0], &guid) == TCL_OK);
         break;
     case 1020:
-        bufP = u.buf;
-        s = ObjToUnicode(objv[0]);
-        dw = ExpandEnvironmentStringsW(s, bufP, ARRAYSIZE(u.buf));
-        if (dw > ARRAYSIZE(u.buf)) {
-            // Need a bigger buffer
-            bufP = TwapiAlloc(dw * sizeof(WCHAR));
-            dw2 = dw;
-            dw = ExpandEnvironmentStringsW(s, bufP, dw2);
-            if (dw > dw2) {
-                // Should not happen since we gave what we were asked
-                TwapiFree(bufP);
-                return TCL_ERROR;
-            }
-        }
-        if (dw == 0)
-            result.type = TRT_GETLASTERROR;
-        else {
-            result.type = TRT_OBJ;
-            result.value.obj = ObjFromUnicodeN(bufP, dw-1);
-        }
-        if (bufP != u.buf)
-            TwapiFree(bufP);
+        result.type = TRT_OBJ;
+        result.value.obj = ObjFromEXPAND_SZW(ObjToUnicode(objv[0]));
         break;
     case 1021: // free
         if (ObjToLPVOID(interp, objv[0], &pv) != TCL_OK ||
@@ -955,6 +936,24 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         } else {
             result.type = TRT_EMPTY;
         }
+        break;
+    case 1025: // swap8
+        if (ObjToWideInt(interp, objv[0], &u.wide) != TCL_OK)
+            return TCL_ERROR;
+        result.value.wide=swap8(u.wide);
+        result.type = TRT_WIDE;
+        break;
+    case 1026: // swap4
+        if (ObjToLong(interp, objv[0], &dw) != TCL_OK)
+            return TCL_ERROR;
+        result.value.ival=swap4(dw);
+        result.type = TRT_LONG;
+        break;
+    case 1027: // swap2
+        if (ObjToSHORT(interp, objv[0], &i16) != TCL_OK)
+            return TCL_ERROR;
+        result.value.ival=swap2(i16);
+        result.type = TRT_LONG;
         break;
     }
 
@@ -2295,6 +2294,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(pointer_registered?, 1022),
         DEFINE_FNCODE_CMD(pointer_to_address, 1023),
         DEFINE_FNCODE_CMD(pointer_type, 1024),
+        DEFINE_FNCODE_CMD(swap8, 1025), // TBD - doc
+        DEFINE_FNCODE_CMD(swap4, 1026), // TBD - doc
+        DEFINE_FNCODE_CMD(swap2, 1027), // TBD - doc
     };
 
     static struct fncode_dispatch_s CallArgsDispatch[] = {
