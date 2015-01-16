@@ -649,6 +649,7 @@ typedef enum {
     TRT_HMODULE = 51,
     TRT_HMACHINE = 52,
     TRT_CONFIGRET = 53,         /* PnP Manager status (CM_* calls) */
+    TRT_GETLASTERROR_SETUPAPI = 54 /* Setup* calls */
 } TwapiResultType;
 
 typedef struct {

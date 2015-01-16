@@ -206,7 +206,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *ticP, int objc, T
         /* Unsuccessful call. See if we need a larger buffer */
         DWORD winerr = GetLastError();
         if (winerr != ERROR_INSUFFICIENT_BUFFER) {
-            Twapi_AppendSystemError(ticP->interp, winerr);
+            Twapi_AppendSystemError(ticP->interp, HRESULT_FROM_SETUPAPI(winerr));
             goto vamoose;
         }
 
@@ -222,7 +222,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *ticP, int objc, T
     }
 
     /* Success. regprop contains the registry property type */
-    objP = ObjFromRegValue(ticP->interp, regtype, bufP, buf_sz);
+    objP = ObjFromRegValueCooked(ticP->interp, regtype, bufP, buf_sz);
     if (objP) {
         ObjSetResult(ticP->interp, objP);
         tcl_status = TCL_OK;
@@ -269,7 +269,7 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tc
         objs[1] = ObjFromSP_DEVINFO_DATA(&sdd);
         ObjSetResult(ticP->interp, ObjNewList(2, objs));
     } else
-        Twapi_AppendSystemError(ticP->interp, winerr);
+        Twapi_AppendSystemError(ticP->interp, HRESULT_FROM_SETUPAPI(winerr));
 
     MemLifoPopFrame(ticP->memlifoP);
 
@@ -325,8 +325,10 @@ int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Ob
                 ObjAppendElement(ticP->interp, objP, ObjFromGUID(&guidP[i]));
             }
             ObjSetResult(ticP->interp, objP);
-        } else
-            Twapi_AppendSystemError(ticP->interp, GetLastError());
+        } else {
+            i = GetLastError();
+            Twapi_AppendSystemError(ticP->interp, HRESULT_FROM_SETUPAPI(i));
+        }
     }
 
     MemLifoPopMark(mark);
@@ -1231,7 +1233,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
             result.type = TRT_OBJ;
             result.value.obj = ObjFromSP_DEVINFO_DATA(&u.dev.sp_devinfo_data);
         } else
-            result.type = TRT_GETLASTERROR;
+            result.type = TRT_GETLASTERROR_SETUPAPI;
         break;
 
     case 63: // Twapi_SetupDiGetDeviceRegistryProperty
@@ -1253,7 +1255,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
             result.type = TRT_OBJ;
             result.value.obj = ObjFromSP_DEVICE_INTERFACE_DATA(&u.dev.sp_device_interface_data);
         } else
-            result.type = TRT_GETLASTERROR;
+            result.type = TRT_GETLASTERROR_SETUPAPI;
         break;
 
     case 65:
@@ -1273,7 +1275,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
             result.value.unicode.str = u.buf;
             result.value.unicode.len = -1;
         } else
-            result.type = TRT_GETLASTERROR;
+            result.type = TRT_GETLASTERROR_SETUPAPI;
         break;
     case 67:
         if (TwapiGetArgs(interp, objc-2, objv+2,
@@ -1287,11 +1289,24 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
             result.value.unicode.str = u.buf;
             result.value.unicode.len = -1;
         } else
-            result.type = TRT_GETLASTERROR;
+            result.type = TRT_GETLASTERROR_SETUPAPI;
         break;
     case 68:
         return Twapi_SetupDiClassGuidsFromNameEx(ticP, objc-2, objv+2);
-    case 69: // UNUSED
+    case 69: // SetupDiOpenDeviceInfo
+        if (TwapiGetArgs(interp, objc-2, objv+2,
+                         GETHANDLET(h, HDEVINFO),
+                         GETOBJ(sObj),
+                         GETHWND(hwnd),
+                         GETINT(dw)) != TCL_OK)
+            return TCL_ERROR;
+        u.dev.sp_devinfo_data.cbSize = sizeof(u.dev.sp_devinfo_data);
+        if (SetupDiOpenDeviceInfoW(h, ObjToUnicode(sObj), hwnd, dw,
+                                   &u.dev.sp_devinfo_data)) {
+            result.type = TRT_OBJ;
+            result.value.obj = ObjFromSP_DEVINFO_DATA(&u.dev.sp_devinfo_data);
+        } else
+            result.type = TRT_GETLASTERROR_SETUPAPI;
         break;
     case 70:
         if (objc != 3)
@@ -1333,6 +1348,7 @@ static int TwapiDeviceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(device_setup_class_guid_to_name, 66), //SetupDiClassNameFromGuidEx
         DEFINE_ALIAS_CMD(device_element_instance_id, 67), //SetupDiGetDeviceInstanceId
         DEFINE_ALIAS_CMD(SetupDiClassGuidsFromNameEx, 68),
+        DEFINE_ALIAS_CMD(SetupDiOpenDeviceInfo, 69),
         DEFINE_ALIAS_CMD(close_devinfoset, 70), //SetupDiDestroyDeviceInfoList
         DEFINE_ALIAS_CMD(Twapi_RegisterDeviceNotification, 71),
         DEFINE_ALIAS_CMD(Twapi_UnregisterDeviceNotification, 72),
