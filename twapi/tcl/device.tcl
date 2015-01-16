@@ -126,7 +126,7 @@ proc twapi::stop_device_notifier {idstr} {
 
 
 # Retrieve a device information set for a device setup or interface class
-# TBD - documenet -pnpname can be GUID of PnP or symbolic name
+# TBD - documenet -pnpenumerator can be GUID of PnP or symbolic name
 #  like USB, PCI, PCMCIA, SCSI
 proc twapi::update_devinfoset {args} {
     array set opts [parseargs args {
@@ -137,7 +137,7 @@ proc twapi::update_devinfoset {args} {
         {deviceinfoset.arg NULL}
         {hwin.int 0}
         {system.arg ""}
-        {pnpname.arg ""}
+        {pnpenumerator.arg ""}
     } -maxleftover 0]
 
     # DIGCF_ALLCLASSES is bitmask 4
@@ -155,7 +155,7 @@ proc twapi::update_devinfoset {args} {
 
     return [SetupDiGetClassDevsEx \
                 $opts(guid) \
-                $opts(pnpname) \
+                $opts(pnpenumerator) \
                 $opts(hwin) \
                 $flags \
                 $opts(deviceinfoset) \
@@ -172,8 +172,10 @@ proc twapi::get_devinfoset_elements {hdevinfo} {
             lappend result [SetupDiEnumDeviceInfo $hdevinfo $i]
             incr i
         }
-    } onerror {TWAPI_WIN32 259} {
+    } onerror {TWAPI_WIN32 0x103} {
         # Fine, Just means no more items
+    } onerror {TWAPI_WIN32 0x80070103} {
+        # Fine, Just means no more items (HRESULT version of above code)
     }
 
     return $result
@@ -188,8 +190,10 @@ proc twapi::get_devinfoset_instance_ids {hdevinfo} {
             lappend result [device_element_instance_id $hdevinfo [SetupDiEnumDeviceInfo $hdevinfo $i]]
             incr i
         }
-    } onerror {TWAPI_WIN32 259} {
+    } onerror {TWAPI_WIN32 0x103} {
         # Fine, Just means no more items
+    } onerror {TWAPI_WIN32 0x80070103} {
+        # Fine, Just means no more items (HRESULT version of above code)
     }
 
     return $result
@@ -293,8 +297,10 @@ proc twapi::get_devinfoset_interface_details {hdevinfo guid args} {
 
             incr i
         }
-    } onerror {TWAPI_WIN32 259} {
+    } onerror {TWAPI_WIN32 0x103} {
         # Fine, Just means no more items
+    } onerror {TWAPI_WIN32 0x80070103} {
+        # Fine, Just means no more items (HRESULT version of above code)
     }
 
     return $result
