@@ -1295,10 +1295,8 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
         return Twapi_SetupDiClassGuidsFromNameEx(ticP, objc-2, objv+2);
     case 69: // SetupDiOpenDeviceInfo
         if (TwapiGetArgs(interp, objc-2, objv+2,
-                         GETHANDLET(h, HDEVINFO),
-                         GETOBJ(sObj),
-                         GETHWND(hwnd),
-                         GETINT(dw)) != TCL_OK)
+                         GETHANDLET(h, HDEVINFO), GETOBJ(sObj),
+                         GETHWND(hwnd), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         u.dev.sp_devinfo_data.cbSize = sizeof(u.dev.sp_devinfo_data);
         if (SetupDiOpenDeviceInfoW(h, ObjToUnicode(sObj), hwnd, dw,
