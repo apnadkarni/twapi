@@ -1465,8 +1465,11 @@ TWAPI_EXTERN int ObjToMultiSzEx (Tcl_Interp *interp, Tcl_Obj *listPtr, LPCWSTR *
 TWAPI_EXTERN int ObjToMultiSz (Tcl_Interp *interp, Tcl_Obj *listPtr, LPCWSTR *multiszPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromMultiSz (LPCWSTR lpcw, int maxlen);
 #define ObjFromMultiSz_MAX(lpcw) ObjFromMultiSz(lpcw, INT_MAX)
+TWAPI_EXTERN Tcl_Obj *ObjFromEXPAND_SZW(WCHAR *ws);
 TWAPI_EXTERN Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
                          BYTE *bufP, int count);
+TWAPI_EXTERN Tcl_Obj *ObjFromRegValueCooked(Tcl_Interp *interp, int regtype,
+                               BYTE *bufP, int count);
 TWAPI_EXTERN int ObjToRECT (Tcl_Interp *interp, Tcl_Obj *obj, RECT *rectP);
 TWAPI_EXTERN int ObjToRECT_NULL (Tcl_Interp *interp, Tcl_Obj *obj, RECT **rectPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromRECT(RECT *rectP);
@@ -1587,7 +1590,6 @@ TWAPI_INLINE void TwapiPopFrame(void) {
 }
 
 
-
 /* Module management */
 TWAPI_EXTERN TwapiInterpContext *TwapiRegisterModule(
     Tcl_Interp *interp,
@@ -1620,6 +1622,24 @@ TWAPI_EXTERN BOOL CALLBACK Twapi_EnumWindowsCallback(HWND hwnd, LPARAM p_ctx);
 TWAPI_EXTERN Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP);
 TWAPI_EXTERN TCL_RESULT TwapiReturnNonnullHandle(Tcl_Interp *, HANDLE, char *typestr);
 
+TWAPI_INLINE unsigned short swap2(unsigned short us)
+{
+    return (us << 8) | (us >> 8);
+}
+
+TWAPI_INLINE unsigned long swap4(unsigned long ul)
+{
+    ul = ((ul << 8) & 0xFF00FF00 ) | ((ul >> 8) & 0xFF00FF ); 
+    return (ul << 16) | (ul >> 16);    
+}
+
+TWAPI_INLINE unsigned __int64 swap8(unsigned __int64 ull)
+{
+    ull = ((ull << 8) & 0xFF00FF00FF00FF00 ) | ((ull >> 8) & 0x00FF00FF00FF00FF );
+    ull = ((ull << 16) & 0xFFFF0000FFFF0000 ) | ((ull >> 16) & 0x0000FFFF0000FFFF );
+    return (ull << 32) | (ull >> 32);
+}
+
 /*
  * Definitions used for defining Tcl commands dispatched via a function code
  * passed as ClientData
@@ -1646,5 +1666,9 @@ struct alias_dispatch_s {
 };
 #define DEFINE_ALIAS_CMD(fn_, code_)  {#fn_, #code_}
 TWAPI_EXTERN void TwapiDefineAliasCmds(Tcl_Interp *, int, struct alias_dispatch_s *, const char *);
+
+
+
+
 
 #endif // TWAPI_H
