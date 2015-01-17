@@ -759,7 +759,6 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     void *pv;
     Tcl_Obj *objs[2];
     GUID guid;
-    WCHAR *bufP;
     SYSTEMTIME systime;
 
     if (objc != 2)
