@@ -1151,8 +1151,8 @@ Tcl_Obj *ObjFromDISPLAY_DEVICE(DISPLAY_DEVICEW *ddP);
 Tcl_Obj *ObjFromMONITORINFOEX(MONITORINFO *miP);
 Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP);
 
-Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP);
-int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP);
+TWAPI_EXTERN Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP);
+TWAPI_EXTERN int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP);
 TWAPI_EXTERN Tcl_Obj *ObjFromACL(Tcl_Interp *interp, ACL *aclP);
 
 /* Window stuff */
