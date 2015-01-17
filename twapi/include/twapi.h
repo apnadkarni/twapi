@@ -1153,7 +1153,7 @@ Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP);
 
 Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP);
 int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP);
-Tcl_Obj *ObjFromACL(Tcl_Interp *interp, ACL *aclP);
+TWAPI_EXTERN Tcl_Obj *ObjFromACL(Tcl_Interp *interp, ACL *aclP);
 
 /* Window stuff */
 int Twapi_EnumWindows(Tcl_Interp *interp);
