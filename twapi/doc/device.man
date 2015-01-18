@@ -113,7 +113,7 @@ that of a device setup class (default) or a device interface class.
 [opt_def [cmd -currentprofileonly] [arg BOOLEAN]]
 If specified as [const true], only devices present in the current
 hardware profile are included in the set. Default is [const false].
-[opt_def [cmd -guid] [arg GUID]].
+[opt_def [cmd -guid] [arg GUID]]
 The GUID for a device setup class or a device interface class depending
 on the [cmd -classtype] option. Only devices belonging to the class
 with that GUID are returned. If unspecified or the empty string, devices
@@ -171,7 +171,6 @@ Note that not all properties will exist for a device and the command
 will raise an error if an attempt is made to retrieve a non-existing
 property.
 
-
 [call [cmd devinfoset_elements] [arg HDEVINFOSET]]
 Returns a list containing the device elements within a device information
 set. [arg HDEVINFOSET] is a handle to a device information set as
@@ -179,7 +178,7 @@ returned by [uri #devinfoset [cmd devinfoset]]. Use
 [uri #device_element [cmd device_element]] to extract each field
 in an element.
 
-[call [cmd devinfoset_instance_ids [arg HDEVINFOSET]]
+[call [cmd devinfoset_instance_ids] [arg HDEVINFOSET]]
 Returns a list containing the device instance identifiers for all
 devices in a device information set.
 [arg HDEVINFOSET] is a handle to a device information set as
