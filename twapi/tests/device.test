@@ -669,12 +669,241 @@ namespace eval twapi::device::test {
 
     test rescan_devices-1.0 {
         Rescan devices
+    } -body {
+        twapi::rescan_devices
+    } -result ""
+
+    test rescan_devices-100.0 {
+        Rescan devices - how to verify rescan has happened
     } -constraints {
         TBD
-    } -result TBD
+    } -body {
+        twapi::rescan_devices
+    } -result ""
 
     ################################################################
 
+    test devinfoset-1.0 {
+        devinfoset - no args
+    } -body {
+        set h [twapi::devinfoset]
+        twapi::pointer? $h HDEVINFO
+    } -cleanup {
+        twapi::devinfoset_close $h
+    } -result 1
+
+    test devinfoset-2.0 {
+        devinfoset -presentonly 0
+    } -setup {
+        set h [twapi::devinfoset]
+        set total [llength [twapi::devinfoset_elements $h]]
+        twapi::devinfoset_close $h
+    } -body {
+        set h [twapi::devinfoset -presentonly 0]
+        list [twapi::pointer? $h HDEVINFO] [expr {$total == [llength [twapi::devinfoset_elements $h]]}]
+    } -cleanup {
+        twapi::devinfoset_close $h
+    } -result {1 1}
+
+    test devinfoset-2.1 {
+        devinfoset -presentonly 1
+    } -setup {
+        set h [twapi::devinfoset]
+        set total [llength [twapi::devinfoset_elements $h]]
+        twapi::devinfoset_close $h
+    } -body {
+        set h [twapi::devinfoset -presentonly 1]
+        set count [llength [twapi::devinfoset_elements $h]]
+        list [twapi::pointer? $h HDEVINFO] [expr {$total > $count && $count > 0}]
+    } -cleanup {
+        twapi::devinfoset_close $h
+    } -result {1 1}
+
+    test devinfoset-3.0 {
+        devinfoset -classtype setup
+    } -setup {
+        set h [twapi::devinfoset]
+        set total [llength [twapi::devinfoset_elements $h]]
+        twapi::devinfoset_close $h
+    } -body {
+        set h [twapi::devinfoset -classtype setup]
+        set count [llength [twapi::devinfoset_elements $h]]
+        list [twapi::pointer? $h HDEVINFO] [expr {$total == $count}]
+    } -cleanup {
+        twapi::devinfoset_close $h
+    } -result {1 1}
+
+    test devinfoset-3.1 {
+        devinfoset -classtype interface
+    } -setup {
+        set h [twapi::devinfoset]
+        set total [llength [twapi::devinfoset_elements $h]]
+        twapi::devinfoset_close $h
+    } -body {
+        set h [twapi::devinfoset -classtype interface]
+        set count [llength [twapi::devinfoset_elements $h]]
+        list [twapi::pointer? $h HDEVINFO] [expr {$total != $count}]
+    } -cleanup {
+        twapi::devinfoset_close $h
+    } -result {1 1}
+
+    test devinfoset-4.0 {
+        devinfoset -currentprofileonly 0
+    } -setup {
+        set h [twapi::devinfoset]
+        set total [llength [twapi::devinfoset_elements $h]]
+        twapi::devinfoset_close $h
+    } -body {
+        set h [twapi::devinfoset -currentprofileonly 0]
+        list [twapi::pointer? $h HDEVINFO] [expr {$total == [llength [twapi::devinfoset_elements $h]]}]
+    } -cleanup {
+        twapi::devinfoset_close $h
+    } -result {1 1}
+
+    test devinfoset-4.1 {
+        devinfoset -currentprofileonly 1
+    } -setup {
+        set h [twapi::devinfoset]
+        set total [llength [twapi::devinfoset_elements $h]]
+        twapi::devinfoset_close $h
+    } -body {
+        set h [twapi::devinfoset -currentprofileonly 1]
+        set count [llength [twapi::devinfoset_elements $h]]
+        list [twapi::pointer? $h HDEVINFO] [expr {$total >= $count && $count > 0}]
+    } -cleanup {
+        twapi::devinfoset_close $h
+    } -result {1 1}
+
+    test devinfoset-5.0 {
+        devinfoset -guid 
+    } -body {
+        set h [twapi::devinfoset -guid {{36FC9E60-C465-11CF-8056-444553540000}}]
+        set msg ""
+        foreach elem [twapi::devinfoset_elements $h] {
+            if {[twapi::device_element class_guid $elem] ne {{36FC9E60-C465-11CF-8056-444553540000}}} {
+                set msgs "GUID mismatch"
+            }
+        }
+        set msg
+    } -cleanup {
+        twapi::devinfoset_close $h
+    } -result ""
+
+    test devinfoset-6.0 {
+        devinfoset -guid 
+    } -body {
+        set h [twapi::devinfoset -pnpenumerator USB]
+        set msg ""
+        foreach id [twapi::devinfoset_instance_ids $h] {
+            if {![string match -nocase USB* $id]} {
+                set msgs "$id != USB"
+            }
+        }
+        set msg
+    } -cleanup {
+        twapi::devinfoset_close $h
+    } -result ""
+
+    ################################################################
+
+    test devinfoset_close-1.0 {
+        devinfoset_close
+    } -setup {
+        set h [twapi::devinfoset]
+    } -body {
+        list [catch {twapi::devinfoset_close $h}] [catch {twapi::devinfoset_close $h}]
+    } -result {0 1}
+
+    ################################################################
+
+    test devinfoset_element-1.0 {
+        devinfoset_element
+    } -setup {
+        set h [twapi::devinfoset -guid {{36FC9E60-C465-11CF-8056-444553540000}}]
+        set id [lindex [twapi::devinfoset_instance_ids $h] 0]
+    } -body {
+        set elem [twapi::devinfoset_element $h $id]
+        list [string equal {{36FC9E60-C465-11CF-8056-444553540000}} [twapi::device_element class_guid $elem]] [string is integer [twapi::device_element device_instance $elem]]
+    } -cleanup {
+        twapi::devinfoset_close $h
+    } -result {1 1}
+
+    ################################################################
+
+    test devinfoset_elements-1.0 {
+        devinfoset_elements
+    } -setup {
+        set h [twapi::devinfoset]
+        set msg ""
+    } -body {
+        set elems [twapi::devinfoset_elements $h]
+        foreach elem $elems {
+            # Just verifying element syntax
+            twapi::device_element class_guid $elem
+            twapi::device_element device_instance $elem
+        }
+        expr [llength $elems] > 0
+    } -cleanup {
+        twapi::devinfoset_close $h
+    } -result 1
+
+    ################################################################
+
+    test devinfoset_instance_ids-1.0 {
+        devinfoset_instance_ids
+    } -setup {
+        set h [twapi::devinfoset -guid {{36FC9E60-C465-11CF-8056-444553540000}}]
+    } -body {
+        set ids [twapi::devinfoset_instance_ids $h]
+        foreach id $ids {
+            # Just verify id validity
+            twapi::devinfoset_element $h $id
+        }
+        expr [llength $ids] > 0
+    } -cleanup {
+        twapi::devinfoset_close $h
+    } -result 1
+
+    ################################################################
+
+    test devinfoset_element_registry_property-1.0 {
+        devinfoset element registry
+    } -setup { 
+        set h [twapi::devinfoset]
+        set elems [twapi::devinfoset_elements $h]
+        foreach propname {
+            devicedesc hardwareid compatibleids service
+            class classguid driver configflags mfg friendlyname
+            location_information physical_device_object_name capabilities
+            ui_number upperfilters lowerfilters
+            bustypeguid legacybustype busnumber enumerator_name security
+            security_sds devtype exclusive characteristics address
+            ui_number_desc_format device_power_data
+            removal_policy removal_policy_hw_default removal_policy_override
+            install_state location_paths base_containerid
+        } {
+            set propnames($propname) 1
+        }
+    } -body {
+        foreach elem $elems {
+            foreach propname [array names propnames] {
+                twapi::trap {
+                    twapi::devinfoset_element_registry_property $h $elem $propname
+                    # We successfully retrieved at this one property of this name
+                    unset -nocomplain propnames($propname)
+                } onerror {TWAPI_WIN32 -2147024883} {
+                    # Registry property does not exist - ignore
+                } onerror {TWAPI_WIN32 -2146500085} {
+                    # Does not exist in device tree
+                }
+            }
+        }
+        unset -nocomplain propnames(exclusive); # Does not exist on my system
+        unset -nocomplain propnames(removal_policy_override); # Ditto
+        array names propnames
+    } -cleanup {
+        twapi::devinfoset_close $h
+    } -result {}
 }
 
 
