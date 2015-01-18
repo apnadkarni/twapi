@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Device management" n ""]
-[copyright "2008 Ashok P. Nadkarni"]
+[copyright "2008-2014 Ashok P. Nadkarni"]
 [moddesc "Device management"]
 [titledesc "Commands related to devices and device interfaces"]
 [require twapi_device]
@@ -10,17 +10,6 @@
 This package provides procedures related to device information and
 management in Windows operating systems.
 
-
-[section "Device management"]
-
-The [uri #device_ioctl [cmd device_ioctl]] command provides thin
-wrapper around the DeviceIoControl Win32 function. This allows for
-device specific control commands to be issued to devices. You will
-need to refer to the Windows SDK documentation for specifics of
-the ioctls supported by various devices.
-
-The command [uri #rescan_devices [cmd rescan_devices]] forces
-the device manager to rescan the system for all devices.
 
 [section "Media control"]
 The commands [uri #eject_media [cmd eject_media]], 
@@ -58,6 +47,30 @@ The [uri #get_physical_disk_info [cmd get_physical_disk_info]]
 command can then be used to retrieve detailed information about the
 physical disk.
 
+[section "Device management"]
+
+The [uri #device_ioctl [cmd device_ioctl]] command provides thin
+wrapper around the DeviceIoControl Win32 function. This allows for
+device specific control commands to be issued to devices. You will
+need to refer to the Windows SDK documentation for specifics of
+the ioctls supported by various devices.
+
+The [uri #devinfoset [cmd devinfoset]] command returns a handle
+to a device information set that contains device elements corresponding
+to devices in the system. A device element or the entire set
+can then be retrieved with [uri #devinfoset_element [cmd devinfoset_element]]
+and [uri #devinfoset_elements [cmd devinfoset_elements]] respectively.
+The device instance identifiers for the devices in the set 
+are available through
+[uri #devinfoset_instance_ids [cmd devinfoset_instance_ids]].
+To get properties of a device, such as its description, bus number etc., use
+[uri #devinfoset_element_registry_property [cmd devinfoset_element_registry_property]].
+
+
+The command [uri #rescan_devices [cmd rescan_devices]] forces
+the device manager to rescan the system for all devices.
+
+
 [section Commands]
 [list_begin definitions]
 
@@ -73,6 +86,104 @@ if the call is expected to return data. [arg BUFSIZE] should be the size
 of the output buffer expected by the call. The command will then return
 the result as a Tcl binary value that should in general be
 parsed with the Tcl [cmd "binary scan"] command.
+
+[call [cmd device_element] [arg FIELD] [arg DEVICE_ELEMENT]]
+Returns the specified field from a device element structure. [arg FIELD]
+must be [const class_guid] or [const device_instance]. 
+The former is the GUID of the device's setup class. The latter is an
+opaque handle to the device's [const devnode].
+[arg DEVICE_ELEMENT]
+is an opaque structure containing a device element as returned by
+the [uri #devinfoset_element [cmd devinfoset_element]] or
+[uri #devinfoset_elements [cmd devinfoset_elements]] calls.
+
+[call [cmd devinfoset] [arg options]]
+Returns a handle to a device information set containing device elements.
+The returned handle must be closed by calling 
+[uri #devinfoset_close [cmd devinfoset_close]].
+
+The included elements depend on the options specified. Without any options,
+all device elements are included. Otherwise the elements are restricted
+to those matching one or more of the options in the table below.
+
+[list_begin opt]
+[opt_def [cmd -classtype] [const setup|interface]]
+Specifies whether the GUID specified by the [arg GUID] option is
+that of a device setup class (default) or a device interface class.
+[opt_def [cmd -currentprofileonly] [arg BOOLEAN]]
+If specified as [const true], only devices present in the current
+hardware profile are included in the set. Default is [const false].
+[opt_def [cmd -guid] [arg GUID]].
+The GUID for a device setup class or a device interface class depending
+on the [cmd -classtype] option. Only devices belonging to the class
+with that GUID are returned. If unspecified or the empty string, devices
+from all classes are included in the information set.
+[opt_def [cmd -pnpenumerator] [arg PNPENUMERATOR]]
+If specified, only devices for that PnP enumerator are returned.
+[arg PNPENUMERATOR] may be the GUID of the enumerator or it symbolic
+name such as [const USB], [const PCI], [const PCMCIA], [const SCSI] etc.
+This option can only be used if the [cmd -classtype] option is [const setup].
+[opt_def [cmd -presentonly] [arg BOOLEAN]]
+If specified as [const true], only devices currently present in the system
+are included in the set. Default is [const false].
+[list_end]
+
+[call [cmd devinfoset_close] [arg HDEVINFOSET]]
+Closes a handle to device information set as returned by
+[uri #devinfoset [cmd devinfoset]].
+
+[call [cmd devinfoset_element] [arg HDEVINFOSET] [arg INSTANCEID]]
+Returns the device element within a device information
+set corresponding to the device instance identifier [arg INSTANCEID].
+[arg HDEVINFOSET] is a handle to a device information set as
+returned by [uri #devinfoset [cmd devinfoset]]. Use
+[uri #device_element [cmd device_element]] to extract each field
+in the element.
+
+[call [cmd devinfoset_element_registry_property] [arg HDEVINFOSET] [arg DEVICELEM] [arg PROPERTY]]
+Returns the value of a registry property for a device element in a
+device information set.
+[arg HDEVINFOSET] is a handle to a device information set as
+returned by [uri #devinfoset [cmd devinfoset]].
+[arg DEVICEELEMENT]
+is an opaque structure containing a device element as returned by
+the [uri #devinfoset_element [cmd devinfoset_element]] or
+[uri #devinfoset_elements [cmd devinfoset_elements]] calls.
+[arg PROPERTY] is one of the following:
+[const devicedesc], [const hardwareid], [const compatibleids], 
+[const service], [const class], [const classguid], [const driver], 
+[const configflags], [const mfg], [const friendlyname],
+[const location_information], [const physical_device_object_name], 
+[const capabilities],
+[const ui_number], [const upperfilters], [const lowerfilters],
+[const bustypeguid], [const legacybustype], [const busnumber], 
+[const enumerator_name], [const security],
+[const security_sds], [const devtype], [const exclusive], 
+[const characteristics], [const address],
+[const ui_number_desc_format], [const device_power_data],
+[const removal_policy], [const removal_policy_hw_default], 
+[const removal_policy_override],
+[const install_state], [const location_paths], or [const base_containerid].
+Refer to the documentation of [cmd SetupDiGetDeviceRegistryProperty]
+in the Windows SDK for the meaning of these properties.
+
+Note that not all properties will exist for a device and the command
+will raise an error if an attempt is made to retrieve a non-existing
+property.
+
+
+[call [cmd devinfoset_elements] [arg HDEVINFOSET]]
+Returns a list containing the device elements within a device information
+set. [arg HDEVINFOSET] is a handle to a device information set as
+returned by [uri #devinfoset [cmd devinfoset]]. Use
+[uri #device_element [cmd device_element]] to extract each field
+in an element.
+
+[call [cmd devinfoset_instance_ids [arg HDEVINFOSET]]
+Returns a list containing the device instance identifiers for all
+devices in a device information set.
+[arg HDEVINFOSET] is a handle to a device information set as
+returned by [uri #devinfoset [cmd devinfoset]].
 
 [call [cmd eject] [arg DEVICE]]
 Alias for [uri #eject_media [cmd eject_media]].

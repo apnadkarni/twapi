@@ -8,7 +8,10 @@ namespace eval twapi {
     struct _PREVENT_MEDIA_REMOVAL {
             BOOLEAN PreventMediaRemoval;
     }
+    record device_element { class_guid device_instance reserved }
 }
+
+interp alias {} close_devinfoset {} devinfoset_close
 
 proc twapi::rescan_devices {} {
     CM_Reenumerate_DevNode_Ex [CM_Locate_DevNode_Ex "" 0] 0
@@ -112,7 +115,6 @@ proc twapi::start_device_notifier {script args} {
     return $idstr
 }
 
-# Stop monitoring of device changes
 proc twapi::stop_device_notifier {idstr} {
     variable _device_notifiers
 
@@ -124,10 +126,6 @@ proc twapi::stop_device_notifier {idstr} {
     unset _device_notifiers($idstr)
 }
 
-
-# Retrieve a device information set for a device setup or interface class
-# TBD - documenet -pnpenumerator can be GUID of PnP or symbolic name
-#  like USB, PCI, PCMCIA, SCSI
 proc twapi::devinfoset {args} {
     array set opts [parseargs args {
         {guid.arg ""}
@@ -143,6 +141,9 @@ proc twapi::devinfoset {args} {
     # DIGCF_ALLCLASSES is bitmask 4
     set flags [expr {$opts(guid) eq "" ? 0x4 : 0}]
     if {$opts(classtype) eq "interface"} {
+        if {$opts(pnpenumerator) ne ""} {
+            error "The -pnpenumerator option cannot be used when -classtype interface is specified."
+        }
         # DIGCF_DEVICEINTERFACE
         set flags [expr {$flags | 0x10}]
     }
@@ -414,7 +415,7 @@ proc twapi::find_physical_disks {} {
     trap {
         return [kl_flatten [get_devinfoset_interface_details $hdevinfo $guid -devicepath] -devicepath]
     } finally {
-        close_devinfoset $hdevinfo
+        devinfoset_close $hdevinfo
     }
 }
 
