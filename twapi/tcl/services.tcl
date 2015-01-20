@@ -365,6 +365,7 @@ proc twapi::get_service_configuration {name args} {
         description
         scm_handle.arg
         tagid
+        failureactions
     } -nulldefault -hyphenated]
 
     if {$opts(-scm_handle) eq ""} {
@@ -388,6 +389,16 @@ proc twapi::get_service_configuration {name args} {
             catch {
                 dict set result -description [QueryServiceConfig2 $svch 1]; # 1 -> SERVICE_CONFIG_DESCRIPTION
             }
+        }
+
+        if {$opts(-all) || $opts(-failureactions)} {
+            # 2 -> SERVICE_CONFIG_FAILURE_ACTIONS
+            lassign  [QueryServiceConfig2 $svch 2] resetperiod rebootmsg command failure_actions
+            set actions {}
+            foreach action $failure_actions {
+                lappend actions [list [dict* {0 none 1 restart 2 reboot 3 run} [lindex $action 0]] [lindex $action 1]]
+            }
+            dict set result -failureactions [list -resetperiod $resetperiod -rebootmsg $rebootmsg -command $command -actions $actions]
         }
     } finally {
         CloseServiceHandle $svch
@@ -537,6 +548,59 @@ proc twapi::set_service_configuration {name args} {
     return
 }
 
+proc twapi::set_service_description {name description args} {
+    array set opts [parseargs args {
+        {system.arg ""}
+        {database.arg ""}
+    } -maxleftover 0]
+
+    set opts(scm_priv) 0x00020000; # 0x00020000 -> STANDARD_RIGHTS_READ
+    set opts(svc_priv) 2;    # 2 -> SERVICE_CHANGE_CONFIG
+
+    set opts(proc) twapi::ChangeServiceConfig2
+    set opts(args) [list 1 $description]
+    
+    _service_fn_wrapper $name opts
+    return
+}
+
+proc twapi::set_service_failure_actions {name args} {
+    array set opts [parseargs args {
+        {system.arg ""}
+        {database.arg ""}
+        {resetperiod.int infinite}
+        {rebootmsg.arg __null__}
+        {command.arg __null__}
+        {actions.arg {}}
+    } -maxleftover 0]
+
+    if {$opts(resetperiod) eq "infinite"} {
+        set opts(resetperiod) 0xffffffff
+    }
+
+    set opts(scm_priv) 0x00020000; # 0x00020000 -> STANDARD_RIGHTS_READ
+    set opts(svc_priv) 2;    # 2 -> SERVICE_CHANGE_CONFIG
+
+    set actions {}
+    foreach action $opts(actions) {
+        if {[llength $action] != 2} {
+            error "Invalid format for failure action"
+        }
+        set action_code [dict* {none 0 restart 1 reboot 2 run 3} [lindex $action 0]]
+        if {$action_code == 1} {
+            # Also need SERVICE_START access right for restart action
+            set opts(svc_priv) [expr {$opts(svc_priv) | 0x10}]
+        }
+        lappend actions [list $action_code [lindex $action 2]]
+    }
+
+    set opts(proc) twapi::ChangeServiceConfig2
+    # 2 -> SERVICE_CONFIG_FAILURE_ACTIONS
+    set opts(args) [list 2 [list $opts(resetperiod) $opts(rebootmsg) $opts(command) $actions]]
+    
+    _service_fn_wrapper $name opts
+    return
+}
 
 # Get status for the specified service types
 proc twapi::get_multiple_service_status {args} {
