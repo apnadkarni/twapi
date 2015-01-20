@@ -40,8 +40,10 @@ Service configuration changes, including creation of new services
 and deletion of existing ones, can be done through the
 commands [uri \#create_service [cmd create_service]],
 [uri \#delete_service [cmd delete_service]],
-[uri \#get_service_configuration [cmd get_service_configuration]] and
-[uri \#set_service_configuration [cmd set_service_configuration]].
+[uri \#get_service_configuration [cmd get_service_configuration]],
+[uri \#set_service_configuration [cmd set_service_configuration]],
+[uri \#set_service_description [cmd set_service_description]],
+[uri \#set_service_failure_actions [cmd set_service_failure_actions]].
 [para]
 The commands [uri \#start_service [cmd start_service]],
 [uri \#stop_service [cmd stop_service]], [uri \#pause_service [cmd pause_service]]
@@ -415,6 +417,15 @@ service.
 [opt_def [const -errorcontrol]]
 Returns an indication of how errors during service startup will be handled.
 See description of [uri \#create_service [cmd create_service]] for details.
+
+[opt_def [const -failureactions]]
+Returns configuration information related to how service failures are
+handled. The returned value is a dictionary with the keys 
+[const -resetperiod], [const -rebootmsg], [const -command] and
+[const -actions]. See description of
+[uri #set_service_failure_actions [cmd set_service_failure_actions]]
+for details.
+
 
 [opt_def [const -servicetype]] Returns the service type.
 See description of [uri \#create_service [cmd create_service]] for details.
@@ -852,8 +863,57 @@ by the [uri base.html#read_credentials [cmd read_credentials]] or
 [uri base.html#conceal [cmd conceal]] commands.This option is ignored if the [cmd -account] option is not specified.
 [list_end]
 
-[call [cmd start_service] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
+[call [cmd set_service_description] [arg INTERNAL_SERVICE_NAME] [arg TEXT] [opt [arg options]]]
+Sets the description for a service to [arg TEXT].
+The options described in
+[sectref "Standard Options"] may be specified with this command.
 
+[call [cmd set_service_failure_actions] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
+Specifies the actions to be taken by the system when the specified
+service terminates without reporting a [const service_stopped] status
+to the SCM.
+
+In additions to the ones described in
+[sectref "Standard Options"], the following options may
+be specified with this command:
+
+[list_begin opt]
+[opt_def [cmd -actions] [arg ACTIONLIST]]
+Specifies the actions to be taken on failure. [arg ACTIONLIST] is
+a list of pairs, each of which specifies an action. When a service fails
+for the [arg N]'th time, the action specified by the [arg N-1]'th pair
+is taken. If the failure count equals or exceeds the length of the
+list, the last pair in the list is used.
+
+Each pair in [arg ACTIONLIST] consists of two elements. The second
+element specifies the time to wait in milliseconds before taking
+the action. The first element specifies the action to take
+and must be one of the following:
+
+[list_being opt]
+[opt_def [const none]] Do not take any action.
+[opt_def [const reboot]] Reboot the system. The application must be holding
+the [const SeShutdownPrivilege] privilege.
+[opt_def [const restart]] Restart the service. The security descriptor
+settings on the service must include the [const service_start] access
+right for account under which the process is running.
+[opt_def [const run]] Run the command specified by the [cmd -command] option.
+[list_end]
+[opt_def [cmd -command] [arg COMMAND]]
+Specifies [arg COMMAND] as the command to run on service failure when
+an action in the [cmd -actions] list is [const run].
+[opt_def [cmd -rebootmsg] [arg MESSAGE]]
+Specifies [arg MESSAGE] as the message to be broadcast to users
+before rebooting in the cases where the action is [const reboot].
+If [arg MESSAGE] is the empty string, no message is broadcast before rebooting.
+[opt_def [cmd -resetperiod] [arg SECONDS]]
+Specifies the number of seconds after which the failure count is reset
+to 0 so that the next failure will result in the first action in 
+[cmd -actions] being taken.
+[list_end]
+
+
+[call [cmd start_service] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
 This command starts the specified service if it is not already running.
 [arg INTERNAL_SERVICE_NAME] must be the internal
 name of the service, not the display name.

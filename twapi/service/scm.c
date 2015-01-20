@@ -160,54 +160,65 @@ vamoose:
 }
 
 
-int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWORD level)
+Tcl_Obj *ObjFromSERVICE_FAILURE_ACTIONS(SERVICE_FAILURE_ACTIONSW *sfaP)
 {
-    LPSERVICE_DESCRIPTIONW bufP;
-    DWORD buf_sz;
-    DWORD winerr;
-    int   tcl_result = TCL_ERROR;
+    Tcl_Obj *objs[4];
+    int i;
 
-    if (level != SERVICE_CONFIG_DESCRIPTION) 
-        return TwapiReturnError(ticP->interp, TWAPI_INVALID_OPTION);
-
-    /* Ask for 256 bytes alloc, will get more if available */
-    bufP = (LPSERVICE_DESCRIPTIONW) MemLifoPushFrame(ticP->memlifoP,
-                                                      256, &buf_sz);
-
-    if (! QueryServiceConfig2W(hService, level, (LPBYTE) bufP, buf_sz, &buf_sz)) {
-        /* For any error other than size, return */
-        winerr = GetLastError();
-        if (winerr != ERROR_INSUFFICIENT_BUFFER)
-            goto vamoose;
-
-        /* Retry allocating specified size */
-        /*
-         * Don't bother popping the memlifo frame, just alloc new.
-         * We allocated max in current memlifo chunk above anyways. Also,
-         * remember MemLifoResize will do unnecessary copy so we don't use it.
-         */
-        bufP = (LPSERVICE_DESCRIPTIONW) MemLifoAlloc(ticP->memlifoP, buf_sz, NULL);
-
-        /* Get the configuration information.  */
-        if (! QueryServiceConfig2W(hService, level, (LPBYTE) bufP, buf_sz, &buf_sz)) {
-            winerr = GetLastError();
-            goto vamoose;
+    objs[0] = ObjFromLong(sfaP->dwResetPeriod);
+    objs[1] = ObjFromUnicode(sfaP->lpRebootMsg);
+    objs[2] = ObjFromUnicode(sfaP->lpCommand);
+    objs[3] = ObjNewList(sfaP->cActions, NULL);
+    if (sfaP->lpsaActions) {
+        for (i = 0; i < sfaP->cActions; ++i) {
+            Tcl_Obj *fields[2];
+            fields[0] = ObjFromInt(sfaP->lpsaActions[i].Type);
+            fields[1] = ObjFromDWORD(sfaP->lpsaActions[i].Delay);
+            ObjAppendElement(NULL, objs[3], ObjNewList(2, fields));
         }
     }
 
-    /* If NULL, we keep result as empty string. Not an error */
-    if (bufP->lpDescription)
-        ObjSetResult(ticP->interp, ObjFromUnicode(bufP->lpDescription));
-    tcl_result = TCL_OK;
-
-vamoose:
-    MemLifoPopFrame(ticP->memlifoP);
-    if (tcl_result != TCL_OK)
-        Twapi_AppendSystemError(ticP->interp, winerr);
-
-    return tcl_result;
+    return ObjNewList(4, objs);
 }
 
+
+int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWORD level)
+{
+    void *bufP;
+    DWORD buf_sz;
+    DWORD winerr;
+    TCL_RESULT res = TCL_ERROR;
+    
+
+    /* Max size of buffer required is 8K as per MSDN */
+    buf_sz = 8 * 1024;
+    bufP = MemLifoPushFrame(ticP->memlifoP, buf_sz, &buf_sz);
+    if (QueryServiceConfig2W(hService, level, (LPBYTE) bufP, buf_sz, &buf_sz)) {
+        switch (level) {
+        case SERVICE_CONFIG_DESCRIPTION:
+            /* If NULL, we keep result as empty string. Not an error */
+            res = TCL_OK;
+            if (((SERVICE_DESCRIPTIONW *)bufP)->lpDescription)
+                ObjSetResult(ticP->interp, ObjFromUnicode(((SERVICE_DESCRIPTIONW *)bufP)->lpDescription));
+            break;
+
+        case SERVICE_CONFIG_FAILURE_ACTIONS:
+            ObjSetResult(ticP->interp, ObjFromSERVICE_FAILURE_ACTIONS(bufP));
+            res = TCL_OK;
+            break;
+
+        default:
+            res = TwapiReturnError(ticP->interp, TWAPI_INVALID_OPTION);
+            break;
+        }
+    } else {
+        /* Failure */
+        res = TwapiReturnSystemError(ticP->interp);
+    }
+
+    MemLifoPopFrame(ticP->memlifoP);
+    return res;
+}
 
 //#define NOOP_BEYOND_VISTA // TBD - remove this functionality ?
 #ifdef NOOP_BEYOND_VISTA
@@ -479,7 +490,122 @@ pop_and_vamoose:
 }
 
 
-int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
+/* Returns SERVICE_FAILURE_ACTIONS structure in *sfaP
+   using memory from ticP->memlifo. Caller responsible for storage
+   in both success and error cases
+*/
+static TCL_RESULT ParseSERVICE_FAILURE_ACTIONS(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *sfaObj,
+    SERVICE_FAILURE_ACTIONSW *sfaP
+    )
+{
+    Tcl_Interp *interp = ticP->interp;
+    Tcl_Obj **objs;
+    Tcl_Obj *actionsObj;
+    int i, nobjs;
+    TCL_RESULT res;
+    SC_ACTION *actionP;
+
+    res = ObjGetElements(interp, sfaObj, &nobjs, &objs);
+    if (res != TCL_OK)
+        return res;
+    res = TwapiGetArgsEx(ticP, nobjs, objs,
+                         GETINT(sfaP->dwResetPeriod),
+                         GETWSTR(sfaP->lpRebootMsg),
+                         GETWSTR(sfaP->lpCommand),
+                         ARGSKIP,
+                         GETOBJ(actionsObj), ARGEND);
+    if (res != TCL_OK)
+        return res;
+
+    if (actionsObj == NULL) {
+        sfaP->cActions = 0;
+        sfaP->lpsaActions = NULL;
+        return TCL_OK;
+    }
+
+    res = ObjGetElements(interp, actionsObj, &nobjs, &objs);
+    if (res != TCL_OK)
+        return res;
+
+    sfaP->cActions = nobjs;
+    sfaP->lpsaActions = MemLifoAlloc(ticP->memlifoP,
+                                     (nobjs ? nobjs : 1) * sizeof(SC_ACTION),
+                                     NULL);
+
+    /* Special case - to delete sfaP->lpsaActions, set sfaP->cActions to 0
+       and sfaP->lpsaActions to non-NULL
+    */
+    if (nobjs == 0)
+        return TCL_OK;
+
+    for (i = 0; i < nobjs; ++i) {
+        Tcl_Obj **fields;
+        int nfields;
+        int sc_type;
+
+        res = ObjGetElements(interp, objs[i], &nfields, &fields);
+        if (res != TCL_OK)
+            return res;
+        if (nfields != 2)
+            return TwapiReturnError(interp, TWAPI_INVALID_DATA);
+        if (ObjToInt(interp, fields[0], &sc_type) != TCL_OK ||
+            ObjToInt(interp, fields[0], &sfaP->lpsaActions[i].Delay) != TCL_OK)
+            return TCL_ERROR;
+        sfaP->lpsaActions[i].Type = (SC_ACTION_TYPE) sc_type;
+    }        
+
+    return TCL_OK;
+}
+
+
+static TCL_RESULT Twapi_ChangeServiceConfig2(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+{
+    TCL_RESULT res;
+    MemLifoMarkHandle mark;
+    DWORD info_level;
+    Tcl_Obj *infoObj;
+    union {
+        SERVICE_DESCRIPTIONW desc;
+        SERVICE_FAILURE_ACTIONSW failure_actions;
+    } u;
+    SC_HANDLE h;
+    void *pv;
+
+    mark = MemLifoPushMark(ticP->memlifoP);
+    res = TwapiGetArgsEx(ticP, objc, objv,
+                         GETHANDLET(h, SC_HANDLE), GETINT(info_level),
+                         GETOBJ(infoObj), ARGEND);
+    if (res != TCL_OK)
+        goto vamoose;
+
+    switch (info_level) {
+    case SERVICE_CONFIG_DESCRIPTION:
+        pv = &u.desc;
+        u.desc.lpDescription = ObjToUnicode(infoObj);
+        break;
+    case SERVICE_CONFIG_FAILURE_ACTIONS:
+        pv = &u.failure_actions;
+        res = ParseSERVICE_FAILURE_ACTIONS(ticP, infoObj, &u.failure_actions);
+        break;
+    default:
+        res = TwapiReturnError(ticP->interp, TWAPI_INVALID_OPTION);
+        break;
+    }
+
+    if (res == TCL_OK) {
+        if (!ChangeServiceConfig2W(h, info_level, pv))
+            res = TwapiReturnSystemError(ticP->interp);
+    }
+
+vamoose:    
+    MemLifoPopMark(mark);
+    return res;
+}
+
+int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[])
+{
     SC_HANDLE h;
     DWORD service_type;
     DWORD start_type;
@@ -795,6 +921,8 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                 ObjToLPWSTR_NULL_IF_EMPTY(objv[3]),
                 dw);
             break;
+        case 10008:
+            return Twapi_ChangeServiceConfig2(ticP, objc-2, objv+2);
         }
     }
     
@@ -824,6 +952,7 @@ static int TwapiServiceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(Twapi_SetServiceStatus, 10005),
         DEFINE_ALIAS_CMD(Twapi_BecomeAService, 10006),
         DEFINE_ALIAS_CMD(OpenSCManager, 10007),
+        DEFINE_ALIAS_CMD(ChangeServiceConfig2, 10008),
     };
 
     /* Create the underlying call dispatch commands */

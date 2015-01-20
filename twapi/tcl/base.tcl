@@ -516,8 +516,11 @@ proc twapi::_access_rights_to_mask {args} {
             # because we do not want them to mess up the int->name mapping
             # for DACL's
             set right [dict* {
+                no_write_up 1
                 system_mandatory_label_no_write_up 1
+                no_read_up 2
                 system_mandatory_label_no_read_up  2
+                no_execute_up 4
                 system_mandatory_label_no_execute_up 4
             } $right]
             if {![string is integer $right]} {
