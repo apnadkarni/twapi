@@ -711,6 +711,14 @@ namespace eval twapi::com::test {
         TBD - comobj -securityblanket
     } -result TBD
 
+    test comobj-23.0 {
+        comobj -lcid
+    } -constraints {
+        TBD
+    } -body {
+        TBD - comobj -lcid
+    } -result TBD
+
     ################################################################
     
     test comobj_idispatch-1.0 {
@@ -1453,7 +1461,7 @@ namespace eval twapi::com::test {
     } -body {
         set sa [twapi::tclcast list ""]
         [testobj] GetApplicationNames sa
-        twapi::variant_value $sa
+        twapi::variant_value $sa 0 0 0
     } -result {abc def ghi}
 
 
@@ -1615,7 +1623,7 @@ namespace eval twapi::com::test {
     } -body {
         twapi::define_dispatch_prototypes {{269AD56A-8A67-4129-BC8C-0506DCFE9880}} $prototype
         $pobj GetOwner user domain
-        list [twapi::variant_value $user] [twapi::variant_value $domain]
+        list [twapi::variant_value $user 0 0 0] [twapi::variant_value $domain 0 0 0]
     } -result [list $::env(USERNAME) $::env(USERDOMAIN)]
 
     test define_dispatch_prototype-2.0 {

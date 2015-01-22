@@ -24,6 +24,8 @@ and [cmd -securityblanket] option to comobjs.
 
 [bullet] Added the [uri com.html#outvar [cmd outvar]] command.
 
+[bullet] Added LCID support to COM automation clients.
+
 [bullet] Added the [uri base.html#new_guid [cmd new_guid]] command.
 
 [bullet]
