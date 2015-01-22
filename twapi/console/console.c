@@ -58,10 +58,7 @@ static int ObjToCOORD(Tcl_Interp *interp, Tcl_Obj *coordObj, COORD *coordP)
     return TCL_ERROR;
 }
 
-static Tcl_Obj *ObjFromCOORD(
-    Tcl_Interp *interp,
-    const COORD *coordP
-)
+static Tcl_Obj *ObjFromCOORD(const COORD *coordP)
 {
     Tcl_Obj *objv[2];
 
@@ -98,10 +95,7 @@ static int ObjToSMALL_RECT(Tcl_Interp *interp, Tcl_Obj *obj, SMALL_RECT *rectP)
     return TCL_OK;
 }
 
-static Tcl_Obj *ObjFromSMALL_RECT(
-    Tcl_Interp *interp,
-    const SMALL_RECT *rectP
-)
+static Tcl_Obj *ObjFromSMALL_RECT(const SMALL_RECT *rectP)
 {
     Tcl_Obj *objv[4];
 
@@ -114,21 +108,71 @@ static Tcl_Obj *ObjFromSMALL_RECT(
 }
 
 static Tcl_Obj *ObjFromCONSOLE_SCREEN_BUFFER_INFO(
-    Tcl_Interp *interp,
     const CONSOLE_SCREEN_BUFFER_INFO *csbiP
 )
 {
     Tcl_Obj *objv[5];
 
-    objv[0] = ObjFromCOORD(interp, &csbiP->dwSize);
-    objv[1] = ObjFromCOORD(interp, &csbiP->dwCursorPosition);
+    objv[0] = ObjFromCOORD(&csbiP->dwSize);
+    objv[1] = ObjFromCOORD(&csbiP->dwCursorPosition);
     objv[2] = ObjFromInt(csbiP->wAttributes);
-    objv[3] = ObjFromSMALL_RECT(interp, &csbiP->srWindow);
-    objv[4] = ObjFromCOORD(interp, &csbiP->dwMaximumWindowSize);
+    objv[3] = ObjFromSMALL_RECT(&csbiP->srWindow);
+    objv[4] = ObjFromCOORD(&csbiP->dwMaximumWindowSize);
 
     return ObjNewList(5, objv);
 }
 
+static Tcl_Obj *ObjFromINPUT_RECORD(const INPUT_RECORD *recP)
+{
+    Tcl_Obj *objs[6];
+    Tcl_Obj *recObj;
+
+    switch (recP->EventType) {
+    case KEY_EVENT:
+        objs[0] = ObjFromBoolean(recP->Event.KeyEvent.bKeyDown);
+        objs[1] = ObjFromInt(recP->Event.KeyEvent.wRepeatCount);
+        objs[2] = ObjFromInt(recP->Event.KeyEvent.wVirtualKeyCode);
+        objs[3] = ObjFromInt(recP->Event.KeyEvent.wVirtualScanCode);
+        if (recP->Event.KeyEvent.uChar.UnicodeChar)
+            objs[4] = ObjFromUnicodeN(&recP->Event.KeyEvent.uChar.UnicodeChar, 1);
+        else
+            objs[4] = ObjFromEmptyString();
+        objs[5] = ObjFromDWORD(recP->Event.KeyEvent.dwControlKeyState);
+        recObj = ObjNewList(6, objs);
+        break;
+
+    case MOUSE_EVENT:
+        objs[0] = ObjFromCOORD(&recP->Event.MouseEvent.dwMousePosition);
+        /* NOTE: dwButtonState is actually signed because that is how
+           direction of wheel movement is indicated */
+        objs[1] = ObjFromInt(recP->Event.MouseEvent.dwButtonState);
+        objs[2] = ObjFromDWORD(recP->Event.MouseEvent.dwControlKeyState);
+        objs[3] = ObjFromDWORD(recP->Event.MouseEvent.dwEventFlags);
+        recObj = ObjNewList(4, objs);
+        break;
+
+    case WINDOW_BUFFER_SIZE_EVENT:
+        recObj = ObjFromCOORD(&recP->Event.WindowBufferSizeEvent.dwSize);
+        break;
+
+    case MENU_EVENT:
+        recObj = ObjFromDWORD(recP->Event.MenuEvent.dwCommandId);
+        break;
+
+    case FOCUS_EVENT:
+        recObj = ObjFromBoolean(recP->Event.FocusEvent.bSetFocus);
+        break;
+        
+    default:
+        recObj = ObjFromByteArray((const char *)recP, sizeof(*recP));
+        break;
+    }
+
+    objs[0] = ObjFromInt(recP->EventType);
+    objs[1] = recObj;
+
+    return ObjNewList(2, objs);
+}
 
 static int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numchars)
 {
@@ -289,6 +333,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         CONSOLE_SCREEN_BUFFER_INFO csbi;
         WCHAR buf[MAX_PATH+1];
         SMALL_RECT srect[2];
+        INPUT_RECORD *inrecP;
     } u;
     COORD coord;
     CHAR_INFO chinfo;
@@ -389,14 +434,16 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             if (GetConsoleScreenBufferInfo(h, &u.csbi) == 0)
                 result.type = TRT_GETLASTERROR;
             else {
-                ObjSetResult(interp, ObjFromCONSOLE_SCREEN_BUFFER_INFO(interp, &u.csbi));
-                return TCL_OK;
+                result.type = TRT_OBJ;
+                result.value.obj =
+                    ObjFromCONSOLE_SCREEN_BUFFER_INFO(&u.csbi);
             }
             break;
         case 204:
             coord = GetLargestConsoleWindowSize(h);
-            ObjSetResult(interp, ObjFromCOORD(interp, &coord));
-            return TCL_OK;
+            result.type = TRT_OBJ;
+            result.value.obj = ObjFromCOORD(&coord);
+            break;
         case 205:
             result.type = GetNumberOfConsoleInputEvents(h, &result.value.uval) ? TRT_DWORD : TRT_GETLASTERROR;
             break;
@@ -404,7 +451,6 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetConsoleActiveScreenBuffer(h);
             break;
-            
         }
     } else {
         /* Free-for-all - each func responsible for checking arguments */
@@ -522,6 +568,27 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             else
                 result.type = TRT_GETLASTERROR;
             break;
+        case 1014: 
+        case 1015:
+            if (TwapiGetArgs(interp, objc, objv,
+                             GETHANDLE(h),
+                             GETINT(dw), ARGEND) != TCL_OK)
+                return TCL_ERROR;
+
+            u.inrecP = TwapiPushFrame(dw * sizeof(INPUT_RECORD), NULL);
+            if ((func == 1014 ? ReadConsoleInputW : PeekConsoleInputW)(h, u.inrecP, dw, &dw2) == 0)
+                result.type = TRT_GETLASTERROR;
+            else if (dw2 == 0)
+                result.type = TRT_EMPTY;
+            else {
+                result.type = TRT_OBJ;
+                result.value.obj = ObjNewList(dw2, NULL);
+                for (dw = 0; dw < dw2; ++dw)
+                    ObjAppendElement(interp, result.value.obj,
+                                     ObjFromINPUT_RECORD(&u.inrecP[dw]));
+            }
+            TwapiPopFrame();
+            break;
         }
     }
 
@@ -565,6 +632,8 @@ static int TwapiConsoleInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(ReadConsole, 1011),
         DEFINE_FNCODE_CMD(WriteConsole, 1012),
         DEFINE_FNCODE_CMD(FillConsoleOutputCharacter, 1013),
+        DEFINE_FNCODE_CMD(ReadConsoleInput, 1014),
+        DEFINE_FNCODE_CMD(PeekConsoleInput, 1015),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(ConsoleDispatch), ConsoleDispatch,
