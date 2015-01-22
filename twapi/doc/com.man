@@ -711,6 +711,16 @@ this option may be used to specify that should be used
 instead. [arg IDISPATCHINTERFACE] must be [cmd IDispatch] or 
 [cmd IDispatchEx].
 
+[opt_def [cmd -lcid] [arg LCID]]
+Specifies the locale to use for the COM object.
+Generally, [arg LCID] should be [const 0] (LOCALE_NEUTRAL, default),
+[const 0x400] (LOCALE_USER_DEFAULT) or [const 0x800]
+(LOCALE_SYSTEM_DEFAULT). The behaviour of some applications
+may depend on this setting. For example, with LCID 0, 
+Excel will export CSV files using a comma separator while
+with LCID 0x400, it will use the separator symbol defined in
+the user's regional settings.
+
 [opt_def [cmd -model] [arg MODELLIST]]
 Specifies which of the COM hosting models are acceptable. [arg MODELLIST]
 must be a list containing one or more of the symbols
@@ -812,6 +822,14 @@ string.
 [nl]
 See [sectref "COM Collections"] for an example.
 
+[call "[arg COMOBJ] [cmd -lcid]" [opt [arg LCID]]]
+If not arguments are specified, returns the locale id used by the
+object. If an argument is specified, it must be a Windows LCID.
+Generally, [arg LCID] should be [const 0] (LOCALE_NEUTRAL, default),
+[const 0x400] (LOCALE_USER_DEFAULT) or [const 0x800]
+(LOCALE_SYSTEM_DEFAULT).
+
+
 [call "[arg COMOBJ] [cmd -print]"]
 Prints to stdout the methods and properties of the object. Used for debugging.
 
@@ -852,7 +870,7 @@ Called to invoke the [cmd -destroy] method on one or more COM wrapper
 object. Errors generated when destroying an object are ignored and the
 command continues to destroy remaining objects.
 
-[call [cmd comobj_idispatch] [arg IDISPATCH] [opt [arg ADDREF]]]
+[call [cmd comobj_idispatch] [arg IDISPATCH] [opt [arg ADDREF]] [opt [arg LCID]]]
 Returns a COM wrapper object for the specified IDispatch or IDispatchEx
 interface. 
 
@@ -867,6 +885,9 @@ If caller wants to use [arg IDISPATCH] for its own purpose,
 it must do an additional
 [cmd IUnknown_AddRef] itself to ensure the interface is not released
 when the returned COM wrapper instance is destroyed.
+
+[arg LCID] specifies the locale to use when invoking methods. Defaults
+to 0 (LOCALE_NEUTRAL).
 
 [call [cmd comobj_instances]]
 Returns the list of existing COM proxy objects created through the

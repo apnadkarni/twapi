@@ -413,9 +413,9 @@ proc twapi::etw_parse_mof_event_class {ocls} {
             # event_types is a raw value with a type descriptor as elem 0
             if {[variant_type $event_types] & 0x2000} {
                 # It is VT_ARRAY so value is already a list
-                set event_types [variant_value $event_types]
+                set event_types [variant_value $event_types 0 0 0]
             } else {
-                set event_types [list [variant_value $event_types]]
+                set event_types [list [variant_value $event_types 0 0 0]]
             }
 
             set event_type_names {}
@@ -429,10 +429,10 @@ proc twapi::etw_parse_mof_event_class {ocls} {
                 # between a array (list) and a string with spaces
                 if {[variant_type $event_type_names] & 0x2000} {
                     # It is VT_ARRAY so value is already a list
-                    set event_type_names [variant_value $event_type_names]
+                    set event_type_names [variant_value $event_type_names 0 0 0]
                 } else {
                     # Scalar value. Make into a list
-                    set event_type_names [list [variant_value $event_type_names]]
+                    set event_type_names [list [variant_value $event_type_names 0 0 0]]
                 }
             }
 
