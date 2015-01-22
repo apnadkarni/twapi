@@ -17,6 +17,7 @@
 
 namespace eval twapi {
     # Maps TYPEKIND data values to symbols
+    variable _typekind_map
     array set _typekind_map {
         0 enum
         1 record
@@ -29,6 +30,7 @@ namespace eval twapi {
     }
 
     # Cache of Interface names - IID mappings
+    variable _name_to_iid_cache
     array set _name_to_iid_cache {
         iunknown  {{00000000-0000-0000-C000-000000000046}}
         idispatch {{00020400-0000-0000-C000-000000000046}}
@@ -391,7 +393,7 @@ proc twapi::com_create_instance {clsid args} {
 }
 
 
-proc twapi::comobj_idispatch {ifc {addref 0} {objclsid ""}} {
+proc twapi::comobj_idispatch {ifc {addref 0} {objclsid ""} {lcid 0}} {
     if {[pointer_null? $ifc]} {
         return ::twapi::comobj_null
     }
@@ -406,7 +408,7 @@ proc twapi::comobj_idispatch {ifc {addref 0} {objclsid ""}} {
         error "'$ifc' does not reference an IDispatch interface"
     }
 
-    return [Automation new $proxyobj]
+    return [Automation new $proxyobj $lcid]
 }
 
 #
@@ -415,6 +417,7 @@ proc twapi::comobj_object {path args} {
     array set opts [parseargs args {
         progid.arg
         {interface.arg IDispatch {IDispatch IDispatchEx}}
+        {lcid.int 0}
     } -maxleftover 0]
 
     set clsid ""
@@ -435,7 +438,7 @@ proc twapi::comobj_object {path args} {
         set idisp [::twapi::Twapi_CoGetObject $path {} [name_to_iid $opts(interface)] $opts(interface)]
     }
 
-    return [comobj_idispatch $idisp 0 $clsid]
+    return [comobj_idispatch $idisp 0 $clsid $opts(lcid)]
 }
 
 #
@@ -445,6 +448,7 @@ proc twapi::comobj {comid args} {
     array set opts [parseargs args {
         {interface.arg IDispatch {IDispatch IDispatchEx}}
         active
+        {lcid.int 0}
     } -ignoreunknown]
     set clsid [_convert_to_clsid $comid]
     if {$opts(active)} {
@@ -454,14 +458,14 @@ proc twapi::comobj {comid args} {
             # know what blanket is to be used on an already active object?
             # Get the IDispatch interface
             set idisp [IUnknown_QueryInterface $iunk {{00020400-0000-0000-C000-000000000046}}]
-            return [comobj_idispatch $idisp 0 $clsid]
+            return [comobj_idispatch $idisp 0 $clsid $opts(lcid)]
         } finally {
             IUnknown_Release $iunk
         }
     } else {
         set proxy [com_create_instance $clsid -interface $opts(interface) {*}$args]
         $proxy @SetCLSID $clsid
-        return [Automation new $proxy]
+        return [Automation new $proxy $opts(lcid)]
     }
 }
 
@@ -510,7 +514,7 @@ proc twapi::get_typelib_path_from_guid {guid major minor args} {
     } -maxleftover 0 -nulldefault]
 
 
-    set path [variant_value [QueryPathOfRegTypeLib $guid $major $minor $opts(lcid)]]
+    set path [variant_value [QueryPathOfRegTypeLib $guid $major $minor $opts(lcid)] 0 0 $opts(lcid)]
     # At least some versions have a bug in that there is an extra \0
     # at the end.
     if {[string equal [string index $path end] \0]} {
@@ -851,15 +855,15 @@ proc twapi::_resolve_params_for_prototype {ti paramdescs} {
     return $params
 }
 
-proc twapi::_variant_values_from_safearray {sa ndims {raw false} {addref false}} {
+proc twapi::_variant_values_from_safearray {sa ndims {raw false} {addref false} {lcid 0}} {
     set result {}
     if {[incr ndims -1] > 0} {
 	foreach elem $sa {
-	    lappend result [_variant_values_from_safearray $elem $ndims $raw $addref]
+	    lappend result [_variant_values_from_safearray $elem $ndims $raw $addref $lcid]
 	}
     } else {
 	foreach elem $sa {
-	    lappend result [twapi::variant_value $elem $raw $addref]
+	    lappend result [twapi::variant_value $elem $raw $addref $lcid]
 	}
     }
     return $result
@@ -872,7 +876,7 @@ proc twapi::outvar {varname} { return [Twapi_InternalCast outvar $varname] }
 # $addref controls whether we do an AddRef when the value is a pointer to
 # an interface. $raw controls whether interface pointers are returned
 # as raw interface handles or objects.
-proc twapi::variant_value {variant {raw false} {addref false}} {
+proc twapi::variant_value {variant raw addref lcid} {
     # TBD - format appropriately depending on variant type for dates and
     # currency
     if {[llength $variant] == 0} {
@@ -892,7 +896,7 @@ proc twapi::variant_value {variant {raw false} {addref false}} {
             return [_variant_values_from_safearray \
                         $values \
                         [expr {[llength $dimensions] / 2}] \
-                        $raw $addref]
+                        $raw $addref $lcid]
         } else {
             return $values
         }
@@ -906,7 +910,7 @@ proc twapi::variant_value {variant {raw false} {addref false}} {
                 return $idisp
             } else {
                 # Note comobj_idispatch takes care of NULL
-                return [comobj_idispatch $idisp]
+                return [comobj_idispatch $idisp 0 "" $lcid]
             }
         } elseif {$vt == 13} {
             set iunk [lindex $variant 1]; # May be NULL!
@@ -940,19 +944,8 @@ proc twapi::_eventsink_callback {comobj script callee args} {
     }
 
     set retcode [catch {
-        if {1} {
-            # Now, unlike before, we invoked with cooked values so
-            # no need to call variant_value
-            uplevel \#0 $script [list $callee] $args
-        } else {
-            set converted_params [list ]
-            foreach param $args {
-                # Note we do NOT ask variant_value to do AddRef.
-                # Called script has to do that if holding on to them.
-                lappend converted_params [variant_value $param true]
-            }
-            uplevel \#0 $script [list $callee] $converted_params
-        }
+        # We are invoked with cooked values so no need to call variant_value
+        uplevel #0 $script [list $callee] $args
     } result]
 
     if {$::twapi::log_config(twapi_com) && $retcode} {
@@ -3308,7 +3301,7 @@ twapi::class create ::twapi::Automation {
             if {$opts(raw)} {
                 return $vtval
             } else {
-                return [::twapi::variant_value $vtval]
+                return [::twapi::variant_value $vtval 0 0 $_lcid]
             }
         } onerror {} {
             # TBD - should we only drop down below to check for IDispatchEx
@@ -3343,7 +3336,7 @@ twapi::class create ::twapi::Automation {
         if {$opts(raw)} {
             return $vtval
         } else {
-            return [::twapi::variant_value $vtval]
+            return [::twapi::variant_value $vtval 0 0 $_lcid]
         }
     }
 
@@ -3380,8 +3373,8 @@ twapi::class create ::twapi::Automation {
     }
 
     method -default {} {
-        my variable _proxy
-        return [::twapi::variant_value [$_proxy Invoke ""]]
+        my variable _proxy _lcid
+        return [::twapi::variant_value [$_proxy Invoke ""] 0 0 $_lcid]
     }
 
     # Caller must call release on the proxy
@@ -3456,6 +3449,8 @@ twapi::class create ::twapi::Automation {
     }
 
     method -iterate {args} {
+        my variable _lcid
+
         array set opts [::twapi::parseargs args {
             cleanup
         }]
@@ -3486,7 +3481,7 @@ twapi::class create ::twapi::Automation {
                     set next [$iter Next 1]
                     lassign $next more values
                     if {[llength $values]} {
-                        set var [::twapi::variant_value [lindex $values 0]]
+                        set var [::twapi::variant_value [lindex $values 0] 0 0 $_lcid]
                         set ret [catch {uplevel 1 $script} msg options]
                         switch -exact -- $ret {
                             0 -
@@ -3602,6 +3597,17 @@ twapi::class create ::twapi::Automation {
         } else {
             return [$_proxy @GetSecurityBlanket]
         }
+    }
+
+    method -lcid {{lcid ""}} {
+        my variable _lcid
+        if {$lcid ne ""} {
+            if {![string is integer -strict $lcid]} {
+                error "Invalid LCID $lcid"
+            }
+            set _lcid $lcid
+        }
+        return $_lcid
     }
 
     method unknown {name args} {
