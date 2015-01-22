@@ -52,6 +52,9 @@ and option [cmd -failureactions] to
 [bullet]
 Added [uri device.html#rescan_devices [cmd rescan_devices]].
 
+[bullet]
+Added [uri console.html#console_read_input_records [cmd console_read_input_records]].
+
 [list_end]
 
 [section "Version 4.0"]

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004-2012, Ashok P. Nadkarni
+# Copyright (c) 2004-2014, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -563,9 +563,82 @@ proc twapi::_console_read {conh args} {
         }
     }
 }
-
 interp alias {} twapi::console_read {} twapi::_do_console_proc twapi::_console_read stdin
-interp alias {} twapi::read_console {} twapi::_do_console_proc twapi::_console_read stdin
+
+proc twapi::_map_console_controlkeys {control} {
+    return [_make_symbolic_bitmask $control {
+        capslock 0x80
+        enhanced 0x100
+        leftalt 0x2
+        leftctrl 0x8
+        numlock 0x20
+        rightalt 0x1
+        rightctrl 4
+        scrolllock 0x40
+        shift 0x10
+    } 0]
+}
+
+proc twapi::_console_read_input_records {conh args} {
+    parseargs args {
+        {count.int 1}
+        peek
+    } -setvars -maxleftover 0
+    set recs {}
+    if {$peek} {
+        set input [PeekConsoleInput $conh $count]
+    } else {
+        set input [ReadConsoleInput $conh $count]
+    }
+    foreach rec $input {
+        switch [format %d [lindex $rec 0]] {
+            1 {
+                lassign [lindex $rec 1] keydown repeat keycode scancode char controlstate
+                lappend recs \
+                    [list key [list \
+                                   keystate [expr {$keydown ? "down" : "up"}] \
+                                   repeat $repeat keycode $keycode \
+                                   scancode $scancode char $char \
+                                   controls [_map_console_controlkeys $controlstate]]]
+            }
+            2 {
+                lassign [lindex $rec 1] position buttonstate controlstate flags
+                set buttons {}
+                if {[expr {$buttonstate & 0x1}]} {lappend buttons left}
+                if {[expr {$buttonstate & 0x2}]} {lappend buttons right}
+                if {[expr {$buttonstate & 0x4}]} {lappend buttons left2}
+                if {[expr {$buttonstate & 0x8}]} {lappend buttons left3}
+                if {[expr {$buttonstate & 0x10}]} {lappend buttons left4}
+                if {$flags & 0x8} {
+                    set horizontalwheel [expr {$buttonstate >> 16}]
+                } else {
+                    set horizontalwheel 0
+                }
+                if {$flags & 0x4} {
+                    set verticalwheel [expr {$buttonstate >> 16}]
+                } else {
+                    set verticalwheel 0
+                }
+                lappend recs \
+                    [list mouse [list \
+                                     position $position \
+                                     buttons $buttons \
+                                     controls [_map_console_controlkeys $controlstate] \
+                                     doubleclick [expr {$flags & 0x2}] \
+                                     horizontalwheel $horizontalwheel \
+                                     moved [expr {$flags & 0x1}] \
+                                     verticalwheel $verticalwheel]]
+            }
+            default {
+                lappend recs [list \
+                                  [dict* {4 buffersize 8 menu 16 focus} [lindex $rec 0]] \
+                                  [lindex $rec 1]]
+            }
+        }
+    }
+    return $recs
+}
+interp alias {} twapi::console_read_input_records {} twapi::_do_console_proc twapi::_console_read_input_records stdin
 
 # Set up a console handler
 proc twapi::_console_ctrl_handler {ctrl} {
@@ -596,7 +669,7 @@ proc twapi::set_console_control_handler {script} {
 
 # Helper to call a proc after doing a stdin/stdout/stderr -> handle
 # mapping. The handle is closed after calling the proc. The first
-# arg in $args must be the console handle i $args is not an empty list
+# arg in $args must be the console handle if $args is not an empty list
 proc twapi::_do_console_proc {proc default args} {
     if {[llength $args] == 0} {
         set args [list $default]
@@ -609,14 +682,14 @@ proc twapi::_do_console_proc {proc default args} {
             set real_handle [get_console_handle $conh]
             trap {
                 lset args 0 $real_handle
-                return [eval [list $proc] $args]
+                return [uplevel 1 [list $proc] $args]
             } finally {
                 CloseHandle $real_handle
             }
         }
     }
     
-    return [eval [list $proc] $args]
+    return [uplevel 1 [list $proc] $args]
 }
 
 proc twapi::_console_input_mode_syms {} {

@@ -890,7 +890,7 @@ element specifies the time to wait in milliseconds before taking
 the action. The first element specifies the action to take
 and must be one of the following:
 
-[list_being opt]
+[list_begin opt]
 [opt_def [const none]] Do not take any action.
 [opt_def [const reboot]] Reboot the system. The application must be holding
 the [const SeShutdownPrivilege] privilege.

@@ -1291,6 +1291,14 @@ namespace eval twapi::console::test {
 
     ################################################################
 
+    test console_read_input_records-100.0 {
+        TBD console_read_input_records-100.0
+    } -constraints {
+        TBD
+    } -result TBD
+
+    ################################################################
+
     #
     # Clean up
     ::tcltest::cleanupTests
