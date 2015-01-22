@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Console" n ""]
-[copyright "2004-2009 Ashok P. Nadkarni"]
+[copyright "2004-2014 Ashok P. Nadkarni"]
 [moddesc "Windows console mode"]
 [titledesc "Commands related to Windows consoles"]
 [require twapi_console]
@@ -33,7 +33,12 @@ redirected.
 [section "Console Input"]
 A console is associated with an input buffer that contains input events
 such as keyboard and mouse inputs. The console can be read through
-the [uri \#console_read [cmd console_read]] command.
+the high-level [uri \#console_read [cmd console_read]] command
+or through [uri #console_read_input_records [cmd console_read_input_records]]
+which return low-level input records. These commands should generally
+not be intermixed with use Tcl's [cmd gets] or [cmd read] commands
+to read from standard input if it has not been redirected to a file.
+[para]
 The number of events in the input buffer can be obtained through
 [uri \#get_console_pending_input_count [cmd get_console_pending_input_count]]
 and any pending events can be flushed through
@@ -215,6 +220,106 @@ the console even if standard input has been redirected. [arg options]
 specify the input mode to use and
 are passed to [uri \#modify_console_input_mode [cmd modify_console_input_mode]]
 before input is read. The original mode is restored before returning.
+[nl]
+This command should generally
+not be intermixed with use Tcl's [cmd gets] or [cmd read] commands
+to read from standard input if it has not been redirected to a file.
+
+[call [cmd console_read_input_records] [arg CONINH]  [opt [cmd -peek]] [opt "[cmd -count] [arg COUNT]"]]
+Reads low-level input records from the console including function keys,
+mouse actions and window sizing events which are not
+passed through to [uri #console_read [cmd console_read]].
+Note that receiving mouse and window events requires that mouse
+and window events are enabled for the console window are described
+in [sectref "Console Modes"].
+[nl]
+If [cmd -peek] is specified, the read records are not removed from
+the input queue.
+[nl]
+The [cmd -count] option specifies the maximum number of records
+to return and defaults to [const 1]. The actual number returned
+may be less than this. The command will block until at least one
+record is available in the input queue unless the [cmd -peek] option
+is specified in which case it returns right away even if no records
+are available.
+[nl]
+The returned value is a list of input records each of which is
+represented as a pair of elements. The first element in the pair
+indicates the type of the event:
+[list_begin opt]
+[opt_def [const focus]]
+Internally used by the system and should be ignored.
+[opt_def [const key]]
+Indicates a keyboard event. 
+The second element in the pair is a dictionary with the following 
+entries:
+[list_begin opt]
+[opt_def [const char]]
+Value is the character entered. For keys like the arrow keys, this is
+set to the empty string.
+[opt_def [const controls]]
+A list of zero or more of the following values:
+[const capslock], [const enhanced], [const leftalt], [const leftctrl], 
+[const numlock], [const rightalt], [const rightctrl], [const scrolllock],
+and [const shift]. All indicate the state of the control and modifier keys
+except [const enhanced] which indicates that the key is an enhanced key.
+[opt_def [const keycode]]
+The virtual key code for the key.
+[opt_def [const keystate]]
+Either [const up] or [const down] depending whether the key is pressed or not.
+[opt_def [const repeat]]
+An integer indicating how many times the key has been repeated. This
+should be treated as the input record having occured that many times.
+[opt_def [const scancode]]
+The virtual scan code for the key.
+[list_end]
+
+[opt_def [const menu]]
+Internally used by the system and should be ignored.
+[opt_def [const mouse]]
+Indicates a mouse event.
+Mouse events should be enabled and quick edit mode disabled for this
+event type to be received as described in [sectref "Console Modes"].
+The second element in the pair is a dictionary with the following 
+entries:
+[list_begin opt]
+[opt_def [const buttons]]
+The value is a list that indicates which buttons are pressed. This
+is a list of zero or more button specifiers: [const left] for
+the leftmost button, [const right] for the rightmost button and
+[const left2], [const left3], [const left4] for the buttons starting
+from the left where the number indicates the position.
+[opt_def [const controls]]
+Specifies which control keys are pressed. See the description of
+the [const key] event type for details.
+[opt_def [const doubleclick]]
+The value is a boolean indicating whether this corresponds to a double-click
+of a button.
+[opt_def [const horizontalwheel]]
+Indicates that the horizontal wheel was rotated. A negative value indicates
+the wheel was rotated left, a positive value indicates the wheel was
+rotated right.
+[opt_def [const moved]]
+The value is a boolean indicating whether the mouse position was changed.
+[opt_def [const position]]
+The value is the position of the mouse in character cell coordinates.
+[opt_def [const verticalwheel]]
+Indicates that the vertical wheel was rotated. A negative value indicates
+the wheel was rotated backward (towards user),
+a positive value indicates the wheel was rotated forward.
+[list_end]
+
+[opt_def [const buffersize]]
+Indicates a change in the screen buffer size.
+The second element in the pair specifies the new screen buffer width
+and height (in characters). Window events should be enabled for this
+event type to be received as described in [sectref "Console Modes"].
+
+[list_end]
+[nl]
+This command should generally
+not be intermixed with use Tcl's [cmd gets] or [cmd read] commands
+to read from standard input if it has not been redirected to a file.
 
 [call [cmd console_write] [arg CONOUTH] [arg STRING] [opt [arg options]]]
 Writes the sequence of characters in [arg STRING] to the screen buffer
