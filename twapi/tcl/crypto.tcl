@@ -1781,7 +1781,7 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
         enhkeyusage.arg
         keyusage.arg
         basicconstraints.arg
-        {purpose.arg {} {}}
+        {purpose.arg {}}
         {capathlen.int -1}
     } -ignoreunknown -setvars
 
@@ -1826,6 +1826,9 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
     } else {
         set opts(end) $opts(start)
         lset opts(end) 0 [expr {[lindex $opts(end) 0] + 1}]
+        # Ensure valid date (Feb 29 leap year -> non-leap year for example)
+        set opts(end) [clock format [clock scan [lrange $opts(end) 0 2] -format "%Y %N %e"] -format "%Y %N %e"]
+        lappend opts(end) 23 59 59 0
     }
 
     # Generate the extensions list
@@ -1920,7 +1923,7 @@ proc twapi::_parse_store_open_opts {optvals} {
 }
 
 
-# Utility proc to generate three certs in a memory store - 
+# Utility proc to generate certs in a memory store - 
 # one self signed which is used to sign a client and a server cert
 proc twapi::make_test_certs {{hstore {}} args} {
     crypt_test_container_cleanup
@@ -1929,7 +1932,13 @@ proc twapi::make_test_certs {{hstore {}} args} {
         {csp.arg {Microsoft Strong Cryptographic Provider}}
         {csptype.arg prov_rsa_full}
         unique
+        {duration.int 5}
     } -maxleftover 0 -setvars
+
+    set enddate [clock format [clock seconds] -format "%Y %N %e"]
+    lset enddate 0 [expr {[lindex $enddate 0]+$duration}]
+    # Ensure valid date e.g. Feb 29 non-leap year
+    set enddate [clock format [clock scan $enddate -format "%Y %N %e"] -format "%Y %N %e"]
 
     if {$unique} {
         set uuid [twapi::new_uuid]
@@ -1942,7 +1951,7 @@ proc twapi::make_test_certs {{hstore {}} args} {
     set crypt [twapi::crypt_acquire $container -csp $csp -csptype $csptype -create 1]
     twapi::crypt_key_free [twapi::crypt_key_generate $crypt signature -exportable 1]
     set ca_altnames [list [list [list email ${container}@twapitest.com] [list dns ${container}.twapitest.com] [list url http://${container}.twapitest.com] [list directory [cert_name_to_blob "CN=${container}altname"]] [list ip [binary format c4 {127 0 0 2}]]]]
-    set cert [twapi::cert_create_self_signed_from_crypt_context "CN=$container, C=IN, O=Tcl, OU=twapi" $crypt -purpose {ca} -altnames $ca_altnames]
+    set cert [twapi::cert_create_self_signed_from_crypt_context "CN=$container, C=IN, O=Tcl, OU=twapi" $crypt -purpose {ca} -altnames $ca_altnames -end $enddate]
     if {[llength $hstore] == 0} {
         set hstore [twapi::cert_temporary_store]
     }
@@ -1998,7 +2007,7 @@ proc twapi::make_test_certs {{hstore {}} args} {
                 lappend opts $optname [dict get $parsed_req extensions $optname]
             }
         }
-        set encoded_cert [cert_create $subject $pubkey $signing_cert {*}$opts -end {2020 12 31 23 59 59 0}]
+        set encoded_cert [cert_create $subject $pubkey $signing_cert {*}$opts -end $enddate]
         set certificate [twapi::cert_store_add_encoded_certificate $hstore $encoded_cert]
         twapi::cert_set_key_prov $certificate -csp $csp -keycontainer $container -csptype $csptype -keyspec keyexchange
         if {$cert_type eq "intermediate"} {
