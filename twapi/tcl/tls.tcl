@@ -16,6 +16,10 @@ namespace eval twapi::tls {
     #  SspiContext - SSPI context for the connection
     #  Input  - plaintext data to pass to app
     #  Output - plaintext data to encrypt and output
+    #  ReadEventPosted - if this key exists, a chan postevent for read
+    #    is already in progress and a second one should not be posted
+    #  WriteEventPosted - if this key exists, a chan postevent for write
+    #    is already in progress and a second one should not be posted
 
     variable _channels
     array set _channels {}
@@ -180,7 +184,7 @@ proc twapi::tls::watch {chan watchmask} {
             # events when socket has gone away ? Do we even post once
             # when socket is closed (on error for example)
             if {[string length $Input] || ![info exists Socket]} {
-                chan postevent read
+                _post_read_event $chan
             }
             # Turn read handler back on in case it had been turned off.
             chan event $Socket readable [list [namespace current]::_so_read_handler $chan]
@@ -189,7 +193,7 @@ proc twapi::tls::watch {chan watchmask} {
         # TBD - do we need to turn write handler back on?
         if {"write" in $watchmask} {
             if {$State eq "OPEN"} {
-                chan postevent write
+                _post_write_event $chan
             }
         }
     }
@@ -274,7 +278,7 @@ proc twapi::tls::read {chan nbytes} {
         set ret [string range $Input 0 $nbytes-1]
         set Input [string range $Input $nbytes end]
         if {"read" in [dict get $_channels($chan) WatchMask] && [string length $Input]} {
-            chan postevent $chan read
+            _post_read_event $chan
         }
         if {$status ne "ok"} {
             # TBD - handle renegotiate
@@ -476,7 +480,7 @@ proc twapi::tls::_so_read_handler {chan} {
         }
 
         if {"read" in [dict get $_channels($chan) WatchMask]} {
-            chan postevent $chan read
+            _post_read_event $chan
         } else {
             # We are not asked to generate read events, turn off the read
             # event handler unless we are negotiating
@@ -513,7 +517,7 @@ proc twapi::tls::_so_write_handler {chan} {
 
         # Do not use local var $State because _negotiate might have updated it
         if {"write" in $WatchMask && [dict get $_channels($chan) State] eq "OPEN"} {
-            chan postevent $chan write
+            _post_write_event $chan
         }
     }
     return
@@ -809,6 +813,46 @@ proc twapi::tls::_open {chan} {
     }
 }
 
+# Calling [chan postevent] results in filevent handlers being called right
+# away which can recursively call back into channel code making things
+# more than a bit messy. So we always schedule them through the event loop
+proc twapi::tls::_post_read_event_callback {chan} {
+    variable _channels
+    if {[info exists _channels($chan)]} {
+        dict unset _channels($chan) ReadEventPosted
+        if {"read" in [dict get $_channels($chan) WatchMask]} {
+            chan postevent $chan read
+        }
+    }
+}
+proc twapi::tls::_post_read_event {chan} {
+    variable _channels
+    if {![dict exists $_channels($chan) ReadEventPosted]} {
+        # Note after 0 after idle does not work - (never get called)
+        # not sure why so just do after 0
+        dict set _channels($chan) ReadEventPosted \
+            [after 0 [namespace current]::_post_read_event_callback $chan]
+    }
+}
+proc twapi::tls::_post_write_event_callback {chan} {
+    variable _channels
+    if {[info exists _channels($chan)]} {
+        dict unset _channels($chan) WriteEventPosted
+        if {"write" in [dict get $_channels($chan) WatchMask] &&
+            [dict get $_channels($chan) State] eq "OPEN"} {
+            chan postevent $chan write
+        }
+    }
+}
+proc twapi::tls::_post_write_event {chan} {
+    variable _channels
+    if {![dict exists $_channels($chan) WriteEventPosted]} {
+        # Note after 0 after idle does not work - (never get called)
+        # not sure why so just do after 0
+        dict set _channels($chan) WriteEventPosted \
+            [after 0 [namespace current]::_post_write_event_callback $chan]
+    }
+}
 
 namespace eval twapi::tls {
     namespace export initialize finalize blocking watch read write configure cget cgetall
