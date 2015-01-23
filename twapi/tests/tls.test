@@ -322,7 +322,7 @@ test tlsIO-1.5 {arg parsing for socket command} {socket} {
 
 test tlsIO-1.6 {arg parsing for socket command} {socket} {
     list [catch {twapi::tls_socket -myport xxxx} msg] $msg
-} {1 {Non-integer value 'xxxx' specified for option '-myport'}}
+} {1 {Non-integer value 'xxxx' specified for option '-myport'.}}
 
 test tlsIO-1.7 {arg parsing for socket command} {socket} {
     list [catch {twapi::tls_socket -myport 2522} msg] $msg
@@ -820,15 +820,16 @@ test tls_socket-client-2.5 {
     Verify basic asynchronous connection -verify (ok)
 } -body {
     set so [twapi::tls_socket -async -verifier verifytrue www.yahoo.com 443]
-    # GET / HTTP/1.0 results in EOF (server does not like request)
-    # GET / HTTP/1.1 results in more complicated read as server does not close
     # so use just GET /
-    puts $so "GET /"
+    puts $so "GET / HTTP/1.1"
+    puts $so "Host: www.yahoo.com"
+    puts $so "Connection: close";# No keep-alive else complicates read
+    puts $so ""
     flush $so
     read $so
 } -cleanup {
     catch {close $so}
-} -result {<HEAD>.*</HEAD>\s*<BODY.*</BODY>\s} -match regexp
+} -result {(?i)<HEAD>.*</HEAD>\s*<BODY.*</BODY>\s} -match regexp
 
 test tls_socket-client-2.6 {
     Verify basic asynchronous connection, -verifier (fail)
@@ -862,15 +863,11 @@ test tls_socket-client-3.0 {
         }
     }]
     fileevent $so readable "$reader $so"
-
-    # GET / HTTP/1.0 results in EOF (server does not like request)
-    # GET / HTTP/1.1 results in more complicated read as server does not close
-    # so use just GET /
-    puts $so "GET /\r\n\r\n"
+    puts -nonewline $so "GET / HTTP/1.1\r\nHost: www.yahoo.com\r\nConnection: close\r\n\r\n"
     set after_id [after 5000 set ::done timeout]
     vwait ::done
     after cancel $after_id
-    list $::done [regexp {<HEAD>.*</HEAD>\s*<BODY.*</BODY>\s} $response]
+    list $::done [regexp {(?i)<HEAD>.*</HEAD>\s*<BODY.*</BODY>} $response]
 } -result {eof 1}
 
 test tls_socket-client-3.1 {
@@ -965,13 +962,13 @@ test tls_socket-client-5.1 {
 } -result {1 {TWAPI_WIN32 -2146893022}}
 
 test tls_socket-client-5.2 {
-    Test www.nlnetlabs.nl - unknown root ca
+    Test unknown root ca
 } -body {
-    list [catch {twapi::tls_socket www.nlnetlabs.nl 443}] [errorcode]
-} -result {1 {TWAPI_WIN32 -2146893048}}
+    list [catch {twapi::tls_socket core.tcl.tk 443}] [errorcode]
+} -result {1 {TWAPI_WIN32 -2146893019}}
 
 test tls_socket-client-5.3 {
-    Test www.nlnetlabs.nl - untrusted root ca
+    Test untrusted root cert
 } -constraints {
     TBD
 } -body {
