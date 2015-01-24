@@ -147,8 +147,11 @@ proc twapi::tls::_starttls {so args} {
     trap {
         # Get config from the wrapped socket and reset its handlers
         set so_opts [chan configure $so]; # Get config before _init resets it
-        set read_handler [chan event $so readable]
-        set write_handler [chan event $so writable]
+        # NOTE: we do NOT save read and write handlers and attach
+        # them to the new channel because the channel name is different.
+        # Thus in most cases the callbacks, which often are passed the
+        # channel name as an arg, would not be valid. It is up
+        # to the caller to reestablish handlers
         chan event $so readable {}
         chan event $so writable {}
         _init $chan $type $so $credentials $peersubject [lrange $verifier 0 end] $server
@@ -156,8 +159,6 @@ proc twapi::tls::_starttls {so args} {
         dict unset so_opts -sockname
         dict unset so_opts -peername
         chan configure $chan {*}$so_opts
-        chan event $chan readable $read_handler
-        chan event $chan writable $write_handler
         if {$type eq "CLIENT"} {
             if {! $async} {
                 _client_blocking_negotiate $chan
