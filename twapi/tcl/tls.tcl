@@ -73,12 +73,7 @@ proc twapi::tls::_socket {args} {
 
     trap {
         set so [socket {*}$socket_args {*}$args]
-        set so_opts [chan configure $so]; # Get config before _init resets it
         _init $chan $type $so $credentials $peersubject [lrange $verifier 0 end] $server
-        # Copy saved config to wrapper channel
-        dict unset so_opts -sockname
-        dict unset so_opts -peername
-        chan configure $chan {*}$so_opts
 
         if {$type eq "CLIENT"} {
             if {! $async} {
@@ -150,7 +145,19 @@ proc twapi::tls::_starttls {so args} {
     }
 
     trap {
+        # Get config from the wrapped socket and reset its handlers
+        set so_opts [chan configure $so]; # Get config before _init resets it
+        set read_handler [chan event $so readable]
+        set write_handler [chan event $so writable]
+        chan event $so readable {}
+        chan event $so writable {}
         _init $chan $type $so $credentials $peersubject [lrange $verifier 0 end] $server
+        # Copy saved config to wrapper channel
+        dict unset so_opts -sockname
+        dict unset so_opts -peername
+        chan configure $chan {*}$so_opts
+        chan event $chan readable $read_handler
+        chan event $chan writable $write_handler
         if {$type eq "CLIENT"} {
             if {! $async} {
                 _client_blocking_negotiate $chan
