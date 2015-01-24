@@ -691,10 +691,25 @@ test tlsIO-3.3 {Validate server -verifier: name mismatch} {socket stdio} {
 
 #
 # Tests against real servers
+#
 test tls_socket-client-1.0 {
     Verify basic synchronous connection
 } -body {
     set so [twapi::tls_socket www.google.com 443]
+    # GET / HTTP/1.0 results in EOF (server does not like request)
+    # GET / HTTP/1.1 results in more complicated read as server does not close
+    # so use just GET /
+    puts $so "GET /"
+    flush $so
+    read $so
+} -cleanup {
+    catch {close $so}
+} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+
+test starttls-client-1.0 {
+    Verify basic synchronous connection
+} -body {
+    set so [twapi::starttls [socket www.google.com 443] -peersubject www.google.com]
     # GET / HTTP/1.0 results in EOF (server does not like request)
     # GET / HTTP/1.1 results in more complicated read as server does not close
     # so use just GET /
@@ -711,10 +726,29 @@ test tls_socket-client-1.1 {
     list [catch {twapi::tls_socket -peersubject www.google.com www.yahoo.com 443}] [lrange $::errorCode 0 1]
 } -result {1 {TWAPI_WIN32 -2146893022}}
 
+test starttls-client-1.1 {
+    Verify basic synchronous connection with wrong name
+} -body {
+    list [catch {twapi::starttls [socket www.yahoo.com 443] -peersubject www.google.com}] [lrange $::errorCode 0 1]
+} -result {1 {TWAPI_WIN32 -2146893022}}
+
+test starttls-client-1.1.1 {
+    Verify basic synchronous connection with no -peersubjectwrong name
+} -body {
+    list [catch {twapi::starttls [socket www.yahoo.com 443]}] [lrange $::errorCode 0 1]
+} -result {1 {TWAPI BADARGS}}
+
+
 test tls_socket-client-1.2 {
     Verify basic synchronous connection with unknown root certificate
 } -body {
     list [catch {twapi::tls_socket www.mikestoolbox.org 443}] [lrange $::errorCode 0 1]
+} -result {1 {TWAPI_WIN32 -2146893019}}
+
+test starttls-client-1.2 {
+    Verify basic synchronous connection with unknown root certificate
+} -body {
+    list [catch {twapi::starttls [socket www.mikestoolbox.org 443] -peersubject www.mikestoolbox.org}] [lrange $::errorCode 0 1]
 } -result {1 {TWAPI_WIN32 -2146893019}}
 
 test tls_socket-client-1.3 {
@@ -731,16 +765,42 @@ test tls_socket-client-1.3 {
     catch {close $so}
 } -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
 
+test starttls-client-1.3 {
+    Verify basic synchronous connection -verifier (ok)
+} -body {
+    set so [twapi::starttls [socket  www.google.com 443] -verifier verifytrue -peersubject www.google.com]
+    # GET / HTTP/1.0 results in EOF (server does not like request)
+    # GET / HTTP/1.1 results in more complicated read as server does not close
+    # so use just GET /
+    puts $so "GET /"
+    flush $so
+    read $so
+} -cleanup {
+    catch {close $so}
+} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+
 test tls_socket-client-1.4 {
     Verify basic synchronous connection -verifier (fail)
 } -body {
     list [catch {twapi::tls_socket -verifier verifyfalse www.yahoo.com 443} msg] $msg $::errorCode
 } -result {1 {SSL/TLS negotiation failed. Verifier callback returned false.} {TWAPI TLS VERIFYFAIL}}
 
+test starttls-client-1.4 {
+    Verify basic synchronous connection -verifier (fail)
+} -body {
+    list [catch {twapi::starttls [socket www.yahoo.com 443] -verifier verifyfalse -peersubject www.yahoo.com} msg] $msg $::errorCode
+} -result {1 {SSL/TLS negotiation failed. Verifier callback returned false.} {TWAPI TLS VERIFYFAIL}}
+
 test tls_socket-client-1.5 {
     Verify basic synchronous connection -verifier (error)
 } -body {
     list [catch {twapi::tls_socket -verifier verifyerror www.google.com 443} msg] $msg $::errorCode
+} -result {1 {Verification error} {TEST TLS VERIFYFAIL}}
+
+test starttls-client-1.5 {
+    Verify basic synchronous connection -verifier (error)
+} -body {
+    list [catch {twapi::starttls [socket  www.google.com 443] -verifier verifyerror -peersubject www.google.com} msg] $msg $::errorCode
 } -result {1 {Verification error} {TEST TLS VERIFYFAIL}}
 
 test tls_socket-client-1.6 {
@@ -757,12 +817,45 @@ test tls_socket-client-1.6 {
     catch {close $so}
 } -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
 
+test starttls-client-1.6 {
+    Verify basic synchronous connection -verifier (ok)
+} -body {
+    set so [twapi::starttls [socket www.google.com 443] -verifier [list verify www.google.com] -peersubject www.google.com]
+    # GET / HTTP/1.0 results in EOF (server does not like request)
+    # GET / HTTP/1.1 results in more complicated read as server does not close
+    # so use just GET /
+    puts $so "GET /"
+    flush $so
+    read $so
+} -cleanup {
+    catch {close $so}
+} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+
 test tls_socket-client-1.7 {
     Verify basic synchronous connection -verifier (fail)
 } -body {
     list [catch {twapi::tls_socket -verifier [list verify www.yahoo.com] www.google.com 443} msg] $msg $::errorCode
 } -result {1 {SSL/TLS negotiation failed. Verifier callback returned false.} {TWAPI TLS VERIFYFAIL}}
 
+test starttls-client-1.7 {
+    Verify basic synchronous connection -verifier (fail)
+} -body {
+    list [catch {twapi::starttls [socket  www.google.com 443] -verifier [list verify www.yahoo.com] -peersubject www.google.com} msg] $msg $::errorCode
+} -result {1 {SSL/TLS negotiation failed. Verifier callback returned false.} {TWAPI TLS VERIFYFAIL}}
+
+test tls_socket-client-2.0 {
+    Verify basic asynchronous connection
+} -body {
+    set so [twapi::tls_socket -async www.google.com 443]
+    # GET / HTTP/1.0 results in EOF (server does not like request)
+    # GET / HTTP/1.1 results in more complicated read as server does not close
+    # so use just GET /
+    puts $so "GET /"
+    flush $so
+    read $so
+} -cleanup {
+    catch {close $so}
+} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
 
 test tls_socket-client-2.0 {
     Verify basic asynchronous connection
@@ -870,6 +963,26 @@ test tls_socket-client-3.0 {
     list $::done [regexp {(?i)<HEAD>.*</HEAD>\s*<BODY.*</BODY>} $response]
 } -result {eof 1}
 
+test starttls-client-3.0 {
+    Verify event driven client i/o with starttls
+} -body {
+    set so [twapi::starttls [socket www.yahoo.com 443] -peersubject www.yahoo.com]
+    fconfigure $so -blocking 0 -translation binary -buffering none
+    set response ""
+    set reader [twapi::lambda {so} {
+        append ::response [read $so]
+        if {[eof $so]} {
+            set ::done eof
+        }
+    }]
+    fileevent $so readable "$reader $so"
+    puts -nonewline $so "GET / HTTP/1.1\r\nHost: www.yahoo.com\r\nConnection: close\r\n\r\n"
+    set after_id [after 5000 set ::done timeout]
+    vwait ::done
+    after cancel $after_id
+    list $::done [regexp {(?i)<HEAD>.*</HEAD>\s*<BODY.*</BODY>} $response]
+} -result {eof 1}
+
 test tls_socket-client-3.1 {
     Verify event driven client i/o
 } -body {
@@ -923,7 +1036,35 @@ test tls_socket-client-3.2 {
     list $::done [regexp {HTTP/1.0.*<HTML>.*</HTML>\s} $response]
 } -result {eof 1}
 
-# TBD - write more tests with howsmyssl
+test starttls-client-3.2 {
+    Verify event driven client i/o using gets
+} -body {
+    set response ""
+    set so [twapi::starttls [socket www.google.com 443] -peersubject www.google.com]
+    fconfigure $so -blocking 0 -translation lf -buffering none
+    fileevent $so writable "fileevent $so writable {}; set ::done open"
+    set after_id [after 5000 set ::done timeout]
+    vwait ::done
+    if {$::done eq "open"} {
+        # GET / HTTP/1.0 results in EOF (server does not like request)
+        # GET / HTTP/1.1 results in more complicated read as server does not
+        # close so use just GET /
+        puts $so "GET /\r\n\r\n"
+        set reader [twapi::lambda {so} {
+            set line [gets $so]
+            append ::response ${line}\n
+            if {[eof $so]} {
+                set ::done eof
+            }
+        }]
+        fileevent $so readable "$reader $so"
+        vwait ::done
+    }
+    list $::done [regexp {HTTP/1.0.*<HTML>.*</HTML>\s} $response]
+} -result {eof 1}
+
+
+
 test tls_socket-client-4.0 {
     Test www.howsmyssl.com
 } -setup {
@@ -946,6 +1087,14 @@ test tls_socket-client-4.0 {
     twapi::sspi_free_credentials $creds
 } -result Bad
 
+test tls_socket-client-4.1 {
+    # TBD - write more tests with howsmyssl
+} -constraints {
+    TBD
+} -body {
+} -result {1 {TWAPI_WIN32 -2146893022}}
+
+
 test tls_socket-client-5.0 {
     Test tv.eurosport.com - bad certificate name
 } -body {
@@ -967,6 +1116,12 @@ test tls_socket-client-5.2 {
     list [catch {twapi::tls_socket core.tcl.tk 443}] [errorcode]
 } -result {1 {TWAPI_WIN32 -2146893019}}
 
+test starttls-client-5.2 {
+    Test unknown root ca
+} -body {
+    list [catch {twapi::starttls [socket core.tcl.tk 443] -peersubject core.tcl.tk}] [errorcode]
+} -result {1 {TWAPI_WIN32 -2146893019}}
+
 test tls_socket-client-5.3 {
     Test untrusted root cert
 } -constraints {
@@ -975,12 +1130,6 @@ test tls_socket-client-5.3 {
     # TBD - do manual version
     list [catch {twapi::tls_socket www.nlnetlabs.nl 443}] [errorcode]
 } -result {1 {TWAPI_WIN32 -2146893022}}
-
-test tls_socket-client-5.4 {
-    Test www.vulcano.cl - no cert chain
-} -body {
-    list [catch {twapi::tls_socket www.vulcano.cl 443}] [errorcode]
-} -result {1 {TWAPI_WIN32 -2146893019}}
 
 
 #
