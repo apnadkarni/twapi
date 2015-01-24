@@ -73,6 +73,83 @@ proc twapi::tls::_socket {args} {
 
     trap {
         set so [socket {*}$socket_args {*}$args]
+        set so_opts [chan configure $so]; # Get config before _init resets it
+        _init $chan $type $so $credentials $peersubject [lrange $verifier 0 end] $server
+        # Copy saved config to wrapper channel
+        dict unset so_opts -sockname
+        dict unset so_opts -peername
+        chan configure $chan {*}$so_opts
+
+        if {$type eq "CLIENT"} {
+            if {! $async} {
+                _client_blocking_negotiate $chan
+                if {(![info exists _channels($chan)]) ||
+                    [dict get $_channels($chan) State] ne "OPEN"} {
+                    if {[info exists _channels($chan)] &&
+                        [dict exists $_channels($chan) ErrorResult]} {
+                        error [dict get $_channels($chan) ErrorResult]
+                    } else {
+                        error "TLS negotiation aborted"
+                    }
+                }
+            }
+        }
+    } onerror {} {
+        # If _init did not even go as far initializing _channels($chan),
+        # close socket ourselves. If it was initialized, the socket
+        # would have been closed even on error
+        if {![info exists _channels($chan)]} {
+            catch {chan close $so}
+        }
+        catch {chan close $chan}
+        # DON'T ACCESS _channels HERE ON
+        if {[string match "wrong # args*" [trapresult]]} {
+            badargs! "wrong # args: should be \"tls_socket ?-credentials creds? ?-verifier command? ?-peersubject peer? ?-myaddr addr? ?-myport myport? ?-async? host port\" or \"tls_socket ?-credentials creds? ?-verifier command? -server command ?-myaddr addr? port\""
+        } else {
+            rethrow
+        }
+    }
+
+    return $chan
+}
+
+interp alias {} twapi::starttls {} twapi::tls::_starttls
+proc twapi::tls::_starttls {so args} {
+    variable _channels
+
+    debuglog [info level 0]
+
+    parseargs args {
+        async
+        server
+        peersubject.arg
+        {credentials.arg {}}
+        {verifier.arg {}}
+    } -setvars
+
+    set chan [chan create {read write} [list [namespace current]]]
+
+    if {$server} {
+        error "Server mode not supported"
+        TBD
+        if {[info exists peersubject]} {
+            badargs! "Option -peersubject cannot be specified for with -server"
+        }
+        set peersubject ""
+        set type LISTENER
+        lappend socket_args -server [list [namespace current]::_accept $chan]
+        if {[llength $credentials] == 0} {
+            error "Option -credentials must be specified for server sockets"
+        }
+    } else {
+        if {![info exists peersubject]} {
+            # TBD - even if verifier is specified ?
+            badargs! "Option -peersubject must be specified for client connections."
+        }
+        set type CLIENT
+    }
+
+    trap {
         _init $chan $type $so $credentials $peersubject [lrange $verifier 0 end] $server
         if {$type eq "CLIENT"} {
             if {! $async} {
@@ -106,6 +183,7 @@ proc twapi::tls::_socket {args} {
 
     return $chan
 }
+
 
 proc twapi::tls::_accept {listener so raddr raport} {
     variable _channels
@@ -414,7 +492,7 @@ proc twapi::tls::_init {chan type so creds peersubject verifier {accept_callback
     set _channels($chan) [list Socket $so \
                               State ${type}INIT \
                               Type $type \
-                              Blocking 1 \
+                              Blocking [chan configure $so -blocking] \
                               WatchMask {} \
                               Verifier $verifier \
                               SspiContext {} \
@@ -855,6 +933,7 @@ proc twapi::tls::_post_write_event {chan} {
 }
 
 namespace eval twapi::tls {
-    namespace export initialize finalize blocking watch read write configure cget cgetall
-    namespace ensemble create
+    namespace ensemble create -subcommands {
+        initialize finalize blocking watch read write configure cget cgetall
+    }
 }
