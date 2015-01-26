@@ -11,20 +11,58 @@
 
 [para]
 This package provides a Tcl channel facility that implements 
-the Secure Sockets Layer / Transport Layer Security on top
+the Secure Sockets Layer / Transport Layer Security 
+(collectively referred to as TLS) on top
 of the Windows Security Service
 Provider Interface (SSPI) interface.
 
-[section "SSL/TLS channels"]
-
-The module implements a single command,
-[uri #tls_socket [cmd tls_socket]], that implements a SSL/TLS
-based channel which can be used with all Tcl channel based commands like
+[section "TLS channels"]
+[para]
+The module implements two commands
+[uri #tls_socket [cmd tls_socket]]
+and [uri #starttls [cmd starttls]] which implement TLS based
+channels
+which can be used with all Tcl channel based commands like
 [cmd puts], [cmd read], [cmd chan].
+The [cmd tls_socket] command creates a new TCP/IP based connection
+while the [cmd starttls] command wraps an existing plaintext channel.
 
 [section Commands]
 
 [list_begin definitions]
+[call [cmd starttls] [arg CHAN] [cmd -server] [opt [arg options]]]
+Returns a new TLS channel that wraps an existing channel [arg CHAN].
+[arg CHAN] must be in an open state.
+Caller should use the returned channel and must not access [arg CHAN] 
+directly after the command returns. By default, the returned
+channel is for the client end of the connection. 
+If the option [cmd -server] is specified the channel corresponds
+to the server end. This impacts how authentication and certificate
+validation is handled.
+[nl]
+The newly returned channel has the same settings for 
+[cmd -buffering], [cmd -buffersize], [cmd -encoding], [cmd -eofchar]
+and [cmd -translation] as the wrapped channel [arg CHAN]. The
+setting for [cmd -blocking] is also preserved.
+[emph {
+    However, any read or write handlers are not copied to the
+    new channel.
+}] The caller must recreate them with [cmd {chan configure}].
+[nl]
+The command supports the following options:
+[list_begin opt]
+[opt_def [cmd -credentials] [arg CREDENTIALS]]
+Specifies the credentials to be used for the connection.
+See [uri #tls_socket [cmd tls_socket]] for details.
+[opt_def [cmd -peersubject] [arg PEERNAME]]
+Specifies the subject name to be verified on the remote certificate.
+Must be specified for client side connections and
+must not be specified for server-side connections.
+[opt_def [cmd -verifier] [arg VERIFYCOMMAND]]
+Specifies a callback to invoke to verify remote credentials. 
+See [uri #tls_socket [cmd tls_socket]] for details.
+[list_end]
+
 
 [call [cmd tls_socket] [opt [arg options]] [arg REMOTEADDR] [arg PORT]]
 [call [cmd tls_socket] [cmd -server] [arg SERVERCALLBACK] [opt [arg options]] [arg PORT]]
