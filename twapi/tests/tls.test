@@ -421,75 +421,76 @@ proc asyncServerScript {server_port {creds_varname serverCreds}} {
     } $::initScript $server_port $creds_varname]
 }
 
+# STARTTLS blocking tests all use the same server script
+proc starttlsBasicServerScript {server_port {creds_varname serverCreds}} {
+    return [format {
+        %1$s
+        proc accept {chan addr port} {
+            global x
+            set so $chan
+            set chan [twapi::starttls $chan -server -credentials $::%3$s -verifier verifytrue]
+            set count [gets $chan x]
+            if {$count >= 0} {
+                switch $x {
+                    conninfo {set out [list [list $addr $port] [fconfigure $chan -sockname] [fconfigure $chan -peername]]}
+                    default {set out [string reverse $x]}
+                }
+                puts $chan $out ; flush $chan
+            } else {
+                set ::x EOF
+            }
+            close $chan
+        }
+        set timer [after 5000 "set ::x timed_out"]
+        set f [socket -server accept %2$d]
+        puts ready
+        vwait ::x
+        after cancel $timer
+        close $f
+        puts $x
+    } $::initScript $server_port $creds_varname]
+}
+
 #
 # STARTTLS non-blocking tests all use the same server script
-# Note currently starttls does not support blocking sockets
-proc starttlsServerScript {server_port {creds_varname serverCreds}} {
+proc starttlsAsyncServerScript {server_port {creds_varname serverCreds}} {
     return [format {
-        set ::log_fd [open server.log w]
-        fconfigure $::log_fd -buffering none
         %1$s
-        twapi::debuglog_enable
-        proc ::twapi::debuglog {msg} {puts $::log_fd $msg; flush $::log_fd}
-        twapi::debuglog "Server [pid] starting"
-        proc logerror args {twapi::debuglog "bgerror: $args"}
-        interp bgerror {} logerror
         proc accept {chan addr port} {
-            puts $::log_fd "accept $chan $addr $port"
             set ::Remote [list $addr $port]
             set chan [twapi::starttls $chan -server -credentials $::%3$s -verifier verifytrue]
             fconfigure $chan -blocking 0
             fileevent $chan readable [list do $chan]
 	    fconfigure $chan -translation lf -buffering line
-            puts $::log_fd "accept returning"
         }
         proc do {chan} {
-            puts $::log_fd "do enter"
-            puts $::log_fd [array get twapi::tls::_channels]
             after cancel $::Timer
-            puts $::log_fd "calling gets [fconfigure $chan]"
             set count [gets $chan in]
-            puts $::log_fd "do count=$count"
             if {$count >= 0} {
                 lappend ::Received $in
                 switch $in {
                     conninfo {puts $chan [list $::Remote [fconfigure $chan -sockname] [fconfigure $chan -peername]]}
-                    quit {set ::XGate quit ; close $chan}
+                    quit {set ::Gate quit ; close $chan}
                     default {puts $chan [string reverse $in]}
                 }
                 set ::Timer [after 5000 watchdog]
             } else {
                 if {[eof $chan]} {
-                    puts $::log_fd "do EOF"
                     lappend ::Received EOF
                     set ::Gate EOF
                     close $chan
                 } else {
                     set ::Timer [after 5000 watchdog]
-                    puts $::log_fd "do chan pending [chan pending input $chan]"
                 }
             }
         }
-        proc watchdog {args} {
-            twapi::debuglog "watchdog $args [clock seconds]"
-            foreach {chan state} [array get ::twapi::tls::_channels] {
-                twapi::debuglog "Channel: $chan"
-                catch {
-                    twapi::debuglog "  State: $state"
-                    twapi::debuglog "  So pending: [chan pending input [dict get $state Socket]]"
-                    twapi::debuglog "  So handler: [chan event [dict get $state Socket] readable]"
-                }
-            }
-            twapi::debuglog "watchdog end $args [clock seconds]"
-            set ::Gate timed_out
-        }
+        proc watchdog {args} { set ::Gate timed_out }
+
         set Received {}
         set listener [socket -server accept %2$d]
         set Timer [after 10000 watchdog]
         puts ready
-        twapi::debuglog "vwait start"
         vwait ::Gate
-        twapi::debuglog "vwait returned"
         after cancel $Timer
         close $listener
         puts $Received
@@ -521,7 +522,7 @@ test tlsIO-2.1 {Validate server -verifier: success} {socket stdio} {
 test starttlsIO-2.1 {Validate server -verifier: success} {socket stdio} {
     removeFile script
     set f [open script w]
-    puts $f [basicServerScript 8828]
+    puts $f [starttlsBasicServerScript 8828]
     close $f
     set f [open "|[list $::tcltest::tcltest script]" r]
     gets $f x
@@ -697,18 +698,12 @@ test tlsIO-3.0 {Validate server non-blocking -verifier: success} {socket stdio} 
 } {ready enod {done EOF}}
 
 test starttlsIO-3.0 {Validate server non-blocking -verifier: success} {socket stdio} {
-    set ::log_fd [open client.log w]
-    fconfigure $::log_fd -buffering none
-    twapi::debuglog_enable
-    proc ::twapi::debuglog {msg} {puts $::log_fd $msg; flush $::log_fd}
-
     removeFile script
     set f [open script w]
-    puts $f [starttlsServerScript 8828]
+    puts $f [starttlsAsyncServerScript 8828]
     close $f
     set f [open "|[list $::tcltest::tcltest script]" r]
     gets $f response
-    twapi::debuglog "1: server returned <$response>"
     if {[catch {
         set client_so [socket 127.0.0.1 8828]
         twapi::starttls $client_so -credentials $::clientCreds \
@@ -716,16 +711,12 @@ test starttlsIO-3.0 {Validate server non-blocking -verifier: success} {socket st
         } msg]} {
         set response [list $msg\n$::errorInfo]
     } else {
-        twapi::debuglog "Writing to server"
         fconfigure $msg -buffering line -translation lf
         puts $msg done; flush $msg
-        twapi::debuglog "Wrote to server. Waiting response"
         lappend response [gets $msg]
-        twapi::debuglog "Got response"
         close $msg
     }
     lappend response [gets $f]
-    twapi::debuglog "Got stdio response $response"
     close $f
     set response
 } {ready enod {done EOF}}

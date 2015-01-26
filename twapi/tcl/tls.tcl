@@ -172,12 +172,15 @@ proc twapi::tls::_starttls {so args} {
                 }
             }
         } else {
-            # If we negotiate the connection, the socket is blocking so
-            # will hang the whole operation. Instead we mark it non-blocking
-            # and the switch back to blocking when the connection gets opened.
-            # For accepts to work, the event loop has to be running anyways.
-            chan configure $so -blocking 0
-            chan event $so readable [list [namespace current]::_so_read_handler $chan]
+            # Note: unlike the tls_socket server case, here we
+            # do not need to switch a blocking socket to non-blocking
+            # and then switch back, primarily because the socket
+            # is already open and there is no need for a callback
+            # when connection opens.
+            if {! [dict get $_channels($chan) Blocking]} {
+                chan configure $so -blocking 0
+                chan event $so readable [list [namespace current]::_so_read_handler $chan]
+            }
             _negotiate $chan
         }
     } onerror {} {
@@ -297,7 +300,7 @@ proc twapi::tls::watch {chan watchmask} {
 proc twapi::tls::read {chan nbytes} {
     variable _channels
 
-    debuglog "[info level 0] -> $_channels($chan)"
+    debuglog [info level 0]
 
     if {$nbytes == 0} {
         return {}
@@ -323,7 +326,6 @@ proc twapi::tls::read {chan nbytes} {
         set status ok
         if {[string length $Input] < $nbytes && $State eq "OPEN"} {
             if {$Blocking} {
-                debuglog "read: Blocking"
                 # For blocking channels, we do not want to block if some
                 # bytes are already available. The refchan will call us
                 # with number of bytes corresponding to its buffer size,
@@ -347,7 +349,6 @@ proc twapi::tls::read {chan nbytes} {
                 }
             } else {
                 # Non-blocking - read all that we can
-                debuglog "read: non-Blocking"
                 set status ok
                 set data [chan read $Socket]
                 if {[string length $data]} {
@@ -363,7 +364,6 @@ proc twapi::tls::read {chan nbytes} {
                     # TBD - also handle status == renegotiate
                     if {$status eq "ok"} {
                         # Not closed, just waiting for data
-                        debuglog "read: EAGAIN"
                         return -code error EAGAIN
                     }
                 }
@@ -389,7 +389,6 @@ proc twapi::tls::read {chan nbytes} {
                 unset Socket
             }
         }
-        debuglog "read: returning [string length $ret] bytes"
         return $ret;            # Note ret may be ""
     }
 }
@@ -646,7 +645,7 @@ proc twapi::tls::_negotiate2 {chan} {
         
     dict with _channels($chan) {}; # dict -> local vars
 
-    debuglog "[info level 0]: State=$State"
+    debuglog [info level 0]
     switch $State {
         NEGOTIATING {
             if {$Blocking && ![info exists AcceptCallback]} {
@@ -710,9 +709,13 @@ proc twapi::tls::_negotiate2 {chan} {
         }
         
         SERVERINIT {
-            if {0 && $Blocking} {
-                Always take the non-blocking path as we set the socket
-                to be non-blocking so as to not hold up the whole app
+            # For server sockets created from tls_socket, we
+            # always take the non-blocking path as we set the socket
+            # to be non-blocking so as to not hold up the whole app
+            # For server sockets created with starttls 
+            # (AcceptCallback will not exist), we can do a blocking
+            # negotiate.
+            if {$Blocking && ![info exists AcceptCallback]} {
                 _server_blocking_negotiate $chan
             } else {
                 set data [chan read $Socket]
@@ -796,8 +799,6 @@ proc twapi::tls::_blocking_negotiate_loop {chan} {
     variable _channels
 
     dict with _channels($chan) {}; # dict -> local vars
-
-    debuglog "[info level 0] State=$State"
 
     lassign [sspi_step $SspiContext] status outdata
     debuglog "sspi_step status $status"
@@ -884,7 +885,6 @@ proc twapi::tls::_open {chan} {
             # Server sockets are set up to be non-blocking during negotiation
             # Change them back to original state before notifying app
             chan configure $Socket -blocking [dict get $_channels($chan) Blocking]
-            debuglog "Turning off socket read handler"
             chan event $Socket readable {}
             after 0 $AcceptCallback
         }
@@ -900,7 +900,6 @@ proc twapi::tls::_open {chan} {
             # negotiation. Change them back to original state
             # before notifying app
             chan configure $Socket -blocking [dict get $_channels($chan) Blocking]
-            debuglog "Turning off socket read handler"
             chan event $Socket readable {}
             after 0 $AcceptCallback
         }
