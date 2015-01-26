@@ -12,7 +12,8 @@ namespace eval twapi::tls {
     #  AcceptCallback - application callback on a listener and server socket.
     #    On listener, it is the accept command prefix. On a server 
     #    (accepted socket) it is the prefix plus arguments passed to
-    #    accept callback. On client, this key must NOT be present
+    #    accept callback. On client and on servers sockets initialized
+    #    with starttls, this key must NOT be present
     #  SspiContext - SSPI context for the connection
     #  Input  - plaintext data to pass to app
     #  Output - plaintext data to encrypt and output
@@ -54,14 +55,18 @@ proc twapi::tls::_socket {args} {
     }
 
     if {[info exists server]} {
+        if {$server eq ""} {
+            badargs! "Cannot specify an empty value for -server."
+        }
+
         if {[info exists peersubject]} {
-            error "Option -peersubject cannot be specified for with -server"
+            badargs! "Option -peersubject cannot be specified for with -server"
         }
         set peersubject ""
         set type LISTENER
         lappend socket_args -server [list [namespace current]::_accept $chan]
         if {[llength $credentials] == 0} {
-            error "Option -credentials must be specified for server sockets"
+            badargs! "Option -credentials must be specified for server sockets"
         }
     } else {
         if {![info exists peersubject]} {
@@ -115,27 +120,23 @@ proc twapi::tls::_starttls {so args} {
     debuglog [info level 0]
 
     parseargs args {
-        async
         server
         peersubject.arg
         {credentials.arg {}}
         {verifier.arg {}}
-    } -setvars
+    } -setvars -maxleftover 0
 
     set chan [chan create {read write} [list [namespace current]]]
 
     if {$server} {
-        error "Server mode not supported"
-        TBD
         if {[info exists peersubject]} {
             badargs! "Option -peersubject cannot be specified for with -server"
         }
-        set peersubject ""
-        set type LISTENER
-        lappend socket_args -server [list [namespace current]::_accept $chan]
         if {[llength $credentials] == 0} {
             error "Option -credentials must be specified for server sockets"
         }
+        set peersubject ""
+        set type SERVER
     } else {
         if {![info exists peersubject]} {
             # TBD - even if verifier is specified ?
@@ -154,24 +155,30 @@ proc twapi::tls::_starttls {so args} {
         # to the caller to reestablish handlers
         chan event $so readable {}
         chan event $so writable {}
-        _init $chan $type $so $credentials $peersubject [lrange $verifier 0 end] $server
+        _init $chan $type $so $credentials $peersubject [lrange $verifier 0 end] ""
         # Copy saved config to wrapper channel
         dict unset so_opts -sockname
         dict unset so_opts -peername
         chan configure $chan {*}$so_opts
         if {$type eq "CLIENT"} {
-            if {! $async} {
-                _client_blocking_negotiate $chan
-                if {(![info exists _channels($chan)]) ||
-                    [dict get $_channels($chan) State] ne "OPEN"} {
-                    if {[info exists _channels($chan)] &&
-                        [dict exists $_channels($chan) ErrorResult]} {
-                        error [dict get $_channels($chan) ErrorResult]
-                    } else {
-                        error "TLS negotiation aborted"
-                    }
+            _client_blocking_negotiate $chan
+            if {(![info exists _channels($chan)]) ||
+                [dict get $_channels($chan) State] ne "OPEN"} {
+                if {[info exists _channels($chan)] &&
+                    [dict exists $_channels($chan) ErrorResult]} {
+                    error [dict get $_channels($chan) ErrorResult]
+                } else {
+                    error "TLS negotiation aborted"
                 }
             }
+        } else {
+            # If we negotiate the connection, the socket is blocking so
+            # will hang the whole operation. Instead we mark it non-blocking
+            # and the switch back to blocking when the connection gets opened.
+            # For accepts to work, the event loop has to be running anyways.
+            chan configure $so -blocking 0
+            chan event $so readable [list [namespace current]::_so_read_handler $chan]
+            _negotiate $chan
         }
     } onerror {} {
         # If _init did not even go as far initializing _channels($chan),
@@ -288,8 +295,9 @@ proc twapi::tls::watch {chan watchmask} {
 }
 
 proc twapi::tls::read {chan nbytes} {
-    debuglog [info level 0]
     variable _channels
+
+    debuglog "[info level 0] -> $_channels($chan)"
 
     if {$nbytes == 0} {
         return {}
@@ -315,6 +323,7 @@ proc twapi::tls::read {chan nbytes} {
         set status ok
         if {[string length $Input] < $nbytes && $State eq "OPEN"} {
             if {$Blocking} {
+                debuglog "read: Blocking"
                 # For blocking channels, we do not want to block if some
                 # bytes are already available. The refchan will call us
                 # with number of bytes corresponding to its buffer size,
@@ -338,6 +347,7 @@ proc twapi::tls::read {chan nbytes} {
                 }
             } else {
                 # Non-blocking - read all that we can
+                debuglog "read: non-Blocking"
                 set status ok
                 set data [chan read $Socket]
                 if {[string length $data]} {
@@ -353,6 +363,7 @@ proc twapi::tls::read {chan nbytes} {
                     # TBD - also handle status == renegotiate
                     if {$status eq "ok"} {
                         # Not closed, just waiting for data
+                        debuglog "read: EAGAIN"
                         return -code error EAGAIN
                     }
                 }
@@ -378,6 +389,7 @@ proc twapi::tls::read {chan nbytes} {
                 unset Socket
             }
         }
+        debuglog "read: returning [string length $ret] bytes"
         return $ret;            # Note ret may be ""
     }
 }
@@ -516,7 +528,8 @@ proc twapi::tls::_init {chan type so creds peersubject verifier {accept_callback
     dict set _channels($chan) Credentials $creds
     dict set _channels($chan) FreeCredentials $free_creds
 
-    if {$type eq "LISTENER" || $type eq "SERVER"} {
+    if {[string length $accept_callback] &&
+        ($type eq "LISTENER" || $type eq "SERVER")} {
         dict set _channels($chan) AcceptCallback $accept_callback
     }
 }
@@ -703,7 +716,6 @@ proc twapi::tls::_negotiate2 {chan} {
                 _server_blocking_negotiate $chan
             } else {
                 set data [chan read $Socket]
-                debuglog "Read [string length $data] bytes from $chan"
                 if {[string length $data] == 0} {
                     if {[chan eof $Socket]} {
                         error "Unexpected EOF during TLS negotiation (SERVERINIT)"
@@ -816,7 +828,6 @@ proc twapi::tls::_blocking_negotiate_loop {chan} {
 
     # Send output irrespective of status
     if {[string length $outdata]} {
-        debuglog "Sending [string length $outdata] bytes on socket $Socket"
         chan puts -nonewline $Socket $outdata
         chan flush $Socket
     }
@@ -826,16 +837,13 @@ proc twapi::tls::_blocking_negotiate_loop {chan} {
             lassign [sspi_decrypt_stream $SspiContext $leftover] status plaintext
             dict append _channels($chan) Input $plaintext
             if {$status ne "ok"} {
-                debuglog "Error status $status decrypting data"
                 error "Error status $status decrypting data"
             }
         }
-        debuglog "Marking $chan open"
         _open $chan
     } else {
         # Should not happen. Negotiation failures will raise an error,
         # not return a value
-        debuglog "TLS negotiation failed: status $status."
         error "TLS negotiation failed: status $status."
     }
 
@@ -874,8 +882,9 @@ proc twapi::tls::_open {chan} {
         dict set _channels($chan) State OPEN
         if {[info exists AcceptCallback]} {
             # Server sockets are set up to be non-blocking during negotiation
-            # Change them back to blocking before notifying app
-            chan configure $Socket -blocking 1
+            # Change them back to original state before notifying app
+            chan configure $Socket -blocking [dict get $_channels($chan) Blocking]
+            debuglog "Turning off socket read handler"
             chan event $Socket readable {}
             after 0 $AcceptCallback
         }
@@ -888,8 +897,10 @@ proc twapi::tls::_open {chan} {
         # For compatibility with TLS we call accept callbacks AFTER verification
         if {[info exists AcceptCallback]} {
             # Server sockets are set up to be non-blocking during 
-            # negotiation. Change them back to blocking before notifying app
-            chan configure $Socket -blocking 1
+            # negotiation. Change them back to original state
+            # before notifying app
+            chan configure $Socket -blocking [dict get $_channels($chan) Blocking]
+            debuglog "Turning off socket read handler"
             chan event $Socket readable {}
             after 0 $AcceptCallback
         }
@@ -903,6 +914,7 @@ proc twapi::tls::_open {chan} {
 # away which can recursively call back into channel code making things
 # more than a bit messy. So we always schedule them through the event loop
 proc twapi::tls::_post_read_event_callback {chan} {
+    debuglog [info level 0]
     variable _channels
     if {[info exists _channels($chan)]} {
         dict unset _channels($chan) ReadEventPosted
@@ -912,6 +924,7 @@ proc twapi::tls::_post_read_event_callback {chan} {
     }
 }
 proc twapi::tls::_post_read_event {chan} {
+    debuglog [info level 0]
     variable _channels
     if {![dict exists $_channels($chan) ReadEventPosted]} {
         # Note after 0 after idle does not work - (never get called)
@@ -921,6 +934,7 @@ proc twapi::tls::_post_read_event {chan} {
     }
 }
 proc twapi::tls::_post_write_event_callback {chan} {
+    debuglog [info level 0]
     variable _channels
     if {[info exists _channels($chan)]} {
         dict unset _channels($chan) WriteEventPosted
@@ -931,6 +945,7 @@ proc twapi::tls::_post_write_event_callback {chan} {
     }
 }
 proc twapi::tls::_post_write_event {chan} {
+    debuglog [info level 0]
     variable _channels
     if {![dict exists $_channels($chan) WriteEventPosted]} {
         # Note after 0 after idle does not work - (never get called)
