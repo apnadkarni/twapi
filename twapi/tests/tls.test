@@ -1375,6 +1375,41 @@ test tls_socket-client-5.3 {
     list [catch {twapi::tls_socket www.nlnetlabs.nl 443}] [errorcode]
 } -result {1 {TWAPI_WIN32 -2146893022}}
 
+test starttls-optscheck-1.0 {
+    Verify starttls preserves options
+} -body {
+    set so [socket www.google.com 443]
+    set so_opts [chan configure $so]
+    set chan [twapi::starttls $so -peersubject www.google.com]
+    set chan_opts [chan configure $chan]
+    close $chan
+    set diffs {}
+    foreach opt {-blocking -buffering -buffersize -encoding -eofchar -translation -peername -sockname} {
+        if {[dict get $so_opts $opt] ne [dict get $chan_opts $opt]} {
+            lappend diffs $opt
+        }
+    }
+    set diffs
+} -result ""
+
+test starttls-optscheck-1.1 {
+    Verify starttls preserves options
+} -body {
+    set so [socket www.google.com 443]
+    chan configure $so -blocking 0 -buffering none -buffersize 10000 -encoding binary -eofchar X -translation binary
+    set so_opts [chan configure $so]
+    set chan [twapi::starttls $so -peersubject www.google.com]
+    set chan_opts [chan configure $chan]
+    close $chan
+    set diffs {}
+    foreach opt {-blocking -buffering -buffersize -encoding -eofchar -translation -peername -sockname} {
+        if {[dict get $so_opts $opt] ne [dict get $chan_opts $opt]} {
+            lappend diffs $opt
+        }
+    }
+    set diffs
+} -result ""
+
 
 #
 # Cleanup

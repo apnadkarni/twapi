@@ -28,6 +28,8 @@ and [cmd -securityblanket] option to comobjs.
 
 [bullet] Added the [uri base.html#new_guid [cmd new_guid]] command.
 
+[bullet] Added [uri tls.html#starttls [cmd starttls]] command.
+
 [bullet]
 Added SID related commands
 [uri security.html#well_known_sid [cmd well_known_sid]],
