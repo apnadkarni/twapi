@@ -408,7 +408,7 @@ proc twapi::device_ioctl {h code args} {
 proc twapi::find_physical_disks {} {
     # Disk interface class guid
     set guid {{53F56307-B6BF-11D0-94F2-00A0C91EFB8B}}
-    set hdevinfo [update_devinfoset \
+    set hdevinfo [devinfoset \
                       -guid $guid \
                       -presentonly true \
                       -classtype interface]

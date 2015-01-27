@@ -357,7 +357,7 @@ namespace eval twapi::ui::test {
         # Note case should be ignored
         twapi::find_windows -match foo -text WHOCARES
     } -cleanup {
-    } -returnCodes {error} -result "Invalid value 'foo' specified for option '-match'. Must be one of string, glob, regexp"
+    } -returnCodes {error} -result "Invalid value 'foo' specified for option '-match'*" -match glob
 
     test find_windows-8.0 {
         Find windows that are maximized
