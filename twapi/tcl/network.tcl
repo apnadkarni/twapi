@@ -333,7 +333,7 @@ proc twapi::flush_arp_tables {args} {
         if {$ifc(-type) != 24} {
             trap {
                 FlushIpNetTable $ifc(-ipv4ifindex)
-            } onerror {TWAPI_WIN32 1168} {
+            } onerror {} {
                 # Ignore - flush not supported for that interface type
             }
         }
