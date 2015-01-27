@@ -24,6 +24,20 @@ namespace eval twapi::etw::test {
         return [file join $logdir [new_name].etl]
     }
 
+    proc kernel_tracefile {} {
+        variable kernel_tracefile
+        if {![info exists kernel_tracefile]} {
+            set kernel_tracefile [new_etl_filepath]
+            set htrace [twapi::etw_start_kernel_trace {registry diskio diskfileio} -logfile $kernel_tracefile]
+            # Generate some trace activity
+            glob *
+            close [socket www.google.com 80]
+            registry get HKEY_CLASSES_ROOT\\.cmd {}
+            twapi::etw_stop_trace $htrace
+        }
+        return $kernel_tracefile
+    }
+
     proc privileged {} {
         if {[twapi::min_os_version 6]} {
             if {[twapi::process_in_administrators] &&
@@ -262,7 +276,7 @@ namespace eval twapi::etw::test {
     test etw_open_file-1.0 {
         etw_open_file
     } -body {
-        set etw [twapi::etw_open_file kernel.etl]
+        set etw [twapi::etw_open_file [kernel_tracefile]]
     } -cleanup {
         twapi::etw_close_session $etw
     } -result {\d+} -match regexp
@@ -294,7 +308,7 @@ namespace eval twapi::etw::test {
     test etw_close_session-1.0 {
         etw_close_session (file)
     } -body {
-        twapi::etw_close_session [twapi::etw_open_file kernel.etl]
+        twapi::etw_close_session [twapi::etw_open_file [kernel_tracefile]]
     } -result ""
 
     test etw_close_session-2.0 {
@@ -307,7 +321,7 @@ namespace eval twapi::etw::test {
     test etw_close_session-3.0 {
         etw_close_session (previously closed)
     } -setup {
-        set etw [twapi::etw_open_file kernel.etl]
+        set etw [twapi::etw_open_file [kernel_tracefile]]
         twapi::etw_close_session $etw
     } -body {
         twapi::etw_close_session $etw
@@ -316,16 +330,17 @@ namespace eval twapi::etw::test {
     test etw_consumer-1.0 {
         Test etw_process_events/etw_format_events
     } -setup {
-        set etw [twapi::etw_open_file kernel.etl]
+        set etl [kernel_tracefile]
+        set etw [twapi::etw_open_file $etl]
         set formatter [twapi::etw_open_formatter]
     } -body {
         set l [twapi::etw_process_events $etw]
         set ras {}
         foreach {buf events} $l {
-            validate_buf $buf kernel.etl
+            validate_buf $buf $etl
             lappend ras [twapi::etw_format_events $formatter $buf $events]
         }
-        validate_events [twapi::recordarray concat {*}$ras] kernel.etl
+        validate_events [twapi::recordarray concat {*}$ras] $etl
     } -cleanup {
         twapi::etw_close_formatter $formatter
         twapi::etw_close_session $etw
@@ -340,12 +355,13 @@ namespace eval twapi::etw::test {
     test etw_consumer-2.0 {
         Test etw_process_events/etw_format_events - callback
     } -setup {
-        set etw [twapi::etw_open_file kernel.etl]
+        set etl [kernel_tracefile]
+        set etw [twapi::etw_open_file $etl]
         set formatter [twapi::etw_open_formatter]
     } -body {
         set varname ::etw_consumer_[clock microseconds]
-        set l [twapi::etw_process_events -callback [list [namespace current]::process_events_cb $formatter kernel.etl $varname] $etw]
-        validate_events [twapi::recordarray concat {*}[set $varname]] kernel.etl
+        set l [twapi::etw_process_events -callback [list [namespace current]::process_events_cb $formatter $etl $varname] $etw]
+        validate_events [twapi::recordarray concat {*}[set $varname]] $etl
         set l
     } -cleanup {
         twapi::etw_close_formatter $formatter
@@ -507,7 +523,7 @@ namespace eval twapi::etw::test {
         set hprov [twapi::etw_twapi_provider_register]
         set htrace [twapi::etw_start_trace $tracename -logfile $etl]
         twapi::etw_enable_provider $htrace [twapi::etw_twapi_provider_guid] -1 5
-        set wait_time 200;      # Need to wait for level changes to effect
+        set wait_time 2000;      # Need to wait for level changes to effect
         after $wait_time;              # Needs a bit of time to take effect
         set curtid [twapi::get_current_thread_id]
         for {set level 5} {$level > 0} {incr level -1} {
