@@ -163,7 +163,7 @@ vamoose:
 Tcl_Obj *ObjFromSERVICE_FAILURE_ACTIONS(SERVICE_FAILURE_ACTIONSW *sfaP)
 {
     Tcl_Obj *objs[4];
-    int i;
+    DWORD i;
 
     objs[0] = ObjFromLong(sfaP->dwResetPeriod);
     objs[1] = ObjFromUnicode(sfaP->lpRebootMsg);
@@ -186,7 +186,6 @@ int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWOR
 {
     void *bufP;
     DWORD buf_sz;
-    DWORD winerr;
     TCL_RESULT res = TCL_ERROR;
     
 
@@ -505,7 +504,6 @@ static TCL_RESULT ParseSERVICE_FAILURE_ACTIONS(
     Tcl_Obj *actionsObj;
     int i, nobjs;
     TCL_RESULT res;
-    SC_ACTION *actionP;
 
     res = ObjGetElements(interp, sfaObj, &nobjs, &objs);
     if (res != TCL_OK)
