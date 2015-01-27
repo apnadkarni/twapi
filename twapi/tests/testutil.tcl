@@ -1444,7 +1444,7 @@ proc storewithkeys {} {
 
 # Returns revoked cert. Must be released by caller
 proc revokedcert {} {
-    set enc [read_file [file join [tcltest::testsDirectory] certs verisignrevoked.cer] rb]
+    set enc [read_file [file join [tcltest::testsDirectory] certs grcrevoked.cer] rb]
     return [twapi::cert_import $enc]
 }
 
