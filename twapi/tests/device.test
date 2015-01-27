@@ -884,6 +884,11 @@ namespace eval twapi::device::test {
         } {
             set propnames($propname) 1
         }
+        if {$::tcl_platform(osVersion) eq "5.1"} {
+            foreach propname {location_paths base_containerid} {
+                unset propnames($propname)
+            }
+        }
     } -body {
         foreach elem $elems {
             foreach propname [array names propnames] {
@@ -900,6 +905,7 @@ namespace eval twapi::device::test {
         }
         unset -nocomplain propnames(exclusive); # Does not exist on my system
         unset -nocomplain propnames(removal_policy_override); # Ditto
+        unset -nocomplain propnames(characteristics); # Ditto
         array names propnames
     } -cleanup {
         twapi::devinfoset_close $h

@@ -1310,8 +1310,13 @@ test starttls-client-4.0 {
     Test www.howsmyssl.com
 } -setup {
     package require json
+    if {$::tcl_platform(osVersion) eq "5.1"} {
+        set protocol tls1
+    } else {
+        set protocol tls1.2
+    }
 } -body {
-    set screds [twapi::sspi_schannel_credentials -protocols tls1.2]
+    set screds [twapi::sspi_schannel_credentials -protocols $protocol]
     set creds [twapi::sspi_acquire_credentials -role client -package unisp -credentials $screds]
     set rating Bad
     set so [twapi::starttls [socket www.howsmyssl.com 443] -credentials $creds -peersubject www.howsmyssl.com]
@@ -1323,7 +1328,7 @@ test starttls-client-4.0 {
     dict get $response rating
 } -cleanup {
     twapi::sspi_free_credentials $creds
-} -result "Probably Okay"
+} -result [expr {$::tcl_platform(osVersion) eq "5.1" ? "Bad" : "Probably Okay"}]
 
 test tls_socket-client-4.1 {
     # TBD - write more tests with howsmyssl
