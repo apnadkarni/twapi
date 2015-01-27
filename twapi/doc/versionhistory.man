@@ -52,7 +52,15 @@ and option [cmd -failureactions] to
 [uri services.html#get_service_configuration [cmd get_service_configuration]].
 
 [bullet]
-Added [uri device.html#rescan_devices [cmd rescan_devices]].
+Added new device management commands
+[uri device.html#rescan_devices [cmd rescan_devices]],
+[uri device.html#devinfoset [cmd devinfoset]],
+[uri device.html#devinfoset_close [cmd devinfoset_close]],
+[uri device.html#devinfoset_element [cmd devinfoset_element]],
+[uri device.html#devinfoset_element_registry_property [cmd devinfoset_element_registry_property]],
+[uri device.html#devinfoset_elements [cmd devinfoset_elements]],
+[uri device.html#device_element [cmd device_element]].
+
 
 [bullet]
 Added [uri console.html#console_read_input_records [cmd console_read_input_records]].
