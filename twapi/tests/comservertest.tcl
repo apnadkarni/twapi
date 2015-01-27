@@ -79,6 +79,7 @@ proc run {} {
 }
 
 catch {wm withdraw .}
+catch {console show}
 run
 # Since we might be in Wish, explicitly exit
 exit
