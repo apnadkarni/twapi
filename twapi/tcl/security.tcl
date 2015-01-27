@@ -1980,7 +1980,7 @@ proc twapi::_sid_to_integrity {sid args} {
     } elseif {$integrity < 8192} {
         return low
     } elseif {$integrity < 8448} {
-        return mediumplus
+        return medium
     } elseif {$integrity < 12288} {
         return mediumplus
     } elseif {$integrity < 16384} {
