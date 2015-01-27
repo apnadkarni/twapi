@@ -530,11 +530,8 @@ proc twapi::end_process {pid args} {
         # Try and close by sending them a message. WM_CLOSE is 0x10
         foreach toplevel $toplevels {
             # Send a message but come back right away
-            if {0} {
-                catch {PostMessage $toplevel 0x10 0 0}
-            } else {
-                catch {SendNotifyMessage $toplevel 0x10 0 0}
-            }
+            # See Bug #139 as to why PostMessage instead of SendNotifyMessage
+            catch {PostMessage $toplevel 0x10 0 0}
         }
 
         # Wait for the specified time to verify process has gone away
