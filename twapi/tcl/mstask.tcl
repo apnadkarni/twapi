@@ -20,7 +20,7 @@ proc twapi::itaskscheduler_new {args} {
     } -maxleftover 0]
 
     # Get ITaskScheduler interface
-    set its [Twapi_CoCreateInstance $twapi::CLSID_ITaskScheduler NULL 1 [name_to_iid ITaskScheduler] ITaskScheduler]
+    set its [com_create_instance $twapi::CLSID_ITaskScheduler -model inprocserver -interface ITaskScheduler -raw]
     if {![info exists opts(system)]} {
         return $its
     }

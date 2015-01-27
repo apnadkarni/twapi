@@ -65,13 +65,6 @@ proc twapi::CoGetObject {name bindopts iid} {
     return [Twapi_CoGetObject $name $bindopts $iid $iidname]
 }
 
-# TBD - replace with CoCreateInstanceEx
-proc twapi::CoCreateInstance {clsid iunknown context iid} {
-    set iidname void
-    catch {set iidname [registry get HKEY_CLASSES_ROOT\\Interface\\$iid ""]}
-    return [Twapi_CoCreateInstance $clsid $iunknown $context $iid $iidname]
-}
-
 proc twapi::progid_to_clsid {progid} { return [CLSIDFromProgID $progid] }
 proc twapi::clsid_to_progid {progid} { return [ProgIDFromCLSID $progid] }
 

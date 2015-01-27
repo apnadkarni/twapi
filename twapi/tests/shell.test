@@ -1038,7 +1038,7 @@ namespace eval twapi::shell::test {
         twapi::close_handle $hproc
         twapi::get_process_info $pid -name
     } -cleanup {
-        kill $pid
+        kill $pid -force
     } -result {-name cmd.exe}
         
     test shell_execute-6.0 {
