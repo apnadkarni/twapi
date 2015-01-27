@@ -413,7 +413,7 @@ proc twapi::find_physical_disks {} {
                       -presentonly true \
                       -classtype interface]
     trap {
-        return [kl_flatten [get_devinfoset_interface_details $hdevinfo $guid -devicepath] -devicepath]
+        return [kl_flatten [devinfoset_interface_details $hdevinfo $guid -devicepath] -devicepath]
     } finally {
         devinfoset_close $hdevinfo
     }
