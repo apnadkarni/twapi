@@ -2559,7 +2559,7 @@ namespace eval twapi::crypto::test {
         twapi::cert_thumbprint $cert
     } -cleanup {
         twapi::cert_release $cert
-    } -result 937b877cbbfd4fcbe18f80ffa198cee2cae3c463
+    } -result 20ad48b8edc2e6902b6605f2c40a96f1b38a4cdb
 
     ################################################################
 
@@ -3051,7 +3051,7 @@ namespace eval twapi::crypto::test {
             [twapi::cert_tls_verify $cert -revocationcheck leaf] \
             [twapi::cert_tls_verify $cert -revocationcheck excluderoot] \
             [twapi::cert_tls_verify $cert -revocationcheck none] \
-    } -result {revoked revoked revoked revoked wrongusage}
+    } -result {revoked revoked revoked revoked ok}
 
     test cert_tls_verify-11.0 {
         Verify TLS certificate with errors -urlretrievalcacheonly false
