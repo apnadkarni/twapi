@@ -12,7 +12,7 @@ performance counters.
 
 This documentation is reference material for related commands.
 For more introductory material
-and a guide with examples, see the [emph "Performance Counters"]
+and a guide with examples, see the [emph "Performance Monitoring"]
 chapter in the
 [uri http://www.magicsplat.com/book "Tcl on Windows"] online book.
 

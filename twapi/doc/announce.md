@@ -1,32 +1,31 @@
-# Tcl Windows API (TWAPI) 4.0.61
+# Tcl Windows API (TWAPI) 4.1b19
 
-This is the official release of TWAPI 4.0.
+This is a Beta release of TWAPI 4.1.
 
   * Project home page is at http://twapi.sourceforge.net
-  * V4.0 documentation is at http://twapi.sourceforge.net/v4.0
+  * V4.1 documentation is at http://twapi.sourceforge.net/v4.1
 
 ## Supported platforms
 
-TWAPI 4.0 requires
+TWAPI 4.1 requires
 
   * Windows XP (32-bit only) or later (32- or 64- bit)
   * Tcl 8.5 or 8.6 (32- or 64-bit)
 
-## Changes since 3.1.17
+## Changes since 4.0
 
-Major changes in this release are support for Windows event tracing,
-new Windows event logging formats, SSL/TLS channels,
-certificate management and verification, access to
-performance counters, enhancements to the COM module and architectural
-changes for modularity and run-time performance.
+Major changes in this release are support for writing COM servers
+and other COM enhancements, STARTTLS support for TLS sockets,
+and additional functionality in the security, services,
+device management and console modules.
 
 For a complete list, including INCOMPATIBLE CHANGES, see 
-http://twapi.sourceforge.net/v4.0/versionhistory.html
+http://twapi.sourceforge.net/v4.1/versionhistory.html
 
 ## Distributions
 
 TWAPI is distributed in multiple formats.
-See http://twapi.sourceforge.net/v4.0/installation.html for the details
+See http://twapi.sourceforge.net/v4.1/installation.html for the details
 and the pros and cons of each format.
 
 ## TWAPI Summary
@@ -40,7 +39,7 @@ Functions in the following areas are implemented:
   * System functions including OS and CPU information,
     shutdown and message formatting
   * User and group management
-  * COM client support
+  * COM client and server support
   * Security and resource access control
   * Window management
   * User input: generate key/mouse input and hotkeys
