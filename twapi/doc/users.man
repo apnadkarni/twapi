@@ -9,6 +9,10 @@
 
 This module provides procedures related to management of user and group
 accounts on Windows operating systems.
+This documentation is reference material describing related commands.
+For more introductory material and guide, see the [emph "Windows Security"]
+chapter in the 
+[uri http://www.magicsplat.com/book "Tcl on Windows"] online book.
 
 [section "Standard Options"]
 
