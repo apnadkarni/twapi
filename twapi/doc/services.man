@@ -909,9 +909,16 @@ If [arg MESSAGE] is the empty string, no message is broadcast before rebooting.
 [opt_def [cmd -resetperiod] [arg SECONDS]]
 Specifies the number of seconds after which the failure count is reset
 to 0 so that the next failure will result in the first action in 
-[cmd -actions] being taken.
+[cmd -actions] being taken. This option can only be specified if
+[cmd -actions] is also specified. The default value of [const -1]
+specifies that the count is never reset. Note that when [cmd -actions]
+is specified, this default value is used if [cmd -resetperiod]
+is not explicitly specified.
 [list_end]
 
+Options, except [cmd -resetperiod],
+that are not specified are left unchanged from their
+current setting.
 
 [call [cmd start_service] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
 This command starts the specified service if it is not already running.
