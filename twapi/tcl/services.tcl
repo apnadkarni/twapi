@@ -568,36 +568,43 @@ proc twapi::set_service_failure_actions {name args} {
     array set opts [parseargs args {
         {system.arg ""}
         {database.arg ""}
-        {resetperiod.int infinite}
+        resetperiod.arg
         {rebootmsg.arg __null__}
         {command.arg __null__}
-        {actions.arg {}}
+        actions.arg
     } -maxleftover 0]
-
-    if {$opts(resetperiod) eq "infinite"} {
-        set opts(resetperiod) 0xffffffff
-    }
 
     set opts(scm_priv) 0x00020000; # 0x00020000 -> STANDARD_RIGHTS_READ
     set opts(svc_priv) 2;    # 2 -> SERVICE_CHANGE_CONFIG
 
-    set actions {}
-    foreach action $opts(actions) {
-        if {[llength $action] != 2} {
-            error "Invalid format for failure action"
+    # If option actions is not specified, actions for the service
+    # are left unchanged.
+    if {[info exists opts(actions)]} {
+        set actions {}
+        foreach action $opts(actions) {
+            if {[llength $action] != 2} {
+                error "Invalid format for failure action"
+            }
+            set action_code [dict* {none 0 restart 1 reboot 2 run 3} [lindex $action 0]]
+            if {$action_code == 1} {
+                # Also need SERVICE_START access right for restart action
+                set opts(svc_priv) [expr {$opts(svc_priv) | 0x10}]
+            }
+            lappend actions [list $action_code [lindex $action 1]]
         }
-        set action_code [dict* {none 0 restart 1 reboot 2 run 3} [lindex $action 0]]
-        if {$action_code == 1} {
-            # Also need SERVICE_START access right for restart action
-            set opts(svc_priv) [expr {$opts(svc_priv) | 0x10}]
+        if {![info exists opts(resetperiod)] || $opts(resetperiod) eq "infinite"} {
+            set opts(resetperiod) 0xffffffff
         }
-        lappend actions [list $action_code [lindex $action 2]]
+        set fail_params [list $opts(resetperiod) $opts(rebootmsg) $opts(command) $actions]
+    } else {
+        if {[info exists opts(resetperiod)]} {
+            badargs! "Option -resetperiod can only be used if the -actions option is also specified."
+        }
+        set fail_params [list 0 $opts(rebootmsg) $opts(command)]
     }
 
     set opts(proc) twapi::ChangeServiceConfig2
-    # 2 -> SERVICE_CONFIG_FAILURE_ACTIONS
-    set opts(args) [list 2 [list $opts(resetperiod) $opts(rebootmsg) $opts(command) $actions]]
-    
+    set opts(args) [list 2 $fail_params]; # 2 -> SERVICE_CONFIG_FAILURE_ACTIONS
     _service_fn_wrapper $name opts
     return
 }
