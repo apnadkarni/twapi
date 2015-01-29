@@ -1081,6 +1081,21 @@ proc equal_lists {l1 l2} {
 }
 tcltest::customMatch list equal_lists
 
+# Verify two lists are equal
+proc equal_dicts {l1 l2} {
+    if {[dict size $l1] != [dict size $l2]} {
+        return 0
+    }
+    dict for {k val} $l1 {
+        if {![dict exists $l2 $k] || $val != [dict get $l2 $k]} {
+            return 0
+        }
+        dict unset l2 $k
+    }
+    return [expr {[dict size $l2] == 0}]
+}
+tcltest::customMatch dict equal_dicts
+
 # Prompt the user
 proc yesno {question {default "Y"}} {
     set answer ""

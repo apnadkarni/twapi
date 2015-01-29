@@ -510,14 +510,15 @@ static TCL_RESULT ParseSERVICE_FAILURE_ACTIONS(
         return res;
     res = TwapiGetArgsEx(ticP, nobjs, objs,
                          GETINT(sfaP->dwResetPeriod),
-                         GETWSTR(sfaP->lpRebootMsg),
-                         GETWSTR(sfaP->lpCommand),
-                         ARGSKIP,
+                         GETTOKENNULL(sfaP->lpRebootMsg),
+                         GETTOKENNULL(sfaP->lpCommand),
+                         ARGUSEDEFAULT,
                          GETOBJ(actionsObj), ARGEND);
     if (res != TCL_OK)
         return res;
 
     if (actionsObj == NULL) {
+        /* No actions specified, so will be left unchanged */
         sfaP->cActions = 0;
         sfaP->lpsaActions = NULL;
         return TCL_OK;
@@ -549,7 +550,7 @@ static TCL_RESULT ParseSERVICE_FAILURE_ACTIONS(
         if (nfields != 2)
             return TwapiReturnError(interp, TWAPI_INVALID_DATA);
         if (ObjToInt(interp, fields[0], &sc_type) != TCL_OK ||
-            ObjToInt(interp, fields[0], &sfaP->lpsaActions[i].Delay) != TCL_OK)
+            ObjToInt(interp, fields[1], &sfaP->lpsaActions[i].Delay) != TCL_OK)
             return TCL_ERROR;
         sfaP->lpsaActions[i].Type = (SC_ACTION_TYPE) sc_type;
     }        

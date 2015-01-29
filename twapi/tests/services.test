@@ -12,6 +12,7 @@ eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_service
+load_twapi_package twapi_security; # For eval_with_privileges
 
 
 namespace eval twapi::services::test {
@@ -1125,15 +1126,157 @@ namespace eval twapi::services::test {
     ################################################################
 
     test set_service_failure_actions-1.0 {
-        Verify set_service_failure_actions
+        Verify set_service_failure_actions with no options
     } -constraints {
-        TBD systemmodificationok
+        systemmodificationok
     } -setup {
         ensure_test_service
+        set prev [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
     } -body {
-        set description "Service description ([clock clicks])"
-        twapi::set_service_failure_actions $service_internal_name TBD
+        twapi::set_service_failure_actions $service_internal_name
+        set conf [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+        equal_dicts $prev $conf
     } -result 1
+
+    test set_service_failure_actions-1.1 {
+        Verify set_service_failure_actions with no options does not change config
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        ensure_test_service
+        twapi::set_service_failure_actions $service_internal_name -actions {{restart 1000}} -resetperiod 100 -rebootmsg "Reboot" -command "somecommand.exe"
+        set prev [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+    } -body {
+        twapi::set_service_failure_actions $service_internal_name
+        set conf [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+        equal_dicts $prev $conf
+    } -result 1
+
+    test set_service_failure_actions-2.0 {
+        Verify set_service_failure_actions -actions
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        ensure_test_service
+        twapi::set_service_failure_actions $service_internal_name -actions {{restart 1000}} -resetperiod 100 -rebootmsg "Reboot" -command "somecommand.exe"
+        set prev [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+    } -body {
+        set actions {{none 100} {restart 200} {run 300} {reboot 400}}
+        twapi::eval_with_privileges {
+            twapi::set_service_failure_actions $service_internal_name -actions $actions -resetperiod 100
+        } SeShutdownPrivilege
+        set conf [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+        dict set prev -actions $actions
+        equal_dicts $prev $conf
+    } -result 1
+
+    test set_service_failure_actions-2.1 {
+        Verify set_service_failure_actions -actions with default -resetperiod
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        ensure_test_service
+        twapi::set_service_failure_actions $service_internal_name -actions {{restart 1000}} -resetperiod 100 -rebootmsg "Reboot" -command "somecommand.exe"
+        set prev [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+    } -body {
+        twapi::set_service_failure_actions $service_internal_name -actions {{restart 500} {run 2000}}
+        set conf [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+        dict set prev -actions {{restart 500} {run 2000}}
+        dict set prev -resetperiod -1
+        equal_dicts $prev $conf
+    } -result 1
+
+    test set_service_failure_actions-2.2 {
+        Verify set_service_failure_actions -actions {}
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        ensure_test_service
+        twapi::set_service_failure_actions $service_internal_name -actions {{restart 1000}} -resetperiod 100 -rebootmsg "Reboot" -command "somecommand.exe"
+        set prev [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+    } -body {
+        twapi::set_service_failure_actions $service_internal_name -actions {}
+        set conf [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+        dict set prev -actions {}
+        dict set prev -resetperiod 0
+        equal_dicts $prev $conf
+    } -result 1
+
+    test set_service_failure_actions-3.0 {
+        Verify set_service_failure_actions -rebootmsg
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        ensure_test_service
+        set prev [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+    } -body {
+        set msg "reboot [clock milliseconds]"
+        twapi::set_service_failure_actions $service_internal_name -rebootmsg $msg
+        set conf [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+        dict set prev -rebootmsg $msg
+        equal_dicts $prev $conf
+    } -result 1
+
+    test set_service_failure_actions-3.1 {
+        Verify set_service_failure_actions -rebootmsg ""
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        ensure_test_service
+        set msg "set_service_failure_actions-3.1"
+        twapi::set_service_failure_actions $service_internal_name -rebootmsg $msg
+        set prev [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+        if {[dict get $prev -rebootmsg] ne $msg} {
+            error "Failed to set reboot msg"
+        }
+    } -body {
+        twapi::set_service_failure_actions $service_internal_name -rebootmsg {}
+        set conf [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+        dict set prev -rebootmsg {}
+        equal_dicts $prev $conf
+    } -result 1
+
+    test set_service_failure_actions-4.0 {
+        Verify set_service_failure_actions -command
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        ensure_test_service
+        set prev [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+    } -body {
+        set msg "reboot [clock milliseconds]"
+        twapi::set_service_failure_actions $service_internal_name -command $msg
+        set conf [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+        dict set prev -command $msg
+        equal_dicts $prev $conf
+    } -result 1
+
+    test set_service_failure_actions-4.1 {
+        Verify set_service_failure_actions -command ""
+    } -constraints {
+        systemmodificationok
+    } -setup {
+        ensure_test_service
+        set msg "set_service_failure_actions-3.1"
+        twapi::set_service_failure_actions $service_internal_name -command $msg
+        set prev [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+        if {[dict get $prev -command] ne $msg} {
+            error "Failed to set reboot msg"
+        }
+    } -body {
+        twapi::set_service_failure_actions $service_internal_name -command {}
+        set conf [lindex [twapi::get_service_configuration $service_internal_name -failureactions] 1]
+        dict set prev -command {}
+        equal_dicts $prev $conf
+    } -result 1
+
+    test set_service_failure_actions-100.0 {
+        Verify set_service_failure_actions actual operation
+    } -constraints {
+        systemmodificationok TBD
+    } -body {
+        TBD
+    } -result TBD
 
     ################################################################
 
