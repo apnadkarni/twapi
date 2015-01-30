@@ -719,7 +719,14 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             result.type = TRT_BOOL;
             result.value.bval = IsChild(hwnd, hwnd2);
             break;
-        case 1003: // UNUSED
+        case 1003: // SetParent
+            if (ObjToHWND(interp, objv[0], &hwnd2) != TCL_OK)
+                return TCL_ERROR;
+            result.value.hwin = SetParent(hwnd, hwnd2);
+            if (result.value.hwin)
+                result.type = TRT_HWND;
+            else
+                result.type = TRT_GETLASTERROR;
             break;
         case 1004: // InvalidateRect
             rectP = &u.rect;
@@ -935,6 +942,7 @@ static int TwapiUiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(GetDlgItem, 508), // TBD - Tcl
         DEFINE_FNCODE_CMD(SetWindowText, 1001),
         DEFINE_FNCODE_CMD(IsChild, 1002),
+        DEFINE_FNCODE_CMD(SetParent, 1003),
         DEFINE_FNCODE_CMD(InvalidateRect, 1004),     // TBD - Tcl 
         DEFINE_FNCODE_CMD(SetWindowPos, 1005),
         DEFINE_FNCODE_CMD(MoveWindow, 1006),
