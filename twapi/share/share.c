@@ -580,12 +580,56 @@ static TCL_RESULT Twapi_WNetGetResourceInformationObjCmd(TwapiInterpContext *tic
             error = WNetGetResourceInformationW(&in, outP, &outsz, &systempart);
         }
         if (error == ERROR_SUCCESS) {
+            /* TBD - replace with ObjFromCStruct */
             objs[0] = ListObjFromNETRESOURCEW(ticP->interp, outP);
             objs[1] = ObjFromUnicode(systempart);
             ObjSetResult(ticP->interp, ObjNewList(2, objs));
             res = TCL_OK;
         } else
             res = Twapi_AppendWNetError(ticP->interp, error);
+    }
+
+    MemLifoPopMark(mark);
+    return res;
+}
+
+
+static TCL_RESULT Twapi_WNetAddConnection3ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TCL_RESULT res;
+    DWORD       flags, wnet_status, sz;
+    MemLifoMarkHandle mark;
+    LPCWSTR     username;
+    HWND hwnd;
+    WCHAR         *decryptedP;
+    int            decrypted_len;
+    NETRESOURCEW *netresP;
+
+    mark = MemLifoPushMark(ticP->memlifoP);
+
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1,
+                         GETHWND(hwnd),
+                         ARGSKIP,
+                         ARGSKIP,
+                         GETWSTR(username),
+                         GETINT(flags),
+                         ARGEND);
+    if (res == TCL_OK) {
+        res = TwapiCStructParse(interp, ticP->memlifoP, objv[2],
+                                0, &sz, &netresP);
+        if (res == TCL_OK) {
+            if (sz != sizeof(NETRESOURCEW))
+                res = TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+            else {
+                decryptedP = ObjDecryptPassword(objv[3], &decrypted_len);
+                wnet_status = WNetAddConnection3W(hwnd, netresP,
+                                         decryptedP, username, flags);
+                if (wnet_status != NO_ERROR)
+                    res = Twapi_AppendWNetError(ticP->interp, wnet_status);
+
+                TwapiFreeDecryptedPassword(decryptedP, decrypted_len);
+            }
+        }
     }
 
     MemLifoPopMark(mark);
@@ -890,7 +934,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     int func = PtrToInt(clientdata);
     LPWSTR s, s2;
     MemLifo *memlifoP;
-    MemLifoMarkHandle mark;
+    MemLifoMarkHandle mark = NULL;
     NETRESOURCEW *netresP;
     HANDLE h;
     TCL_RESULT res;
@@ -937,14 +981,14 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         if (ObjToPSECURITY_DESCRIPTOR(interp, objv[4], &secdP) != TCL_OK)
             return TCL_ERROR;
         /* Note secdP may be NULL even on success */
-        result.value.ival = Twapi_NetShareSetInfo(interp,
-                                                  ObjToUnicode(objv[0]),
-                                                  ObjToUnicode(objv[1]),
-                                                  ObjToUnicode(objv[2]),
-                                                  dw, secdP);
+        res = Twapi_NetShareSetInfo(interp,
+                                    ObjToUnicode(objv[0]),
+                                    ObjToUnicode(objv[1]),
+                                    ObjToUnicode(objv[2]),
+                                    dw, secdP);
         if (secdP)
             TwapiFreeSECURITY_DESCRIPTOR(secdP);
-        return result.value.ival;
+        return res;
 
     case 8:
     case 9:
@@ -1009,7 +1053,6 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
                 }
             }
         }
-        MemLifoPopMark(mark);
         if (res != TCL_OK) {
             result.type = TRT_TCL_RESULT;
             result.value.ival = res;
@@ -1032,7 +1075,8 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
             return res;
 
         memlifoP = TwapiMemLifo();
-        netresP = MemLifoPushFrame(memlifoP, 1024, &dw2); /* 16K per MSDN */
+        mark = MemLifoPushMark(memlifoP);
+        netresP = MemLifoAlloc(memlifoP, 1024, &dw2); /* 16K per MSDN */
         dw2 = 256;
         result.value.ival = WNetEnumResourceW(h, &dw, netresP, &dw2);
         switch (result.value.ival) {
@@ -1059,10 +1103,45 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
             break;
         }
 
+        break;
+
+    case 17: // WNetGetConnection
+        CHECK_NARGS(interp, objc, 1);
+        memlifoP = TwapiMemLifo();
+        mark = MemLifoPushMark(memlifoP);
+        s = MemLifoAlloc(memlifoP, sizeof(WCHAR)*MAX_PATH, &dw2);
+        dw2 /= sizeof(WCHAR);
+        result.value.ival = WNetGetConnectionW(ObjToUnicode(objv[0]), s, &dw2);
+        if (result.value.ival == NO_ERROR) {
+            result.type = TRT_OBJ;
+            result.value.obj = ObjFromUnicode(s);
+        } else
+            result.type = TRT_EXCEPTION_ON_WNET_ERROR;
+
         MemLifoPopFrame(memlifoP);
         break;
+
+    case 18: // WNetGetProviderName
+        CHECK_NARGS(interp, objc, 1);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        memlifoP = TwapiMemLifo();
+        mark = MemLifoPushMark(memlifoP);
+        dw2 = MAX_PATH;
+        s = MemLifoAlloc(memlifoP, sizeof(WCHAR)*dw2, NULL);
+        result.value.ival = WNetGetProviderNameW(dw, s, &dw2);
+        if (result.value.ival == NO_ERROR) {
+            result.type = TRT_UNICODE;
+            result.value.unicode.str = s;
+            result.value.unicode.len = -1;
+        } else
+            result.type = TRT_EXCEPTION_ON_WNET_ERROR;
+
     }
-    return TwapiSetResult(interp, &result);
+    res = TwapiSetResult(interp, &result);
+    /* Clear memlifo AFTER setting result */
+    if (mark)
+        MemLifoPopMark(mark);
+    return res;
 }
 
 static int TwapiShareInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
@@ -1092,11 +1171,14 @@ static int TwapiShareInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(WNetOpenEnum, 14),
         DEFINE_FNCODE_CMD(WNetCloseEnum, 15),
         DEFINE_FNCODE_CMD(WNetEnumResource, 16),
+        DEFINE_FNCODE_CMD(WNetGetConnection, 17),
+        DEFINE_FNCODE_CMD(WNetGetProviderName, 18),
     };
 
     static struct tcl_dispatch_s ShareCmdDispatch[] = {
         DEFINE_TCL_CMD(Twapi_WNetGetResourceInformation, Twapi_WNetGetResourceInformationObjCmd),
         DEFINE_TCL_CMD(WNetGetUniversalName, Twapi_WNetGetUniversalNameObjCmd),
+        DEFINE_TCL_CMD(WNetAddConnection3, Twapi_WNetAddConnection3ObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(ShareEnumDispatch), ShareEnumDispatch, Twapi_ShareCallNetEnumObjCmd);
