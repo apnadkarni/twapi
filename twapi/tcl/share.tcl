@@ -28,6 +28,16 @@ namespace eval twapi {
     record CONNECTION_INFO_0 {-id}
     record CONNECTION_INFO_1 {-id -type -opencount -usercount -activeseconds -user -netname}
 
+    struct NETRESOURCE {
+        DWORD  dwScope;
+        DWORD  dwType;
+        DWORD  dwDisplayType;
+        DWORD  dwUsage;
+        LPCWSTR lpLocalName;
+        LPCWSTR lpRemoteName;
+        LPCWSTR lpComment;
+        LPCWSTR lpProvider;
+    };
 }
 
 # TBD - is there a Tcl wrapper around NetShareCheck?

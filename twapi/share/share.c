@@ -884,11 +884,17 @@ invalid_level_error:
 
 static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    DWORD   dw, dw2;
+    DWORD   dw, dw2, dw3, dw4;
     SECURITY_DESCRIPTOR *secdP;
     TwapiResult result;
     int func = PtrToInt(clientdata);
     LPWSTR s, s2;
+    MemLifo *memlifoP;
+    MemLifoMarkHandle mark;
+    NETRESOURCEW *netresP;
+    HANDLE h;
+    TCL_RESULT res;
+    Tcl_Obj *objP;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -981,8 +987,81 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
                                        ObjToUnicode(objv[1]),
                                        ObjToUnicode(objv[2]),
                                        dw);
-    }
+    case 14: // WNetOpenEnum
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETINT(dw), GETINT(dw2), GETINT(dw3),
+                         ARGSKIP, ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        memlifoP = TwapiMemLifo();
+        mark = MemLifoPushMark(memlifoP);
+        res = TwapiCStructParse(interp, memlifoP, objv[3], CSTRUCT_ALLOW_NULL, &dw4, &netresP);
+        if (res == TCL_OK) {
+            if (netresP && dw4 != sizeof(NETRESOURCEW))
+                res = TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+            else {
+                result.value.ival = WNetOpenEnumW(dw, dw2, dw3, netresP, &h);
+                if (result.value.ival != NO_ERROR) {
+                    /* Don't change res. Error will be set by TwapiSetResult */
+                    result.type = TRT_EXCEPTION_ON_WNET_ERROR;
+                } else {
+                    result.value.hval = h;
+                    result.type = TRT_HANDLE;
+                }
+            }
+        }
+        MemLifoPopMark(mark);
+        if (res != TCL_OK) {
+            result.type = TRT_TCL_RESULT;
+            result.value.ival = res;
+        }
+        break;
 
+    case 15: // WNetCloseEnum
+        CHECK_NARGS(interp, objc, 1);
+        res = ObjToHANDLE(interp, objv[0], &h);
+        if (res != TCL_OK)
+            return res;
+        result.value.ival = WNetCloseEnum(h);
+        result.type = TRT_EXCEPTION_ON_WNET_ERROR;
+        break;
+
+    case 16: // WNetEnumResource
+        res = TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETINT(dw),
+                           ARGSKIP, ARGEND);
+        if (res != TCL_OK)
+            return res;
+
+        memlifoP = TwapiMemLifo();
+        netresP = MemLifoPushFrame(memlifoP, 1024, &dw2); /* 16K per MSDN */
+        dw2 = 256;
+        result.value.ival = WNetEnumResourceW(h, &dw, netresP, &dw2);
+        switch (result.value.ival) {
+        case NO_ERROR:
+            result.type = TRT_OBJ;
+            result.value.obj = ObjNewList(dw, NULL);
+            for (dw3 = 0; dw3 < dw; ++dw3) {
+                res = ObjFromCStruct(interp,
+                                     &netresP[dw3], sizeof(netresP[dw3]),
+                                     objv[2], 0, &objP);
+                if (res != TCL_OK) {
+                    ObjDecrRefs(result.value.obj);
+                    result.value.ival = res;
+                    result.type = TRT_TCL_RESULT;
+                }
+                ObjAppendElement(NULL, result.value.obj, objP);
+            }
+            break;
+        case ERROR_NO_MORE_ITEMS:
+            result.type = TRT_EMPTY;
+            break;
+        default:
+            result.type = TRT_EXCEPTION_ON_WNET_ERROR;
+            break;
+        }
+
+        MemLifoPopFrame(memlifoP);
+        break;
+    }
     return TwapiSetResult(interp, &result);
 }
 
@@ -1010,6 +1089,9 @@ static int TwapiShareInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_NetShareCheck, 11),
         DEFINE_FNCODE_CMD(NetSessionDel, 12),
         DEFINE_FNCODE_CMD(NetSessionGetInfo, 13),
+        DEFINE_FNCODE_CMD(WNetOpenEnum, 14),
+        DEFINE_FNCODE_CMD(WNetCloseEnum, 15),
+        DEFINE_FNCODE_CMD(WNetEnumResource, 16),
     };
 
     static struct tcl_dispatch_s ShareCmdDispatch[] = {
