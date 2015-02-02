@@ -939,6 +939,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     HANDLE h;
     TCL_RESULT res;
     Tcl_Obj *objP;
+    NETINFOSTRUCT netinfo;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -1135,7 +1136,26 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
             result.value.unicode.len = -1;
         } else
             result.type = TRT_EXCEPTION_ON_WNET_ERROR;
+        break;
 
+    case 19: // WnetGetNetworkInformation
+        CHECK_NARGS(interp, objc, 2);
+        netinfo.cbStructure = sizeof(netinfo);
+        result.value.ival = WNetGetNetworkInformationW(ObjToUnicode(objv[0]),
+                                                       &netinfo);
+        if (result.value.ival != NO_ERROR)
+            result.type = TRT_EXCEPTION_ON_WNET_ERROR;
+        else {
+            result.value.ival = ObjFromCStruct(interp, &netinfo, sizeof(netinfo),
+                                 objv[1], 0, &objP);
+            if (result.value.ival != TCL_OK)
+                result.type = TRT_TCL_RESULT;
+            else {
+                result.value.obj = objP;
+                result.type = TRT_OBJ;
+            }
+        }
+        break;
     }
     res = TwapiSetResult(interp, &result);
     /* Clear memlifo AFTER setting result */
@@ -1173,6 +1193,7 @@ static int TwapiShareInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(WNetEnumResource, 16),
         DEFINE_FNCODE_CMD(WNetGetConnection, 17),
         DEFINE_FNCODE_CMD(WNetGetProviderName, 18),
+        DEFINE_FNCODE_CMD(WNetGetNetworkInformation, 19),
     };
 
     static struct tcl_dispatch_s ShareCmdDispatch[] = {

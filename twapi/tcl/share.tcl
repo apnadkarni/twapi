@@ -38,6 +38,17 @@ namespace eval twapi {
         LPCWSTR lpComment;
         LPCWSTR lpProvider;
     };
+
+    struct NETINFOSTRUCT {
+        DWORD     cbStructure;
+        DWORD     dwProviderVersion;
+        DWORD     dwStatus;
+        DWORD     dwCharacteristics;
+        HANDLE    dwHandle;
+        WORD      wNetType;
+        DWORD     dwPrinters;
+        DWORD     dwDrives;
+    }
 }
 
 # TBD - is there a Tcl wrapper around NetShareCheck?
