@@ -325,11 +325,11 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
             if (count) {
                 for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
                     s = ObjToStringN(arrayObj[j], &len);
-                    *(char **)pv2 = MemLifoCopy(memlifoP, s, len);
+                    *(char **)pv2 = MemLifoCopy(memlifoP, s, len+1);
                 }                
             } else {
                 s = ObjToStringN(objPP[i], &len);
-                *(char **)pv2 = MemLifoCopy(memlifoP, s, len);
+                *(char **)pv2 = MemLifoCopy(memlifoP, s, len+1);
             }
             continue;
 
@@ -337,11 +337,11 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
             if (count) {
                 for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
                     s = ObjToUnicodeN(arrayObj[j], &len);
-                    *(char **)pv2 = MemLifoCopy(memlifoP, s, len);
+                    *(char **)pv2 = MemLifoCopy(memlifoP, s, sizeof(WCHAR)*(len+1));
                 }
             } else {
                 s = ObjToUnicodeN(objPP[i], &len);
-                *(char **)pv2 = MemLifoCopy(memlifoP, s, sizeof(WCHAR)*len);
+                *(char **)pv2 = MemLifoCopy(memlifoP, s, sizeof(WCHAR)*(len+1));
             }
             continue;
 
