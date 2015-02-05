@@ -718,6 +718,24 @@ proc twapi::find_lm_connections args {
     return [list $fields $recs]
 }
 
+proc twapi::wnet_connected_resources {args} {
+    parseargs args {
+        {type.sym any {any 0 disk 1 print 2}}
+    } -maxleftover 0 -setvars
+    set h [WNetOpenEnum 1 $type 0 ""]
+    trap {
+        set resources {}
+        set structdef [twapi::NETRESOURCE]
+        while {[llength [set rs [WNetEnumResource $h 100 $structdef]]]} {
+            foreach r $rs {
+                lappend resources [lrange $r 4 5]
+            }
+        }
+    } finally {
+        WNetCloseEnum $h
+    }
+    return $resources
+}
 
 ################################################################
 # Utility functions

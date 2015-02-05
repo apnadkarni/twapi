@@ -1078,7 +1078,6 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         memlifoP = TwapiMemLifo();
         mark = MemLifoPushMark(memlifoP);
         netresP = MemLifoAlloc(memlifoP, 1024, &dw2); /* 16K per MSDN */
-        dw2 = 256;
         result.value.ival = WNetEnumResourceW(h, &dw, netresP, &dw2);
         switch (result.value.ival) {
         case NO_ERROR:
