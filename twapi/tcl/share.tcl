@@ -339,6 +339,7 @@ proc twapi::get_client_share_info {sharename args} {
     # that else select any of the local devices mapped to it
     # TBD - any better way of finding out a mapping than calling
     # get_client_shares?
+    # TBD - use wnet_connected_resources
     foreach {elem_device elem_unc} [recordarray getlist [get_client_shares -level 0] -format flat] {
         if {[string equal -nocase $sharename $elem_unc]} {
             if {$elem_device eq ""} {
@@ -719,8 +720,10 @@ proc twapi::find_lm_connections args {
 }
 
 proc twapi::wnet_connected_resources {args} {
+    # Accept both file/disk and print/printer for historical reasons
+    # file and printer are official to match get_client_share_info
     parseargs args {
-        {type.sym any {any 0 disk 1 print 2}}
+        {type.sym any {any 0 file 1 disk 1 print 2 printer 2}}
     } -maxleftover 0 -setvars
     set h [WNetOpenEnum 1 $type 0 ""]
     trap {
