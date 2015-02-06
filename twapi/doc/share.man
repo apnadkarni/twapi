@@ -43,7 +43,13 @@ be obtained through
 [section "Network Shares - Server"]
 
 These commands work with all types of Windows network shares exported
-from a server including files and disks, printers, devices and IPC.
+from a server including files and disks, printers, devices and IPC
+via the LANMAN protocol. 
+[emph {
+    They do not work with shares implemented with other protocols
+    such as DFS.
+}]
+
 
 [para]
 The command [uri \#new_share [cmd new_share]]
@@ -60,6 +66,11 @@ allows attributes of an existing share to be modified.
 [section "Network Shares - Client"]
 
 The following commands deal with client side of network share connections.
+[emph {
+    They do not work with shares implemented with other protocols
+    such as DFS.
+}]
+
 
 [para]
 The commands [uri \#connect_share [cmd connect_share]]
