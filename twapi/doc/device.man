@@ -225,15 +225,6 @@ returned by the [cmd -layout] differs in each case. The following is a brief
 summary that assumes familiarity with disk formats. See the
 [uri http://msdn.microsoft.com/en-us/library/aa972908.aspx "Windows DDK"]
 documentation for details.
-[nl]
-On Windows 2000, the [cmd -layout] field value is a keyed list with
-the fields [cmd -partitioncount], [cmd -signature] and [cmd -partitions]
-containing the number of partitions of the disk, the disk signature,
-and a list of partitions. Each element of the partition list is itself
-a keyed list with the fields
-[cmd -startingoffset], [cmd -partitionlength], [cmd -hiddensectors],
-[cmd -partitionnumber], [cmd -partitiontype], [cmd -bootindicator],
-[cmd -recognizedpartition] and [cmd -rewritepartition].
 
 [nl]
 On Windows XP and newer operating systems, the [cmd -layout] field value

@@ -762,8 +762,7 @@ Returns the values for all options.
 [opt_def [cmd -authpackage]]
 Returns the name of the package that authenticated the session.
 [opt_def [cmd -dnsdomain]]
-Returns the DNS name for the owner of the logon session. This is always
-empty on Windows 2000.
+Returns the DNS name for the owner of the logon session.
 [opt_def [cmd -logondomain]]
 Returns the name of the domain used to authenticate the session.
 [opt_def [cmd -logonid]]
@@ -771,7 +770,6 @@ Returns the [uri \#uniqueidentifiers LUID] for the session
 (same as [arg SESSIONLUID]).
 [opt_def [cmd -logonserver]]
 Returns the name of the server used to authenticate the session.
-This is always an empty string on Windows 2000.
 [opt_def [cmd -logontime]]
 Returns the time session owner logged on.
 [opt_def [cmd -type]]
@@ -785,7 +783,6 @@ Returns the terminal session identifier for the logon session.
 Returns the user name for the session owner.
 [opt_def [cmd -userprincipal]]
 Returns the user principal name for the session owner.
-This is always an empty string on Windows 2000.
 [list_end]
 
 [call [cmd get_privilege_description] [arg PRIVILEGE]]

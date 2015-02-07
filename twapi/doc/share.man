@@ -174,8 +174,6 @@ This option has no effect if [cmd -interactive] is not specified.
 If this option is specified, the operating system will prompt the user
 for the password on the command line rather than showing the password dialog.
 This option has no effect if [cmd -interactive] is not specified.
-[emph "This option is not supported on Windows 2000"].
-An error will be generated if this option is specified on those platforms.
 [opt_def [cmd -window] [arg HWIN]]
 Specifies that the window identified by [arg HWIN] is to be used as the
 owner window for any password dialogs that are displayed.
