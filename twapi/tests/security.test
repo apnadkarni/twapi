@@ -6465,6 +6465,16 @@ namespace eval twapi::security::test {
 
     ################################################################
 
+    test encode_security_descriptor-1.0 {
+        Encode a security descriptor
+    } -body {
+        set secd [twapi::sddl_to_security_descriptor {O:S-1-5-21-2280003790-624517823-3588787479-1005G:S-1-5-21-2280003790-624517823-3588787479-513D:AI(A;ID;FA;;;BA)(A;ID;FA;;;SY)(A;ID;FA;;;S-1-5-21-2280003790-624517823-3588787479-1005)(A;ID;0x1200a9;;;BU)}]
+        set bin [twapi::encode_security_descriptor $secd]
+        twapi::security_descriptor_to_sddl [twapi::decode_security_descriptor $bin]
+    } -result {O:S-1-5-21-2280003790-624517823-3588787479-1005G:S-1-5-21-2280003790-624517823-3588787479-513D:AI(A;ID;FA;;;BA)(A;ID;FA;;;SY)(A;ID;FA;;;S-1-5-21-2280003790-624517823-3588787479-1005)(A;ID;0x1200a9;;;BU)}
+
+    ################################################################
+
     test get_privilege_description-1.0 {
         Get text description of privilege
     } -body {

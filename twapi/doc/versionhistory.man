@@ -38,6 +38,12 @@ Added SID related commands
 [uri security.html#sids_from_same_domain [cmd sids_from_same_domain]].
 
 [bullet]
+Added 
+[uri security.html#encode_security_descriptor [cmd encode_security_descriptor]]
+and 
+[uri security.html#decode_security_descriptor [cmd decode_security_descriptor]].
+
+[bullet]
 Added [cmd -auditsuccess] and [cmd -auditfailure] to
 [uri security.html#new_ace] for constructing SACL ACEs.
 
@@ -61,6 +67,8 @@ Added new device management commands
 [uri device.html#devinfoset_elements [cmd devinfoset_elements]],
 [uri device.html#device_element [cmd device_element]].
 
+[bullet]
+Added [uri share.html#wnet_connected_resources [cmd wnet_connected_resources]].
 
 [bullet]
 Added [uri console.html#console_read_input_records [cmd console_read_input_records]].
