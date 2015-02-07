@@ -949,7 +949,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.type = TRT_LONG;
         break;
     case 1027: // swap2
-        if (ObjToSHORT(interp, objv[0], &i16) != TCL_OK)
+        if (ObjToUSHORT(interp, objv[0], &i16) != TCL_OK)
             return TCL_ERROR;
         result.value.ival=swap2(i16);
         result.type = TRT_LONG;
@@ -2293,9 +2293,9 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(pointer_registered?, 1022),
         DEFINE_FNCODE_CMD(pointer_to_address, 1023),
         DEFINE_FNCODE_CMD(pointer_type, 1024),
-        DEFINE_FNCODE_CMD(swap8, 1025), // TBD - doc
-        DEFINE_FNCODE_CMD(swap4, 1026), // TBD - doc
-        DEFINE_FNCODE_CMD(swap2, 1027), // TBD - doc
+        DEFINE_FNCODE_CMD(swap8, 1025),
+        DEFINE_FNCODE_CMD(swap4, 1026),
+        DEFINE_FNCODE_CMD(swap2, 1027),
     };
 
     static struct fncode_dispatch_s CallArgsDispatch[] = {

@@ -76,6 +76,12 @@ Added [uri console.html#console_read_input_records [cmd console_read_input_recor
 [bullet]
 Added [uri base.html#canonicalize_guid [cmd canonicalize_guid]].
 
+[bullet]
+Added byte swapping commands
+[uri base.html#swap2 [cmd swap2]],
+[uri base.html#swap4 [cmd swap4]] and
+[uri base.html#swap8 [cmd swap8]].
+
 [list_end]
 
 [section "Version 4.0"]

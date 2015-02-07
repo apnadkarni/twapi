@@ -907,6 +907,15 @@ type [arg TYPE]. [arg TYPE] must be one of the COM types
 This command converts [arg SECONDS] which is the number of seconds since
 the epoch Jan 1, 1970 to the number of 100 nanoseconds since Jan 1, 1601.
 
+[call [cmd swap2] [arg BYTES2]]
+Byte swaps a 16 bit value.
+
+[call [cmd swap4] [arg BYTES4]]
+Byte swaps a 32 bit value.
+
+[call [cmd swap8] [arg BYTES8]]
+Byte swaps a 64 bit value.
+
 [call [cmd timelist_to_large_system_time] [arg TIMELIST]]
 Converts [arg TIMELIST] to the number of 100 nanoseconds since Jan 1, 1601.
 If [arg TIMELIST] is an empty list, it defaults to the current date and time.
