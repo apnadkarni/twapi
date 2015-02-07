@@ -46,10 +46,9 @@ These commands work with all types of Windows network shares exported
 from a server including files and disks, printers, devices and IPC
 via the LANMAN protocol. 
 [emph {
-    They do not work with shares implemented with other protocols
+    Some comThey do not work with shares implemented with other protocols
     such as DFS.
 }]
-
 
 [para]
 The command [uri \#new_share [cmd new_share]]
@@ -67,6 +66,7 @@ allows attributes of an existing share to be modified.
 
 The following commands deal with client side of network share connections.
 [emph {
+    Note that some commands will only work with LANMAN shares. 
     They do not work with shares implemented with other protocols
     such as DFS.
 }]
@@ -371,6 +371,11 @@ The fields for level [const 1] plus
 Refer to
 [uri \#get_client_share_info [cmd get_client_share_info]] for
 a description of these fields.
+[nl]
+This command only returns LANMAN shares, not shares through other
+network providers such as DFS or WebDAV. Use
+[uri #wnet_connected_resources [cmd wnet_connected_resources]] to
+retrieve shared exported through all providers.
 
 [call [cmd get_share_info] [arg SHARENAME] [opt [arg options]]]
 
@@ -551,6 +556,15 @@ not limit.
 [list_end]
 
 
+[call [cmd wnet_connected_resources] [opt "[cmd -type] [const file|printer]"]]
+Returns a list of connected network resources. Without any options
+specified, all connected network resources are returned. The option
+[cmd -type] may be specified to only return file or printer network
+resources.
+[nl]
+The returned value is a list consisting of pairs. The first element
+of each pair is the local device, if any, associated with the remote resource
+and the second is the path of the remote resource.
 [list_end]
 
 [keywords "network shares" "shares" "file shares" "printer shares" "export" "Lan Manager" "Lan Manager session" "LM session" "network sessions"]

@@ -427,6 +427,12 @@ returns a textual description of a security descriptor. Commands
 [uri #security_descriptor_to_sddl [cmd security_descriptor_to_sddl]] and
 [uri #sddl_to_security_descriptor [cmd sddl_to_security_descriptor]] can
 be used to convert security descriptors to SDDL format.
+Commands 
+[uri #encode_security_descriptor [cmd encode_security_descriptor]] and
+[uri #decode_security_descriptor [cmd decode_security_descriptor]]
+encode and decode security descriptors to and from
+self-relative binary formats. This is useful in cases where security
+descriptors need to be stored in that format, for example in the registry.
 
 [section "Logon Sessions"]
 
@@ -565,6 +571,10 @@ and are liable to change.
 For more information, see the description of the
 [uri http://msdn.microsoft.com/en-us/library/windows/desktop/aa374788(v=vs.85).aspx "CREDENTIALS"] structure in the Windows SDK.
 
+[call [cmd decode_security_descriptor] [arg SECDBIN]]
+Decodes a self-relative security descriptor in binary format and returns
+it in the corresponding canonical Tcl format.
+
 [call [cmd disable_all_token_privileges] [arg TOKEN]]
 This command disables all privileges in the token.
 An error will be raised if the privilege does not exist or cannot be disabled
@@ -632,6 +642,10 @@ The command returns a list of privileges that were modified by the command
 because they were not previously enabled. This list can be passed to
 [uri \#disable_token_privileges [cmd disable_token_privileges]]
 to undo the privilege modifications made by this call.
+
+[call [cmd encode_security_descriptor] [arg SECD]]
+Encodes a security descriptor into a self-relative binary format and
+returns it.
 
 [call [cmd equal_sids] [arg SIDA] [arg SIDB]]
 If both arguments are valid SIDs, returns [const 1] if they are equal
