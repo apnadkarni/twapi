@@ -3858,6 +3858,34 @@ namespace eval twapi::base::test {
 
     ################################################################
 
+    test canonicalize_guid-1.0 {
+        Canonicalize no-op
+    } -body {
+        twapi::canonicalize_guid {{DC780A11-A89C-419A-9660-72D95B3DEFB5}}
+    } -result {{DC780A11-A89C-419A-9660-72D95B3DEFB5}}
+
+    test canonicalize_guid-1.1 {
+        Canonicalize missing braces
+    } -body {
+        twapi::canonicalize_guid DC780A11-A89C-419A-9660-72D95B3DEFB5
+    } -result {{DC780A11-A89C-419A-9660-72D95B3DEFB5}}
+
+    test canonicalize_guid-2.0 {
+        Canonicalize lower case
+    } -body {
+        twapi::canonicalize_guid {{dc780a11-a89c-419a-9660-72d95b3defb5}}
+    } -result {{DC780A11-A89C-419A-9660-72D95B3DEFB5}}
+
+    test canonicalize_guid-2.1 {
+        Canonicalize missing braces lower case
+    } -body {
+        twapi::canonicalize_guid dc780a11-a89c-419a-9660-72d95b3defb5
+    } -result {{DC780A11-A89C-419A-9660-72D95B3DEFB5}}
+
+
+
+    ################################################################
+
     #
     # Clean up
     ::tcltest::cleanupTests

@@ -73,6 +73,9 @@ Added [uri share.html#wnet_connected_resources [cmd wnet_connected_resources]].
 [bullet]
 Added [uri console.html#console_read_input_records [cmd console_read_input_records]].
 
+[bullet]
+Added [uri base.html#canonicalize_guid [cmd canonicalize_guid]].
+
 [list_end]
 
 [section "Version 4.0"]

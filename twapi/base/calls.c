@@ -2271,8 +2271,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     static struct fncode_dispatch_s CallOneArgDispatch[] = {
         DEFINE_FNCODE_CMD(IsValidACL, 1002), // TBD - doc
-        DEFINE_FNCODE_CMD(encode_security_descriptor, 1003), // TBD - doc
-        DEFINE_FNCODE_CMD(decode_security_descriptor, 1004), // TBD - doc
+        DEFINE_FNCODE_CMD(encode_security_descriptor, 1003),
+        DEFINE_FNCODE_CMD(decode_security_descriptor, 1004),
         DEFINE_FNCODE_CMD(hex64, 1005),
         DEFINE_FNCODE_CMD(reveal, 1006),
         DEFINE_FNCODE_CMD(conceal, 1007),
@@ -2280,7 +2280,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(IsValidSid, 1009),
         DEFINE_FNCODE_CMD(VariantTimeToSystemTime, 1010),
         DEFINE_FNCODE_CMD(SystemTimeToVariantTime, 1011),
-        DEFINE_FNCODE_CMD(canonicalize_guid, 1012), // TBD Document
+        DEFINE_FNCODE_CMD(canonicalize_guid, 1012),
         DEFINE_FNCODE_CMD(Twapi_AppendLog, 1013),
         DEFINE_FNCODE_CMD(GlobalAddAtom, 1014), // TBD - Tcl interface
         DEFINE_FNCODE_CMD(is_valid_sid_syntax, 1015),
