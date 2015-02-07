@@ -3850,8 +3850,65 @@ namespace eval twapi::base::test {
 
     ################################################################
 
+    test swap2-1.0 {
+        Swap a word
+    } -body {
+        twapi::swap2 0x8000
+    } -result 128
+
+    test swap2-1.1 {
+        Swap a word
+    } -body {
+        format %x [twapi::swap2 0xabcd]
+    } -result cdab
+
+    test swap2-1.2 {
+        Swap a word
+    } -body {
+        twapi::swap2 0x80
+    } -result 32768
+
+    test swap4-1.0 {
+        Swap a word
+    } -body {
+        twapi::swap4 0x80000000
+    } -result 128
+
+    test swap4-1.1 {
+        Swap a word
+    } -body {
+        format %x [twapi::swap4 0xabcd1234]
+    } -result 3412cdab
+
+    test swap4-1.2 {
+        Swap a word
+    } -body {
+        twapi::swap4 0x80
+    } -result -2147483648
+
+    test swap8-1.0 {
+        Swap a word
+    } -body {
+        twapi::swap8 0x8000000000000000
+    } -result 128
+
+    test swap8-1.1 {
+        Swap a word
+    } -body {
+        format %lx [twapi::swap8 0xfedcba9876543210]
+    } -result 1032547698badcfe
+
+    test swap8-1.2 {
+        Swap a word
+    } -body {
+        format %lx [twapi::swap8 0x80]
+    } -result 8000000000000000
+
+
+
+
     test swap-100.0 {
-        swap4 swap8 swap2
+        swap8 swap8
     } -constraints {
         TBD
     } -result TBD
