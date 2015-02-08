@@ -539,6 +539,12 @@ is a member.
 Returns the full path to the user's home directory.
 [opt_def [cmd -home_dir_drive]]
 Returns the drive letter assigned to the user's home directory.
+[opt_def [cmd -internet_identity]]
+Returns the Internet identity of the user. The return value is
+an empty list if the user is not associated with an Internet identity.
+Otherwise it is a dictionary with the keys [const internet_provider_name],
+[const internet_principal_name] and [const sid] corresponding
+to the issuer of the identity, the Internet identity and the local SID.
 [opt_def [cmd -last_logoff]]
 Returns the time in GMT when the user last logged off. This value may
 also be [const never] or [const unknown]. In an environment with backup
