@@ -173,6 +173,7 @@ proc twapi::get_user_account_info {account args} {
 
     array set opts [parseargs args \
                         [concat [array names fields] sid \
+                             internet_identity \
                              status type password_attrs \
                              [list local_groups global_groups system.arg all]] \
                         -nulldefault]
@@ -238,6 +239,17 @@ proc twapi::get_user_account_info {account args} {
                     set result($time_field) "unknown"
                 }
             }
+        }
+    }
+
+    if {$opts(all) || $opts(internet_identity)} {
+        set inet_ident [NetUserGetInfo $opts(system) $account 24]
+        if {[lindex $inet_ident 0]} {
+            set result(-internet_identity) [twine {
+                internet_provider_name internet_principal_name sid
+            } [lrange $inet_ident 1 end]]
+        } else {
+            set result(-internet_identity) {}
         }
     }
 
@@ -1092,7 +1104,11 @@ twapi::proc* twapi::get_password_policy {{server_name ""}} {
 twapi::proc* twapi::get_system_role {{server_name ""}} {
     _define_user_modals
 } {
-    return [NetUserModalsGet $server_name 1 [_USER_MODALS_INFO_1]]
+    set result [NetUserModalsGet $server_name 1 [_USER_MODALS_INFO_1]]
+    dict set result role [dict* {
+        0 standalone 1 member 2 backup 3 primary
+    } [dict get $result role]]
+    return $result
 }
 
 # TBD - doc & test

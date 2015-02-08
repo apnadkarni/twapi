@@ -33,6 +33,11 @@ namespace eval twapi::security::test {
     variable administrator_account_name [get_localized_account administrator]
     variable administrators_account_name [get_localized_account administrators]
 
+    variable microsoft_internet_identity "palmtcl@yahoo.com"
+    variable microsoft_account_name "palmtcl"
+    ::tcltest::testConstraint microsoftaccount [expr {$microsoft_account_name in [twapi::get_users]}]
+
+
     # SID for the account the process is running under
     variable my_sid [name2sid $::env(USERNAME)]
     variable guest_sid [name2sid $guest_account_name]
@@ -82,6 +87,7 @@ namespace eval twapi::security::test {
              -status * \
              -type * \
              -password_attrs * \
+             -internet_identity * \
             ]
 
     # Current logon session
@@ -2776,6 +2782,24 @@ namespace eval twapi::security::test {
                 string match -nocase $pat \$uinfo($field)
             " -result 1
     }
+
+    test get_user_account_info-internet_identity.0 {
+        get_user_account_info -internet_identity
+    } -body {
+        twapi::get_user_account_info $administrator_account_name -internet_identity
+    } -result {-internet_identity {}}
+
+    test get_user_account_info-internet_identity.1 {
+        get_user_account_info -internet_identity
+    } -constraints {
+        microsoftaccount
+    } -body {
+        set ident [twapi::get_user_account_info $microsoft_account_name -internet_identity]
+        list \
+            [string equal [dict get $ident -internet_identity internet_provider_name] MicrosoftAccount] \
+            [string equal [dict get $ident -internet_identity internet_provider_name] $microsoft_internet_identity] \
+            [string equal [dict get $ident -internet_identity sid] [twapi::lookup_account_sid $microsoft_account_name]]
+    } -result {1 1 1}
 
     ################################################################
 

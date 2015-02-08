@@ -108,6 +108,14 @@ Tcl_Obj *ObjFromUSER_INFO(
 {
     Tcl_Obj    *objs[29];
     int nobjs;
+    /* Define our own because older SDK's do not have this definition */
+    struct _TWAPI_USER_INFO_24 {
+        BOOL   usri24_internet_identity;
+        DWORD  usri24_flags;
+        LPWSTR usri24_internet_provider_name;
+        LPWSTR usri24_internet_principal_name;
+        PSID   usri24_user_sid;
+    } *usri24P;
 
     /*
      * Note userinfoP may not point to a USER_INFO_3 struct! It depends
@@ -118,6 +126,17 @@ Tcl_Obj *ObjFromUSER_INFO(
 
     nobjs = 1;                  /* name field always present */
     switch (info_level) {
+    case 24:
+        usri24P = (struct _TWAPI_USER_INFO_24 *)infoP;
+        if (! usri24P->usri24_internet_identity)
+            return ObjFromEmptyString();
+        objs[0] = ObjFromDWORD(usri24P->usri24_flags);
+        objs[1] = ObjFromUnicode(usri24P->usri24_internet_provider_name);
+        objs[2] = ObjFromUnicode(usri24P->usri24_internet_principal_name);
+        objs[3] = ObjFromSIDNoFail(usri24P->usri24_user_sid);
+        nobjs = 4;
+        break;
+
     case 3:
     case 4:
         nobjs += 5;
@@ -311,6 +330,7 @@ int TwapiNetUserOrGroupGetInfoHelper(
     case 2:
     case 3:
     case 4:
+    case 24:
         switch (type) {
         case 0:
             get_fn = NetUserGetInfo;

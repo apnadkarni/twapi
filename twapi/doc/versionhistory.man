@@ -38,6 +38,10 @@ Added SID related commands
 [uri security.html#sids_from_same_domain [cmd sids_from_same_domain]].
 
 [bullet]
+Added [cmd -internet_identity] to 
+[uri users.html#get_user_account_info [cmd get_user_account_info]].
+
+[bullet]
 Added 
 [uri security.html#encode_security_descriptor [cmd encode_security_descriptor]]
 and 
