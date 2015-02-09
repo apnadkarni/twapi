@@ -32,6 +32,15 @@ namespace eval vix {
         }
     }
 
+    proc check_path {path} {
+        # Path must be absolute path. However, we allow volume-relative
+        # since since guest may actually be *ix where volume-relative
+        # really is absolute
+        if {[file pathtype $path] eq "relative"} {
+            return -level 1 -code error -errorcode [list VIX FILE NOTABSOLUTE] "File path $path is a relative file path."
+        }
+    }
+
     proc wait_for_result {job {propname VIX_PROPERTY_JOB_RESULT_HANDLE}} {
         twapi::trap {
             set results [twapi::vt_null]; # Must be init'ed
@@ -46,17 +55,36 @@ namespace eval vix {
         }
     }
 
-    proc wait_for_completion {job} {
+    proc wait_for_results {job args} {
+        twapi::trap {
+            set values {}
+            foreach propname $args {
+                set results [twapi::vt_null]; # Must be init'ed
+                set err [$job Wait [twapi::safearray i4 [$propname]] results]
+                check_error $err
+                # $results is a safearray the first element of which
+                # will contain the awaited result
+                lappend values [lindex [twapi::variant_value $results 0 0 0] 0]
+            }
+        } finally {
+            $job -destroy
+        }
+        return $values
+    }
+
+    proc wait_for_completion {job {preserve 0}} {
         twapi::trap {
             set err [$job WaitWithoutResults]
             check_error $err
         } finally {
-            $job -destroy
+            if {! $preserve} {
+                $job -destroy
+            }
         }
         return
     }
 
-    proc pick {cond a b} {
+    proc pick {cond {a 1} {b 0}} {
         return [expr {$cond ? $a : $b}]
     }
 }
@@ -163,14 +191,28 @@ oo::class create vix::Guest {
         wait_for_completion [$Guest LogoutFromGuest 0]
     }
 
-    method env {envvar} {
+    method getenv {envvar} {
         return [wait_for_result \
                     [$Guest ReadVariable [VIX_GUEST_ENVIRONMENT_VARIABLE] $envvar 0 0] \
                     VIX_PROPERTY_JOB_RESULT_VM_VARIABLE_STRING]
     }
 
+    method setenv {envvar val} {
+        wait_for_completion [$Guest WriteVariable [VIX_GUEST_ENVIRONMENT_VARIABLE] $envvar $val 0 0]
+    }
+
+    method copy_to_host {guest_path host_path} {
+        check_path $guest_path
+        wait_for_completion [$Guest CopyFileFromGuestToHost $guest_path $host_path 0 0 0]
+    }
+
+    method copy_to_guest {host_path guest_path} {
+        check_path $guest_path
+        wait_for_completion [$Guest CopyFileFromHostToGuest $host_path $guest_path 0 0 0]
+    }
+
     method mkdir {path} {
-        TBD - check absolute path
+        check_path $path
         twapi::trap {
             wait_for_completion [$Guest CreateDirectoryInGuest $path 0 0]
         } onerror [list VIX [VIX_E_FILE_ALREADY_EXISTS]] {
@@ -178,7 +220,144 @@ oo::class create vix::Guest {
         }
     }
 
+    method rmdir {path} {
+        check_path $path
+        twapi::trap {
+            wait_for_completion [$Guest DeleteDirectoryInGuest $path 0 0]
+        } onerror [list VIX [VIX_E_FILE_ALREADY_EXISTS]] {
+            # TBD - check what error if dir does not exist
+            # Ignore dir already exists errors
+        }
+    }
 
+    method delete_file {path} {
+        check_path $path
+        twapi::trap {
+            wait_for_completion [$Guest DeleteFileInGuest $path 0]
+        } onerror [list VIX [VIX_E_FILE_ALREADY_EXISTS]] {
+            # TBD - check what error if dir does not exist
+            # Ignore dir already exists errors
+        }
+    }
+
+    method isdir {path} {
+        check_path $path
+        return [wait_for_result \
+                    [$Guest DirectoryExistsInGuest 0] \
+                    VIX_PROPERTY_JOB_RESULT_GUEST_OBJECT_EXISTS]
+    }        
+
+    method isfile {path} {
+        check_path $path
+        return [wait_for_result \
+                    [$Guest FileExistsInGuest 0] \
+                    VIX_PROPERTY_JOB_RESULT_GUEST_OBJECT_EXISTS]
+    }        
+
+    method file_info {path} {
+        check_path $path
+        lassign [wait_for_results \
+                     [$Guest GetFileInfoInGuest 0] \
+                     VIX_PROPERTY_JOB_RESULT_FILE_SIZE \
+                     VIX_PROPERTY_JOB_RESULT_FILE_FLAGS \
+                     VIX_PROPERTY_JOB_RESULT_FILE_MOD_TIME] \
+            size flags time
+        return [list size $size time $time \
+                    directory [expr {($flags & [VIX_FILE_ATTRIBUTES_DIRECTORY]) != 0}] \
+                    symlink [expr {($flags & [VIX_FILE_ATTRIBUTES_SYMLINK]) != 0}]]
+    }
+
+    method temp_file {} {
+        return [wait_for_result \
+                    [$Guest CreateTempFileInGuest 0 0 0] \
+                    VIX_PROPERTY_JOB_RESULT_ITEM_NAME]
+    }
+
+    method rename {from to} {
+        check_path $from
+        check_path $to
+        wait_for_completion [$Guest RenameFileInGuest $from $to 0 0 0]
+    }
+
+    method dir {path args} {
+        parseargs args {details.bool} -setvars -maxleftover 0
+        check_path $path
+        set values {}
+        set job [$Guest ListDirectoryInGuest $path 0 0]
+        twapi::trap {
+            wait_for_completion $job 1
+            set count [$job GetNumProperties [VIX_PROPERTY_JOB_RESULT_ITEM_NAME]]
+            if {$details} {
+                set proparr [twapi::safearray i4 \
+                                 [list \
+                                      [VIX_PROPERTY_JOB_RESULT_ITEM_NAME] \
+                                      [VIX_PROPERTY_JOB_RESULT_FILE_SIZE] \
+                                      [VIX_PROPERTY_JOB_RESULT_FILE_FLAGS] \
+                                      [VIX_PROPERTY_JOB_RESULT_FILE_MOD_TIME]]]
+            } else {
+                set proparr [twapi::safearray i4 [list [VIX_PROPERTY_JOB_RESULT_ITEM_NAME]]]
+            }
+            for {set i 0} {$i < $count} {incr i} {
+                set results [twapi::vt_null]
+                set err [$job GetNthProperties $i $proparr results]
+                check_error $err
+                if {$details} {
+                    lassign $results name size flags time
+                    lappend values \
+                        [list name $name size $size time $time \
+                             directory [expr {($flags & [VIX_FILE_ATTRIBUTES_DIRECTORY]) != 0}] \
+                             symlink [expr {($flags & [VIX_FILE_ATTRIBUTES_SYMLINK]) != 0}]]
+                } else {
+                    lappend values [lindex $results 0]
+                }
+            }
+        } finally {
+            $job -destroy
+        }
+
+        return $values
+    }
+
+    method processes {} {
+        parseargs args {details.bool} -setvars -maxleftover 0
+        check_path $path
+        set values {}
+        set job [$Guest ListProcessesInGuest $path 0 0]
+        twapi::trap {
+            wait_for_completion $job 1
+            set count [$job GetNumProperties [VIX_PROPERTY_JOB_RESULT_ITEM_NAME]]
+            if {$details} {
+                set proparr [twapi::safearray i4 \
+                                 [list \
+                                      [VIX_PROPERTY_JOB_RESULT_ITEM_NAME] \
+                                      [VIX_PROPERTY_JOB_RESULT_PROCESS_ID] \
+                                      [VIX_PROPERTY_JOB_RESULT_PROCESS_OWNER] \
+                                      [VIX_PROPERTY_JOB_RESULT_PROCESS_COMMAND] \
+                                      [VIX_PROPERTY_JOB_RESULT_PROCESS_BEING_DEBUGGED] \
+                                      [VIX_PROPERTY_JOB_RESULT_PROCESS_START_TIME]]]
+            } else {
+                set proparr [twapi::safearray i4 [list [VIX_PROPERTY_JOB_RESULT_PROCESS_ID]]]
+            }
+            for {set i 0} {$i < $count} {incr i} {
+                set results [twapi::vt_null]
+                set err [$job GetNthProperties $i $proparr results]
+                check_error $err
+                if {$details} {
+                    lappend values [twapi::twine {name pid owner command debugged start_time} $results]
+                } else {
+                    lappend values [lindex $results 0]
+                }
+            }
+        } finally {
+            $job -destroy
+        }
+
+        return $values
+    }
+
+    method kill {pid} {
+        wait_for_completion [$Guest KillProcessInGuest $pid 0 0]
+    }
 }
 
 namespace eval vix {
