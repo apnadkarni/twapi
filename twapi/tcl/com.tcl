@@ -3630,6 +3630,7 @@ twapi::class create ::twapi::Automation {
             set invkinds [list 1 4 2]
         }
 
+        # TBD - should this do an uplevel ?
         return [my _invoke $name $invkinds $args]
     }
 

@@ -27,7 +27,7 @@ namespace eval vix {
     proc check_error {err} {
         variable Vix
         if {$err && [$Vix ErrorIndicatesFailure $err]} {
-            set msg [$Vix GetErrorText $err 0]
+            set msg [$Vix GetErrorText $err [twapi::vt_empty]]
             return -level 1 -code error -errorcode [list VIX $err $msg] $msg
         }
     }
@@ -90,9 +90,29 @@ namespace eval vix {
 }
 
 oo::class create vix::Host {
-    variable Opts Host
+    variable Opts Host Guests NameCounter
     constructor args {
-        namespace path [namespace qualifiers [self class]]
+        # Class representing a host system running VMware software
+        #
+        # -hosttype HOSTTYPE - specifies the type of VMware host software.
+        #   HOSTTYPE must be one of 'workstation' for VMware Workstation
+        #   (default), 'workstation_server' for VMware Workstation in shared
+        #   mode, 'server' for VMware Server 1.0, 'player' for VMware Player
+        #   and 'vi_server' for VMware Server 2.0, vCenter and ESX/ESXi.
+        # -hostname HOSTNAME - specifies the name of the host system. Defaults
+        #   to the local system. Cannot be specified if HOSTTYPE is 
+        #   'workstation' or 'player'. Must be specified in other cases.
+        # -port PORTNUMBER - specifies the port number to connect to on the
+        #   host. Ignored if -hostname is not specified.
+        # -username USER - name of the account to use to connect to the host
+        #   system. Ignored if -hostname is not specified.
+        # -password PASSWORD - the password associated with the account.
+        #   Ignored if -hostname is not specified.
+        #
+        # The specified host is not contacted until the connect method
+        # is invoked.
+
+        namespace path [linsert [namespace path] end [namespace qualifiers [self class]]]
         array set Opts [twapi::parseargs args {
             {hosttype.arg workstation {workstation workstation_shared server vi_server player}}
             hostname.arg
@@ -100,6 +120,8 @@ oo::class create vix::Host {
             username.arg
             password.arg
         } -maxleftover 0]
+
+        #ruff
 
         if {[info exists Opts(hostname)]} {
             if {$Opts(hosttype) in {workstation player}} {
@@ -123,12 +145,25 @@ oo::class create vix::Host {
     }
 
     destructor {
+        my disconnect 1
         if {[info exists Host]} {
+            $Host Disconnect
             $Host -destroy
         }
     }
 
     method connect {} {
+        # Establishes a connection to the host system represented by this
+        # object.
+        #
+        # This method must be called before any virtual machines
+        # can be opened on the host system. The method may be called
+        # multiple times with calls being no-ops if the connection is
+        # already established.
+
+        if {[info exists Host]} {
+            return
+        }
         set Host [wait_for_result    \
                       [[vix] Connect \
                            [VIX_API_VERSION] \
@@ -139,17 +174,61 @@ oo::class create vix::Host {
         return
     }
 
-    method open {vm_path} {
-        return [Guest new [wait_for_result [$Host OpenVM $vm_path 0]]]
+    method disconnect {{force 0}} {
+        # Disconnects the object from the associated VMware host.
+        #
+        # force - if 0 (default), an error is raised if any associated
+        #   Guest objects exist. If 1, the associated Guest objects
+        #   are forcibly destroyed before disconnecting.
+        #
+        # The application should normally ensure that all Guest objects 
+        # associated with this host have been closed.
+        #
+        # The connect method may be called to reestablish the connection.
+
+        if {![info exists Host]} {
+            return
+        }
+
+        if {[array size Guests]} {
+            if {! $force} {
+                error "Cannot disconnect until all guest system objects are closed."
+            }
+            foreach guest [array names Guests] {
+                catch {$guest destroy}
+            }
+        }
+
+        $Host Disconnect
+        $Host -destroy
+        unset Host
     }
+
+    method open {vm_path} {
+        set guest [Guest create guest#[incr NameCounter] [wait_for_result [$Host OpenVM $vm_path 0]]]
+        set Guests($guest) $vm_path
+        trace add command $guest {rename delete} [list [self] _trace_guest]
+        return $guest
+    }
+
+    method _trace_guest {oldname newname op} {
+        if {$oldname eq $newname || ![info exists Guests($oldname)]} {
+            return
+        }
+        if {$op eq "rename"} {
+            set Guests($newname) $Guests($oldname)
+        }
+        unset Guests($oldname)
+    }
+    export _trace_guest
 }
 
 oo::class create vix::Guest {
     variable Guest
 
-    constructor {obj} {
-        namespace path [namespace qualifiers [self class]]
-        set Guest $obj
+    constructor {comobj} {
+        namespace path [linsert [namespace path] end [namespace qualifiers [self class]]]
+        set Guest $comobj
     }
 
     destructor {
@@ -224,9 +303,8 @@ oo::class create vix::Guest {
         check_path $path
         twapi::trap {
             wait_for_completion [$Guest DeleteDirectoryInGuest $path 0 0]
-        } onerror [list VIX [VIX_E_FILE_ALREADY_EXISTS]] {
-            # TBD - check what error if dir does not exist
-            # Ignore dir already exists errors
+        } onerror [list VIX [VIX_E_FILE_NOT_FOUND]] {
+            # Ignore dir does not exist errors
         }
     }
 
@@ -234,30 +312,29 @@ oo::class create vix::Guest {
         check_path $path
         twapi::trap {
             wait_for_completion [$Guest DeleteFileInGuest $path 0]
-        } onerror [list VIX [VIX_E_FILE_ALREADY_EXISTS]] {
-            # TBD - check what error if dir does not exist
-            # Ignore dir already exists errors
+        } onerror [list VIX [VIX_E_FILE_NOT_FOUND]] {
+            # Ignore file does not exist errors
         }
     }
 
     method isdir {path} {
         check_path $path
         return [wait_for_result \
-                    [$Guest DirectoryExistsInGuest 0] \
+                    [$Guest DirectoryExistsInGuest $path 0] \
                     VIX_PROPERTY_JOB_RESULT_GUEST_OBJECT_EXISTS]
     }        
 
     method isfile {path} {
         check_path $path
         return [wait_for_result \
-                    [$Guest FileExistsInGuest 0] \
+                    [$Guest FileExistsInGuest $path 0] \
                     VIX_PROPERTY_JOB_RESULT_GUEST_OBJECT_EXISTS]
     }        
 
     method file_info {path} {
         check_path $path
         lassign [wait_for_results \
-                     [$Guest GetFileInfoInGuest 0] \
+                     [$Guest GetFileInfoInGuest $path 0] \
                      VIX_PROPERTY_JOB_RESULT_FILE_SIZE \
                      VIX_PROPERTY_JOB_RESULT_FILE_FLAGS \
                      VIX_PROPERTY_JOB_RESULT_FILE_MOD_TIME] \
@@ -280,7 +357,7 @@ oo::class create vix::Guest {
     }
 
     method dir {path args} {
-        parseargs args {details.bool} -setvars -maxleftover 0
+        twapi::parseargs args {{details.bool 0}} -setvars -maxleftover 0
         check_path $path
         set values {}
         set job [$Guest ListDirectoryInGuest $path 0 0]
@@ -302,13 +379,13 @@ oo::class create vix::Guest {
                 set err [$job GetNthProperties $i $proparr results]
                 check_error $err
                 if {$details} {
-                    lassign $results name size flags time
+                    lassign [twapi::variant_value $results 0 0 0] name size flags time
                     lappend values \
                         [list name $name size $size time $time \
                              directory [expr {($flags & [VIX_FILE_ATTRIBUTES_DIRECTORY]) != 0}] \
                              symlink [expr {($flags & [VIX_FILE_ATTRIBUTES_SYMLINK]) != 0}]]
                 } else {
-                    lappend values [lindex $results 0]
+                    lappend values [lindex [twapi::variant_value $results 0 0 0] 0]
                 }
             }
         } finally {
@@ -318,11 +395,10 @@ oo::class create vix::Guest {
         return $values
     }
 
-    method processes {} {
-        parseargs args {details.bool} -setvars -maxleftover 0
-        check_path $path
+    method processes {args} {
+        twapi::parseargs args {{details.bool 0}} -setvars -maxleftover 0
         set values {}
-        set job [$Guest ListProcessesInGuest $path 0 0]
+        set job [$Guest ListProcessesInGuest 0 0]
         twapi::trap {
             wait_for_completion $job 1
             set count [$job GetNumProperties [VIX_PROPERTY_JOB_RESULT_ITEM_NAME]]
@@ -343,9 +419,9 @@ oo::class create vix::Guest {
                 set err [$job GetNthProperties $i $proparr results]
                 check_error $err
                 if {$details} {
-                    lappend values [twapi::twine {name pid owner command debugged start_time} $results]
+                    lappend values [twapi::twine {name pid owner command debugged start_time} [twapi::variant_value $results 0 0 0]]
                 } else {
-                    lappend values [lindex $results 0]
+                    lappend values [lindex [twapi::variant_value $results 0 0 0] 0]
                 }
             }
         } finally {
