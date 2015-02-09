@@ -2,13 +2,41 @@ package require TclOO
 package require twapi_com
 
 namespace eval vix {
-    proc wait_for_result {job} {
+    proc initialize {} {
+        variable Vix
+        
+        if {![info exists Vix]} {
+            set Vix [twapi::comobj VixCom.VixLib]
+        }
+        return
+    }
+
+    proc finalize {} {
+        variable Vix
+        if {[info exists Vix]} {
+            $Vix destroy
+            unset Vix
+        }
+    }
+
+    proc vix {} {
+        variable Vix
+        return $Vix
+    }
+
+    proc check_error {err} {
+        variable Vix
+        if {$err && [$Vix ErrorIndicatesFailure $err]} {
+            set msg [$Vix GetErrorText $err 0]
+            return -level 1 -code error -errorcode [list VIX $err $msg] $msg
+        }
+    }
+
+    proc wait_for_result {job {propname VIX_PROPERTY_JOB_RESULT_HANDLE}} {
         twapi::trap {
             set results [twapi::vt_null]; # Must be init'ed
-            set err [$job Wait [twapi::safearray i4 $vix::VIX_PROPERTY_JOB_RESULT_HANDLE] results]
-            if {$err && [$job ErrorIndicatesFailure $err]} {
-                error [$job GetErrorText $err 0]
-            }
+            set err [$job Wait [twapi::safearray i4 [$propname]] results]
+            check_error $err
 
             # $results is a safearray the first element of which
             # will contain the awaited result
@@ -21,20 +49,22 @@ namespace eval vix {
     proc wait_for_completion {job} {
         twapi::trap {
             set err [$job WaitWithoutResults]
-            if {$err && [$job ErrorIndicatesFailure $err]} {
-                error [$job GetErrorText $err 0]
-            }
+            check_error $err
         } finally {
             $job -destroy
         }
         return
     }
 
+    proc pick {cond a b} {
+        return [expr {$cond ? $a : $b}]
+    }
 }
 
 oo::class create vix::Host {
     variable Opts Host
     constructor args {
+        namespace path [namespace qualifiers [self class]]
         array set Opts [twapi::parseargs args {
             {hosttype.arg workstation {workstation workstation_shared server vi_server player}}
             hostname.arg
@@ -61,7 +91,7 @@ oo::class create vix::Host {
             set Opts(password) [twapi::vt_empty]
         }
 
-        set Opts(VIX_SERVICE_PROVIDER) [set ::vix::VIX_SERVICEPROVIDER_VMWARE_[string toupper $Opts(hosttype)]]
+        set Opts(VIX_SERVICE_PROVIDER) [VIX_SERVICEPROVIDER_VMWARE_[string toupper $Opts(hosttype)]]
     }
 
     destructor {
@@ -71,62 +101,89 @@ oo::class create vix::Host {
     }
 
     method connect {} {
-        set vixlib [twapi::comobj VixCOM.VixLib]
-        twapi::trap {
-            set Host [vix::wait_for_result    \
-                          [$vixlib Connect \
-                               $::vix::VIX_API_VERSION \
-                               $Opts(VIX_SERVICE_PROVIDER) \
-                               $Opts(hostname) $Opts(port) \
-                               $Opts(username) $Opts(password) \
-                               0 0 0]]
-        } finally {
-            $vixlib -destroy
-        }
+        set Host [wait_for_result    \
+                      [[vix] Connect \
+                           [VIX_API_VERSION] \
+                           $Opts(VIX_SERVICE_PROVIDER) \
+                           $Opts(hostname) $Opts(port) \
+                           $Opts(username) $Opts(password) \
+                           0 0 0]]
+        return
     }
 
     method open {vm_path} {
-        return [vix::Guest new [vix::wait_for_result [$Host OpenVM $vm_path]]]
+        return [Guest new [wait_for_result [$Host OpenVM $vm_path 0]]]
     }
 }
 
 oo::class create vix::Guest {
     variable Guest
+
     constructor {obj} {
+        namespace path [namespace qualifiers [self class]]
         set Guest $obj
     }
+
     destructor {
         $Guest -destroy
     }
+
     method power_on {args} {
         twapi::parseargs args {
             {showui.bool 1}
         } -setvars -maxleftover 0
-        vix::wait_for_completion [$Guest PowerOn [vix::? $showui $::vix::VIX_VMPOWEROP_LAUNCH_GUI $::vix::VIX_VMPOWEROP_NORMAL]]
+        wait_for_completion [$Guest PowerOn \
+                                 [pick $showui [VIX_VMPOWEROP_LAUNCH_GUI] \
+                                      [VIX_VMPOWEROP_NORMAL]] \
+                                 0 0]
     }
-    method power_off {force} {
-        if {$force} {
-            set force $::vix::VIX_VMPOWEROP_NORMAL
-        } else {
-            set force $::vix::VIX_VMPOWEROP_FROM_GUEST
-        }
-        vix::wait_for_completion [$Guest PowerOff $force]
+    method shutdown {} {
+        wait_for_completion [$Guest PowerOff [VIX_VMPOWEROP_FROM_GUEST] 0]
     }
+
+    method power_off {} {
+        wait_for_completion [$Guest PowerOff [VIX_VMPOWEROP_NORMAL] 0]
+    }
+
     method wait_for_tools {{timeout 0}} {
-        vix::wait_for_completion [$Guest WaitForToolsInGuest $timeout 0]
+        wait_for_completion [$Guest WaitForToolsInGuest $timeout 0]
     }
+
     method login {username password args} {
         twapi::parseargs args {
             {interactive.bool 1}
         } -setvars -maxleftover 0
-        vix::wait_for_completion \
+        wait_for_completion \
             [$Guest LoginInGuest $username $password \
-                 [vix::? $interactive $::vix::VIX_LOGIN_IN_GUEST_REQUIRE_INTERACTIVE_ENVIRONMENT 0]]
+                 [pick $interactive [VIX_LOGIN_IN_GUEST_REQUIRE_INTERACTIVE_ENVIRONMENT] 0] \
+                 0]
     }
+
+    method logout {} {
+        wait_for_completion [$Guest LogoutFromGuest 0]
+    }
+
+    method env {envvar} {
+        return [wait_for_result \
+                    [$Guest ReadVariable [VIX_GUEST_ENVIRONMENT_VARIABLE] $envvar 0 0] \
+                    VIX_PROPERTY_JOB_RESULT_VM_VARIABLE_STRING]
+    }
+
+    method mkdir {path} {
+        TBD - check absolute path
+        twapi::trap {
+            wait_for_completion [$Guest CreateDirectoryInGuest $path 0 0]
+        } onerror [list VIX [VIX_E_FILE_ALREADY_EXISTS]] {
+            # Ignore dir already exists errors
+        }
+    }
+
+
 }
 
 namespace eval vix {
-    variable {*}{
+    # Syntactically, easier to access VIX #defines as commands than as variables
+    foreach {_vixdefine _vixvalue} {
         VIX_INVALID_HANDLE 0
         VIX_HANDLETYPE_NONE 0
         VIX_HANDLETYPE_HOST 2
@@ -517,5 +574,9 @@ namespace eval vix {
         VIX_INSTALLTOOLS_MOUNT_TOOLS_INSTALLER 0
         VIX_INSTALLTOOLS_AUTO_UPGRADE 1
         VIX_INSTALLTOOLS_RETURN_IMMEDIATELY 2
+    } {
+        interp alias {} [namespace current]::$_vixdefine {} lindex $_vixvalue
     }
+    unset _vixdefine
+    unset _vixvalue
 }
