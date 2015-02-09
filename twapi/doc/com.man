@@ -478,6 +478,9 @@ the passed value to a specific type. So for example, to force the
 passed parameter to be treated as a boolean, and not an integer,
 the application could call a method as follows:
 [example "\$obj Visible [lb]tclcast boolean 1[rb]"]
+The commands [uri #vt_empty [cmd vt_empty]] and [uri #vt_null [cmd vt_null]]
+are convenience commands that return variants corresponding to VT_EMPTY
+and VT_NULL respectively.
 As a special case, the [uri #outvar [cmd outvar]] command indicates 
 that the passed string is the name of a variable in which to store an output
 parameter value.
@@ -1045,6 +1048,14 @@ and the fractional part representing the time in the day. This command
 takes such a time value and returns a list
 of 7 elements representing the year, month, day, hour, minutes, seconds
 and milliseconds.
+
+[call [cmd vt_empty]]
+The return value from this command should be passed when a COM method
+parameter value should be a variant of type VT_EMPTY.
+
+[call [cmd vt_null]]
+The return value from this command should be passed when a COM method
+parameter value should be a variant of type VT_NULL.
 
 [list_end]
 

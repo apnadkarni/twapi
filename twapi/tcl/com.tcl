@@ -924,6 +924,14 @@ proc twapi::variant_type {variant} {
     return [lindex $variant 0]
 }
 
+proc twapi::vt_null {} {
+    return [tclcast null ""]
+}
+
+proc twapi::vt_empty {} {
+    return [tclcast empty ""]
+}
+
 #
 # General dispatcher for callbacks from event sinks. Invokes the actual
 # registered script after mapping dispid's
@@ -3004,14 +3012,13 @@ twapi::class create ::twapi::ITypeLibProxy {
                 # which is dispatchable. Else an error will be generated
                 # at runtime.
                 append code [format {
-    twapi::class create %s {
+    twapi::class create %1$s {
         superclass ::twapi::Automation
         constructor {args} {
-            set ifc [twapi::com_create_instance "%s" -interface IDispatch -raw {*}$args]
-            next [twapi::IDispatchProxy new $ifc $guid]
-            set ifc_guid "%s"
-            if {[string length $ifc_guid]} {
-                my -interfaceguid $ifc_guid
+            set ifc [twapi::com_create_instance "%2$s" -interface IDispatch -raw {*}$args]
+            next [twapi::IDispatchProxy new $ifc "%2$s"]
+            if {[string length "%3$s"]} {
+                my -interfaceguid "%3$s"
             }
         }
     }} [dict get $def -name] $guid $default_dispatch_guid]
