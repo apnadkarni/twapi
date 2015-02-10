@@ -1,8 +1,93 @@
-package require TclOO
+package require Tcl 8.6
 package require twapi_com
 
 namespace eval vix {
+    variable _ruffdoc
+    lappend _ruffdoc Introduction {
+        This package provides an interface to the VIX library for
+        manipulating VMware virtual machines. The package uses
+        the VIX COM interface and therefore only runs on Windows
+        although the virtual machines themselves may run any
+        operating system.
+    } Prerequisites {
+        The package has the following prerequisites:
+        
+        - Tcl 8.6
+        - The 'twapi_com' package available from http://twapi.sf.net
+        - The VMware VIX library. This is installed as part of
+          the VMware Workstation product and is also available as a
+          separate free download from VMware.
+    } Installation {
+        The package is distributed as a Tcl module 'vix.tm'. Place this
+        file anywhere in a directory included in the list of module directories
+        searched by Tcl. Then include the statement
+
+            package require vix
+
+        to load the package.
+    } Usage {
+        All commands are placed within the 'vix' namespace.
+
+        The package must be initialized before any other calls are made:
+            vix::initialize
+        
+        This allocates internal resources required for further use of the
+        package. Conversely, resources should be released when the package
+        is not required:
+            vix::finalize
+
+        Note that all objects created using the Host and VM classes
+        must be destroyed before calling finalize.
+
+        These calls may be made multiple times in an application as long
+        any other VIX calls are made after an initialize call without
+        an intermediate finalize call.
+
+        To manipulate a virtual machine, first connect to 
+        the VMware host that contains it.
+            vix::Host create host
+            host connect
+        The above calls will connect to a VMware Workstation host on the 
+        local system. For connecting to other VMware products and
+        remote systems, see the documentation for the Host class.
+
+        Once connected to a host, we can obtain an object corresponding to
+        a virtual machine:
+            set vm [host open "c:/Virtual Machines/vm1-win8pro/vm1-win8pro.vmx"]
+        The specified path may be a file path to the virtual machine's
+        VMS file as in the case of VMware Workstation or a storage path
+        as in the case of the ESX/ESXi products.
+
+        You can open multiple virtual machines from a single Host object.
+        All such VM objects must be destroyed before destroying
+        the owning Host object.
+
+        The above call returns a VM object which may then be used
+        to manipulate the associated virtual machine using any of
+        the methods of the VM class. For example,
+            $vm power_on
+        will power on the virtual machine. The supported methods
+        include commands to manipulate system state, copy files to and
+        from the virtual machine, start programs and so on.
+
+        There are some additional important points to be noted about using
+        these methods. See the documentation of the
+        VM.wait_for_tools and VM.login for details.
+        
+        When no longer needed, the objects should be destroyed.
+           $vm destroy
+           host destroy
+        Note that this does *not* change the state of the VMware host
+        or the virtual machines themselves.
+    }
+
     proc initialize {} {
+        # Initializes the vix package
+        #
+        # This command initializes internal resources used for interfacing
+        # to VMware hosts. It must be called before using any other commands
+        # from the package.
+
         variable Vix
         
         if {![info exists Vix]} {
@@ -12,6 +97,14 @@ namespace eval vix {
     }
 
     proc finalize {} {
+        # Finalizes the vix package
+        #
+        # This command must be called after finishing with the use
+        # of the vix package to release internal resources. Before
+        # calling this command, all vix objects should have been destroyed.
+        #
+        # Once this command returns, the initialize command must be called
+        # before the application makes use of the package again.
         variable Vix
         if {[info exists Vix]} {
             $Vix destroy
@@ -1129,8 +1222,25 @@ namespace eval vix {
 }
 
 proc vix::generate_docs {} {
+    variable _ruffdoc
+
     package require ruff
-    set docs [ruff::extract [namespace current]::* -includeclasses 1 -includeprocs 0]
-    return [ruff::document html $docs "" -preamble [dict create ::vix [list {Vix reference} [ruff::extract_docstring {This is a Tcl interface for VIX}]]]]
+
+    set ns [namespace current]
+
+    # We do not want to document all commands as some are internal so
+    # we use the low level Woof calls to extract relevant documentation.
+    set docs [ruff::extract ${ns}::* -includeclasses 1 -includeprocs 0]
+    set procs [list \
+                   ${ns}::initialize [ruff::extract_proc ${ns}::initialize] \
+                   ${ns}::finalize [ruff::extract_proc ${ns}::finalize]]
+    dict set docs procs $procs
+#    return [ruff::document html $docs "" -preamble [dict create ::vix [list {Vix reference} [ruff::extract_docstring {This is a Tcl interface for VIX}]]]]
+    set preamble [dict create]
+    foreach {section docstring} $_ruffdoc {
+        dict lappend preamble $ns $section [ruff::extract_docstring $docstring]
+    }
+    return [ruff::document html $docs "" -preamble $preamble]
 }
 
+package provide vix 0.1
