@@ -207,7 +207,7 @@ oo::class create vix::Host {
     method disconnect {{force 0}} {
         # Disconnects the object from the associated VMware host.
         #
-        # force - if 0 (default), an error is raised if any associated
+        # force - if 0, an error is raised if any associated
         #   VM objects exist. If 1, the associated VM objects
         #   are forcibly destroyed before disconnecting.
         #
@@ -250,7 +250,7 @@ oo::class create vix::Host {
 
         set guest [VM create guest#[incr NameCounter] [wait_for_result [$Host OpenVM $vm_path 0]]]
         set VMs($guest) $vm_path
-        trace add command $guest {rename delete} [list [self] _trace_VM]
+        trace add command $guest {rename delete} [list [self] trace_VM]
         return $guest
     }
 
@@ -288,7 +288,9 @@ oo::class create vix::Host {
         return [wait_for_properties [$Host FindItems [VIX_FIND_RUNNING_VMS] 0 -1 0] [VIX_PROPERTY_FOUND_ITEM_LOCATION]]
     }
 
-    method _trace_VM {oldname newname op} {
+    method trace_VM {oldname newname op} {
+        # Internal command to track virtual machines. Do not call directly.
+
         if {$oldname eq $newname || ![info exists VMs($oldname)]} {
             return
         }
@@ -297,7 +299,6 @@ oo::class create vix::Host {
         }
         unset VMs($oldname)
     }
-    export _trace_guest
 
 }
 
@@ -324,6 +325,18 @@ oo::class create vix::VM {
     }
 
     method power_on {args} {
+        # Powers on the associated virtual machine.
+        #
+        # -showui BOOLEAN - If true (default), the user interface
+        #   is displayed on Workstation and Player VMware hosts.
+        #   If false, the user interface is not shown.
+        #
+        # The associated virtual machine is powered on or resumed
+        # from a suspended state. Note that after powering on
+        # commands that require the use of VMware Tools on the
+        # virtual machine should not be used until the latter is
+        # up and running. The command wait_for_tools can be used
+        # for this purpose.
         twapi::parseargs args {
             {showui.bool 1}
         } -setvars -maxleftover 0
@@ -333,20 +346,75 @@ oo::class create vix::VM {
                                  0 0]
     }
     method shutdown {} {
+        # Shuts down the associated virtual machine.
+        #
+        # The virtual machine, which must be in a running state,
+        # is shut down cleanly using the running
+        # operating system. This is in contrast to the power_off method.
+        #
+        # The command requires VMware Tools to be running on the virtual 
+        # machine.
         wait_for_completion [$Guest PowerOff [VIX_VMPOWEROP_FROM_GUEST] 0]
     }
 
     method power_off {} {
+        # Powers off the associated virtual machine.
+        #
+        # The virtual machine, which must have been powered on, is turned
+        # off with the equivalent of a hardware switch. Unlike
+        # the shutdown method, the virtual machine's operating system 
+        # is not involved and VMware Tools need not be running on it.
         wait_for_completion [$Guest PowerOff [VIX_VMPOWEROP_NORMAL] 0]
     }
 
-    method wait_for_tools {{timeout 0}} {
+    method wait_for_tools {{timeout 10}} {
+        # Waits for VMware Tools to be running in the virtual machine.
+        # 
+        # timeout - specifies a timeout in seconds to wait. If the tools
+        #   are not running within this time, the command completes with
+        #   an error. A 0 or negative value indicates an indefinite wait.
+        #   Default value is 10 seconds.
+        #
+        # Several VM methods require VMware Tools to be running.
+        # An application can call this method to wait for this. Generally
+        # this is only required after powering on or resuming a virtual
+        # machine.
+        
         wait_for_completion [$Guest WaitForToolsInGuest $timeout 0]
     }
 
     method login {username password args} {
+        # Establishes a login context on the associated virtual machine.
+        #
+        # username - the login account name
+        # password - the password for the account
+        # -interactive BOOLEAN - Indicates whether the login session
+        #  requires an interactive context. See more below.
+        #
+        # Several VM operations, for example the ones for files,
+        # require a login context on the virtual machine. This method
+        # establishes such a context. The virtual machine operating
+        # system will enforce access permissions based on this context.
+        #
+        # The method may be called multiple times to change the login
+        # context. To invalidate the context, use the logout method.
+        #
+        # By default, the login context does not have an interactive
+        # desktop associated with it. Specifying the -interactive option
+        # as true will create such a interactive context which may be
+        # required for executing programs with a graphical user interface
+        # with the run method. However, note that creation of an interactive 
+        # context requires the same user to be currently logged in
+        # to the virtual machine console.
+        #
+        # Note that not all guest operating systems are supported by the login
+        # method. Moreover, Linux virtual machines must be running X11 for
+        # interactive contexts.
+        #
+        # This method requires VMWare Tools to be running in the virtual
+        # machine.
         twapi::parseargs args {
-            {interactive.bool 1}
+            {interactive.bool 0}
         } -setvars -maxleftover 0
         wait_for_completion \
             [$Guest LoginInGuest $username $password \
@@ -355,30 +423,97 @@ oo::class create vix::VM {
     }
 
     method logout {} {
+        # Logs out of a login context
+        #
+        # The current context created with the login method is closed.
+        # Any methods that require a user context on the virtual machine
+        # should not be called until a new context is reestablished.
+        #
+        # This method requires VMWare Tools to be running in the virtual
+        # machine.
         wait_for_completion [$Guest LogoutFromGuest 0]
     }
 
     method getenv {envvar} {
+        # Returns the value of an environment variable in the virtual machine
+        # envvar - name of the environment variable
+        #
+        # The method returns the value of the specified environment variable
+        # in the virtual machine or the empty string if it is not defined.
+        #
+        # This method requires a user login context to have been established and
+        # the returned value is based on that user context.
+        
         return [wait_for_result \
                     [$Guest ReadVariable [VIX_GUEST_ENVIRONMENT_VARIABLE] $envvar 0 0] \
                     VIX_PROPERTY_JOB_RESULT_VM_VARIABLE_STRING]
     }
 
     method setenv {envvar val} {
+        # Sets the value of an environment variable in the virtual machine
+        # envvar - name of the environment variable
+        # val - value to set for the variable
+        #
+        # The method sets the value of the specified environment variable
+        # in the virtual machine.
+        #
+        # This method requires a user login context to have been established and
+        # the returned value is based on that user context. The scope
+        # of the set environment variable in the virtual machine is dependent
+        # on its operating system.
+
         wait_for_completion [$Guest WriteVariable [VIX_GUEST_ENVIRONMENT_VARIABLE] $envvar $val 0 0]
     }
 
-    method copy_to_host {guest_path host_path} {
+    method copy_from_vm {guest_path local_path} {
+        # Copies a file or directory from the virtual machine.
+        # guest_path - file or directory path in the guest virtual machine.
+        #  This must be an absolute path in a format valid for the guest
+        #  operating system.
+        # local_path - target local file path where the file or directory is
+        #  to be copied
+        #
+        # The method copies a file or a directory tree from the
+        # virtual machine to the local file system
+        # overwriting existing files and merging directories.
+        # Errors may result in partial copies.
+        #
+        # This method requires a login context to have been established.
+        
         check_path $guest_path
         wait_for_completion [$Guest CopyFileFromGuestToHost $guest_path $host_path 0 0 0]
+
     }
 
-    method copy_to_vm {host_path guest_path} {
+    method copy_to_vm {local_path guest_path} {
+        # Copies a file or directory to the virtual machine.
+        # local_path - target local file path where the file or directory is
+        #  to be copied
+        # guest_path - file or directory path in the guest virtual machine.
+        #  This must be an absolute path in a format valid for the guest
+        #  operating system.
+        #
+        # The method copies a file or a directory tree from the local
+        # file system to the
+        # virtual machine, overwriting existing files and merging directories.
+        # Errors may result in partial copies.
+        #
+        # This method requires a login context to have been established.
+        
         check_path $guest_path
-        wait_for_completion [$Guest CopyFileFromHostToGuest $host_path $guest_path 0 0 0]
+        wait_for_completion [$Guest CopyFileFromHostToGuest $local_path $guest_path 0 0 0]
     }
 
     method mkdir {path} {
+        # Creates a new directory in the virtual machine
+        # path - directory path in the guest virtual machine.
+        #  This must be an absolute path in a format valid for the guest
+        #  operating system.
+        #
+        # The directory is created if it does not exist. It is not an
+        # error for the directory to already exist.
+        #
+        # This method requires a login context to have been established.
         check_path $path
         twapi::trap {
             wait_for_completion [$Guest CreateDirectoryInGuest $path 0 0]
@@ -388,6 +523,16 @@ oo::class create vix::VM {
     }
 
     method rmdir {path} {
+        # Deletes a directory in the virtual machine
+        # path - directory path in the guest virtual machine.
+        #  This must be an absolute path in a format valid for the guest
+        #  operating system.
+        #
+        # The entire tree under the specified directory is deleted. It is not an
+        # error if the directory does not exist.
+        #
+        # This method requires a login context to have been established.
+
         check_path $path
         twapi::trap {
             wait_for_completion [$Guest DeleteDirectoryInGuest $path 0 0]
@@ -396,7 +541,16 @@ oo::class create vix::VM {
         }
     }
 
-    method delete_file {path} {
+    method rmfile {path} {
+        # Deletes a file in the virtual machine
+        # path - file path in the guest virtual machine.
+        #  This must be an absolute path in a format valid for the guest
+        #  operating system.
+        #
+        # The specified file is deleted. It is not an
+        # error if it does not exist.
+        #
+        # This method requires a login context to have been established.
         check_path $path
         twapi::trap {
             wait_for_completion [$Guest DeleteFileInGuest $path 0]
@@ -406,6 +560,15 @@ oo::class create vix::VM {
     }
 
     method isdir {path} {
+        # Check if the specified path is a directory
+        # path - directory path in the virtual machine.
+        #  This must be an absolute path in a format valid for the guest
+        #  operating system.
+        #
+        # Returns 1 if the specified path is a directory and false otherwise.
+        #
+        # This method requires a login context to have been established.
+
         check_path $path
         return [wait_for_result \
                     [$Guest DirectoryExistsInGuest $path 0] \
@@ -413,38 +576,96 @@ oo::class create vix::VM {
     }        
 
     method isfile {path} {
+        # Check if the specified path is a regular file.
+        # path - file path in the virtual machine.
+        #  This must be an absolute path in a format valid for the guest
+        #  operating system.
+        #
+        # Returns 1 if the specified path is a regular file
+        # and false otherwise.
+        #
+        # Note in particular that the method will return 0 even in the
+        # case that the path exists but is not a regular file, such as
+        # a directory or a device.
+        #
+        # This method requires a login context to have been established.
         check_path $path
         return [wait_for_result \
                     [$Guest FileExistsInGuest $path 0] \
                     VIX_PROPERTY_JOB_RESULT_GUEST_OBJECT_EXISTS]
     }        
 
-    method file_info {path} {
+    method fstat {path} {
+        # Returns information about a file or directory.
+        # path - file path in the virtual machine.
+        #  This must be an absolute path in a format valid for the guest
+        #  operating system.
+        #
+        # The returned value is a quadruple containing the size of the file
+        # (0 if it is a directory), the last modification time in seconds
+        # since the epoch, a boolean value that indicates if the path is a
+        # directory and a boolean value that indicates if the path is a
+        # symbolic link.
+        #
+        # This method requires a login context to have been established.
+
         check_path $path
         lassign [wait_for_results \
                      [$Guest GetFileInfoInGuest $path 0] \
                      VIX_PROPERTY_JOB_RESULT_FILE_SIZE \
-                     VIX_PROPERTY_JOB_RESULT_FILE_FLAGS \
-                     VIX_PROPERTY_JOB_RESULT_FILE_MOD_TIME] \
-            size flags time
-        return [list size $size time $time \
-                    directory [expr {($flags & [VIX_FILE_ATTRIBUTES_DIRECTORY]) != 0}] \
-                    symlink [expr {($flags & [VIX_FILE_ATTRIBUTES_SYMLINK]) != 0}]]
+                     VIX_PROPERTY_JOB_RESULT_FILE_MOD_TIME \
+                     VIX_PROPERTY_JOB_RESULT_FILE_FLAGS] \
+            size time flags
+        return [list $size $time \
+                    [expr {($flags & [VIX_FILE_ATTRIBUTES_DIRECTORY]) != 0}] \
+                    [expr {($flags & [VIX_FILE_ATTRIBUTES_SYMLINK]) != 0}]]
     }
 
-    method temp_file {} {
+    method tempfile {} {
+        # Creates a temporary file in the virtual machine.
+        #
+        # Creates a temporary file in the virtual machine. The deletion
+        # of the file, if required, is up to the application.
+        #
+        # Returns the full path to the created file.
+        #
+        # This method requires a login context to have been established.
         return [wait_for_result \
                     [$Guest CreateTempFileInGuest 0 0 0] \
                     VIX_PROPERTY_JOB_RESULT_ITEM_NAME]
     }
 
     method rename {from to} {
+        # Renames a file or directory in the virtual machine.
+        # from - absolute file path in the virtual machine.
+        # to - absolute file path in the virtual machine.
+        #
+        # This method requires a login context to have been established.
+
         check_path $from
         check_path $to
         wait_for_completion [$Guest RenameFileInGuest $from $to 0 0 0]
     }
 
     method dir {path args} {
+        # Returns the contents of a directory in the virtual machine.
+        # path - absolute directory path in the virtual machine.
+        # -details BOOLEAN - by default, the method returns a list
+        #   of names. If this option is specified as true, the
+        #   details of each directory entry is returned.
+        #
+        # The method reads the contents of a directory in the virtual machine.
+        # If -details is unspecified or is false, the return value is a list
+        # of directory entry names. If -details is specified as true,
+        # the returned value is a list of quintuples containing name of the
+        # directory entry, its size
+        # (0 if it is a directory), the last modification time in seconds
+        # since the epoch, a boolean value that indicates if the path is a
+        # directory and a boolean value that indicates if the path is a
+        # symbolic link.
+        #
+        # This method requires a login context to have been established.
+
         twapi::parseargs args {{details.bool 0}} -setvars -maxleftover 0
         check_path $path
         set job [$Guest ListDirectoryInGuest $path 0 0]
@@ -468,21 +689,41 @@ oo::class create vix::VM {
     }
 
     method pids {} {
+        # Returns a list of process ids running in the virtual machine.
+        #
+        # This method requires a login context to have been established.
         return [wait_for_properties [$Guest ListProcessesInGuest 0 0] [VIX_PROPERTY_JOB_RESULT_PROCESS_ID]]
     }
 
     method processes {} {
+        # Returns detailed information about the processes running in
+        # the virtual machine.
+        #
+        # The return value is a list of sextuples containing
+        #
+        #  - the process id
+        #  - image name
+        #  - account
+        #  - command line,
+        #  - the process start time (in seconds since the epoch), and
+        #  - an indication if the process
+        #    is running under a debugger (only on Windows virtual machines).
+        #
+        # This method requires a login context to have been established.
+
         return [wait_for_properties \
                     [$Guest ListProcessesInGuest 0 0] \
                     [VIX_PROPERTY_JOB_RESULT_PROCESS_ID] \
                     [VIX_PROPERTY_JOB_RESULT_ITEM_NAME] \
                     [VIX_PROPERTY_JOB_RESULT_PROCESS_OWNER] \
                     [VIX_PROPERTY_JOB_RESULT_PROCESS_COMMAND] \
-                    [VIX_PROPERTY_JOB_RESULT_PROCESS_BEING_DEBUGGED] \
-                    [VIX_PROPERTY_JOB_RESULT_PROCESS_START_TIME]]
+                    [VIX_PROPERTY_JOB_RESULT_PROCESS_START_TIME] \
+                    [VIX_PROPERTY_JOB_RESULT_PROCESS_BEING_DEBUGGED]]
     }            
 
     method kill {pid} {
+        # Terminates a process in the virtual machine.
+        #  pid - process id of the process to be terminated
         wait_for_completion [$Guest KillProcessInGuest $pid 0 0]
     }
 }
@@ -886,3 +1127,10 @@ namespace eval vix {
     unset _vixdefine
     unset _vixvalue
 }
+
+proc vix::generate_docs {} {
+    package require ruff
+    set docs [ruff::extract [namespace current]::* -includeclasses 1 -includeprocs 0]
+    return [ruff::document html $docs "" -preamble [dict create ::vix [list {Vix reference} [ruff::extract_docstring {This is a Tcl interface for VIX}]]]]
+}
+
