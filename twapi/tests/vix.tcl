@@ -84,13 +84,38 @@ namespace eval vix {
         return
     }
 
+    proc wait_for_properties {job args} {
+        # args is list of property ids (integer)
+        # Returns nested list if more than one arg
+        set values {}
+        twapi::trap {
+            wait_for_completion $job 1
+            set count [$job GetNumProperties [lindex $args 0]]
+            set proparr [twapi::safearray i4 $args]
+            for {set i 0} {$i < $count} {incr i} {
+                set results [twapi::vt_null]
+                set err [$job GetNthProperties $i $proparr results]
+                check_error $err
+                if {[llength $args] == 1} {
+                    lappend values [lindex [twapi::variant_value $results 0 0 0] 0]
+                } else {
+                    lappend values [twapi::variant_value $results 0 0 0]
+                }
+            }
+        } finally {
+            $job -destroy
+        }
+
+        return $values
+    }
+
     proc pick {cond {a 1} {b 0}} {
         return [expr {$cond ? $a : $b}]
     }
 }
 
 oo::class create vix::Host {
-    variable Opts Host Guests NameCounter
+    variable Opts Host VMs NameCounter
     constructor args {
         # Class representing a host system running VMware software
         #
@@ -145,6 +170,11 @@ oo::class create vix::Host {
     }
 
     destructor {
+        # Disconnects from the VMware host
+        #
+        # After destroying a Host object, the application should not
+        # attempt to access related VM objects.
+
         my disconnect 1
         if {[info exists Host]} {
             $Host Disconnect
@@ -178,11 +208,11 @@ oo::class create vix::Host {
         # Disconnects the object from the associated VMware host.
         #
         # force - if 0 (default), an error is raised if any associated
-        #   Guest objects exist. If 1, the associated Guest objects
+        #   VM objects exist. If 1, the associated VM objects
         #   are forcibly destroyed before disconnecting.
         #
-        # The application should normally ensure that all Guest objects 
-        # associated with this host have been closed.
+        # The application should normally ensure that all VM objects 
+        # associated with this host have been closed before calling disconnect.
         #
         # The connect method may be called to reestablish the connection.
 
@@ -190,11 +220,11 @@ oo::class create vix::Host {
             return
         }
 
-        if {[array size Guests]} {
+        if {[array size VMs]} {
             if {! $force} {
                 error "Cannot disconnect until all guest system objects are closed."
             }
-            foreach guest [array names Guests] {
+            foreach guest [array names VMs] {
                 catch {$guest destroy}
             }
         }
@@ -205,28 +235,86 @@ oo::class create vix::Host {
     }
 
     method open {vm_path} {
-        set guest [Guest create guest#[incr NameCounter] [wait_for_result [$Host OpenVM $vm_path 0]]]
-        set Guests($guest) $vm_path
-        trace add command $guest {rename delete} [list [self] _trace_guest]
+        # Returns a VM object representing a virtual machine
+        # on this VMware host
+        #
+        # vm_path - absolute path to the VMX file for the virtual machine
+        #  on the VMware host. The path must be in the syntax expected
+        #  by the VMware host operating system.
+        #
+        # The methods of the returned VM object may be used to interact with
+        # the corresponding virtual machine.
+        #
+        # For VMware server and ESX/ESXi hosts, the virtual machine
+        # must have been registered.
+
+        set guest [VM create guest#[incr NameCounter] [wait_for_result [$Host OpenVM $vm_path 0]]]
+        set VMs($guest) $vm_path
+        trace add command $guest {rename delete} [list [self] _trace_VM]
         return $guest
     }
 
-    method _trace_guest {oldname newname op} {
-        if {$oldname eq $newname || ![info exists Guests($oldname)]} {
+    method register {vm_path} {
+        # Registers a virtual machine with a VMware host
+        #
+        # vm_path - absolute path to the VMX file for the virtual machine
+        #  on the VMware host. The path must be in the syntax expected
+        #  by the VMware host operating system.
+        #
+        # For VMware Server and ESX/ESXi hosts, a virtual machine must be 
+        # registered before it can be accessed with the open call.
+        # For other VMware host types, this call is ignored.
+        # Registration is a one-time operation and may also be done
+        # through the VMware command line or user interface.
+
+        wait_for_completion [$Host RegisterVM $vm_path 0]
+    }
+
+    method unregister {vm_path} {
+        # Unregisters a virtual machine with a VMware host.
+        #
+        # vm_path - absolute path to the VMX file for the virtual machine
+        #  on the VMware host. The path must be in the syntax expected
+        #  by the VMware host operating system.
+        #
+        # For VMware Server and ESX/ESXi hosts, a virtual machine must be 
+        # registered before it can be accessed with the open call. This
+        # method removes a registered VM from the host inventory.
+
+        wait_for_completion [$Host UnregisterVM $vm_path 0]
+    }
+
+    method running_vms {} {
+        return [wait_for_properties [$Host FindItems [VIX_FIND_RUNNING_VMS] 0 -1 0] [VIX_PROPERTY_FOUND_ITEM_LOCATION]]
+    }
+
+    method _trace_VM {oldname newname op} {
+        if {$oldname eq $newname || ![info exists VMs($oldname)]} {
             return
         }
         if {$op eq "rename"} {
-            set Guests($newname) $Guests($oldname)
+            set VMs($newname) $VMs($oldname)
         }
-        unset Guests($oldname)
+        unset VMs($oldname)
     }
     export _trace_guest
+
 }
 
-oo::class create vix::Guest {
+oo::class create vix::VM {
     variable Guest
 
     constructor {comobj} {
+        # Represents a virtual machine on a VMware host.
+        #
+        # Objects of this class should not be created directly.
+        # They are returned by the open method of an Host object.
+        #
+        # The methods of this class allow invoking of various operations
+        # on the associated virtual machine.
+        #
+        # The associated VM may or may not be running.
+        
         namespace path [linsert [namespace path] end [namespace qualifiers [self class]]]
         set Guest $comobj
     }
@@ -285,7 +373,7 @@ oo::class create vix::Guest {
         wait_for_completion [$Guest CopyFileFromGuestToHost $guest_path $host_path 0 0 0]
     }
 
-    method copy_to_guest {host_path guest_path} {
+    method copy_to_vm {host_path guest_path} {
         check_path $guest_path
         wait_for_completion [$Guest CopyFileFromHostToGuest $host_path $guest_path 0 0 0]
     }
@@ -399,6 +487,7 @@ oo::class create vix::Guest {
         twapi::parseargs args {{details.bool 0}} -setvars -maxleftover 0
         set values {}
         set job [$Guest ListProcessesInGuest 0 0]
+
         twapi::trap {
             wait_for_completion $job 1
             set count [$job GetNumProperties [VIX_PROPERTY_JOB_RESULT_ITEM_NAME]]
