@@ -447,78 +447,40 @@ oo::class create vix::VM {
     method dir {path args} {
         twapi::parseargs args {{details.bool 0}} -setvars -maxleftover 0
         check_path $path
-        set values {}
         set job [$Guest ListDirectoryInGuest $path 0 0]
-        twapi::trap {
-            wait_for_completion $job 1
-            set count [$job GetNumProperties [VIX_PROPERTY_JOB_RESULT_ITEM_NAME]]
-            if {$details} {
-                set proparr [twapi::safearray i4 \
-                                 [list \
-                                      [VIX_PROPERTY_JOB_RESULT_ITEM_NAME] \
-                                      [VIX_PROPERTY_JOB_RESULT_FILE_SIZE] \
-                                      [VIX_PROPERTY_JOB_RESULT_FILE_FLAGS] \
-                                      [VIX_PROPERTY_JOB_RESULT_FILE_MOD_TIME]]]
-            } else {
-                set proparr [twapi::safearray i4 [list [VIX_PROPERTY_JOB_RESULT_ITEM_NAME]]]
-            }
-            for {set i 0} {$i < $count} {incr i} {
-                set results [twapi::vt_null]
-                set err [$job GetNthProperties $i $proparr results]
-                check_error $err
-                if {$details} {
-                    lassign [twapi::variant_value $results 0 0 0] name size flags time
-                    lappend values \
-                        [list name $name size $size time $time \
-                             directory [expr {($flags & [VIX_FILE_ATTRIBUTES_DIRECTORY]) != 0}] \
-                             symlink [expr {($flags & [VIX_FILE_ATTRIBUTES_SYMLINK]) != 0}]]
-                } else {
-                    lappend values [lindex [twapi::variant_value $results 0 0 0] 0]
-                }
-            }
-        } finally {
-            $job -destroy
+        if {! $details} {
+            return [wait_for_properties $job \
+                        [VIX_PROPERTY_JOB_RESULT_ITEM_NAME]]
         }
 
-        return $values
-    }
-
-    method processes {args} {
-        twapi::parseargs args {{details.bool 0}} -setvars -maxleftover 0
-        set values {}
-        set job [$Guest ListProcessesInGuest 0 0]
-
-        twapi::trap {
-            wait_for_completion $job 1
-            set count [$job GetNumProperties [VIX_PROPERTY_JOB_RESULT_ITEM_NAME]]
-            if {$details} {
-                set proparr [twapi::safearray i4 \
-                                 [list \
-                                      [VIX_PROPERTY_JOB_RESULT_ITEM_NAME] \
-                                      [VIX_PROPERTY_JOB_RESULT_PROCESS_ID] \
-                                      [VIX_PROPERTY_JOB_RESULT_PROCESS_OWNER] \
-                                      [VIX_PROPERTY_JOB_RESULT_PROCESS_COMMAND] \
-                                      [VIX_PROPERTY_JOB_RESULT_PROCESS_BEING_DEBUGGED] \
-                                      [VIX_PROPERTY_JOB_RESULT_PROCESS_START_TIME]]]
-            } else {
-                set proparr [twapi::safearray i4 [list [VIX_PROPERTY_JOB_RESULT_PROCESS_ID]]]
-            }
-            for {set i 0} {$i < $count} {incr i} {
-                set results [twapi::vt_null]
-                set err [$job GetNthProperties $i $proparr results]
-                check_error $err
-                if {$details} {
-                    lappend values [twapi::twine {name pid owner command debugged start_time} [twapi::variant_value $results 0 0 0]]
-                } else {
-                    lappend values [lindex [twapi::variant_value $results 0 0 0] 0]
-                }
-            }
-        } finally {
-            $job -destroy
+        set contents {}
+        foreach entry [wait_for_properties $job  \
+                           [VIX_PROPERTY_JOB_RESULT_ITEM_NAME] \
+                           [VIX_PROPERTY_JOB_RESULT_FILE_SIZE] \
+                           [VIX_PROPERTY_JOB_RESULT_FILE_MOD_TIME] \
+                           [VIX_PROPERTY_JOB_RESULT_FILE_FLAGS]] {
+            set isdir [expr {([lindex $entry 3] & [VIX_FILE_ATTRIBUTES_DIRECTORY]) != 0}]
+            set islink [expr {([lindex $entry 3] & [VIX_FILE_ATTRIBUTES_SYMLINK]) != 0}]
+            lappend contents [lreplace $entry 3 3 $isdir $islink]
         }
 
-        return $values
+        return $contents
     }
+
+    method pids {} {
+        return [wait_for_properties [$Guest ListProcessesInGuest 0 0] [VIX_PROPERTY_JOB_RESULT_PROCESS_ID]]
+    }
+
+    method processes {} {
+        return [wait_for_properties \
+                    [$Guest ListProcessesInGuest 0 0] \
+                    [VIX_PROPERTY_JOB_RESULT_PROCESS_ID] \
+                    [VIX_PROPERTY_JOB_RESULT_ITEM_NAME] \
+                    [VIX_PROPERTY_JOB_RESULT_PROCESS_OWNER] \
+                    [VIX_PROPERTY_JOB_RESULT_PROCESS_COMMAND] \
+                    [VIX_PROPERTY_JOB_RESULT_PROCESS_BEING_DEBUGGED] \
+                    [VIX_PROPERTY_JOB_RESULT_PROCESS_START_TIME]]
+    }            
 
     method kill {pid} {
         wait_for_completion [$Guest KillProcessInGuest $pid 0 0]
