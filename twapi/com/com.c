@@ -503,7 +503,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                 /* Yes return status is success, pick up return value */
                 /* We Release all VT_DISPATCH and VT_UNKNOWN when exiting
                    to match the AddRef in TwapiMakeVariantParam. Since we
-                   are holding on to this one, make an extra AddRef */
+                   are holding on to this one, must make an extra AddRef */
                 if (dispargP[nparams].vt == VT_DISPATCH ||
                     dispargP[nparams].vt == VT_UNKNOWN) {
                     if (dispargP[nparams].punkVal != NULL)
@@ -542,11 +542,28 @@ int Twapi_IDispatch_InvokeObjCmd(
             if (paramflagsP[j] & PARAMFLAG_FOUT) {
                 if (Tcl_ObjSetVar2(interp, objv[i], NULL, ObjFromVARIANT(&dispargP[j], 0), TCL_LEAVE_ERR_MSG) == NULL)
                     goto vamoose;
-                /* See comment above regarding AddRef */
-                if (dispargP[j].vt == VT_DISPATCH ||
-                    dispargP[j].vt == VT_UNKNOWN) {
-                    if (dispargP[j].punkVal != NULL)
+                /* See comment above regarding AddRef. If we are getting
+                   back I* interface pointers, AddRef them to negate the
+                   Release when we exit the routine */
+                switch (dispargP[j].vt) {
+                case VT_DISPATCH:
+                case VT_UNKNOWN:
+                    if (dispargP[j].punkVal)
                         dispargP[j].punkVal->lpVtbl->AddRef(dispargP[j].punkVal);
+                    break;
+                case VT_BYREF|VT_DISPATCH:
+                case VT_BYREF|VT_UNKNOWN:
+                    if (dispargP[j].ppunkVal && *dispargP[j].ppunkVal)
+                        (*dispargP[j].ppunkVal)->lpVtbl->AddRef(*dispargP[j].ppunkVal);
+                    break;
+                case VT_BYREF|VT_VARIANT:
+                    if (dispargP[j].pvarVal &&
+                        (dispargP[j].pvarVal->vt == VT_DISPATCH ||
+                         dispargP[j].pvarVal->vt == VT_UNKNOWN) && 
+                        dispargP[j].pvarVal->punkVal) {
+                        dispargP[j].pvarVal->punkVal->lpVtbl->AddRef(dispargP[j].pvarVal->punkVal);
+                    }
+                    break;
                 }
             }
         }
@@ -867,7 +884,9 @@ int Twapi_ITypeLib_GetLibAttr(Tcl_Interp *interp, ITypeLib *tlP)
  * To deal with these, we 
  * AddRef interfaces here and then clear them after an Invoke if the
  * the variant type is still VT_UNKNOWN or VT_DISPATCH (if the COM
- * component, clears them itself, the type will be VT_EMPTY).
+ * component, clears them itself, the type will be VT_EMPTY). Also
+ * see comments related to AddRef in InvokeObjCmd for another piece
+ * of the puzzle dealing with INOUT and OUT pointers.
  */
 int TwapiMakeVariantParam(
     Tcl_Interp *interp,
@@ -1067,9 +1086,7 @@ int TwapiMakeVariantParam(
      */
     if (! (*paramflagsP & PARAMFLAG_FIN)) {
         /* PARAMFLAG_OUT only. */
-        // TBD - should we init to VT_EMPTY ?
-        V_VT(targetP) = VT_I4;
-        V_I4(targetP) = 0;
+        V_VT(targetP) = VT_EMPTY;
     } else {
         /* IN or INOUT */
         if (*paramflagsP & PARAMFLAG_FOUT) {
@@ -1139,9 +1156,9 @@ int TwapiMakeVariantParam(
     if (vt & VT_BYREF) {
         if (vt == (VT_BYREF|VT_VARIANT)) {
             /* Variant refs are special cased since the target
-             * vt is a base type and the primary vt should be VT_BYREF|VARIANT
+             * vt is a base type and the primary vt should be VT_BYREF|VARIANT.
              */
-            V_VT(varP) = vt;
+            V_VT(varP) = (VT_BYREF|VT_VARIANT);
             V_VARIANTREF(varP) = targetP;
         } else if (vt & VT_ARRAY) {
             V_VT(varP) = V_VT(targetP) | VT_BYREF;
@@ -1149,6 +1166,17 @@ int TwapiMakeVariantParam(
         } else {
             V_VT(varP) = V_VT(targetP) | VT_BYREF;
             switch (V_VT(targetP)) {
+            case VT_EMPTY:
+                /* Output parameters' target set to VT_EMPTY. Correspondingly
+                   set the varP to BYREF|VARIANT since BYREF|EMPTY is illegal
+                   TBD - should we maybe instead it to whatever the output
+                   parameter type is instead? In that case, would need
+                   to initialize targetP->vt and corresponding fields
+                   in the pure output parameter case above.
+                */
+                V_VT(varP) = (VT_BYREF|VT_VARIANT);
+                V_VARIANTREF(varP) = targetP;
+                break;
             case VT_I2:
                 V_I2REF(varP) = &V_I2(targetP);
                 break;
