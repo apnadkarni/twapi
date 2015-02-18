@@ -775,7 +775,12 @@ whether the user selected for the credentials to be saved or not.
 [nl]
 The following options may be specified:
 [list_begin opt]
-[opt_def [cmd -expectconfirmation]] option lets the manager know the application
+[opt_def [cmd -expectconfirmation] [arg BOOLEAN]]
+The credentials manager can persist credentials that are valid so they can be
+returned later without prompting the user. The application needs
+to inform it whether the returned credentials are valid or not by calling
+[uri #confirm_credentials [cmd confirm_credentials]]. When [const true],
+the option lets the manager know the application
 will call [cmd confirm_credentials] after verifying credentials. If
 [const false], the credentials manager will not hold on to the credentials
 and [cmd confirm_credentials] need not be called. Generally,
@@ -806,11 +811,6 @@ Specifies the type of credentials. [arg TARGETTYPE] must be
 [const generic] (default) or [const domain].
 [opt_def [cmd -username] [arg USERNAME]]
 The user name to display as the default. Defaults to the empty string.
-[opt_def [cmd -expectconfirmation] [arg BOOLEAN]]
-The credentials manager can persist credentials that are valid so they can be
-returned later without prompting the user. The application needs
-to inform it whether the returned credentials are valid or not by calling
-[uri #confirm_credentials [cmd confirm_credentials]]. When [const true],
 [list_end]
 
 The command [uri #credentials_dialog [cmd credentials_dialog]] provides
