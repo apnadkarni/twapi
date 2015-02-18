@@ -44,7 +44,7 @@ namespace eval twapi::base::test {
         Get TWAPI version patchlevel
     } -body {
         twapi::get_version -patchlevel
-    } -result 4.1b19
+    } -result 4.1b22
 
     ################################################################
 
@@ -1965,9 +1965,9 @@ namespace eval twapi::base::test {
     ################################################################
 
     if {$::tcl_platform(machine) eq "amd64"} {
-        set rctest_dll "rctest64.dll"
+        set rctest_dll [file join [testdir] "rctest64.dll"]
     } else {
-        set rctest_dll "rctest.dll"
+        set rctest_dll [file join [testdir] "rctest.dll"]
     }
 
     test load_library-1.0 {
