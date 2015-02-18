@@ -1895,6 +1895,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         IProvideClassInfo2 *provideclassinfo2;
         ITypeComp *typecomp;
         IPersistFile *persistfile;
+        IVixHandle *vixh;
     } ifc;
     HRESULT hr;
     TwapiResult result;
@@ -1916,6 +1917,8 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
     int func = PtrToInt(clientdata);
     Tcl_Obj *sObj;
     struct TwapiBlanket blanket;
+    VARIANT var, var2;
+    ULONGLONG ull;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -2647,6 +2650,43 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 ifc.persistfile, ObjToUnicode(objv[1]));
             break;
         }
+    } else if (func < 5700) {
+        /* IVixHandle */
+        if (ObjToOpaque(interp, objv[0], (void **)&ifc.vixh,
+                        "IVixHandle") != TCL_OK)
+            return TCL_ERROR;
+        switch (func) {
+        case 5601: // GetHandleType
+            if (objc != 1)
+                goto badargs;
+            hr = ifc.vixh->lpVtbl->GetHandleType(ifc.vixh, &result.value.ival);
+            if (hr != S_OK)
+                break;
+            result.type = TRT_DWORD;
+            break;
+        case 5602: // GetProperties
+            if (objc != 2)
+                goto badargs;
+            VariantInit(&var);
+            VariantInit(&var2);
+            if (ObjToVARIANT(interp, objv[1], &var, VT_ARRAY|VT_I4) != TCL_OK)
+                return TCL_ERROR;
+            hr = ifc.vixh->lpVtbl->GetProperties(ifc.vixh, var, &var2, &ull);
+            if (SUCCEEDED(hr)) {
+                result.type = TRT_OBJV;
+                result.value.objv.objPP = objs;
+                objs[0] = ObjFromULONGLONG(ull);
+                if (ull == 0) {
+                    result.value.objv.nobj = 2;
+                    objs[1] = ObjFromVARIANT(&var2, 0);
+                } else {
+                    result.value.objv.nobj = 1;
+                }
+            }
+            VariantClear(&var);
+            VariantClear(&var2);
+            break;
+        }
     } else {
         /* Commands that are not method calls on interfaces. These
            are here and not in twapi_calls.c because they make use
@@ -3036,6 +3076,9 @@ static int TwapiComInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(IPersistFile_Load, 5503),
         DEFINE_FNCODE_CMD(IPersistFile_Save, 5504),
         DEFINE_FNCODE_CMD(IPersistFile_SaveCompleted, 5505),
+
+        DEFINE_FNCODE_CMD(vixhandle_type, 5601),
+        DEFINE_FNCODE_CMD(vixhandle_properties, 5602),
 
         DEFINE_FNCODE_CMD(CreateFileMoniker, 10001),
         DEFINE_FNCODE_CMD(CreateBindCtx, 10002),
