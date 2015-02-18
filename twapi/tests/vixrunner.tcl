@@ -1,29 +1,76 @@
-package require vix
-vix::initialize
 package require twapi
-twapi::import_commands
+package require vix
 
+vix::initialize
+twapi::import_commands
+        
 array set Config {
-    target_tcl_dir c:/twapitest/tcl
+    target_test_dir c:/twapitest
+    virtual_machine_directory {C:/Virtual Machines}
 }
-set Config(source_test_dir) [file dirname [info script]]
+set Config(source_test_dir) [file dirname [file normalize [info script]]]
 set Config(source_root_dir) [file dirname [file dirname $Config(source_test_dir)]]
 
-proc config key {
+proc config {key args} {
+    if {[llength $args]} {
+        set ::Config($key) [lindex $args 0]
+    }
     return $::Config($key)
+}
+
+proc vm_path {os platform} {
+    dict for {name info} {
+        vm0-xpsp3 {
+            os xppro
+            platform x86
+        }
+        vm1-win8pro {
+            os win8pro
+            platform x86
+        }
+        vm2-w2k12r2 {
+            os w2k12r2
+            platform x64
+        }
+        vm3-win81pro {
+            os win81pro
+            platform x86
+        }
+    } {
+        if {[dict get $info os] eq $os &&
+            [dict get $info platform] eq $platform} {
+            return [file join [config virtual_machine_directory] $name ${name}.vmx]
+        }
+    }
+    error "No VM found matching OS=$os, platform=$platform"
+}
+
+
+proc tclkits {{ver 8.6} {platform x86}} {
+    set kitdir [file join $::Config(source_root_dir) tools tclkits]
+    switch -exact -- $ver {
+        8.6 { set ver 8.6.3 }
+        8.5 { set ver 8.5.17 }
+    }
+    return [list \
+                [file join $kitdir tclkit-cli-${ver}-${platform}.exe] \
+                [file join $kitdir tclkit-gui-${ver}-${platform}.exe]]
 }
 
 proc usertask {message} {
     # Make sure we are seen
     if {[info commands twapi::set_foreground_window] ne "" &&
         [info commands twapi::get_console_window] ne ""} {
-        twapi::set_foreground_window [twapi::get_console_window]
+        catch {twapi::set_foreground_window [twapi::get_console_window]}
     }
-    # Would like -nonewline here but see comments in proc yesno
     puts -nonewline "\n$message\nThen Hit Return to continue..."
     flush stdout
     gets stdin
     return
+}
+
+proc nativepath {args} {
+    return [file nativename [file join {*}$args]]
 }
 
 interp alias {} progress {} puts
@@ -42,7 +89,7 @@ oo::class create TestTarget {
     }
 
     method vm {} { return $VM }
-    method setup args {
+    method setup {tclver platform twapi_distribution_format} {
         set vm_name [$VM name]
 
         progress "Powering on $vm_name"
@@ -53,41 +100,78 @@ oo::class create TestTarget {
         lassign [credentials_dialog -showsaveoption 0 -target $vm_name -message "Enter the same credentials that you used to login at the console"] user password
         $VM login $user [reveal $password] -interactive 1
 
-        set tcl_root [file dirname [file dirname [file normalize [info nameofexecutable]]]]
-        set target_dir [config target_tcl_dir]
-        set target_bindir [file join $target_dir bin]
-        set target_libdir [file join $target_dir lib]
+        switch -exact -- $twapi_distribution_format {
+            "" { set twapidir twapi }
+            mod -
+            modular { set twapidir twapi-modular }
+            bin -
+            binary { set twapidir twapi-bin }
+            default {
+                error "Unknown twapi distro format $twapi_distribution_format"
+            }
+        }
+
+        set target_dir [nativepath [config target_test_dir]]
+        set target_bindir [nativepath $target_dir bin]
 
         # Create dir structure
         $VM rmdir $target_dir
         $VM mkdir $target_dir
+        $VM mkdir $target_bindir
+        $VM mkdir [nativepath $target_dir dist]
+       #  $VM mkdir [nativepath $target_dir dist $twapidir]
 
         # Copy binaries
         progress "Copying binaries"
-        $VM mkdir $target_bindir
-        foreach fpat {*.dll *.exe} {
-            foreach fn [glob [file join $tcl_root bin $fpat]] {
-                $VM copy_to_vm [file nativename $fn] [file nativename [file join $target_bindir [file tail $fn]]]
-            }
-        }
+        lassign [tclkits $tclver $platform] tclsh wish
+        config target_tclsh [nativepath $target_bindir [file tail $tclsh]]
+        config target_wish [nativepath $target_bindir [file tail $wish]]
+        $VM copy_to_vm $tclsh [config target_tclsh]
+        $VM copy_to_vm $wish [config target_wish]
 
-        # Copy libraries
-        progress "Copying libraries"
-        $VM mkdir $target_libdir
-        foreach dirpat {dde* reg* tcl8* tk*} {
-            if {![catch {glob [file join $tcl_root lib $dirpat]} dirs]} {
-                foreach dir $dirs {
-                    set to_dir [file nativename [file join $target_libdir [file tail $dir]]]
-                    progress "Copying $dir to $to_dir"
-                    $VM copy_to_vm [file nativename $dir] $to_dir
-                }
-            }
-        }
+        # Copy TWAPI. The testutil load_twapi_package expects it in
+        # the dist directory
+        progress "Copying [nativepath [config source_root_dir] twapi dist $twapidir] to [nativepath $target_dir dist $twapidir]"
+        $VM copy_to_vm [nativepath [config source_root_dir] twapi dist $twapidir] [nativepath $target_dir dist $twapidir]
+        
+        progress "Copying openssl"
+        $VM copy_to_vm [nativepath [config source_root_dir] tools openssl] [nativepath $target_dir openssl]
 
         # Copy test scripts
         progress "Copying test scripts"
-        $VM copy_to_vm [file nativename [config source_test_dir]] [file nativename [file join $target_dir tests]]
+        $VM copy_to_vm [nativepath [config source_test_dir]] \
+            [nativepath $target_dir tests]
 
+        progress "Registering comtest DLL"
+        set script {
+            if {[catch {
+                set testdir [file normalize [file join [file dirname [info nameofexecutable]] ..]]
+                lappend auto_path [file join $testdir dist]
+                package require twapi
+                set comtest_dll [file nativename [file join $testdir tests comtest comtest.dll]]
+                twapi::shell_execute -path regsvr32.exe -verb runas -params $comtest_dll
+            } msg]} {
+                exit 1
+            }
+        }
+        lassign [$VM script [config target_tclsh] $script -wait 1] pid exit_code elapsed_time
+        if {$exit_code} {
+            error "Registration of comtest DLL existed with code $exit_code"
+        }
+        progress "Target setup completed"
+    }
+
+    method run {testfile args} {
+        parseargs args {
+            {constraints.arg {}}
+        } -setvars -maxleftover 0
+
+        set cmdargs "/C cd c:\\twapitest\\tests && ..\\bin\\tclkit-cli-8.6.3-x86.exe $testfile -outfile results.txt"
+        if {[llength $constraints]} {
+            append cmdargs " -constraints \"${constraints}\""
+        }
+        progress "Running test file $testfile"
+        $VM exec [$VM getenv COMSPEC] -cmdargs $cmdargs -wait 1 -activatewindow 1
     }
 }
 
@@ -100,11 +184,21 @@ oo::class create TestTarget {
 
 
 proc main {args} {
+    array set opts [parseargs args {
+        {os.arg win8pro}
+        {platform.arg x86 {x86 x64}}
+        {tclversion.arg 8.6}
+        {distribution.arg ""}
+        {constraints.arg ""}
+        {testfile.arg all.tcl}
+    } -maxleftover 0 -setvars]
+
     vix::Host create host
-    twapi::trap {
-        twapi::trap {
-            TestTarget create target "C:/virtual machines/vm0-xpsp3/vm0-xpsp3.vmx"
-            target setup
+    try {
+        TestTarget create target [vm_path $os $platform]
+        try {
+            target setup $tclversion $platform $distribution
+            # target run $testfile -constraints $constraints
         } finally {
             target destroy
         }
@@ -113,8 +207,10 @@ proc main {args} {
     }
 }
 
-trap {
-    main
-} finally {
-    vix::finalize
+if {[file tail $argv0] eq [file tail [info script]]} {
+    try {
+        main {*}$argv
+    } finally {
+        vix::finalize
+    }
 }
