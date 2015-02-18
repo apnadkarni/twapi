@@ -6,6 +6,8 @@ global psinfo;                    # Array storing process information
 
 global thrdinfo;                  # Array storing thread informations
 
+interp alias {} testdir {} lindex [file normalize [file dirname [info script]]]
+
 proc new_name {} {
     variable _test_name_counter
     # Just using [clock microseconds] is not enough granularity
@@ -93,10 +95,11 @@ proc load_twapi_package {{pkg twapi}} {
     if {[info exists _twapi_test_loaded_packages($pkg)]} {
         return
     }
+
     # If in source dir, we load that twapi in preference to installed package
-    if {[file exists ../dist/twapi/pkgIndex.tcl] &&
+    if {[file exists ../dist] &&
         ! [info exists _twapi_test_loaded_packages]} {
-        set ::auto_path [linsert $::auto_path 0 [file normalize ../dist/twapi]]
+        set ::auto_path [linsert $::auto_path 0 [file normalize ../dist]]
     }
 
     package require $pkg
@@ -1317,8 +1320,10 @@ proc tclsh_slave_wait {fd {ms 1000}} {
 proc wish_path {} {
     set path [info nameofexecutable]
     set fn [file tail $path]
-    if {![regsub {tclsh} $fn wish fn]} {
-        error "Could not locate wish."
+    if {![regsub tclsh $fn wish fn]} {
+        if {![regsub tclkit-cli $fn tclkit-gui fn]} {
+            error "Could not locate wish."
+        }
     }
     set path [file join [file dirname $path] $fn]
     if {![file exists $path]} {
