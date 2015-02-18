@@ -351,7 +351,9 @@ Default is [const false].
 [opt_def [cmd -unicode] [arg BOOLEAN]] TBD.
 [opt_def [cmd -verb] [arg ACTION]]
 Specifies the action to invoke on the resource, for example [const open],
-[const edit] etc. See the examples below.
+[const edit] etc. If [arg ACTION] is [const runas], the program is
+started in elevated mode. See other examples below for other values of
+[arg ACTION].
 [opt_def [cmd -wait] [arg BOOLEAN]]
 Wait for the action to complete before returning. The exact effect of this
 depends on the action being invoked and the application handling the action.
