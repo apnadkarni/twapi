@@ -287,9 +287,9 @@ The command supports the options shown in the table below and returns
 an empty string unless the -getprocesshandle option is specified.
 
 [list_begin opt]
-[opt_def [cmd -asyncok] [arg BOOLEAN]] TBD.
-[opt_def [cmd -class] [arg BOOLEAN]] TBD.
-[opt_def [cmd -connect] [arg BOOLEAN]] TBD.
+[opt_def [cmd -asyncok] [arg BOOLEAN]] Indicates that the execution may
+be performed on a background thread. See the description in Windows SDK
+of the [const SEE_MASK_ASYNCOK] flag in the [const SHELLEXECUTEINFO] structure.
 [opt_def [cmd -dir] [arg PATH]]
 Path of the working directory. Defaults to the current directory.
 [opt_def [cmd -getprocesshandle] [arg BOOLEAN]]
@@ -299,16 +299,13 @@ by the shell to handle the request. If no such process was required to
 be created, or was already running, an empty string is returned. If
 a non-empty handle is returned, it must be closed by calling
 [uri base.html#close_handle [cmd close_handle]].
-[opt_def [cmd -hicon] [arg HANDLE]] TBD.
-[opt_def [cmd -hkeyclass] [arg BOOLEAN]] TBD.
 [opt_def [cmd -hmonitor] [arg HANDLE]]
 Specifies a handle to a monitor on multiple-monitor systems. Cannot
 be used with the [cmd -hicon] option.
-[opt_def [cmd -hotkey] [arg BOOLEAN]] TBD.
-[opt_def [cmd -hwin] [arg BOOLEAN]]
+[opt_def [cmd -hwin] [arg HWND]]
 Specifies the parent window handle, if any, for dialogs that are displayed.
 By default, no parent window is specified.
-[opt_def [cmd -idl] [arg BOOLEAN]]
+[opt_def [cmd -idl] [arg IDL]] TBD
 [opt_def [cmd -invokeidlist] [arg BOOLEAN]]
 Normally, the shell will look up the registry for the list of verbs applicable
 for a file. If this option is specified as [const true], the shell will
@@ -326,7 +323,6 @@ Default is [const false].
 [opt_def [cmd -noui] [arg BOOLEAN]]
 If [const true], no user interaction, such as error display is done.
 Default is [const false].
-[opt_def [cmd -nozonechecks] [arg BOOLEAN]] TBD.
 [opt_def [cmd -params] [arg STRING]]
 Contains the parameter string to be passed to the invoked application.
 Use standard Windows syntax for separating parameters using spaces
@@ -348,7 +344,8 @@ Default is [const normal].
 If [const true], any environment variables present in the values of
 the [cmd -path] and [cmd -dir] options are expanded.
 Default is [const false].
-[opt_def [cmd -unicode] [arg BOOLEAN]] TBD.
+[opt_def [cmd -unicode] [arg BOOLEAN]] Specify this flag as [const true]
+for a Unicode application.
 [opt_def [cmd -verb] [arg ACTION]]
 Specifies the action to invoke on the resource, for example [const open],
 [const edit] etc. If [arg ACTION] is [const runas], the program is

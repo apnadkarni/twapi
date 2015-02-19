@@ -280,13 +280,21 @@ proc twapi::recycle_file {fn args} {
 }
 
 proc twapi::shell_execute args {
+    # TBD - Document following shell_execute options after testing.
+    # [opt_def [cmd -class] [arg BOOLEAN]]
+    # [opt_def [cmd -connect] [arg BOOLEAN]]
+    # [opt_def [cmd -hicon] [arg HANDLE]]
+    # [opt_def [cmd -hkeyclass] [arg BOOLEAN]]
+    # [opt_def [cmd -hotkey] [arg HOTKEY]]
+    # [opt_def [cmd -nozonechecks] [arg BOOLEAN]]
+
     array set opts [parseargs args {
         class.arg
         dir.arg
         {hicon.arg NULL}
         {hkeyclass.arg NULL}
         {hmonitor.arg NULL}
-        hotkey.int
+        hotkey.arg
         hwin.int
         idl.arg
         params.arg
@@ -362,6 +370,23 @@ proc twapi::shell_execute args {
         } $opts(show)]
     }
 
+    if {$opts(hotkey) eq ""} {
+        set hotkey 0
+    } else {
+        lassign [_hotkeysyms_to_vk $opts(hotkey) {
+            shift 1
+            ctrl 2
+            control 2
+            alt 4
+            menu 4
+            ext 8
+        }] modifiers vk
+        set hotkey [expr {($modifiers << 16) | $vk}]
+    }
+    if {$hotkey != 0} {
+        setbits fmask 0x00000020
+    }
+
     return [Twapi_ShellExecuteEx \
                 $fmask \
                 $opts(hwin) \
@@ -373,7 +398,7 @@ proc twapi::shell_execute args {
                 $opts(idl) \
                 $opts(class) \
                 $opts(hkeyclass) \
-                $opts(hotkey) \
+                $hotkey \
                 $hiconormonitor]
 }
 

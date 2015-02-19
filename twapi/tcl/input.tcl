@@ -471,7 +471,9 @@ proc twapi::_parse_send_keys {keys {inputs ""}} {
 }
 
 # utility procedure to map symbolic hotkey to {modifiers virtualkey}
-proc twapi::_hotkeysyms_to_vk {hotkey} {
+# We allow modifier map to be passed in because different api's use
+# different bits for key modifiers
+proc twapi::_hotkeysyms_to_vk {hotkey {modifier_map {ctrl 2 control 2 alt 1 menu 1 shift 4 win 8}}} {
     variable vk_map
 
     _init_vk_map
@@ -482,29 +484,7 @@ proc twapi::_hotkeysyms_to_vk {hotkey} {
     # Convert modifiers to bitmask
     set modifiers 0
     foreach modifier [lrange $keyseq 0 end-1] {
-        switch -exact -- [string tolower $modifier] {
-            ctrl -
-            control {
-                setbits modifiers 2
-            }
-
-            alt -
-            menu {
-                setbits modifiers 1
-            }
-
-            shift {
-                setbits modifiers 4
-            }
-
-            win {
-                setbits modifiers 8
-            }
-
-            default {
-                error "Unknown key modifier $modifier"
-            }
-        }
+        setbits modifiers [dict! $modifier_map [string tolower $modifier]]
     }
     # Map the key to a virtual key code
     if {[string length $key] == 1} {
@@ -529,7 +509,7 @@ proc twapi::_hotkeysyms_to_vk {hotkey} {
     } elseif {[info exists vk_map([string toupper $key])]} {
         # It is a virtual key name
         set vk [lindex $vk_map([string toupper $key]) 0]
-    } elseif {[string is integer $key]} {
+    } elseif {[string is integer -strict $key]} {
         # Actual virtual key specification
         set vk $key
     } else {
