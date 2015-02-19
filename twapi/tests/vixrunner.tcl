@@ -166,7 +166,7 @@ oo::class create TestTarget {
             {constraints.arg {}}
         } -setvars -maxleftover 0
 
-        set cmdargs "/C cd c:\\twapitest\\tests && ..\\bin\\tclkit-cli-8.6.3-x86.exe $testfile -outfile results.txt"
+        set cmdargs "/C cd [nativepath [config target_test_dir] tests] && [config target_tclsh] $testfile -outfile results.txt"
         if {[llength $constraints]} {
             append cmdargs " -constraints \"${constraints}\""
         }
@@ -198,7 +198,7 @@ proc main {args} {
         TestTarget create target [vm_path $os $platform]
         try {
             target setup $tclversion $platform $distribution
-            # target run $testfile -constraints $constraints
+            target run $testfile -constraints $constraints
         } finally {
             target destroy
         }
