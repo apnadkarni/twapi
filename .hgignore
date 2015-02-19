@@ -17,6 +17,7 @@ syntax: glob
 *.opt
 *.tlb
 *.aps
+*.zip
 temp
 build
 dist
@@ -25,7 +26,7 @@ doc/chm-build
 doc/website-build
 doc/website
 tools/h2c/*
-tests/tclkits
+tools/tclkits
 TAGS
 \#*#
 *.vfs
