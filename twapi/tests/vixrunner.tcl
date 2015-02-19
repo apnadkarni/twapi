@@ -166,12 +166,31 @@ oo::class create TestTarget {
             {constraints.arg {}}
         } -setvars -maxleftover 0
 
-        set cmdargs "/C cd [nativepath [config target_test_dir] tests] && [config target_tclsh] $testfile -outfile results.txt"
-        if {[llength $constraints]} {
-            append cmdargs " -constraints \"${constraints}\""
-        }
+        # Note file paths are passed in Unix format using 
         progress "Running test file $testfile"
-        $VM exec [$VM getenv COMSPEC] -cmdargs $cmdargs -wait 1 -activatewindow 1
+        set script [format {
+            set constraints "%s"
+            set testfile "%s"
+            if {[catch {
+                set testdir [file normalize [file join [file dirname [info nameofexecutable]] ..]]
+                lappend auto_path [file join $testdir dist]
+                package require twapi
+                
+                set cmdargs "/C cd [file nativename [file join $testdir tests]] && [file nativename [info nameofexecutable]] $testfile -outfile results.txt"
+                if {[llength $constraints]} {
+                    append cmdargs " -constraints \"${constraints}\""
+                }
+
+                twapi::shell_execute -path $::env(COMSPEC) -verb runas -params $cmdargs
+            } msg]} {
+                set fd [open c:/twapitest/error.log w]
+                puts $fd "$msg\n$::errorInfo"
+                close $fd
+                exit 1
+            }
+        } $constraints $testfile]
+        lassign [$VM script [config target_tclsh] $script -wait 1] pid exit_code elapsed_time
+        progress "Test run completed with exit code $exit_code"
     }
 }
 
