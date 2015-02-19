@@ -164,6 +164,7 @@ oo::class create TestTarget {
     method run {testfile args} {
         parseargs args {
             {constraints.arg {}}
+            outfile
         } -setvars -maxleftover 0
 
         # Note file paths are passed in Unix format using 
@@ -191,6 +192,14 @@ oo::class create TestTarget {
         } $constraints $testfile]
         lassign [$VM script [config target_tclsh] $script -wait 1] pid exit_code elapsed_time
         progress "Test run completed with exit code $exit_code"
+        if {[info exists outfile]} {
+            $VM copy_from_vm [nativepath [config target_test_dir] tests results.txt] $outfile
+        } else {
+            close [file tempname result_file]
+            exec notepad.exe [file nativename $result_file] &
+            after 1000;         # Give notepad a change to read it
+            file delete $result_file
+        }
     }
 }
 
