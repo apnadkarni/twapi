@@ -86,6 +86,12 @@ Added byte swapping commands
 [uri base.html#swap4 [cmd swap4]] and
 [uri base.html#swap8 [cmd swap8]].
 
+[bullet]
+[emph "POTENTIAL INCOMPATIBILITY"]
+The [uri process.html#create_process [cmd create_process]] command
+option [cmd -showwindow] default has been changed from [const hidden]
+to [const normal].
+
 [list_end]
 
 [section "Version 4.0"]

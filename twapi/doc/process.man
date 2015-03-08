@@ -225,7 +225,7 @@ are started in a common virtual machine. By default, the system will
 follow the setting specified in the registry.
 [opt_def [cmd -showwindow] [arg WINDOWMODE]]Specifies the mode in which
 the first window of the child process is displayed. [arg WINDOWMODE]
-must be one of [const normal], [const minimized],
+must be one of [const normal] (default), [const minimized],
 [const maximized] or [const hidden].
 [opt_def [cmd -startdir] [arg PATH]]Specifies the initial starting directory
 of the child process. By default the child process starts in the calling
