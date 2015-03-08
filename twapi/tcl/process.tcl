@@ -106,7 +106,7 @@ proc twapi::create_process {path args} {
                         $opts(fullscreen)}]
 
     switch -exact -- $opts(showwindow) {
-        ""        {set opts(showwindow) 0 }
+        ""        {set opts(showwindow) 1 }
         hidden    {set opts(showwindow) 0}
         normal    {set opts(showwindow) 1}
         minimized {set opts(showwindow) 2}
