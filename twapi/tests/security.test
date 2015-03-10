@@ -1513,7 +1513,7 @@ namespace eval twapi::security::test {
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        set opts {-enabledprivileges -disabledprivileges -usersid -groups -restrictedgroups -groupattrs -restrictedgroupattrs -primarygroup -primarygroupsid -logonsession}
+        set opts {-enabledprivileges -disabledprivileges -usersid -groups -restrictedgroups -groupattrs -restrictedgroupattrs -primarygroup -primarygroupsid -logonsession -logonsessionsid}
         equal_sets $opts [dict keys [twapi::get_token_info $tok {*}$opts]]
     } -cleanup {
         twapi::close_token $tok
@@ -1588,6 +1588,35 @@ namespace eval twapi::security::test {
     } -cleanup {
         twapi::close_token $tok
     } -result {-groupattrs 1}
+
+    test get_token_info-5.1 {
+        get_token_info -groupattrs -privileges (since -privileges affects how -groupattrs are retrieved)
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        set sidattrs [dict get [twapi::get_token_info $tok -groupattrs -privileges] -groupattrs]
+        set sids {}
+        set attrs {}
+        foreach {sid gattrs} $sidattrs {
+            lappend sids $sid
+            set attrs [setops::union $attrs $gattrs]
+        }
+        expr {[llength $sids] &&
+              [valid_sids $sids] &&
+              [llength [setops::diff $attrs {
+                  enabled
+                  enabled_by_default
+                  logon_id
+                  mandatory
+                  owner
+                  resource
+                  integrity
+                  integrity_enabled
+                  use_for_deny_only
+              }]] == 0}
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 1
 
     test get_token_info-6.0 {
         get_token_info -groups
@@ -1737,6 +1766,28 @@ namespace eval twapi::security::test {
     } -cleanup {
         twapi::close_token $tok
     } -result [list -origin 00000000-000003e7]
+
+    test get_token_info-18.0 {
+        get_token_info -logonsessionsid
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        lassign [twapi::get_token_info $tok -logonsessionsid] opt sid
+        list $opt [llength $sid] [valid_sids [list $sid]]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result {-logonsessionsid 1 1}
+
+    test get_token_info-18.1 {
+        get_token_info -logonsessionsid -privileges
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        set sid [dict get [twapi::get_token_info $tok -logonsessionsid -privileges] -logonsessionsid]
+        list [llength $sid] [valid_sids [list $sid]]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result {1 1}
 
     ################################################################
 
