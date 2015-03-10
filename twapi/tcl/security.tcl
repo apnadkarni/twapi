@@ -116,6 +116,7 @@ proc twapi::get_token_info {tok args} {
         integritylabel
         linkedtoken
         logonsession
+        logonsessionsid
         origin
         primarygroup
         primarygroupsid
@@ -125,6 +126,12 @@ proc twapi::get_token_info {tok args} {
         usersid
         virtualized
     } -maxleftover 0]
+
+    # Do explicit check so we return error if no args specified
+    # and $tok is invalid
+    if {![pointer? $tok]} {
+        error "Invalid token handle '$tok'"
+    }
 
     # TBD - add an -ignorerrors option
 
@@ -184,16 +191,42 @@ proc twapi::get_token_info {tok args} {
                 lappend result -groups [get_token_groups $tok -name]
             }
         }
-        if {$opts(groupattrs)} {
+        if {$opts(groupattrs) || $opts(logonsessionsid)} {
             if {[info exists gtigroups]} {
                 set items {}
                 # First element of groups is user sid, skip it
                 foreach item [lrange $gtigroups 1 end] {
-                    lappend items [lindex $item 0] [map_token_group_attr [lindex $item 1]]
+                    set gattrs [map_token_group_attr [lindex $item 1]]
+                    if {$opts(groupattrs)} {
+                        lappend items [lindex $item 0] $gattrs
+                    }
+                    if {$opts(logonsessionsid) && "logon_id" in $gattrs} {
+                        set logonsessionsid [lindex $item 0]
+                    }
                 }
-                lappend result -groupattrs $items
+                if {$opts(groupattrs)} {
+                    lappend result -groupattrs $items
+                }
             } else {
-                lappend result -groupattrs [get_token_groups_and_attrs $tok]
+                set groupattrs [get_token_groups_and_attrs $tok]
+                if {$opts(logonsessionsid)} {
+                    foreach {sid gattrs} $groupattrs {
+                        if {"logon_id" in $gattrs} {
+                            set logonsessionsid $sid
+                            break
+                        }
+                    }
+                }
+                if {$opts(groupattrs)} {
+                    lappend result -groupattrs $groupattrs
+                }
+            }
+            if {$opts(logonsessionsid)} {
+                if {[info exists logonsessionsid]} {
+                    lappend result -logonsessionsid $logonsessionsid
+                } else {
+                    error "No logon session id found in token"
+                }
             }
         }
         if {$opts(restrictedgroups)} {

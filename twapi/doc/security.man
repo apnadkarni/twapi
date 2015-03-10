@@ -992,7 +992,10 @@ If [arg TOKEN] is an elevated or limited token, this command returns the
 corresponding limited or elevated token linked to it.
 [opt_def [cmd -logonsession]]
 Returns the [uri #uniqueidentifiers LUID] of the
-[uri #logonsessions "logon session"] for the associated with the token.
+[uri #logonsessions "logon session"] associated with the token.
+[opt_def [cmd -logonsessionsid]]
+Returns the SID of the
+[uri #logonsessions "logon session"] associated with the token.
 [opt_def [cmd -primarygroup]] Returns the primary group for the token.
 For domain accounts, an error is raised if the
 domain is unreachable. Use [cmd -primarygroupsid] to avoid this.
