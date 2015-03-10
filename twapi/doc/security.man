@@ -789,7 +789,7 @@ Returns the time session owner logged on.
 [opt_def [cmd -type]]
 Returns the logon session type
 (see [uri \#find_logon_sessions [cmd find_logon_sessions]]).
-[opt_def [cmd -sid]]
+[opt_def [cmd -usersid]]
 Returns the SID for the session owner.
 [opt_def [cmd -tssession]]
 Returns the terminal session identifier for the logon session.

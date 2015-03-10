@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2009-2014, Ashok P. Nadkarni
+# Copyright (c) 2009-2015, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -814,7 +814,7 @@ proc twapi::get_logon_session_info {luid args} {
         logonserver
         logontime
         type
-        sid
+        usersid
         user
         tssession
         userprincipal
@@ -838,7 +838,7 @@ proc twapi::get_logon_session_info {luid args} {
         logonserver LogonServer
         logontime   LogonTime
         type        LogonType
-        sid         Sid
+        usersid         Sid
         user        UserName
         tssession   Session
         userprincipal Upn

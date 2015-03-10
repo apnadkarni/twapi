@@ -202,6 +202,11 @@ for the child process if it is a console mode program. By default,
 the child process inherites the console of the current process if that
 latter is also a console mode program. This option cannot be used
 with the [cmd -detached] option.
+[opt_def [cmd -newprocessgroup] [arg BOOLEAN]]If [const true], the created
+process is made the root of a new process group identified by
+the PID of the new process. The default value is [const false] and
+the new process belongs to the same process group as the calling
+process.
 [opt_def [cmd -priority] [arg PRIORITY]]Specifies the priority of the
 child process. This should have one of the values
 [const normal], [const abovenormal], [const belownormal],

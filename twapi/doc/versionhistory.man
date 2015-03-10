@@ -92,6 +92,11 @@ The [uri process.html#create_process [cmd create_process]] command
 option [cmd -showwindow] default has been changed from [const hidden]
 to [const normal].
 
+[bullet]
+[emph "POTENTIAL INCOMPATIBILITY"]
+The [uri security.html#get_logon_session_info [cmd get_logon_session_info]] 
+command option [cmd -sid] has been renamed to [cmd -usersid].
+
 [list_end]
 
 [section "Version 4.0"]
