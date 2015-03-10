@@ -6231,7 +6231,7 @@ namespace eval twapi::security::test {
     } -body {
         verify_kl_fields [twapi::get_logon_session_info [current_logon_session] -all] {
             -authpackage -dnsdomain -logondomain -logonid -logonserver
-            -logontime -type -sid -tssession -user -userprincipal
+            -logontime -type -usersid -tssession -user -userprincipal
         }
     } -result ""
 
@@ -6307,10 +6307,10 @@ namespace eval twapi::security::test {
     ###
 
     test get_logon_session_info-9.0 {
-        Get logon session info -sid
+        Get logon session info -usersid
     } -body {
-        twapi::get_logon_session_info [current_logon_session] -sid
-    } -result [list -sid $my_sid]
+        twapi::get_logon_session_info [current_logon_session] -usersid
+    } -result [list -usersid $my_sid]
 
     ###
 
