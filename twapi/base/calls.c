@@ -1557,8 +1557,18 @@ static int Twapi_CallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
         return TwapiCStructDefDump(interp, objv[0]);
 #endif        
         break;
+    case 14: // CreateEnvironmentBlock
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETINT(dw), ARGEND)
+            != TCL_OK)
+            return TCL_ERROR;
+        if (CreateEnvironmentBlock(&pv, h, dw)) {
+            result.value.obj = ObjFromMultiSz(pv, -1);
+            result.type = TRT_OBJ;
+            DestroyEnvironmentBlock(pv);
+        } else
+            result.type = TRT_GETLASTERROR;
+        break;
     }
-
 
     return TwapiSetResult(interp, &result);
 }
@@ -2361,6 +2371,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(atoms, 11),
         DEFINE_ALIAS_CMD(cstruct, 12),
         DEFINE_ALIAS_CMD(cstruct_dumpdef, 13),
+
+        DEFINE_ALIAS_CMD(CreateEnvironmentBlock, 14),
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
