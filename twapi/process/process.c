@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2003-2012, Ashok P. Nadkarni
+ * Copyright (c) 2003-2015, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -20,6 +20,7 @@ static MAKE_DYNLOAD_FUNC(NtQueryInformationThread, ntdll, NtQueryInformationThre
 static MAKE_DYNLOAD_FUNC(IsWow64Process, kernel32, FARPROC)
 
 static MAKE_DYNLOAD_FUNC(NtQuerySystemInformation, ntdll, NtQuerySystemInformation_t)
+static MAKE_DYNLOAD_FUNC(CreateProcessWithTokenW, advapi32, FARPROC)
 
 /* Processes and threads */
 int Twapi_NtQueryInformationProcessBasicInformation(Tcl_Interp *interp,
@@ -762,6 +763,108 @@ vamoose:
 }
 
 
+/*
+ * Like TwapiCreateProcessHelper but slightly different set of parameters
+ * matching CreateProcessWith{Logon,Token}
+ */
+static int TwapiCreateProcessHelper2(TwapiInterpContext *ticP, int have_token, int objc, Tcl_Obj *CONST objv[])
+{
+    HANDLE tokH;
+    DWORD logon_flags, create_flags, password_len = 0;
+    STARTUPINFOW startinfo;
+    LPWSTR envP = NULL;
+    BOOL status = 0;
+    PROCESS_INFORMATION pi;
+    LPWSTR appname, cmdline, curdir;
+    LPWSTR password = NULL;
+    Tcl_Interp *interp = ticP->interp;
+    MemLifoMarkHandle mark;
+    Tcl_Obj *startinfoObj, *envObj, *authObj;
+    Tcl_Obj *userObj, *domainObj;
+
+    mark = MemLifoPushMark(ticP->memlifoP);
+    if (TwapiGetArgsEx(ticP, objc-1, objv+1,
+                       GETOBJ(authObj), GETINT(logon_flags),
+                       GETEMPTYASNULL(appname),   GETEMPTYASNULL(cmdline),
+                       GETINT(create_flags),
+                       GETOBJ(envObj),   GETEMPTYASNULL(curdir),
+                       GETOBJ(startinfoObj), ARGEND) != TCL_OK)
+        goto vamoose;           /* So any allocs/marks can be freed */
+
+    if (have_token) {
+        if (ObjToHANDLE(interp, authObj, &tokH) != TCL_OK)
+            goto vamoose;
+    } else {
+        Tcl_Obj **elems;
+        int nelems;
+        if (ObjGetElements(interp, authObj, &nelems, &elems) != TCL_OK)
+            goto vamoose;
+        if (nelems != 3) {
+            TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "User authentication must be specified as a user name, domain, password list");
+            goto vamoose;
+        }
+        userObj = elems[0];
+        domainObj = elems[1];
+        password = ObjDecryptPassword(elems[2], &password_len);
+    }
+
+    envP = ObjToLPWSTR_WITH_NULL(envObj);
+    if (envP) {
+        if (ObjToMultiSzEx(interp, envObj, (LPWSTR*) &envP, ticP->memlifoP) == TCL_ERROR)
+            goto vamoose;
+        /* Note envP is allocated from ticP->memlifo */
+    }
+    
+    if (ListObjToSTARTUPINFO(ticP, startinfoObj, &startinfo) != TCL_OK)
+        goto vamoose;
+
+    if (have_token) {
+        FARPROC CreateProcessWithTokenPtr = Twapi_GetProc_CreateProcessWithTokenW();
+        if (CreateProcessWithTokenPtr == NULL) {
+            Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+            goto vamoose;
+        }
+        status = CreateProcessWithTokenPtr(
+            tokH,
+            logon_flags,
+            appname,
+            cmdline,
+            create_flags,
+            envP,
+            curdir,
+            &startinfo,
+            &pi //PROCESS_INFORMATION * (output)
+            );
+    } else
+        status = CreateProcessWithLogonW(
+            ObjToUnicode(userObj),
+            ObjToUnicode(domainObj),
+            password,
+            logon_flags,
+            appname,
+            cmdline,
+            create_flags,
+            envP,
+            curdir,
+            &startinfo,
+            &pi //PROCESS_INFORMATION * (output)
+            );
+
+    if (status) {
+        ObjSetResult(interp, ObjFromPROCESS_INFORMATION(&pi));
+    } else {
+        TwapiReturnSystemError(interp);
+        // Do not return just yet as we have to free buffers
+    }        
+vamoose:
+    if (password)
+        TwapiFreeDecryptedPassword(password, password_len);
+
+    MemLifoPopMark(mark);
+    return status ? TCL_OK : TCL_ERROR;
+}
+
+
 static TCL_RESULT Twapi_CreateProcessObjCmd(
     TwapiInterpContext *ticP,
     Tcl_Interp *interp,
@@ -778,6 +881,24 @@ static TCL_RESULT Twapi_CreateProcessAsUserObjCmd(
     Tcl_Obj *CONST objv[])
 {
     return TwapiCreateProcessHelper(ticP, 1, objc, objv);
+}
+
+static TCL_RESULT Twapi_CreateProcessWithLogonObjCmd(
+    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
+    int  objc,
+    Tcl_Obj *CONST objv[])
+{
+    return TwapiCreateProcessHelper2(ticP, 0, objc, objv);
+}
+
+static TCL_RESULT Twapi_CreateProcessWithTokenObjCmd(
+    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
+    int  objc,
+    Tcl_Obj *CONST objv[])
+{
+    return TwapiCreateProcessHelper2(ticP, 1, objc, objv);
 }
 
 
@@ -1076,6 +1197,8 @@ static int TwapiProcessInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     Tcl_CreateObjCommand(interp, "twapi::EnumProcessHelper", Twapi_EnumProcessesModulesObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CreateProcess", Twapi_CreateProcessObjCmd, ticP, NULL);
     Tcl_CreateObjCommand(interp, "twapi::CreateProcessAsUser", Twapi_CreateProcessAsUserObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CreateProcessWithLogon", Twapi_CreateProcessWithLogonObjCmd, ticP, NULL);
+    Tcl_CreateObjCommand(interp, "twapi::CreateProcessWithToken", Twapi_CreateProcessWithTokenObjCmd, ticP, NULL);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(EnumDispatch), EnumDispatch, "twapi::EnumProcessHelper");
 
     return TCL_OK;
