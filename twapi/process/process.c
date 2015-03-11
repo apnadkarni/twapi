@@ -770,17 +770,16 @@ vamoose:
 static int TwapiCreateProcessHelper2(TwapiInterpContext *ticP, int have_token, int objc, Tcl_Obj *CONST objv[])
 {
     HANDLE tokH;
-    DWORD logon_flags, create_flags, password_len = 0;
+    DWORD logon_flags, create_flags;
     STARTUPINFOW startinfo;
     LPWSTR envP = NULL;
     BOOL status = 0;
     PROCESS_INFORMATION pi;
     LPWSTR appname, cmdline, curdir;
-    LPWSTR password = NULL;
     Tcl_Interp *interp = ticP->interp;
     MemLifoMarkHandle mark;
     Tcl_Obj *startinfoObj, *envObj, *authObj;
-    Tcl_Obj *userObj, *domainObj;
+    SEC_WINNT_AUTH_IDENTITY_W *swaiP;
 
     mark = MemLifoPushMark(ticP->memlifoP);
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
@@ -795,17 +794,9 @@ static int TwapiCreateProcessHelper2(TwapiInterpContext *ticP, int have_token, i
         if (ObjToHANDLE(interp, authObj, &tokH) != TCL_OK)
             goto vamoose;
     } else {
-        Tcl_Obj **elems;
-        int nelems;
-        if (ObjGetElements(interp, authObj, &nelems, &elems) != TCL_OK)
+        if (ParsePSEC_WINNT_AUTH_IDENTITY(ticP, authObj, &swaiP) != TCL_OK)
             goto vamoose;
-        if (nelems != 3) {
-            TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "User authentication must be specified as a user name, domain, password list");
-            goto vamoose;
-        }
-        userObj = elems[0];
-        domainObj = elems[1];
-        password = ObjDecryptPassword(elems[2], &password_len);
+        NULLIFY_EMPTY(swaiP->Domain);
     }
 
     envP = ObjToLPWSTR_WITH_NULL(envObj);
@@ -837,9 +828,7 @@ static int TwapiCreateProcessHelper2(TwapiInterpContext *ticP, int have_token, i
             );
     } else
         status = CreateProcessWithLogonW(
-            ObjToUnicode(userObj),
-            ObjToUnicode(domainObj),
-            password,
+            swaiP->User, swaiP->Domain, swaiP->Password,
             logon_flags,
             appname,
             cmdline,
@@ -857,8 +846,6 @@ static int TwapiCreateProcessHelper2(TwapiInterpContext *ticP, int have_token, i
         // Do not return just yet as we have to free buffers
     }        
 vamoose:
-    if (password)
-        TwapiFreeDecryptedPassword(password, password_len);
 
     MemLifoPopMark(mark);
     return status ? TCL_OK : TCL_ERROR;
