@@ -935,6 +935,23 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             result.value.ival = ImpersonateLoggedOnUser(h);
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
+        case 105: // GetWindowsAccountDomainSid
+            result.value.ival = ObjToPSIDNonNull(interp, objv[0], &osidP);
+            if (result.value.ival != TCL_OK) {
+                result.type = TRT_TCL_RESULT;
+                break;
+            }
+            dw = GetLengthSid(osidP);
+            gsidP = TwapiAlloc(dw);
+            if (GetWindowsAccountDomainSid(osidP, gsidP, &dw)) {
+                if (! IsValidSid(gsidP)) {
+                    result.type = TRT_GETLASTERROR;
+                }
+                result.value.obj = ObjFromSIDNoFail(gsidP);
+                result.type = TRT_OBJ;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
         }
     } else if (func < 500) {
         /* Two string args */
@@ -1384,12 +1401,14 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
         }
     }
 
+    dw = TwapiSetResult(interp, &result);
+
     if (daclP) TwapiFree(daclP);
     if (saclP) TwapiFree(saclP);
     if (osidP) TwapiFree(osidP);
     if (gsidP) TwapiFree(gsidP);
 
-    return TwapiSetResult(interp, &result);
+    return dw;
 }
 
 
@@ -1404,6 +1423,7 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(IsValidAcl, 102),
         DEFINE_FNCODE_CMD(ImpersonateSelf, 103),
         DEFINE_FNCODE_CMD(ImpersonateLoggedOnUser, 104),
+        DEFINE_FNCODE_CMD(GetWindowsAccountDomainSid, 105),
         DEFINE_FNCODE_CMD(LookupPrivilegeDisplayName, 401),
         DEFINE_FNCODE_CMD(LookupPrivilegeValue, 402),
         DEFINE_FNCODE_CMD(ConvertStringSecurityDescriptorToSecurityDescriptor, 501),
