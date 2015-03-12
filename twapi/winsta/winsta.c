@@ -64,6 +64,68 @@ int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta)
     return TCL_OK;
 }
 
+static int Twapi_GetUserObjectInformation(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    HANDLE h;
+    int idx;
+    void *pv;
+    DWORD len;
+    TCL_RESULT res;
+    USEROBJECTFLAGS *flagsP;
+    Tcl_Obj *objs[3];
+    Tcl_Obj *objP;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETHANDLE(h),
+                     GETINT(idx), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    GetUserObjectInformationW(h, idx, NULL, 0, &len);
+    if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
+        return TwapiReturnSystemError(interp);
+
+    /* If no SID, len can be 0 */
+    if (len != 0)
+        pv = MemLifoPushFrame(ticP->memlifoP, len, &len);
+    else
+        pv = NULL;
+
+    if (! GetUserObjectInformationW(h, idx, pv, len, &len))
+        res = TwapiReturnSystemError(interp);
+    else {
+        switch (idx) {
+        case UOI_FLAGS:
+            flagsP = pv;
+            objs[0] = ObjFromBoolean(flagsP->fInherit);
+            objs[1] = ObjFromBoolean(flagsP->fReserved);
+            objs[2] = ObjFromDWORD(flagsP->dwFlags);
+            objP = ObjNewList(3, objs);
+            break;
+        case 5: // UOI_HEAPSIZE: not defined in win2003 SDK (only supported on Vista on)
+        case 6: // == ditto ==
+            objP = ObjFromDWORD(* (DWORD*)pv);
+            break;
+        case UOI_NAME:
+        case UOI_TYPE:
+            objP = ObjFromUnicode(pv);
+            break;
+        case UOI_USER_SID:
+            /* If len is 0, no SID is associated and we just return empty result */
+            if (len == 0)
+                objP = NULL;
+            else
+                objP = ObjFromSIDNoFail(pv);
+        }
+        if (objP)
+            ObjSetResult(interp, objP);
+        res = TCL_OK;
+    }
+
+    if (pv)
+        MemLifoPopFrame(ticP->memlifoP);
+
+    return res;
+}
+
 static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     DWORD dw, dw2, dw3;
@@ -176,19 +238,23 @@ static int TwapiWinstaInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(GetProcessWindowStation, 2),
         DEFINE_FNCODE_CMD(CreateWindowStation, 3),
         DEFINE_FNCODE_CMD(OpenDesktop, 4),
-        DEFINE_FNCODE_CMD(GetThreadDesktop, 5),
+        DEFINE_FNCODE_CMD(GetThreadDesktop, 5), // TBD - Tcl?
         DEFINE_FNCODE_CMD(OpenInputDesktop, 6), // TBD - Tcl
         DEFINE_FNCODE_CMD(OpenWindowStation, 7),
         DEFINE_FNCODE_CMD(CreateDesktop, 8), // TBD - Tcl
         DEFINE_FNCODE_CMD(CloseDesktop, 31),
-        DEFINE_FNCODE_CMD(SwitchDesktop, 32),
-        DEFINE_FNCODE_CMD(SetThreadDesktop, 33),
+        DEFINE_FNCODE_CMD(SwitchDesktop, 32), // TBD - Tcl?
+        DEFINE_FNCODE_CMD(SetThreadDesktop, 33), // TBD - Tcl
         DEFINE_FNCODE_CMD(EnumDesktops, 34),
         DEFINE_FNCODE_CMD(SetProcessWindowStation, 35),
         DEFINE_FNCODE_CMD(CloseWindowStation, 36),
     };
+    static struct tcl_dispatch_s TclDispatch[] = {
+        DEFINE_TCL_CMD(GetUserObjectInformation, Twapi_GetUserObjectInformation), // TBD - Tcl
+    };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(WinstaDispatch), WinstaDispatch, Twapi_WinstaCallObjCmd);
+    TwapiDefineTclCmds(interp, ARRAYSIZE(TclDispatch), TclDispatch, ticP);
 
     return TCL_OK;
 }
