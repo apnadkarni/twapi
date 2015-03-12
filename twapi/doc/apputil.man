@@ -10,26 +10,36 @@
 This module provides commands commonly required in Windows applications.
 
 [section "Application command line"]
-[uri \#get_command_line [cmd get_command_line]]
-retrieves the command line passed to the process.
-[uri \#get_command_line_args [cmd get_command_line_args]]
- parses a command line using Windows conventions. The difference over
+The following commands relate to the command line for the process.
+The difference over
 Tcl's built-in [var ::argv] variables is that these commands handle
 Unicode command lines and use Windows conventions for argument parsing.
+[list_begin opt]
+[opt_def [uri \#get_command_line [cmd get_command_line]]]
+Retrieves the command line passed to the process.
+[opt_def [uri \#get_command_line_args [cmd get_command_line_args]]]
+Parses a command line using Windows conventions. 
+[list_end]
+
+For retrieving the command line for another process, see
+[uri process.html#get_process_info [cmd get_process_info]] in
+the [uri process.html [cmd twapi_process]] module.
+
+[section "Environment variables"]
+The following commands deal with environment variables.
+[list_begin opt]
+[opt_def [uri \#expand_environment_strings [cmd expand_environment_strings]]]
+Replaces environment variables in a string with their values.
+[opt_def [uri #get_system_environment_vars [cmd get_system_environment_vars]]]
+Returns a dictionary of system environment variables and their values.
+[opt_def [uri #get_user_environment_vars [cmd get_user_environment_vars]]]
+Returns a dictionary of environment variables and their values for
+a specific user.
+[list_end]
 
 [section "INI files"]
-
-The commands [uri \#read_inifile_key [cmd read_inifile_key]],
-[uri \#write_inifile_key [cmd write_inifile_key]] and
-[uri \#delete_inifile_key [cmd delete_inifile_key]]
-can be used for manipulating individual entries.
-[para]
-The commands
-[uri \#read_inifile_section_names [cmd read_inifile_section_names]],
-[uri \#read_inifile_section [cmd read_inifile_section]]
-and [uri \#delete_inifile_section [cmd delete_inifile_section]]
-may be used for manipulating entire sections of INI files.
-[para]
+The following commands deal with INI files used for storing
+application preferences. 
 Note these commands
 take into account INI file mappings set up in the
 [const {HKEY_LOCAL_MACHINE\Software\Microsoft\Windows NT\CurrentVersion\IniFileMapping}] registry key.
@@ -38,6 +48,21 @@ A cross-platform package that provides similar functionality
 is available in the available in the [uri http://tcllib.sf.net "tcllib"]
 standard library. However, that does not take into account the
 registry mappings on Windows platforms.
+
+[list_begin opt]
+[opt_def [uri \#read_inifile_key [cmd read_inifile_key]]]
+Returns the value of a key.
+[opt_def [uri \#write_inifile_key [cmd write_inifile_key]]]
+Updates the value of a key.
+[opt_def [uri \#delete_inifile_key [cmd delete_inifile_key]]]
+Deletes a key and associated value.
+[opt_def [uri \#read_inifile_section_names [cmd read_inifile_section_names]]]
+Returns the names of all sections in an INI file.
+[opt_def [uri \#read_inifile_section [cmd read_inifile_section]]]
+Returns the keys and values within a INI file section.
+[opt_def  [uri \#delete_inifile_section [cmd delete_inifile_section]]]
+Deletes an entire section from an INI file.
+[list_end]
 
 [section Commands]
 [list_begin definitions]
@@ -56,6 +81,12 @@ from an INI file. By default, the command writes to
 the [const win.ini] file in the system directory. The [cmd -inifile]
 option may be used to specify a different INI file.
 
+[call [cmd expand_environment_strings] [arg STRING]]
+Returns the string formed by replacing all environment variable references in
+[arg STRING] with their values. Environment variable references are in the
+form [arg %ENVIRONMENTVAR%]. References to undefined environment variables
+are not replaced.
+
 [call [cmd get_command_line]]
 
 Returns the command line of the current process. This may be passed to the
@@ -68,6 +99,32 @@ Parses [arg COMMANDLINE] as per Windows command line conventions and returns
 a list of the parsed arguments. The main advantage of this over using
 the [cmd argv] and [cmd argv0] variables in [cmd tclsh] and [cmd wish] is
 that this call will correctly handle Unicode arguments.
+
+[call [cmd get_system_environment_vars] [opt "[cmd -normalize] [arg BOOLEAN]"]]
+Returns a dictionary containing the environment variables defined
+for the system and their values. If [cmd -normalize] is
+[const false] (default), the environment variable names are 
+returned exactly as defined. If specified as [const true], they
+are converted to upper case.
+
+[call [cmd get_user_environment_vars] [arg TOKEN] [opt "[cmd -normalize] [arg BOOLEAN]"] [opt "[cmd -inherit] [arg BOOLEAN]"]]
+Returns a dictionary containing the environment variables defined
+for a user account. This includes system environment variables as well
+as those specific to that account. 
+
+[arg TOKEN] must be a 
+security token for the user account whose environment is to be 
+retrieved and must have [const token_impersonate], [const token_query]
+and [const token_duplicate] access.
+
+If [cmd -inherit] is [const true], the environment
+variables of the current process are included in the returned
+values. If [const false] (default), they are ignored.
+
+If [cmd -normalize] is
+[const false] (default), the environment variable names are 
+returned exactly as defined. If specified as [const true], they
+are converted to upper case.
 
 [call [cmd read_inifile_key] [arg SECTION] [arg KEY] [opt [arg options]]]
 

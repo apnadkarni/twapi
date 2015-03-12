@@ -228,9 +228,7 @@ recordarray getdict [lb]get_multiple_service_status[rb] -filter {{interactive ==
 [section "Utility commands"]
 [uri \#parseargs [cmd parseargs]]
 parses an argument list based on specified options.
-The command [uri \#expand_environment_strings [cmd expand_environment_strings]]
-replaces environment variables
-in a string with their values. [uri \#format_message [cmd format_message]]
+[uri \#format_message [cmd format_message]]
 formats a operating system
 or application message.
 [para]
@@ -424,12 +422,6 @@ handle in symbolic form that can be passed to functions such as
 If [cmd -targetpid] is specified, the command returns
 the literal value of the handle. This is true even if the target PID is
 that of the current process.
-
-[call [cmd expand_environment_strings] [arg STRING]]
-Returns the string formed by replacing all environment variable references in
-[arg STRING] with their values. Environment variable references are in the
-form [arg %ENVIRONMENTVAR%]. References to undefined environment variables
-are not replaced.
 
 [call [cmd export_public_commands]]
 Export public commands in the [cmd twapi::] namespace.

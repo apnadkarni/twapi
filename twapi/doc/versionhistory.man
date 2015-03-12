@@ -91,6 +91,12 @@ Added byte swapping commands
 [uri base.html#swap8 [cmd swap8]].
 
 [bullet]
+Added
+[uri apputil.html#get_system_environment_vars [cmd get_system_environment_vars]]
+and
+[uri apputil.html#get_user_environment_vars [cmd get_user_environment_vars]].
+
+[bullet]
 [emph "POTENTIAL INCOMPATIBILITY"]
 The [uri process.html#create_process [cmd create_process]] command
 option [cmd -showwindow] default has been changed from [const hidden]
