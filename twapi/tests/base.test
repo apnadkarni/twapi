@@ -11,6 +11,7 @@ eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_base
+load_twapi_package twapi_security; # TBD - needed for open_process_token
 
 #
 # Set up system-specific constants that are used to match test results
@@ -1079,6 +1080,86 @@ namespace eval twapi::base::test {
     } -body {
         twapi::expand_environment_strings "USERNAME"
     } -result "USERNAME"
+
+    ################################################################
+
+    test get_system_environment_vars-1.0 {
+        Get system environment variables
+    } -body {
+        unset -nocomplain vars
+        set vars [twapi::get_system_environment_vars]
+        list [dict get $vars COMPUTERNAME] [llength [dict keys $vars HOME*]]
+    } -result [list $::env(COMPUTERNAME) 0]
+
+    test get_system_environment_vars-2.0 {
+        Get system environment variables -normalize 0
+    } -body {
+        unset -nocomplain vars
+        set vars [twapi::get_system_environment_vars -normalize 0]
+        list [dict exists $vars SYSTEMROOT] [dict exists $vars SystemRoot] [llength [dict keys $vars HOME*]]
+    } -result [list 0 1 0]
+
+    test get_system_environment_vars-2.1 {
+        Get system environment variables -normalize 1
+    } -body {
+        unset -nocomplain vars
+        set vars [twapi::get_system_environment_vars -normalize 1]
+        list [dict get $vars SYSTEMROOT] [llength [dict keys $vars HOME*]]
+    } -result [list $::env(systemroot) 0]
+
+    ################################################################
+
+    test get_user_environment_vars-1.0 {
+        Get user environment variables
+    } -setup {
+        set tok [twapi::open_process_token -access {token_query token_duplicate token_impersonate}]
+    } -body { 
+        unset -nocomplain vars
+        set vars [twapi::get_user_environment_vars $tok]
+        dict get $vars HOMEDRIVE
+    } -cleanup {
+        twapi::close_token $tok
+    } -result $::env(HOMEDRIVE)
+
+    test get_user_environment_vars-2.0 {
+        Get user environment variables -normalize 0
+    } -setup {
+        set tok [twapi::open_process_token -access {token_query token_duplicate token_impersonate}]
+    } -body {
+        unset -nocomplain vars
+        set vars [twapi::get_user_environment_vars $tok -normalize 0]
+        list [dict exists $vars SYSTEMROOT] [dict exists $vars SystemRoot] [dict exists $vars HOMEDRIVE]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result [list 0 1 1]
+
+    test get_user_environment_vars-2.1 {
+        Get user environment variables -normalize 1
+    } -setup {
+        set tok [twapi::open_process_token -access {token_query token_duplicate token_impersonate}]
+    } -body {
+        unset -nocomplain vars
+        set vars [twapi::get_user_environment_vars $tok -normalize 1]
+        list [dict get $vars SYSTEMROOT] [dict get $vars HOMEDRIVE]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result [list $::env(systemroot) $::env(homedrive)]
+
+    test get_user_environment_vars-3.0 {
+        Get user environment variables -inherit
+    } -setup {
+        set tok [twapi::open_process_token -access {token_query token_duplicate token_impersonate}]
+    } -body {
+        unset -nocomplain vars
+        unset -nocomplain vars2
+        set ::env(TWAPIENVTEST) "XXX"
+        set vars [twapi::get_user_environment_vars $tok -inherit 0]
+        set vars2 [twapi::get_user_environment_vars $tok -inherit 1]
+        list [dict exists $vars TWAPIENVTEST] [dict get $vars2 TWAPIENVTEST]
+    } -cleanup {
+        unset ::env(TWAPIENVTEST)
+        twapi::close_token $tok
+    } -result [list 0 XXX]
 
     ################################################################
 

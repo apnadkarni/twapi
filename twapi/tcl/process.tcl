@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003-2012, Ashok P. Nadkarni
+# Copyright (c) 2003-2015, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -1614,6 +1614,7 @@ proc twapi::get_module_handle_from_address {addr args} {
 }
 
 
+#
 # Utility procedures
 
 # Get the path of a process
