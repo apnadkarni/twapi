@@ -425,6 +425,7 @@ int Twapi_GetTokenInformation(
         break;
 
     case TokenRestrictedSids: /* Fall through */
+    case 28: /* TokenLogonSid not defined in earlier SDK's, Fallthru */
     case TokenGroups:
         resultObj = ObjFromSID_AND_ATTRIBUTES_Array(
             interp,

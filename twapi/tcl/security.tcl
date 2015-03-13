@@ -191,6 +191,11 @@ proc twapi::get_token_info {tok args} {
                 lappend result -groups [get_token_groups $tok -name]
             }
         }
+        if {[min_os_version 6] && $opts(logonsessionsid)} {
+            # Only possible on Vista+
+	    lappend result -logonsessionsid [lindex [GetTokenInformation $tok 28] 0 0]
+            set opts(logonsessionsid) 0; # So we don't try second method below
+        }
         if {$opts(groupattrs) || $opts(logonsessionsid)} {
             if {[info exists gtigroups]} {
                 set items {}
