@@ -90,3 +90,13 @@ proc twapi::close_desktop_handle {hdesk} {
 proc twapi::set_process_window_station {hwinsta} {
     SetProcessWindowStation $hwinsta
 }
+
+# TBD - document and test
+proc twapi::get_desktop_user {hdesk} {
+    return [GetUserObjectInformation $hdesk 4]
+}
+
+# TBD - document and test
+proc twapi::get_window_station_user {hwinsta} {
+    return [GetUserObjectInformation $hwinsta 4]
+}

@@ -28,8 +28,14 @@ the [uri process.html [cmd twapi_process]] module.
 [section "Environment variables"]
 The following commands deal with environment variables.
 [list_begin opt]
-[opt_def [uri \#expand_environment_strings [cmd expand_environment_strings]]]
-Replaces environment variables in a string with their values.
+[opt_def [uri \#expand_environment_vars [cmd expand_environment_vars]]]
+Replaces environment variables in a string with their values in the
+current process.
+[opt_def [uri \#expand_system_environment_vars [cmd expand_system_environment_vars]]]
+Replaces system environment variables in a string with their values.
+[opt_def [uri \#expand_user_environment_vars [cmd expand_user_environment_vars]]]
+Replaces environment variables in a string with the environment values
+defined for a specific user.
 [opt_def [uri #get_system_environment_vars [cmd get_system_environment_vars]]]
 Returns a dictionary of system environment variables and their values.
 [opt_def [uri #get_user_environment_vars [cmd get_user_environment_vars]]]
@@ -82,10 +88,36 @@ the [const win.ini] file in the system directory. The [cmd -inifile]
 option may be used to specify a different INI file.
 
 [call [cmd expand_environment_strings] [arg STRING]]
+[emph Deprecated.] 
+See [uri #expand_environment_vars [expand_environment_strings]].
+
+[call [cmd expand_environment_vars] [arg STRING]]
 Returns the string formed by replacing all environment variable references in
-[arg STRING] with their values. Environment variable references are in the
+[arg STRING] with their values from the current process environment.
+Environment variable references are in the
 form [arg %ENVIRONMENTVAR%]. References to undefined environment variables
 are not replaced.
+
+[call [cmd expand_system_environment_vars] [arg STRING]]
+Returns the string formed by replacing all environment variable references in
+[arg STRING] with their value defined in the [emph system] 
+environment variables ([emph not] from the current process environment).
+Environment variable references are in the
+form [arg %ENVIRONMENTVAR%]. References to undefined environment variables
+are not replaced.
+
+[call [cmd expand_user_environment_vars] [arg TOKEN] [arg STRING]]
+Returns the string formed by replacing all environment variable references in
+[arg STRING] with their value defined for a specific user
+([emph not] from the current process environment even if the process is running under that user account).
+Environment variable references are in the
+form [arg %ENVIRONMENTVAR%]. References to undefined environment variables
+are not replaced.
+
+[arg TOKEN] must be a 
+security token for the user account whose environment is to be 
+retrieved and must have [const token_impersonate], [const token_query]
+and [const token_duplicate] access.
 
 [call [cmd get_command_line]]
 
@@ -167,6 +199,6 @@ option may be used to look up a different INI file instead.
 
 [list_end]
 
-[keywords "INI file" "profile" "command line"]
+[keywords "INI file" "profile" "command line" "environment variables" "environment string expansion"]
 
 [manpage_end]
