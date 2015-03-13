@@ -711,9 +711,12 @@ static int Twapi_CallIntArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.value.obj = ObjFromULONGHex(dw);
         break;
     case 8:
-        result.type = TRT_OBJ;
-        result.value.obj = ObjNewList(dw, NULL);
+        if (WTSQueryUserToken(dw, &result.value.hval))
+            result.type = TRT_HANDLE;
+        else
+            result.type = TRT_GETLASTERROR;
         break;
+
 #ifdef NOTYET
     case NOTYET:
         result.value.ival = RegOpenCurrentUser(dw, &u.hkey);
@@ -2262,7 +2265,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_MemLifoInit, 5),
         DEFINE_FNCODE_CMD(GlobalDeleteAtom, 6), // TBD - tcl interface
         DEFINE_FNCODE_CMD(hex32, 7),
-        DEFINE_FNCODE_CMD(empty_list, 8),
+        DEFINE_FNCODE_CMD(WTSQueryUserToken, 8), // TBD - tcl interface
 #ifdef NOTYET
         DEFINE_FNCODE_CMD(RegOpenCurrentUser, NOTYET), // TBD - tcl interface
 #endif
