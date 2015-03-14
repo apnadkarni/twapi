@@ -64,6 +64,7 @@ be retrieved via commands [uri \#get_token_user [cmd get_token_user]],
 [uri \#get_token_groups [cmd get_token_groups]],
 [uri \#get_token_primary_group [cmd get_token_primary_group]],
 [uri \#get_token_owner [cmd get_token_owner]],
+[uri \#get_token_tssession [cmd get_token_tssession]],
 [uri \#get_token_groups_and_attrs [cmd get_token_groups_and_attrs]]
 and
 [uri \#get_token_restricted_groups_and_attrs [cmd get_token_restricted_groups_and_attrs]].
@@ -1016,6 +1017,8 @@ for details.
 the token.
 For domain accounts, an error is raised if the
 domain is unreachable. Use [cmd -restrictedgroupattrs] to avoid this.
+[opt_def [cmd -tssession]]
+Returns the terminal server session id of the process.
 [opt_def [cmd -usersid]]
 Returns the SID of the user account associated with the token.
 [opt_def [cmd -virtualized]]
@@ -1142,6 +1145,9 @@ the token.
 [opt_def type]
 The type of the token - [const primary] or [const impersonation].
 [list_end]
+
+[call [cmd get_token_tssession] [arg TOKEN]]
+Returns the terminal server session id of the process.
 
 [call [cmd get_token_type] [arg TOKEN]]
 Returns the type of the token: either [const primary], or

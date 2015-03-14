@@ -1513,7 +1513,7 @@ namespace eval twapi::security::test {
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        set opts {-enabledprivileges -disabledprivileges -usersid -groups -restrictedgroups -groupattrs -restrictedgroupattrs -primarygroup -primarygroupsid -logonsession -logonsessionsid}
+        set opts {-enabledprivileges -disabledprivileges -usersid -groups -restrictedgroups -groupattrs -restrictedgroupattrs -primarygroup -primarygroupsid -logonsession -logonsessionsid -tssession}
         equal_sets $opts [dict keys [twapi::get_token_info $tok {*}$opts]]
     } -cleanup {
         twapi::close_token $tok
@@ -1788,6 +1788,28 @@ namespace eval twapi::security::test {
     } -cleanup {
         twapi::close_token $tok
     } -result {1 1}
+
+    test get_token_info-19.0 {
+        get_token_info -tssession
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        twapi::get_token_info $tok -tssession
+    } -cleanup {
+        twapi::close_token $tok
+    } -result [list -tssession [expr {[twapi::min_os_version 6] ? 1 : 0}]]
+
+    ################################################################
+
+    test get_token_tssession-1.0 {
+        get_token_tssession
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        twapi::get_token_tssession $tok
+    } -cleanup {
+        twapi::close_token $tok
+    } -result [expr {[twapi::min_os_version 6] ? 1 : 0}]
 
     ################################################################
 

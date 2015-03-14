@@ -123,6 +123,7 @@ proc twapi::get_token_info {tok args} {
         privileges
         restrictedgroupattrs
         restrictedgroups
+        tssession
         usersid
         virtualized
     } -maxleftover 0]
@@ -170,6 +171,9 @@ proc twapi::get_token_info {tok args} {
         }
         if {$opts(virtualized)} {
             lappend result -virtualized [get_token_virtualization $tok]
+        }
+        if {$opts(tssession)} {
+            lappend result -tssession [get_token_tssession $tok]
         }
         if {$opts(usersid)} {
             # First element of groups is user sid
@@ -274,6 +278,9 @@ proc twapi::get_token_info {tok args} {
     return $result
 }
 
+proc twapi::get_token_tssession {tok} {
+    return [GetTokenInformation $tok 12]
+}
 
 # Procs that differ between Vista and prior versions
 if {[twapi::min_os_version 6]} {
