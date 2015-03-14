@@ -306,7 +306,7 @@ proc twapi::get_token_tssession {tok} {
 
 # TBD - document and test
 proc twapi::set_token_tssession {tok tssession} {
-    Twapi_SetTokenSessionid $tok $tssession
+    Twapi_SetTokenSessionId $tok $tssession
     return
 }
 
