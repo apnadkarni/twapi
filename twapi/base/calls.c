@@ -638,6 +638,10 @@ static TCL_RESULT Twapi_CallNoargsObjCmd(ClientData clientdata, Tcl_Interp *inte
             Tcl_Panic("MemLifo corrupted");
         result.type = TRT_EMPTY;
         break;
+    case 19:
+        result.value.ival = WTSGetActiveConsoleSessionId();
+        result.type = TRT_LONG;
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -2255,6 +2259,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(DebugBreak, 16),
         DEFINE_FNCODE_CMD(get_default_printer, 17),  // GetDefaultPrinter
         DEFINE_FNCODE_CMD(validate_memory, 18),
+        DEFINE_FNCODE_CMD(WTSGetActiveConsoleSessionId, 19), /* TBD - tcl */
     };
 
     static struct fncode_dispatch_s CallIntArgDispatch[] = {
