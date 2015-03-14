@@ -99,9 +99,31 @@ proc twapi::open_thread_token {args} {
     return $tok
 }
 
-# Close a token
 proc twapi::close_token {tok} {
     CloseHandle $tok
+}
+
+# TBD - document and test
+proc twapi::duplicate_token {tok args} {
+    parseargs args {
+        access.arg
+        {inherit.bool 0}
+        {secd.arg ""}
+        {impersonationlevel.sym impersonation {anonymous 0 identification 1 impersonation 2 delegation 3}}
+        {type.sym primary {primary 1 impersonation 2}}
+    } -maxleftover 0 -setvars
+
+    if {[info exists access]} {
+        set access [_access_rights_to_mask $access]
+    } else {
+        # If no desired access is indicated, we want the same access as
+        # the original handle
+        set access 0
+    }
+
+    return [DuplicateTokenEx $tok $access \
+                [_make_secattr $secd $inherit] \
+                $impersonationlevel $type]
 }
 
 proc twapi::get_token_info {tok args} {
@@ -280,6 +302,12 @@ proc twapi::get_token_info {tok args} {
 
 proc twapi::get_token_tssession {tok} {
     return [GetTokenInformation $tok 12]
+}
+
+# TBD - document and test
+proc twapi::set_token_tssession {tok tssession} {
+    Twapi_SetTokenSessionid $tok $tssession
+    return
 }
 
 # Procs that differ between Vista and prior versions
@@ -600,10 +628,13 @@ proc twapi::get_token_source {tok} {
 # Return the token type of an access token
 proc twapi::get_token_type {tok} {
     # TokenType -> 8
-    if {[GetTokenInformation $tok 8]} {
+    set type [GetTokenInformation $tok 8]
+    if {$type == 1} {
         return "primary"
-    } else {
+    } elseif {$type == 2} {
         return "impersonation"
+    } else {
+        return $type
     }
 }
 

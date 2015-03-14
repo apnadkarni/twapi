@@ -1313,8 +1313,6 @@ namespace eval twapi::security::test {
 
     test get_token_type-1.0 {
         Get a token type (primary)
-    } -constraints {
-        nt
     } -setup {
         set tok [twapi::open_process_token -access token_query]
     } -body {
@@ -1327,12 +1325,14 @@ namespace eval twapi::security::test {
 
     test get_token_type-1.1 {
         Get a token type (impersonation)
-    } -constraints {
-        nt TBD
+    } -setup {
+        set tok [twapi::open_process_token -access token_all_access]
+        set tok2 [twapi::duplicate_token $tok -type impersonation]
     } -body {
-        We do not know how to create an impersonation type token
-        twapi::get_token_type $tok
+        twapi::get_token_type $tok2
     } -cleanup {
+        twapi::close_token $tok
+        twapi::close_token $tok2
     } -result "impersonation"
 
     ################################################################
