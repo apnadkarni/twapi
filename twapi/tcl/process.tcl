@@ -15,7 +15,6 @@ namespace eval twapi {}
 # Create a process
 proc twapi::create_process {path args} {
     array set opts [parseargs args {
-        {_comment "dwCreationFlags"}
         {debugchildtree.bool  0 0x1}
         {debugchild.bool      0 0x2}
         {createsuspended.bool 0 0x4}
@@ -28,11 +27,9 @@ proc twapi::create_process {path args} {
         {noconsole.bool       0 0x08000000}
         {priority.arg normal {normal abovenormal belownormal high realtime idle}}
 
-        {_comment {STARTUPINFO flag}}
         {feedbackcursoron.bool  0 0x40}
         {feedbackcursoroff.bool 0 0x80}
         {fullscreen.bool        0 0x20}
-        
 
         {cmdline.arg ""}
         {inheritablechildprocess.bool 0}

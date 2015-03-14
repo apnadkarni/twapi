@@ -204,9 +204,7 @@ proc twapi::com_initialize_security {args} {
     CoInitializeSecurity $secarg "" "" $authenticationlevel $impersonationlevel $authlist $eoac ""
 }
 
-proc twapi::com_make_credentials {username password domain} {
-    return [list $username $domain $password]
-}
+interp alias {} twapi::com_make_credentials {} twapi::make_logon_identity
 
 # TBD - document
 proc twapi::com_create_instance {clsid args} {

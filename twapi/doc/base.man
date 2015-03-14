@@ -61,7 +61,7 @@ A more complete set of commands related to accounts, credentials and security
 are in the [uri users.html [package twapi_account]] and 
 [uri security.html [package twapi_security]] packages.
 
-[section "Password protection"]
+[section "Passwords"]
 Commands [uri #read_credentials [cmd read_credentials]],
 [uri #credentials_dialog [cmd credentials_dialog]] and
 [uri #confirm_credentials [cmd confirm_credentials]]
@@ -77,6 +77,11 @@ deal with passwords expect them to be passed in this encrypted form.
 The [uri #conceal [cmd conceal]] and [uri #reveal [cmd reveal]]
 commands can also be used for this purpose. Note however using [cmd conceal]
 is not as secure as the argument passed to it is still in clear text.
+
+[para]
+[uri #make_logon_identity [cmd make_logon_identity]] constructs
+a logon account, domain and password in a form required by many
+other commands.
 
 [section "Writing to the Windows event log"]
 Commands for writing to the Windows event log are included
@@ -640,6 +645,14 @@ of [const user], [const group] (domain group), [const domain],
 [const unknown], or [const computer].
 [list_end]
 
+[call [cmd make_logon_identity] [arg USERNAME] [arg PASSWORD] [arg DOMAIN]]
+Returns a descriptor containing credentials to be used for authenticating
+in a form required by several other commands.
+[arg PASSWORD] may be either plaintext or in
+[uri base.html#passwordprotection "encrypted form"] as returned by
+by the [uri base.html#read_credentials [cmd read_credentials]],
+[uri base.html#credentials_dialog [cmd credentials_dialog]] or
+[uri base.html#conceal [cmd conceal]] commands.
 
 [call [cmd map_account_to_name] [arg ACCOUNT] [opt "[cmd -system] [arg SYSTEMNAME]"]]
 Returns the name for an account. If [arg ACCOUNT] is a valid account name,
