@@ -266,8 +266,9 @@ if the child creates the window using defaults.
 [arg XY] can be specified as either a list of two integers or as
 a [arg X,Y] string.
 [opt_def [cmd -token] [arg TOKEN]]
-Specifies that the created process should run under account identity
-of the specified access token.
+Specifies that the created process should run under the account identity
+and logon session of the specified access token instead of that
+of the parent process.
 [opt_def [cmd -windowsize] [arg XY]]Specifies the initial size in pixels
 of the main window of the child process
 if the child creates the window using defaults.
