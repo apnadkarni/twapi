@@ -3809,6 +3809,40 @@ namespace eval twapi::base::test {
         list [string length $c] [string first ab $c] [twapi::reveal $c]
     } -result [list 24 -1 abcdefg\u0100]
 
+    test conceal-1.2 {
+        Conceal empty string
+    } -body {
+        set c [twapi::conceal ""]
+        list [string length $c] [string equal "" $c] [twapi::reveal $c]
+    } -result [list 8 0 {}]
+
+    ################################################################
+
+    test concealed?-1.0 {
+        Unconcealed text
+    } -body {
+        twapi::concealed? abc
+    } -result 0
+
+    test concealed?-1.1 {
+        Concealed text
+    } -body {
+        twapi::concealed? [twapi::conceal abc]
+    } -result 1
+
+
+    test concealed?-2.0 {
+        Unconcealed empty
+    } -body {
+        twapi::concealed? ""
+    } -result 0
+
+    test concealed?-2.1 {
+        Concealed text
+    } -body {
+        twapi::concealed? [twapi::conceal ""]
+    } -result 1
+
     ################################################################
 
     test swapl-1.0 {
@@ -3941,12 +3975,25 @@ namespace eval twapi::base::test {
     } -result {{DC780A11-A89C-419A-9660-72D95B3DEFB5}}
 
 
-
     ################################################################
 
-    #
-    # Clean up
-    ::tcltest::cleanupTests
+    test make_logon_identity-1.0 {
+        make_logon_identity
+    } -body {
+        lassign [twapi::make_logon_identity username password domain] u d p
+        list $u $d [twapi::concealed? $p] [twapi::reveal $p]
+    } -result [list username domain 1 password]
+
+    test make_logon_identity-1.1 {
+        make_logon_identity
+    } -body {
+        lassign [twapi::make_logon_identity username [twapi::conceal password] domain] u d p
+        list $u $d [twapi::concealed? $p] [twapi::reveal $p]
+    } -result [list username domain 1 password]
+
 }
+
+
+::tcltest::cleanupTests
 
 namespace delete ::twapi::base::test

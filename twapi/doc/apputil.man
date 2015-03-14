@@ -89,7 +89,7 @@ option may be used to specify a different INI file.
 
 [call [cmd expand_environment_strings] [arg STRING]]
 [emph Deprecated.] 
-See [uri #expand_environment_vars [expand_environment_strings]].
+See [uri #expand_environment_vars [cmd expand_environment_strings]].
 
 [call [cmd expand_environment_vars] [arg STRING]]
 Returns the string formed by replacing all environment variable references in

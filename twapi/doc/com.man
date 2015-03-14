@@ -576,13 +576,8 @@ Refer to the Windows SDK for a description of the various option values.
 
 [call [cmd com_make_credentials] [arg USERNAME] [arg PASSWORD] [arg DOMAIN]]
 Returns a descriptor containing credentials to be used for authenticating
-with a remote COM server. The account with name [arg USERNAME] in
-the domain or workgroup [arg DOMAIN] will be presented to the remote
-server.
-[arg PASSWORD] should be in 
-[uri base.html#passwordprotection "encrypted form"] as returned by
-by the [uri base.html#read_credentials [cmd read_credentials]] or
-[uri base.html#conceal [cmd conceal]] commands.
+with a remote COM server. This is an alias for the
+[uri base.html#make_logon_identity [cmd make_logon_identity]] command.
 
 [call [cmd com_security_blanket] [opt [arg options]]]
 Returns a [uri #security "security blanket"] descriptor based on the specified
