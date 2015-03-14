@@ -30,6 +30,9 @@ and [cmd -securityblanket] option to comobjs.
 
 [bullet] Added [uri tls.html#starttls [cmd starttls]] command.
 
+[bullet] Added [cmd -token] option to
+[uri process.html#create_process [cmd create_process]].
+
 [bullet]
 Added SID related commands
 [uri security.html#well_known_sid [cmd well_known_sid]],

@@ -50,6 +50,8 @@ proc twapi::create_process {path args} {
         {stdhandles.arg ""}
         {stdchannels.arg ""}
         {returnhandles.bool 0}
+
+        token.arg
     } -maxleftover 0]
                     
     set process_sec_attr [_make_secattr $opts(childprocesssecd) $opts(inheritablechildprocess)]
@@ -178,12 +180,22 @@ proc twapi::create_process {path args} {
     }
 
     trap {
-        lassign [CreateProcess [file nativename $path] \
-                     $opts(cmdline) \
-                     $process_sec_attr $thread_sec_attr \
-                     $opts(inherithandles) $flags $child_env \
-                     [file normalize $opts(startdir)] $startup \
-                    ]   ph   th   pid   tid
+        if {[info exists opts(token)]} {
+            lassign [CreateProcessAsUser $opts(token) [file nativename $path] \
+                         $opts(cmdline) \
+                         $process_sec_attr $thread_sec_attr \
+                         $opts(inherithandles) $flags $child_env \
+                         [file normalize $opts(startdir)] $startup \
+                        ]   ph   th   pid   tid
+
+        } else {
+            lassign [CreateProcess [file nativename $path] \
+                         $opts(cmdline) \
+                         $process_sec_attr $thread_sec_attr \
+                         $opts(inherithandles) $flags $child_env \
+                         [file normalize $opts(startdir)] $startup \
+                        ]   ph   th   pid   tid
+        }
     } finally {
         # If opts(stdchannels) is not an empty list, we duplicated the handles
         # into opts(stdhandles) ourselves so free them

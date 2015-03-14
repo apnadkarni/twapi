@@ -690,7 +690,7 @@ static int TwapiCreateProcessHelper(TwapiInterpContext *ticP, int asuser, int ob
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     if (asuser) {
-        if (ObjToHANDLE(interp, objv[0], &tokH) != TCL_OK)
+        if (ObjToHANDLE(interp, objv[1], &tokH) != TCL_OK)
             return TCL_ERROR;
     }
         
