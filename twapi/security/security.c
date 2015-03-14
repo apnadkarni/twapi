@@ -1045,12 +1045,6 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case 1006:
             return Twapi_GetTokenInformation(interp, h, dw);
 
-        case 1007:
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetTokenInformation(h,
-                                                    TwapiTokenVirtualizationEnabled,
-                                                    &dw, sizeof(dw));
-            break;
         case 1008:
             u.ttmp.Policy = dw;
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -1058,6 +1052,14 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                                                     TwapiTokenMandatoryPolicy,
                                                     &u.ttmp, sizeof(u.ttmp));
             break;
+        case 1007:
+        case 1009:
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = SetTokenInformation(h,
+                                                    func == 1007 ? TwapiTokenVirtualizationEnabled : TwapiTokenSessionId,
+                                                    &dw, sizeof(dw));
+            break;
+
         }
     } else if (func < 4000) {
         if (objc != 2)
@@ -1436,6 +1438,7 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(GetTokenInformation, 1006),
         DEFINE_FNCODE_CMD(Twapi_SetTokenVirtualizationEnabled, 1007),
         DEFINE_FNCODE_CMD(Twapi_SetTokenMandatoryPolicy, 1008),
+        DEFINE_FNCODE_CMD(Twapi_SetTokenSessionId, 1009), // TBD - tcl
         DEFINE_FNCODE_CMD(SetThreadToken, 3002),
         DEFINE_FNCODE_CMD(Twapi_LsaEnumerateAccountsWithUserRight, 3003),
         DEFINE_FNCODE_CMD(Twapi_SetTokenIntegrityLevel, 3004),
@@ -1460,7 +1463,7 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(SetNamedSecurityInfo, 10020),
         DEFINE_FNCODE_CMD(LookupPrivilegeName, 10021),
         DEFINE_FNCODE_CMD(SetSecurityInfo, 10022),
-        DEFINE_FNCODE_CMD(DuplicateTokenEx, 10023),
+        DEFINE_FNCODE_CMD(DuplicateTokenEx, 10023), // TBD - tcl
         DEFINE_FNCODE_CMD(Twapi_AdjustTokenPrivileges, 10024),
         DEFINE_FNCODE_CMD(Twapi_PrivilegeCheck, 10025),
     };
