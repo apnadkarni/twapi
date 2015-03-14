@@ -767,6 +767,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     Tcl_Obj *objs[2];
     GUID guid;
     SYSTEMTIME systime;
+    int i;
 
     if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -775,6 +776,14 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     ++objv;;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
+    case 1001: // concealed?
+        s = ObjDecryptUnicode(interp, objv[0], &i);
+        if (s)
+            TwapiFreeDecryptedPassword(s, i);
+        result.value.bval = (s != NULL);
+        result.type = TRT_BOOL;
+        break;
+
     case 1002: // IsValidACL
         u.aclP = NULL;
         result.type = TRT_BOOL;
@@ -825,7 +834,8 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             return TCL_ERROR;
         result.type = TRT_UNICODE_DYNAMIC;
         break;
-    case 1007: // EncryptObject
+
+    case 1007: // conceal
         s = ObjToUnicodeN(objv[0], &dw);
         result.value.obj = ObjEncryptUnicode(interp, s, dw);
         result.type = TRT_OBJ;
@@ -2277,6 +2287,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     };
 
     static struct fncode_dispatch_s CallOneArgDispatch[] = {
+        DEFINE_FNCODE_CMD(concealed?, 1001), // TBD - doc
         DEFINE_FNCODE_CMD(IsValidACL, 1002), // TBD - doc
         DEFINE_FNCODE_CMD(encode_security_descriptor, 1003),
         DEFINE_FNCODE_CMD(decode_security_descriptor, 1004),

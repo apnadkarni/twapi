@@ -1105,7 +1105,14 @@ proc twapi::eventlog_log {message args} {
     return
 }
 
-# Prompt for a password at the console
+proc twapi::make_logon_identity {username password domain} {
+    if {[concealed? $password]} {
+        return [list $username $domain $password]
+    } else {
+        return [list $username $domain [conceal $password]]
+    }
+}
+
 proc twapi::read_credentials {args} {
     array set opts [parseargs args {
         target.arg
