@@ -4,7 +4,12 @@
 #
 # See the file LICENSE for license
 
-# Get the current process window station
+
+# TBD - document and test
+proc twapi::get_active_console_tssession {} {
+    return [WTSGetActiveConsoleSessionId]
+}
+
 proc twapi::get_current_window_station_handle {} {
     return [GetProcessWindowStation]
 }
