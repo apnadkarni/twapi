@@ -1002,7 +1002,7 @@ to resume it. The command returns thread's previous suspend count.
 
 [call [cmd unload_user_profile] [arg TOKEN] [arg HANDLE]]
 Unloads a user profile that was previously loaded with the
-[ur #load_user_profile [cmd load_user_profile]] command.
+[uri #load_user_profile [cmd load_user_profile]] command.
 
 [call [cmd virtualized_process] [opt "[cmd -pid] [arg PID] [cmd |] [cmd -hprocess] [arg PROCESSHANDLE]"]]
 Returns true if a process is running as a virtualized process where the system
