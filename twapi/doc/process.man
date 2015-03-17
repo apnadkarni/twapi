@@ -105,7 +105,7 @@ Commands
 deal with
 [uri security.html#useraccountcontrol "Windows UAC"] related features.
 
-[section "Profiles and environment variables"]
+[section "Environment variables"]
 The following commands deal with environment variables.
 [list_begin opt]
 [opt_def [uri \#expand_environment_vars [cmd expand_environment_vars]]]
@@ -122,6 +122,11 @@ Returns a dictionary of system environment variables and their values.
 Returns a dictionary of environment variables and their values for
 a specific user.
 [list_end]
+
+[section "User profiles"]
+The commands [uri process.html#load_user_profile [cmd load_user_profile]] and
+[uri process.html#unload_user_profile [cmd unload_user_profile]]
+deal with loading of user profiles.
 
 [section Commands]
 [list_begin definitions]
@@ -872,6 +877,37 @@ Returns true if the passed [arg PID] is that of the system idle process.
 
 Returns true if the passed [arg PID] is that of the system process.
 
+[call [cmd load_user_profile] [arg TOKEN] [opt [arg options]]]
+Loads the user profile associated with [arg TOKEN].
+[arg TOKEN] should be a [uri security.html#accesstokensandprivileges "security token"]
+for the user security context
+and should have been opened with 
+[const token_query], [const token_impersonate], and [const token_duplicate]
+access.
+The command returns a handle to the registry hive for the loaded profile.
+This should be closed by passing it to 
+[uri #unload_user_profile [cmd unload_user_profile]].
+[nl]
+The following options may be specified with the command.
+[list_begin opt]
+[opt_def [cmd -defaultuserpath] [arg PATH]] Specifies the path
+for the default user profile in case no profile has yet been created
+for this user.
+[opt_def [cmd -noui] [arg BOOLEAN]] If [const true], no dialogs 
+are displayed in case of error. Default is [const false].
+[opt_def [cmd -roamingprofilepath] [arg PATH]] Specifies
+the path to the user's roaming profile if he has one. Caller can
+use the [cmd -profile] option to the
+[uri users.html#get_user_account_info [cmd get_user_account_info]]
+command to retrieve this.
+[opt_def [cmd -servername] [arg SERVERNAME]] Specifies the authenticating
+domain controller for the passed token in NETBIOS format.
+[opt_def [cmd -username] [arg USERNAME]]
+Specifies the user name to be used for the profile. By default the user
+name associated with [arg TOKEN] is used.
+
+[list_end]
+
 [call [cmd process_exists] [arg PID] [opt [arg options]]]
 
 This command returns [const 1] if a process with id [arg PID] exists
@@ -963,6 +999,10 @@ Suspends execution of the thread with id [arg TID]. The system keeps track
 of a suspend count for each thread. This is incremented every time a call
 is made to suspend the thread, and decremented every time a call is made
 to resume it. The command returns thread's previous suspend count.
+
+[call [cmd unload_user_profile] [arg TOKEN] [arg HANDLE]]
+Unloads a user profile that was previously loaded with the
+[ur #load_user_profile [cmd load_user_profile]] command.
 
 [call [cmd virtualized_process] [opt "[cmd -pid] [arg PID] [cmd |] [cmd -hprocess] [arg PROCESSHANDLE]"]]
 Returns true if a process is running as a virtualized process where the system
