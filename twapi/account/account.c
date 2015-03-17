@@ -310,39 +310,6 @@ Tcl_Obj *ObjFromLOCALGROUP_MEMBERS_INFO(
     return ObjNewList(objc, objv);
 }
 
-static TCL_RESULT Twapi_LoadUserProfileObjCmd(
-    TwapiInterpContext *ticP,
-    Tcl_Interp *interp,
-    int  objc,
-    Tcl_Obj *CONST objv[])
-{
-    HANDLE  hToken;
-    PROFILEINFOW profileinfo;
-    int nobjs;
-    Tcl_Obj **objs;
-
-    CHECK_NARGS(interp, objc, 2);
-    if (ObjGetElements(interp, objv[1], &nobjs, &objs) != TCL_OK)
-        return TCL_ERROR;
-
-    TwapiZeroMemory(&profileinfo, sizeof(profileinfo));
-    profileinfo.dwSize        = sizeof(profileinfo);
-    if (TwapiGetArgsEx(ticP, nobjs, objs, GETHANDLE(hToken),
-                       GETINT(profileinfo.dwFlags),
-                       GETWSTR(profileinfo.lpUserName),
-                       GETEMPTYASNULL(profileinfo.lpProfilePath),
-                       GETEMPTYASNULL(profileinfo.lpDefaultPath),
-                       GETEMPTYASNULL(profileinfo.lpServerName),
-                       ARGEND) != TCL_OK)
-        return TCL_ERROR;
-
-    if (LoadUserProfileW(hToken, &profileinfo) == 0) {
-        return TwapiReturnSystemError(interp);
-    }
-
-    return ObjSetResult(interp, ObjFromHANDLE(profileinfo.hProfile));
-}
-
 int TwapiNetUserOrGroupGetInfoHelper(
     Tcl_Interp *interp,
     LPCWSTR     servername,
@@ -1111,35 +1078,21 @@ static int Twapi_AcctCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         CHECK_NARGS(interp, objc, 0);
         dw = ARRAYSIZE(buf);
         switch (func) {
-        case 1:
-            result.type =
-                GetProfileType(&result.value.uval) ? TRT_DWORD : TRT_GETLASTERROR;
-            break;
-        case 2:
-        case 3:
-        case 4:
-            switch (func) {
-            case 2: getdirfn = GetAllUsersProfileDirectoryW; break;
-            case 3: getdirfn = GetProfilesDirectoryW; break;
-            case 4: getdirfn = GetDefaultUserProfileDirectoryW; break;
-            }
+        case 2: getdirfn = GetAllUsersProfileDirectoryW; break;
+        case 3: getdirfn = GetProfilesDirectoryW; break;
+        case 4: getdirfn = GetDefaultUserProfileDirectoryW; break;
+        default: getdirfn = NULL; break;
+        }
+        if (getdirfn) {
             if (getdirfn(buf, &dw)) {
                 result.type = TRT_UNICODE;
                 result.value.unicode.str = buf;
                 result.value.unicode.len = -1;
             } else
                 result.type = TRT_GETLASTERROR;
-            break;
         }
     } else if (func < 200) {
         switch (func) {
-        case 101:
-            if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETHANDLE(h2),
-                             ARGEND) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = UnloadUserProfile(h, h2);
-            break;
         case 102:
             if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), ARGEND)
                 != TCL_OK)
@@ -1180,12 +1133,10 @@ static TCL_RESULT Twapi_SetNetEnumBufSizeObjCmd(
 static int TwapiAcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s AcctCallDispatch[] = {
-        DEFINE_FNCODE_CMD(GetProfileType, 1),
-        DEFINE_FNCODE_CMD(get_all_users_profile_dir, 2),
-        DEFINE_FNCODE_CMD(get_user_profiles_dir, 3),
-        DEFINE_FNCODE_CMD(get_default_user_profile_dir, 4),
-        DEFINE_FNCODE_CMD(unload_user_profile, 101),
-        DEFINE_FNCODE_CMD(get_user_profile_dir, 102),
+        DEFINE_FNCODE_CMD(get_all_users_profile_dir, 2), // TBD - document
+        DEFINE_FNCODE_CMD(get_user_profiles_dir, 3), // TBD - document
+        DEFINE_FNCODE_CMD(get_default_user_profile_dir, 4), // TBD - document
+        DEFINE_FNCODE_CMD(get_user_profile_dir, 102), // TBD - document
     };
     static struct fncode_dispatch_s AcctCallSSDispatch[] = {
         DEFINE_FNCODE_CMD(NetUserGetInfo, 10),
@@ -1216,7 +1167,6 @@ static int TwapiAcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(Twapi_NetUserSetInfo, Twapi_NetUserSetInfoObjCmd),
         DEFINE_TCL_CMD(Twapi_NetLocalGroupMembers, Twapi_NetLocalGroupMembersObjCmd),
         DEFINE_TCL_CMD(NetUserAdd, Twapi_NetUserAddObjCmd),
-        DEFINE_TCL_CMD(LoadUserProfile, Twapi_LoadUserProfileObjCmd),
         DEFINE_TCL_CMD(Twapi_SetNetEnumBufSize, Twapi_SetNetEnumBufSizeObjCmd), /* For testing purposes */
     };
 

@@ -2881,6 +2881,33 @@ namespace eval ::twapi::process::test {
 
     ################################################################
 
+    test load_user_profile-1.0 {
+        Load user profile
+    } -setup {
+        set tok [twapi::open_process_token -access {token_duplicate token_impersonate token_query}]
+    } -body {
+        twapi::unload_user_profile [twapi::load_user_profile $tok]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result 
+
+    test load_user_profile-99.0 {
+        Validate other options
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    }
+
+    test unload_user_profile-1.0 {
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    }
+
+    ################################################################
+
 }
 ::tcltest::cleanupTests
 namespace delete ::twapi::process::test
