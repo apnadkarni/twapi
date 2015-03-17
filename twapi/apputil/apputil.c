@@ -136,7 +136,6 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     TwapiResult result;
     LPVOID pv;
     HANDLE h;
-    WCHAR *bufP;
     int func = PtrToInt(clientdata);
 
     result.type = TRT_BADFUNCTIONCODE;
@@ -216,42 +215,6 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
             interp,
             ObjToUnicode(objv[0]),
             ObjToLPWSTR_NULL_IF_EMPTY(objv[1]));
-    case 13: // CreateEnvironmentBlock
-        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETINT(dw), ARGEND)
-            != TCL_OK)
-            return TCL_ERROR;
-        if (CreateEnvironmentBlock(&pv, h, dw)) {
-            result.value.obj = ObjFromMultiSz(pv, -1);
-            result.type = TRT_OBJ;
-            DestroyEnvironmentBlock(pv);
-        } else
-            result.type = TRT_GETLASTERROR;
-        break;
-    case 14: // ExpandEnvironmentStringsForUser
-        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), ARGSKIP, ARGEND)
-            != TCL_OK)
-            return TCL_ERROR;
-        dw = 2048;
-        s =  ObjToUnicode(objv[1]);
-        while (1) {
-            bufP = TwapiPushFrame(dw, &dw);
-            if (ExpandEnvironmentStringsForUserW(h, s, bufP, dw/sizeof(WCHAR))) {
-                result.value.obj = ObjFromUnicode(bufP);
-                result.type = TRT_OBJ;
-                TwapiPopFrame();
-                break;
-            } else {
-                result.type = TRT_EXCEPTION_ON_ERROR;
-                result.value.ival = GetLastError(); /* Save error BEFORE any
-                                                     other calls */
-                TwapiPopFrame();
-                if (result.value.ival != ERROR_INSUFFICIENT_BUFFER ||
-                    dw > 128000)
-                    break;
-                dw *= 2;
-            }
-        }
-        break;    
     }
 
     return TwapiSetResult(interp, &result);
@@ -272,8 +235,6 @@ static int TwapiApputilInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CommandLineToArgv, 10),
         DEFINE_FNCODE_CMD(GetPrivateProfileSectionNames, 11),
         DEFINE_FNCODE_CMD(GetPrivateProfileSection, 12),
-        DEFINE_FNCODE_CMD(CreateEnvironmentBlock, 13),
-        DEFINE_FNCODE_CMD(ExpandEnvironmentStringsForUser, 14),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(AppCallDispatch), AppCallDispatch, Twapi_AppCallObjCmd);

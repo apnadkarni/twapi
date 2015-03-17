@@ -25,24 +25,6 @@ For retrieving the command line for another process, see
 [uri process.html#get_process_info [cmd get_process_info]] in
 the [uri process.html [cmd twapi_process]] module.
 
-[section "Environment variables"]
-The following commands deal with environment variables.
-[list_begin opt]
-[opt_def [uri \#expand_environment_vars [cmd expand_environment_vars]]]
-Replaces environment variables in a string with their values in the
-current process.
-[opt_def [uri \#expand_system_environment_vars [cmd expand_system_environment_vars]]]
-Replaces system environment variables in a string with their values.
-[opt_def [uri \#expand_user_environment_vars [cmd expand_user_environment_vars]]]
-Replaces environment variables in a string with the environment values
-defined for a specific user.
-[opt_def [uri #get_system_environment_vars [cmd get_system_environment_vars]]]
-Returns a dictionary of system environment variables and their values.
-[opt_def [uri #get_user_environment_vars [cmd get_user_environment_vars]]]
-Returns a dictionary of environment variables and their values for
-a specific user.
-[list_end]
-
 [section "INI files"]
 The following commands deal with INI files used for storing
 application preferences. 
@@ -87,38 +69,6 @@ from an INI file. By default, the command writes to
 the [const win.ini] file in the system directory. The [cmd -inifile]
 option may be used to specify a different INI file.
 
-[call [cmd expand_environment_strings] [arg STRING]]
-[emph Deprecated.] 
-See [uri #expand_environment_vars [cmd expand_environment_strings]].
-
-[call [cmd expand_environment_vars] [arg STRING]]
-Returns the string formed by replacing all environment variable references in
-[arg STRING] with their values from the current process environment.
-Environment variable references are in the
-form [arg %ENVIRONMENTVAR%]. References to undefined environment variables
-are not replaced.
-
-[call [cmd expand_system_environment_vars] [arg STRING]]
-Returns the string formed by replacing all environment variable references in
-[arg STRING] with their value defined in the [emph system] 
-environment variables ([emph not] from the current process environment).
-Environment variable references are in the
-form [arg %ENVIRONMENTVAR%]. References to undefined environment variables
-are not replaced.
-
-[call [cmd expand_user_environment_vars] [arg TOKEN] [arg STRING]]
-Returns the string formed by replacing all environment variable references in
-[arg STRING] with their value defined for a specific user
-([emph not] from the current process environment even if the process is running under that user account).
-Environment variable references are in the
-form [arg %ENVIRONMENTVAR%]. References to undefined environment variables
-are not replaced.
-
-[arg TOKEN] must be a 
-security token for the user account whose environment is to be 
-retrieved and must have [const token_impersonate], [const token_query]
-and [const token_duplicate] access.
-
 [call [cmd get_command_line]]
 
 Returns the command line of the current process. This may be passed to the
@@ -131,32 +81,6 @@ Parses [arg COMMANDLINE] as per Windows command line conventions and returns
 a list of the parsed arguments. The main advantage of this over using
 the [cmd argv] and [cmd argv0] variables in [cmd tclsh] and [cmd wish] is
 that this call will correctly handle Unicode arguments.
-
-[call [cmd get_system_environment_vars] [opt "[cmd -normalize] [arg BOOLEAN]"]]
-Returns a dictionary containing the environment variables defined
-for the system and their values. If [cmd -normalize] is
-[const false] (default), the environment variable names are 
-returned exactly as defined. If specified as [const true], they
-are converted to upper case.
-
-[call [cmd get_user_environment_vars] [arg TOKEN] [opt "[cmd -normalize] [arg BOOLEAN]"] [opt "[cmd -inherit] [arg BOOLEAN]"]]
-Returns a dictionary containing the environment variables defined
-for a user account. This includes system environment variables as well
-as those specific to that account. 
-
-[arg TOKEN] must be a 
-security token for the user account whose environment is to be 
-retrieved and must have [const token_impersonate], [const token_query]
-and [const token_duplicate] access.
-
-If [cmd -inherit] is [const true], the environment
-variables of the current process are included in the returned
-values. If [const false] (default), they are ignored.
-
-If [cmd -normalize] is
-[const false] (default), the environment variable names are 
-returned exactly as defined. If specified as [const true], they
-are converted to upper case.
 
 [call [cmd read_inifile_key] [arg SECTION] [arg KEY] [opt [arg options]]]
 
