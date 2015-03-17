@@ -310,6 +310,39 @@ Tcl_Obj *ObjFromLOCALGROUP_MEMBERS_INFO(
     return ObjNewList(objc, objv);
 }
 
+static TCL_RESULT Twapi_LoadUserProfileObjCmd(
+    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
+    int  objc,
+    Tcl_Obj *CONST objv[])
+{
+    HANDLE  hToken;
+    PROFILEINFOW profileinfo;
+    int nobjs;
+    Tcl_Obj **objs;
+
+    CHECK_NARGS(interp, objc, 2);
+    if (ObjGetElements(interp, objv[1], &nobjs, &objs) != TCL_OK)
+        return TCL_ERROR;
+
+    TwapiZeroMemory(&profileinfo, sizeof(profileinfo));
+    profileinfo.dwSize        = sizeof(profileinfo);
+    if (TwapiGetArgsEx(ticP, nobjs, objs, GETHANDLE(hToken),
+                       GETINT(profileinfo.dwFlags),
+                       GETWSTR(profileinfo.lpUserName),
+                       GETEMPTYASNULL(profileinfo.lpProfilePath),
+                       GETEMPTYASNULL(profileinfo.lpDefaultPath),
+                       GETEMPTYASNULL(profileinfo.lpServerName),
+                       ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    if (LoadUserProfileW(hToken, &profileinfo) == 0) {
+        return TwapiReturnSystemError(interp);
+    }
+
+    return ObjSetResult(interp, ObjFromHANDLE(profileinfo.hProfile));
+}
+
 int TwapiNetUserOrGroupGetInfoHelper(
     Tcl_Interp *interp,
     LPCWSTR     servername,
@@ -962,20 +995,15 @@ vamoose:
 
 
 
-static int Twapi_AcctCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_AcctCallSSObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     Tcl_Obj *s1Obj, *s2Obj;
     LPWSTR s1, s2, s3;
     DWORD   dw;
     TwapiResult result;
     union {
-        WCHAR buf[MAX_PATH+1];
         GROUP_INFO_1 gi1;
         LOCALGROUP_INFO_1 lgi1;
-        LOCALGROUP_MEMBERS_INFO_3 lgmi3;
-        TwapiNetEnumContext netenum;
-        SECURITY_DESCRIPTOR *secdP;
-        SECURITY_ATTRIBUTES *secattrP;
     } u;
     int func = PtrToInt(clientdata);
 
@@ -1066,6 +1094,71 @@ static int Twapi_AcctCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     return TwapiSetResult(interp, &result);
 }
 
+static int Twapi_AcctCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    HANDLE h, h2;
+    DWORD dw;
+    int func = PtrToInt(clientdata);
+    TwapiResult result;
+    WCHAR buf[MAX_PATH+1];
+    BOOL (WINAPI *getdirfn)(LPWSTR, LPDWORD);
+
+    objc -= 1;
+    objv += 1;
+    result.type = TRT_BADFUNCTIONCODE;
+
+    if (func < 100) {
+        CHECK_NARGS(interp, objc, 0);
+        dw = ARRAYSIZE(buf);
+        switch (func) {
+        case 1:
+            result.type =
+                GetProfileType(&result.value.uval) ? TRT_DWORD : TRT_GETLASTERROR;
+            break;
+        case 2:
+        case 3:
+        case 4:
+            switch (func) {
+            case 2: getdirfn = GetAllUsersProfileDirectoryW; break;
+            case 3: getdirfn = GetProfilesDirectoryW; break;
+            case 4: getdirfn = GetDefaultUserProfileDirectoryW; break;
+            }
+            if (getdirfn(buf, &dw)) {
+                result.type = TRT_UNICODE;
+                result.value.unicode.str = buf;
+                result.value.unicode.len = -1;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+        }
+    } else if (func < 200) {
+        switch (func) {
+        case 101:
+            if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETHANDLE(h2),
+                             ARGEND) != TCL_OK)
+                return TCL_ERROR;
+            result.type = TRT_EXCEPTION_ON_FALSE;
+            result.value.ival = UnloadUserProfile(h, h2);
+            break;
+        case 102:
+            if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), ARGEND)
+                != TCL_OK)
+                return TCL_ERROR;
+            if (GetUserProfileDirectoryW(h, buf, &dw)) {
+                result.type = TRT_UNICODE;
+                result.value.unicode.str = buf;
+                result.value.unicode.len = -1;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+        }
+    }
+
+    return TwapiSetResult(interp, &result);
+}
+
+
+
 /* Used for testing purposes */
 static TCL_RESULT Twapi_SetNetEnumBufSizeObjCmd(
     Tcl_Interp *clientdata,
@@ -1087,6 +1180,14 @@ static TCL_RESULT Twapi_SetNetEnumBufSizeObjCmd(
 static int TwapiAcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s AcctCallDispatch[] = {
+        DEFINE_FNCODE_CMD(GetProfileType, 1),
+        DEFINE_FNCODE_CMD(get_all_users_profile_dir, 2),
+        DEFINE_FNCODE_CMD(get_user_profiles_dir, 3),
+        DEFINE_FNCODE_CMD(get_default_user_profile_dir, 4),
+        DEFINE_FNCODE_CMD(unload_user_profile, 101),
+        DEFINE_FNCODE_CMD(get_user_profile_dir, 102),
+    };
+    static struct fncode_dispatch_s AcctCallSSDispatch[] = {
         DEFINE_FNCODE_CMD(NetUserGetInfo, 10),
         DEFINE_FNCODE_CMD(NetGroupGetInfo, 11),
         DEFINE_FNCODE_CMD(NetLocalGroupGetInfo, 12),
@@ -1115,10 +1216,12 @@ static int TwapiAcctInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(Twapi_NetUserSetInfo, Twapi_NetUserSetInfoObjCmd),
         DEFINE_TCL_CMD(Twapi_NetLocalGroupMembers, Twapi_NetLocalGroupMembersObjCmd),
         DEFINE_TCL_CMD(NetUserAdd, Twapi_NetUserAddObjCmd),
+        DEFINE_TCL_CMD(LoadUserProfile, Twapi_LoadUserProfileObjCmd),
         DEFINE_TCL_CMD(Twapi_SetNetEnumBufSize, Twapi_SetNetEnumBufSizeObjCmd), /* For testing purposes */
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(AcctCallDispatch), AcctCallDispatch, Twapi_AcctCallObjCmd);
+    TwapiDefineFncodeCmds(interp, ARRAYSIZE(AcctCallSSDispatch), AcctCallSSDispatch, Twapi_AcctCallSSObjCmd);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(AcctCallNetEnumGetDispatch), AcctCallNetEnumGetDispatch, Twapi_AcctCallNetEnumGetObjCmd);
     TwapiDefineTclCmds(interp, ARRAYSIZE(TclDispatch), TclDispatch, ticP);
 
