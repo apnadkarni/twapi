@@ -2227,7 +2227,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(LsaClose, 13),
         DEFINE_FNCODE_CMD(GetHandleInformation, 14),
         DEFINE_FNCODE_CMD(FreeLibrary, 15),
-        DEFINE_FNCODE_CMD(get_device_power_state, 16), // GetDevicePowerState, TBD - which module ?
+        DEFINE_FNCODE_CMD(get_device_power_state, 16), // Here, because there is no C code for the power module
         DEFINE_FNCODE_CMD(Twapi_MemLifoPushMark, 17),
         DEFINE_FNCODE_CMD(Twapi_MemLifoPopMark, 18),
         DEFINE_FNCODE_CMD(Twapi_MemLifoValidate, 19),
