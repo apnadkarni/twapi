@@ -272,6 +272,7 @@ may be used to specify a system as described in [sectref "Standard Options"].
 Enables a user account. The option [cmd -system]
 may be used to specify a system as described in [sectref "Standard Options"].
 
+
 [call [cmd find_accounts_with_right] [arg RIGHT] [opt "[cmd -system] [arg SYSTEMNAME]"] [opt [cmd -name]]]
 
 Returns a list of all accounts (user and group) that hold the right or

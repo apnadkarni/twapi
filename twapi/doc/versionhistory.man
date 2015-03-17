@@ -97,10 +97,10 @@ Added byte swapping commands
 
 [bullet]
 Added
-[uri apputil.html#get_system_environment_vars [cmd get_system_environment_vars]],
-[uri apputil.html#expand_system_environment_vars [cmd expand_system_environment_vars]],
-[uri apputil.html#get_user_environment_vars [cmd get_user_environment_vars]],
-[uri apputil.html#expand_user_environment_vars [cmd expand_user_environment_vars]].
+[uri process.html#get_system_environment_vars [cmd get_system_environment_vars]],
+[uri process.html#expand_system_environment_vars [cmd expand_system_environment_vars]],
+[uri process.html#get_user_environment_vars [cmd get_user_environment_vars]],
+[uri process.html#expand_user_environment_vars [cmd expand_user_environment_vars]].
 
 
 [bullet]

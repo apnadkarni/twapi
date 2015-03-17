@@ -900,6 +900,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     } u;
     HANDLE h;
     HMODULE hmod;
+    LPWSTR s, bufP;
     LPVOID pv;
     TwapiResult result;
     int func = PtrToInt(clientdata);
@@ -910,6 +911,43 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     ++objv;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
+    case 4: // CreateEnvironmentBlock
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETINT(dw), ARGEND)
+            != TCL_OK)
+            return TCL_ERROR;
+        if (CreateEnvironmentBlock(&pv, h, dw)) {
+            result.value.obj = ObjFromMultiSz(pv, -1);
+            result.type = TRT_OBJ;
+            DestroyEnvironmentBlock(pv);
+        } else
+            result.type = TRT_GETLASTERROR;
+        break;
+    case 5: // ExpandEnvironmentStringsForUser
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), ARGSKIP, ARGEND)
+            != TCL_OK)
+            return TCL_ERROR;
+        dw = 2048;
+        s =  ObjToUnicode(objv[1]);
+        while (1) {
+            bufP = TwapiPushFrame(dw, &dw);
+            if (ExpandEnvironmentStringsForUserW(h, s, bufP, dw/sizeof(WCHAR))) {
+                result.value.obj = ObjFromUnicode(bufP);
+                result.type = TRT_OBJ;
+                TwapiPopFrame();
+                break;
+            } else {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                result.value.ival = GetLastError(); /* Save error BEFORE any
+                                                       other calls */
+                TwapiPopFrame();
+                if (result.value.ival != ERROR_INSUFFICIENT_BUFFER ||
+                    dw > 128000)
+                    break;
+                dw *= 2;
+            }
+        }
+        break;    
+
     case 6:
         result.type = TRT_HANDLE;
         result.value.hval = GetCurrentThread();
@@ -1143,6 +1181,8 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
 static int TwapiProcessInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s ProcessDispatch[] = {
+        DEFINE_FNCODE_CMD(CreateEnvironmentBlock, 4),
+        DEFINE_FNCODE_CMD(ExpandEnvironmentStringsForUser, 5),
         DEFINE_FNCODE_CMD(GetCurrentThread, 6),
         DEFINE_FNCODE_CMD(ReadProcessMemory, 7),
         DEFINE_FNCODE_CMD(GetModuleFileNameEx, 8),
