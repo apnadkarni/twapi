@@ -1623,6 +1623,30 @@ proc twapi::get_module_handle_from_address {addr args} {
 }
 
 
+proc twapi::load_user_profile {token args} {
+    # PI_NOUI -> 0x1
+    parseargs args {
+        username.arg
+        {noui.bool 0 0x1}
+        defaultuserpath.arg
+        servername.arg
+        roamingprofilepath.arg
+    } -maxleftover 0 -setvars -nulldefault
+
+    if {$username eq ""} {
+        set username [get_token_user $token -name]
+    }
+
+    return [eval_with_privileges {
+        LoadUserProfile [list $token $noui $username $roamingprofilepath $defaultuserpath $servername]
+    } {SeRestorePrivilege SeBackupPrivilege}]
+}
+
+# TBD - document
+proc twapi::get_profile_type {} {
+    return [dict* {0 local 1 temporary 2 roaming 4 mandatory} [GetProfileType]]
+}
+
 #
 # Utility procedures
 

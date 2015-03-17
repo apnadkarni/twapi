@@ -870,7 +870,7 @@ static TCL_RESULT Twapi_CreateProcessAsUserObjCmd(
     return TwapiCreateProcessHelper(ticP, 1, objc, objv);
 }
 
-static TCL_RESULT Twapi_CreateProcessWithLogonObjCmd(
+static TCL_RESULT Twapi_CreateProcessWithLogonWObjCmd(
     TwapiInterpContext *ticP,
     Tcl_Interp *interp,
     int  objc,
@@ -879,7 +879,7 @@ static TCL_RESULT Twapi_CreateProcessWithLogonObjCmd(
     return TwapiCreateProcessHelper2(ticP, 0, objc, objv);
 }
 
-static TCL_RESULT Twapi_CreateProcessWithTokenObjCmd(
+static TCL_RESULT Twapi_CreateProcessWithTokenWObjCmd(
     TwapiInterpContext *ticP,
     Tcl_Interp *interp,
     int  objc,
@@ -888,6 +888,39 @@ static TCL_RESULT Twapi_CreateProcessWithTokenObjCmd(
     return TwapiCreateProcessHelper2(ticP, 1, objc, objv);
 }
 
+
+static TCL_RESULT Twapi_LoadUserProfileObjCmd(
+    TwapiInterpContext *ticP,
+    Tcl_Interp *interp,
+    int  objc,
+    Tcl_Obj *CONST objv[])
+{
+    HANDLE  hToken;
+    PROFILEINFOW profileinfo;
+    int nobjs;
+    Tcl_Obj **objs;
+
+    CHECK_NARGS(interp, objc, 2);
+    if (ObjGetElements(interp, objv[1], &nobjs, &objs) != TCL_OK)
+        return TCL_ERROR;
+
+    TwapiZeroMemory(&profileinfo, sizeof(profileinfo));
+    profileinfo.dwSize        = sizeof(profileinfo);
+    if (TwapiGetArgsEx(ticP, nobjs, objs, GETHANDLE(hToken),
+                       GETINT(profileinfo.dwFlags),
+                       GETWSTR(profileinfo.lpUserName),
+                       GETEMPTYASNULL(profileinfo.lpProfilePath),
+                       GETEMPTYASNULL(profileinfo.lpDefaultPath),
+                       GETEMPTYASNULL(profileinfo.lpServerName),
+                       ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    if (LoadUserProfileW(hToken, &profileinfo) == 0) {
+        return TwapiReturnSystemError(interp);
+    }
+
+    return ObjSetResult(interp, ObjFromHANDLE(profileinfo.hProfile));
+}
 
 static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -898,7 +931,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         MODULEINFO moduleinfo;
         PROCESS_MEMORY_COUNTERS_EX pmce;
     } u;
-    HANDLE h;
+    HANDLE h, h2;
     HMODULE hmod;
     LPWSTR s, bufP;
     LPVOID pv;
@@ -911,6 +944,17 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     ++objv;
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
+    case 2:
+        result.type =
+            GetProfileType(&result.value.uval) ? TRT_DWORD : TRT_GETLASTERROR;
+        break;
+    case 3:
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETHANDLE(h2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = UnloadUserProfile(h, h2);
+        break;
     case 4: // CreateEnvironmentBlock
         if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETINT(dw), ARGEND)
             != TCL_OK)
@@ -1181,6 +1225,8 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
 static int TwapiProcessInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s ProcessDispatch[] = {
+        DEFINE_FNCODE_CMD(GetProfileType, 2),
+        DEFINE_FNCODE_CMD(unload_user_profile, 3),
         DEFINE_FNCODE_CMD(CreateEnvironmentBlock, 4),
         DEFINE_FNCODE_CMD(ExpandEnvironmentStringsForUser, 5),
         DEFINE_FNCODE_CMD(GetCurrentThread, 6),
@@ -1219,13 +1265,16 @@ static int TwapiProcessInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(EnumDeviceDrivers, 2),
     };
 
+    struct tcl_dispatch_s TclDispatch[] = {
+        DEFINE_TCL_CMD(LoadUserProfile, Twapi_LoadUserProfileObjCmd),
+        DEFINE_TCL_CMD(EnumProcessHelper, Twapi_EnumProcessesModulesObjCmd),
+        DEFINE_TCL_CMD(CreateProcess, Twapi_CreateProcessObjCmd),
+        DEFINE_TCL_CMD(CreateProcessAsUser, Twapi_CreateProcessAsUserObjCmd),
+        DEFINE_TCL_CMD(CreateProcessWithLogonW, Twapi_CreateProcessWithLogonWObjCmd),
+        DEFINE_TCL_CMD(CreateProcessWithTokenW, Twapi_CreateProcessWithTokenWObjCmd),
+    };
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(ProcessDispatch), ProcessDispatch, Twapi_ProcessCallObjCmd);
-
-    Tcl_CreateObjCommand(interp, "twapi::EnumProcessHelper", Twapi_EnumProcessesModulesObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CreateProcess", Twapi_CreateProcessObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CreateProcessAsUser", Twapi_CreateProcessAsUserObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CreateProcessWithLogon", Twapi_CreateProcessWithLogonObjCmd, ticP, NULL);
-    Tcl_CreateObjCommand(interp, "twapi::CreateProcessWithToken", Twapi_CreateProcessWithTokenObjCmd, ticP, NULL);
+    TwapiDefineTclCmds(interp, ARRAYSIZE(TclDispatch), TclDispatch, ticP);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(EnumDispatch), EnumDispatch, "twapi::EnumProcessHelper");
 
     return TCL_OK;
