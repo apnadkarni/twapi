@@ -1840,6 +1840,91 @@ namespace eval ::twapi::process::test {
         set result
     } -result 1
 
+    test create_process-8.0 {
+        create_process -stdchannels pipe
+    } -setup {
+        lassign [chan pipe] parentread childwrite
+        lassign [chan pipe] childread parentwrite
+    } -body {
+        twapi::create_process $::env(COMSPEC) -inherithandles 1 -stdchannels [list $childread $childwrite $childwrite]
+        close $childwrite
+        close $childread
+        puts $parentwrite "VER"
+        puts $parentwrite "exit"
+        flush $parentwrite
+        read $parentread
+    } -cleanup {
+        close $parentwrite
+        close $parentread
+    } -result {*Microsoft Windows *Version*VER*Microsoft Windows *Version*exit*} -match glob
+
+    test create_process-8.1 {
+        create_process -stdchannels redirect output to file
+    } -setup {
+        set tempfile [write_test_file ""]
+        set outfd [open $tempfile w]
+        lassign [chan pipe] childread parentwrite
+    } -body {
+        lassign [twapi::create_process $::env(COMSPEC) -inherithandles 1 -stdchannels [list $childread $outfd $outfd] -returnhandles 1] pid tid hpid htid
+        close $outfd
+        close $childread
+        twapi::close_handle $htid
+        puts $parentwrite "VER"
+        puts $parentwrite "exit"
+        flush $parentwrite
+        twapi::wait_on_handle $hpid
+        read_file  $tempfile
+    } -cleanup {
+        close $parentwrite
+    } -result {*Microsoft Windows *Version*VER*Microsoft Windows *Version*exit*} -match glob
+
+
+    test create_process-9.0 {
+        create_process -stdhandles pipe
+    } -setup {
+        lassign [chan pipe] parentread childwrite
+        lassign [chan pipe] childread parentwrite
+    } -body {
+        set hread [twapi::get_tcl_channel_handle $childread read]
+        set hwrite [twapi::get_tcl_channel_handle $childwrite write]
+        twapi::set_handle_inheritance $hread 1
+        twapi::set_handle_inheritance $hwrite 1
+        twapi::create_process $::env(COMSPEC) -inherithandles 1 -stdhandles [list $hread $hwrite $hwrite]
+        close $childwrite
+        close $childread
+        puts $parentwrite "VER"
+        puts $parentwrite "exit"
+        flush $parentwrite
+        read $parentread
+    } -cleanup {
+        close $parentwrite
+        close $parentread
+    } -result {*Microsoft Windows *Version*VER*Microsoft Windows *Version*exit*} -match glob
+
+    test create_process-9.1 {
+        create_process -stdhandles redirect output
+    } -setup {
+        set tempfile [write_test_file ""]
+        set outfd [open $tempfile w]
+        lassign [chan pipe] childread parentwrite
+    } -body {
+        set hread [twapi::get_tcl_channel_handle $childread read]
+        set hwrite [twapi::get_tcl_channel_handle $outfd write]
+        twapi::set_handle_inheritance $hread 1
+        twapi::set_handle_inheritance $hwrite 1
+        lassign [twapi::create_process $::env(COMSPEC) -inherithandles 1 -stdhandles [list $hread $hwrite $hwrite] -returnhandles 1] pid tid hpid htid
+        close $childread
+        close $outfd
+        puts $parentwrite "VER"
+        puts $parentwrite "exit"
+        flush $parentwrite
+        twapi::wait_on_handle $hpid
+        read_file $tempfile
+    } -cleanup {
+        close $parentwrite
+    } -result {*Microsoft Windows *Version*VER*Microsoft Windows *Version*exit*} -match glob
+
+
     test create_process-99.0 {
         TBD - add tests for all create_process options
     } -constraints {
@@ -2889,7 +2974,7 @@ namespace eval ::twapi::process::test {
         twapi::unload_user_profile [twapi::load_user_profile $tok]
     } -cleanup {
         twapi::close_token $tok
-    } -result 
+    } -result ""
 
     test load_user_profile-99.0 {
         Validate other options
