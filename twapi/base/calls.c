@@ -2243,7 +2243,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_MemLifoAlloc, 1003),
         DEFINE_FNCODE_CMD(Twapi_MemLifoPushFrame, 1004),
 
-        DEFINE_FNCODE_CMD(SetHandleInformation, 2001), /* TBD - Tcl wrapper */
+        DEFINE_FNCODE_CMD(SetHandleInformation, 2001),
         DEFINE_FNCODE_CMD(Twapi_MemLifoExpandLast, 2002),
         DEFINE_FNCODE_CMD(Twapi_MemLifoShrinkLast, 2003),
         DEFINE_FNCODE_CMD(Twapi_MemLifoResizeLast, 2004),
