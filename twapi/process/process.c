@@ -466,6 +466,9 @@ static int ListObjToSTARTUPINFO(TwapiInterpContext *ticP, Tcl_Obj *siObj, STARTU
     }
 
     if (siP->dwFlags & STARTF_USESTDHANDLES) {
+        DWORD i, dw;
+        HANDLE h[3];
+
         if (ObjGetElements(interp, stdhObj, &objc, &objvP) != TCL_OK)
             return TCL_ERROR;
 
@@ -474,10 +477,18 @@ static int ListObjToSTARTUPINFO(TwapiInterpContext *ticP, Tcl_Obj *siObj, STARTU
             return TCL_ERROR;
         }
 
-        if (ObjToHANDLE(interp, objvP[0], &siP->hStdInput) != TCL_OK ||
-            ObjToHANDLE(interp, objvP[1], &siP->hStdOutput) != TCL_OK ||
-            ObjToHANDLE(interp, objvP[2], &siP->hStdError) != TCL_OK)
-            return TCL_ERROR;
+        for (i = 0; i < 3; ++i) {
+            if (ObjToHANDLE(interp, objvP[i], &h[i]) != TCL_OK)
+                return TCL_ERROR;
+            if (! (GetHandleInformation(h[i], &dw) &&
+                   (dw & HANDLE_FLAG_INHERIT))) {
+                return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid or non-inheritable handles");
+            }
+        }
+
+        siP->hStdInput = h[0];
+        siP->hStdOutput = h[1];
+        siP->hStdError = h[2];
     }
     
     return TCL_OK;

@@ -177,8 +177,8 @@ proc twapi::duplicate_handle {h args} {
     set source_ph $my_process_handle
     set target_ph $my_process_handle
 
-    if {![string is integer $h]} {
-        set h [HANDLE2ADDRESS_LITERAL $h]
+    if {[string is wideinteger $h]} {
+        set h [pointer_from_address $h HANDLE]
     }
 
     trap {
@@ -210,8 +210,8 @@ proc twapi::duplicate_handle {h args} {
 
         # IF targetpid specified, return handle else literal
         # (even if targetpid is us)
-        if {![info exists opts(targetpid)]} {
-            set dup [ADDRESS_LITERAL2HANDLE $dup]
+        if {[info exists opts(targetpid)]} {
+            set dup [pointer_to_address $dup]
         }
     } finally {
         if {$source_ph != $my_process_handle} {

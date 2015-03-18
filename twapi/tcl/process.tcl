@@ -124,29 +124,9 @@ proc twapi::create_process {path args} {
         if {! $opts(inherithandles)} {
             error "Cannot specify -stdhandles option if option -inherithandles is specified as 0"
         }
-        setbits si_flags 0x100
-    }
-
-    if {[llength $opts(stdchannels)]} {
-        if {! $opts(inherithandles)} {
-            error "Cannot specify -stdhandles option if option -inherithandles is specified as 0"
-        }
-        if {[llength $opts(stdchannels)] != 3} {
-            error "Must specify 3 channels for -stdchannels option corresponding stdin, stdout and stderr"
-        }
 
         setbits si_flags 0x100
-
-        # Convert the channels to handles
-        lappend opts(stdhandles) [duplicate_handle [get_tcl_channel_handle [lindex $opts(stdchannels) 0] read] -inherit]
-        lappend opts(stdhandles) [duplicate_handle [get_tcl_channel_handle [lindex $opts(stdchannels) 1] write] -inherit]
-        lappend opts(stdhandles) [duplicate_handle [get_tcl_channel_handle [lindex $opts(stdchannels) 2] write] -inherit]
     }
-
-    set startup [list $opts(desktop) $opts(title) $xpos $ypos \
-                     $xsize $ysize $xscreen $yscreen \
-                     [expr {$fg|$bg}] $si_flags $opts(showwindow) \
-                     $opts(stdhandles)]
 
     # Figure out process creation flags
     # 0x400 -> CREATE_UNICODE_ENVIRONMENT
@@ -180,6 +160,29 @@ proc twapi::create_process {path args} {
     }
 
     trap {
+        # This is inside the trap because duplicated handles have
+        # to be closed.
+        if {[llength $opts(stdchannels)]} {
+            if {! $opts(inherithandles)} {
+                error "Cannot specify -stdhandles option if option -inherithandles is specified as 0"
+            }
+            if {[llength $opts(stdchannels)] != 3} {
+                error "Must specify 3 channels for -stdchannels option corresponding stdin, stdout and stderr"
+            }
+
+            setbits si_flags 0x100
+
+            # Convert the channels to handles
+            lappend opts(stdhandles) [duplicate_handle [get_tcl_channel_handle [lindex $opts(stdchannels) 0] read] -inherit]
+            lappend opts(stdhandles) [duplicate_handle [get_tcl_channel_handle [lindex $opts(stdchannels) 1] write] -inherit]
+            lappend opts(stdhandles) [duplicate_handle [get_tcl_channel_handle [lindex $opts(stdchannels) 2] write] -inherit]
+        }
+
+        set startup [list $opts(desktop) $opts(title) $xpos $ypos \
+                         $xsize $ysize $xscreen $yscreen \
+                         [expr {$fg|$bg}] $si_flags $opts(showwindow) \
+                         $opts(stdhandles)]
+
         if {[info exists opts(token)]} {
             lassign [CreateProcessAsUser $opts(token) [file nativename $path] \
                          $opts(cmdline) \
