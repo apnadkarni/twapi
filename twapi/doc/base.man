@@ -525,6 +525,10 @@ Boolean indicating whether the build used Tcl Extension Architecture
 or native builds.
 [list_end]
 
+[call [cmd get_handle_inheritance] [arg HANDLE]]
+Indicates whether the specified handle is marked as
+inheritable by child processes.
+
 [call [cmd get_tcl_channel_handle] [arg CHANNEL] [arg DIRECTION]]
 
 Returns the operating system handle corresponding to a Tcl channel identifier
@@ -912,6 +916,11 @@ type [arg TYPE]. [arg TYPE] must be one of the COM types
 This command converts [arg SECONDS] which is the number of seconds since
 the epoch Jan 1, 1970 to the number of 100 nanoseconds since Jan 1, 1601.
 
+[call [cmd set_handle_inheritance] [arg HANDLE] [arg BOOLEAN]]
+If [arg BOOLEAN] is [const true], [arg HANDLE] is marked as
+being inheritable by child processes. If [const false], the handle
+will not be inherited.
+
 [call [cmd swap2] [arg BYTES2]]
 Byte swaps a 16 bit value.
 
@@ -979,8 +988,6 @@ cannot handle the case and wants to raise the original error.
 Similarly, the [cmd trapresult] and [cmd trapoptions] commands
 can be used in a [cmd onerror] clause to retrieve the error message
 and error options dictionary captured by the [cmd onerror] clause.
-
-
 
 [call [cmd wait_on_handle] [arg HANDLE] [opt [arg options]]]
 The command waits on the specified [arg HANDLE] until it is either

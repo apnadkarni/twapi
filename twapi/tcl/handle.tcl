@@ -224,3 +224,13 @@ proc twapi::duplicate_handle {h args} {
 
     return $dup
 }
+
+proc twapi::set_handle_inheritance {h inherit} {
+    # 1 -> HANDLE_FLAG_INHERIT
+    SetHandleInformation $h 0x1 [expr {$inherit ? 1 : 0}]
+}
+
+proc twapi::get_handle_inheritance {h} {
+    # 1 -> HANDLE_FLAG_INHERIT
+    return [expr {[GetHandleInformation $h] & 1}]
+}

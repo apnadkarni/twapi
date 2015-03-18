@@ -106,6 +106,10 @@ Added [uri process.html#load_user_profile [cmd load_user_profile]] and
 [uri process.html#unload_user_profile [cmd unload_user_profile]].
 
 [bullet]
+Added [uri base.html#get_handle_inheritance [cmd get_handle_inheritance]] and
+[uri base.html#set_handle_inheritance [cmd set_handle_inheritance]].
+
+[bullet]
 [emph "POTENTIAL INCOMPATIBILITY"]
 The [uri process.html#create_process [cmd create_process]] command
 option [cmd -showwindow] default has been changed from [const hidden]

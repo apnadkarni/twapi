@@ -407,9 +407,19 @@ namespace eval twapi::handle::test {
     } -result {1 1}
 
     ################################################################
-    #
-    # Clean up
-    ::tcltest::cleanupTests
+
+    test set_handle_inheritance-1.0 {
+        Set inheritance for a handle
+    } -setup {
+        set path [tcltest::makeFile "" [clock clicks]]
+        set fd [open $path w+]
+        set h [twapi::get_tcl_channel_handle $fd write]
+    } -body {
+        list [twapi::get_handle_inheritance $h] [twapi::set_handle_inheritance $h 1]  [twapi::get_handle_inheritance $h] [twapi::set_handle_inheritance $h 0]  [twapi::get_handle_inheritance $h]
+    } -cleanup {
+        close $fd
+    } -result {0 {} 1 {} 0}
 }
 
+::tcltest::cleanupTests
 namespace delete ::twapi::handle::test
