@@ -241,6 +241,7 @@ static BOOL WINAPI TwapiConsoleCtrlHandler(DWORD ctrl)
 {
     TwapiCallback *cbP;
     BOOL handled = FALSE;
+    DWORD winerr;
 
     /* TBD - there is a race here? */
     if (console_control_ticP == NULL)
@@ -250,16 +251,16 @@ static BOOL WINAPI TwapiConsoleCtrlHandler(DWORD ctrl)
         console_control_ticP, TwapiConsoleCtrlCallbackFn, sizeof(*cbP));
 
     cbP->clientdata = ctrl;
-    if (TwapiEnqueueCallback(console_control_ticP,
-                             cbP,
-                             TWAPI_ENQUEUE_DIRECT,
-                             100, /* Timeout (ms) */
-                             &cbP)
-        == ERROR_SUCCESS) {
-
+    winerr = TwapiEnqueueCallback(console_control_ticP,
+                                  cbP,
+                                  TWAPI_ENQUEUE_DIRECT,
+                                  100, /* Timeout (ms) */
+                                  &cbP);
+    if (winerr == ERROR_SUCCESS) {
         if (cbP && cbP->response.type == TRT_BOOL)
             handled = cbP->response.value.bval;
-    }
+    } else if (winerr == WAIT_TIMEOUT)
+        handled = 1;
 
     if (cbP)
         TwapiCallbackUnref((TwapiCallback *)cbP, 1);
