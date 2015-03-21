@@ -132,10 +132,9 @@ int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP)
 static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     LPWSTR s;
-    DWORD dw, dw2;
+    DWORD dw;
     TwapiResult result;
     LPVOID pv;
-    HANDLE h;
     int func = PtrToInt(clientdata);
 
     result.type = TRT_BADFUNCTIONCODE;
