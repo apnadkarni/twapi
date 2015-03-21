@@ -826,7 +826,7 @@ static int TwapiCreateProcessHelper2(TwapiInterpContext *ticP, int have_token, i
             Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
             goto vamoose;
         }
-        status = CreateProcessWithTokenPtr(
+        status = (BOOL) CreateProcessWithTokenPtr(
             tokH,
             logon_flags,
             appname,
