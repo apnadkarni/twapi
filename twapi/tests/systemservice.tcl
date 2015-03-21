@@ -164,7 +164,6 @@ proc systcl::service_control_handler {control {name ""} {seq 0} args} {
     }
 }
 
-
 ################################################################
 # Main code
 
