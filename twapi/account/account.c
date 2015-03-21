@@ -1063,7 +1063,7 @@ static int Twapi_AcctCallSSObjCmd(ClientData clientdata, Tcl_Interp *interp, int
 
 static int Twapi_AcctCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    HANDLE h, h2;
+    HANDLE h;
     DWORD dw;
     int func = PtrToInt(clientdata);
     TwapiResult result;
