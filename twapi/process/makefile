@@ -4,5 +4,6 @@ MODULENAME=twapi_process
 
 OBJS  = $(OBJDIR)\process.obj
 TCLFILES=..\tcl\process.tcl
+EXTRALIBS = userenv.lib
 
 !include ..\include\rules.inc

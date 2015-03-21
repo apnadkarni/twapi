@@ -4,5 +4,6 @@ PREREQUISITES=twapi_security
 
 OBJS  = $(OBJDIR)\account.obj
 TCLFILES=..\tcl\accounts.tcl
+EXTRALIBS = userenv.lib
 
 !include ..\include\rules.inc
