@@ -294,7 +294,12 @@ proc twapi::tls::watch {chan watchmask} {
 
         # TBD - do we need to turn write handler back on?
         if {"write" in $watchmask} {
-            if {$State eq "OPEN"} {
+            # We will mark channel as writable even if we are still
+            # initializing. This is to deal with the case where 
+            # the -async option is used and caller waits for the
+            # writable event to do the actual write (which will then
+            # trigger the negotiation if needed)
+            if {$State in {OPEN SERVERINIT CLIENTINIT NEGOTIATING}} {
                 _post_write_event $chan
             }
         }
@@ -944,7 +949,7 @@ proc twapi::tls::_post_write_event_callback {chan} {
     if {[info exists _channels($chan)]} {
         dict unset _channels($chan) WriteEventPosted
         if {"write" in [dict get $_channels($chan) WatchMask] &&
-            [dict get $_channels($chan) State] eq "OPEN"} {
+            [dict get $_channels($chan) State] in {OPEN SERVERINIT CLIENTINIT NEGOTIATING}} {
             chan postevent $chan write
         }
     }
