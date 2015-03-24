@@ -75,6 +75,7 @@ if {[lsearch [namespace children] ::tcltest] == -1} {
     package require tcltest
     namespace import ::tcltest::*
 }
+package require http
 
 eval tcltest::configure $argv
 
@@ -1414,6 +1415,31 @@ test starttls-optscheck-1.1 {
     }
     set diffs
 } -result ""
+
+test tls-http-geturl-1.0 {
+    Verify tls works with http::geturl
+} -setup {
+    http::register https 443 twapi::tls_socket
+} -body {
+    set tok [http::geturl https://www.google.com]
+    http::data $tok
+} -cleanup {
+    http::cleanup $tok
+} -result {<HTML><HEAD>.*google.*</HTML>\s} -match regexp
+
+test tls-http-geturl-1.1 {
+    Verify tls works with http::geturl -command
+} -setup {
+    http::register https 443 twapi::tls_socket
+} -body {
+    set tok [http::geturl https://www.google.com -command {set ::tok}]
+    vwait tok
+    http::data $tok
+} -cleanup {
+    http::cleanup $tok
+} -result {<HTML><HEAD>.*google.*</HTML>\s} -match regexp
+
+
 
 
 #
