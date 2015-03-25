@@ -29,19 +29,20 @@
   <li>Go to the <a href="http://sourceforge.net/project/showfiles.php?group_id=90123">download page</a></li>
   <li>Visit the <a href="http://sourceforge.net/projects/twapi">SourceFourge</a> project</li>
   <li>Browse the <a href="http://twapi.hg.sourceforge.net/hgweb/twapi/">source repository</a></li>
-  <li>Documentation for latest beta release:
-    <a href="http://twapi.sourceforge.net/v4.1">4.1 Beta</a>
-  </li>
   <li>Documentation for current release:
-    <a href="http://twapi.sourceforge.net/v4.0">4.0</a>
+    <a href="http://twapi.sourceforge.net/v4.1">4.1</a>
   </li>
   <li>Documentation for older versions: 
+    <a href="http://twapi.sourceforge.net/v4.0">4.0</a>
     <a href="http://twapi.sourceforge.net/v3.1">3.1</a>
     <a href="http://twapi.sourceforge.net/v3.0">3.0</a>
     <a href="http://twapi.sourceforge.net/v2.2">2.2</a>
     <a href="http://twapi.sourceforge.net/v2.1">2.1</a>
     <a href="http://twapi.sourceforge.net/v2.0">2.0</a>
     <a href="http://twapi.sourceforge.net/v1.1">1.1</a>
+  </li>
+  <li>Online chapters from <a href="http://www.magicsplat.com/book">Tcl
+      Programming for Windows</a>
   </li>
 </ul>
 
