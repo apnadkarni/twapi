@@ -1,6 +1,6 @@
-# Tcl Windows API (TWAPI) 4.1b19
+# Tcl Windows API (TWAPI) 4.1
 
-This is a Beta release of TWAPI 4.1.
+This is the release version of TWAPI 4.1.
 
   * Project home page is at http://twapi.sourceforge.net
   * V4.1 documentation is at http://twapi.sourceforge.net/v4.1
