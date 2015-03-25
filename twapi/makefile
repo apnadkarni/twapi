@@ -95,7 +95,7 @@ twapi twapi-bin twapi-modular twapi-lib: $(@)-build
 twapi twapi-bin twapi-modular: $(@)-build "$(DISTDIR)\$@\pkgindex.tcl"
         $(COPY) LICENSE "$(DISTDIR)\$@"
 !if "$(TWAPI_RELEASETYPE)" == "."
-	$(COPY) doc\announce$(TWAPI_MAJOR)$(TWAPI_MINOR).md "$(DISTDIR)\$@\README.TXT"
+	$(COPY) doc\announce.md "$(DISTDIR)\$@\README.TXT"
 !else
 	copy << "$(DISTDIR)\$@\README.TXT"
 This directory holds the development version of TWAPI.
