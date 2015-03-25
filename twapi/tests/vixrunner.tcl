@@ -203,17 +203,13 @@ oo::class create TestTarget {
     }
 }
 
-#
+proc usage {} {
+    puts "[file tail [info nameofexecutable]] OS ?options?"
+    puts "Options: -platform, -tclversion, -distribution, -constraints, -testfile"
+}
 
-# Reset VM to base state
-# Power it on
-# Do what setuptarget.tcl does
-# Run desired tests
-
-
-proc main {args} {
+proc main {os args} {
     array set opts [parseargs args {
-        {os.arg win8pro}
         {platform.arg x86 {x86 x64}}
         {tclversion.arg 8.6}
         {distribution.arg ""}
