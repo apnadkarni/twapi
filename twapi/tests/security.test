@@ -2856,13 +2856,13 @@ namespace eval twapi::security::test {
             " -result 1
     }
 
-    test get_user_account_info-internet_identity.0 {
+    test get_user_account_info-internet_identity-1.0 {
         get_user_account_info -internet_identity
     } -body {
         twapi::get_user_account_info $administrator_account_name -internet_identity
     } -result {-internet_identity {}}
 
-    test get_user_account_info-internet_identity.1 {
+    test get_user_account_info-internet_identity-1.1 {
         get_user_account_info -internet_identity
     } -constraints {
         microsoftaccount
@@ -6107,7 +6107,7 @@ namespace eval twapi::security::test {
                  -group $administrators_account_name \
                  -dacl [twapi::new_acl [list [twapi::new_ace deny $::env(username) "file_all_access"]]] \
                  -sacl null]
-    } -result "Owner:\\s*$::env(username).*Group:\\s*$administrators_account_name.*DACL:\\s*Rev:\\s*2.*Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*standard_rights_required" -match regexp
+    } -result "Owner:\\s*$::env(username).*Group:\\s*$administrators_account_name.*DACL:\\s*Rev:\\s*2.*Type:\\s*Deny.*User:\\s*S-1-5.+$::env(username).*Rights:\\s*standard_rights_required" -match regexp
     ###
 
     test get_security_descriptor_text-1.2 {
@@ -6121,7 +6121,7 @@ namespace eval twapi::security::test {
                  -group $administrators_account_name \
                  -dacl [twapi::new_acl [list [twapi::new_ace deny $::env(username) "file_all_access"]]] \
                  -sacl null] -resourcetype file
-    } -result "Owner:\\s*$::env(username).*Group:\\s*$administrators_account_name.*DACL:\\s+Rev:\\s*2.*Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*All" -match regexp
+    } -result "Owner:\\s*$::env(username).*Group:\\s*$administrators_account_name.*DACL:\\s+Rev:\\s*2.*Type:\\s*Deny.*User:\\s*S-1-5.+$::env(username).*Rights:\\s*All" -match regexp
 
     ################################################################
 
