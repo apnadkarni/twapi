@@ -149,7 +149,11 @@ oo::class create TestTarget {
                 lappend auto_path [file join $testdir dist]
                 package require twapi
                 set comtest_dll [file nativename [file join $testdir tests comtest comtest.dll]]
-                twapi::shell_execute -path regsvr32.exe -verb runas -params "/s $comtest_dll"
+                if {[twapi::min_os_version 6]} {
+                    twapi::shell_execute -path regsvr32.exe -verb runas -params "/s $comtest_dll"
+                } else {
+                    twapi::shell_execute -path regsvr32.exe -params "/s $comtest_dll"
+                }
             } msg]} {
                 exit 1
             }
@@ -184,7 +188,11 @@ oo::class create TestTarget {
                     append cmdargs " -constraints \"${constraints}\""
                 }
 
-                set hproc [twapi::shell_execute -path $::env(COMSPEC) -verb runas -params $cmdargs -getprocesshandle 1]
+                if {[twapi::min_os_version 6]} {
+                    set hproc [twapi::shell_execute -path $::env(COMSPEC) -verb runas -params $cmdargs -getprocesshandle 1]
+                } else {
+                    set hproc [twapi::shell_execute -path $::env(COMSPEC) -params $cmdargs -getprocesshandle 1]
+                }
                 twapi::wait_on_handle $hproc
                 twapi::get_process_exit_code $hproc
                 twapi::close_handle $hproc
