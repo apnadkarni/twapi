@@ -996,6 +996,8 @@ non-blocking asynchronous notification. [arg HANDLE] may be any
 operating system handle for which Windows supports the
 [cmd WaitForSingleObject] API.
 [nl]
+[emph "WARNING: [arg HANDLE] must NOT be closed while it is being waited on. Windows behaviour is undefined in this case and may result in a program crash."]
+[nl]
 The command may return one of the following values if the
 [cmd -async] option is not specified: [const signalled], [const timeout],
 [const abandoned]. If [cmd -async] is specified, the command

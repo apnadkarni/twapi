@@ -2971,7 +2971,7 @@ namespace eval ::twapi::process::test {
     } -setup {
         set tok [twapi::open_process_token -access {token_duplicate token_impersonate token_query}]
     } -body {
-        twapi::unload_user_profile [twapi::load_user_profile $tok]
+        twapi::unload_user_profile $tok [twapi::load_user_profile $tok]
     } -cleanup {
         twapi::close_token $tok
     } -result ""
