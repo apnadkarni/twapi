@@ -1650,6 +1650,38 @@ proc twapi::get_profile_type {} {
     return [dict* {0 local 1 temporary 2 roaming 4 mandatory} [GetProfileType]]
 }
 
+
+proc twapi::_env_block_to_dict {block normalize} {
+    set env_dict {}
+    foreach env_str $block {
+        set pos [string first = $env_str]
+        set key [string range $env_str 0 $pos-1]
+        if {$normalize} {
+            set key [string toupper $key]
+        }
+        lappend env_dict $key [string range $env_str $pos+1 end]
+    }
+    return $env_dict
+}
+
+proc twapi::get_system_environment_vars {args} {
+    parseargs args {normalize.bool} -nulldefault -setvars -maxleftover 0
+    return [_env_block_to_dict [CreateEnvironmentBlock 0 0] $normalize]
+}
+
+proc twapi::get_user_environment_vars {token args} {
+    parseargs args {inherit.bool normalize.bool} -nulldefault -setvars -maxleftover 0
+    return [_env_block_to_dict [CreateEnvironmentBlock $token $inherit] $normalize]
+}
+
+proc twapi::expand_system_environment_vars {s} {
+    return [ExpandEnvironmentStringsForUser 0 $s]
+}
+
+proc twapi::expand_user_environment_vars {tok s} {
+    return [ExpandEnvironmentStringsForUser $tok $s]
+}
+
 #
 # Utility procedures
 

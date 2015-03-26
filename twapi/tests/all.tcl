@@ -21,6 +21,6 @@ tcltest::configure -tmpdir $::env(TEMP)/twapi-test/[clock seconds]
 
 puts "Test environment: Tcl [info patchlevel], [expr {[info exists ::env(TWAPI_PACKAGE)] ? $::env(TWAPI_PACKAGE) : "twapi" }] [twapi::get_version -patchlevel]"
 
-eval tcltest::configure $argv
+tcltest::configure {*}$argv
 tcltest::runAllTests
 puts "All done."
