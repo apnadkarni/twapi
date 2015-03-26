@@ -149,7 +149,7 @@ oo::class create TestTarget {
                 lappend auto_path [file join $testdir dist]
                 package require twapi
                 set comtest_dll [file nativename [file join $testdir tests comtest comtest.dll]]
-                twapi::shell_execute -path regsvr32.exe -verb runas -params $comtest_dll
+                twapi::shell_execute -path regsvr32.exe -verb runas -params "/s $comtest_dll"
             } msg]} {
                 exit 1
             }
@@ -174,10 +174,12 @@ oo::class create TestTarget {
             set testfile "%s"
             if {[catch {
                 set testdir [file normalize [file join [file dirname [info nameofexecutable]] ..]]
+                set tmpdir [file join $testdir temp]
+                file mkdir $tmpdir
                 lappend auto_path [file join $testdir dist]
                 package require twapi
-                
-                set cmdargs "/C cd [file nativename [file join $testdir tests]] && [file nativename [info nameofexecutable]] $testfile -outfile results.txt"
+
+                set cmdargs "/C cd [file nativename [file join $testdir tests]] && [file nativename [info nameofexecutable]] $testfile -tmpdir $tmpdir -outfile results.txt"
                 if {[llength $constraints]} {
                     append cmdargs " -constraints \"${constraints}\""
                 }
@@ -195,13 +197,14 @@ oo::class create TestTarget {
         } $constraints $testfile]
         lassign [$VM script [config target_tclsh] $script -wait 1] pid exit_code elapsed_time
         progress "Test run completed with exit code $exit_code"
-        set vm_result_file [nativepath [config target_test_dir] tests results.txt]
+        set vm_result_file [nativepath [config target_test_dir] temp results.txt]
         if {[info exists outfile]} {
             progress "Copying remote $vm_result_file to $outfile"
             $VM copy_from_vm $vm_result_file $outfile
         } else {
             close [file tempfile result_file]
             set result_file [file nativename $result_file]
+            progress "Copying remote $vm_result_file to $result_file"
             $VM copy_from_vm $vm_result_file $result_file
             exec notepad.exe  $result_file &
             after 1000;         # Give notepad a change to read it
