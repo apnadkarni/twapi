@@ -1235,8 +1235,8 @@ namespace eval twapi::osinfo::test {
     } -constraints {
         dcexists
     } -body {
-        twapi::find_domain_controller -domain $test_domain(name) -inputnameformat dns
-    } -result [twapi::map_windows_error 1212] -returnCodes error
+        list [catch {twapi::find_domain_controller -domain $test_domain(name) -inputnameformat dns}] [lindex $::errorCode 0]
+    } -result [list 1 TWAPI_WIN32]
 
     test find_domain_controller-6.0 {
         Find domain controller using GUID
