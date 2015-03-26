@@ -164,7 +164,7 @@ oo::class create TestTarget {
     method run {testfile args} {
         parseargs args {
             {constraints.arg {}}
-            outfile
+            outfile.arg
         } -setvars -maxleftover 0
 
         # Note file paths are passed in Unix format using 
@@ -182,7 +182,10 @@ oo::class create TestTarget {
                     append cmdargs " -constraints \"${constraints}\""
                 }
 
-                twapi::shell_execute -path $::env(COMSPEC) -verb runas -params $cmdargs
+                set hproc [twapi::shell_execute -path $::env(COMSPEC) -verb runas -params $cmdargs -getprocesshandle 1]
+                twapi::wait_on_handle $hproc
+                twapi::get_process_exit_code $hproc
+                twapi::close_handle $hproc
             } msg]} {
                 set fd [open c:/twapitest/error.log w]
                 puts $fd "$msg\n$::errorInfo"
@@ -192,11 +195,15 @@ oo::class create TestTarget {
         } $constraints $testfile]
         lassign [$VM script [config target_tclsh] $script -wait 1] pid exit_code elapsed_time
         progress "Test run completed with exit code $exit_code"
+        set vm_result_file [nativepath [config target_test_dir] tests results.txt]
         if {[info exists outfile]} {
-            $VM copy_from_vm [nativepath [config target_test_dir] tests results.txt] $outfile
+            progress "Copying remote $vm_result_file to $outfile"
+            $VM copy_from_vm $vm_result_file $outfile
         } else {
-            close [file tempname result_file]
-            exec notepad.exe [file nativename $result_file] &
+            close [file tempfile result_file]
+            set result_file [file nativename $result_file]
+            $VM copy_from_vm $vm_result_file $result_file
+            exec notepad.exe  $result_file &
             after 1000;         # Give notepad a change to read it
             file delete $result_file
         }
@@ -205,16 +212,22 @@ oo::class create TestTarget {
 
 proc usage {} {
     puts "[file tail [info nameofexecutable]] OS ?options?"
-    puts "Options: -platform, -tclversion, -distribution, -constraints, -testfile"
+    puts "Options: -platform, -tclversion, -distribution, -constraints, -testfile, -outfile"
+    exit 1
 }
 
-proc main {os args} {
+proc main {args} {
+    if {[llength $args] == 0} {
+        usage
+    }
+    set args [lassign $args os]
     array set opts [parseargs args {
         {platform.arg x86 {x86 x64}}
         {tclversion.arg 8.6}
         {distribution.arg ""}
         {constraints.arg ""}
         {testfile.arg all.tcl}
+        outfile.arg 
     } -maxleftover 0 -setvars]
 
     vix::Host create host
@@ -222,7 +235,11 @@ proc main {os args} {
         TestTarget create target [vm_path $os $platform]
         try {
             target setup $tclversion $platform $distribution
-            target run $testfile -constraints $constraints
+            if {[info exists opts(outfile)]} {
+                target run $testfile -constraints $constraints -outfile $opts(outfile)
+            } else {
+                target run $testfile -constraints $constraints
+            }
         } finally {
             target destroy
         }
