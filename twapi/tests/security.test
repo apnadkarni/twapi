@@ -6051,7 +6051,7 @@ namespace eval twapi::security::test {
         Generate text description for a deny ACE
     } -body {
         twapi::get_ace_text [twapi::new_ace deny $::env(username) ""]
-    } -result Type:\\s*Deny.*User:\\s*$::env(username).* -match regexp
+    } -result Type:\\s*Deny.*User:\\s*S-1-5.*$::env(username).* -match regexp
 
     ###
 
@@ -6059,7 +6059,7 @@ namespace eval twapi::security::test {
         Generate text description for an allow ACE
     } -body {
         twapi::get_ace_text [twapi::new_ace allow $::env(username) ""]
-    } -result Type:\\s*Allow.*User:\\s*$::env(username).* -match regexp
+    } -result Type:\\s*Allow.*User:\\s*S-1-5.*$::env(username).* -match regexp
 
     ###
 
@@ -6067,7 +6067,7 @@ namespace eval twapi::security::test {
         Generate text description for a deny ACE of type file with all rights
     } -body {
         twapi::get_ace_text [twapi::new_ace deny $::env(username) "file_all_access"] -resourcetype file
-    } -result Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*All -match regexp
+    } -result Type:\\s*Deny.*User:\\s*S-1-5.*$::env(username).*Rights:\\s*All -match regexp
 
     ###
 
@@ -6075,7 +6075,7 @@ namespace eval twapi::security::test {
         Generate text description for an allow ACE of type file with specific rights
     } -body {
         twapi::get_ace_text [twapi::new_ace deny $::env(username) "file_read_ea"] -resourcetype file
-    } -result Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*file_read_ea -match regexp
+    } -result Type:\\s*Deny.*User:\\s*S-1-5.*$::env(username).*Rights:\\s*file_read_ea -match regexp
 
     test get_ace_text-3.0 {
         TBD - get_ace_text SACL
@@ -6094,7 +6094,7 @@ namespace eval twapi::security::test {
                  -group $administrators_account_name \
                  -dacl null \
                  -sacl null]
-    } -result "Owner:\\s*$::env(username).*Group:\\s*$administrators_account_name.*DACL Rev:\\s*null.*SACL Rev:\\s*null" -match regexp
+    } -result "Owner:\\s*$::env(username).*Group:\\s*$administrators_account_name.*DACL:\\s+Rev:\\s*null.*SACL:\\s+Rev:\\s*null" -match regexp
 
     ###
 
@@ -6107,10 +6107,10 @@ namespace eval twapi::security::test {
                  -group $administrators_account_name \
                  -dacl [twapi::new_acl [list [twapi::new_ace deny $::env(username) "file_all_access"]]] \
                  -sacl null]
-    } -result "Owner:\\s*$::env(username).*Group:\\s*$administrators_account_name.*DACL Rev:\\s*2.*Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*standard_rights_required" -match regexp
+    } -result "Owner:\\s*$::env(username).*Group:\\s*$administrators_account_name.*DACL:\\s*Rev:\\s*2.*Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*standard_rights_required" -match regexp
     ###
 
-    test get_security_descriptor_text-1.1 {
+    test get_security_descriptor_text-1.2 {
         Generate text description for a security descriptor for a file resource
     } -constraints {
         nt
@@ -6121,7 +6121,7 @@ namespace eval twapi::security::test {
                  -group $administrators_account_name \
                  -dacl [twapi::new_acl [list [twapi::new_ace deny $::env(username) "file_all_access"]]] \
                  -sacl null] -resourcetype file
-    } -result "Owner:\\s*$::env(username).*Group:\\s*$administrators_account_name.*DACL Rev:\\s*2.*Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*All" -match regexp
+    } -result "Owner:\\s*$::env(username).*Group:\\s*$administrators_account_name.*DACL:\\s+Rev:\\s*2.*Type:\\s*Deny.*User:\\s*$::env(username).*Rights:\\s*All" -match regexp
 
     ################################################################
 
@@ -6582,7 +6582,7 @@ namespace eval twapi::security::test {
         Get text description of non-existing privilege
     } -body {
         twapi::get_privilege_description NoSuchPriv
-    } -result ""
+    } -result NoSuchPriv
 
     ################################################################
 
@@ -6744,7 +6744,7 @@ namespace eval twapi::security::test {
         Invalid sid name
     } -body {
         twapi::well_known_sid abc
-    } -result {expected integer but got "abc"} -returnCodes error
+    } -result {Bad value "abc".*} -match glob -returnCodes error
 
     test well_known_sid-3.1 {
         Invalid domain sid
