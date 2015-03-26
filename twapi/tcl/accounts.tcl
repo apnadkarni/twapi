@@ -246,7 +246,7 @@ proc twapi::get_user_account_info {account args} {
         set result(-internet_identity) {}
         if {[min_os_version 6 2]} {
             set inet_ident [NetUserGetInfo $opts(system) $account 24]
-            if {[lindex $inet_ident 0]} {
+            if {[llength $inet_ident]} {
                 set result(-internet_identity) [twine {
                     internet_provider_name internet_principal_name sid
                 } [lrange $inet_ident 1 end]]
