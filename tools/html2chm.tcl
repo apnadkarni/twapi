@@ -23,6 +23,7 @@
 #       thread/doc/html directory in the thread distribution.
 #  (2f) Copy tdom documentation into h2c\tdom_doc
 #  (3) Copy h2c-*.cfg files into the respective directories
+#  (3a) Edit h2c-tcllib-modules.cfg to update the module list if necessary
 #  (4) tclwinhelp.html to h2c directory
 #  (5) For all above files you may need to use tidy to clean up the HTML
 #      to XHTML. Command (/R for recursion) : 
