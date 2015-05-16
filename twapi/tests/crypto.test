@@ -2943,7 +2943,7 @@ namespace eval twapi::crypto::test {
         twapi::cert_release $hcert
     } -result ok
 
-    test cert_tls_verify-6.10 {
+    test cert_tls_verify-6.6 {
         Verify TLS certificate with -ignoreerrors criticalextensions basicconstraints policy time
     } -constraints {
         TBD
@@ -2953,6 +2953,14 @@ namespace eval twapi::crypto::test {
         twapi::cert_tls_verify $hcert -ignoreerrors {unknownca usage revocation} -usageany {client_auth}
     } -cleanup {
         twapi::cert_release $hcert
+    } -result ok
+
+    test cert_tls_verify-6.7 {
+        Verify TLS expired certificate  -ignoreerrors time
+    } -setup {
+        set cert [expiredcert]
+    } -body {
+        twapi::cert_tls_verify $cert -ignoreerrors time
     } -result ok
 
     test cert_tls_verify-7.0 {
@@ -3085,6 +3093,13 @@ namespace eval twapi::crypto::test {
         twapi::cert_release $hcert
     } -result ok
 
+    test cert_tls_verify-12.0 {
+        Verify TLS expired certificate
+    } -setup {
+        set cert [expiredcert]
+    } -body {
+        twapi::cert_tls_verify $cert
+    } -result expired
 
     ################################################################
 

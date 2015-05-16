@@ -1474,9 +1474,15 @@ proc googlecert {} {
     return [twapi::cert_import $enc -encoding pem]
 }
 
+
 # Returns google encoded cert.
 proc googleencodedcert {} {
     return [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem] r]
+}
+
+proc expiredcert {} {
+    set enc [read_file [file join [tcltest::testsDirectory] certs www.google.com-expired.pem] r]
+    return [twapi::cert_import $enc -encoding pem]
 }
 
 # Returns context for one of the sample certs in the sample store
