@@ -26,9 +26,6 @@ It's critical that provider name and other crap match the information that was u
 This is the only way that I found to attach private key to a certificate.
 }
 
-
-
-
 package require tcltest
 eval tcltest::configure $argv
 
@@ -39,35 +36,6 @@ load_twapi_package twapi_crypto
 namespace eval twapi::crypto::test {
     namespace import ::tcltest::test
 
-    # WARNING: return value combines stdout and stderr so the two
-    # can be intermixed. Take into consideration when matching
-    proc openssl {args} {
-        if {[file exists [file join [pwd] .. openssl bin openssl.exe]]} {
-            set cmd [list [file join [pwd] .. openssl bin openssl.exe]]
-        } else {
-            set cmd [auto_execok openssl.exe]
-            if {[llength $cmd] == 0} {
-                # Try from the source pool. We do it this way because 
-                # of problems loading in VmWare virtual machines from the
-                # host's drive share
-                set cmd [list ../../tools/openssl/bin/openssl.exe]
-            }
-        }
-        set cfg [file join [file dirname [file dirname [file normalize [lindex $cmd 0]]]] ssl openssl.cnf]
-        if {[file exists $cfg]} {
-            set ::env(OPENSSL_CONF) $cfg
-        }
-        set stderr_temp [file join [temp_crypto_dir_path] twapi-openssl-stderr.tmp]
-        set status 0
-        if {[catch {exec {*}$cmd {*}$args 2> $stderr_temp} stdout options]} {
-            if {[lindex [dict get $options -errorcode] 0] eq "CHILDSTATUS"} {
-                error [read_binary $stderr_temp]
-            } else {
-                return -options $options -level 0 $stdout
-            }
-        }
-        return [list $stdout [read_binary $stderr_temp]]
-    }
 
     # TBD - add tests, including SSL, were data is passed in fragmented
 
