@@ -158,30 +158,6 @@ if {![info exists remoteServerPort]} {
     }
 }
 
-# TBD - do_handshake not ported and handshake not implemented by twapi
-proc do_handshake {s {type readable} {cmd {}} args} {
-    if {[eof $s]} {
-	close $s
-	dputs "handshake: eof"
-	set ::do_handshake "eof"
-    } elseif {[catch {tls::handshake $s} result]} {
-	# Some errors are normal.
-	dputs "handshake: $result"
-    } elseif {$result == 1} {
-	# Handshake complete
-	if {[llength $args]} { eval [list fconfigure $s] $args }
-	if {$cmd == ""} {
-	    fileevent $s $type ""
-	} else {
-	    fileevent $s $type "$cmd [list $s]"
-	}
-	dputs "handshake: complete"
-	set ::do_handshake "complete"
-    } else {
-	dputs "handshake: in progress"
-    }
-}
-
 #
 # Check if we're supposed to do tests against the remote server
 #
@@ -1442,7 +1418,33 @@ test tls-http-geturl-1.1 {
     http::cleanup $tok
 } -result {<HTML><HEAD>.*google.*</HTML>\s} -match regexp
 
+#
+# Tests using openssl
+proc openssl_verify {remote_name chan ctx} {
+    set remote_cert [twapi::sspi_remote_cert $ctx]
+    twapi::trap {
+        if {$remote_name eq ""} {
+            set status [twapi::cert_tls_verify $remote_cert -hstore [openssl_ca_store] -revocationcheck none -trustedroots [list [openssl_ca_cert]]]
+        } else {
+            set status [twapi::cert_tls_verify $remote_cert -hstore [openssl_ca_store] -revocationcheck none -trustedroots [list [openssl_ca_cert]] -server $remote_name]
+        }
+        return [string equal $status ok]
+    } finally {
+        twapi::cert_release $remote_cert
+    }
+}
 
+test tls-client-openssl-1.0 {
+    Normal connect
+} -setup {
+    set fd [openssl& s_server -key [openssl_path certs simple.org.key] -cert [openssl_path certs simple.org.crt] -state -naccept 1]
+} -cleanup {
+    close $fd
+} -body {
+    set so [twapi::tls_socket -verifier [list openssl_verify www.simple.org] 127.0.0.1 [openssl_port]]
+    close $so
+    read $fd
+} -result ""
 
 
 #
@@ -1453,5 +1455,8 @@ twapi::sspi_free_credentials $serverCreds
 twapi::cert_release $clientCert
 twapi::cert_release $serverCert
 twapi::cert_store_release $certStore
+twapi::cert_store_release [openssl_ca_store]
+twapi::cert_release [openssl_ca_cert]
+
 ::tcltest::cleanupTests
 
