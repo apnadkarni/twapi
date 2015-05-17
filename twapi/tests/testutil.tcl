@@ -1565,6 +1565,74 @@ proc pick_cert {hstore {n 4}} {
     return $hcert
 }
 
+proc openssl_path {args} {
+    set path [file join [pwd] .. openssl bin openssl.exe]
+    if {![file exists $path]} {
+        # Try from the source pool. We do it this way because 
+        # of problems loading in VmWare virtual machines from the
+        # host's drive share
+        set path [list ../../tools/openssl/bin/openssl.exe]
+        if {![file exists $path]} {
+            error "Could not locate openssl.exe"
+        }
+    }
+    return [file normalize [file join [file dirname [file dirname $path]] {*}$args]]
+}
+
+# WARNING: return value combines stdout and stderr so the two
+# can be intermixed. Take into consideration when matching
+proc openssl {args} {
+    set cmd [openssl_path bin openssl.exe]
+    set cfg [openssl_path ssl openssl.cnf]
+    if {[file exists $cfg]} {
+        set ::env(OPENSSL_CONF) $cfg
+    }
+    set stderr_temp [file join [temp_crypto_dir_path] twapi-openssl-stderr.tmp]
+    set status 0
+    if {[catch {exec $cmd {*}$args 2> $stderr_temp} stdout options]} {
+        if {[lindex [dict get $options -errorcode] 0] eq "CHILDSTATUS"} {
+            error [read_binary $stderr_temp]
+        } else {
+            return -options $options -level 0 $stdout
+        }
+    }
+    return [list $stdout [read_binary $stderr_temp]]
+}
+
+# WARNING: return value combines stdout and stderr so the two
+# can be intermixed. Take into consideration when matching data read
+# from the returned channel
+proc openssl& {args} {
+    set cmd [openssl_path bin openssl.exe]
+    set cfg [openssl_path ssl openssl.cnf]
+    if {[file exists $cfg]} {
+        set ::env(OPENSSL_CONF) $cfg
+    }
+    set stderr_temp [file join [temp_crypto_dir_path] twapi-openssl-stderr.tmp]
+    set status 0
+    return [open |[list $cmd {*}$args 2>@1]]
+}
+
+proc openssl_port {} {
+    return 4433
+}
+
+proc openssl_ca_store {} {
+    set store [twapi::cert_temporary_store]
+    foreach ca {root-ca signing-ca} {
+        set cert [twapi::cert_import [read_file [openssl_path ca ${ca}.crt]] -encoding pem]
+        twapi::cert_release [twapi::cert_store_add_certificate $store $cert]
+        twapi::cert_release $cert
+    }
+    proc openssl_ca_store {} [list return $store]
+    return $store
+}
+
+proc openssl_ca_cert {} {
+    set cert [twapi::cert_import [read_file [openssl_path ca root-ca.crt]] -encoding pem]
+    proc openssl_ca_cert {} [list return $cert]
+    return $cert
+}
 
 #####
 #
