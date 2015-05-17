@@ -283,7 +283,7 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
     SecBufferDesc sbd_in, *sbd_inP;
     SecBuffer     sb_out;
     SecBufferDesc sbd_out;
-    SECURITY_STATUS status;
+    SECURITY_STATUS status, auth_status;
     CtxtHandle    new_context = {0, 0};
     ULONG         new_context_attr;
     Tcl_Obj      *objs[6];
@@ -347,10 +347,16 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
         objs[0] = STRING_LITERAL_OBJ("continue");
         break;
     case SEC_I_COMPLETE_NEEDED:
-        objs[0] = STRING_LITERAL_OBJ("complete");
-        break;
     case SEC_I_COMPLETE_AND_CONTINUE:
-        objs[0] = STRING_LITERAL_OBJ("complete_and_continue");
+        auth_status = CompleteAuthToken(contextP, &sbd_out);
+        if (auth_status != SEC_E_OK) {
+            /* sb_out NOT allocated by us so DON'T call TwapiFreeSecBufferDesc */
+            Twapi_AppendSystemError(interp, auth_status);
+            if (sb_out.pvBuffer)
+                FreeContextBuffer(sb_out.pvBuffer);
+            TwapiFreeSecBufferDesc(sbd_inP);
+        }
+        objs[0] = ObjFromString(status == SEC_I_COMPLETE_NEEDED ? "ok" : "continue");
         break;
     case SEC_I_INCOMPLETE_CREDENTIALS:
         objs[0] = STRING_LITERAL_OBJ("incomplete_credentials");
@@ -418,7 +424,7 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     ULONG      contextreq, targetdatarep;
     SecBuffer     sb_out;
     SecBufferDesc sbd_out;
-    SECURITY_STATUS status;
+    SECURITY_STATUS status, auth_status;
     CtxtHandle    new_context = {0, 0};
     ULONG         new_context_attr;
     Tcl_Obj      *objs[6];
@@ -477,11 +483,17 @@ static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     case SEC_I_CONTINUE_NEEDED:
         objs[0] = STRING_LITERAL_OBJ("continue");
         break;
-    case SEC_I_COMPLETE_NEEDED:
-        objs[0] = STRING_LITERAL_OBJ("complete");
-        break;
     case SEC_I_COMPLETE_AND_CONTINUE:
-        objs[0] = STRING_LITERAL_OBJ("complete_and_continue");
+    case SEC_I_COMPLETE_NEEDED:
+        auth_status = CompleteAuthToken(contextP, &sbd_out);
+        if (auth_status != SEC_E_OK) {
+            /* sb_out NOT allocated by us so DON'T call TwapiFreeSecBufferDesc */
+            Twapi_AppendSystemError(interp, auth_status);
+            if (sb_out.pvBuffer)
+                FreeContextBuffer(sb_out.pvBuffer);
+            TwapiFreeSecBufferDesc(sbd_inP);
+        }
+        objs[0] = ObjFromString(status == SEC_I_COMPLETE_NEEDED ? "ok" : "continue");
         break;
     case SEC_E_INCOMPLETE_MESSAGE:
         objs[0] = STRING_LITERAL_OBJ("incomplete_message");
