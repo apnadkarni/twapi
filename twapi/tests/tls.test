@@ -1428,23 +1428,103 @@ proc openssl_verify {remote_name chan ctx} {
         } else {
             set status [twapi::cert_tls_verify $remote_cert -hstore [openssl_ca_store] -revocationcheck none -trustedroots [list [openssl_ca_cert]] -server $remote_name]
         }
-        return [string equal $status ok]
+        if {$status eq "ok"} {
+            return 1
+        }
+        error "Verification failed with status $status" "" [list TLS $status]
     } finally {
         twapi::cert_release $remote_cert
     }
 }
 
 test tls-client-openssl-1.0 {
-    Normal connect
+    Normal connect with verifier
 } -setup {
-    set fd [openssl& s_server -key [openssl_path certs simple.org.key] -cert [openssl_path certs simple.org.crt] -state -naccept 1]
+    set fd [openssl& s_server \
+                -key [openssl_path certs simple.org.key] \
+                -cert [openssl_path certs simple.org.crt] \
+                -naccept 1 -rev]
 } -cleanup {
     close $fd
 } -body {
     set so [twapi::tls_socket -verifier [list openssl_verify www.simple.org] 127.0.0.1 [openssl_port]]
+    puts $so "abcd" ; flush $so
+    set response [gets $so]
     close $so
-    read $fd
-} -result ""
+    list $response [regexp {CONNECTION ESTABLISHED.*CONNECTION CLOSED} [read $fd]]
+} -result {dcba 1}
+
+test tls-client-openssl-1.1 {
+    Normal connect with verifier - wrong peer
+} -setup {
+    set fd [openssl& s_server \
+                -key [openssl_path certs simple.org.key] \
+                -cert [openssl_path certs simple.org.crt] \
+                -naccept 1 -rev]
+} -cleanup {
+    close $fd
+} -body {
+    list [catch {twapi::tls_socket -verifier [list openssl_verify www.notsimple.org] 127.0.0.1 [openssl_port]} msg opts] \
+        [errorcode] \
+        [regexp {CONNECTION ESTABLISHED.*CONNECTION CLOSED} [read $fd]]
+} -result {1 {TLS cnmatch} 1}
+
+test tls-client-openssl-2.0 {
+    Untrusted root
+} -setup {
+    set fd [openssl& s_server \
+                -key [openssl_path certs simple.org.key] \
+                -cert [openssl_path certs simple.org.crt] \
+                -naccept 1 -rev]
+} -cleanup {
+    close $fd
+} -body {
+    list [catch {twapi::tls_socket 127.0.0.1 [openssl_port]} msg opts] \
+         [errorcode] \
+        [regexp {CONNECTION FAILURE} [read $fd]]
+} -result {1 {TWAPI_WIN32 -2146893019} 1}
+
+
+test tls-client-openssl-3.0 {
+    Require client certificate
+} -setup {
+    set pfx [read_binary [openssl_path certs simpleuser.pfx]]
+    set hstore [twapi::cert_temporary_store -pfx $pfx -password ""]
+    set cert [twapi::cert_store_find_certificate $hstore subject_substring "Simple User"]
+    set creds [twapi::sspi_acquire_credentials -credentials [twapi::sspi_schannel_credentials -certificates [list $cert]] -package unisp -role client]
+    set fd [openssl& s_server \
+                -key [openssl_path certs simple.org.key] \
+                -cert [openssl_path certs simple.org.crt] \
+                -rev -naccept 1 \
+                -verify 1 -CAfile [openssl_path ca ca-chain.pem]]
+} -cleanup {
+    twapi::sspi_free_credentials $creds
+    twapi::cert_release $cert
+    twapi::cert_store_release $hstore
+    close $fd
+} -body {
+    set so [twapi::tls_socket -credentials $creds -verifier verifytrue 127.0.0.1 [openssl_port]]
+    puts $so "1234" ; flush $so
+    set response [gets $so]
+    close $so
+    list $response [regexp {CONNECTION ESTABLISHED.*Peer certificate: C = US, O = Simple Inc, CN = Simple User.*CONNECTION CLOSED} [read $fd]]
+} -result {4321 1}
+
+
+test tls-client-openssl-3.1 {
+    Require client certificate - do not supply
+} -setup {
+    set fd [openssl& s_server \
+                -key [openssl_path certs simple.org.key] \
+                -cert [openssl_path certs simple.org.crt] \
+                -naccept 1 -verify 1 -CAfile [openssl_path ca ca-chain.pem]]
+} -cleanup {
+    close $fd
+} -body {
+    list [catch {twapi::tls_socket -verifier verifytrue 127.0.0.1 [openssl_port]} msg opts] \
+        [lrange [dict get $opts -errorcode] 0 2]
+} -result {1 {TWAPI SSPI UNSUPPORTED}}
+
 
 
 #
