@@ -23,3 +23,5 @@ makefile = native
 **.doc = BIN
 **.msi = BIN
 **.etl = BIN
+**.pfx = BIN
+**.pkcs12 = BIN
