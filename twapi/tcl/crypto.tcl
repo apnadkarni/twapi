@@ -1838,6 +1838,8 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
         lappend extra_keyusage key_cert_sign crl_sign
     }
     if {$sslserver || $sslclient} {
+        # TBD - not clear key_agreement is needed for SSL certs for
+        # either client or server. See https://access.redhat.com/documentation/en-US/Red_Hat_Certificate_System/8.0/html/Admin_Guide/Standard_X.509_v3_Certificate_Extensions.html#Discussion-Certificate_Uses_and_Corresponding_Key_Usage_Bits
         lappend extra_keyusage digital_signature key_encipherment key_agreement
         if {$sslserver} { 
            lappend extra_enhkeyusage oid_pkix_kp_server_auth
