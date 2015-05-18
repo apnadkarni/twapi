@@ -360,6 +360,9 @@ proc twapi::sspi_step {ctx {received ""}} {
                     # 2 -> SECBUFFER_TOKEN, 0 -> SECBUFFER_EMPTY
                     set inbuflist [list [list 2 $Input] [list 0]]
                     if {$Ctxtype eq "client"} {
+                        # TBD - Handle SEC_E_INCOMPLETE_CREDENTIALS error
+                        # See ticket #146
+
                         set rawctx [InitializeSecurityContext \
                                         $Credentials \
                                         $Handle \
@@ -398,10 +401,14 @@ proc twapi::sspi_step {ctx {received ""}} {
                 # Remote end closed in middle of negotiation
                 return [list disconnected "" ""]
             }
-            incomplete_credentials -
+            incomplete_credentials {
+                set ermsg "Handling of incomplete credentials not implemented. If using TLS, specify the -credentials option to tls_socket to provide credentials."
+                error $ermsg "" [list TWAPI SSPI UNSUPPORTED $ermsg]
+            }
             complete -
             complete_and_continue {
-                # TBD
+                # Should not actually occur as sspi.c no longer returns
+                # these codes
                 error "State $State handling not implemented."
             }
         }

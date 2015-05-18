@@ -41,6 +41,7 @@ proc twapi::tls::_socket {args} {
         async
         server.arg
         peersubject.arg
+        requestclientcert
         {credentials.arg {}}
         {verifier.arg {}}
     } -setvars
@@ -72,13 +73,14 @@ proc twapi::tls::_socket {args} {
         if {![info exists peersubject]} {
             set peersubject [lindex $args 0]
         }
+        set requestclientcert 0; #  Not valid for client side
         set server ""
         set type CLIENT
     }
 
     trap {
         set so [socket {*}$socket_args {*}$args]
-        _init $chan $type $so $credentials $peersubject [lrange $verifier 0 end] $server
+        _init $chan $type $so $credentials $peersubject $requestclientcert [lrange $verifier 0 end] $server
 
         if {$type eq "CLIENT"} {
             if {! $async} {
@@ -121,6 +123,7 @@ proc twapi::tls::_starttls {so args} {
 
     parseargs args {
         server
+        requestclientcert
         peersubject.arg
         {credentials.arg {}}
         {verifier.arg {}}
@@ -138,6 +141,7 @@ proc twapi::tls::_starttls {so args} {
         set peersubject ""
         set type SERVER
     } else {
+        set requestclientcert 0; # Ignored for client side
         if {![info exists peersubject]} {
             # TBD - even if verifier is specified ?
             badargs! "Option -peersubject must be specified for client connections."
@@ -163,7 +167,7 @@ proc twapi::tls::_starttls {so args} {
         # TBD - maybe keep handlers but replace $so with $chan in them ?
         chan event $so readable {}
         chan event $so writable {}
-        _init $chan $type $so $credentials $peersubject [lrange $verifier 0 end] ""
+        _init $chan $type $so $credentials $peersubject $requestclientcert [lrange $verifier 0 end] ""
         # Copy saved config to wrapper channel
         chan configure $chan {*}$so_opts
         if {$type eq "CLIENT"} {
@@ -216,7 +220,7 @@ proc twapi::tls::_accept {listener so raddr raport} {
 
     trap {
         set chan [chan create {read write} [list [namespace current]]]
-        _init $chan SERVER $so [dict get $_channels($listener) Credentials] "" [dict get $_channels($listener) Verifier] [linsert [dict get $_channels($listener) AcceptCallback] end $chan $raddr $raport]
+        _init $chan SERVER $so [dict get $_channels($listener) Credentials] "" [dict get $_channels($listener) RequestClientCert] [dict get $_channels($listener) Verifier] [linsert [dict get $_channels($listener) AcceptCallback] end $chan $raddr $raport]
         # If we negotiate the connection, the socket is blocking so
         # will hang the whole operation. Instead we mark it non-blocking
         # and the switch back to blocking when the connection gets opened.
@@ -512,7 +516,7 @@ proc twapi::tls::_chansocket {chan} {
     return [dict get $_channels($chan) Socket]
 }
 
-proc twapi::tls::_init {chan type so creds peersubject verifier {accept_callback {}}} {
+proc twapi::tls::_init {chan type so creds peersubject requestclientcert verifier {accept_callback {}}} {
     debuglog [info level 0]
     variable _channels
 
@@ -524,6 +528,7 @@ proc twapi::tls::_init {chan type so creds peersubject verifier {accept_callback
                               Type $type \
                               Blocking [chan configure $so -blocking] \
                               WatchMask {} \
+                              RequestClientCert $requestclientcert \
                               Verifier $verifier \
                               SspiContext {} \
                               PeerSubject $peersubject \
@@ -742,7 +747,7 @@ proc twapi::tls::_negotiate2 {chan} {
                     debuglog "Setting $chan State=NEGOTIATING"
 
                     dict set _channels($chan) State NEGOTIATING
-                    set SspiContext [sspi_server_context $Credentials $data -stream 1]
+                    set SspiContext [sspi_server_context $Credentials $data -stream 1 -mutualauth $RequestClientCert]
                     dict set _channels($chan) SspiContext $SspiContext
                     lassign [sspi_step $SspiContext] status outdata leftover
                     debuglog "sspi_step returned status $status with [string length $outdata] bytes"
@@ -801,7 +806,7 @@ proc twapi::tls::_server_blocking_negotiate {chan} {
     if {[chan eof $so]} {
         error "Unexpected EOF during TLS negotiation (server)."
     }
-    dict set _channels($chan) SspiContext [sspi_server_context [dict get $_channels($chan) Credentials] $indata -stream 1]
+    dict set _channels($chan) SspiContext [sspi_server_context [dict get $_channels($chan) Credentials] $indata -stream 1 -mutualauth [dict get $_channels($chan) RequestClientCert]]
     return [_blocking_negotiate_loop $chan]
 }
 
