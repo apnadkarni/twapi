@@ -30,7 +30,7 @@ while the [cmd starttls] command wraps an existing plaintext channel.
 [section Commands]
 
 [list_begin definitions]
-[call [cmd starttls] [arg CHAN] [cmd -server] [opt [arg options]]]
+[call [cmd starttls] [arg CHAN] [opt [cmd -server]] [opt [arg options]]]
 Returns a new TLS channel that wraps an existing channel [arg CHAN].
 [arg CHAN] must be in an open state.
 Caller should use the returned channel and must not access [arg CHAN] 
@@ -97,6 +97,18 @@ Only used for client-side connections to verify the name in the
 certificate returned by the remote server. If unspecified, defaults
 to [arg REMOTEADDR]. This option is silently ignored for server-side
 connections.
+[opt_def [cmd -requestclientcert]]
+Indicates that the client should be asked to send its certificate.
+Only applicable to server side sockets and is ignored if
+[cmd -server] is not specified. 
+[emph {
+    Note that this option only results in the client being requested
+    for its certificate. Unlike server certificates, client certificates
+    are not validated by default.
+}]
+Applications must themselves check that a certificate was received
+and validate it, generally by specifying a verification callback
+via the [cmd -verifier] option.
 [opt_def [cmd -verifier] [arg VERIFYCOMMAND]]
 Specifies a callback to invoke to verify remote credentials. 
 The [arg VERIFYCOMMAND] command prefix is invoked with two additional
