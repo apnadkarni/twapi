@@ -1576,6 +1576,7 @@ test tls-server-openssl-1.1 {
 } -body {
     after 5000 [list set ::done timeout]
     set listener [twapi::tls_socket -server $acceptor -credentials $::serverCreds -requestclientcert -verifier [list openssl_verify ""] 8828]
+    # Call openssl client without providing it a cert
     set fd [openssl& s_client -connect 127.0.0.1:8828]
     vwait ::done
     set ::done
