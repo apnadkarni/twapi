@@ -1,11 +1,11 @@
 #
-# Copyright (c) 2013, Ashok P. Nadkarni
+# Copyright (c) 2013-2015, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
 
 # This file contains tests for twapi TLS commands
-# Most of this forked from the Tcl TLS extension tests tlsIO.test file
+# Some of this is forked from the Tcl TLS extension tests tlsIO.test file
 # Therefore it does not follow the structure of the other TWAPI test files.
 
 
@@ -108,7 +108,6 @@ set initScript {
         }
     } 
 
-
     # Where the certificates are
     set pfxFile [file join [file dirname [info script]] certs twapitest.pfx]
     # Set up the store containing the certificates
@@ -125,6 +124,16 @@ set initScript {
 }
 # Set up certs in this process
 eval $initScript
+
+proc tls_client_credentials {} {
+    set pfx [read_binary [openssl_path certs simpleuser.pfx]]
+    set hstore [twapi::cert_temporary_store -pfx $pfx -password ""]
+    set cert [twapi::cert_store_find_certificate $hstore subject_substring "Simple User"]
+    set creds [twapi::sspi_acquire_credentials -credentials [twapi::sspi_schannel_credentials -certificates [list $cert]] -package unisp -role client]
+    twapi::cert_release $cert
+    twapi::cert_store_release $hstore
+    return $creds
+}
 
 # TBD - need to test separate creds for tls1, tls1.1, ssl3 etc.
 # TBD - need to test separate creds for -sessionlifespan
@@ -328,7 +337,7 @@ test tlsIO-1.12 {arg parsing for socket command} {socket} {
 
 #
 # Basic tests all use the same server script
-proc basicServerScript {server_port {creds_varname serverCreds}} {
+proc basicServerScript {server_port {creds_varname serverCreds} {verifier verifytrue}} {
     return [format {
         %1$s
         proc accept {chan addr port} {
@@ -346,19 +355,19 @@ proc basicServerScript {server_port {creds_varname serverCreds}} {
             close $chan
         }
         set timer [after 5000 "set x timed_out"]
-        set f [twapi::tls_socket -server accept -credentials $::%3$s -verifier verifytrue %2$d]
+        set f [twapi::tls_socket -server accept -credentials $::%3$s -verifier %4$s %2$d]
         puts ready
         vwait x
         after cancel $timer
         close $f
         puts $x
-    } $::initScript $server_port $creds_varname]
+    } $::initScript $server_port $creds_varname $verifier]
 }
 
 
 #
 # Async tests all use the same server script
-proc asyncServerScript {server_port {creds_varname serverCreds}} {
+proc asyncServerScript {server_port {creds_varname serverCreds} {verifier verifytrue}} {
     return [format {
         %1$s
         proc accept {chan addr port} {
@@ -389,17 +398,17 @@ proc asyncServerScript {server_port {creds_varname serverCreds}} {
         }
         set Received {}
         set Timer [after 5000 "set ::Gate timed_out"]
-        set listener [twapi::tls_socket -server accept -credentials $::%3$s -verifier verifytrue %2$d]
+        set listener [twapi::tls_socket -server accept -credentials $::%3$s -verifier %4$s %2$d]
         puts ready
         vwait Gate
         after cancel $Timer
         close $listener
         puts $Received
-    } $::initScript $server_port $creds_varname]
+    } $::initScript $server_port $creds_varname $verifier]
 }
 
 # STARTTLS blocking tests all use the same server script
-proc starttlsBasicServerScript {server_port {creds_varname serverCreds}} {
+proc starttlsBasicServerScript {server_port {creds_varname serverCreds} {verifier verifytrue}} {
     return [format {
         %1$s
         twapi::debuglog_enable
@@ -410,7 +419,7 @@ proc starttlsBasicServerScript {server_port {creds_varname serverCreds}} {
         proc accept {chan addr port} {
             global x
             set so $chan
-            set chan [twapi::starttls $chan -server -credentials $::%3$s -verifier verifytrue]
+            set chan [twapi::starttls $chan -server -credentials $::%3$s -verifier %4$s]
             set count [gets $chan x]
             if {$count >= 0} {
                 switch $x {
@@ -430,17 +439,17 @@ proc starttlsBasicServerScript {server_port {creds_varname serverCreds}} {
         after cancel $timer
         close $f
         puts $x
-    } $::initScript $server_port $creds_varname]
+    } $::initScript $server_port $creds_varname $verifier]
 }
 
 #
 # STARTTLS non-blocking tests all use the same server script
-proc starttlsAsyncServerScript {server_port {creds_varname serverCreds}} {
+proc starttlsAsyncServerScript {server_port {creds_varname serverCreds} {verifier verifytrue}} {
     return [format {
         %1$s
         proc accept {chan addr port} {
             set ::Remote [list $addr $port]
-            set chan [twapi::starttls $chan -server -credentials $::%3$s -verifier verifytrue]
+            set chan [twapi::starttls $chan -server -credentials $::%3$s -verifier %4$s]
             fconfigure $chan -blocking 0
             fileevent $chan readable [list do $chan]
 	    fconfigure $chan -translation lf -buffering line
@@ -476,7 +485,7 @@ proc starttlsAsyncServerScript {server_port {creds_varname serverCreds}} {
         after cancel $Timer
         close $listener
         puts $Received
-    } $::initScript $server_port $creds_varname]
+    } $::initScript $server_port $creds_varname $verifier]
 }
 
 
@@ -1418,8 +1427,9 @@ test tls-http-geturl-1.1 {
     http::cleanup $tok
 } -result {<HTML><HEAD>.*google.*</HTML>\s} -match regexp
 
+#################################################################
+# Tests using openssl client and server
 #
-# Tests using openssl
 proc openssl_verify {remote_name chan ctx} {
     set remote_cert [twapi::sspi_remote_cert $ctx]
     twapi::trap {
@@ -1488,19 +1498,14 @@ test tls-client-openssl-2.0 {
 test tls-client-openssl-3.0 {
     Require client certificate
 } -setup {
-    set pfx [read_binary [openssl_path certs simpleuser.pfx]]
-    set hstore [twapi::cert_temporary_store -pfx $pfx -password ""]
-    set cert [twapi::cert_store_find_certificate $hstore subject_substring "Simple User"]
-    set creds [twapi::sspi_acquire_credentials -credentials [twapi::sspi_schannel_credentials -certificates [list $cert]] -package unisp -role client]
+    set creds [tls_client_credentials]
     set fd [openssl& s_server \
                 -key [openssl_path certs simple.org.key] \
                 -cert [openssl_path certs simple.org.crt] \
                 -rev -naccept 1 \
-                -verify 1 -CAfile [openssl_path ca ca-chain.pem]]
+                -verify 1 -CAfile [openssl_path ca ca-chain.p7b]]
 } -cleanup {
     twapi::sspi_free_credentials $creds
-    twapi::cert_release $cert
-    twapi::cert_store_release $hstore
     close $fd
 } -body {
     set so [twapi::tls_socket -credentials $creds -verifier verifytrue 127.0.0.1 [openssl_port]]
@@ -1517,7 +1522,7 @@ test tls-client-openssl-3.1 {
     set fd [openssl& s_server \
                 -key [openssl_path certs simple.org.key] \
                 -cert [openssl_path certs simple.org.crt] \
-                -naccept 1 -verify 1 -CAfile [openssl_path ca ca-chain.pem]]
+                -naccept 1 -verify 1 -CAfile [openssl_path ca ca-chain.p7b]]
 } -cleanup {
     close $fd
 } -body {
@@ -1527,7 +1532,60 @@ test tls-client-openssl-3.1 {
 
 
 
-#
+test tls-server-openssl-1.0 {
+    Require client certificate using -requestclientcert
+} -setup {
+    set acceptor [list apply {{chan addr port} {
+        set ctx [chan configure $chan -context]
+        set remote_cert [twapi::sspi_remote_cert $ctx]
+        set ::done [twapi::cert_subject_name $remote_cert]
+        twapi::cert_release $remote_cert
+        close $chan
+    }}]
+} -cleanup {
+    close $fd
+    close $listener
+} -body {
+    after 5000 [list set ::done timeout]
+    set listener [twapi::tls_socket -server $acceptor -credentials $::serverCreds -requestclientcert -verifier [list openssl_verify ""] 8828]
+    set fd [openssl& s_client -connect 127.0.0.1:8828  -cert [openssl_path certs simpleuser.crt] -key [openssl_path certs simpleuser.key]]
+    vwait ::done
+    set ::done
+} -result {Simple User}
+
+test tls-server-openssl-1.1 {
+    Require client certificate using -requestclientcert (fail)
+} -setup {
+    # Failed nego results in a background error. Save it.
+    set bgproc [interp bgerror {}]
+    interp bgerror {} [list apply {
+        {msg eropts} {
+            set ::done [lrange [dict get $eropts -errorcode] 0 1]
+        }
+    }]
+    set acceptor [list apply {{chan addr port} {
+        set ctx [chan configure $chan -context]
+        set remote_cert [twapi::sspi_remote_cert $ctx]
+        set ::done [twapi::cert_subject_name $remote_cert]
+        twapi::cert_release $remote_cert
+        close $chan
+    }}]
+} -cleanup {
+    interp bgerror {} $bgproc
+    close $fd
+} -body {
+    after 5000 [list set ::done timeout]
+    set listener [twapi::tls_socket -server $acceptor -credentials $::serverCreds -requestclientcert -verifier [list openssl_verify ""] 8828]
+    set fd [openssl& s_client -connect 127.0.0.1:8828]
+    vwait ::done
+    set ::done
+    close $listener
+    # Verify the accept socket is also closed. There should be no rc* channels
+    list $::done [chan names rc*]
+} -result {{TWAPI_WIN32 -2146893042} {}}
+
+
+#################################################################
 # Cleanup
 
 twapi::sspi_free_credentials $clientCreds
