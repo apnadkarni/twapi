@@ -584,6 +584,21 @@ proc twapi::tls::_cleanup {chan} {
     }
 }
 
+proc twapi::tls::_cleanup_failed_accept {chan} {
+    debuglog [info level 0]
+    variable _channels
+    # This proc is called from the event loop when negotiation fails
+    # on a server TLS channel that is not yet open (and hence not
+    # known to the application). For some protection against
+    # channel name re-use (which does not happen as of 8.6)
+    # check the state before cleaning up.
+    if {[info exists _channels($chan)] &&
+        [dict get $_channels($chan) Type] eq "SERVER" &&
+        [dict get $_channels($chan) State] eq "CLOSED"} {
+        close $chan;            # Really close
+    }
+}
+
 proc twapi::tls::_so_read_handler {chan} {
     debuglog [info level 0]
     variable _channels
@@ -644,6 +659,14 @@ proc twapi::tls::_negotiate chan {
     } onerror {} {
         variable _channels
         if {[info exists _channels($chan)]} {
+            if {[dict get $_channels($chan) Type] eq "SERVER" &&
+                [dict get $_channels($chan) State] in {SERVERINIT NEGOTIATING}} {
+                # There is no one to clean up accepted sockets (server) that
+                # fail verification (or error out) since application does
+                # not know about them. So queue some garbage
+                # cleaning.
+                after 0 [namespace current]::_cleanup_failed_accept $chan
+            }
             dict set _channels($chan) State CLOSED
             dict set _channels($chan) ErrorOptions [trapoptions]
             dict set _channels($chan) ErrorResult [trapresult]
