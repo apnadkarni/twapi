@@ -109,7 +109,7 @@
    the [[#twapi][=TWAPI=]] download area.
 
 ** Is there a Tcl tutorial?
-   See the [[http://www.tcl.tk/man/tcl/tutorial/tcltutorial.html][online Tcl tutorial]]. In addition, the [[http://wiki.tcl.tk][Tcler's Wiki]] provides 
+   See the [[http://www.tcl.tk/man/tcl8.5/tutorial/tcltutorial.html][online Tcl tutorial]]. In addition, the [[http://wiki.tcl.tk][Tcler's Wiki]] provides 
    tutorials, explanations
    and sample code in all areas. It is also an excellent jump point
    to the various Tcl resources on the net.
