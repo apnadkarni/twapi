@@ -79,6 +79,9 @@ package require http
 
 eval tcltest::configure $argv
 
+# Note tlsecho loads testutil and twapi
+source [file join [file dirname [info script]] tlsecho.tcl]
+
 ::tcltest::testConstraint vista [expr {![string match 5.* $::tcl_platform(osVersion)]}]
 
 proc dputs {msg} { return ; puts stderr $msg ; flush stderr }
@@ -88,7 +91,9 @@ set tlsServerPort 8048
 # This sequence is used in spawned processes as well.
 # So store it in a var so it can be easily invoked in children
 set initScript {
-    source [file join [file dirname [info script]] testutil.tcl]
+    if {[llength [info commands load_twapi_package]] == 0} {
+        source [file join [file dirname [info script]] testutil.tcl]
+    }
     load_twapi_package twapi_crypto
 
     proc verifytrue {chan ctx} {return 1}
@@ -1464,6 +1469,25 @@ test tls-client-openssl-1.0 {
     list $response [regexp {CONNECTION ESTABLISHED.*CONNECTION CLOSED} [read $fd]]
 } -result {dcba 1}
 
+test tls-client-openssl-1.0.1 {
+    Normal connect with verifier
+} -setup {
+    set fd [openssl& s_server \
+                -key [openssl_path certs simple.org.key] \
+                -cert [openssl_path certs simple.org.crt] \
+                -naccept 1 -rev]
+} -cleanup {
+    close $fd
+} -body {
+    set so [twapi::tls_socket -verifier [list openssl_verify www.simple.org] 127.0.0.1 [openssl_port]]
+    # openssl server will only handle up to 16382 bytes
+    set data [string range [string repeat abcdefghij 1640] 0 16381]
+    puts -nonewline $so $data ; flush $so
+    set response [read $so 16382]
+    close $so
+    list [string equal [string reverse $response] $data] [regexp {CONNECTION ESTABLISHED.*CONNECTION CLOSED} [read $fd]]
+} -result {1 1}
+
 test tls-client-openssl-1.1 {
     Normal connect with verifier - wrong peer
 } -setup {
@@ -1530,6 +1554,30 @@ test tls-client-openssl-3.1 {
         [lrange [dict get $opts -errorcode] 0 2]
 } -result {1 {TWAPI SSPI UNSUPPORTED}}
 
+test tls-client-openssl-4.0 {
+    Normal connect with verifier
+} -setup {
+    set fd [openssl& s_server \
+                -key [openssl_path certs simple.org.key] \
+                -cert [openssl_path certs simple.org.crt] \
+                -naccept 1 -rev]
+} -cleanup {
+    close $fd
+} -body {
+    set so [twapi::tls_socket -verifier [list openssl_verify www.simple.org] 127.0.0.1 [openssl_port]]
+    set msg ""
+    for {set i 1} {$i <= 1000} {incr i} {
+        set data [string repeat "abcdefghijklmnopqrstuvwxyz" $i]
+        puts $so $data ; flush $so
+        set response [gets $so]
+        if {$response ne [string reverse $data]} {
+            set msg "Response #$i does not match (string length [string length $data], [string length $response]"
+            break
+        }
+    }
+    close $so
+    list $msg [regexp {CONNECTION ESTABLISHED.*CONNECTION CLOSED} [read $fd]]
+} -result {{} 1}
 
 
 test tls-server-openssl-1.0 {
@@ -1584,6 +1632,122 @@ test tls-server-openssl-1.1 {
     # Verify the accept socket is also closed. There should be no rc* channels
     list $::done [chan names rc*]
 } -result {{TWAPI_WIN32 -2146893042} {}}
+
+
+#################################################################
+
+# Tests using tlsecho for some stress testing
+proc start_tlsecho_server {name} {
+    set control_channel [open "| [list [::tcltest::interpreter] tlsecho.tcl $name 4433]" r+]
+    fconfigure $control_channel -blocking 0
+    expect $control_channel READY 5000
+    return $control_channel
+}
+
+test tls_echoserver-1.0 {
+    Basic test server using blocking I/O
+} -setup {
+    set control_channel [start_tlsecho_server syncserver]
+} -body {
+    foreach {msgs total last} [tls_echo_client -port 4433] break
+    foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
+    set result ""
+    if {$msgs != $msgs2} {
+        append result "Mismatch in number of messages: $msgs != $msgs2"
+    }
+    if {$total != $total2} {
+        append result "Mismatch in total chars: $total != $total2"
+    }
+    if {$last != $last2} {
+        append result "Mismatch in total chars: $last != $last2"
+    }
+    set result
+} -cleanup {
+    if {[info exists control_channel]} {
+        close $control_channel
+        unset control_channel
+    }
+} -result ""
+
+test tls_echoserver-1.1 {
+    Stress test server using blocking I/O
+} -setup {
+    set control_channel [start_tlsecho_server syncserver]
+} -body {
+    foreach {msgs total last} [tls_echo_client -port 4433 -density 10 -limit 1000000] break
+    foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
+    set result ""
+    if {$msgs != $msgs2} {
+        append result "Mismatch in number of messages: $msgs != $msgs2"
+    }
+    if {$total != $total2} {
+        append result "Mismatch in total chars: $total != $total2"
+    }
+    if {$last != $last2} {
+        append result "Mismatch in total chars: $last != $last2"
+    }
+    set result
+} -cleanup {
+    if {[info exists control_channel]} {
+        close $control_channel
+        unset control_channel
+    }
+} -result ""
+
+###
+
+test tls_echoserver-2.0 {
+    Test server using non-blocking I/O
+} -setup {
+    set control_channel [start_tlsecho_server asyncserver]
+} -body {
+    foreach {msgs total last} [tls_echo_client -port 4433] break
+    foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
+    set result ""
+    if {$msgs != $msgs2} {
+        lappend result "Mismatch in number of messages: $msgs != $msgs2"
+    }
+    if {$total != $total2} {
+        lappend result "Mismatch in total chars: $total != $total2"
+    }
+    if {$last != $last2} {
+        lappend result "Mismatch in last message size: $last != $last2"
+    }
+    join $result \n
+} -cleanup {
+    if {[info exists control_channel]} {
+        close $control_channel
+        unset control_channel
+    }
+} -result ""
+
+test tls_echoserver-2.1 {
+    Stress test server using non-blocking I/O
+} -setup {
+    set control_channel [start_tlsecho_server asyncserver]
+} -body {
+    foreach {msgs total last} [tls_echo_client -port 4433 -density 10 -limit 1000000] break
+    foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
+    set result ""
+    if {$msgs != $msgs2} {
+        lappend result "Mismatch in number of messages: $msgs != $msgs2"
+    }
+    if {$total != $total2} {
+        lappend result "Mismatch in total chars: $total != $total2"
+    }
+    if {$last != $last2} {
+        lappend result "Mismatch in last message size: $last != $last2"
+    }
+    join $result \n
+} -cleanup {
+    if {[info exists control_channel]} {
+        close $control_channel
+        unset control_channel
+    }
+} -result ""
+
+
+
 
 
 #################################################################
