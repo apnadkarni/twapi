@@ -21,7 +21,7 @@ syntax: glob
 temp
 build
 dist
-dist-4.0.61
+releases
 doc/chm-build
 doc/website-build
 doc/website
