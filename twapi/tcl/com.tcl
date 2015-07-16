@@ -2016,13 +2016,33 @@ twapi::class create ::twapi::IDispatchProxy {
         ::twapi::trap {
             # In case of dual interfaces, we need the typeinfo for the 
             # dispatch. Again, errors handled in try handlers
-            switch -exact -- [::twapi::kl_get [$ti GetTypeAttr] typekind] {
+            set attr [$ti GetTypeAttr]
+            switch -exact -- [::twapi::kl_get $attr typekind] {
                 4 {
                     # Dispatch type, fine, just what we want
                 }
                 3 {
-                    # Interface type, Get the dispatch interface
-                    set ti2 [$ti @GetRefTypeInfo [$ti GetRefTypeOfImplType -1]]
+                    # Interface type, Get the dispatch interface. If that fails,
+                    # don't raise an error for the same reason as above
+                    # if the interface itself is marked dispatchable
+                    if {[catch {
+                        $ti @GetRefTypeInfo [$ti GetRefTypeOfImplType -1]
+                    } ti2 eropts]} {
+                        # 4096 -> TYPEFLAG_FDISPATCHABLE
+                        if {[::twapi::kl_get $attr wTypeFlags] & 4096} {
+                            if {![info exists _guid]} {
+                                # Do not overwrite if already set thru @SetGuid or constructor
+                                # Set to empty otherwise so we know we tried and failed
+                                # TBD - should we set _guid to [kl_get $attr guid] ?
+                                set _guid ""
+                            }
+                            set _typecomp ""
+                            return; # Note the finally clause will release $ti
+                        } else {
+                            # TBD - should we ignore errors even if dispatchable flag is not set?
+                            return -options $eropts $ti2
+                        }
+                    }
                     $ti Release
                     set ti $ti2
                 }
