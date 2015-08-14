@@ -1241,7 +1241,7 @@ proc twapi::_drivemask_to_drivelist {drivebits} {
 proc twapi::tclcast {type val} {
     # Only permit these because wideInt, for example, cannot be reliably
     # converted -> it can return an int instead.
-    set types {"" empty null int boolean double string list dict}
+    set types {"" empty null bstr int boolean double string list dict}
     if {$type ni $types} {
         badargs! "Bad cast to \"$type\". Must be one of: $types"
     }

@@ -260,9 +260,10 @@ static void UpdateVariantTypeString(Tcl_Obj *objP)
         objP->bytes = ckalloc(1);
         objP->bytes[0] = 0;
         break;
+    case VT_BSTR: /* Fall through */
     case VT_TWAPI_VARNAME: /* Fall through */
     default:
-        /* String rep should already be there. */
+        /* String rep should already be there. This function should not have been called. */
         Tcl_Panic("Unexpected VT type (%d) in Tcl_Obj VARIANT", VARIANT_REP_VT(objP));
     }
 }
@@ -451,6 +452,7 @@ int Twapi_InternalCastObjCmd(
                 if (ObjCharLength(objv[2]) != 0)
                     goto convert_error;
                 /* Fall thru */
+            case VT_BSTR: /* Fall through */
             case VT_TWAPI_VARNAME:
                 objP = ObjDuplicate(objv[2]);
                 ObjToString(objP);  /* Make sure string rep exists */
@@ -3551,8 +3553,6 @@ TCL_RESULT ObjToPSIDNonNull(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
     }
     return Twapi_AppendSystemError(interp, winerror);
 }
-
-
 
 /* Tcl_Obj to SID - the object may hold the SID string rep, a binary
    or a list of ints. If the object is an empty string, *sidPP is

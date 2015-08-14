@@ -1,18 +1,21 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Version History" "n" ""]
-[copyright "2003-2014 Ashok P. Nadkarni"]
+[copyright "2003-2015 Ashok P. Nadkarni"]
 [moddesc "TWAPI Version History"]
 [titledesc "Tcl Windows API extension version history"]
 [description]
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 4.1.29"]
+[section "Version 4.2a1"]
 
 [list_begin bullet]
 [bullet]
-Added [cmd -requestclientcert] option to 
+Added [cmd -requestclientcert] option to
 [uri tls.html#tls_socket [cmd tls_socket]].
+[bullet]
+Added [const bstr] type to [uri base.html#tclcast [cmd tclcast]]
+for casting COM parameters as strings.
 [list_end]
 
 [section "Version 4.1.27"]

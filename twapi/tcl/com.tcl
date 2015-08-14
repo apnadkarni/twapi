@@ -1201,8 +1201,18 @@ namespace eval twapi {
             uplevel 1 export [info class methods [lindex [info level -1] 1] -private]
         }
         proc comobj? {cobj} {
+            # We do not want change the internal type so
+            # do not check for some types that
+            # could not be a comobj. In particular,
+            # if a list type, we do not even check
+            # because it cannot be a comobj and even checking
+            # will result in nested list types being
+            # destroyed which affects safearray type detection
             # TBD - would it be faster to keep explicit track through
             # a dictionary ?
+            if {[twapi::tcltype $cobj] in {bstr empty null bytecode TwapiOpaque list int double bytearray dict wideInt booleanString}} {
+                return 0
+            }
             set cobj [uplevel 1 [list namespace which -command $cobj]]
             if {[info object isa object $cobj] &&
                 [info object isa typeof $cobj ::twapi::Automation]} {
@@ -1742,22 +1752,12 @@ twapi::class create ::twapi::IDispatchProxy {
                         if {[lindex $argtype 0] == 9 || [lindex $argtype 0] == 12} {
                             # If a comobj was passed, need to extract the
                             # dispatch pointer.
-                            # We do not want change the internal type so
-                            # save it since comobj? changes it to cmdProc.
-                            # Moreover, do not check for some types that
-                            # could not be a comobj. In particular,
-                            # if a list type, we do not even check
-                            # because it cannot be a comobj and even checking
-                            # will result in nested list types being
-                            # destroyed which affects safearray type detection
-                            if {[twapi::tcltype $arg] ni {bytecode TwapiOpaque list int double bytearray dict wideInt booleanString}} {
-                                if {[twapi::comobj? $arg]} {
-                                    # Note we do not addref when getting the interface
-                                    # (last param 0) because not necessary for IN
-                                    # params, AND it is the C code's responsibility
-                                    # anyways
-                                    set arg [$arg -interface 0]
-                                }
+                            if {[twapi::comobj? $arg]} {
+                                # Note we do not addref when getting the interface
+                                # (last param 0) because not necessary for IN
+                                # params, AND it is the C code's responsibility
+                                # anyways
+                                set arg [$arg -interface 0]
                             }
                         }
                     }
@@ -1841,15 +1841,11 @@ twapi::class create ::twapi::IDispatchProxy {
                         # If parameter is VT_DISPATCH or VT_VARIANT, 
                         # convert from comobj if necessary.
                         if {$paramtype == 9 || $paramtype == 12} {
-                            # We do not want to change the internal type by
-                            # shimmering. See similar comments in Invoke
-                            if {[twapi::tcltype $paramval] ni {"" TwapiOpaque list int double bytearray dict wideInt booleanString}} {
-                                if {[::twapi::comobj? $paramval]} {
-                                    # Note no AddRef when getting the interface
-                                    # (last param 0) because it is the C code's
-                                    # responsibility based on in/out direction
-                                    set paramval [$paramval -interface 0]
-                                }
+                            if {[::twapi::comobj? $paramval]} {
+                                # Note no AddRef when getting the interface
+                                # (last param 0) because it is the C code's
+                                # responsibility based on in/out direction
+                                set paramval [$paramval -interface 0]
                             }
                         }
 

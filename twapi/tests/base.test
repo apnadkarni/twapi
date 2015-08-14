@@ -1599,6 +1599,12 @@ namespace eval twapi::base::test {
         twapi::tcltype [twapi::tclcast boolean [expr {0+0}]]
     } -result booleanString
 
+    test tclcast-9.0 {
+        Test for bstr type
+    } -body {
+        set intval [expr {1+0}]
+        list [twapi::tcltype $intval] [twapi::tcltype [twapi::tclcast bstr $intval]]
+    } -result {int bstr}
     ################################################################
 
     test IsEqualGUID-1.0 {
