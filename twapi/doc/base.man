@@ -944,8 +944,9 @@ and milliseconds.
 [call [cmd tclcast] [arg TYPE] [arg VALUE]]
 Returns [arg VALUE] whose internal Tcl type is set to [arg TYPE].
 See [uri com.html#controllingparametertypes "Controlling Parameter Types"]
-for a use case. [arg TYPE] must be one of [const empty], [const null]
-(corresponding to COM VARIANT types VT_EMPTY and VT_NULL), or one
+for a use case. [arg TYPE] must be one of [const empty], [const null],
+[const bstr],
+(corresponding to COM VARIANT types VT_EMPTY, VT_NULL and VT_BSTR), or one
 of the Tcl internal types
 [const int], [const boolean], [const double], [const string],
 [const list], or [const dict]. 
