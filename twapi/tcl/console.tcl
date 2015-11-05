@@ -43,42 +43,35 @@ proc twapi::get_console_handle {type} {
                 NULL]
 }
 
-# Get a console handle
-proc twapi::get_standard_handle {type} {
+proc twapi::_standard_handle_type {type} {
+    if {[string is integer -strict $type]} {
+        set type [format %d $type] ; # Convert hex etc.
+    }
     switch -exact -- $type {
         0 -
-        -11 -
-        stdin { set type -11 }
+        -10 -
+        stdin { set type -10 }
         1 -
-        -12 -
-        stdout { set type -12 }
+        -11 -
+        stdout { set type -11 }
         2 -
-        -13 -
-        stderr { set type -13 }
+        -12 -
+        stderr { set type -12 }
         default {
             error "Unknown console handle type '$type'"
         }
     }
-    return [GetStdHandle $type]
+    return $type
+}
+
+# Get a console handle
+proc twapi::get_standard_handle {type} {
+    return [GetStdHandle [_standard_handle_type $type]]
 }
 
 # Set a console handle
 proc twapi::set_standard_handle {type handle} {
-    switch -exact -- $type {
-        0 -
-        -11 -
-        stdin { set type -11 }
-        1 -
-        -12 -
-        stdout { set type -12 }
-        2 -
-        -13 -
-        stderr { set type -13 }
-        default {
-            error "Unknown console handle type '$type'"
-        }
-    }
-    return [SetStdHandle $type $handle]
+    return [SetStdHandle [_standard_handle_type $type] $handle]
 }
 
 proc twapi::_console_output_attr_to_flags {attrs} {
