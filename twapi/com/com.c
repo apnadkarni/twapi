@@ -862,6 +862,34 @@ int Twapi_ITypeLib_GetLibAttr(Tcl_Interp *interp, ITypeLib *tlP)
     }
 }
 
+static TwapiInitOutputParam(VARIANT *varP, VARTYPE vt)
+{
+    /* We used to just set output params to type VT_EMPTY but turns out
+       OneNote does not like that. It wants it to be initialized to
+       the type it expects to return in that parameter.
+    */
+    V_VT(varP) = vt;
+    switch (vt) {
+    case VT_I2:
+    case VT_I4:
+    case VT_I1:
+    case VT_UI1:
+    case VT_UI2:
+    case VT_UI4:
+    case VT_I8:
+    case VT_UI8:
+    case VT_INT:
+    case VT_UINT: V_I8(varP) = 0; break;
+    case VT_R4: V_R4(varP) = 0.0; break;
+    case VT_R8: V_R8(varP) = 0.0; break;
+    case VT_BOOL: V_BOOL(varP) = 0; break;
+    case VT_BSTR: V_BSTR(varP) = NULL; break;
+    default:
+        /* Not sure how to init other types. Set to VT_EMPTY */
+        V_VT(varP) = VT_EMPTY;
+        break;
+    }
+}
 
 /*
  * Converts a parameter definition in Tcl format into the corresponding
@@ -1086,7 +1114,7 @@ int TwapiMakeVariantParam(
      */
     if (! (*paramflagsP & PARAMFLAG_FIN)) {
         /* PARAMFLAG_OUT only. */
-        V_VT(targetP) = VT_EMPTY;
+        TwapiInitOutputParam(targetP, target_vt);
     } else {
         /* IN or INOUT */
         if (*paramflagsP & PARAMFLAG_FOUT) {
