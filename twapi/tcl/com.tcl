@@ -114,7 +114,6 @@ proc twapi::com_security_blanket {args} {
     return [list $authenticationservice 0 $serverprincipaltag $serverprincipal $authenticationlevel $impersonationlevel $creds_tag $credentials $eoac]
 }
 
-# TBD - document
 proc twapi::com_query_client_blanket {} {
     lassign [CoQueryClientBlanket] authn authz server authlevel implevel client capabilities
     if {$capabilities & 0x20} {
@@ -162,7 +161,6 @@ proc twapi::com_query_proxy_blanket {ifc} {
             
 }
 
-# TBD - document
 proc twapi::com_initialize_security {args} {
     # TBD - mutualauth?
     # TBD - securerefs?
@@ -862,11 +860,6 @@ proc twapi::_variant_values_from_safearray {sa ndims {raw false} {addref false} 
 
 proc twapi::outvar {varname} { return [Twapi_InternalCast outvar $varname] }
 
-# TBD - document
-# Returns a string value from a formatted variant value pair {VT_xxx value}
-# $addref controls whether we do an AddRef when the value is a pointer to
-# an interface. $raw controls whether interface pointers are returned
-# as raw interface handles or objects.
 proc twapi::variant_value {variant raw addref lcid} {
     # TBD - format appropriately depending on variant type for dates and
     # currency

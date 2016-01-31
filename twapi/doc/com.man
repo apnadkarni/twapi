@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "COM" n ""]
-[copyright "2006-2014 Ashok P. Nadkarni"]
+[copyright "2006-2016 Ashok P. Nadkarni"]
 [moddesc "Component Object Model (client)"]
 [titledesc "Commands for COM clients"]
 [require twapi_com]
@@ -481,9 +481,6 @@ the application could call a method as follows:
 The commands [uri #vt_empty [cmd vt_empty]] and [uri #vt_null [cmd vt_null]]
 are convenience commands that return variants corresponding to VT_EMPTY
 and VT_NULL respectively.
-As a special case, the [uri #outvar [cmd outvar]] command indicates 
-that the passed string is the name of a variable in which to store an output
-parameter value.
 
 [para]
 Sometimes the COM component may  not provide type information
@@ -502,6 +499,26 @@ where [arg guid] is the GUID for the COM component and [const 19] is its
 DISPID (roughly, the index into the dispatch table). Note this requires
 some detailed knowledge of the COM component, like the GUID and the
 DISPID values for the member methods and properties.
+
+[section "Output Parameters"]
+Some COM components return values in output parameters instead of, or in
+addition to, the method return value. The corresponding argument should
+be the name of the Tcl variable where the output value should be stored.
+If the parameter is both an input and an output parameter, the value
+of the variable is passed to the method. For pure output parameters,
+the variable value is not used and the variable need not even exist before
+the method call is made.
+
+When the method returns, the variable will contain the returned value
+as a raw COM VARIANT. Use the [uri #variant_value [cmd variant_value]]
+command to retrieve the value and [uri #variant_type [cmd variant_type]]
+to retrieve its type.
+
+When the component does not provide type information as discussed in the
+previous section, the [uri #outvar [cmd outvar]] command can be used
+to indicate the passed string is the name of a variable in which to store an 
+output parameter value. This is similar to the use of the [cmd tclcast] command
+discussed above.
 
 [section Security]
 When accessing COM components that are remote or run locally in a separate
@@ -838,6 +855,8 @@ If [arg BLANKET] is specified, it must be a security blanket as returned
 by the [uri #com_security_blanket [cmd com_security_blanket]] command.
 In that case, it is set as the new security blanket.
 
+Note that COM does not support security blankets for in-process components.
+
 [call "[arg COMOBJ] [cmd -set]" [arg PROPERTY] [arg VALUE] [opt "[arg VALUE] ..."]]
 Sets the value of the specified property. Additional optional parameters may be
 specified if supported by the underlying COM object.
@@ -1043,6 +1062,26 @@ and the fractional part representing the time in the day. This command
 takes such a time value and returns a list
 of 7 elements representing the year, month, day, hour, minutes, seconds
 and milliseconds.
+
+[call [cmd variant_value] [arg VARIANT] [arg RAW] [arg ADDREF] [arg LCID]]
+Converts a COM VARIANT as might be returned as an output parameter from
+a COM method to a Tcl value. COM VARIANTs are tagged structures. This 
+command returns the value field of the structure.
+
+[arg RAW] and [arg ADDREF] only affect the case where the VARIANT 
+contains an interface pointer.
+If [arg RAW] is [const false], automation (IDispatch) interface
+pointers are returned as comobj objects and IUnknown interface pointers
+are returned as proxy objects. If [const true], they are returned as raw
+pointer values. If [arg ADDREF] is [const true], the reference count
+for the interface is incremented before it is returned.
+
+[arg LCID] specifies an LCID (0 if language neutral) and is used
+when any locale-specific conversions need to be performed.
+
+[call [cmd variant_type] [arg VARIANT]]
+Returns the type tag of a COM VARIANT as might be returned as an 
+output parameter from a COM method. 
 
 [call [cmd vt_empty]]
 The return value from this command should be passed when a COM method

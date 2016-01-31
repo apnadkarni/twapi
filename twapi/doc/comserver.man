@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "COM servers" n ""]
-[copyright "2014 Ashok P. Nadkarni"]
+[copyright "2014-2016 Ashok P. Nadkarni"]
 [moddesc "Component Object Model (server)"]
 [titledesc "Commands for COM servers"]
 [require twapi_com]
@@ -116,9 +116,43 @@ method on the class factory command objects returned by the
 The process may continue running beyond this point but the factories
 must be destroyed regardless.
 
+[section "Security"]
+
+The interaction between a COM client and server is covered by a
+[emph "security blanket"] that governs authentication, impersonation,
+authorization and other security parameters. This security blanket
+is negotiated at the time the connection is established between the
+client and the server. The security parameters associated with
+the connection from a particular client can be retrieved with the
+[uri #com_query_client_blanket [cmd com_query_client_blanket]]
+call.
+
 [section Commands]
 
 [list_begin definitions]
+
+[call [cmd com_query_client_blanket]]
+Retrieves the security blanket parameters associated with the client
+whose request the server is currently executing. The returned value is
+a dictionary with the keys shown in the table below.
+
+[list_begin opt]
+[opt_def -authenticationlevel]
+The authentication level on the connections, such as [const packetintegrity],
+[const privacy] etc.
+[opt_def -authenticationservice]
+The name of the authentication service, such as [const negotiate],
+[const ntlm] etc.
+[opt_def -authorizationservice]
+The name of the authorization service, such as [const dce].
+[opt_def -clientprincipal]
+The client principal name.
+[opt_def -cloaking]
+One of the value [const none], [const static] or [const dynamic] indicating
+the type of client identity cloaking that is in effect.
+[opt_def -serverprincipal]
+The server principal name.
+[list_end]
 
 [call [cmd comserver_factory] [arg CLSID] [arg MEMBER_MAP] [arg CREATE_COMMAND] [opt [arg FACTORYNAME]]]
 
