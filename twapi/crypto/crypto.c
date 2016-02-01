@@ -2238,6 +2238,12 @@ BOOL WINAPI TwapiCertEnumPhysicalStoreCallback(
     return TRUE;          /* Continue iteration */
 }
 
+static BOOL WINAPI TwapiCryptEnumOIDInfoCB(PCCRYPT_OID_INFO coiP, void *pv)
+{
+    ObjAppendElement(NULL, (Tcl_Obj *)pv, ObjFromCRYPT_OID_INFO(coiP));
+    return 1;
+}
+
 static TCL_RESULT Twapi_CertGetCertificateChainObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HCERTCHAINENGINE hce;
@@ -2442,7 +2448,15 @@ static int Twapi_CryptFindOIDInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
     Tcl_Obj **objs;
     int nobjs;
     PCCRYPT_OID_INFO coiP;
+    int search_ds, keylen;
+#if 0
+#define CRYPT_OID_INFO_OID_KEY           1
+#define CRYPT_OID_INFO_NAME_KEY          2
+#define CRYPT_OID_INFO_ALGID_KEY         3
+#define CRYPT_OID_INFO_SIGN_KEY          4
 
+#endif
+    
     if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(keytype), GETOBJ(keyObj),
                      GETINT(group), ARGEND) != TCL_OK)
         return TCL_ERROR;
@@ -2471,6 +2485,7 @@ static int Twapi_CryptFindOIDInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
         break;
     }
 
+    /* NOTE: coiP must NOT be freed */
     coiP = CryptFindOIDInfo(keytype, pv, group);
     if (coiP)
         ObjSetResult(interp, ObjFromCRYPT_OID_INFO(coiP));
@@ -2532,8 +2547,6 @@ vamoose:
     MemLifoPopMark(mark);
     return res;
 }
-
-
 
 static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -2849,7 +2862,12 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 10020: // CertOpenStore
         return Twapi_CertOpenStore(interp, objc, objv);
 
-    case 10021: // UNUSED
+    case 10021: // CryptEnumOIDInfo
+        CHECK_NARGS(interp, objc, 1);
+        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        result.value.obj = ObjNewList(0, NULL);
+        CryptEnumOIDInfo(dw, 0, result.value.obj, TwapiCryptEnumOIDInfoCB);
+        result.type = TRT_OBJ;
         break;
 
     case 10022: // CertAddCertificateContextToStore
@@ -3455,6 +3473,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptGetUserKey, 10018),
         DEFINE_FNCODE_CMD(CryptSetProvParam, 10019),
         DEFINE_FNCODE_CMD(CertOpenStore, 10020),
+        DEFINE_FNCODE_CMD(CryptEnumOIDInfo, 10021),
         DEFINE_FNCODE_CMD(CertAddCertificateContextToStore, 10022),
         DEFINE_FNCODE_CMD(CryptExportPublicKeyInfoEx, 10023),
         DEFINE_FNCODE_CMD(CertEnumSystemStore, 10024),

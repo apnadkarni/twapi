@@ -1623,8 +1623,8 @@ match specified usage.
 extension marked as critical
 [opt_def [const validityperiodnesting]] Time periods for certificates
 in the chain are not nested.
-[opt_def [const norevocationcheck]] Revocation checks could not be made
-because of errors.
+[opt_def [const norevocationcheck]] Revocation status of one of the
+certificates in the chain is unknown.
 [opt_def [const revocationoffline]] Revocation checks could not be done
 because the revocation server was offline.
 [opt_def [const cnmatch]] Common name does not match [cmd -server]
