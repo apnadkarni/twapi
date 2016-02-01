@@ -1092,6 +1092,123 @@ proc twapi::crypt_symmetric_key_size {hprov} {
     return $i
 }
 
+# TBD - document
+proc twapi::crypt_algid {s} {
+    if {[string is integer -strict $s]} {
+        return $s
+    }
+    set algid [dict* {
+        3des 0x00006603
+        3des_112 0x00006609
+        aes 0x00006611
+        aes_128 0x0000660e
+        aes_192 0x0000660f
+        aes_256 0x00006610
+        agreedkey_any 0x0000aa03
+        cylink_mek 0x0000660c
+        des 0x00006601
+        desx 0x00006604
+        dh_ephem 0x0000aa02
+        dh_sf 0x0000aa01
+        dss_sign 0x00002200
+        ecdh 0x0000aa05
+        ecdsa 0x00002203
+        hash_replace_owf 0x0000800b
+        hughes_md5 0x0000a003
+        hmac 0x00008009
+        mac 0x00008005
+        md2 0x00008001
+        md4 0x00008002
+        md5 0x00008003
+        no_sign 0x00002000
+        rc2 0x00006602
+        rc4 0x00006801
+        rc5 0x0000660d
+        rsa_keyx 0x0000a400
+        rsa_sign 0x00002400
+        sha 0x00008004
+        sha1 0x00008004
+        sha_256 0x0000800c
+        sha_384 0x0000800d
+        sha_512 0x0000800e
+        tls1prf 0x0000800a
+    } $s ""]
+    if {$algid ne ""} {
+        return $algid
+    }
+    set oid [oid $s]
+    set algid [CertOIDToAlgId $oid]
+    if {$algid == 0} {
+        error "Could not map \"$s\" to algorithm id"
+    }
+}
+
+# TBD - document
+proc twapi::crypt_find_oid_info {key args} {
+    array set opts [parseargs args {
+        {restrict.arg any {sign encrypt any}}
+        keylen.int
+        {searchds.bool 0}
+        {oidgroup.arg  0}
+    } -maxleftover 0]
+
+    # We will try key to be an OID, Alg Id, sign id or a simple
+    # name in turn
+    if {[catch {
+        set key [oid $key]
+        set keytype 1;          # OID
+    }]} {
+        if {[catch {
+            set key [crypt_algid $key]
+            set keytype 3;      # Alg Id
+        }]} {
+            if {[catch {
+                # Sign - list of two alg id's
+                if {[llength $key] == 2} {
+                    set key [list [crypt_algid [lindex $key 0]] [crypt_algid [lindex $key 1]]]
+                    set keytype 4
+                } else {
+                    set keytype 2 ;# Name
+                }
+            }]} {
+                set keytype 2 ;# Name
+            }
+        }
+    }
+
+    set oidgroup [oidgroup $opts(oidgroup)]
+    if {$opts(restrict) ne "any"} {
+        if {$oidgroup != 0 && $oidgroup != 3} {
+            error "The -restrict option can only be used with the oidgroup_pubkey_alg OID group"
+        }
+        if {$opts(restrict) eq "sign"} {
+            set keytype [expr {$keytype | 0x80000000}]
+        } else {
+            set keytype [expr {$keytype | 0x40000000}]
+        }
+    }
+    
+    if {[info exists opts(keylen)]} {
+        set oidgroup [expr {$oidgroup | ($opts(keylen) << 16)}]
+    }
+
+    # Because search of active dir can be slow, turn it off unless
+    # caller explicitly requests it
+    if {! $opts(searchds)} {
+        set oidgroup [expr {$oidgroup | 0x80000000}]
+    }
+
+    return [CryptFindOIDInfo $keytype $key $oidgroup]
+}
+
+# TBD - document
+proc twapi::crypt_enumerate_oid_info {{oidgroup 0}} {
+    # TBD - parse extra based on OID group
+    return [lmap info [CryptEnumOIDInfo [oidgroup $oidgroup]] {
+        twine {oid name oidgroup value extra} $info
+    }]
+}
+
 ###
 # ASN.1 procs
 
@@ -1114,9 +1231,6 @@ proc twapi::asn1_encode_string {s {encformat utf8}} {
 ###
 # Utility procs
 
-proc twapi::_algid {class type alg} {
-    return [expr {($class << 13) | ($type << 9) | $alg}]
-}
 
 proc twapi::_make_algorithm_identifier {oid {param {}}} {
     if {[string length $oid] == 0} {
@@ -1328,8 +1442,8 @@ twapi::proc* twapi::oid {name} {
     if {[info exists _name_oid_map($name)]} {
         return $_name_oid_map($name)
     }
-    if {[regexp {^\d([\d\.]*\d)?$} $name]} {
-        return $name
+    if {[regexp {^\d+\.\d+(\.\d+)*$} $name]} {
+        return $name;           # OID literal n.n...
     } else {
         badargs! "Invalid OID '$name'"
     }
@@ -1353,9 +1467,6 @@ twapi::proc* twapi::oidname {oid} {
         badargs! "Invalid OID '$name'"
     }
 }
-
-
-
 
 twapi::proc* twapi::oids {{pattern *}} {
     variable _oid_name_map
@@ -1588,6 +1699,39 @@ twapi::proc* twapi::oids {{pattern *}} {
     return [array get _name_oid_map $pattern]
 }
 
+# TBD - document
+proc twapi::oidgroup {oidgroup} {
+    if {[string is integer -strict $oidgroup]} {
+        return $oidgroup
+    }
+    return [dict! {
+        oidgroup_hash_alg             1
+        oidgroup_encrypt_alg          2
+        oidgroup_pubkey_alg           3
+        oidgroup_sign_alg             4
+        oidgroup_rdn_attr             5
+        oidgroup_ext_or_attr          6
+        oidgroup_enhkey_usage         7
+        oidgroup_policy               8
+        oidgroup_template             9
+    } $oidgroup]
+}
+
+# TBD - document
+proc twapi::oidgroup_token {oidgroup} {
+    return [lindex {
+        {}
+        oidgroup_hash_alg
+        oidgroup_encrypt_alg
+        oidgroup_pubkey_alg
+        oidgroup_sign_alg
+        oidgroup_rdn_attr
+        oidgroup_ext_or_attr
+        oidgroup_enhkey_usage
+        oidgroup_policy
+        oidgroup_template
+    } $oidgroup]
+}
 
 proc twapi::_make_altnames_ext {altnames {critical 0} {issuer 0}} {
     set names {}

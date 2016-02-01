@@ -24,6 +24,10 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 # define CRYPT_OID_INFO_PUBKEY_ENCRYPT_KEY_FLAG      0x40000000
 #endif
 
+#ifndef CRYPT_OID_DISABLE_SEARCH_DS_FLAG
+# define CRYPT_OID_DISABLE_SEARCH_DS_FLAG            0x80000000
+#endif
+
 void TwapiRegisterCertPointer(Tcl_Interp *, PCCERT_CONTEXT);
 void TwapiRegisterCertPointerTic(TwapiInterpContext *, PCCERT_CONTEXT );
 TCL_RESULT TwapiUnregisterCertPointer(Tcl_Interp *, PCCERT_CONTEXT);
