@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2007-2013 Ashok P. Nadkarni
+ * Copyright (c) 2007-2016 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -609,6 +609,31 @@ static TCL_RESULT ParseCERT_CHAIN_PARA(
         != TCL_OK)
         return TCL_ERROR;
 
+    return TCL_OK;
+}
+
+/* Returns CERT_CHAIN_POLICY_PARA structure using memory from ticP->memlifo.
+ * Caller responsible for releasing storage in both success and error cases
+ */
+static TCL_RESULT ParseCERT_CHAIN_POLICY_PARA(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *paramObj,
+    CERT_CHAIN_POLICY_PARA **policy_paramPP
+    )
+{
+    Tcl_Obj **objs;
+    int       flags, n;
+    CERT_CHAIN_POLICY_PARA *policy_paramP;
+    
+    if (ObjToInt(NULL, paramObj, &flags) != TCL_OK)
+        return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid CERT_CHAIN_POLICY_PARA (expected integer value)");
+
+    policy_paramP = MemLifoAlloc(ticP->memlifoP, sizeof(*policy_paramP), NULL);
+    ZeroMemory(policy_paramP, sizeof(*policy_paramP));
+    policy_paramP->cbSize = sizeof(*policy_paramP);
+    policy_paramP->dwFlags = flags;
+    policy_paramP->pvExtraPolicyPara = NULL;
+    *policy_paramPP = policy_paramP;
     return TCL_OK;
 }
 
@@ -2419,6 +2444,53 @@ static TCL_RESULT Twapi_CertVerifyChainPolicySSLObjCmd(TwapiInterpContext *ticP,
     return res;
 }
 
+static TCL_RESULT Twapi_CertVerifyChainPolicyObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    PCERT_CHAIN_POLICY_PARA policy_paramP;
+    CERT_CHAIN_POLICY_STATUS policy_status;
+    TCL_RESULT (*param_parser)(TwapiInterpContext*, Tcl_Obj*, PCERT_CHAIN_POLICY_PARA*);
+    CERT_CHAIN_CONTEXT *chainP;
+    Tcl_Obj *paramObj;
+    TCL_RESULT res;
+    DWORD policy;
+    MemLifoMarkHandle mark;
+
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(policy),
+                     GETVERIFIEDPTR(chainP, CERT_CHAIN_CONTEXT*, CertFreeCertificateChain),
+                     GETOBJ(paramObj), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+    switch (policy) {
+    case 4: // CERT_CHAIN_POLICY_SSL
+        param_parser = ParseCERT_CHAIN_POLICY_PARA_SSL;
+        break;
+    case 1: // CERT_CHAIN_POLICY_BASE
+    case 5: // CERT_CHAIN_POLICY_BASIC_CONSTRAINTS
+    case 6: // CERT_CHAIN_POLICY_NT_AUTH
+    case 7: // CERT_CHAIN_POLICY_MICROSOFT_ROOT
+    case 8: // CERT_CHAIN_POLICY_EV
+        param_parser = ParseCERT_CHAIN_POLICY_PARA;
+        break;
+    default:
+        return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid certificate policy identifier.");
+    } 
+    mark = MemLifoPushMark(ticP->memlifoP);
+    res = (*param_parser)(ticP, paramObj, &policy_paramP);
+    if (res == TCL_OK) {
+        ZeroMemory(&policy_status, sizeof(policy_status));
+        policy_status.cbSize = sizeof(policy_status);
+        if (CertVerifyCertificateChainPolicy((LPCSTR) policy,
+                                             chainP,
+                                             policy_paramP,
+                                             &policy_status)) {
+            ObjSetResult(interp, ObjFromDWORD(policy_status.dwError));
+        } else
+            res = TwapiReturnSystemError(interp);
+    }
+
+    MemLifoPopMark(mark);
+    return res;
+}
+
 static TCL_RESULT Twapi_CertChainContextsObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     CERT_CHAIN_CONTEXT *chainP;
@@ -3513,6 +3585,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptSignAndEncodeCertificate, Twapi_CryptSignAndEncodeCertObjCmd),
         DEFINE_TCL_CMD(CertFindCertificateInStore, Twapi_CertFindCertificateInStoreObjCmd),
         DEFINE_TCL_CMD(CertGetCertificateChain, Twapi_CertGetCertificateChainObjCmd),
+        DEFINE_TCL_CMD(Twapi_CertVerifyChainPolicy, Twapi_CertVerifyChainPolicyObjCmd),
         DEFINE_TCL_CMD(Twapi_CertVerifyChainPolicySSL, Twapi_CertVerifyChainPolicySSLObjCmd),
         DEFINE_TCL_CMD(Twapi_HashPublicKeyInfo, Twapi_HashPublicKeyInfoObjCmd),
         DEFINE_TCL_CMD(CryptFindOIDInfo, Twapi_CryptFindOIDInfoObjCmd),

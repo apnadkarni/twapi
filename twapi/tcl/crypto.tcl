@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2007-2014, Ashok P. Nadkarni
+# Copyright (c) 2007-2016, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -729,7 +729,8 @@ proc twapi::cert_free_chain {hchain} {
     CertFreeCertificateChain $hchain
 }
 
-proc twapi::cert_verify {hcert policy args} {
+# TBD - document
+proc twapi::cert_verify {policy hcert args} {
     set policy_id [dict! {
         authenticode 2   authenticode_ts 3   base 1   basic_constraints 5
         extended_validation 8   microsoft_root 7   nt_auth 6
@@ -738,7 +739,8 @@ proc twapi::cert_verify {hcert policy args} {
 
     # Construct policy specific options
     set optdefs {
-        {ignoreerrors.arg {}]
+        {ignoreerrors.arg {}}
+        policyparams.arg
     }
     switch -exact -- $policy_id {
         4 {
@@ -815,41 +817,25 @@ proc twapi::cert_verify {hcert policy args} {
         set verify_flags [expr {$verify_flags | [dict! $ignore_options $ignore]}]
     }
 
-    set policy_params {}
-    switch -exact -- $policy_id {
-        4 {
-            # ssl/tls
-            if {[info exists server]} {
-                set role 2;         # AUTHTYPE_SERVER
-            } else {
-                set role 1;         # AUTHTYPE_CLIENT
-                set server ""
-            }
-
-            # I have no clue as to why some of these options have to
-            # be specified in two different places. Copy the verify flags
-            # into the policy-specific parameters
-            set checks 0
-            foreach {verify check} {
-                0x7 0x2000
-                0xf00 0x80
-                0x10 0x100
-                0x20 0x200
-                0x40 0x1000
-            } {
-                if {$verify_flags & $verify} {
-                    set checks [expr {$checks | $check}]
+    if {![info exists policyparams]} {
+        switch -exact -- $policy_id {
+            4 {
+                # ssl/tls
+                if {[info exists server]} {
+                    set policyparams [cert_policy_params_tls -ignoreerrors $ignoreerrors -server $server]
+                } else {
+                    set policyparams [cert_policy_params_tls -ignoreerrors $ignoreerrors]
                 }
             }
-            set policy_params [list $role $checks $server]
+            default {
+                set policyparams {}
+            }
         }
     }
     
-    set hchain [cert_get_chain $hcert {*}$args]
+    set chainh [cert_get_chain $hcert {*}$args]
     trap {
-        set verify_flags 0
-
-        set status [Twapi_CertVerifyChainPolicySSL $chainh $policy_params]
+        set status [Twapi_CertVerifyChainPolicy $policy_id $chainh [list $verify_flags $policyparams]]
 
         # If caller had provided additional trusted roots that are not
         # in the Windows trusted store, and the error is that the root is
@@ -882,10 +868,13 @@ proc twapi::cert_verify {hcert policy args} {
                     # to call the verification again.
                     # 0x10 -> CERT_CHAIN_POLICY_ALLOW_UNKNOWN_CA_FLAG
                     set verify_flags [expr {$verify_flags | 0x10}]
-                    # 0x100 -> SECURITY_FLAG_IGNORE_UNKNOWN_CA
-                    set checks [expr {$checks | 0x100}]
+                    if {0} {
+                        TBD - need to redo the policy params?
+                        # 0x100 -> SECURITY_FLAG_IGNORE_UNKNOWN_CA
+                        set checks [expr {$checks | 0x100}]
+                    }
                     # Retry the call ignoring root errors
-                    set status [Twapi_CertVerifyChainPolicySSL $chainh [list $verify_flags [list $role $checks $server]]]
+                    set status [Twapi_CertVerifyChainPolicy $policy_id $chainh [list $verify_flags $policyparams]]
                 }
             }
         }
@@ -922,7 +911,39 @@ proc twapi::cert_verify {hcert policy args} {
     return $status
 }
 
-proc twapi::cert_tls_verify {hcert args} {
+# TBD - document
+proc twapi::cert_policy_params_tls {args} {
+    
+    parseargs args {
+        ignoreerrors.arg
+        server.arg
+    } -maxleftover 0 -setvars -ignoreunknown
+    
+    if {[info exists server]} {
+        set role 2;         # AUTHTYPE_SERVER
+    } else {
+        set role 1;         # AUTHTYPE_CLIENT
+        set server ""
+    }
+
+    set ignore_options {
+        time             0x2000
+        unknownca        0x100
+        usage            0x200
+        name             0x1000
+        revocation       0x80
+    }
+    set checks 0
+    foreach ignore $ignoreerrors {
+        # Note we use dict*, not dict! so we can skip any ignore tokens
+        # that we don't know
+        set checks [expr {$checks | [dict* $ignore_options $ignore 0]}]
+    }
+    return [list $role $checks $server]
+}
+interp alias {} twapi::cert_tls_verify {} twapi::cert_verify tls
+
+proc twapi::OBSOLETEcert_tls_verify {hcert args} {
 
     parseargs args {
         {ignoreerrors.arg {}}
