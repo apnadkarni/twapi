@@ -69,6 +69,11 @@ proc twapi::cert_store_release {hstore} {
 }
 
 proc twapi::cert_temporary_store {args} {
+    # TBD - add support for PKCS12_NO_PERSIST_KEY post-XP. If not
+    # specified and on XP document a means of getting rid of the key
+    # containers. See https://msdn.microsoft.com/en-us/library/ms867088.aspx#pk_topic6
+    # Also CryptAcquireCertificatePrivateKey and GetCryptProvFromCert
+    # might be useful in this regard
     parseargs args {
         {encoding.arg der {der cer crt pem base64}}
         serialized.arg
