@@ -722,7 +722,7 @@ int Twapi_QueryContextAttributes(
                 break;
             case SECPKG_ATTR_LOCAL_CERT_CONTEXT: /* FALLTHRU */
             case SECPKG_ATTR_REMOTE_CERT_CONTEXT:
-                TwapiRegisterCertPointer(interp, param.certP);
+                TwapiRegisterPCCERT_CONTEXT(interp, param.certP);
                 obj = ObjFromOpaque(param.certP, "CERT_CONTEXT*");
                 break;
             case SECPKG_ATTR_ISSUER_LIST_EX:
