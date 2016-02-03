@@ -28,10 +28,10 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 # define CRYPT_OID_DISABLE_SEARCH_DS_FLAG            0x80000000
 #endif
 
-void TwapiRegisterCertPointer(Tcl_Interp *, PCCERT_CONTEXT);
-void TwapiRegisterCertPointerTic(TwapiInterpContext *, PCCERT_CONTEXT );
-TCL_RESULT TwapiUnregisterCertPointer(Tcl_Interp *, PCCERT_CONTEXT);
-TCL_RESULT TwapiUnregisterCertPointerTic(TwapiInterpContext *, PCCERT_CONTEXT);
+void TwapiRegisterPCCERT_CONTEXT(Tcl_Interp *, PCCERT_CONTEXT);
+void TwapiRegisterPCCERT_CONTEXTTic(TwapiInterpContext *, PCCERT_CONTEXT );
+TCL_RESULT TwapiUnregisterPCCERT_CONTEXT(Tcl_Interp *, PCCERT_CONTEXT);
+TCL_RESULT TwapiUnregisterPCCERT_CONTEXTTic(TwapiInterpContext *, PCCERT_CONTEXT);
 Tcl_Obj *ObjFromCERT_NAME_BLOB(CERT_NAME_BLOB *blobP, DWORD flags);
 
 #endif
