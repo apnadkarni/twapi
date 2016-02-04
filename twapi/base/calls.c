@@ -16,11 +16,11 @@ static TCL_RESULT Twapi_LsaQueryInformationPolicy (
     );
 static Tcl_Obj *TwapiRandomByteArrayObj(Tcl_Interp *interp, int nbytes);
 
-TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
-                 char fmtch, ...)
+
+TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
+                 char fmtch, va_list ap)
 {
     int        argno;
-    va_list    ap;
     void      *p;
     Tcl_Obj   *objP = 0;
     char      *typeP;              /* Type of a pointer */
@@ -39,7 +39,6 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
     int        use_default = 0;
     void       *pv;
 
-    va_start(ap,fmtch);
     for (argno = -1; fmtch != ARGEND && fmtch != ARGTERM; fmtch = va_arg(ap, char)) {
         if (fmtch == ARGUSEDEFAULT) {
             use_default = 1;
@@ -254,21 +253,45 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
         goto argerror;
     }
 
-    va_end(ap);
     return TCL_OK;
 
 argerror:
     /* interp is already supposed to contain an error message */
-    va_end(ap);
     return TCL_ERROR;
 }
 
-TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[],
+TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                  char fmtch, ...)
+{
+    TCL_RESULT ret;
+    va_list ap;
+    va_start(ap,fmtch);
+    ret = TwapiGetArgsVA(interp, objc, objv, fmtch, ap);
+    va_end(ap);
+    return ret;
+}
+
+TCL_RESULT TwapiGetArgsObj(Tcl_Interp *interp, Tcl_Obj *objP, char fmtch,...)
+{
+    Tcl_Obj **objs;
+    int nobjs;
+    TCL_RESULT ret;
+    va_list ap;
+
+    ret = ObjGetElements(interp, objP, &nobjs, &objs);
+    if (ret != TCL_OK)
+        return ret;
+    va_start(ap,fmtch);
+    ret = TwapiGetArgsVA(interp, nobjs, objs, fmtch, ap);
+    va_end(ap);
+    return ret;
+}
+
+TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[],
+                 char fmtch, va_list ap)
 {
     Tcl_Interp *interp = ticP->interp;
     int        argno;
-    va_list    ap;
     void      *p;
     Tcl_Obj   *objP = 0;
     char      *typeP;              /* Type of a pointer */
@@ -286,7 +309,6 @@ TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
     int        *iP;
     void       *pv;
 
-    va_start(ap,fmtch);
     for (argno = -1; fmtch != ARGEND && fmtch != ARGTERM; fmtch = va_arg(ap, char)) {
         if (fmtch == ARGUSEDEFAULT) {
             use_default = 1;
@@ -530,15 +552,39 @@ TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
         goto argerror;
     }
 
-    va_end(ap);
     return TCL_OK;
 
 argerror:
     /* interp is already supposed to contain an error message */
-    va_end(ap);
     return TCL_ERROR;
 }
 
+TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[],
+                 char fmtch, ...)
+{
+    TCL_RESULT ret;
+    va_list ap;
+    va_start(ap,fmtch);
+    ret = TwapiGetArgsExVA(ticP, objc, objv, fmtch, ap);
+    va_end(ap);
+    return ret;
+}
+
+TCL_RESULT TwapiGetArgsExObj(TwapiInterpContext *ticP, Tcl_Obj *objP, char fmtch,...)
+{
+    Tcl_Obj **objs;
+    int nobjs;
+    TCL_RESULT ret;
+    va_list ap;
+
+    ret = ObjGetElements(ticP->interp, objP, &nobjs, &objs);
+    if (ret != TCL_OK)
+        return ret;
+    va_start(ap,fmtch);
+    ret = TwapiGetArgsExVA(ticP, nobjs, objs, fmtch, ap);
+    va_end(ap);
+    return ret;
+}
 
 static TCL_RESULT Twapi_CallNoargsObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {

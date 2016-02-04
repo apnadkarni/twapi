@@ -1,6 +1,6 @@
 MODULENAME=twapi_crypto
 
-EXTRALIBS = crypt32.lib
+EXTRALIBS = crypt32.lib wintrust.lib
 
 !include ..\include\common.inc
 
