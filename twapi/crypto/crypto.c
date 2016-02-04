@@ -479,9 +479,8 @@ static TCL_RESULT ParseCERT_NAME_VALUE_Unicode(
     Tcl_Obj **objs;
     int nchars, nobjs;
 
-    if (ObjGetElements(NULL, namevalObj, &nobjs, &objs) == TCL_OK &&
-        TwapiGetArgsEx(ticP, nobjs, objs, GETINT(cnvP->dwValueType),
-                       GETWSTRN(cnvP->Value.pbData, nchars), ARGEND)
+    if (TwapiGetArgsExObj(ticP, namevalObj, GETINT(cnvP->dwValueType),
+                          GETWSTRN(cnvP->Value.pbData, nchars), ARGEND)
         ==  TCL_OK) {
         cnvP->Value.cbData = nchars * sizeof(WCHAR);
         return TCL_OK;
@@ -656,11 +655,9 @@ static TCL_RESULT ParseCERT_CHAIN_POLICY_PARA_SSL(
     else {
         SSL_EXTRA_CERT_CHAIN_POLICY_PARA *sslP;
         /* Parse the SSL_EXTRA_CERT_CHAIN_POLICY_PARA */
-        if (ObjGetElements(NULL, objs[1], &n, &objs) != TCL_OK)
-            goto error_return;
         sslP = MemLifoAlloc(ticP->memlifoP, sizeof(*sslP), NULL);
         sslP->cbSize = sizeof(*sslP);
-        if (TwapiGetArgsEx(ticP, n, objs,
+        if (TwapiGetArgsExObj(ticP, objs[1],
                            GETINT(sslP->dwAuthType),
                            GETINT(sslP->fdwChecks),
                            GETWSTR(sslP->pwszServerName),
@@ -787,12 +784,8 @@ static TCL_RESULT ParseCRYPT_KEY_PROV_INFO(
                                         kiP->cProvParam * sizeof(*kiP->rgProvParam),
                                         NULL);
         for (i = 0; i < nobjs; ++i) {
-            Tcl_Obj **parObjs;
-            int       npar;
             CRYPT_KEY_PROV_PARAM *parP = &kiP->rgProvParam[i];
-            if (ObjGetElements(NULL, objs[i], &npar, &parObjs) != TCL_OK)
-                goto error_return;
-            if (TwapiGetArgsEx(ticP, npar, parObjs,
+            if (TwapiGetArgsExObj(ticP, objs[i],
                                GETINT(parP->dwParam),
                                GETBA(parP->pbData, parP->cbData),
                                GETINT(parP->dwFlags),
@@ -1304,13 +1297,10 @@ static TCL_RESULT ParseCERT_INFO(
     CERT_INFO *ciP             /* Will contain garbage in case of errors */
     )
 {
-    Tcl_Obj **objs;
-    int       nobjs;
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj *algObj, *pubkeyObj, *issuerIdObj, *subjectIdObj, *extsObj;
 
-    if (ObjGetElements(NULL, ciObj, &nobjs, &objs) != TCL_OK ||
-        TwapiGetArgsEx(ticP, nobjs, objs,
+    if (TwapiGetArgsExObj(ticP, ciObj,
                        GETINT(ciP->dwVersion),
                        GETBA(ciP->SerialNumber.pbData, ciP->SerialNumber.cbData),
                        GETOBJ(algObj),
@@ -1381,12 +1371,11 @@ static TCL_RESULT ParseCERT_REQUEST_INFO(
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj *pubkeyObj, *attrObj;
 
-    if (ObjGetElements(NULL, criObj, &nobjs, &objs) == TCL_OK &&
-        TwapiGetArgsEx(ticP, nobjs, objs,
-                       GETINT(criP->dwVersion),
-                       GETBA(criP->Subject.pbData, criP->Subject.cbData),
-                       GETOBJ(pubkeyObj), GETOBJ(attrObj),
-                       ARGEND) == TCL_OK &&
+    if (TwapiGetArgsExObj(ticP, criObj,
+                          GETINT(criP->dwVersion),
+                          GETBA(criP->Subject.pbData, criP->Subject.cbData),
+                          GETOBJ(pubkeyObj), GETOBJ(attrObj),
+                          ARGEND) == TCL_OK &&
         ParseCERT_PUBLIC_KEY_INFO(ticP, pubkeyObj, &criP->SubjectPublicKeyInfo) == TCL_OK &&
         ObjGetElements(NULL, attrObj, &nobjs, &objs) == TCL_OK) {
         if (nobjs == 0) {
@@ -3641,40 +3630,40 @@ vamoose:
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParseWINTRUST_DATA(TwapiInterpContext *ticP, Tcl_Obj *objP, TWAPI_WINTRUST_DATA *wtdP)
 {
-    Tcl_Obj **objs;
     Tcl_Interp *interp = ticP->interp;
-    int nobjs;
     TCL_RESULT ret;
     Tcl_Obj *trustObj;
     WINTRUST_FILE_INFO *wfiP;
     void *pv;
     int n;
 
-    ret = ObjGetElements(interp, objP, &nobjs, &objs);
-    if (ret != TCL_OK)
-        return ret;
-
     ZeroMemory(wtdP, sizeof(*wtdP));
     wtdP->cbStruct = sizeof(*wtdP);
-    ret = TwapiGetArgsEx(ticP, nobjs, objs,
-                         ARGSKIP, // pPolicyCallbackData
-                         ARGSKIP, // pSIPClientData
-                         GETINT(wtdP->dwUIChoice),
-                         GETINT(wtdP->fdwRevocationChecks),
-                         GETINT(wtdP->dwUnionChoice), GETOBJ(trustObj),
-                         GETINT(wtdP->dwStateAction),
-                         GETHANDLET(wtdP->hWVTStateData, WVTStateData),
-                         GETWSTR(wtdP->pwszURLReference),
-                         GETINT(wtdP->dwProvFlags),
-                         GETINT(wtdP->dwUIContext)
+    ret = TwapiGetArgsExObj(ticP, objP,
+                            ARGSKIP, // pPolicyCallbackData
+                            ARGSKIP, // pSIPClientData
+                            GETINT(wtdP->dwUIChoice),
+                            GETINT(wtdP->fdwRevocationChecks),
+                            GETINT(wtdP->dwUnionChoice), GETOBJ(trustObj),
+                            GETINT(wtdP->dwStateAction),
+                            GETHANDLET(wtdP->hWVTStateData, WVTStateData),
+                            GETWSTR(wtdP->pwszURLReference),
+                            GETINT(wtdP->dwProvFlags),
+                            GETINT(wtdP->dwUIContext),
                          // pSignatureSettings not present until Win8
-        );
+                            ARGEND);
+    if (ret != TCL_OK)
+        return ret;
     switch (wtdP->dwUnionChoice) {
     case WTD_CHOICE_FILE:
         wfiP = MemLifoZeroes(ticP->memlifoP, sizeof(*wfiP));
-        pv = ObjToUnicodeN(trustObj, &n);
-        wfiP->pcwszFilePath = MemLifoCopy(ticP->memlifoP, pv, sizeof(WCHAR)*(n+1));
-        wfiP->hFile = NULL;
+        wtdP->pFile = wfiP;
+        wfiP->cbStruct = sizeof(*wfiP);
+        ret = TwapiGetArgsExObj(ticP, trustObj, GETWSTR(wfiP->pcwszFilePath),
+                                ARGUSEDEFAULT,
+                                GETHANDLE(wfiP->hFile),
+                                GETVARWITHDEFAULT(wfiP->pgKnownSubject, ObjToGUID_NULL),
+                                ARGEND);
         break;
     default:
         ret = TwapiReturnErrorMsg(ticP->interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported Wintrust type");
@@ -3793,6 +3782,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(PFXExportCertStoreEx, Twapi_PFXExportCertStoreExObjCmd),
         DEFINE_TCL_CMD(PFXImportCertStore, Twapi_PFXImportCertStoreObjCmd),
         DEFINE_TCL_CMD(CryptQueryObject, Twapi_CryptQueryObjectObjCmd),
+        DEFINE_TCL_CMD(WinVerifyTrust, Twapi_WinVerifyTrustObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
