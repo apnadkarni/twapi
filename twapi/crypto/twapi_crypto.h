@@ -9,6 +9,7 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 #ifndef WDIGEST_SP_NAME_W
 #include <wdigest.h>            /* For VC6 */
 #endif
+#include <softpub.h>            /* WinVerifyTrust */
 
 #ifndef X509_ALGORITHM_IDENTIFIER
 # define X509_ALGORITHM_IDENTIFIER           ((LPCSTR) 74)
@@ -26,6 +27,39 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 
 #ifndef CRYPT_OID_DISABLE_SEARCH_DS_FLAG
 # define CRYPT_OID_DISABLE_SEARCH_DS_FLAG            0x80000000
+#endif
+
+/* VC6 Wintrust.h does not define the dwUIContext field so define our
+   own version of the structure
+*/
+#if _MSC_VER <= 1400
+typedef struct _TWAPI_WINTRUST_DATA
+{
+    DWORD           cbStruct;                   // = sizeof(WINTRUST_DATA)
+
+    LPVOID          pPolicyCallbackData;        // optional: used to pass data between the app and policy
+    LPVOID          pSIPClientData;             // optional: used to pass data between the app and SIP.
+
+    DWORD           dwUIChoice;
+    DWORD           fdwRevocationChecks;
+    DWORD           dwUnionChoice;
+    union
+    {
+        struct WINTRUST_FILE_INFO_      *pFile;
+        struct WINTRUST_CATALOG_INFO_   *pCatalog;
+        struct WINTRUST_BLOB_INFO_      *pBlob;
+        struct WINTRUST_SGNR_INFO_      *pSgnr;
+        struct WINTRUST_CERT_INFO_      *pCert;
+    };
+    DWORD           dwStateAction;
+    HANDLE          hWVTStateData;
+    WCHAR           *pwszURLReference;
+    DWORD           dwProvFlags;
+    DWORD           dwUIContext;
+} TWAPI_WINTRUST_DATA, *PTWAPI_WINTRUST_DATA;
+#else
+typedef WINTRUST_DATA TWAPI_WINTRUST_DATA;
+typedef PWINTRUST_DATA PTWAPI_WINTRUST_DATA;
 #endif
 
 void TwapiRegisterPCCERT_CONTEXT(Tcl_Interp *, PCCERT_CONTEXT);
