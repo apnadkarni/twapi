@@ -1259,7 +1259,8 @@ int ObjToGUID(Tcl_Interp *interp, Tcl_Obj *objP, GUID *guidP)
 
 int ObjToGUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, GUID **guidPP)
 {
-    if (ObjCharLength(objP) == 0) {
+    /* Permit objP to be NULL so we can use it with ARGVARWITHDEFAULT */
+    if (objP == NULL || ObjCharLength(objP) == 0) {
         *guidPP = NULL;
         return TCL_OK;
     } else 

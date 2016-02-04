@@ -1243,8 +1243,12 @@ TWAPI_EXTERN void TwapiFreeRegisteredPointer(Tcl_Interp *, void *, void *tag);
 TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
 TWAPI_EXTERN void TwapiClearResult(TwapiResult *resultP);
 /* TBD - TwapiGetArgs* could also obe used to parse lists into C structs */
+TWAPI_EXTERN TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, va_list ap);
 TWAPI_EXTERN TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
+TWAPI_EXTERN TCL_RESULT TwapiGetArgsObj(Tcl_Interp *interp, Tcl_Obj *, char fmt, ...);
+TWAPI_EXTERN TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], char fmt, va_list ap);
 TWAPI_EXTERN TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
+TWAPI_EXTERN TCL_RESULT TwapiGetArgsExObj(TwapiInterpContext *ticP, Tcl_Obj *, char fmt, ...);
 TWAPI_EXTERN void ObjSetStaticResult(Tcl_Interp *interp, CONST char s[]);
 #define TwapiSetStaticResult ObjSetStaticResult
 TWAPI_EXTERN TCL_RESULT ObjSetResult(Tcl_Interp *interp, Tcl_Obj *objP);
