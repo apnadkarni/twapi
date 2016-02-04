@@ -32,6 +32,9 @@ static TCL_RESULT TwapiCryptDecodeObject(
     void *penc,
     DWORD nenc,
     Tcl_Obj **objPP);
+static BOOL WINAPI TwapiCertFreeCertificateChain(
+  PCCERT_CHAIN_CONTEXT chainP
+    );
 
 /* Macro to define functions for ref counting different type of pointers */
 #define DEFINE_COUNTED_PTR_FUNCS(ptrtype_, freefn_) \
@@ -60,9 +63,20 @@ TCL_RESULT TwapiUnregister ## ptrtype_ ## Tic(TwapiInterpContext *ticP, ptrtype_
 DEFINE_COUNTED_PTR_FUNCS(PCCERT_CONTEXT, CertFreeCertificateContext)
 DEFINE_COUNTED_PTR_FUNCS(HCERTSTORE, CertCloseStore)
 DEFINE_COUNTED_PTR_FUNCS(HCRYPTMSG, CryptMsgClose)
-DEFINE_COUNTED_PTR_FUNCS(PCCERT_CHAIN_CONTEXT, CertFreeCertificateChain)
+DEFINE_COUNTED_PTR_FUNCS(PCCERT_CHAIN_CONTEXT, TwapiCertFreeCertificateChain)
 DEFINE_COUNTED_PTR_FUNCS(PCCRL_CONTEXT, CertFreeCRLContext)
 DEFINE_COUNTED_PTR_FUNCS(PCCTL_CONTEXT, CertFreeCTLContext)
+
+/* This function exists only to make the return value compatible with
+   other free functions */
+static BOOL WINAPI TwapiCertFreeCertificateChain(
+  PCCERT_CHAIN_CONTEXT chainP
+)
+{
+    CertFreeCertificateChain(chainP);
+    return 1;
+}
+
 
 
 /* RtlGenRandom in base provides this but this is much faster if already have
@@ -295,7 +309,7 @@ static Tcl_Obj *ObjFromCERT_REQUEST_INFO(CERT_REQUEST_INFO *criP)
 }
 
 
-static Tcl_Obj *ObjFromCERT_TRUST_STATUS(CERT_TRUST_STATUS *ctsP)
+static Tcl_Obj *ObjFromCERT_TRUST_STATUS(const CERT_TRUST_STATUS *ctsP)
 {
     Tcl_Obj *objs[2];
     objs[0] = ObjFromDWORD(ctsP->dwErrorStatus);
@@ -310,7 +324,7 @@ static Tcl_Obj *ObjFromCERT_CHAIN_ELEMENT(Tcl_Interp *interp, CERT_CHAIN_ELEMENT
 
     certP = CertDuplicateCertificateContext(cceP->pCertContext);
     TwapiRegisterPCCERT_CONTEXT(interp, certP);
-    objs[0] = ObjFromOpaque((void*) certP, "CERT_CONTEXT*");
+    objs[0] = ObjFromOpaque((void*) certP, "PCCERT_CONTEXT");
     objs[1] = ObjFromCERT_TRUST_STATUS(&cceP->TrustStatus);
     return ObjNewList(2, objs);
 }
@@ -1490,7 +1504,7 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
 
     if (certP) {
         TwapiRegisterPCCERT_CONTEXTTic(ticP, certP);
-        ObjSetResult(interp, ObjFromOpaque(certP, "CERT_CONTEXT*"));
+        ObjSetResult(interp, ObjFromOpaque(certP, "PCCERT_CONTEXT"));
         status = TCL_OK;
     } else {
         status = TwapiReturnSystemError(interp);
@@ -1885,7 +1899,7 @@ static TCL_RESULT Twapi_CertOpenStore(Tcl_Interp *interp, int objc, Tcl_Obj *CON
 
     hstore = CertOpenStore(IntToPtr(store_provider), enc_type, 0, flags, pv);
     if (hstore) {
-        /* CertCloseStore does not check ponter validity! So do ourselves*/
+        /* CertCloseStore does not check pointer validity! So do ourselves*/
         TwapiRegisterHCERTSTORE(interp, hstore);
         ObjSetResult(interp, ObjFromOpaque(hstore, "HCERTSTORE"));
         return TCL_OK;
@@ -2011,7 +2025,7 @@ static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
     res = TwapiGetArgs(interp, objc-1, objv+1,
                        GETVERIFIEDPTR(hstore, HCERTSTORE, CertCloseStore),
                        GETINT(enctype), GETINT(flags), GETINT(findtype),
-                       GETOBJ(findObj), GETVERIFIEDORNULL(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                       GETOBJ(findObj), GETVERIFIEDORNULL(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
                        ARGEND);
     if (res != TCL_OK) {
         /* We have guaranteed caller certP will be freed even on error */
@@ -2025,7 +2039,7 @@ static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
         pv = NULL;
         break;
     case CERT_FIND_EXISTING:
-        res = ObjToVerifiedPointerTic(ticP, findObj, (void **)&cert2P, "CERT_CONTEXT*", CertFreeCertificateContext);
+        res = ObjToVerifiedPointerTic(ticP, findObj, (void **)&cert2P, "PCCERT_CONTEXT", CertFreeCertificateContext);
         if (res == TCL_OK)
             pv = (void *)cert2P;
         break;
@@ -2086,7 +2100,7 @@ static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
             certP);
         if (certP) {
             TwapiRegisterPCCERT_CONTEXTTic(ticP, certP);
-            ObjSetResult(interp, ObjFromOpaque((void*)certP, "CERT_CONTEXT*"));
+            ObjSetResult(interp, ObjFromOpaque((void*)certP, "PCCERT_CONTEXT"));
         } else {
             /* EOF is not an error */
             if (GetLastError() != CRYPT_E_NOT_FOUND)
@@ -2244,7 +2258,7 @@ static BOOL WINAPI TwapiCryptEnumOIDInfoCB(PCCRYPT_OID_INFO coiP, void *pv)
 static TCL_RESULT Twapi_CertGetCertificateChainObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HCERTCHAINENGINE hce;
-    CERT_CONTEXT *certP;
+    PCCERT_CONTEXT certP;
     Tcl_Obj *paramObj, *ftObj;
     FILETIME  ft, *ftP;
     HCERTSTORE hstore;
@@ -2256,7 +2270,7 @@ static TCL_RESULT Twapi_CertGetCertificateChainObjCmd(TwapiInterpContext *ticP, 
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETHANDLET(hce, HCERTCHAINENGINE),
-                     GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                     GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
                      GETOBJ(ftObj),
                      GETVERIFIEDORNULL(hstore, HCERTSTORE, CertCloseStore),
                      GETOBJ(paramObj), GETINT(flags),
@@ -2276,7 +2290,7 @@ static TCL_RESULT Twapi_CertGetCertificateChainObjCmd(TwapiInterpContext *ticP, 
     if (res == TCL_OK) {
         if (CertGetCertificateChain(hce, certP, ftP, hstore, &chain_params, flags, NULL, &chainP)) {
             TwapiRegisterPCCERT_CHAIN_CONTEXTTic(ticP, chainP);
-            ObjSetResult(ticP->interp, ObjFromOpaque((void*)chainP, "CERT_CHAIN_CONTEXT*"));
+            ObjSetResult(ticP->interp, ObjFromOpaque((void*)chainP, "PCCERT_CHAIN_CONTEXT"));
         } else
             res = TwapiReturnSystemError(ticP->interp);
     }
@@ -2388,13 +2402,13 @@ static TCL_RESULT Twapi_CertVerifyChainPolicySSLObjCmd(TwapiInterpContext *ticP,
 {
     PCERT_CHAIN_POLICY_PARA policy_paramP;
     CERT_CHAIN_POLICY_STATUS policy_status;
-    CERT_CHAIN_CONTEXT *chainP;
+    PCCERT_CHAIN_CONTEXT chainP;
     Tcl_Obj *paramObj;
     TCL_RESULT res;
     MemLifoMarkHandle mark;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETVERIFIEDPTR(chainP, CERT_CHAIN_CONTEXT*, CertFreeCertificateChain),
+                     GETVERIFIEDPTR(chainP, PCCERT_CHAIN_CONTEXT, TwapiCertFreeCertificateChain),
                      GETOBJ(paramObj), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -2421,14 +2435,14 @@ static TCL_RESULT Twapi_CertVerifyChainPolicyObjCmd(TwapiInterpContext *ticP, Tc
     PCERT_CHAIN_POLICY_PARA policy_paramP;
     CERT_CHAIN_POLICY_STATUS policy_status;
     TCL_RESULT (*param_parser)(TwapiInterpContext*, Tcl_Obj*, PCERT_CHAIN_POLICY_PARA*);
-    CERT_CHAIN_CONTEXT *chainP;
+    PCCERT_CHAIN_CONTEXT chainP;
     Tcl_Obj *paramObj;
     TCL_RESULT res;
     DWORD policy;
     MemLifoMarkHandle mark;
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(policy),
-                     GETVERIFIEDPTR(chainP, CERT_CHAIN_CONTEXT*, CertFreeCertificateChain),
+                     GETVERIFIEDPTR(chainP, PCCERT_CHAIN_CONTEXT, TwapiCertFreeCertificateChain),
                      GETOBJ(paramObj), ARGEND) != TCL_OK)
         return TCL_ERROR;
     switch (policy) {
@@ -2450,7 +2464,7 @@ static TCL_RESULT Twapi_CertVerifyChainPolicyObjCmd(TwapiInterpContext *ticP, Tc
     if (res == TCL_OK) {
         ZeroMemory(&policy_status, sizeof(policy_status));
         policy_status.cbSize = sizeof(policy_status);
-        if (CertVerifyCertificateChainPolicy((LPCSTR) policy,
+        if (CertVerifyCertificateChainPolicy((LPCSTR) (DWORD_PTR)policy,
                                              chainP,
                                              policy_paramP,
                                              &policy_status)) {
@@ -2465,12 +2479,12 @@ static TCL_RESULT Twapi_CertVerifyChainPolicyObjCmd(TwapiInterpContext *ticP, Tc
 
 static TCL_RESULT Twapi_CertChainContextsObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    CERT_CHAIN_CONTEXT *chainP;
+    PCCERT_CHAIN_CONTEXT chainP;
     Tcl_Obj *objs[2];
     DWORD dw;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETVERIFIEDPTR(chainP, CERT_CHAIN_CONTEXT*, CertFreeCertificateChain),
+                     GETVERIFIEDPTR(chainP, PCCERT_CHAIN_CONTEXT, TwapiCertFreeCertificateChain),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -2547,12 +2561,12 @@ static int Twapi_CertSetCertificateContextPropertyObjCmd(TwapiInterpContext *tic
     TCL_RESULT res;
     MemLifoMarkHandle mark;
     CRYPT_KEY_PROV_INFO *kiP;
-    CERT_CONTEXT *certP;
+    PCCERT_CONTEXT certP;
 
     mark = MemLifoPushMark(ticP->memlifoP);
     
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
-                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                         GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
                          GETINT(prop_id), GETINT(flags), ARGUSEDEFAULT,
                          GETOBJ(valObj), ARGEND);
     if (res != TCL_OK)
@@ -2594,9 +2608,6 @@ vamoose:
 
 static TCL_RESULT Twapi_CryptQueryObjectObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-#if 1
-    return TCL_OK;
-#else
     DWORD operand_type, enc_type;
     Tcl_Obj *objP;
     void *operand;
@@ -2610,10 +2621,10 @@ static TCL_RESULT Twapi_CryptQueryObjectObjCmd(TwapiInterpContext *ticP, Tcl_Int
     MemLifoMarkHandle mark = NULL;
     TCL_RESULT res;
 
-    res = TwapiGetArgs(interp, objc, objv, GETINT(operand_type),
+    res = TwapiGetArgs(interp, objc-1, objv+1, GETINT(operand_type),
                        GETOBJ(objP), GETINT(expected_content_type),
                        GETINT(expected_format_type), GETINT(flags),
-                       ARGOPT, GETBOOL(types_only),
+                       ARGUSEDEFAULT, GETBOOL(types_only),
                        ARGEND);
     if (res != TCL_OK)
         return res;
@@ -2646,25 +2657,42 @@ static TCL_RESULT Twapi_CryptQueryObjectObjCmd(TwapiInterpContext *ticP, Tcl_Int
             int nobjs;
             objs[0] = STRING_LITERAL_OBJ("encoding");
             objs[1] = ObjFromDWORD(enc_type);
-            objs[2] = STRING_LITERAL_OBJ("format");
+            objs[2] = STRING_LITERAL_OBJ("formattype");
             objs[3] = ObjFromDWORD(expected_format_type);
-            objs[4] = STRING_LITERAL_OBJ("content");
+            objs[4] = STRING_LITERAL_OBJ("contenttype");
             objs[5] = ObjFromDWORD(expected_content_type);
             nobjs = 6;
             if (hstore) {
                 TwapiRegisterHCERTSTORETic(ticP, hstore);
-                objs[nobjs++] = STRING_LITERAL_OBJ("hstore");
+                objs[nobjs++] = STRING_LITERAL_OBJ("certstore");
                 objs[nobjs++] = ObjFromOpaque(hstore, "HCERTSTORE");
             }
             if (hmsg) {
-                TwapiRegisterHCRYPTMSG(ticP, hmsg);
-                objs[nobjs++] = STRING_LITERAL_OBJ("hmsg");
+                TwapiRegisterHCRYPTMSGTic(ticP, hmsg);
+                objs[nobjs++] = STRING_LITERAL_OBJ("cryptmsg");
                 objs[nobjs++] = ObjFromOpaque(hstore, "HCRYPTMSG");
             }
             if (pvP) {
-                TBD - create key and object based on type;
-                objs[nobjs++] = STRING_LITERAL_OBJ("context");
-                objs[nobjs++] = TBD;
+                switch (expected_content_type) {
+                case CERT_QUERY_CONTENT_CERT:
+                case CERT_QUERY_CONTENT_SERIALIZED_CERT:
+                    TwapiRegisterPCCERT_CONTEXTTic(ticP, (PCCERT_CONTEXT)pv);
+                    objs[nobjs++] = STRING_LITERAL_OBJ("cert_context");
+                    objs[nobjs++] = ObjFromOpaque(pv, "PCCERT_CONTEXT");
+                    break;
+                case CERT_QUERY_CONTENT_CRL:
+                case CERT_QUERY_CONTENT_SERIALIZED_CRL:
+                    TwapiRegisterPCCRL_CONTEXTTic(ticP, (PCCRL_CONTEXT)pv);
+                    objs[nobjs++] = STRING_LITERAL_OBJ("crl_context");
+                    objs[nobjs++] = ObjFromOpaque(pv, "PCCRL_CONTEXT");
+                    break;
+                case CERT_QUERY_CONTENT_CTL:
+                case CERT_QUERY_CONTENT_SERIALIZED_CTL:
+                    TwapiRegisterPCCTL_CONTEXTTic(ticP, (PCCTL_CONTEXT)pv);
+                    objs[nobjs++] = STRING_LITERAL_OBJ("ctl_context");
+                    objs[nobjs++] = ObjFromOpaque(pv, "PCCTL_CONTEXT");
+                    break;
+                }
             }
                 
             ObjSetResult(interp, ObjNewList(nobjs, objs));
@@ -2675,7 +2703,24 @@ vamoose:
     if (mark)
         MemLifoPopMark(mark);
     return res;
-#endif
+}
+
+static TCL_RESULT TwapiCloseContext(Tcl_Interp *interp, Tcl_Obj *objP,
+                                    const char *typeptr,
+                                    TCL_RESULT (*unregfn)(Tcl_Interp *, HANDLE),
+                                    BOOL (WINAPI *freefn)(HANDLE))
+{
+    HANDLE h;
+    if (ObjToOpaque(interp, objP, &h, typeptr) != TCL_OK ||
+        (*unregfn)(interp, h) != TCL_OK)
+        return TCL_ERROR;
+
+    if ((*freefn)(h) == FALSE) {
+        DWORD dw = GetLastError();
+        if (dw != CRYPT_E_PENDING_CLOSE)
+            return TwapiReturnSystemError(interp);
+    }
+    return TCL_OK;
 }
 
 static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
@@ -2759,14 +2804,18 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         }
         break;
 
+    case 10014: // CertFreeCertificateContext
+        CHECK_NARGS(interp, objc, 1);
+        return TwapiCloseContext(interp, objv[0], "PCCERT_CONTEXT",
+                                 TwapiUnregisterPCCERT_CONTEXT, CertFreeCertificateContext);
+        
     case 10004:
-    case 10014:
     case 10015:
     case 10035:
     case 10036:
     case 10041:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext), ARGEND) != TCL_OK)
+                         GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 10004: // CertDeleteCertificateFromStore
@@ -2776,12 +2825,6 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = CertDeleteCertificateFromStore(certP);
-            break;
-        case 10014: // CertFreeCertificateContext
-            if (TwapiUnregisterPCCERT_CONTEXT(interp, certP) != TCL_OK)
-                return TCL_ERROR;
-            result.type = TRT_EMPTY;
-            CertFreeCertificateContext(certP);
             break;
         case 10015: // Twapi_CertGetEncoded
             if (certP->pbCertEncoded && certP->cbCertEncoded) {
@@ -2826,7 +2869,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         case 10041: //CertDuplicateCertificateContext
             certP = CertDuplicateCertificateContext(certP);
             TwapiRegisterPCCERT_CONTEXT(interp, certP);
-            TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
+            TwapiResult_SET_NONNULL_PTR(result, PCCERT_CONTEXT, (void*)certP);
             break;
         }
         break;
@@ -2839,7 +2882,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         certP = CertCreateCertificateContext(dw, cP, dw2);
         if (certP) {
             TwapiRegisterPCCERT_CONTEXT(interp, certP);
-            TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
+            TwapiResult_SET_NONNULL_PTR(result, PCCERT_CONTEXT, (void*)certP);
         } else
             result.type = TRT_GETLASTERROR;
         break;
@@ -2847,7 +2890,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 10006: // CertEnumCertificatesInStore
         if (TwapiGetArgs(interp, objc, objv,
                          GETVERIFIEDPTR(pv, HCERTSTORE, CertCloseStore),
-                         GETPTR(certP, CERT_CONTEXT*), ARGEND) != TCL_OK)
+                         GETPTR(certP, PCCERT_CONTEXT), ARGEND) != TCL_OK)
             return TCL_ERROR;
         /* Unregister previous context since the next call will free it */
         if (certP &&
@@ -2856,7 +2899,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         certP = CertEnumCertificatesInStore(pv, certP);
         if (certP) {
             TwapiRegisterPCCERT_CONTEXT(interp, certP);
-            TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
+            TwapiResult_SET_NONNULL_PTR(result, PCCERT_CONTEXT, (void*)certP);
         } else {
             result.value.ival = GetLastError();
             if (result.value.ival == CRYPT_E_NOT_FOUND ||
@@ -2868,7 +2911,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         break;
     case 10007: // CertEnumCertificateContextProperties
         if (TwapiGetArgs(interp, objc, objv,
-                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                         GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
                          GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_DWORD;
@@ -2877,7 +2920,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
 
     case 10008: // CertGetCertificateContextProperty
         if (TwapiGetArgs(interp, objc, objv,
-                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                         GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
                          GETINT(dw), ARGUSEDEFAULT, GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
         return Twapi_CertGetCertificateContextProperty(interp, certP, dw, dw2);
@@ -2934,7 +2977,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
 
     case 10013: // CertGetNameString
         if (TwapiGetArgs(interp, objc, objv,
-                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                         GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
                          GETINT(dw), GETINT(dw2), ARGSKIP, ARGEND) != TCL_OK)
             return TCL_ERROR;
             
@@ -3005,14 +3048,14 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
            to be returned */
         if (TwapiGetArgs(interp, objc, objv,
                          GETVERIFIEDPTR(pv, HCERTSTORE, CertCloseStore),
-                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                         GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
                          GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         if (!CertAddCertificateContextToStore(pv, certP, dw, &certP))
             result.type = TRT_GETLASTERROR;
         else {
             TwapiRegisterPCCERT_CONTEXT(interp, certP);
-            TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
+            TwapiResult_SET_NONNULL_PTR(result, PCCERT_CONTEXT, (void*)certP);
         }
         break;
 
@@ -3093,7 +3136,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
 
     case 10027:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                         GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
                          GETINT(dw), ARGSKIP, ARGEND) != TCL_OK)
             return TCL_ERROR;
         /* We only allow the following flags */
@@ -3113,7 +3156,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
 
     case 10028: // CertGetEnhancedKeyUsage
         if (TwapiGetArgs(interp, objc, objv,
-                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                         GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
                          GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         dw2 = 0;
@@ -3158,7 +3201,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
 
     case 10030: // Twapi_CertGetIntendedKeyUsage
         if (TwapiGetArgs(interp, objc, objv, GETINT(dw),
-                         GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                         GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         else {
@@ -3183,8 +3226,8 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         cert2P = NULL;
         res = TwapiGetArgs(interp, objc, objv,
                            GETVERIFIEDPTR(pv, HCERTSTORE, CertCloseStore),
-                           GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
-                           GETVERIFIEDORNULL(cert2P, CERT_CONTEXT*, CertFreeCertificateContext),
+                           GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
+                           GETVERIFIEDORNULL(cert2P, PCCERT_CONTEXT, CertFreeCertificateContext),
                            GETINT(dw), ARGEND);
         
         if (cert2P) {
@@ -3201,7 +3244,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         cert2P = CertGetIssuerCertificateFromStore(pv, certP, cert2P, &dw);
         if (cert2P) {
             TwapiRegisterPCCERT_CONTEXT(interp, cert2P);
-            objs[0] = ObjFromOpaque((void*)cert2P, "CERT_CONTEXT*");
+            objs[0] = ObjFromOpaque((void*)cert2P, "PCCERT_CONTEXT");
             objs[1] = ObjFromDWORD(dw);
             result.type= TRT_OBJV;
             result.value.objv.objPP = objs;
@@ -3213,19 +3256,14 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         }
         break;
 
-    case 10032:
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETVERIFIEDPTR(pv, CERT_CHAIN_CONTEXT*, CertFreeCertificateChain),
-                         ARGEND) != 0)
-            return TCL_ERROR;
-        if (TwapiUnregisterPCCERT_CHAIN_CONTEXT(interp, pv) != TCL_OK)
-            return TCL_ERROR; /* Bad pointer, don't do anything more */
-        CertFreeCertificateChain(pv);
-        result.type = TRT_EMPTY;
-        break;
+    case 10032: // CertFreeCertificateChain
+        CHECK_NARGS(interp, objc, 1);
+        return TwapiCloseContext(interp, objv[0], "PCCERT_CHAIN_CONTEXT",
+                                 TwapiUnregisterPCCERT_CHAIN_CONTEXT, TwapiCertFreeCertificateChain);
+        
     case 10033: // CertFindExtension
         res = TwapiGetArgs(interp, objc, objv,
-                           GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                           GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
                            ARGSKIP, ARGEND);
         if (res != TCL_OK)
             return res;
@@ -3243,7 +3281,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         break;
     case 10037: // CryptFindCertificateKeyProvInfo
         res = TwapiGetArgs(interp, objc, objv,
-                           GETVERIFIEDPTR(certP, CERT_CONTEXT*, CertFreeCertificateContext),
+                           GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
                            GETINT(dw), ARGEND);
         if (res != TCL_OK)
             return res;
@@ -3263,7 +3301,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         cP = ObjToByteArray(objv[2], &dw3);
         if (CertAddEncodedCertificateToStore(pv, dw, cP, dw3, dw2, &certP)) {
             TwapiRegisterPCCERT_CONTEXT(interp, certP);
-            TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
+            TwapiResult_SET_NONNULL_PTR(result, PCCERT_CONTEXT, (void*)certP);
         } else
             result.type = TRT_GETLASTERROR;
         break;
@@ -3429,18 +3467,18 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         break;
 
     case 10052: // CryptMsgClose
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(pv, HCRYPTMSG), ARGEND) != TCL_OK ||
-            TwapiUnregisterHCRYPTMSG(interp, pv) != TCL_OK)
-            return TCL_ERROR;
-
-        result.type = TRT_BOOL;
-        result.value.bval = CryptMsgClose(pv);
-        if (result.value.bval == FALSE) {
-            if (GetLastError() != CRYPT_E_PENDING_CLOSE)
-                result.type = TRT_GETLASTERROR;
-        }
-        break;
+        CHECK_NARGS(interp, objc, 1);
+        return TwapiCloseContext(interp, objv[0], "HCRYPTMSG",
+                                 TwapiUnregisterHCRYPTMSG, CryptMsgClose);
+    case 10053: // CertFreeCRLContext
+        CHECK_NARGS(interp, objc, 1);
+        return TwapiCloseContext(interp, objv[0], "PCCRL_CONTEXT",
+                                 TwapiUnregisterPCCRL_CONTEXT, CertFreeCRLContext);
+    case 10054: // CertFreeCTLContext
+        CHECK_NARGS(interp, objc, 1);
+        return TwapiCloseContext(interp, objv[0], "PCCTL_CONTEXT",
+                                 TwapiUnregisterPCCTL_CONTEXT, CertFreeCTLContext);
+        
 
 #ifdef TBD
     case TBD: // CertCreateContext
@@ -3456,7 +3494,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         if (certP == NULL)
             return TwapiReturnSystemError(interp);
         TwapiRegisterPCCERT_CONTEXT(interp, certP);
-        TwapiResult_SET_NONNULL_PTR(result, CERT_CONTEXT*, (void*)certP);
+        TwapiResult_SET_NONNULL_PTR(result, PCCERT_CONTEXT, (void*)certP);
         break;
 #endif
 
@@ -3656,6 +3694,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptEnumProviderTypes, 10050),
         DEFINE_FNCODE_CMD(CryptEnumProviders, 10051),
         DEFINE_FNCODE_CMD(CryptMsgClose, 10052),
+        DEFINE_FNCODE_CMD(CertFreeCRLContext, 10053),
+        DEFINE_FNCODE_CMD(CertFreeCTLContext, 10054),
         // TBD DEFINE_FNCODE_CMD(CertCreateContext, TBD),
 
     };
@@ -3678,6 +3718,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptUnprotectData, Twapi_CryptUnprotectObjCmd),
         DEFINE_TCL_CMD(PFXExportCertStoreEx, Twapi_PFXExportCertStoreExObjCmd),
         DEFINE_TCL_CMD(PFXImportCertStore, Twapi_PFXImportCertStoreObjCmd),
+        DEFINE_TCL_CMD(CryptQueryObject, Twapi_CryptQueryObjectObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
