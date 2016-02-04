@@ -706,7 +706,6 @@ proc twapi::cert_get_chain {hcert args} {
         {engine.arg user {user machine}}
         {timestamp.arg ""}
         {hstore.arg NULL}
-        {trustedroots.arg}
     } -setvars -maxleftover 0
 
     set flags [dict! {none 0 all 0x20000000 leaf 0x10000000 excluderoot 0x40000000} $revocationcheck]
@@ -746,6 +745,7 @@ proc twapi::cert_verify {policy hcert args} {
     set optdefs {
         {ignoreerrors.arg {}}
         policyparams.arg
+        {trustedroots.arg}
     }
     switch -exact -- $policy_id {
         4 {
@@ -770,14 +770,12 @@ proc twapi::cert_verify {policy hcert args} {
     
     if {$policy_id == 4} {
         # SSL/TLS
-        if {[info exists server]} {
-            set auth server_auth
-        } else {
-            set auth client_auth
-        }
-        if {[dict exists $args -usageall]} {
-            dict lappend args -usageall $auth
-        } else {
+        if {![dict exists $args -usageall] && ![dict exists $args -usageany]} {
+            if {[info exists server]} {
+                set auth server_auth
+            } else {
+                set auth client_auth
+            }
             dict lappend args -usageany $auth
         }
     }
