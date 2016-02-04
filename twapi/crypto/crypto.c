@@ -8,7 +8,7 @@
 /* Interface to CryptoAPI */
 /*
  * TBD - GetCryptProvFromCert, CryptVerifyCertificateSignature(Ex),
- * TBD - CryptQueryObject, CryptRetrieveObjectByUrl, Crypt(Ex|Im)portKey
+ * TBD - CryptRetrieveObjectByUrl, Crypt(Ex|Im)portKey
  */
 
 
@@ -3636,6 +3636,80 @@ static int Twapi_CryptUnprotectObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
 vamoose:
     MemLifoPopMark(mark);
     return res;
+}
+
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParseWINTRUST_DATA(TwapiInterpContext *ticP, Tcl_Obj *objP, TWAPI_WINTRUST_DATA *wtdP)
+{
+    Tcl_Obj **objs;
+    Tcl_Interp *interp = ticP->interp;
+    int nobjs;
+    TCL_RESULT ret;
+    Tcl_Obj *trustObj;
+    WINTRUST_FILE_INFO *wfiP;
+    void *pv;
+    int n;
+
+    ret = ObjGetElements(interp, objP, &nobjs, &objs);
+    if (ret != TCL_OK)
+        return ret;
+
+    ZeroMemory(wtdP, sizeof(*wtdP));
+    wtdP->cbStruct = sizeof(*wtdP);
+    ret = TwapiGetArgsEx(ticP, nobjs, objs,
+                         ARGSKIP, // pPolicyCallbackData
+                         ARGSKIP, // pSIPClientData
+                         GETINT(wtdP->dwUIChoice),
+                         GETINT(wtdP->fdwRevocationChecks),
+                         GETINT(wtdP->dwUnionChoice), GETOBJ(trustObj),
+                         GETINT(wtdP->dwStateAction),
+                         GETHANDLET(wtdP->hWVTStateData, WVTStateData),
+                         GETWSTR(wtdP->pwszURLReference),
+                         GETINT(wtdP->dwProvFlags),
+                         GETINT(wtdP->dwUIContext)
+                         // pSignatureSettings not present until Win8
+        );
+    switch (wtdP->dwUnionChoice) {
+    case WTD_CHOICE_FILE:
+        wfiP = MemLifoZeroes(ticP->memlifoP, sizeof(*wfiP));
+        pv = ObjToUnicodeN(trustObj, &n);
+        wfiP->pcwszFilePath = MemLifoCopy(ticP->memlifoP, pv, sizeof(WCHAR)*(n+1));
+        wfiP->hFile = NULL;
+        break;
+    default:
+        ret = TwapiReturnErrorMsg(ticP->interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported Wintrust type");
+        break;
+    }
+
+    return ret;
+}
+
+static int Twapi_WinVerifyTrustObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TWAPI_WINTRUST_DATA wtd;
+    Tcl_Obj *wtdObj;
+    HWND hwnd;
+    GUID guid;
+    TCL_RESULT ret;
+    LONG status;
+    MemLifoMarkHandle mark;
+    
+    ret = TwapiGetArgs(interp, objc-1, objv+1, GETHWND(hwnd), GETGUID(guid),
+                       GETOBJ(wtdObj), ARGEND);
+    if (ret != TCL_OK)
+        return ret;
+    mark = MemLifoPushMark(ticP->memlifoP);
+    ret = ParseWINTRUST_DATA(ticP, wtdObj, &wtd);
+    if (ret == TCL_OK) {
+        status = WinVerifyTrust(hwnd, &guid, (WINTRUST_DATA *)&wtd);
+
+        wtd.dwStateAction = WTD_STATEACTION_CLOSE;
+        wtd.dwUIChoice = WTD_UI_NONE;
+        WinVerifyTrust((HWND) INVALID_HANDLE_VALUE, &guid, (WINTRUST_DATA *)&wtd);
+        ObjSetResult(interp, ObjFromInt(status));
+    }
+    MemLifoPopMark(mark);
+    return ret;
 }
 
 static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
