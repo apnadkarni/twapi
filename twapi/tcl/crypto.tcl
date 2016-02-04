@@ -4,7 +4,18 @@
 #
 # See the file LICENSE for license
 
-namespace eval twapi {}
+namespace eval twapi {
+    variable wintrust_guids
+    # Array key names match those in softpub.h in SDK
+    array set wintrust_guids {
+        action_generic_verify_v2    00AAC56B-CD44-11d0-8CC2-00C04FC295EE
+        action_trust_provider_test  573E31F8-DDBA-11d0-8CCB-00C04FC295EE
+        action_generic_cert_verify  189A3842-3041-11d1-85E1-00C04FC295EE
+        action_generic_chain_verify fc451c16-ac75-11d1-b4b8-00c04fb66ea0
+        httpsprov_action            573E31F8-AABA-11d0-8CCB-00C04FC295EE
+        driver_action_verify        F750E6C3-38EE-11d1-85E5-00C04FC295EE
+    }
+}
 
 ### Data protection
 
