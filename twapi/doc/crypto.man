@@ -491,6 +491,10 @@ the [uri #oids [cmd oids]] command. Mapping to and from a specific mnemonic
 can be done through the [uri #oidname [cmd oidname]] and 
 [uri #oid [cmd oid]] commands.
 
+The utility commands [uri #asn1_encode_string [cmd asn1_encode_string]]
+and [uri #asn1_decode_string [cmd asn1_decode_string]] can be used to
+convert OID's to and from binary formats.
+
 [section "X.509 alternative names"]
 The X.509 certificate extensions allow for a list of alternative names to
 be specified for both the certificate subject and issuer. When
@@ -531,6 +535,12 @@ access to this facility.
 [section Commands]
 
 [list_begin definitions]
+
+[call [cmd asn1_encode_string] [arg OID]]
+Returns the specified OID in ASN.1 binary encoded format.
+
+[call [cmd asn1_decode_string] [arg OID]]
+Returns the specified ASN.1 binary OID in string format.
 
 [call [cmd cert_blob_to_name] [arg ENCODEDBLOB] [opt [arg options]]]
 Converts the encoded X.509 ASN encoded name in [arg ENCODEDBLOB]
