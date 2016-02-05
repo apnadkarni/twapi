@@ -3647,7 +3647,7 @@ static TCL_RESULT ParseWINTRUST_DATA(TwapiInterpContext *ticP, Tcl_Obj *objP, TW
                             GETINT(wtdP->dwUnionChoice), GETOBJ(trustObj),
                             GETINT(wtdP->dwStateAction),
                             GETHANDLET(wtdP->hWVTStateData, WVTStateData),
-                            GETWSTR(wtdP->pwszURLReference),
+                            ARGSKIP, // GETWSTR(wtdP->pwszURLReference),
                             GETINT(wtdP->dwProvFlags),
                             GETINT(wtdP->dwUIContext),
                          // pSignatureSettings not present until Win8
