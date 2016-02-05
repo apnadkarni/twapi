@@ -4452,6 +4452,26 @@ Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len)
     }
 }
 
+/* Hex conversion copied from Tcl 86 since 85 does not have it. */
+static const char HexDigits[16] = {
+    '0', '1', '2', '3', '4', '5', '6', '7',
+    '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
+};
+Tcl_Obj *ObjFromByteArrayHex(const unsigned char *bytes, int len)
+{
+    Tcl_Obj *resultObj = NULL;
+    unsigned char *cursor = NULL;
+    int offset = 0;
+
+    resultObj = Tcl_NewObj();
+    cursor = Tcl_SetByteArrayLength(resultObj, len * 2);
+    for (offset = 0; offset < len; ++offset) {
+	*cursor++ = HexDigits[((bytes[offset] >> 4) & 0x0f)];
+	*cursor++ = HexDigits[(bytes[offset] & 0x0f)];
+    }
+    return resultObj;
+}
+
 unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP)
 {
     return Tcl_GetByteArrayFromObj(objP, lenP);
