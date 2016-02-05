@@ -476,8 +476,7 @@ static TCL_RESULT ParseCERT_NAME_VALUE_Unicode(
     CERT_NAME_VALUE *cnvP
     )
 {
-    Tcl_Obj **objs;
-    int nchars, nobjs;
+    int nchars;
 
     if (TwapiGetArgsExObj(ticP, namevalObj, GETINT(cnvP->dwValueType),
                           GETWSTRN(cnvP->Value.pbData, nchars), ARGEND)
@@ -606,8 +605,7 @@ static TCL_RESULT ParseCERT_CHAIN_POLICY_PARA(
     CERT_CHAIN_POLICY_PARA **policy_paramPP
     )
 {
-    Tcl_Obj **objs;
-    int       flags, n;
+    int       flags;
     CERT_CHAIN_POLICY_PARA *policy_paramP;
     
     if (ObjToInt(NULL, paramObj, &flags) != TCL_OK)
@@ -2495,7 +2493,6 @@ static int Twapi_CryptFindOIDInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
     Tcl_Obj **objs;
     int nobjs;
     PCCRYPT_OID_INFO coiP;
-    int search_ds, keylen;
 #if 0
 #define CRYPT_OID_INFO_OID_KEY           1
 #define CRYPT_OID_INFO_NAME_KEY          2
@@ -2688,7 +2685,6 @@ static TCL_RESULT Twapi_CryptQueryObjectObjCmd(TwapiInterpContext *ticP, Tcl_Int
             res = TCL_OK;
         }
     } 
-vamoose:
     if (mark)
         MemLifoPopMark(mark);
     return res;
@@ -3634,8 +3630,6 @@ static TCL_RESULT ParseWINTRUST_DATA(TwapiInterpContext *ticP, Tcl_Obj *objP, TW
     TCL_RESULT ret;
     Tcl_Obj *trustObj;
     WINTRUST_FILE_INFO *wfiP;
-    void *pv;
-    int n;
 
     ZeroMemory(wtdP, sizeof(*wtdP));
     wtdP->cbStruct = sizeof(*wtdP);
