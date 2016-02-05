@@ -10,14 +10,21 @@ Summarizes the list of changes for each version of TWAPI.
 [section "Version 4.2a2"]
 
 [list_begin bullet]
+
 [bullet]
 Added [uri comserver.html#com_query_client_blanket [cmd com_query_client_blanket]].
+
 [bullet]
 Added [cmd -requestclientcert] option to
 [uri tls.html#tls_socket [cmd tls_socket]].
+
 [bullet]
 Added [const bstr] type to [uri base.html#tclcast [cmd tclcast]]
 for casting COM parameters as strings.
+
+[bullet]
+Added [uri crypto.html#asn1_encode_string [cmd asn1_encode_string]] and
+[uri crypto.html#asn1_decode_string [cmd asn1_decode_string]].
 [list_end]
 
 [section "Version 4.1.27"]
