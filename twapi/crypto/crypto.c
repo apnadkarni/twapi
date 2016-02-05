@@ -14,6 +14,7 @@
 
 #include "twapi.h"
 #include "twapi_crypto.h"
+#include <mscat.h>
 
 #ifndef TWAPI_SINGLE_MODULE
 HMODULE gModuleHandle;     /* DLL handle to ourselves */
@@ -37,35 +38,37 @@ static BOOL WINAPI TwapiCertFreeCertificateChain(
     );
 
 /* Macro to define functions for ref counting different type of pointers */
-#define DEFINE_COUNTED_PTR_FUNCS(ptrtype_, freefn_) \
+#define DEFINE_COUNTED_PTR_FUNCS(ptrtype_, tag_) \
 void TwapiRegister ## ptrtype_ (Tcl_Interp *interp, ptrtype_ ptr)       \
 {                                                                       \
-    if (TwapiRegisterCountedPointer(interp, ptr, freefn_) != TCL_OK)    \
+    if (TwapiRegisterCountedPointer(interp, ptr, tag_) != TCL_OK)    \
         Tcl_Panic("Failed to register " #ptrtype_ ": %s", Tcl_GetStringResult(interp)); \
 }                                                                       \
                                                                         \
 void TwapiRegister ## ptrtype_ ## Tic (TwapiInterpContext *ticP, ptrtype_ ptr) \
 {                                                                       \
-    if (TwapiRegisterCountedPointerTic(ticP, ptr, freefn_) != TCL_OK)   \
+    if (TwapiRegisterCountedPointerTic(ticP, ptr, tag_) != TCL_OK)   \
         Tcl_Panic("Failed to register " #ptrtype_ ": %s", Tcl_GetStringResult(ticP->interp)); \
 }                                                                       \
                                                                         \
 TCL_RESULT TwapiUnregister ## ptrtype_ (Tcl_Interp *interp, ptrtype_ ptr) \
 {                                                                       \
-    return TwapiUnregisterPointer(interp, ptr, freefn_);                \
+    return TwapiUnregisterPointer(interp, ptr, tag_);                \
 }                                                                       \
                                                                         \
 TCL_RESULT TwapiUnregister ## ptrtype_ ## Tic(TwapiInterpContext *ticP, ptrtype_ ptr) \
 {                                                                       \
-    return TwapiUnregisterPointerTic(ticP, ptr, freefn_);               \
+    return TwapiUnregisterPointerTic(ticP, ptr, tag_);               \
 }
 
 DEFINE_COUNTED_PTR_FUNCS(PCCERT_CONTEXT, CertFreeCertificateContext)
 DEFINE_COUNTED_PTR_FUNCS(HCERTSTORE, CertCloseStore)
 DEFINE_COUNTED_PTR_FUNCS(HCRYPTMSG, CryptMsgClose)
-DEFINE_COUNTED_PTR_FUNCS(PCCERT_CHAIN_CONTEXT, TwapiCertFreeCertificateChain)
+DEFINE_COUNTED_PTR_FUNCS(PCCERT_CHAIN_CONTEXT, CertFreeCertificateChain)
 DEFINE_COUNTED_PTR_FUNCS(PCCRL_CONTEXT, CertFreeCRLContext)
 DEFINE_COUNTED_PTR_FUNCS(PCCTL_CONTEXT, CertFreeCTLContext)
+DEFINE_COUNTED_PTR_FUNCS(HCATADMIN, CryptCATAdminReleaseContext)
+DEFINE_COUNTED_PTR_FUNCS(HCATINFO, CryptCATAdminReleaseCatalogContext)
 
 /* This function exists only to make the return value compatible with
    other free functions */
@@ -77,6 +80,12 @@ static BOOL WINAPI TwapiCertFreeCertificateChain(
     return 1;
 }
 
+/* This function exists only to make the return value compatible with
+   other free functions */
+static BOOL WINAPI TwapiCryptCATAdminReleaseContext(HCATADMIN h)
+{
+    return CryptCATAdminReleaseContext(h, 0);
+}
 
 
 /* RtlGenRandom in base provides this but this is much faster if already have
@@ -2395,7 +2404,7 @@ static TCL_RESULT Twapi_CertVerifyChainPolicySSLObjCmd(TwapiInterpContext *ticP,
     MemLifoMarkHandle mark;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETVERIFIEDPTR(chainP, PCCERT_CHAIN_CONTEXT, TwapiCertFreeCertificateChain),
+                     GETVERIFIEDPTR(chainP, PCCERT_CHAIN_CONTEXT, CertFreeCertificateChain),
                      GETOBJ(paramObj), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -2429,7 +2438,7 @@ static TCL_RESULT Twapi_CertVerifyChainPolicyObjCmd(TwapiInterpContext *ticP, Tc
     MemLifoMarkHandle mark;
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(policy),
-                     GETVERIFIEDPTR(chainP, PCCERT_CHAIN_CONTEXT, TwapiCertFreeCertificateChain),
+                     GETVERIFIEDPTR(chainP, PCCERT_CHAIN_CONTEXT, CertFreeCertificateChain),
                      GETOBJ(paramObj), ARGEND) != TCL_OK)
         return TCL_ERROR;
     switch (policy) {
@@ -2471,7 +2480,7 @@ static TCL_RESULT Twapi_CertChainContextsObjCmd(TwapiInterpContext *ticP, Tcl_In
     DWORD dw;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETVERIFIEDPTR(chainP, PCCERT_CHAIN_CONTEXT, TwapiCertFreeCertificateChain),
+                     GETVERIFIEDPTR(chainP, PCCERT_CHAIN_CONTEXT, CertFreeCertificateChain),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -2708,6 +2717,44 @@ static TCL_RESULT TwapiCloseContext(Tcl_Interp *interp, Tcl_Obj *objP,
     return TCL_OK;
 }
 
+static TCL_RESULT Twapi_CryptCATAdminEnumCatalogFromHash(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TCL_RESULT res;
+    HCATADMIN hca;
+    HCATINFO  hci, prev_hci;
+    BYTE *pb;
+    DWORD cb, flags;
+    MemLifoMarkHandle mark = NULL;
+    
+    mark = MemLifoPushMark(ticP->memlifoP);
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1,
+                       GETVERIFIEDPTR(hca, HCATADMIN, CryptCATAdminReleaseContext),
+                       GETBA(pb, cb), GETINT(flags),
+                       ARGUSEDEFAULT,
+                       GETVERIFIEDORNULL(prev_hci, HCATINFO, CryptCATAdminReleaseCatalogContext),
+                       ARGEND);
+    if (res == TCL_OK) {
+        /* The previous HCATINFO will be freed by this call so unregister it */
+        if (prev_hci)
+            TwapiUnregisterHCATINFO(interp, prev_hci);
+        hci = CryptCATAdminEnumCatalogFromHash(hca, pb, cb, flags, &prev_hci);
+        if (hci) {
+            TwapiRegisterHCATINFO(interp, hci);
+            res = ObjSetResult(interp, ObjFromOpaque(hci, "HCATINFO"));
+        } else {
+            DWORD winerr = GetLastError();
+            if (winerr != ERROR_NOT_FOUND)
+                res = TwapiReturnSystemError(interp);
+            /* else just return empty string */
+        }
+    }
+    
+vamoose:
+    if (mark)
+        MemLifoPopMark(mark);
+    return res;
+}
+        
 static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
@@ -2727,9 +2774,12 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     TCL_RESULT res;
     CERT_INFO *ciP;
     HCERTSTORE hstore;
+    HANDLE h, h2;
     union {
+        GUID guid;
         WCHAR uni[MAX_PATH+1];
         char ansi[MAX_PATH+1];
+        CATALOG_INFO catinfo;
     } buf;
 
     --objc;
@@ -3464,7 +3514,66 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         return TwapiCloseContext(interp, objv[0], "PCCTL_CONTEXT",
                                  TwapiUnregisterPCCTL_CONTEXT, CertFreeCTLContext);
         
+    case 10055: // CryptCATAdminCalcHashFromFileHandle
+        CHECK_NARGS(interp, objc, 1);
+        if (ObjToHANDLE(interp, objv[0], &h) != TCL_OK)
+            return TCL_ERROR;
+        dw = sizeof(buf.ansi);
+        if (CryptCATAdminCalcHashFromFileHandle(h, &dw, buf.ansi, 0) == FALSE)
+            result.type = TRT_GETLASTERROR;
+        else 
+            return ObjSetResult(interp, ObjFromByteArray(buf.ansi, dw));
+         break;
+    case 10056: // CryptCATAdminAcquireContext 
+        CHECK_NARGS(interp, objc, 1);
+        if (ObjToGUID(interp, objv[0], &buf.guid) != TCL_OK)
+            return TCL_ERROR;
+        if (CryptCATAdminAcquireContext(&h, &buf.guid, 0) == FALSE)
+            result.type = TRT_GETLASTERROR;
+        else {
+            TwapiRegisterHCATADMIN(interp, h);
+            TwapiResult_SET_NONNULL_PTR(result, HCATADMIN, h);
+        }
+        break;
 
+    case 10057: // CryptCATAdminReleaseContext
+        CHECK_NARGS(interp, objc, 1);
+        return TwapiCloseContext(interp, objv[0], "HCATADMIN",
+                                 TwapiUnregisterHCATADMIN, TwapiCryptCATAdminReleaseContext);
+        CHECK_NARGS(interp, objc, 1);
+        if (ObjToOpaque(interp, objv[0], &h, "HCATADMIN") != TCL_OK)
+            return TCL_ERROR;
+        if (CryptCATAdminReleaseContext(h, 0) == FALSE)
+            result.type = TRT_GETLASTERROR;
+        else
+            result.type = TRT_EMPTY;
+        break;
+
+    case 10058: // CryptCATAdminReleaseCatalogContext
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(h, HCATADMIN, CryptCATAdminReleaseContext),
+                         GETVERIFIEDPTR(h2, HCATINFO, CryptCATAdminReleaseCatalogContext),
+                         GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        TwapiUnregisterHCATINFO(interp, h2);
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = CryptCATAdminReleaseCatalogContext(h, h2, dw);
+        break;
+
+    case 10059: // CryptCATCatalogInfoFromContext
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(h, HCATINFO, CryptCATAdminReleaseCatalogContext),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (CryptCATCatalogInfoFromContext(h, &buf.catinfo, 0) == FALSE)
+            result.type = TRT_GETLASTERROR;
+        else {
+            result.type = TRT_UNICODE;
+            result.value.unicode.str = buf.catinfo.wszCatalogFile;
+            result.value.unicode.len = -1;
+        }
+        break;
+        
 #ifdef TBD
     case TBD: // CertCreateContext
         if (TwapiGetArgs(interp, objc, objv,
@@ -3753,8 +3862,12 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptMsgClose, 10052),
         DEFINE_FNCODE_CMD(CertFreeCRLContext, 10053),
         DEFINE_FNCODE_CMD(CertFreeCTLContext, 10054),
+        DEFINE_FNCODE_CMD(CryptCATAdminCalcHashFromFileHandle, 10055),
         // TBD DEFINE_FNCODE_CMD(CertCreateContext, TBD),
-
+        DEFINE_FNCODE_CMD(CryptCATAdminAcquireContext, 10056),
+        DEFINE_FNCODE_CMD(CryptCATAdminReleaseContext, 10057),
+        DEFINE_FNCODE_CMD(CryptCATAdminReleaseCatalogContext, 10058),
+        DEFINE_FNCODE_CMD(CryptCATCatalogInfoFromContext, 10059),
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
@@ -3777,6 +3890,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(PFXImportCertStore, Twapi_PFXImportCertStoreObjCmd),
         DEFINE_TCL_CMD(CryptQueryObject, Twapi_CryptQueryObjectObjCmd),
         DEFINE_TCL_CMD(WinVerifyTrust, Twapi_WinVerifyTrustObjCmd),
+        DEFINE_TCL_CMD(CryptCATAdminEnumCatalogFromHash, Twapi_CryptCATAdminEnumCatalogFromHash),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
