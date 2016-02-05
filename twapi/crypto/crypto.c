@@ -3565,6 +3565,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
                          GETVERIFIEDPTR(h, HCATINFO, CryptCATAdminReleaseCatalogContext),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
+        buf.catinfo.cbStruct = sizeof(buf.catinfo);
         if (CryptCATCatalogInfoFromContext(h, &buf.catinfo, 0) == FALSE)
             result.type = TRT_GETLASTERROR;
         else {
@@ -3739,6 +3740,7 @@ static TCL_RESULT ParseWINTRUST_DATA(TwapiInterpContext *ticP, Tcl_Obj *objP, TW
     TCL_RESULT ret;
     Tcl_Obj *trustObj;
     WINTRUST_FILE_INFO *wfiP;
+    WINTRUST_CATALOG_INFO *wciP;
 
     ZeroMemory(wtdP, sizeof(*wtdP));
     wtdP->cbStruct = sizeof(*wtdP);
@@ -3767,6 +3769,25 @@ static TCL_RESULT ParseWINTRUST_DATA(TwapiInterpContext *ticP, Tcl_Obj *objP, TW
                                 GETHANDLE(wfiP->hFile),
                                 GETVARWITHDEFAULT(wfiP->pgKnownSubject, ObjToGUID_NULL),
                                 ARGEND);
+        break;
+    case WTD_CHOICE_CATALOG:
+        wciP = MemLifoZeroes(ticP->memlifoP, sizeof(*wciP));
+        wtdP->pCatalog = wciP;
+        wciP->cbStruct = sizeof(*wciP);
+        ret = TwapiGetArgsExObj(ticP, trustObj,
+                                GETINT(wciP->dwCatalogVersion),
+                                GETWSTR(wciP->pcwszCatalogFilePath),
+                                GETWSTR(wciP->pcwszMemberTag),
+                                GETWSTR(wciP->pcwszMemberFilePath),
+                                GETHANDLE(wciP->hMemberFile),
+                                GETBA(wciP->pbCalculatedFileHash, wciP->cbCalculatedFileHash),
+                                // pcCatalogContext not yet implemented
+                                // hCatAdmin needs Win8 or later
+                                ARGEND);
+        
+        if (ret == TCL_OK)
+            wciP->pcCatalogContext = NULL;
+        
         break;
     default:
         ret = TwapiReturnErrorMsg(ticP->interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported Wintrust type");
