@@ -90,6 +90,10 @@ namespace eval twapi::crypto::test {
         } -result 1
     }
 
+    test asn1_encode_string-1.0 {asn1_encode/decode_string} -body {
+        twapi::asn1_decode_string [twapi::asn1_encode_string 1.256.32768.65000]
+    } -result 1.256.32768.65000
+
     test encrypt-WDigest-1.0 {
         TBD - Verify basic encryption and decryption - WDigest
     } -constraints {
