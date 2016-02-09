@@ -37,28 +37,33 @@ static BOOL WINAPI TwapiCertFreeCertificateChain(
   PCCERT_CHAIN_CONTEXT chainP
     );
 
-/* Macro to define functions for ref counting different type of pointers */
+/* 
+ * Macro to define functions for ref counting different type of pointers.
+ * We need to protect against invalid access since the underlying API's
+ * themselves do not seem to check for validity of the handles/pointers
+ * (double frees for example will crash)
+ */
 #define DEFINE_COUNTED_PTR_FUNCS(ptrtype_, tag_) \
 void TwapiRegister ## ptrtype_ (Tcl_Interp *interp, ptrtype_ ptr)       \
 {                                                                       \
-    if (TwapiRegisterCountedPointer(interp, ptr, tag_) != TCL_OK)    \
+    if (TwapiRegisterCountedPointer(interp, (void*)ptr, tag_) != TCL_OK) \
         Tcl_Panic("Failed to register " #ptrtype_ ": %s", Tcl_GetStringResult(interp)); \
 }                                                                       \
                                                                         \
 void TwapiRegister ## ptrtype_ ## Tic (TwapiInterpContext *ticP, ptrtype_ ptr) \
 {                                                                       \
-    if (TwapiRegisterCountedPointerTic(ticP, ptr, tag_) != TCL_OK)   \
+    if (TwapiRegisterCountedPointerTic(ticP, (void*)ptr, tag_) != TCL_OK) \
         Tcl_Panic("Failed to register " #ptrtype_ ": %s", Tcl_GetStringResult(ticP->interp)); \
 }                                                                       \
                                                                         \
 TCL_RESULT TwapiUnregister ## ptrtype_ (Tcl_Interp *interp, ptrtype_ ptr) \
 {                                                                       \
-    return TwapiUnregisterPointer(interp, ptr, tag_);                \
+    return TwapiUnregisterPointer(interp, (void*) ptr, tag_);            \
 }                                                                       \
                                                                         \
 TCL_RESULT TwapiUnregister ## ptrtype_ ## Tic(TwapiInterpContext *ticP, ptrtype_ ptr) \
 {                                                                       \
-    return TwapiUnregisterPointerTic(ticP, ptr, tag_);               \
+    return TwapiUnregisterPointerTic(ticP, (void*)ptr, tag_);           \
 }
 
 DEFINE_COUNTED_PTR_FUNCS(PCCERT_CONTEXT, CertFreeCertificateContext)
@@ -69,6 +74,13 @@ DEFINE_COUNTED_PTR_FUNCS(PCCRL_CONTEXT, CertFreeCRLContext)
 DEFINE_COUNTED_PTR_FUNCS(PCCTL_CONTEXT, CertFreeCTLContext)
 DEFINE_COUNTED_PTR_FUNCS(HCATADMIN, CryptCATAdminReleaseContext)
 DEFINE_COUNTED_PTR_FUNCS(HCATINFO, CryptCATAdminReleaseCatalogContext)
+
+/* The following types do not seem to need protection against invalid
+   or double freeing since the API appears to check for this. However,
+   not sure if all CSP's will behave that way so protect them as well.
+*/
+DEFINE_COUNTED_PTR_FUNCS(HCRYPTKEY, CryptDestroyKey)
+DEFINE_COUNTED_PTR_FUNCS(HCRYPTPROV, CryptReleaseContext)
 
 /* This function exists only to make the return value compatible with
    other free functions */
@@ -1454,7 +1466,7 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
     mark = MemLifoPushMark(ticP->memlifoP);
 
     if ((status = TwapiGetArgsEx(ticP, objc-1, objv+1,
-                                 GETHANDLET(pv, HCRYPTPROV),
+                                 GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
                                  GETBA(name_blob.pbData, name_blob.cbData),
                                  GETINT(flags),
                                  GETOBJ(provinfoObj),
@@ -1465,7 +1477,6 @@ static int Twapi_CertCreateSelfSignCertificate(TwapiInterpContext *ticP, Tcl_Int
                                  ARGEND)) != TCL_OK)
         goto vamoose;
     
-
     hprov = (HCRYPTPROV) pv;
  
     status = ParseCRYPT_KEY_PROV_INFO(ticP, provinfoObj, &kiP);
@@ -1580,10 +1591,13 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
             if (CertGetCertificateContextProperty(certP, prop_id, &ckctx, &n)) {
                 result.value.obj = ObjNewList(0, NULL);
                 if (ckctx.dwKeySpec == AT_KEYEXCHANGE ||
-                    ckctx.dwKeySpec == AT_SIGNATURE) 
+                    ckctx.dwKeySpec == AT_SIGNATURE) {
+                    TwapiRegisterHCRYPTPROV(interp, ckctx.hCryptProv);
                     s = "HCRYPTPROV";
-                else
+                } else {
+                    /* TBD - do we need to register this pointer as well? */
                     s = "NCRYPT_KEY_HANDLE";
+                }
                 ObjAppendElement(NULL, result.value.obj, ObjFromOpaque((void*)ckctx.hCryptProv, s));
                 ObjAppendElement(NULL, result.value.obj, ObjFromDWORD(ckctx.dwKeySpec));
             } else
@@ -1593,6 +1607,7 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
         case CERT_KEY_PROV_HANDLE_PROP_ID:
             n = sizeof(dwp);
             if (CertGetCertificateContextProperty(certP, prop_id, &dwp, &n)) {
+                TwapiRegisterHCRYPTPROV(interp, dwp);
                 TwapiResult_SET_PTR(result, HCRYPTPROV, (void*)dwp);
             } else
                 result.type = TRT_GETLASTERROR;
@@ -2128,7 +2143,8 @@ static TCL_RESULT Twapi_CryptSignAndEncodeCertObjCmd(
     DWORD structtype;
 
     mark = MemLifoPushMark(ticP->memlifoP);
-    res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETHANDLET(hprov, HCRYPTPROV),
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1,
+                         GETVERIFIEDPTR(hprov, HCRYPTPROV, CryptReleaseContext),
                          GETINT(keyspec), GETINT(enctype),
                          GETINT(structtype),
                          GETOBJ(certinfoObj), GETOBJ(algidObj),
@@ -2699,6 +2715,28 @@ static TCL_RESULT Twapi_CryptQueryObjectObjCmd(TwapiInterpContext *ticP, Tcl_Int
     return res;
 }
 
+#if 0
+static TCL_RESULT Twapi_CryptGetKeyParam(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    DWORD winerr, param, flags;
+    int nbytes;
+    char *p;
+    
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETVERIFIEDPTR(hkey, HCRYPTKEY, CryptDestroyKey),
+                     GETINT(param), GETINT(flags), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    nbytes = 0;
+    CryptGetKeyParam(hkey, param, NULL, &nbytes, flags);
+    winerr = GetLastError();
+    if (winerr != ERROR_MORE_DATA)
+        return TwapiReturnSystemError(interp);
+
+    
+}
+#endif
+
 static TCL_RESULT TwapiCloseContext(Tcl_Interp *interp, Tcl_Obj *objP,
                                     const char *typeptr,
                                     TCL_RESULT (*unregfn)(Tcl_Interp *, HANDLE),
@@ -2803,6 +2841,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             if (dw2 & CRYPT_DELETEKEYSET)
                 result.type = TRT_EMPTY;
             else {
+                TwapiRegisterHCRYPTPROV(interp, dwp);
                 TwapiResult_SET_PTR(result, HCRYPTPROV, (void*)dwp);
             }
         } else {
@@ -2811,9 +2850,13 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         break;
 
     case 10001: // CryptReleaseContext
+        /* We can use GETHANDLET instead of GETVERIFIEDPTR here because
+           anyways it is followed by TwapiUnregisterHCRYPTPROV which
+           does the verification anyways */
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(pv, HCRYPTPROV),
-                         ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
+                         ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK
+            || TwapiUnregisterHCRYPTPROV(interp, (HCRYPTPROV)pv) != TCL_OK)
             return TCL_ERROR;
         result.value.ival = CryptReleaseContext((HCRYPTPROV)pv, dw);
         result.type = TRT_EXCEPTION_ON_FALSE;
@@ -2821,7 +2864,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
 
     case 10002: // CryptGetProvParam
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(pv, HCRYPTPROV),
+                         GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
                          GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
         return Twapi_CryptGetProvParam(interp, (HCRYPTPROV) pv, dw, dw2);
@@ -2971,7 +3014,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             
     case 10010: // CryptGenKey
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(pv, HCRYPTPROV),
+                         GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
                          GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
         if (CryptGenKey((HCRYPTPROV) pv, dw, dw2, &dwp)) {
@@ -3045,7 +3088,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 10018: // CryptGetUserKey
     case 10034: // CryptGenRandom
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(pv, HCRYPTPROV),
+                         GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
                          GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
@@ -3062,7 +3105,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
 
     case 10019: // CryptSetProvParam
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(pv, HCRYPTPROV),
+                         GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
                          GETINT(dw), GETINT(dw2), ARGSKIP, ARGEND) != TCL_OK)
             return TCL_ERROR;
         return Twapi_CryptSetProvParam(interp, (HCRYPTPROV) pv, dw, dw2, objv[3]);
@@ -3096,7 +3139,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
 
     case 10023:  // CryptExportPublicKeyInfoEx
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(pv, HCRYPTPROV),
+                         GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
                          GETINT(dw), // keyspec
                          GETINT(dw2), // enctype
                          GETASTR(cP), // publickeyobjid
@@ -3179,6 +3222,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid flags");
         }
         if (CryptAcquireCertificatePrivateKey(certP,dw,NULL,&dwp,&dw2,&bval)) {
+            TwapiRegisterHCRYPTPROV(interp, dwp);
             objs[0] = ObjFromOpaque((void*)dwp, "HCRYPTPROV");
             objs[1] = ObjFromLong(dw2);
             objs[2] = ObjFromBoolean(bval);

@@ -1704,7 +1704,7 @@ and the second is the name of the CSP.
 
 [call [cmd crypt_free] [arg HCRYPT]]
 Frees a cryptographic context returned by
-[uri #crypt_free [cmd crypt_free]].
+[uri #crypt_acquire [cmd crypt_acquire]].
 
 [call [cmd crypt_get_security_descriptor] [arg HCRYPT]]
 Returns the [uri security.html#securitydescriptors "security descriptor"]
