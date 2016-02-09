@@ -2715,27 +2715,71 @@ static TCL_RESULT Twapi_CryptQueryObjectObjCmd(TwapiInterpContext *ticP, Tcl_Int
     return res;
 }
 
-#if 0
 static TCL_RESULT Twapi_CryptGetKeyParam(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     DWORD winerr, param, flags;
     int nbytes;
-    char *p;
+    void *p;
+    Tcl_Obj *objP = NULL;
+    TCL_RESULT res;
+    HCRYPTKEY hkey;
+    DWORD dw;
     
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(hkey, HCRYPTKEY, CryptDestroyKey),
-                     GETINT(param), GETINT(flags), ARGEND) != TCL_OK)
+                     GETINT(param), ARGUSEDEFAULT,
+                     GETINT(flags), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    nbytes = 0;
-    CryptGetKeyParam(hkey, param, NULL, &nbytes, flags);
-    winerr = GetLastError();
-    if (winerr != ERROR_MORE_DATA)
-        return TwapiReturnSystemError(interp);
+    switch (param) {
+    case KP_ALGID:   case KP_BLOCKLEN: case KP_KEYLEN: case KP_PERMISSIONS:
+    case KP_P:       case KP_Q:        case KP_G:      case KP_EFFECTIVE_KEYLEN:
+    case KP_PADDING: case KP_MODE:     case KP_MODE_BITS:
+        p = &dw;
+        nbytes = sizeof(dw);
+        break;
+    case KP_VERIFY_PARAMS:
+        /* Special case, no data is actually returned */
+        p = NULL;
+        nbytes = 0;
+        break;
+    default:
+        nbytes = 0;
+        CryptGetKeyParam(hkey, param, NULL, &nbytes, flags);
+        winerr = GetLastError();
+        if (winerr != ERROR_MORE_DATA)
+            return Twapi_AppendSystemError(interp, winerr);
+        /* Create a bytearray in two steps because Tcl 8.5 is not
+           documented as accepting a NULL in Tcl_NewByteArrayObj */
+        objP = Tcl_NewObj();
+        Tcl_SetByteArrayObj(objP, NULL, nbytes);
+        p = Tcl_GetByteArrayFromObj(objP, &nbytes);
+        break;
+    }
+    if (!CryptGetKeyParam(hkey, param, p, &nbytes, flags)) {
+        if (objP)
+            ObjDecrRefs(objP);
+        res = TwapiReturnSystemError(interp);
+    } else {
+        switch (param) {
+        case KP_ALGID:   case KP_BLOCKLEN: case KP_KEYLEN: case KP_PERMISSIONS:
+        case KP_P:       case KP_Q:     case KP_G:  case KP_EFFECTIVE_KEYLEN:
+        case KP_PADDING: case KP_MODE:  case KP_MODE_BITS:
+            res = ObjSetResult(interp, ObjFromDWORD(dw));
+            break;
+        case KP_VERIFY_PARAMS:
+            /* Special case, no data is actually returned */
+            res = TCL_OK;
+            break;
+        default:
+            TWAPI_ASSERT(objP != NULL);
+            res = ObjSetResult(interp, objP);
+            break;
+        }
+    }
 
-    
+    return res;
 }
-#endif
 
 static TCL_RESULT TwapiCloseContext(Tcl_Interp *interp, Tcl_Obj *objP,
                                     const char *typeptr,
@@ -3959,6 +4003,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptQueryObject, Twapi_CryptQueryObjectObjCmd),
         DEFINE_TCL_CMD(WinVerifyTrust, Twapi_WinVerifyTrustObjCmd),
         DEFINE_TCL_CMD(CryptCATAdminEnumCatalogFromHash, Twapi_CryptCATAdminEnumCatalogFromHash),
+        DEFINE_TCL_CMD(CryptGetKeyParam, Twapi_CryptGetKeyParam), // TBD - Tcl
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
