@@ -2854,7 +2854,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
            anyways it is followed by TwapiUnregisterHCRYPTPROV which
            does the verification anyways */
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(pv, HCRYPTPROV),
+                         GETPTR(pv, HCRYPTPROV),
                          ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK
             || TwapiUnregisterHCRYPTPROV(interp, (HCRYPTPROV)pv) != TCL_OK)
             return TCL_ERROR;
@@ -3006,7 +3006,8 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 10009: // CryptDestroyKey
         if (TwapiGetArgs(interp, objc, objv,
                          GETPTR(pv, HCRYPTKEY),
-                         ARGEND) != TCL_OK)
+                         ARGEND) != TCL_OK
+            || TwapiUnregisterHCRYPTKEY(interp, (HCRYPTKEY) pv) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = CryptDestroyKey((HCRYPTKEY) pv);
@@ -3018,6 +3019,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
                          GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
         if (CryptGenKey((HCRYPTPROV) pv, dw, dw2, &dwp)) {
+            TwapiRegisterHCRYPTKEY(interp, dwp);
             TwapiResult_SET_PTR(result, HCRYPTKEY, (void*)dwp);
         } else
             result.type = TRT_GETLASTERROR;
@@ -3094,6 +3096,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         switch (func) {
         case 10018: // CryptGetUserKey
             if (CryptGetUserKey((HCRYPTPROV) pv, dw, &dwp)) {
+                TwapiRegisterHCRYPTKEY(interp, dwp);
                 TwapiResult_SET_PTR(result, HCRYPTKEY, (void*)dwp);
             } else
                 result.type = TRT_GETLASTERROR;
