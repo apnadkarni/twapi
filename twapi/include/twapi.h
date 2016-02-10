@@ -73,6 +73,9 @@
 # endif
 #endif
 
+/* Define macros that affect structure sizes before any includes */
+#define CRYPT_DECRYPT_MESSAGE_PARA_HAS_EXTRA_FIELDS
+
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdarg.h>
