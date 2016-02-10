@@ -2716,7 +2716,7 @@ static TCL_RESULT Twapi_CryptQueryObjectObjCmd(TwapiInterpContext *ticP, Tcl_Int
     return res;
 }
 
-static TCL_RESULT Twapi_CryptGetKeyParam(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_CryptGetKeyParamObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     DWORD winerr, param, flags;
     int nbytes;
@@ -2797,7 +2797,48 @@ static TCL_RESULT TwapiCloseContext(Tcl_Interp *interp, Tcl_Obj *objP,
     return TCL_OK;
 }
 
-static TCL_RESULT Twapi_CryptCATAdminEnumCatalogFromHash(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_CryptSetHashParamObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    void *pv;
+    DWORD param;
+    Tcl_Obj *paramObj;
+    HMAC_INFO hmaci;
+    MemLifoMarkHandle mark = NULL;
+    TCL_RESULT res;
+    
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETVERIFIEDPTR(pv, HCRYPTHASH, CryptDestroyHash),
+                     GETINT(param), ARGUSEDEFAULT,
+                     GETOBJ(paramObj), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+    if (param != HP_HMAC_INFO)
+        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+    if (paramObj == NULL) {
+        hmaci.HashAlgid = CALG_SHA1; // TBD
+        hmaci.pbInnerString = NULL;
+        hmaci.cbInnerString = 0;
+        hmaci.pbOuterString = NULL;
+        hmaci.cbOuterString = 0;
+    } else {
+        mark = MemLifoPushMark(ticP->memlifoP);
+        res = TwapiGetArgsExObj(ticP, paramObj, GETINT(hmaci.HashAlgid),
+                             GETBA(hmaci.pbInnerString, hmaci.cbInnerString),
+                             GETBA(hmaci.pbOuterString, hmaci.cbOuterString),
+                             ARGEND);
+        if (res != TCL_OK)
+            goto vamoose;
+    }
+
+    if (CryptSetHashParam((HCRYPTHASH)pv, param, (BYTE*) &hmaci, 0))
+        res = TwapiReturnSystemError(interp);
+    /* Else empty result */
+vamoose:
+    if (mark)
+        MemLifoPopMark(mark);
+    return res;
+}
+
+static TCL_RESULT Twapi_CryptCATAdminEnumCatalogFromHashObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TCL_RESULT res;
     HCATADMIN hca;
@@ -4128,8 +4169,9 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(PFXImportCertStore, Twapi_PFXImportCertStoreObjCmd),
         DEFINE_TCL_CMD(CryptQueryObject, Twapi_CryptQueryObjectObjCmd), // TBD Tcl
         DEFINE_TCL_CMD(WinVerifyTrust, Twapi_WinVerifyTrustObjCmd), // TBD Tcl
-        DEFINE_TCL_CMD(CryptCATAdminEnumCatalogFromHash, Twapi_CryptCATAdminEnumCatalogFromHash), // TBD Tcl
-        DEFINE_TCL_CMD(CryptGetKeyParam, Twapi_CryptGetKeyParam), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptCATAdminEnumCatalogFromHash, Twapi_CryptCATAdminEnumCatalogFromHashObjCmd), // TBD Tcl
+        DEFINE_TCL_CMD(CryptGetKeyParam, Twapi_CryptGetKeyParamObjCmd), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptSetHashParam, Twapi_CryptSetHashParamObjCmd), // TBD - Tcl
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
