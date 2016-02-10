@@ -42,6 +42,9 @@ static BOOL WINAPI TwapiCertFreeCertificateChain(
  * We need to protect against invalid access since the underlying API's
  * themselves do not seem to check for validity of the handles/pointers
  * (double frees for example will crash)
+ *
+ * TBD - are these all really supposed to be counted pointers? Or should
+ * some be uncounted ?
  */
 #define DEFINE_COUNTED_PTR_FUNCS(ptrtype_, tag_) \
 void TwapiRegister ## ptrtype_ (Tcl_Interp *interp, ptrtype_ ptr)       \
@@ -362,7 +365,6 @@ static Tcl_Obj *ObjFromCERT_SIMPLE_CHAIN(Tcl_Interp *interp,
         ObjAppendElement(interp, objs[1], ObjFromCERT_CHAIN_ELEMENT(interp, cscP->rgpElement[dw]));
     return ObjNewList(2, objs);
 }
-
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParseCRYPT_BLOB(
@@ -735,6 +737,68 @@ static TCL_RESULT ParseCRYPT_ALGORITHM_IDENTIFIER(
     return TCL_OK;
 }
 
+
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParseCRYPT_ENCRYPT_MESSAGE_PARA(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *objP,
+    CRYPT_ENCRYPT_MESSAGE_PARA *cemP
+    )
+{
+    Tcl_Obj *algObj;
+    ZeroMemory(cemP, sizeof(*cemP));
+    if (TwapiGetArgsExObj(ticP, objP, GETINT(cemP->dwMsgEncodingType),
+                          ARGSKIP, /* hCryptProv - recommended to be NULL */
+                          GETOBJ(algObj),
+                          ARGSKIP, /* pvEncryptionAuxInfo - not implemented */
+                          GETINT(cemP->dwFlags),
+                          GETINT(cemP->dwInnerContentType),
+                          ARGEND) != TCL_OK
+        ||
+        ParseCRYPT_ALGORITHM_IDENTIFIER(ticP, algObj, &cemP->ContentEncryptionAlgorithm) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    cemP->cbSize = sizeof(*cemP);
+    cemP->hCryptProv = 0;
+    cemP->pvEncryptionAuxInfo = NULL;
+
+    return TCL_OK;
+}
+
+static TCL_RESULT ParseCRYPT_DECRYPT_MESSAGE_PARA(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *objP,
+    CRYPT_DECRYPT_MESSAGE_PARA *cdmP
+    )
+{
+    int i, nstores;
+    Tcl_Obj *storesObj;
+    Tcl_Obj **stores;
+    ZeroMemory(cdmP, sizeof(*cdmP));
+    if (TwapiGetArgsExObj(ticP, objP, GETINT(cdmP->dwMsgAndCertEncodingType),
+                          GETOBJ(storesObj),
+                          GETINT(cdmP->dwFlags),
+                          ARGEND) != TCL_OK
+        ||
+        ObjGetElements(ticP->interp, storesObj, &nstores, &stores) != TCL_OK)
+        return TCL_ERROR;
+    
+    if (nstores == 0) {
+        cdmP->cCertStore = 0;
+        cdmP->rghCertStore = NULL;
+    } else {
+        HCERTSTORE *hstoreP;
+        hstoreP = MemLifoAlloc(ticP->memlifoP, nstores * sizeof(HCERTSTORE), NULL);
+        for (i = 0; i < nstores; ++i) {
+            if (ObjToVerifiedPointerTic(ticP, stores[i], &hstoreP[i], "HCERTSTORE", CertCloseStore) != TCL_OK)
+                return TCL_ERROR;
+        }
+        cdmP->cCertStore = nstores;
+        cdmP->rghCertStore = hstoreP;
+    }
+    cdmP->cbSize = sizeof(*cdmP);
+    return TCL_OK;
+}
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParseCERT_PUBLIC_KEY_INFO(
@@ -2988,6 +3052,112 @@ static TCL_RESULT Twapi_CryptDecryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp 
     return TCL_OK;
 }
 
+static TCL_RESULT Twapi_CryptEncryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    MemLifoMarkHandle mark = NULL;
+    Tcl_Obj *paramObj, *certsObj, *dataObj, *objP;
+    TCL_RESULT res;
+    Tcl_Obj **certs;
+    int i, ncerts, nin, nout;
+    PCERT_CONTEXT *certsPP;
+    BYTE *in, *out;
+    CRYPT_ENCRYPT_MESSAGE_PARA param;
+
+    mark = MemLifoPushMark(ticP->memlifoP);
+    if (TwapiGetArgsEx(ticP, objc-1, objv+1,
+                       GETOBJ(paramObj), GETOBJ(certsObj),
+                       GETOBJ(dataObj), ARGEND) != TCL_OK
+        || ParseCRYPT_ENCRYPT_MESSAGE_PARA(ticP, paramObj, &param) != TCL_OK
+        || ObjGetElements(interp, certsObj, &ncerts, &certs) != TCL_OK) {
+        res = TCL_ERROR;
+    } else {
+        if (ncerts == 0)
+            certsPP = NULL;
+        else {
+            certsPP = MemLifoAlloc(ticP->memlifoP, ncerts*sizeof(*certsPP), NULL);
+            for (i = 0; i < ncerts; ++i) {
+                res = ObjToVerifiedPointerTic(ticP, certs[i], &certsPP[i], "PCCERT_CONTEXT", CertFreeCertificateContext);
+                if (res != TCL_OK)
+                    goto vamoose;
+            }
+            in = ObjToByteArray(dataObj, &nin);
+            nout = 0;
+            if (! CryptEncryptMessage(&param, ncerts, certsPP, in, nin, NULL, &nout)) {
+                res = TwapiReturnSystemError(interp);
+                goto vamoose;
+            }
+            objP = ObjFromByteArray(NULL, nout);
+            out = ObjToByteArray(objP, &nout);
+            if (! CryptEncryptMessage(&param, ncerts, certsPP, in, nin, out, &nout)) {
+                res = TwapiReturnSystemError(interp);
+                ObjDecrRefs(objP);
+                goto vamoose;
+            }
+            Tcl_SetByteArrayLength(objP, nout);
+            ObjSetResult(interp, objP);
+            res = TCL_OK;
+        }
+    }
+
+vamoose:
+    if (mark)
+        MemLifoPopMark(mark);
+    return res;
+}
+
+static TCL_RESULT Twapi_CryptDecryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    MemLifoMarkHandle mark = NULL;
+    Tcl_Obj *paramObj, *dataObj, *objP;
+    TCL_RESULT res;
+    int  nin, nout, want_cert;
+    BYTE *in, *out;
+    CRYPT_DECRYPT_MESSAGE_PARA param;
+    PCCERT_CONTEXT certP, *certPP;
+
+    mark = MemLifoPushMark(ticP->memlifoP);
+    if (TwapiGetArgsEx(ticP, objc-1, objv+1,
+                       GETOBJ(paramObj), GETOBJ(dataObj),
+                       GETBOOL(want_cert), ARGEND) != TCL_OK
+        || ParseCRYPT_DECRYPT_MESSAGE_PARA(ticP, paramObj, &param) != TCL_OK)
+        res = TCL_ERROR;
+    else {
+        certPP = want_cert ? &certP : NULL;
+        in = ObjToByteArray(dataObj, &nin);
+        nout = 0;
+        if (! CryptDecryptMessage(&param, in, nin, NULL, &nout, certPP)) {
+            res = TwapiReturnSystemError(interp);
+            goto vamoose;
+        }
+        objP = ObjFromByteArray(NULL, nout);
+        out = ObjToByteArray(objP, &nout);
+        if (! CryptDecryptMessage(&param, in, nin, out, &nout, certPP)) {
+                res = TwapiReturnSystemError(interp);
+                ObjDecrRefs(objP);
+                goto vamoose;
+            }
+        Tcl_SetByteArrayLength(objP, nout);
+        if (want_cert) {
+            Tcl_Obj *objs[2];
+            int nobjs = 1;
+            objs[0] = objP;
+            if (certP) {
+                TwapiRegisterPCCERT_CONTEXT(interp, certP);
+                objs[1] = ObjFromOpaque((void*)certP, "PCCERT_CONTEXT");
+                nobjs = 2;
+            }
+            ObjSetResult(interp, ObjNewList(nobjs, objs));
+        } else
+            ObjSetResult(interp, objP);
+        res = TCL_OK;
+    }
+
+vamoose:
+    if (mark)
+        MemLifoPopMark(mark);
+    return res;
+}
+
 
 static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -4304,6 +4474,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptSetHashParam, Twapi_CryptSetHashParamObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptEncrypt, Twapi_CryptEncryptObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptDecrypt, Twapi_CryptDecryptObjCmd), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptEncryptMessage, Twapi_CryptEncryptMessageObjCmd), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptDecryptMessage, Twapi_CryptDecryptMessageObjCmd), // TBD - Tcl
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
