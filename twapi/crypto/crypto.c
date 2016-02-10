@@ -2876,6 +2876,119 @@ vamoose:
     return res;
 }
         
+static TCL_RESULT Twapi_CryptEncryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    Tcl_Obj *objP;
+    void *pv, *pv2;
+    HCRYPTKEY hkey;
+    HCRYPTHASH hash;
+    BOOL final, duped;
+    DWORD block_len, len, buf_len, flags;
+    ALG_ID alg_id;
+    
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETVERIFIEDPTR(pv, HCRYPTKEY, CryptDestroyKey),
+                     GETVERIFIEDORNULL(pv2, HCRYPTHASH, CryptDestroyHash),
+                     GETBOOL(final), GETINT(flags), 
+                     GETOBJ(objP), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    hkey = (HCRYPTKEY) pv;
+    hash = (HCRYPTHASH) pv2;
+    
+    /* Find the algorithm in use */
+    len = sizeof(alg_id);
+    if (!CryptGetKeyParam(hkey, KP_ALGID, (BYTE*)&alg_id, &len, 0))
+        return TwapiReturnSystemError(interp);
+    
+    /* We need to allocate additional space for padding if not stream cipher */
+    if (GET_ALG_TYPE(alg_id) == ALG_TYPE_STREAM)
+        block_len = 0;
+    else {
+        len = sizeof(block_len);
+        if (!CryptGetKeyParam(hkey, KP_ALGID, (BYTE*)&block_len, &len, 0))
+            return TwapiReturnSystemError(interp);
+    }
+
+    /* We are modifying in place so make sure unshared */
+    if (Tcl_IsShared(objP)) {
+        duped = 1;
+        objP = ObjDuplicate(objP);
+    } else
+        duped = 0;
+    
+    /*
+     * NOTE: The sample 5.26 in Secure Programming Cookbook does not
+     * match the SDK and SDK samples. In particular, it seems to confuse
+     * the buffer size and data length parameters and requirements.
+     * Code below follows the SDK
+     */
+    pv = ObjToByteArray(objP, &len);
+    if (block_len == 0)
+        buf_len = len;
+    else {
+        buf_len = len + block_len; /* Might need block size more bytes */
+        Tcl_SetByteArrayLength(objP, buf_len);
+        pv = ObjToByteArray(objP, &buf_len); /* Might have been realloced */
+    }
+    if (!CryptEncrypt(hkey, hash, final, flags, pv, &len, buf_len)) {
+        DWORD winerr = GetLastError();
+        if (duped)
+            ObjDecrRefs(objP);
+        return Twapi_AppendSystemError(interp, winerr);
+    }
+    Tcl_SetByteArrayLength(objP, len); /* Set length to actual # ciphertext */
+    ObjSetResult(interp, objP);
+    return TCL_OK;
+}
+
+static TCL_RESULT Twapi_CryptDecryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    Tcl_Obj *objP;
+    void *pv, *pv2;
+    HCRYPTKEY hkey;
+    HCRYPTHASH hash;
+    BOOL final, duped;
+    DWORD len, flags;
+    
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETVERIFIEDPTR(pv, HCRYPTKEY, CryptDestroyKey),
+                     GETVERIFIEDORNULL(pv2, HCRYPTHASH, CryptDestroyHash),
+                     GETBOOL(final), GETINT(flags), 
+                     GETOBJ(objP), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    hkey = (HCRYPTKEY) pv;
+    hash = (HCRYPTHASH) pv2;
+    
+    /* Note when decrypting, no need for additional space */
+
+    /* We are modifying in place so make sure unshared */
+    if (Tcl_IsShared(objP)) {
+        duped = 1;
+        objP = ObjDuplicate(objP);
+    } else
+        duped = 0;
+    
+    /*
+     * NOTE: The sample 5.26 in Secure Programming Cookbook does not
+     * match the SDK and SDK samples. In particular, it seems to confuse
+     * the buffer size and data length parameters and requirements.
+     * Code below follows the SDK
+     */
+    pv = ObjToByteArray(objP, &len);
+    if (!CryptDecrypt(hkey, hash, final, flags, pv, &len)) {
+        DWORD winerr = GetLastError();
+        if (duped)
+            ObjDecrRefs(objP);
+        return Twapi_AppendSystemError(interp, winerr);
+    }
+    Tcl_SetByteArrayLength(objP, len); /* Set length to actual # ciphertext */
+    ObjSetResult(interp, objP);
+    return TCL_OK;
+}
+
+
 static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
@@ -3826,6 +3939,22 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         }
         break;
         
+    case 10067: // CryptDeriveKey
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
+                         GETINT(dw),
+                         GETVERIFIEDPTR(pv2, HCRYPTHASH, CryptDestroyHash),
+                         GETINT(dw2), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        dwp = 0;
+        if (CryptDeriveKey((HCRYPTPROV)pv, dw, (HCRYPTHASH)pv2, dw2, &dwp)) {
+            TwapiRegisterHCRYPTKEY(interp, dwp);
+            TwapiResult_SET_PTR(result, HCRYPTKEY, (void*)dwp);
+        } else
+            result.type = TRT_GETLASTERROR;
+            
+        break;
+        
 #ifdef TBD
     case TBD: // CertCreateContext
         if (TwapiGetArgs(interp, objc, objv,
@@ -4147,6 +4276,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptSignHash, 10064), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptDuplicateHash, 10065), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptGetHashParam, 10066), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptDeriveKey, 10067), // TBD Tcl
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
@@ -4172,6 +4302,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptCATAdminEnumCatalogFromHash, Twapi_CryptCATAdminEnumCatalogFromHashObjCmd), // TBD Tcl
         DEFINE_TCL_CMD(CryptGetKeyParam, Twapi_CryptGetKeyParamObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptSetHashParam, Twapi_CryptSetHashParamObjCmd), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptEncrypt, Twapi_CryptEncryptObjCmd), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptDecrypt, Twapi_CryptDecryptObjCmd), // TBD - Tcl
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
