@@ -80,6 +80,7 @@ DEFINE_COUNTED_PTR_FUNCS(HCATINFO, CryptCATAdminReleaseCatalogContext)
    not sure if all CSP's will behave that way so protect them as well.
 */
 DEFINE_COUNTED_PTR_FUNCS(HCRYPTKEY, CryptDestroyKey)
+DEFINE_COUNTED_PTR_FUNCS(HCRYPTHASH, CryptDestroyHash)
 DEFINE_COUNTED_PTR_FUNCS(HCRYPTPROV, CryptReleaseContext)
 
 /* This function exists only to make the return value compatible with
@@ -2749,10 +2750,7 @@ static TCL_RESULT Twapi_CryptGetKeyParam(TwapiInterpContext *ticP, Tcl_Interp *i
         winerr = GetLastError();
         if (winerr != ERROR_MORE_DATA)
             return Twapi_AppendSystemError(interp, winerr);
-        /* Create a bytearray in two steps because Tcl 8.5 is not
-           documented as accepting a NULL in Tcl_NewByteArrayObj */
-        objP = Tcl_NewObj();
-        Tcl_SetByteArrayObj(objP, NULL, nbytes);
+        objP = ObjFromByteArray(NULL, nbytes);
         p = Tcl_GetByteArrayFromObj(objP, &nbytes);
         break;
     }
@@ -2842,7 +2840,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     TwapiResult result;
     DWORD dw, dw2, dw3;
     DWORD_PTR dwp;
-    LPVOID pv;
+    LPVOID pv,pv2;
     LPWSTR s1;
     LPSTR  cP;
     struct _CRYPTOAPI_BLOB blob, blob2;
@@ -2869,6 +2867,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
 
     TWAPI_ASSERT(sizeof(HCRYPTPROV) <= sizeof(pv));
     TWAPI_ASSERT(sizeof(HCRYPTKEY) <= sizeof(pv));
+    TWAPI_ASSERT(sizeof(HCRYPTHASH) <= sizeof(pv));
     TWAPI_ASSERT(sizeof(dwp) <= sizeof(void*));
 
     result.type = TRT_BADFUNCTIONCODE;
@@ -3666,6 +3665,126 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         }
         break;
         
+    case 10060: // CryptCreateHash
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
+                         GETINT(dw),
+                         GETVERIFIEDORNULL(pv2, HCRYPTKEY, CryptDestroyKey),
+                         ARGUSEDEFAULT,
+                         GETINT(dw2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (CryptCreateHash((HCRYPTPROV) pv, dw, (HCRYPTKEY) pv2, dw2, &dwp)) {
+            TwapiRegisterHCRYPTHASH(interp, dwp);
+            TwapiResult_SET_PTR(result, HCRYPTHASH, (void*)dwp);
+        } else
+            result.type = TRT_GETLASTERROR;
+        break;
+
+    case 10061: // CryptDestroyHash
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETPTR(pv, HCRYPTHASH),
+                         ARGEND) != TCL_OK
+            || TwapiUnregisterHCRYPTHASH(interp, (HCRYPTHASH) pv) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = CryptDestroyHash((HCRYPTHASH) pv);
+        break;
+
+    case 10062: // CryptHashData
+        if (TwapiGetArgs(interp, objc, objv, 
+                         GETVERIFIEDPTR(pv, HCRYPTHASH, CryptDestroyHash),
+                         GETOBJ(s1Obj), ARGUSEDEFAULT, GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        /* Note: we did not use GETBA(pv, dw2) in the above call because
+           of potential shimmering with the GETINT that would invalidate pv */
+        pv2 = ObjToByteArray(s1Obj, &dw2);
+        if (CryptHashData((HCRYPTHASH) pv, pv2, dw2, dw))
+            result.type = TRT_EMPTY;
+        else
+            result.type = TRT_GETLASTERROR;
+        break;
+        
+    case 10063: // CryptHashSessionKey
+        if (TwapiGetArgs(interp, objc, objv, 
+                         GETVERIFIEDPTR(pv, HCRYPTHASH, CryptDestroyHash),
+                         GETVERIFIEDPTR(pv2, HCRYPTKEY, CryptDestroyKey),
+                         ARGUSEDEFAULT, GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (CryptHashSessionKey((HCRYPTHASH) pv, (HCRYPTKEY)pv2, dw))
+            result.type = TRT_EMPTY;
+        else
+            result.type = TRT_GETLASTERROR;
+        break;
+        
+    case 10064: // CryptSignHash
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCRYPTHASH, CryptDestroyHash),
+                         GETINT(dw), ARGSKIP, GETINT(dw2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        dw3 = 1024; /* Assume big enough */
+        result.value.obj = ObjFromByteArray(NULL, dw3);
+        pv2 = Tcl_GetByteArrayFromObj(result.value.obj, &dw3);
+        if (CryptSignHash((HCRYPTHASH)pv, dw, NULL, dw2, pv2, &dw3)) {
+            Tcl_SetByteArrayLength(result.value.obj, dw3);
+            result.type = TRT_OBJ;
+        } else {
+            dw = GetLastError();
+            ObjDecrRefs(result.value.obj);
+            result.value.ival = dw;
+            result.type = TRT_EXCEPTION_ON_ERROR;
+        }
+        break;
+
+    case 10065: // CryptDuplicateHash
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCRYPTHASH, CryptDestroyHash),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (CryptDuplicateHash((HCRYPTHASH)pv, NULL, 0, &dwp)) {
+            TwapiRegisterHCRYPTHASH(interp, dwp);
+            TwapiResult_SET_PTR(result, HCRYPTHASH, (void*)dwp);
+        } else {
+            result.type = TRT_GETLASTERROR;
+        }
+        break;
+
+    case 10066: // CryptGetHashParam
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCRYPTHASH, CryptDestroyHash),
+                         GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        switch (dw) {
+        case HP_HASHSIZE: /* FALLTHRU */
+        case HP_ALGID:
+            dw2 = sizeof(result.value.uval);
+            pv2 = &result.value.uval;
+            result.type = TRT_DWORD;
+            break;
+        case HP_HASHVAL:
+            dw2 = 1024; /* Assume large enough */
+            result.value.obj = ObjFromByteArray(NULL, dw2);
+            pv2 = ObjToByteArray(result.value.obj, &dw2);
+            result.type = TRT_OBJ;
+            break;
+        default:
+            return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+        }
+        if (CryptGetHashParam((HCRYPTHASH) pv, dw, pv2, &dw2, 0)) {
+            if (result.type == TRT_OBJ)
+                Tcl_SetByteArrayLength(result.value.obj, dw2);
+        } else {
+            dw = GetLastError();
+            if (result.type == TRT_OBJ)
+                ObjDecrRefs(result.value.obj);
+            result.value.ival = dw;
+            result.type = TRT_EXCEPTION_ON_ERROR;
+        }
+        break;
+        
 #ifdef TBD
     case TBD: // CertCreateContext
         if (TwapiGetArgs(interp, objc, objv,
@@ -3946,7 +4065,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertEnumSystemStore, 10024),
         DEFINE_FNCODE_CMD(CertEnumPhysicalStore, 10025),
         DEFINE_FNCODE_CMD(CertEnumSystemStoreLocation, 10026),
-        DEFINE_FNCODE_CMD(CryptAcquireCertificatePrivateKey, 10027), // Tcl
+        DEFINE_FNCODE_CMD(CryptAcquireCertificatePrivateKey, 10027), // TBD - Tcl
         DEFINE_FNCODE_CMD(CertGetEnhancedKeyUsage, 10028),
         DEFINE_FNCODE_CMD(Twapi_CertStoreCommit, 10029),
         DEFINE_FNCODE_CMD(Twapi_CertGetIntendedKeyUsage, 10030),
@@ -3971,15 +4090,22 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertCompareCertificateName, 10049), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptEnumProviderTypes, 10050),
         DEFINE_FNCODE_CMD(CryptEnumProviders, 10051),
-        DEFINE_FNCODE_CMD(CryptMsgClose, 10052),
-        DEFINE_FNCODE_CMD(CertFreeCRLContext, 10053),
-        DEFINE_FNCODE_CMD(CertFreeCTLContext, 10054),
-        DEFINE_FNCODE_CMD(CryptCATAdminCalcHashFromFileHandle, 10055),
+        DEFINE_FNCODE_CMD(CryptMsgClose, 10052), // TBD Tcl
+        DEFINE_FNCODE_CMD(CertFreeCRLContext, 10053), // TBD Tcl
+        DEFINE_FNCODE_CMD(CertFreeCTLContext, 10054), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptCATAdminCalcHashFromFileHandle, 10055), // TBD Tcl
         // TBD DEFINE_FNCODE_CMD(CertCreateContext, TBD),
-        DEFINE_FNCODE_CMD(CryptCATAdminAcquireContext, 10056),
-        DEFINE_FNCODE_CMD(CryptCATAdminReleaseContext, 10057),
-        DEFINE_FNCODE_CMD(CryptCATAdminReleaseCatalogContext, 10058),
-        DEFINE_FNCODE_CMD(CryptCATCatalogInfoFromContext, 10059),
+        DEFINE_FNCODE_CMD(CryptCATAdminAcquireContext, 10056), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptCATAdminReleaseContext, 10057), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptCATAdminReleaseCatalogContext, 10058), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptCATCatalogInfoFromContext, 10059), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptCreateHash, 10060), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptDestroyHash, 10061), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptHashData, 10062), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptHashSessionKey, 10063), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptSignHash, 10064), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptDuplicateHash, 10065), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptGetHashParam, 10066), // TBD Tcl
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
@@ -4000,9 +4126,9 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptUnprotectData, Twapi_CryptUnprotectObjCmd),
         DEFINE_TCL_CMD(PFXExportCertStoreEx, Twapi_PFXExportCertStoreExObjCmd),
         DEFINE_TCL_CMD(PFXImportCertStore, Twapi_PFXImportCertStoreObjCmd),
-        DEFINE_TCL_CMD(CryptQueryObject, Twapi_CryptQueryObjectObjCmd),
-        DEFINE_TCL_CMD(WinVerifyTrust, Twapi_WinVerifyTrustObjCmd),
-        DEFINE_TCL_CMD(CryptCATAdminEnumCatalogFromHash, Twapi_CryptCATAdminEnumCatalogFromHash),
+        DEFINE_TCL_CMD(CryptQueryObject, Twapi_CryptQueryObjectObjCmd), // TBD Tcl
+        DEFINE_TCL_CMD(WinVerifyTrust, Twapi_WinVerifyTrustObjCmd), // TBD Tcl
+        DEFINE_TCL_CMD(CryptCATAdminEnumCatalogFromHash, Twapi_CryptCATAdminEnumCatalogFromHash), // TBD Tcl
         DEFINE_TCL_CMD(CryptGetKeyParam, Twapi_CryptGetKeyParam), // TBD - Tcl
     };
 
