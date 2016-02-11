@@ -3128,21 +3128,25 @@ vamoose:
 static TCL_RESULT Twapi_CryptDecryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     MemLifoMarkHandle mark = NULL;
-    Tcl_Obj *paramObj, *dataObj, *objP;
+    Tcl_Obj *paramObj, *dataObj, *objP, *certVar;
     TCL_RESULT res;
-    int  nin, nout, want_cert;
+    int  n, nin, nout, want_cert;
     BYTE *in, *out;
     CRYPT_DECRYPT_MESSAGE_PARA param;
     PCCERT_CONTEXT certP, *certPP;
 
     mark = MemLifoPushMark(ticP->memlifoP);
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
-                       GETOBJ(paramObj), GETOBJ(dataObj),
-                       GETBOOL(want_cert), ARGEND) != TCL_OK
+                       GETOBJ(paramObj), GETOBJ(dataObj), ARGUSEDEFAULT,
+                       GETOBJ(certVar), ARGEND) != TCL_OK
         || ParseCRYPT_DECRYPT_MESSAGE_PARA(ticP, paramObj, &param) != TCL_OK)
         res = TCL_ERROR;
     else {
-        certPP = want_cert ? &certP : NULL;
+        if (certVar && Tcl_GetStringFromObj(certVar, &n) && n != 0)
+            certPP = &certP;
+        else
+            certPP = NULL;
+
         in = ObjToByteArray(dataObj, &nin);
         nout = 0;
         if (! CryptDecryptMessage(&param, in, nin, NULL, &nout, certPP)) {
@@ -3157,18 +3161,21 @@ static TCL_RESULT Twapi_CryptDecryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_
                 goto vamoose;
             }
         Tcl_SetByteArrayLength(objP, nout);
-        if (want_cert) {
-            Tcl_Obj *objs[2];
-            int nobjs = 1;
-            objs[0] = objP;
-            if (certP) {
-                TwapiRegisterPCCERT_CONTEXT(interp, certP);
-                objs[1] = ObjFromOpaque((void*)certP, "PCCERT_CONTEXT");
-                nobjs = 2;
+        if (certPP) {
+            Tcl_Obj *certObj;
+            TwapiRegisterPCCERT_CONTEXT(interp, certP);
+            certObj = ObjFromOpaque((void*)certP, "PCCERT_CONTEXT");
+            if (Tcl_ObjSetVar2(interp, certVar, NULL, certObj, TCL_LEAVE_ERR_MSG) == NULL) {
+                TwapiUnregisterPCCERT_CONTEXTTic(ticP, certP);
+                ObjDecrRefs(certObj);
+                if (certP)
+                    CertFreeCertificateContext(certP);
+                ObjDecrRefs(objP);
+                res = TCL_ERROR;
+                goto vamoose;
             }
-            ObjSetResult(interp, ObjNewList(nobjs, objs));
-        } else
-            ObjSetResult(interp, objP);
+        }
+        ObjSetResult(interp, objP);
         res = TCL_OK;
     }
 
@@ -3180,74 +3187,94 @@ vamoose:
 
 static TCL_RESULT Twapi_CryptVerifyMessageSignatureObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    Tcl_Obj *dataObj, *paramObj, *objP;
+    Tcl_Obj *dataObj, *paramObj, *contentVar, *certVar, *contentObj;
     TCL_RESULT res;
-    int  nin, nout, want_cert;
+    int  n, nin, nout;
     BYTE *in, *out;
     CRYPT_VERIFY_MESSAGE_PARA param;
     DWORD signer_index;
-    PCCERT_CONTEXT certP, *certPP;
+    PCCERT_CONTEXT certP = NULL, *certPP;
     MemLifoMarkHandle mark = NULL;
 
     mark = MemLifoPushMark(ticP->memlifoP);
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETOBJ(paramObj),
                      GETINT(signer_index), GETOBJ(dataObj),
-                     GETBOOL(want_cert), ARGEND) != TCL_OK
+                     ARGUSEDEFAULT, GETOBJ(contentVar), GETOBJ(certVar),
+                     ARGEND) != TCL_OK
         || ParseCRYPT_VERIFY_MESSAGE_PARA(ticP, paramObj, &param) != TCL_OK) {
          res = TCL_ERROR;
-         goto vamoose;
+         goto vamoose; /* NOT to error_return !!! */
     }
-    certPP = want_cert ? &certP : NULL;
+
+    /* 
+     * If a non-empty variable name is specified for content and 
+     * certificate, they will be returned in the corresponding variable
+     * Note we don't use Tcl_GetCharLength because that will unnecessarily
+     * generate a unicode rep
+     */
+    contentObj = NULL;
+    if (certVar && Tcl_GetStringFromObj(certVar, &n) && n != 0)
+        certPP = &certP;
+    else
+        certPP = NULL;
+    
     in = ObjToByteArray(dataObj, &nin);
     nout = 0;
-    if (! CryptVerifyMessageSignature(&param, signer_index, in, nin, NULL, &nout, certPP)) {
-        res = TwapiReturnSystemError(interp);
-        goto vamoose;
-    }
-    objP = ObjFromByteArray(NULL, nout);
-    out = ObjToByteArray(objP, &nout);
-    if (! CryptVerifyMessageSignature(&param, signer_index, in, nin, out, &nout, certPP)) {
-        res = TwapiReturnSystemError(interp);
-        ObjDecrRefs(objP);
-        goto vamoose;
-    }
+    if (! CryptVerifyMessageSignature(&param, signer_index, in, nin, NULL, &nout, certPP))
+        goto system_error;
+
     if (nout == 0) {
         /* Actually the content may be either detached or the message
            may be just certs and crls without any content. For now
            treat as detached message and raise an error 
         */
-        ObjDecrRefs(objP);
         ObjSetStaticResult(interp, "No data found associated with signature. Use the detached message verification command instead.");
-        res = TCL_ERROR;
-        goto vamoose;
+        goto error_return;
     }
-    Tcl_SetByteArrayLength(objP, nout);
-    if (want_cert) {
-        Tcl_Obj *objs[2];
-        int nobjs = 1;
-        objs[0] = objP;
-        if (certP) {
-            TwapiRegisterPCCERT_CONTEXT(interp, certP);
-            objs[1] = ObjFromOpaque((void*)certP, "PCCERT_CONTEXT");
-            nobjs = 2;
+    /* Verified. If we need the content, need to call it again with a buffer */
+    if (contentVar && Tcl_GetStringFromObj(contentVar, &n) && n != 0) {
+        contentObj = ObjFromByteArray(NULL, nout);
+        out = ObjToByteArray(contentObj, &nout);
+        if (! CryptVerifyMessageSignature(&param, signer_index, in, nin, out, &nout, certPP))
+            goto system_error;
+        Tcl_SetByteArrayLength(contentObj, nout);
+        if (Tcl_ObjSetVar2(interp, contentVar, NULL, contentObj, TCL_LEAVE_ERR_MSG) == NULL)
+            goto error_return;
+    }
+    if (certPP) {
+        Tcl_Obj *certObj;
+        TwapiRegisterPCCERT_CONTEXTTic(ticP, certP);
+        certObj = ObjFromOpaque((void*)certP, "PCCERT_CONTEXT");
+        if (Tcl_ObjSetVar2(interp, certVar, NULL, certObj, TCL_LEAVE_ERR_MSG) == NULL) {
+            TwapiUnregisterPCCERT_CONTEXTTic(ticP, certP);
+            ObjDecrRefs(certObj);
+            goto error_return;
         }
-        ObjSetResult(interp, ObjNewList(nobjs, objs));
-    } else
-        ObjSetResult(interp, objP);
-     res = TCL_OK;
+    }
+    res = TCL_OK;
 
 vamoose:
     if (mark)
         MemLifoPopMark(mark);
     return res;
+
+system_error:
+    TwapiReturnSystemError(interp);
+error_return:
+    res = TCL_ERROR;
+    if (certPP && *certPP)
+        CertFreeCertificateContext(*certPP);
+    if (contentObj)
+        ObjDecrRefs(contentObj);
+    goto vamoose; 
 }
 
 static TCL_RESULT Twapi_CryptVerifyDetachedMessageSignatureObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    Tcl_Obj *signatureObj, *contentObj, *paramObj, *objP;
+    Tcl_Obj *signatureObj, *contentObj, *paramObj, *ObjP, *certVar;
     TCL_RESULT res;
-    int  i, nin, want_cert, ndata;
+    int  i, n, nin, ndata;
     Tcl_Obj **dataObjs;
     BYTE *in, *out, **dataPP;
     DWORD *datalenP;
@@ -3260,8 +3287,8 @@ static TCL_RESULT Twapi_CryptVerifyDetachedMessageSignatureObjCmd(TwapiInterpCon
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETOBJ(paramObj),
                      GETINT(signer_index), GETOBJ(signatureObj),
-                     GETOBJ(contentObj),
-                     GETBOOL(want_cert), ARGEND) != TCL_OK
+                     GETOBJ(contentObj), ARGUSEDEFAULT,
+                     GETOBJ(certVar), ARGEND) != TCL_OK
         || ParseCRYPT_VERIFY_MESSAGE_PARA(ticP, paramObj, &param) != TCL_OK
         || ObjGetElements(interp, contentObj, &ndata, &dataObjs) != TCL_OK) {
          res = TCL_ERROR;
@@ -3278,20 +3305,31 @@ static TCL_RESULT Twapi_CryptVerifyDetachedMessageSignatureObjCmd(TwapiInterpCon
     for (i = 0; i < ndata; ++i)
         dataPP[i] = ObjToByteArray(dataObjs[i], &datalenP[i]);
     
-    certPP = want_cert ? &certP : NULL;
+    if (certVar && Tcl_GetStringFromObj(certVar, &n) && n != 0)
+        certPP = &certP;
+    else
+        certPP = NULL;
+
     in = ObjToByteArray(signatureObj, &nin);
-    nout = 0;
     if (CryptVerifyDetachedMessageSignature(&param, signer_index, in, nin, 
                                             ndata, dataPP, datalenP, certPP)) {
         res = TwapiReturnSystemError(interp);
         goto vamoose;
     }
-    if (want_cert && certP) {
+    if (certPP) {
+        Tcl_Obj *certObj;
         TwapiRegisterPCCERT_CONTEXT(interp, certP);
-        ObjSetResult(interp, ObjFromOpaque((void*)certP, "PCCERT_CONTEXT"));
+        certObj = ObjFromOpaque((void*)certP, "PCCERT_CONTEXT");
+        if (Tcl_ObjSetVar2(interp, certVar, NULL, certObj, TCL_LEAVE_ERR_MSG) == NULL) {
+            TwapiUnregisterPCCERT_CONTEXTTic(ticP, certP);
+            ObjDecrRefs(certObj);
+            if (certP)
+                CertFreeCertificateContext(certP);
+            res = TCL_ERROR;
+            goto vamoose;
+        }
     }
     res = TCL_OK;
-
 vamoose:
     if (mark)
         MemLifoPopMark(mark);
