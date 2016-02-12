@@ -1982,8 +1982,9 @@ static TCL_RESULT Twapi_CryptSetProvParam(Tcl_Interp *interp,
     TCL_RESULT res;
     void *pv;
     HWND hwnd;
-    SECURITY_DESCRIPTOR *secdP;
-
+    SECURITY_DESCRIPTOR *secdP = NULL;
+    HCERTSTORE hstore;
+    
     switch (param) {
     case PP_CLIENT_HWND:
         if ((res = ObjToHWND(interp, objP, &hwnd)) != TCL_OK)
@@ -2003,6 +2004,14 @@ static TCL_RESULT Twapi_CryptSetProvParam(Tcl_Interp *interp,
         /* TBD - check what happens with NULL secdP (which is valid) */
         pv = secdP;
         break;
+    case 42: /* PP_USER_CERTSTORE - FALLTHRU. TBD - Tcl */
+    case 46: /* PP_ROOT_CERTSTORE. TBD - Tcl */
+        res = ObjToVerifiedPointer(interp, objP, &hstore, "HCERTSTORE", CertCloseStore);
+        if (res != TCL_OK)
+            return res;
+        pv = hstore;
+        break;
+        
 #ifdef PP_PIN_PROMPT_STRING
     case PP_PIN_PROMPT_STRING:
 #else
@@ -2022,7 +2031,8 @@ static TCL_RESULT Twapi_CryptSetProvParam(Tcl_Interp *interp,
         res = TwapiReturnSystemError(interp);
     }
 
-    TwapiFreeSECURITY_DESCRIPTOR(secdP); /* OK if NULL */
+    if (secdP)
+        TwapiFreeSECURITY_DESCRIPTOR(secdP); 
     
     return res;
 }
