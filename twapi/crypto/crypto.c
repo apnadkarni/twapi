@@ -8,7 +8,7 @@
 /* Interface to CryptoAPI */
 /*
  * TBD - GetCryptProvFromCert, CryptVerifyCertificateSignature(Ex),
- * TBD - CryptRetrieveObjectByUrl, Crypt(Ex|Im)portKey
+ * TBD - CryptRetrieveObjectByUrl
  */
 
 
@@ -4645,6 +4645,44 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             
         break;
         
+    case 10068: // CryptExportKey
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCRYPTKEY, CryptDestroyKey),
+                         GETVERIFIEDPTR(pv2, HCRYPTKEY, CryptDestroyKey),
+                         GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        dw3 = 0;
+        if (!CryptExportKey((HCRYPTKEY)pv, (HCRYPTKEY)pv2, dw, dw2, NULL, &dw3)) {
+            result.type = TRT_GETLASTERROR;
+            break;
+        }
+        s1Obj = ObjFromByteArray(NULL,dw3);
+        cP = ObjToByteArray(s1Obj, &dw3);
+        if (!CryptExportKey((HCRYPTKEY)pv, (HCRYPTKEY)pv2, dw, dw2, cP, &dw3)) {
+            result.value.ival = GetLastError(); /* Save before other calls */
+            result.type = TRT_EXCEPTION_ON_ERROR;
+            ObjDecrRefs(s1Obj);
+        } else {
+            result.value.obj = s1Obj;
+            result.type = TRT_OBJ;
+        }
+        break;
+                         
+    case 10069: // CryptImportKey
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
+                         GETOBJ(s1Obj),
+                         GETVERIFIEDPTR(pv2, HCRYPTKEY, CryptDestroyKey),
+                         GETINT(dw), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        cP = ObjToByteArray(s1Obj, &dw2);
+        if (CryptImportKey((HCRYPTPROV)pv, cP, dw2, (HCRYPTKEY)pv2, dw, &dwp)) {
+            TwapiRegisterHCRYPTKEY(interp, dwp);
+            TwapiResult_SET_PTR(result, HCRYPTKEY, (void*)dwp);
+        } else
+            result.type = TRT_GETLASTERROR;
+        break;
+
 #ifdef TBD
     case TBD: // CertCreateContext
         if (TwapiGetArgs(interp, objc, objv,
@@ -4967,6 +5005,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptDuplicateHash, 10065), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptGetHashParam, 10066), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptDeriveKey, 10067), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptExportKey, 10068), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptImportKey, 10069), // TBD Tcl
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
