@@ -75,6 +75,7 @@
 
 /* Define macros that affect structure sizes before any includes */
 #define CRYPT_DECRYPT_MESSAGE_PARA_HAS_EXTRA_FIELDS
+#define CRYPT_SIGN_MESSAGE_PARA_HAS_CMS_FIELDS
 
 #include <stddef.h>
 #include <stdlib.h>
