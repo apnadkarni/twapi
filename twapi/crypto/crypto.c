@@ -3253,6 +3253,52 @@ vamoose:
     return res;
 }
 
+static TCL_RESULT Twapi_CryptSignAndEncryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    Tcl_Obj *signparamObj, *encparamObj, *certsObj, *dataObj, *objP;
+    TCL_RESULT res;
+    int ncerts, nin, nout;
+    PCERT_CONTEXT *certsPP;
+    BYTE *in, *out;
+    CRYPT_SIGN_MESSAGE_PARA sign_param;
+    CRYPT_ENCRYPT_MESSAGE_PARA enc_param;
+    MemLifoMarkHandle mark = NULL;
+
+    mark = MemLifoPushMark(ticP->memlifoP);
+    if (TwapiGetArgsEx(ticP, objc-1, objv+1, GETOBJ(signparamObj),
+                       GETOBJ(encparamObj), GETOBJ(certsObj),
+                       GETOBJ(dataObj), ARGEND) != TCL_OK
+        || ParseCRYPT_SIGN_MESSAGE_PARA(ticP, signparamObj, &sign_param) != TCL_OK
+        || ParseCRYPT_ENCRYPT_MESSAGE_PARA(ticP, encparamObj, &enc_param) != TCL_OK
+        || ParsePCERT_CONTEXT_Array(ticP, certsObj, &ncerts, &certsPP) != TCL_OK) {
+        res = TCL_ERROR;
+    } else {
+        in = ObjToByteArray(dataObj, &nin);
+        nout = 0;
+        if (! CryptSignAndEncryptMessage(&sign_param, &enc_param, ncerts,
+                                         certsPP, in, nin, NULL, &nout)) {
+            res = TwapiReturnSystemError(interp);
+            goto vamoose;
+        }
+        objP = ObjFromByteArray(NULL, nout);
+        out = ObjToByteArray(objP, &nout);
+        if (! CryptSignAndEncryptMessage(&sign_param, &enc_param, ncerts,
+                                  certsPP, in, nin, out, &nout)) {
+            res = TwapiReturnSystemError(interp);
+            ObjDecrRefs(objP);
+            goto vamoose;
+        }
+        Tcl_SetByteArrayLength(objP, nout);
+        ObjSetResult(interp, objP);
+        res = TCL_OK;
+    }
+
+vamoose:
+    if (mark)
+        MemLifoPopMark(mark);
+    return res;
+}
+
 static TCL_RESULT Twapi_CryptDecryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     MemLifoMarkHandle mark = NULL;
@@ -4839,6 +4885,9 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptEncryptMessage, Twapi_CryptEncryptMessageObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptDecryptMessage, Twapi_CryptDecryptMessageObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptVerifyMessageSignature, Twapi_CryptVerifyMessageSignatureObjCmd), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptVerifyDetachedMessageSignature, Twapi_CryptVerifyDetachedMessageSignatureObjCmd), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptSignMessage, Twapi_CryptSignMessageObjCmd), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptSignAndEncryptMessage, Twapi_CryptSignAndEncryptMessageObjCmd), // TBD - Tcl
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
