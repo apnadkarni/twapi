@@ -1308,15 +1308,15 @@ proc twapi::crypt_set_security_descriptor {hprov secd} {
 }
 
 proc twapi::crypt_key_container_name {hprov} {
-    return [_ascii_binary_to_string [CryptGetProvParam $hprov 6 0]]
+    return [CryptGetProvParam $hprov 6 0]
 }
 
 proc twapi::crypt_key_container_unique_name {hprov} {
-    return [_ascii_binary_to_string [CryptGetProvParam $hprov 36 0]]
+    return [CryptGetProvParam $hprov 36 0]
 }
 
 proc twapi::crypt_csp {hprov} {
-    return [_ascii_binary_to_string [CryptGetProvParam $hprov 4 0]]
+    return [CryptGetProvParam $hprov 4 0]
 }
 
 proc twapi::crypt_csps {} {
@@ -1330,8 +1330,7 @@ proc twapi::crypt_csps {} {
 }
 
 proc twapi::crypt_csptype {hprov} {
-    binary scan [CryptGetProvParam $hprov 16 0] i i
-    return [_csp_type_id_to_name $i]
+    return [_csp_type_id_to_name [CryptGetProvParam $hprov 16 0]]
 }
 
 proc twapi::crypt_csptypes {} {
@@ -1349,18 +1348,15 @@ proc twapi::crypt_key_container_names {hprov} {
 }
 
 proc twapi::crypt_session_key_size {hprov} {
-    binary scan [CryptGetProvParam $hprov 20 0] i i
-    return $i
+    return [CryptGetProvParam $hprov 20 0]
 }
 
 proc twapi::crypt_keyset_type {hprov} {
-    binary scan [CryptGetProvParam $hprov 27 0] i i
-    return [expr {$i & 0x20 ? "machine" : "user"}]
+    return [expr {[CryptGetProvParam $hprov 27 0] & 0x20 ? "machine" : "user"}]
 }
 
 proc twapi::crypt_symmetric_key_size {hprov} {
-    binary scan [CryptGetProvParam $hprov 19 0] i i
-    return $i
+    return [CryptGetProvParam $hprov 19 0]
 }
 
 # TBD - document

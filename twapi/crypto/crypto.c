@@ -371,6 +371,20 @@ static Tcl_Obj *ObjFromCERT_SIMPLE_CHAIN(Tcl_Interp *interp,
     return ObjNewList(2, objs);
 }
 
+static Tcl_Obj *ObjFromPROV_ENUMALGS_EX(Tcl_Interp *interp,
+                                        PROV_ENUMALGS_EX *algsP)
+{
+    Tcl_Obj *objs[7];
+    objs[0] = ObjFromDWORD(algsP->aiAlgid);
+    objs[1] = ObjFromDWORD(algsP->dwDefaultLen);
+    objs[2] = ObjFromDWORD(algsP->dwMinLen);
+    objs[3] = ObjFromDWORD(algsP->dwMaxLen);
+    objs[4] = ObjFromDWORD(algsP->dwProtocols);
+    objs[5] = ObjFromString(algsP->szName);
+    objs[6] = ObjFromString(algsP->szLongName);
+    return ObjNewList(ARRAYSIZE(objs), objs);
+}
+
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParsePCERT_CONTEXT_Array(
     TwapiInterpContext *ticP,
@@ -2019,9 +2033,13 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
                                           DWORD param, DWORD flags)
 {
     Tcl_Obj *objP;
-    DWORD n;
+    DWORD n, dw;
+    GUID guid;
     void *pv;
+    HCERTSTORE hstore;
 
+    /* TBD - Tcl and docs for various parameters */
+    
     n = 0;
     /* Special case PP_ENUMCONTAINERS because of how the iteration
        works. We return ALL containers as opposed to one at a time */
@@ -2032,6 +2050,8 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
         pv = TwapiAlloc(n * sizeof(char));
         objP = Tcl_NewListObj(0, NULL);
         flags = CRYPT_FIRST;
+        /* !!!NOTE!!! - n will remain unchanged in the following call so do
+           NOT depend on that to determine length of string */
         while (CryptGetProvParam(hprov, param, pv, &n, flags)) {
             ObjAppendElement(NULL, objP, ObjFromString(pv));
             flags = CRYPT_NEXT;
@@ -2042,38 +2062,121 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
             ObjDecrRefs(objP);
             return Twapi_AppendSystemError(interp, n);
         }
-        ObjSetResult(interp, objP);
-        return TCL_OK;
+        return ObjSetResult(interp, objP);
+    }
+
+    /* Similarly, PP_ENUMALGS_EX also needs to be looped. */
+    if (param == PP_ENUMALGS_EX) {
+        PROV_ENUMALGS_EX algs;
+        flags = CRYPT_FIRST;
+        objP = Tcl_NewListObj(0, NULL);
+        n = sizeof(algs);
+        while (CryptGetProvParam(hprov, param, (BYTE*)&algs, &n, flags)) {
+            if (n != sizeof(algs)) {
+                ObjDecrRefs(objP);
+                return TwapiReturnError(interp, TWAPI_INVALID_DATA);
+            }
+            ObjAppendElement(NULL, objP, ObjFromPROV_ENUMALGS_EX(interp, &algs));
+            flags = CRYPT_NEXT;
+        }
+        n = GetLastError();
+        if (n != ERROR_NO_MORE_ITEMS) {
+            ObjDecrRefs(objP);
+            return Twapi_AppendSystemError(interp, n);
+        }
+        return ObjSetResult(interp, objP);
     }
     
+    /* Now deal with known size data so don't have to call twice */
+    switch (param) {
+    case PP_USE_HARDWARE_RNG:
+        n = 0;
+        dw = CryptGetProvParam(hprov, param, NULL, &n, 0);
+        return ObjSetResult(interp, ObjFromInt(dw ? 1 : 0));
+        
+    case PP_IMPTYPE:
+    case PP_KEYSET_TYPE:
+    case PP_KEYSPEC:
+    case PP_KEYSTORAGE:
+    case PP_KEYX_KEYSIZE_INC:
+    case PP_PROVTYPE:
+    case PP_SESSION_KEYSIZE:
+    case PP_SIG_KEYSIZE_INC:
+    case PP_SYM_KEYSIZE:
+    case PP_VERSION:
+        n = sizeof(dw);
+        if (! CryptGetProvParam(hprov, param, (BYTE*) &dw, &n, flags))
+            return TwapiReturnSystemError(interp);
+        if (n == sizeof(dw))
+            return ObjSetResult(interp, ObjFromDWORD(dw));
+        break; /* Size mismatch, fall through to handle as bytearray */
+
+    case 45: // PP_SMARTCARD_GUID
+        n = sizeof(guid);
+        if (! CryptGetProvParam(hprov, param, (BYTE*) &guid, &n, flags))
+            return TwapiReturnSystemError(interp);
+        if (n == sizeof(guid))
+            return ObjSetResult(interp, ObjFromGUID(&guid));
+        break; /* Size mismatch, fall through to handle as bytearray */
+
+    case 42: // PP_USER_CERTSTORE
+    case 46: // PP_ROOT_CERTSTORE
+        n = sizeof(HCERTSTORE);
+        if (! CryptGetProvParam(hprov, param, (BYTE*) &hstore, &n, flags))
+            return TwapiReturnSystemError(interp);
+        if (n == sizeof(hstore)) {
+            TwapiRegisterHCERTSTORE(interp, hstore);
+            return ObjSetResult(interp, ObjFromOpaque(hstore, "HCERTSTORE"));
+        }
+        break; /* Size mismatch, fall through to handle as bytearray */
+    }
+        
     if (! CryptGetProvParam(hprov, param, NULL, &n, flags))
         return TwapiReturnSystemError(interp);
     
-    if (param == PP_KEYSET_SEC_DESCR) {
-        objP = NULL;
-        pv = TwapiAlloc(n);
-    } else {
+    switch(param) {
+    case PP_ADMIN_PIN:
+    case PP_CONTAINER:
+    case PP_KEYEXCHANGE_PIN:
+    case PP_NAME:
+    case PP_SIGNATURE_PIN:
+    case 43: /* PP_SMARTCARD_READER */
+    case PP_UNIQUE_CONTAINER:
+    case PP_KEYSET_SEC_DESCR:
+        /* Return ASCII strings */
+        pv = ckalloc(n);
+        if (! CryptGetProvParam(hprov, param, pv, &n, flags)) {
+            TwapiReturnSystemError(interp);
+            ckfree(pv);
+            return TCL_ERROR;
+        }
+        if (param == PP_KEYSET_SEC_DESCR) {
+            if (n == 0)
+                objP = ObjFromEmptyString();
+            else
+                objP = ObjFromSECURITY_DESCRIPTOR(interp, pv);
+            ckfree(pv);
+            if (objP == NULL)
+                return TCL_ERROR;   /* interp already contains error */
+        } else {
+            objP = Tcl_NewObj();
+            Tcl_InvalidateStringRep(objP);
+            objP->bytes = pv;
+            objP->length = n-1;
+        }
+        break;
+
+    default: /* Treat as byte array */
         objP = ObjFromByteArray(NULL, n);
         pv = ObjToByteArray(objP, &n);
-    }
-
-    if (! CryptGetProvParam(hprov, param, pv, &n, flags)) {
-        if (objP)
+        if (! CryptGetProvParam(hprov, param, pv, &n, flags)) {
+            TwapiReturnSystemError(interp);
             ObjDecrRefs(objP);
-        TwapiReturnSystemError(interp);
-        return TCL_ERROR;
-    }
-
-    if (param == PP_KEYSET_SEC_DESCR) {
-        if (n == 0)
-            objP = ObjFromEmptyString();
-        else
-            objP = ObjFromSECURITY_DESCRIPTOR(interp, pv);
-        TwapiFree(pv);
-        if (objP == NULL)
-            return TCL_ERROR;   /* interp already contains error */
-    } else
+            return TCL_ERROR;
+        }
         Tcl_SetByteArrayLength(objP, n);
+        break;
+    }
 
     ObjSetResult(interp, objP);
     return TCL_OK;
@@ -2137,8 +2240,7 @@ static TCL_RESULT Twapi_CertOpenStore(Tcl_Interp *interp, int objc, Tcl_Obj *CON
     if (hstore) {
         /* CertCloseStore does not check pointer validity! So do ourselves*/
         TwapiRegisterHCERTSTORE(interp, hstore);
-        ObjSetResult(interp, ObjFromOpaque(hstore, "HCERTSTORE"));
-        return TCL_OK;
+        return ObjSetResult(interp, ObjFromOpaque(hstore, "HCERTSTORE"));
     } else {
         if (flags & CERT_STORE_DELETE_FLAG) {
             /* Return value can mean success as well */
