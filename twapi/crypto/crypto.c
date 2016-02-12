@@ -27,6 +27,11 @@ static TCL_RESULT ParseCERT_EXTENSIONS(
     DWORD *nextsP,
     CERT_EXTENSION **extsPP
     );
+static TCL_RESULT TwapiCryptEncodeObject(
+    TwapiInterpContext *ticP,
+    void *poid, /* Either a Tcl_Obj or a #define X509* int value */
+    Tcl_Obj *valObj,
+    CRYPT_OBJID_BLOB *blobP);
 static TCL_RESULT TwapiCryptDecodeObject(
     Tcl_Interp *interp,
     void *poid, /* Either a Tcl_Obj or a #define X509* int value */
@@ -367,6 +372,60 @@ static Tcl_Obj *ObjFromCERT_SIMPLE_CHAIN(Tcl_Interp *interp,
 }
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParsePCERT_CONTEXT_Array(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *certsObj,
+    int *countP,
+    PCCERT_CONTEXT **arrP
+    )
+{
+    Tcl_Obj **objs;
+    int nobjs, i;
+    PCERT_CONTEXT *certsPP;
+    if (ObjGetElements(ticP->interp, certsObj, &nobjs, &objs) != TCL_OK)
+        return TCL_ERROR;
+    if (nobjs == 0)
+        *arrP = NULL;
+    else {
+        certsPP = MemLifoAlloc(ticP->memlifoP, nobjs*sizeof(*certsPP), NULL);
+        for (i = 0; i < nobjs; ++i) {
+            if (ObjToVerifiedPointerTic(ticP, objs[i], &certsPP[i], "PCCERT_CONTEXT", CertFreeCertificateContext) != TCL_OK)
+                return TCL_ERROR;
+        }
+        *arrP = certsPP;
+    }
+    *countP = nobjs;
+    return TCL_OK;
+}
+
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParsePCRL_CONTEXT_Array(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *crlsObj,
+    int *countP,
+    PCCRL_CONTEXT **arrP
+    )
+{
+    Tcl_Obj **objs;
+    int nobjs, i;
+    PCRL_CONTEXT *crlsPP;
+    if (ObjGetElements(ticP->interp, crlsObj, &nobjs, &objs) != TCL_OK)
+        return TCL_ERROR;
+    if (nobjs == 0)
+        *arrP = NULL;
+    else {
+        crlsPP = MemLifoAlloc(ticP->memlifoP, nobjs*sizeof(*crlsPP), NULL);
+        for (i = 0; i < nobjs; ++i) {
+            if (ObjToVerifiedPointerTic(ticP, objs[i], &crlsPP[i], "PCCRL_CONTEXT", CertFreeCRLContext) != TCL_OK)
+                return TCL_ERROR;
+        }
+        *arrP = crlsPP;
+    }
+    *countP = nobjs;
+    return TCL_OK;
+}
+
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParseCRYPT_BLOB(
     TwapiInterpContext *ticP,
     Tcl_Obj *objP,
@@ -409,6 +468,68 @@ static TCL_RESULT ParseCRYPT_BIT_BLOB(
     }
     ObjSetStaticResult(interp, "Invalid CRYPT_BIT_BLOB structure");
     return TCL_ERROR;
+}
+
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParseCRYPT_ATTRIBUTE(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *attrObj,
+    CRYPT_ATTRIBUTE *attrP /* Will contain garbage in case of errors */
+    )
+{
+    Tcl_Obj **objs;
+    int       n, nobjs;
+    Tcl_Interp *interp = ticP->interp;
+    void *pv;
+
+    if (ObjGetElements(NULL, attrObj, &nobjs, &objs) == TCL_OK &&
+        nobjs == 2) {
+        Tcl_Obj **valObjs;
+        pv = ObjToStringN(objs[0], &n);
+        attrP->pszObjId = MemLifoCopy(ticP->memlifoP, pv, n+1);
+        if (ObjGetElements(NULL, objs[1], &nobjs, &valObjs) == TCL_OK) {
+            attrP->cValue = nobjs;
+            attrP->rgValue = MemLifoAlloc(ticP->memlifoP, nobjs*sizeof(*(attrP->rgValue)), NULL);
+            for (n = 0; n < nobjs; ++n) {
+                if (TwapiCryptEncodeObject(ticP, objs[0], valObjs[n], &attrP->rgValue[n]) != TCL_OK)
+                    goto error_return;
+            }
+            return TCL_OK;
+        }
+    }
+
+error_return:
+    Tcl_AppendResult(interp, "Invalid CRYPT_ATTRIBUTE structure", NULL);
+    return TCL_ERROR;
+}
+
+
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParseCRYPT_ATTRIBUTE_Array(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *attrsObj,
+    int *countP,
+    CRYPT_ATTRIBUTE **arrP
+    )
+{
+    Tcl_Obj **objs;
+    int nobjs, i;
+    CRYPT_ATTRIBUTE *attrsP;
+    
+    if (ObjGetElements(ticP->interp, attrsObj, &nobjs, &objs) != TCL_OK)
+        return TCL_ERROR;
+    if (nobjs == 0)
+        *arrP = NULL;
+    else {
+        attrsP = MemLifoAlloc(ticP->memlifoP, nobjs*sizeof(*attrsP), NULL);
+        for (i = 0; i < nobjs; ++i) {
+            if (ParseCRYPT_ATTRIBUTE(ticP, objs[i], &attrsP[i]) != TCL_OK)
+                return TCL_ERROR;
+        }
+        *arrP = attrsP;
+    }
+    *countP = nobjs;
+    return TCL_OK;
 }
 
 /* Returns CERT_ALT_NAME_ENTRY structure in *caneP
@@ -821,6 +942,57 @@ static TCL_RESULT ParseCRYPT_VERIFY_MESSAGE_PARA(
 }
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
+static TCL_RESULT ParseCRYPT_SIGN_MESSAGE_PARA(
+    TwapiInterpContext *ticP,
+    Tcl_Obj *objP,
+    CRYPT_SIGN_MESSAGE_PARA *csmP
+    )
+{
+    Tcl_Obj *algObj, *certsObj, *crlsObj;
+    Tcl_Obj *authattrsObj, *unauthattrsObj, *encalgObj;
+    
+    ZeroMemory(csmP, sizeof(*csmP));
+    if (TwapiGetArgsExObj(ticP, objP, GETINT(csmP->dwMsgEncodingType),
+                          GETVERIFIEDPTR(csmP->pSigningCert, PCCERT_CONTEXT, CertFreeCertificateContext),
+                          GETOBJ(algObj),
+                          ARGSKIP, /* pvHashAuxInfo - must be NULL */
+                          GETOBJ(certsObj),
+                          GETOBJ(crlsObj),
+                          GETOBJ(authattrsObj),
+                          GETOBJ(unauthattrsObj),
+                          GETINT(csmP->dwFlags),
+                          GETINT(csmP->dwInnerContentType),
+                          GETOBJ(encalgObj),
+                          ARGSKIP, /* pvHashEncryptionAuxInfo - must be NULL */
+                          ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    if (ParseCRYPT_ALGORITHM_IDENTIFIER(ticP, algObj,
+                                        &csmP->HashAlgorithm) != TCL_OK
+        ||
+        ParsePCERT_CONTEXT_Array(ticP, certsObj, 
+                                 &csmP->cMsgCert, &csmP->rgpMsgCert) != TCL_OK
+        ||
+        ParsePCRL_CONTEXT_Array(ticP, crlsObj, 
+                                 &csmP->cMsgCrl, &csmP->rgpMsgCrl) != TCL_OK
+        ||
+        ParseCRYPT_ATTRIBUTE_Array(ticP, authattrsObj, &csmP->cAuthAttr,
+                                   &csmP->rgAuthAttr) != TCL_OK
+        ||
+        ParseCRYPT_ATTRIBUTE_Array(ticP, unauthattrsObj, &csmP->cUnauthAttr,
+                                   &csmP->rgUnauthAttr) != TCL_OK
+        ||
+        ParseCRYPT_ALGORITHM_IDENTIFIER(ticP, encalgObj,
+                                        &csmP->HashEncryptionAlgorithm) != TCL_OK
+        )
+        return TCL_ERROR;
+
+    csmP->cbSize = sizeof(*csmP);
+    
+    return TCL_OK;
+}
+
+/* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParseCERT_PUBLIC_KEY_INFO(
     TwapiInterpContext *ticP,
     Tcl_Obj *pkObj,
@@ -1043,7 +1215,7 @@ static TCL_RESULT TwapiCryptDecodeObject(
             else if (STREQ(oid, szOID_POLICY_CONSTRAINTS))
                 dwoid = (DWORD_PTR) X509_POLICY_CONSTRAINTS;
             else if (STREQ(oid, szOID_POLICY_MAPPINGS))
-                dwoid = (DWORD_PTR) X509_POLICY_MAPPINGS;
+                 dwoid = (DWORD_PTR) X509_POLICY_MAPPINGS;
             else if (STREQ(oid, szOID_CRL_DIST_POINTS))
                 dwoid = (DWORD_PTR) X509_CRL_DIST_POINTS;
             else if (STREQ(oid, szOID_AUTHORITY_INFO_ACCESS))
@@ -1430,38 +1602,7 @@ static TCL_RESULT ParseCERT_INFO(
     return TCL_OK;
 }
 
-/* Note caller has to clean up ticP->memlifo irrespective of success/error */
-static TCL_RESULT ParseCRYPT_ATTRIBUTE(
-    TwapiInterpContext *ticP,
-    Tcl_Obj *attrObj,
-    CRYPT_ATTRIBUTE *attrP /* Will contain garbage in case of errors */
-    )
-{
-    Tcl_Obj **objs;
-    int       n, nobjs;
-    Tcl_Interp *interp = ticP->interp;
-    void *pv;
 
-    if (ObjGetElements(NULL, attrObj, &nobjs, &objs) == TCL_OK &&
-        nobjs == 2) {
-        Tcl_Obj **valObjs;
-        pv = ObjToStringN(objs[0], &n);
-        attrP->pszObjId = MemLifoCopy(ticP->memlifoP, pv, n+1);
-        if (ObjGetElements(NULL, objs[1], &nobjs, &valObjs) == TCL_OK) {
-            attrP->cValue = nobjs;
-            attrP->rgValue = MemLifoAlloc(ticP->memlifoP, nobjs*sizeof(*(attrP->rgValue)), NULL);
-            for (n = 0; n < nobjs; ++n) {
-                if (TwapiCryptEncodeObject(ticP, objs[0], valObjs[n], &attrP->rgValue[n]) != TCL_OK)
-                    goto error_return;
-            }
-            return TCL_OK;
-        }
-    }
-
-error_return:
-    Tcl_AppendResult(interp, "Invalid CRYPT_ATTRIBUTE structure", NULL);
-    return TCL_ERROR;
-}
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParseCERT_REQUEST_INFO(
@@ -1496,7 +1637,6 @@ static TCL_RESULT ParseCERT_REQUEST_INFO(
         }
         return TCL_OK;
     }
-
 
 error_return:
     Tcl_AppendResult(interp, "Invalid CERT_REQUEST_INFO structure", NULL);
@@ -2954,7 +3094,6 @@ static TCL_RESULT Twapi_CryptCATAdminEnumCatalogFromHashObjCmd(TwapiInterpContex
         }
     }
     
-vamoose:
     if (mark)
         MemLifoPopMark(mark);
     return res;
@@ -3076,8 +3215,7 @@ static TCL_RESULT Twapi_CryptEncryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_
 {
     Tcl_Obj *paramObj, *certsObj, *dataObj, *objP;
     TCL_RESULT res;
-    Tcl_Obj **certs;
-    int i, ncerts, nin, nout;
+    int ncerts, nin, nout;
     PCERT_CONTEXT *certsPP;
     BYTE *in, *out;
     CRYPT_ENCRYPT_MESSAGE_PARA param;
@@ -3088,35 +3226,25 @@ static TCL_RESULT Twapi_CryptEncryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_
                        GETOBJ(paramObj), GETOBJ(certsObj),
                        GETOBJ(dataObj), ARGEND) != TCL_OK
         || ParseCRYPT_ENCRYPT_MESSAGE_PARA(ticP, paramObj, &param) != TCL_OK
-        || ObjGetElements(interp, certsObj, &ncerts, &certs) != TCL_OK) {
+        || ParsePCERT_CONTEXT_Array(ticP, certsObj, &ncerts, &certsPP) != TCL_OK) {
         res = TCL_ERROR;
     } else {
-        if (ncerts == 0)
-            certsPP = NULL;
-        else {
-            certsPP = MemLifoAlloc(ticP->memlifoP, ncerts*sizeof(*certsPP), NULL);
-            for (i = 0; i < ncerts; ++i) {
-                res = ObjToVerifiedPointerTic(ticP, certs[i], &certsPP[i], "PCCERT_CONTEXT", CertFreeCertificateContext);
-                if (res != TCL_OK)
-                    goto vamoose;
-            }
-            in = ObjToByteArray(dataObj, &nin);
-            nout = 0;
-            if (! CryptEncryptMessage(&param, ncerts, certsPP, in, nin, NULL, &nout)) {
-                res = TwapiReturnSystemError(interp);
-                goto vamoose;
-            }
-            objP = ObjFromByteArray(NULL, nout);
-            out = ObjToByteArray(objP, &nout);
-            if (! CryptEncryptMessage(&param, ncerts, certsPP, in, nin, out, &nout)) {
-                res = TwapiReturnSystemError(interp);
-                ObjDecrRefs(objP);
-                goto vamoose;
-            }
-            Tcl_SetByteArrayLength(objP, nout);
-            ObjSetResult(interp, objP);
-            res = TCL_OK;
+        in = ObjToByteArray(dataObj, &nin);
+        nout = 0;
+        if (! CryptEncryptMessage(&param, ncerts, certsPP, in, nin, NULL, &nout)) {
+            res = TwapiReturnSystemError(interp);
+            goto vamoose;
         }
+        objP = ObjFromByteArray(NULL, nout);
+        out = ObjToByteArray(objP, &nout);
+        if (! CryptEncryptMessage(&param, ncerts, certsPP, in, nin, out, &nout)) {
+            res = TwapiReturnSystemError(interp);
+            ObjDecrRefs(objP);
+            goto vamoose;
+        }
+        Tcl_SetByteArrayLength(objP, nout);
+        ObjSetResult(interp, objP);
+        res = TCL_OK;
     }
 
 vamoose:
@@ -3130,7 +3258,7 @@ static TCL_RESULT Twapi_CryptDecryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_
     MemLifoMarkHandle mark = NULL;
     Tcl_Obj *paramObj, *dataObj, *objP, *certVar;
     TCL_RESULT res;
-    int  n, nin, nout, want_cert;
+    int  n, nin, nout;
     BYTE *in, *out;
     CRYPT_DECRYPT_MESSAGE_PARA param;
     PCCERT_CONTEXT certP, *certPP;
@@ -3272,11 +3400,11 @@ error_return:
 
 static TCL_RESULT Twapi_CryptVerifyDetachedMessageSignatureObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    Tcl_Obj *signatureObj, *contentObj, *paramObj, *ObjP, *certVar;
+    Tcl_Obj *sigObj, *contentObj, *paramObj, *certVar;
     TCL_RESULT res;
     int  i, n, nin, ndata;
     Tcl_Obj **dataObjs;
-    BYTE *in, *out, **dataPP;
+    BYTE *in, **dataPP;
     DWORD *datalenP;
     CRYPT_VERIFY_MESSAGE_PARA param;
     DWORD signer_index;
@@ -3286,7 +3414,7 @@ static TCL_RESULT Twapi_CryptVerifyDetachedMessageSignatureObjCmd(TwapiInterpCon
     mark = MemLifoPushMark(ticP->memlifoP);
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETOBJ(paramObj),
-                     GETINT(signer_index), GETOBJ(signatureObj),
+                     GETINT(signer_index), GETOBJ(sigObj),
                      GETOBJ(contentObj), ARGUSEDEFAULT,
                      GETOBJ(certVar), ARGEND) != TCL_OK
         || ParseCRYPT_VERIFY_MESSAGE_PARA(ticP, paramObj, &param) != TCL_OK
@@ -3300,17 +3428,18 @@ static TCL_RESULT Twapi_CryptVerifyDetachedMessageSignatureObjCmd(TwapiInterpCon
         goto vamoose;
     }
 
-    dataPP = MemLifoAlloc(ticP->memlifoP, ndata*sizeof(*dataPP), NULL);
-    datalenP = MemLifoAlloc(ticP->memlifoP, ndata*sizeof(*datalenP), NULL);
-    for (i = 0; i < ndata; ++i)
-        dataPP[i] = ObjToByteArray(dataObjs[i], &datalenP[i]);
-    
     if (certVar && Tcl_GetStringFromObj(certVar, &n) && n != 0)
         certPP = &certP;
     else
         certPP = NULL;
 
-    in = ObjToByteArray(signatureObj, &nin);
+    /* To avoid shimmering issues, extract byte arrays after other objects */
+    dataPP = MemLifoAlloc(ticP->memlifoP, ndata*sizeof(*dataPP), NULL);
+    datalenP = MemLifoAlloc(ticP->memlifoP, ndata*sizeof(*datalenP), NULL);
+    for (i = 0; i < ndata; ++i)
+        dataPP[i] = ObjToByteArray(dataObjs[i], &datalenP[i]);
+    
+    in = ObjToByteArray(sigObj, &nin);
     if (CryptVerifyDetachedMessageSignature(&param, signer_index, in, nin, 
                                             ndata, dataPP, datalenP, certPP)) {
         res = TwapiReturnSystemError(interp);
@@ -3336,6 +3465,61 @@ vamoose:
     return res;
 }
 
+static TCL_RESULT Twapi_CryptSignMessageObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    Tcl_Obj *sigObj, *contentObj, *paramObj;
+    TCL_RESULT res;
+    int  i, nsig, ndata;
+    Tcl_Obj **dataObjs;
+    BYTE *sig, **dataPP;
+    DWORD *datalenP;
+    int detached;
+    CRYPT_SIGN_MESSAGE_PARA param;
+    MemLifoMarkHandle mark = NULL;
+
+    mark = MemLifoPushMark(ticP->memlifoP);
+
+    if (TwapiGetArgs(interp, objc-1, objv+1, GETOBJ(paramObj),
+                     GETBOOL(detached), GETOBJ(sigObj),
+                     GETOBJ(contentObj), ARGEND) != TCL_OK
+        || ParseCRYPT_SIGN_MESSAGE_PARA(ticP, paramObj, &param) != TCL_OK
+        || ObjGetElements(interp, contentObj, &ndata, &dataObjs) != TCL_OK) {
+         res = TCL_ERROR;
+         goto vamoose;
+    }
+
+    if (ndata == 0) {
+        res = TwapiReturnError(interp, TWAPI_INVALID_DATA);
+        goto vamoose;
+    }
+
+    /* To avoid shimmering issues, extract byte arrays after other objects */
+    dataPP = MemLifoAlloc(ticP->memlifoP, ndata*sizeof(*dataPP), NULL);
+    datalenP = MemLifoAlloc(ticP->memlifoP, ndata*sizeof(*datalenP), NULL);
+    for (i = 0; i < ndata; ++i)
+        dataPP[i] = ObjToByteArray(dataObjs[i], &datalenP[i]);
+
+    nsig = 0;
+    if (!CryptSignMessage(&param, detached, ndata, dataPP, datalenP,
+                          NULL, &nsig)) {
+        res = TwapiReturnSystemError(interp);
+        goto vamoose;
+    }
+    sigObj = ObjFromByteArray(NULL, nsig);
+    sig = ObjToByteArray(sigObj, &nsig);
+    if (!CryptSignMessage(&param, detached, ndata, dataPP, datalenP,
+                          sig, &nsig)) {
+        res = TwapiReturnSystemError(interp);
+        ObjDecrRefs(sigObj);
+        goto vamoose;
+    }
+    Tcl_SetByteArrayLength(sigObj, nsig);
+    res = ObjSetResult(interp, sigObj);
+vamoose:
+    if (mark)
+        MemLifoPopMark(mark);
+    return res;
+}
 
 static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
