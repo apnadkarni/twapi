@@ -108,6 +108,37 @@ static BOOL WINAPI TwapiCryptCATAdminReleaseContext(HCATADMIN h)
     return CryptCATAdminReleaseContext(h, 0);
 }
 
+#ifdef TBD
+/* Not clear how this is used */
+
+/* GetCryptProvFromCert has no link library and has to be explicitly loaded */
+typedef BOOL (WINAPI *GetCryptProvFromCert_t)(HWND, PCCERT_CONTEXT,
+                                              HCRYPTPROV*, DWORD*, BOOL*,
+                                              LPWSTR*, LPWSTR*, DWORD*);
+MAKE_DYNLOAD_FUNC(GetCryptProvFromCert, mssign32, GetCryptProvFromCert_t)
+static BOOL TwapiGetCryptProvFromCert(
+  HWND           hwnd,
+  PCCERT_CONTEXT pCert,
+  HCRYPTPROV     *phCryptProv,
+  DWORD          *pdwKeySpec,
+  BOOL           *pfDidCryptAcquire,
+  LPWSTR         *ppwszTmpContainer,
+  LPWSTR         *ppwszProviderName,
+  DWORD          *pdwProviderType
+)
+{
+    GetCryptProvFromCert_t GetCryptProvFromCertPtr = Twapi_GetProc_GetCryptProvFromCert();
+
+    if (GetCryptProvFromCertPtr == NULL) {
+        SetLastError(ERROR_PROC_NOT_FOUND);
+        return ERROR_PROC_NOT_FOUND;
+    }
+
+    return (*GetCryptProvFromCertPtr)(hwnd, pCert, phCryptProv, pdwKeySpec,
+                                      pfDidCryptAcquire, ppwszTmpContainer,
+                                      ppwszProviderName, pdwProviderType);
+}
+#endif /* TBD */
 
 /* RtlGenRandom in base provides this but this is much faster if already have
    a HCRYPTPROV 
