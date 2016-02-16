@@ -1646,10 +1646,10 @@ The certificate that can be marked for use as a CA is being used
 as a leaf or vice-versa.
 [list_end]
 
-[call [cmd crypt_acquire] [arg KEYCONTAINER] [opt [arg options]]]
+[call [cmd crypt_acquire] [opt [arg KEYCONTAINER]] [opt [arg options]]]
 Returns a handle to a cryptographic context for the specified key container
-in a [uri #cryptographicserviceproviders CSP]. 
-If [arg KEYCONTAINER] is the empty string, the default container
+in a [uri #cryptographicserviceproviders CSP]. If [arg KEYCONTAINER]
+is unspecified or is the empty string, the default container
 for the CSP is used.
 [nl]
 The handle must be freed
@@ -1676,13 +1676,15 @@ for any information that may be required to create the context. If this
 option is specified as [const true], the user is never prompted. Instead
 the command will raise an error if a user prompt was required.
 [opt_def [cmd -verifycontext] [arg BOOLEAN]] If specified as [const true],
-the context is intended for use with ephemeral keys which are not persisted.
-Default is [const false]. When [const true], [cmd -keycontainer] must
-not be specified if the CSP is file-based. If specified as [const false],
-the returned context provides access to persisted private keys in the
-container. Specifying this option as [const true] results in a key container
-being created in memory and deleted when the cryptographic context is
-released. See the [uri http://support.microsoft.com/kb/238187 "Microsoft knowledgebase"] article for more details.
+(default), the context is intended for use for operations that are using
+ephemeral keys or which do not
+need access to private keys. Such operations include hashing, encrypting
+and signature verification. Operations involving decryption and signing
+require private keys and should set this option to [const false].
+If [arg KEYCONTAINER] is not specified
+or is specified as an empty string denoting the default key container,
+this option must not be [const false].
+See the [uri http://support.microsoft.com/kb/238187 "Microsoft knowledgebase"] article for more details.
 
 [list_end]
 

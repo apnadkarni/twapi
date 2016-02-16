@@ -1199,24 +1199,29 @@ proc twapi::cert_request_create {subject hprov keyspec args} {
 ################################################################
 # Cryptographic context commands
 
-proc twapi::crypt_acquire {keycontainer args} {
+proc twapi::crypt_acquire {args} {
+    # Backward compatibility - keycontainer can be specified as first arg
+    if {[llength $args] &  1} {
+        set args [lassign $args keycontainer]
+    } else {
+        set keycontainer ""
+    }
+    
     parseargs args {
-        csp.arg
+        {csp.arg {}}
         {csptype.arg prov_rsa_full}
         {keysettype.arg user {user machine}}
         {create.bool 0 0x8}
         {silent.bool 0 0x40}
-        {verifycontext.bool 0 0xf0000000}
-    } -maxleftover 0 -nulldefault -setvars
-    
-    # Based on http://support.microsoft.com/kb/238187, if verifycontext
-    # is not specified, default container must not be used as keys
-    # from different applications might overwrite. The docs for
-    # CryptAcquireContext say keycontainer must be empty if verifycontext
-    # is specified. Thus they are mutually exclusive.
+        {verifycontext.bool 1 0xf0000000}
+    } -maxleftover 0 -setvars
+
     if {! $verifycontext} {
+        # Based on http://support.microsoft.com/kb/238187, if verifycontext
+        # is not specified, default container must not be used as keys
+        # from different applications might overwrite.
         if {$keycontainer eq ""} {
-            badargs! "Option -verifycontext must be specified for the default key container."
+            badargs! "Option -verifycontext must be true for the default key container."
         }
     }
 
