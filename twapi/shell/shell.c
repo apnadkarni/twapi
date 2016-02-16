@@ -59,7 +59,7 @@ int Twapi_GetShellVersion(Tcl_Interp *interp)
 */
 typedef HRESULT (WINAPI *SHGetFolderPathW_t)(HWND, int, HANDLE, DWORD, LPWSTR);
 MAKE_DYNLOAD_FUNC(SHGetFolderPathW, shell32, SHGetFolderPathW_t)
-HRESULT Twapi_SHGetFolderPath(
+static HRESULT Twapi_SHGetFolderPath(
     HWND hwndOwner,
     int nFolder,
     HANDLE hToken,
@@ -80,7 +80,7 @@ HRESULT Twapi_SHGetFolderPath(
 typedef BOOL (WINAPI *SHObjectProperties_t)(HWND, DWORD, PCWSTR, PCWSTR);
 MAKE_DYNLOAD_FUNC(SHObjectProperties, shell32, SHObjectProperties_t)
 MAKE_DYNLOAD_FUNC_ORDINAL(178, shell32)
-BOOL Twapi_SHObjectProperties(
+static BOOL Twapi_SHObjectProperties(
     HWND hwnd,
     DWORD dwType,
     LPCWSTR szObject,
@@ -113,9 +113,6 @@ BOOL Twapi_SHObjectProperties(
 
     return (*fnSHObjectProperties)(hwnd, dwType, szObject, szPage);
 }
-
-
-
 
 // Create a shell link
 static TCL_RESULT Twapi_WriteShortcutObjCmd(
