@@ -88,7 +88,7 @@ hardware based cryptography is desired.
 [para]
 The commands
 [uri #csps [cmd csps]] and 
-[uri #csptypes [cmd csptypes]] 
+[uri #csp_types [cmd csp_types]] 
 return the list of CSP's and CSP types on the system.
 
 [section "Keys and key containers"]
@@ -156,10 +156,13 @@ be retrieved.
 [opt_def [uri #crypt_algorithms [cmd crypt_algorithms]]]
 Returns the list of algorithms implemented in the context.
 [opt_def [uri #crypt_csp [cmd crypt_csp]]]
-Returns the name
-of the owning CSP.
-[opt_def [uri #crypt_csptype [cmd crypt_csptype]]]
+Returns the name of the owning CSP.
+[opt_def [uri #crypt_csp_type [cmd crypt_csp_type]]]
 Returns the type of the CSP.
+[opt_def [uri #crypt_csp_version [cmd crypt_csp_version]]]
+Returns the version of the owning CSP.
+[opt_def [uri #crypt_exchangekey_size_increment [cmd crypt_exchangekey_size_increment]]]
+Returns the valid increments for the key exchange key sizes.
 [opt_def [uri #crypt_implementation_type [cmd crypt_implementation_type]]]
 Returns the implementation type (hardware, software etc.) of the context.
 [opt_def [uri #crypt_key_container_name [cmd crypt_key_container_name]]]
@@ -168,8 +171,6 @@ Returns the name of key container currently associated with the context.
 Returns the names of the other key containers owned by the CSP.
 [opt_def [uri #crypt_key_specifiers [cmd crypt_key_specifiers]]]
 Returns the key specifiers supported by the context.
-[opt_def [uri #crypt_keyexchange_size_increment [cmd crypt_keyexchange_size_increment]]]
-Returns the valid increments for the key exchange key sizes.
 [opt_def [uri #crypt_keypair [cmd crypt_keypair]]]
 Returns a handle to
 one of the key pairs in the container.
@@ -177,6 +178,8 @@ one of the key pairs in the container.
 Returns whether the key set in the container is per-user or per-machine.
 [opt_def [uri #crypt_session_key_size [cmd crypt_session_key_size]]]
 Returns the size of the session key.
+[opt_def [uri #crypt_signaturekey_size_increment [cmd crypt_signaturekey_size_increment]]]
+Returns the valid increments for the signature key sizes.
 [opt_def [uri #crypt_symmetric_key_size [cmd crypt_symmetric_key_size]]]
 Returns the size of the symmetric key.
 [list_end]
@@ -1716,8 +1719,16 @@ and [const tls1].
 [call [cmd crypt_csp] [arg HCRYPT]]
 Returns the name of the CSP owning the cryptographic context [arg HCRYPT].
 
-[call [cmd crypt_csptype] [arg HCRYPT]]
+[call [cmd crypt_csp_type] [arg HCRYPT]]
 Returns the type of the CSP owning the cryptographic context [arg HCRYPT].
+
+[call [cmd crypt_exchangekey_size_increment] [arg HCRYPT]]
+Returns the number of bits by which the key exchange key size can
+be incremented. The [uri #crypt_algorithms [cmd crypt_algorithms]]
+command returns the minimum and maximum key lengths for each algorithm
+in the context. This command returns the valid increments between
+the minimum and maximum values for the key exchange algorithm for
+the context.
 
 [call [cmd crypt_free] [arg HCRYPT]]
 Frees a cryptographic context returned by
@@ -1798,14 +1809,6 @@ Returns the key specifiers supported by the context. This is a list from
 zero or more values from [const keyexchange] and [const signature].
 Applications should be aware other values might be returned as well.
 
-[call [cmd crypt_keyexchange_size_increment] [arg HCRYPT]]
-Returns the number of bits by which the key exchange key size can
-be incremented. The [uri #crypt_algorithms [cmd crypt_algorithms]]
-command returns the minimum and maximum key lengths for each algorithm
-in the context. This command returns the valid increments between
-the minimum and maximum values for the key exchange algorithm for
-the context.
-
 [call [cmd crypt_keypair] [arg HCRYPT] [arg keytype]]
 Returns a handle to one of two public/private key pairs in a key container.
 [arg HCRYPT] is a handle to the CSP key container. [arg keytype] must be either
@@ -1827,16 +1830,24 @@ associated with a CSP key container whose handle is [arg HCRYPT].
 [call [cmd crypt_session_key_size] [arg HCRYPT]]
 Returns the size of the session key in the container.
 
+[call [cmd crypt_signaturekey_size_increment] [arg HCRYPT]]
+Returns the number of bits by which the signature key size can
+be incremented. The [uri #crypt_algorithms [cmd crypt_algorithms]]
+command returns the minimum and maximum key lengths for each algorithm
+in the context. This command returns the valid increments between
+the minimum and maximum values for the signature algorithm for
+the context.
+
 [call [cmd crypt_symmetric_key_size] [arg HCRYPT]]
 Returns the size of the symmetric key in the container.
 
-[call [cmd csps]]
-Returns a list of pairs, each representing a CSP on the system.
+[call [cmd csp_types]]
+Returns a list of pairs, each representing a CSP type on the system.
 The first element of each pair is a CSP type 
 and the second is the name of the CSP.
 
-[call [cmd csptypes]]
-Returns a list of pairs, each representing a CSP type on the system.
+[call [cmd csps]]
+Returns a list of pairs, each representing a CSP on the system.
 The first element of each pair is a CSP type 
 and the second is the name of the CSP.
 
