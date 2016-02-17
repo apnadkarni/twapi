@@ -3203,6 +3203,29 @@ namespace eval twapi::crypto::test {
         twapi::crypt_key_container_delete $container
     } -result {Microsoft Strong Cryptographic Provider}
 
+
+    ################################################################
+
+    test crypt_algorithms-1.0 {
+        Get Crypt algorithms
+    } -setup {
+        unset -nocomplain algs
+        set crypt [twapi::crypt_acquire]
+    } -body {
+        set l [twapi::crypt_algorithms $crypt]
+        verify_list_kl_fields $l {algid defkeylen minkeylen maxkeylen protocols name description}
+        foreach e $l {
+            if {[dict get $e defkeylen] > [dict get $e maxkeylen] ||
+                [dict get $e defkeylen] < [dict get $e minkeylen]} {
+                error "Invalid key length fields for [dict get $e name]"
+            }
+            set algs([dict get $e name]) $e
+        }
+        list [dict get $algs(RSA_KEYX) algid] [dict get $algs(RSA_KEYX) defkeylen] [dict get $algs(RSA_KEYX) minkeylen] [dict get $algs(RSA_KEYX) maxkeylen] [dict get $algs(RSA_KEYX) protocols] [dict get $algs(RSA_KEYX) description]
+    } -cleanup {
+        twapi::crypt_free $crypt
+    } -result {41984 1024 384 16384 {ipsec signing} {RSA Signature}}
+    
     ################################################################
 
     test crypt_csps-1.0 {
