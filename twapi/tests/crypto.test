@@ -3226,6 +3226,30 @@ namespace eval twapi::crypto::test {
         twapi::crypt_free $crypt
     } -result {41984 1024 384 16384 {ipsec signing} {RSA Signature}}
     
+    test crypt_implementation_type-1.0 {Get crypt implementation} -setup {
+        set crypt [twapi::crypt_acquire]
+    } -body {
+        twapi::crypt_implementation_type $crypt
+    } -cleanup {
+        twapi::crypt_free $crypt
+    } -result software
+    
+    test crypt_key_specifiers-1.0 {Get crypt key specifiers} -setup {
+        set crypt [twapi::crypt_acquire]
+    } -body {
+        twapi::crypt_key_specifiers $crypt
+    } -cleanup {
+        twapi::crypt_free $crypt
+    } -result {keyexchange signature}
+    
+    test crypt_keyexchange_size_increment {Get crypt keyx size incr} -setup {
+        set crypt [twapi::crypt_acquire]
+    } -body {
+        twapi::crypt_keyexchange_size_increment $crypt
+    } -cleanup {
+        twapi::crypt_free $crypt
+    } -result 8
+    
     ################################################################
 
     test csps-1.0 {

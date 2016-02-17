@@ -2079,8 +2079,6 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
     void *pv;
     HCERTSTORE hstore;
 
-    /* TBD - Tcl and docs for various parameters */
-    
     n = 0;
     /* Special case PP_ENUMCONTAINERS because of how the iteration
        works. We return ALL containers as opposed to one at a time */
@@ -2130,15 +2128,15 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
     
     /* Now deal with known size data so don't have to call twice */
     switch (param) {
-    case PP_USE_HARDWARE_RNG:
+    case PP_USE_HARDWARE_RNG: /* TBD - Tcl and docs */
         n = 0;
         dw = CryptGetProvParam(hprov, param, NULL, &n, 0);
         return ObjSetResult(interp, ObjFromInt(dw ? 1 : 0));
         
-    case PP_IMPTYPE:
+    case PP_IMPTYPE: /* TBD - Tcl */
     case PP_KEYSET_TYPE:
     case PP_KEYSPEC:
-    case PP_KEYSTORAGE:
+    case PP_KEYSTORAGE: /* TBD - Tcl */
     case PP_KEYX_KEYSIZE_INC:
     case PP_PROVTYPE:
     case PP_SESSION_KEYSIZE:
