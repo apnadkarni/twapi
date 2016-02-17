@@ -87,10 +87,9 @@ hardware based cryptography is desired.
 
 [para]
 The commands
-[uri #crypt_csps [cmd crypt_csps]] and 
-[uri #crypt_csptypes [cmd crypt_csptypes]] 
+[uri #csps [cmd csps]] and 
+[uri #csptypes [cmd csptypes]] 
 return the list of CSP's and CSP types on the system.
-
 
 [section "Keys and key containers"]
 The keys used for cryptographic operations are stored in 
@@ -153,30 +152,33 @@ in further cryptographic operation.
 [para]
 Once a context is created, the various parameters associated with it can
 be retrieved.
-[list_begin bullet]
-[bullet]
-[uri #crypt_csp [cmd crypt_csp]] returns the name
+[list_begin opt]
+[opt_def [uri #crypt_algorithms [cmd crypt_algorithms]]]
+Returns the list of algorithms implemented in the context.
+[opt_def [uri #crypt_csp [cmd crypt_csp]]]
+Returns the name
 of the owning CSP.
-[bullet]
-[uri #crypt_csptype [cmd crypt_csptype]] returns the type
-of the CSP.
-[bullet]
-[uri #crypt_key_container_name [cmd crypt_key_container_name]]
-returns the name of key container currently associated with the context.
-[bullet]
-[uri #crypt_key_container_names [cmd crypt_key_container_names]]
-returns the names of the other key containers owned by the CSP.
-[bullet]
-[uri #crypt_keypair [cmd crypt_keypair]] returns a handle to
+[opt_def [uri #crypt_csptype [cmd crypt_csptype]]]
+Returns the type of the CSP.
+[opt_def [uri #crypt_implementation_type [cmd crypt_implementation_type]]]
+Returns the implementation type (hardware, software etc.) of the context.
+[opt_def [uri #crypt_key_container_name [cmd crypt_key_container_name]]]
+Returns the name of key container currently associated with the context.
+[opt_def [uri #crypt_key_container_names [cmd crypt_key_container_names]]]
+Returns the names of the other key containers owned by the CSP.
+[opt_def [uri #crypt_key_specifiers [cmd crypt_key_specifiers]]]
+Returns the key specifiers supported by the context.
+[opt_def [uri #crypt_keyexchange_size_increment [cmd crypt_keyexchange_size_increment]]]
+Returns the valid increments for the key exchange key sizes.
+[opt_def [uri #crypt_keypair [cmd crypt_keypair]]]
+Returns a handle to
 one of the key pairs in the container.
-[bullet]
-[uri #crypt_keyset_type [cmd crypt_keyset_type]] returns
-whether the key set in the container is per-user or per-machine.
-[uri #crypt_session_key_size [cmd crypt_session_key_size]] 
-and
-[uri #crypt_symmetric_key_size [cmd crypt_symmetric_key_size]]
-return the size of the keys in the container.
-
+[opt_def [uri #crypt_keyset_type [cmd crypt_keyset_type]]]
+Returns whether the key set in the container is per-user or per-machine.
+[opt_def [uri #crypt_session_key_size [cmd crypt_session_key_size]]]
+Returns the size of the session key.
+[opt_def [uri #crypt_symmetric_key_size [cmd crypt_symmetric_key_size]]]
+Returns the size of the symmetric key.
 [list_end]
 
 When no longer needed, cryptographic contexts must be freed with
@@ -1725,6 +1727,12 @@ Frees a cryptographic context returned by
 Returns the [uri security.html#securitydescriptors "security descriptor"]
 associated with a CSP key container whose handle is [arg HCRYPT].
 
+[call [cmd crypt_implementation_type] [arg HCRYPT]]
+Returns the implementation type of the context. This is one of the
+values [const software], [const hardware], [const removable], [const mixed]
+(combination of the others), or [const unknown]. Applications should be
+aware other values might be returned as well.
+
 [call [cmd crypt_key_container_delete] [arg KEYCONTAINER] [opt [arg options]]]
 Deletes the key container identified by the specified options.
 [arg KEYCONTAINER] specifies the name of the key container to be deleted in
@@ -1784,6 +1792,19 @@ Microsoft recommends key size be explicitly set.
 
 The returned handle must be freed by calling
 [uri #crypt_key_free [cmd crypt_key_free]].
+
+[call [cmd crypt_key_specifiers] [arg HCRYPT]]
+Returns the key specifiers supported by the context. This is a list from
+zero or more values from [const keyexchange] and [const signature].
+Applications should be aware other values might be returned as well.
+
+[call [cmd crypt_keyexchange_size_increment] [arg HCRYPT]]
+Returns the number of bits by which the key exchange key size can
+be incremented. The [uri #crypt_algorithms [cmd crypt_algorithms]]
+command returns the minimum and maximum key lengths for each algorithm
+in the context. This command returns the valid increments between
+the minimum and maximum values for the key exchange algorithm for
+the context.
 
 [call [cmd crypt_keypair] [arg HCRYPT] [arg keytype]]
 Returns a handle to one of two public/private key pairs in a key container.

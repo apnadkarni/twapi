@@ -27,7 +27,10 @@ Added [uri crypto.html#asn1_encode_string [cmd asn1_encode_string]] and
 [uri crypto.html#asn1_decode_string [cmd asn1_decode_string]].
 
 [bullet]
-Added [uri crypto.html#crypt_algorithms [cmd crypt_algorithms]].
+Added [uri crypto.html#crypt_algorithms [cmd crypt_algorithms]],
+[uri crypto.html#crypt_key_specifiers [cmd crypt_key_specifiers]],
+[uri crypto.html#crypt_keyexchange_size_increment [cmd crypt_keyexchange_size_increment]],
+[uri crypto.html#crypt_implementation_type [cmd crypt_implementation_type]].
 
 [bullet]
 [emph "Deprecated"]
