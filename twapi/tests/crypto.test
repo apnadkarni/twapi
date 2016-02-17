@@ -3242,18 +3242,18 @@ namespace eval twapi::crypto::test {
         twapi::crypt_free $crypt
     } -result {keyexchange signature}
     
-    test crypt_signaturekey_size_increment {Get crypt sig size incr} -setup {
+    test crypt_sig_keysize_increment {Get crypt sig size incr} -setup {
         set crypt [twapi::crypt_acquire]
     } -body {
-        twapi::crypt_signaturekey_size_increment $crypt
+        twapi::crypt_sig_keysize_increment $crypt
     } -cleanup {
         twapi::crypt_free $crypt
     } -result 8
     
-    test crypt_exchangekey_size_increment {Get crypt keyx size incr} -setup {
+    test crypt_keyx_keysize_increment {Get crypt keyx size incr} -setup {
         set crypt [twapi::crypt_acquire]
     } -body {
-        twapi::crypt_exchangekey_size_increment $crypt
+        twapi::crypt_keyx_keysize_increment $crypt
     } -cleanup {
         twapi::crypt_free $crypt
     } -result 8

@@ -2179,7 +2179,7 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
     case PP_KEYEXCHANGE_PIN:
     case PP_NAME:
     case PP_SIGNATURE_PIN:
-    case 43: /* PP_SMARTCARD_READER */
+    case 43: /* PP_SMARTCARD_READER, TBD Tcl */
     case PP_UNIQUE_CONTAINER:
     case PP_KEYSET_SEC_DESCR:
         /* Return ASCII strings */
@@ -2205,6 +2205,7 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
         }
         break;
 
+    case PP_CERTCHAIN: /* FALLTHRU, TBD Tcl */
     default: /* Treat as byte array */
         objP = ObjFromByteArray(NULL, n);
         pv = ObjToByteArray(objP, &n);

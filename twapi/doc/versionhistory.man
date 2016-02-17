@@ -29,8 +29,8 @@ Added [uri crypto.html#asn1_encode_string [cmd asn1_encode_string]] and
 [bullet]
 Added [uri crypto.html#crypt_algorithms [cmd crypt_algorithms]],
 [uri crypto.html#crypt_key_specifiers [cmd crypt_key_specifiers]],
-[uri crypto.html#crypt_exchangekey_size_increment [cmd crypt_exchangekey_size_increment]],
-[uri crypto.html#crypt_signaturekey_size_increment [cmd crypt_signaturekey_size_increment]],
+[uri crypto.html#crypt_keyx_keysize_increment [cmd crypt_keyx_keysize_increment]],
+[uri crypto.html#crypt_sig_keysize_increment [cmd crypt_sig_keysize_increment]],
 [uri crypto.html#crypt_csp_version [cmd crypt_csp_version]],
 [uri crypto.html#crypt_implementation_type [cmd crypt_implementation_type]].
 
