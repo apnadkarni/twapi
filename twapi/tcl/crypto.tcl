@@ -1363,7 +1363,7 @@ proc twapi::crypt_keyx_keysize_increment {hcrypt} {
     return [CryptGetProvParam $hcrypt 35 0]
 }
 
-proc twapi::crypt_signature_keysize_increment {hcrypt} {
+proc twapi::crypt_sig_keysize_increment {hcrypt} {
     return [CryptGetProvParam $hcrypt 34 0]
 }
 
