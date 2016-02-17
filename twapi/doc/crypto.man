@@ -161,7 +161,7 @@ Returns the name of the owning CSP.
 Returns the type of the CSP.
 [opt_def [uri #crypt_csp_version [cmd crypt_csp_version]]]
 Returns the version of the owning CSP.
-[opt_def [uri #crypt_exchangekey_size_increment [cmd crypt_exchangekey_size_increment]]]
+[opt_def [uri #crypt_keyx_keysize_increment [cmd crypt_keyx_keysize_increment]]]
 Returns the valid increments for the key exchange key sizes.
 [opt_def [uri #crypt_implementation_type [cmd crypt_implementation_type]]]
 Returns the implementation type (hardware, software etc.) of the context.
@@ -178,7 +178,7 @@ one of the key pairs in the container.
 Returns whether the key set in the container is per-user or per-machine.
 [opt_def [uri #crypt_session_key_size [cmd crypt_session_key_size]]]
 Returns the size of the session key.
-[opt_def [uri #crypt_signaturekey_size_increment [cmd crypt_signaturekey_size_increment]]]
+[opt_def [uri #crypt_sig_keysize_increment [cmd crypt_sig_keysize_increment]]]
 Returns the valid increments for the signature key sizes.
 [opt_def [uri #crypt_symmetric_key_size [cmd crypt_symmetric_key_size]]]
 Returns the size of the symmetric key.
@@ -1722,7 +1722,7 @@ Returns the name of the CSP owning the cryptographic context [arg HCRYPT].
 [call [cmd crypt_csp_type] [arg HCRYPT]]
 Returns the type of the CSP owning the cryptographic context [arg HCRYPT].
 
-[call [cmd crypt_exchangekey_size_increment] [arg HCRYPT]]
+[call [cmd crypt_keyx_keysize_increment] [arg HCRYPT]]
 Returns the number of bits by which the key exchange key size can
 be incremented. The [uri #crypt_algorithms [cmd crypt_algorithms]]
 command returns the minimum and maximum key lengths for each algorithm
@@ -1830,7 +1830,7 @@ associated with a CSP key container whose handle is [arg HCRYPT].
 [call [cmd crypt_session_key_size] [arg HCRYPT]]
 Returns the size of the session key in the container.
 
-[call [cmd crypt_signaturekey_size_increment] [arg HCRYPT]]
+[call [cmd crypt_sig_keysize_increment] [arg HCRYPT]]
 Returns the number of bits by which the signature key size can
 be incremented. The [uri #crypt_algorithms [cmd crypt_algorithms]]
 command returns the minimum and maximum key lengths for each algorithm

@@ -1359,11 +1359,11 @@ proc twapi::crypt_session_key_size {hcrypt} {
     return [CryptGetProvParam $hcrypt 20 0]
 }
 
-proc twapi::crypt_exchangekey_size_increment {hcrypt} {
+proc twapi::crypt_keyx_keysize_increment {hcrypt} {
     return [CryptGetProvParam $hcrypt 35 0]
 }
 
-proc twapi::crypt_signaturekey_size_increment {hcrypt} {
+proc twapi::crypt_signature_keysize_increment {hcrypt} {
     return [CryptGetProvParam $hcrypt 34 0]
 }
 
