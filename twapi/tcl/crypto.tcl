@@ -1210,6 +1210,7 @@ proc twapi::crypt_acquire {args} {
     parseargs args {
         {csp.arg {}}
         {csptype.arg prov_rsa_full}
+        keycontainer.arg
         {keysettype.arg user {user machine}}
         {create.bool 0 0x8}
         {silent.bool 0 0x40}
@@ -1348,20 +1349,32 @@ proc twapi::crypt_csptypes {} {
     return $result
 }
 
-proc twapi::crypt_key_container_names {hprov} {
-    return [CryptGetProvParam $hprov 2 0]
+proc twapi::crypt_key_container_names {hcrypt} {
+    return [CryptGetProvParam $hcrypt 2 0]
 }
 
-proc twapi::crypt_session_key_size {hprov} {
-    return [CryptGetProvParam $hprov 20 0]
+proc twapi::crypt_session_key_size {hcrypt} {
+    return [CryptGetProvParam $hcrypt 20 0]
 }
 
-proc twapi::crypt_keyset_type {hprov} {
-    return [expr {[CryptGetProvParam $hprov 27 0] & 0x20 ? "machine" : "user"}]
+proc twapi::crypt_keyset_type {hcrypt} {
+    return [expr {[CryptGetProvParam $hcrypt 27 0] & 0x20 ? "machine" : "user"}]
 }
 
-proc twapi::crypt_symmetric_key_size {hprov} {
-    return [CryptGetProvParam $hprov 19 0]
+proc twapi::crypt_symmetric_key_size {hcrypt} {
+    return [CryptGetProvParam $hcrypt 19 0]
+}
+
+proc twapi::crypt_algorithms {hcrypt} {
+    set algs {}
+    foreach alg [CryptGetProvParam $hcrypt 22 0] {
+        lassign $alg algid defaultlen minlen maxlen protos name description
+        set protos [_make_symbolic_bitmask $protos {
+            ipsec 0x10 pct1 0x01 signing 0x20 ssl2 0x02 ssl3 0x04 tls1 0x08
+        }]
+        lappend algs [list algid $algid defkeylen $defaultlen minkeylen $minlen maxkeylen $maxlen protocols $protos name $name description $description]
+    }
+    return $algs
 }
 
 # TBD - document
@@ -1377,6 +1390,8 @@ proc twapi::crypt_algid {s} {
         aes_192 0x0000660f
         aes_256 0x00006610
         agreedkey_any 0x0000aa03
+        at_keyexchange 1
+        at_signature 2
         cylink_mek 0x0000660c
         des 0x00006601
         desx 0x00006604
@@ -1385,24 +1400,34 @@ proc twapi::crypt_algid {s} {
         dss_sign 0x00002200
         ecdh 0x0000aa05
         ecdsa 0x00002203
+        ecmqv 0x0000a001
         hash_replace_owf 0x0000800b
         hughes_md5 0x0000a003
         hmac 0x00008009
+        kea_keyx 0x0000aa04
         mac 0x00008005
         md2 0x00008001
         md4 0x00008002
         md5 0x00008003
         no_sign 0x00002000
+        pct1_master 0x00004c04
         rc2 0x00006602
         rc4 0x00006801
         rc5 0x0000660d
         rsa_keyx 0x0000a400
         rsa_sign 0x00002400
+        schannel_enc_key 0x00004c07
+        schannel_mac_key 0x00004c03
+        schannel_master_hash 0x00004c02
         sha 0x00008004
         sha1 0x00008004
         sha_256 0x0000800c
         sha_384 0x0000800d
         sha_512 0x0000800e
+        ssl2_master 0x00004c05
+        ssl3_master 0x00004c01
+        ssl3_shamd5 0x00008008
+        tls1_master 0x00004c06
         tls1prf 0x0000800a
     } $s ""]
     if {$algid ne ""} {

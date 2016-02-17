@@ -1646,11 +1646,9 @@ The certificate that can be marked for use as a CA is being used
 as a leaf or vice-versa.
 [list_end]
 
-[call [cmd crypt_acquire] [opt [arg KEYCONTAINER]] [opt [arg options]]]
-Returns a handle to a cryptographic context for the specified key container
-in a [uri #cryptographicserviceproviders CSP]. If [arg KEYCONTAINER]
-is unspecified or is the empty string, the default container
-for the CSP is used.
+[call [cmd crypt_acquire] [opt [arg options]]]
+Returns a handle to a cryptographic context for a key container
+in a [uri #cryptographicserviceproviders CSP]. 
 [nl]
 The handle must be freed
 when no longer required by calling 
@@ -1665,6 +1663,10 @@ If unspecified, the default Microsoft CSP for the system is used.
 [opt_def [cmd -csptype] [arg CSPTYPE]] Indicates the type of
 CSP. Defaults to [const prov_rsa_full]. 
 See [sectref "Cryptographic Service Providers"] for all possible types.
+[opt_def [cmd -keycontainer] [arg KEYCONTAINER]]
+Specifies the name of the key container. If unspecified or
+an empty string, the default container
+for the CSP is used.
 [opt_def [cmd -keysettype] [arg KEYSETTYPE]] [arg KEYSETTYPE] must be
 [const user] (default) or [const machine]. Normally the key container
 is stored in the user's profile. If [arg KEYSETTYPE] is [const machine],
@@ -1681,11 +1683,32 @@ ephemeral keys or which do not
 need access to private keys. Such operations include hashing, encrypting
 and signature verification. Operations involving decryption and signing
 require private keys and should set this option to [const false].
-If [arg KEYCONTAINER] is not specified
+If [cmd -keycontainer] is not specified
 or is specified as an empty string denoting the default key container,
-this option must not be [const false].
+this option must be [const true].
 See the [uri http://support.microsoft.com/kb/238187 "Microsoft knowledgebase"] article for more details.
 
+[list_end]
+
+[emph "Compatibility note"] In versions prior to 4.2, the key container was
+passed as the first argument, and not via the [cmd -keycontainer] option.
+Although that will still work, it is deprecated.
+
+[call [cmd crypt_algorithms] [arg HCRYPT]]
+Returns the list of algorithms implemented in the specified cryptographic
+context. Each element of the list is a dictionary with keys shown in the
+table below.
+[list_begin opt]
+[opt_def [cmd algid]] The numeric algorithm identifier.
+[opt_def [cmd defkeylen]] The default length of a key.
+[opt_def [cmd description]] Description of the algorithm.
+[opt_def [cmd minkeylen]] Minimum length of a key.
+[opt_def [cmd maxkeylen]] Maximum length of a key.
+[opt_def [cmd name]] Name of the algorithm.
+[opt_def [cmd protocols]] Cryptographic protocols supported by the algorithm.
+This is a list containing zero or more elements from amongst
+[const ipsec], [const pct1], [const signing], [const ssl2], [const ssl3]
+and [const tls1].
 [list_end]
 
 [call [cmd crypt_csp] [arg HCRYPT]]
