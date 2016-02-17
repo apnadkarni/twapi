@@ -2158,8 +2158,8 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
             return ObjSetResult(interp, ObjFromGUID(&guid));
         break; /* Size mismatch, fall through to handle as bytearray */
 
-    case 42: // PP_USER_CERTSTORE
-    case 46: // PP_ROOT_CERTSTORE
+    case 42: // PP_USER_CERTSTORE TBD - Tcl
+    case 46: // PP_ROOT_CERTSTORE TBD - Tcl
         n = sizeof(HCERTSTORE);
         if (! CryptGetProvParam(hprov, param, (BYTE*) &hstore, &n, flags))
             return TwapiReturnSystemError(interp);

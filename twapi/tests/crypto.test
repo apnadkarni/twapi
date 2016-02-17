@@ -3242,10 +3242,18 @@ namespace eval twapi::crypto::test {
         twapi::crypt_free $crypt
     } -result {keyexchange signature}
     
-    test crypt_keyexchange_size_increment {Get crypt keyx size incr} -setup {
+    test crypt_signaturekey_size_increment {Get crypt sig size incr} -setup {
         set crypt [twapi::crypt_acquire]
     } -body {
-        twapi::crypt_keyexchange_size_increment $crypt
+        twapi::crypt_signaturekey_size_increment $crypt
+    } -cleanup {
+        twapi::crypt_free $crypt
+    } -result 8
+    
+    test crypt_exchangekey_size_increment {Get crypt keyx size incr} -setup {
+        set crypt [twapi::crypt_acquire]
+    } -body {
+        twapi::crypt_exchangekey_size_increment $crypt
     } -cleanup {
         twapi::crypt_free $crypt
     } -result 8
@@ -3287,13 +3295,13 @@ namespace eval twapi::crypto::test {
     } -result ok
     ################################################################
 
-    test crypt_csptype-1.0 {
+    test crypt_csp_type-1.0 {
         Get CSP type (default)
     } -setup {
         set container [new_name]
         set crypt [twapi::crypt_acquire $container -create 1]
     } -body {
-        twapi::crypt_csptype $crypt
+        twapi::crypt_csp_type $crypt
     } -cleanup {
         twapi::crypt_free $crypt
         twapi::crypt_key_container_delete $container
@@ -3301,10 +3309,10 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    test csptypes-1.0 {
+    test csp_types-1.0 {
         Get CSP types on the system
     } -body {
-        set csps [twapi::csptypes]
+        set csps [twapi::csp_types]
         set status ok
         if {[llength $csps] < 2} {
             set status fail

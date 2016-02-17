@@ -29,14 +29,16 @@ Added [uri crypto.html#asn1_encode_string [cmd asn1_encode_string]] and
 [bullet]
 Added [uri crypto.html#crypt_algorithms [cmd crypt_algorithms]],
 [uri crypto.html#crypt_key_specifiers [cmd crypt_key_specifiers]],
-[uri crypto.html#crypt_keyexchange_size_increment [cmd crypt_keyexchange_size_increment]],
+[uri crypto.html#crypt_exchangekey_size_increment [cmd crypt_exchangekey_size_increment]],
+[uri crypto.html#crypt_signaturekey_size_increment [cmd crypt_signaturekey_size_increment]],
+[uri crypto.html#crypt_csp_version [cmd crypt_csp_version]],
 [uri crypto.html#crypt_implementation_type [cmd crypt_implementation_type]].
 
 [bullet]
 [emph "Deprecated"]
 Commands [cmd crypt_csps] and [cmd crypt_csptypes] are deprecated.
 Use [uri crypto.html#csps [cmd csps]] and
-[uri crypto.html#csptypes [cmd csptypes]] instead.
+[uri crypto.html#csp_types [cmd csp_types]] instead.
 
 [bullet]
 [emph "Incompatible change"]
