@@ -3228,6 +3228,23 @@ namespace eval twapi::crypto::test {
     
     ################################################################
 
+    test csps-1.0 {
+        Get CSPs on the system
+    } -body {
+        set csps [twapi::csps]
+        set status ok
+        if {[llength $csps] < 2} {
+            set status fail
+        } else {
+            foreach csp $csps {
+                if {[llength $csp] != 2} {set status fail; break}
+            }
+            if {[lsearch -exact -index 0 $csps prov_rsa_full] < 0} {set status fail}
+            if {[lsearch -exact -index 1 $csps {Microsoft Base Cryptographic Provider v1.0}] < 0} {set status fail}
+        }
+        set status
+    } -result ok
+
     test crypt_csps-1.0 {
         Get CSPs on the system
     } -body {
@@ -3244,7 +3261,6 @@ namespace eval twapi::crypto::test {
         }
         set status
     } -result ok
-
     ################################################################
 
     test crypt_csptype-1.0 {
@@ -3260,6 +3276,23 @@ namespace eval twapi::crypto::test {
     } -result prov_rsa_full
 
     ################################################################
+
+    test csptypes-1.0 {
+        Get CSP types on the system
+    } -body {
+        set csps [twapi::csptypes]
+        set status ok
+        if {[llength $csps] < 2} {
+            set status fail
+        } else {
+            foreach csp $csps {
+                if {[llength $csp] != 2} {set status fail; break}
+            }
+            if {[lsearch -exact -index 0 $csps prov_rsa_full] < 0} {set status fail}
+            if {[lsearch -exact -index 1 $csps {RSA Full (Signature and Key Exchange)}] < 0} {set status fail}
+        }
+        set status
+    } -result ok
 
     test crypt_csptypes-1.0 {
         Get CSP types on the system
