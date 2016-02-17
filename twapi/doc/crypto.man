@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "CryptoAPI" n ""]
-[copyright "2007-2013 Ashok P. Nadkarni"]
+[copyright "2007-2016 Ashok P. Nadkarni"]
 [moddesc "Cryptographic and Certificate API"]
 [titledesc "Commands related to cryptographical operations"]
 [require twapi_crypto]
@@ -844,7 +844,7 @@ If [const true], the underlying file is opened in read-only mode. However,
 changes can still be made to the in-memory cache.
 Default is [const false].
 [list_end]
-[nl]
+
 The certificate store is written to the file in PKCS #7 format if the file
 name extension is [const .p7c] or [const .spc], or if the file was empty.
 Otherwise the file is written as a serialized certificate store.
@@ -1500,7 +1500,7 @@ indicate the packet is DER- or PEM-encoded.
 [arg SERIALIZEDBLOB] is a serialized certificate store,
 such as returned from [uri #cert_store_serialize [cmd cert_store_serialize]].
 [list_end]
-[nl]
+
 The temporary store must be closed with
 [uri #cert_store_release [cmd cert_store_release]]
 when no longer needed.
@@ -1714,18 +1714,8 @@ and [const tls1].
 [call [cmd crypt_csp] [arg HCRYPT]]
 Returns the name of the CSP owning the cryptographic context [arg HCRYPT].
 
-[call [cmd crypt_csps]]
-Returns a list of pairs, each representing a CSP on the system.
-The first element of each pair is a CSP type 
-and the second is the name of the CSP.
-
 [call [cmd crypt_csptype] [arg HCRYPT]]
 Returns the type of the CSP owning the cryptographic context [arg HCRYPT].
-
-[call [cmd crypt_csptypes]]
-Returns a list of pairs, each representing a CSP type on the system.
-The first element of each pair is a CSP type 
-and the second is the name of the CSP.
 
 [call [cmd crypt_free] [arg HCRYPT]]
 Frees a cryptographic context returned by
@@ -1792,7 +1782,6 @@ the default key size. Since default key sizes are platform dependent,
 Microsoft recommends key size be explicitly set.
 [list_end]
 
-[nl]
 The returned handle must be freed by calling
 [uri #crypt_key_free [cmd crypt_key_free]].
 
@@ -1819,6 +1808,16 @@ Returns the size of the session key in the container.
 
 [call [cmd crypt_symmetric_key_size] [arg HCRYPT]]
 Returns the size of the symmetric key in the container.
+
+[call [cmd csps]]
+Returns a list of pairs, each representing a CSP on the system.
+The first element of each pair is a CSP type 
+and the second is the name of the CSP.
+
+[call [cmd csptypes]]
+Returns a list of pairs, each representing a CSP type on the system.
+The first element of each pair is a CSP type 
+and the second is the name of the CSP.
 
 [call [cmd protect_data] [arg BINDATA] [opt [arg options]]]
 Encrypts and signs the binary data [arg BINDATA] so that it can only
