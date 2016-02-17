@@ -1359,8 +1359,24 @@ proc twapi::crypt_session_key_size {hcrypt} {
     return [CryptGetProvParam $hcrypt 20 0]
 }
 
+proc twapi::crypt_keyexchange_size_increment {hcrypt} {
+    return [CryptGetProvParam $hcrypt 35 0]
+}
+
 proc twapi::crypt_keyset_type {hcrypt} {
     return [expr {[CryptGetProvParam $hcrypt 27 0] & 0x20 ? "machine" : "user"}]
+}
+
+proc twapi::crypt_key_specifiers {hcrypt} {
+    set keyspec [CryptGetProvParam $hcrypt 39 0]
+    set keyspecs {}
+    if {$keyspec & 1} {
+        lappend keyspecs keyexchange
+    }
+    if {$keyspec & 2} {
+        lappend keyspecs signature
+    }
+    return $keyspecs
 }
 
 proc twapi::crypt_symmetric_key_size {hcrypt} {
@@ -1377,6 +1393,10 @@ proc twapi::crypt_algorithms {hcrypt} {
         lappend algs [list algid $algid defkeylen $defaultlen minkeylen $minlen maxkeylen $maxlen protocols $protos name $name description $description]
     }
     return $algs
+}
+
+proc twapi::crypt_implementation_type {hcrypt} {
+    return [dict* {1 hardware 2 software 3 mixed 4 unknown 8 removable} [CryptGetProvParam $hcrypt 3 0]]
 }
 
 # TBD - document
