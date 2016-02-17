@@ -2150,7 +2150,7 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
             return ObjSetResult(interp, ObjFromDWORD(dw));
         break; /* Size mismatch, fall through to handle as bytearray */
 
-    case 45: // PP_SMARTCARD_GUID
+    case 45: // PP_SMARTCARD_GUID TBD - Tcl
         n = sizeof(guid);
         if (! CryptGetProvParam(hprov, param, (BYTE*) &guid, &n, flags))
             return TwapiReturnSystemError(interp);
