@@ -1367,6 +1367,21 @@ proc twapi::crypt_signaturekey_size_increment {hcrypt} {
     return [CryptGetProvParam $hcrypt 34 0]
 }
 
+# TBD - Doc and test
+proc twapi::crypt_admin_pin {hcrypt} {
+    return [CryptGetProvParam $hcrypt 31 0]
+}
+
+# TBD - Doc and test
+proc twapi::crypt_keyx_pin {hcrypt} {
+    return [CryptGetProvParam $hcrypt 32 0]
+}
+
+# TBD - Doc and test
+proc twapi::crypt_sig_pin {hcrypt} {
+    return [CryptGetProvParam $hcrypt 33 0]
+}
+
 proc twapi::crypt_csp_version {hcrypt} {
     set ver [CryptGetProvParam $hcrypt 5 0]
     return [format %d.%d [expr {($ver & 0xff00)>>8}] [expr {$ver & 0xff}]]
