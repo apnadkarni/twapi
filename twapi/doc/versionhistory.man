@@ -27,9 +27,13 @@ Added [uri crypto.html#asn1_encode_string [cmd asn1_encode_string]] and
 [uri crypto.html#asn1_decode_string [cmd asn1_decode_string]].
 
 [bullet]
+Added [uri crypto.html#crypt_algorithms [cmd crypt_algorithms]].
+
+[bullet]
 [emph "Incompatible change"]
 The [cmd -verifycontext] option to [cmd crypt_verify] now defaults
-to [const true] instead of [const false].
+to [const true] instead of [const false]. Key container is passed as an
+option instead of the first argument.
 
 [list_end]
 
