@@ -1336,11 +1336,11 @@ proc twapi::csps {} {
 }
 interp alias {} twapi::crypt_csps {} twapi::csps
 
-proc twapi::crypt_csptype {hprov} {
+proc twapi::crypt_csp_type {hprov} {
     return [_csp_type_id_to_name [CryptGetProvParam $hprov 16 0]]
 }
 
-proc twapi::csptypes {} {
+proc twapi::csp_types {} {
     set i 0
     set result {}
     while {[llength [set csptype [::twapi::CryptEnumProviderTypes $i]]]} {
@@ -1349,7 +1349,7 @@ proc twapi::csptypes {} {
     }
     return $result
 }
-interp alias {} twapi::crypt_csptypes {} twapi::csptypes
+interp alias {} twapi::crypt_csptypes {} twapi::csp_types
 
 proc twapi::crypt_key_container_names {hcrypt} {
     return [CryptGetProvParam $hcrypt 2 0]
@@ -1359,8 +1359,17 @@ proc twapi::crypt_session_key_size {hcrypt} {
     return [CryptGetProvParam $hcrypt 20 0]
 }
 
-proc twapi::crypt_keyexchange_size_increment {hcrypt} {
+proc twapi::crypt_exchangekey_size_increment {hcrypt} {
     return [CryptGetProvParam $hcrypt 35 0]
+}
+
+proc twapi::crypt_signaturekey_size_increment {hcrypt} {
+    return [CryptGetProvParam $hcrypt 34 0]
+}
+
+proc twapi::crypt_csp_version {hcrypt} {
+    set ver [CryptGetProvParam $hcrypt 5 0]
+    return [format %d.%d [expr {($ver & 0xff00)>>8}] [expr {$ver & 0xff}]]
 }
 
 proc twapi::crypt_keyset_type {hcrypt} {
