@@ -1325,7 +1325,7 @@ proc twapi::crypt_csp {hprov} {
     return [CryptGetProvParam $hprov 4 0]
 }
 
-proc twapi::crypt_csps {} {
+proc twapi::csps {} {
     set i 0
     set result {}
     while {[llength [set csp [::twapi::CryptEnumProviders $i]]]} {
@@ -1334,12 +1334,13 @@ proc twapi::crypt_csps {} {
     }
     return $result
 }
+interp alias {} twapi::crypt_csps {} twapi::csps
 
 proc twapi::crypt_csptype {hprov} {
     return [_csp_type_id_to_name [CryptGetProvParam $hprov 16 0]]
 }
 
-proc twapi::crypt_csptypes {} {
+proc twapi::csptypes {} {
     set i 0
     set result {}
     while {[llength [set csptype [::twapi::CryptEnumProviderTypes $i]]]} {
@@ -1348,6 +1349,7 @@ proc twapi::crypt_csptypes {} {
     }
     return $result
 }
+interp alias {} twapi::crypt_csptypes {} twapi::csptypes
 
 proc twapi::crypt_key_container_names {hcrypt} {
     return [CryptGetProvParam $hcrypt 2 0]

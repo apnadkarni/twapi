@@ -30,6 +30,12 @@ Added [uri crypto.html#asn1_encode_string [cmd asn1_encode_string]] and
 Added [uri crypto.html#crypt_algorithms [cmd crypt_algorithms]].
 
 [bullet]
+[emph "Deprecated"]
+Commands [cmd crypt_csps] and [cmd crypt_csptypes] are deprecated.
+Use [uri crypto.html#csps [cmd csps]] and
+[uri crypto.html#csptypes [cmd csptypes]] instead.
+
+[bullet]
 [emph "Incompatible change"]
 The [cmd -verifycontext] option to [cmd crypt_verify] now defaults
 to [const true] instead of [const false]. Key container is passed as an
