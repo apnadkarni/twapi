@@ -1214,16 +1214,25 @@ proc twapi::crypt_acquire {args} {
         {keysettype.arg user {user machine}}
         {create.bool 0 0x8}
         {silent.bool 0 0x40}
-        {verifycontext.bool 1 0xf0000000}
+        verifycontext.bool
     } -maxleftover 0 -setvars
 
-    if {! $verifycontext} {
-        # Based on http://support.microsoft.com/kb/238187, if verifycontext
-        # is not specified, default container must not be used as keys
-        # from different applications might overwrite.
+    # The defaults for verifycontext are a little confusing. For a named
+    # key container, at least the MS CSP's require -verifycontext to be 0.
+    # For the frequent case where private keys are not required, MS recommends
+    # using the null key container with -verifycontext 1. So accordingly,
+    # if the keycontainer is empty (or unspecified), then it 
+    # defaults to 1, else defaults to 0.
+    if {![info exists verifycontext]} {
         if {$keycontainer eq ""} {
-            badargs! "Option -verifycontext must be true for the default key container."
+            set verifycontext 1
+        } else {
+            set verifycontext 0
         }
+    }
+
+    if {$verifycontext} {
+        set verifycontext 0xf000000
     }
 
     set flags [expr {$create | $silent | $verifycontext}]

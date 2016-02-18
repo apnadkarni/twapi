@@ -1683,21 +1683,26 @@ for any information that may be required to create the context. If this
 option is specified as [const true], the user is never prompted. Instead
 the command will raise an error if a user prompt was required.
 [opt_def [cmd -verifycontext] [arg BOOLEAN]] If specified as [const true],
-(default), the context is intended for use for operations that are using
+the context is intended for use for operations that are using
 ephemeral keys or which do not
 need access to private keys. Such operations include hashing, encrypting
 and signature verification. Operations involving decryption and signing
 require private keys and should set this option to [const false].
+The default for this option depends on whether a named key container
+is specified or not.
 If [cmd -keycontainer] is not specified
 or is specified as an empty string denoting the default key container,
-this option must be [const true].
+this option defaults to [const true]. Otherwise it defaults to [const false].
+Note that some CSP's (including Microsoft's) raise an error if the
+option is set to true for named containers.
 See the [uri http://support.microsoft.com/kb/238187 "Microsoft knowledgebase"] article for more details.
 
 [list_end]
 
 [emph "Compatibility note"] In versions prior to 4.2, the key container was
 passed as the first argument, and not via the [cmd -keycontainer] option.
-Although that will still work, it is deprecated.
+Although that will still work, it is deprecated and may raise an error
+in future releases.
 
 [call [cmd crypt_algorithms] [arg HCRYPT]]
 Returns the list of algorithms implemented in the specified cryptographic
