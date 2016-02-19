@@ -1232,15 +1232,25 @@ proc twapi::crypt_acquire {args} {
     }
 
     if {$verifycontext} {
-        set verifycontext 0xf000000
+        set verifycontext 0xf0000000
     }
 
-    set flags [expr {$create | $silent | $verifycontext}]
+    set flags [expr {$silent | $verifycontext}]
     if {$keysettype eq "machine"} {
         incr flags 0x20;        # CRYPT_KEYSET_MACHINE
     }
 
-    return [CryptAcquireContext $keycontainer $csp [_csp_type_name_to_id $csptype] $flags]
+    trap {
+        return [CryptAcquireContext $keycontainer $csp [_csp_type_name_to_id $csptype] $flags]
+    } onerror {TWAPI_WIN32 0x80090016} {
+        # NTE_BAD_KEYSET - does not exist. Try to create it.
+        if {$create} {
+            set flags [expr {$flags | $create}]
+            return [CryptAcquireContext $keycontainer $csp [_csp_type_name_to_id $csptype] $flags]            
+        } else {
+            rethrow
+        }
+    }
 }
 
 proc twapi::crypt_free {hcrypt} {

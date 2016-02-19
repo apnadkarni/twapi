@@ -42,9 +42,10 @@ Use [uri crypto.html#csps [cmd csps]] and
 
 [bullet]
 [emph "Incompatible change"]
-The [uri crypto.html#crypt_acquire [cmd crypt_acquire]] command
-has changed to take the key container name as the [cmd -keycontainer]
-option instead of the first argument. Also, its
+The [uri crypto.html#crypt_acquire [cmd crypt_acquire]] command behaviour
+has changed. It now takes the key container name as the [cmd -keycontainer]
+option instead of the first argument. The [cmd -create] option will not
+raise an error if the key container already exists. The option
 [cmd -verifycontext] now defaults to a value that is dependent on other
 arguments.
 
