@@ -4306,8 +4306,10 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         break;
     case 10039: // CertOIDToAlgId
         CHECK_NARGS(interp, objc, 1);
-        result.type = TRT_DWORD;
-        result.value.uval = CertOIDToAlgId(ObjToString(objv[0]));
+        dw = CertOIDToAlgId(ObjToString(objv[0]));
+        /* For ease of reading, return as a hex formatted */
+        result.value.obj = ObjFromULONGHex(dw);
+        result.type = TRT_OBJ;
         break;
     case 10040: // CertAlgIdToOID
         CHECK_NARGS(interp, objc, 1);
@@ -4631,31 +4633,37 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
                          GETVERIFIEDPTR(pv, HCRYPTHASH, CryptDestroyHash),
                          GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
+        dw3 = dw; /* Save the param type */
         switch (dw) {
-        case HP_HASHSIZE: /* FALLTHRU */
-        case HP_ALGID:
-            dw2 = sizeof(result.value.uval);
-            pv2 = &result.value.uval;
-            result.type = TRT_DWORD;
-            break;
         case HP_HASHVAL:
-            dw2 = 1024; /* Assume large enough */
-            result.value.obj = ObjFromByteArray(NULL, dw2);
-            pv2 = ObjToByteArray(result.value.obj, &dw2);
-            result.type = TRT_OBJ;
+            dw = HP_HASHSIZE; /* Need to know the size to allocate for value */
+            break;
+        case HP_HASHSIZE: 
+        case HP_ALGID:
             break;
         default:
             return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
         }
-        if (CryptGetHashParam((HCRYPTHASH) pv, dw, pv2, &dw2, 0)) {
-            if (result.type == TRT_OBJ)
+        dw2 = sizeof(result.value.uval);
+        if (!CryptGetHashParam((HCRYPTHASH) pv, dw, (BYTE*)&result.value.uval, &dw2, 0)) {
+            result.type = TRT_GETLASTERROR;
+            break;
+        }
+        if (dw3 != HP_HASHVAL)
+            result.type = TRT_DWORD;
+        else {
+            /* result.value.uval contains size of hash */
+            result.value.obj = ObjFromByteArray(NULL, result.value.uval);
+            pv2 = ObjToByteArray(result.value.obj, &dw2);
+            if (CryptGetHashParam((HCRYPTHASH) pv, HP_HASHVAL, pv2, &dw2, 0)) {
                 Tcl_SetByteArrayLength(result.value.obj, dw2);
-        } else {
-            dw = GetLastError();
-            if (result.type == TRT_OBJ)
+                result.type = TRT_OBJ;
+            } else {
+                dw = GetLastError();
                 ObjDecrRefs(result.value.obj);
-            result.value.ival = dw;
-            result.type = TRT_EXCEPTION_ON_ERROR;
+                result.value.ival = dw;
+                result.type = TRT_EXCEPTION_ON_ERROR;
+            }
         }
         break;
         
@@ -5028,12 +5036,12 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptCATAdminReleaseCatalogContext, 10058), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptCATCatalogInfoFromContext, 10059), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptCreateHash, 10060),
-        DEFINE_FNCODE_CMD(crypt_hash_free, 10061), // CryptDestroyHash
-        DEFINE_FNCODE_CMD(crypt_hash_bytes, 10062), // CryptHashData
-        DEFINE_FNCODE_CMD(crypt_hash_session_key, 10063), // CryptHashSessionKey
+        DEFINE_FNCODE_CMD(capi_hash_free, 10061), // CryptDestroyHash
+        DEFINE_FNCODE_CMD(capi_hash_bytes, 10062), // CryptHashData
+        DEFINE_FNCODE_CMD(capi_hash_session_key, 10063), // CryptHashSessionKey
         DEFINE_FNCODE_CMD(CryptSignHash, 10064), // TBD Tcl
-        DEFINE_FNCODE_CMD(CryptDuplicateHash, 10065), // TBD Tcl
-        DEFINE_FNCODE_CMD(CryptGetHashParam, 10066), // TBD Tcl
+        DEFINE_FNCODE_CMD(capi_hash_dup, 10065), // CryptDuplicateHash
+        DEFINE_FNCODE_CMD(CryptGetHashParam, 10066), // TBD Tcl (ALGID only)
         DEFINE_FNCODE_CMD(CryptDeriveKey, 10067), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptExportKey, 10068), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptImportKey, 10069), // TBD Tcl

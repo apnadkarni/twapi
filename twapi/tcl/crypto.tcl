@@ -19,15 +19,18 @@ namespace eval twapi {
 
 ### Hash functions
 
-# TBD - document crypt_hash_{create,bytes,string,free,session_key}
-proc twapi::crypt_hash_create {hcrypt algid hkey} {
+proc twapi::capi_hash_create {hcrypt algid {hkey NULL}} {
     return [CryptCreateHash $hcrypt [capi_algid $algid] $hkey]
 }
 
-proc twapi::crypt_hash_string {hash s {enc utf-8}} {
-    return [crypt_hash_bytes $hash [encoding convertto $enc $s] 0]
+proc twapi::capi_hash_string {hhash s {enc utf-8}} {
+    return [crypt_hash_bytes $hhash [encoding convertto $enc $s] 0]
 }
 
+proc twapi::capi_hash_value {hhash} {
+    return [CryptGetHashParam $hhash 2]; # HP_HASHVAL
+}
+                              
 ### Data protection
 
 proc twapi::protect_data {data args} {
@@ -1514,6 +1517,7 @@ proc twapi::capi_algid {s} {
     if {$algid == 0} {
         error "Could not map \"$s\" to algorithm id"
     }
+    return $algid
 }
 
 # TBD - document
