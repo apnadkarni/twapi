@@ -5027,10 +5027,10 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptCATAdminReleaseContext, 10057), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptCATAdminReleaseCatalogContext, 10058), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptCATCatalogInfoFromContext, 10059), // TBD Tcl
-        DEFINE_FNCODE_CMD(CryptCreateHash, 10060), // TBD Tcl
-        DEFINE_FNCODE_CMD(CryptDestroyHash, 10061), // TBD Tcl
-        DEFINE_FNCODE_CMD(CryptHashData, 10062), // TBD Tcl
-        DEFINE_FNCODE_CMD(CryptHashSessionKey, 10063), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptCreateHash, 10060),
+        DEFINE_FNCODE_CMD(crypt_hash_free, 10061), // CryptDestroyHash
+        DEFINE_FNCODE_CMD(crypt_hash_bytes, 10062), // CryptHashData
+        DEFINE_FNCODE_CMD(crypt_hash_session_key, 10063), // CryptHashSessionKey
         DEFINE_FNCODE_CMD(CryptSignHash, 10064), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptDuplicateHash, 10065), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptGetHashParam, 10066), // TBD Tcl
