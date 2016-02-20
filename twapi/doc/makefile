@@ -55,6 +55,7 @@ MANFILES= \
 	etw.man \
 	apputil.man \
 	crypto.man \
+	certs.man \
 	sspi.man \
 	tls.man \
 	console.man \
