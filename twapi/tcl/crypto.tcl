@@ -17,6 +17,17 @@ namespace eval twapi {
     }
 }
 
+### Hash functions
+
+# TBD - document crypt_hash_{create,bytes,string,free,session_key}
+proc twapi::crypt_hash_create {hcrypt algid hkey} {
+    return [CryptCreateHash $hcrypt [capi_algid $algid] $hkey]
+}
+
+proc twapi::crypt_hash_string {hash s {enc utf-8}} {
+    return [crypt_hash_bytes $hash [encoding convertto $enc $s] 0]
+}
+
 ### Data protection
 
 proc twapi::protect_data {data args} {
@@ -1443,7 +1454,7 @@ proc twapi::crypt_implementation_type {hcrypt} {
 }
 
 # TBD - document
-proc twapi::crypt_algid {s} {
+proc twapi::capi_algid {s} {
     if {[string is integer -strict $s]} {
         return $s
     }
@@ -1521,13 +1532,13 @@ proc twapi::crypt_find_oid_info {key args} {
         set keytype 1;          # OID
     }]} {
         if {[catch {
-            set key [crypt_algid $key]
+            set key [capi_algid $key]
             set keytype 3;      # Alg Id
         }]} {
             if {[catch {
                 # Sign - list of two alg id's
                 if {[llength $key] == 2} {
-                    set key [list [crypt_algid [lindex $key 0]] [crypt_algid [lindex $key 1]]]
+                    set key [list [capi_algid [lindex $key 0]] [capi_algid [lindex $key 1]]]
                     set keytype 4
                 } else {
                     set keytype 2 ;# Name
