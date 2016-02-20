@@ -1769,6 +1769,8 @@ is stored in the user's profile. If [arg KEYSETTYPE] is [const machine],
 the key container is treated as a computer container.
 [list_end]
 
+The command will raise an error if the container does not exist.
+
 [call [cmd crypt_key_container_name] [arg HCRYPT]]
 Returns the name of key container for the cryptographic context.
 
