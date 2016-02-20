@@ -3457,6 +3457,58 @@ namespace eval twapi::crypto::test {
         # TBD - how to verify audit ?
         encoding convertfrom utf-8 [twapi::unprotect_data [twapi::protect_data [encoding convertto utf-8 a] -audit 1]]
     } -result a
+
+    ################################################################
+
+    test capi_algid-1.0 {Alg Id for a numeric} -body {
+        twapi::capi_algid 1000
+    } -result 1000
+
+    test capi_algid-2.0 {Alg Id for md5} -body {
+        twapi::capi_algid md5
+    } -result 0x00008003
+
+    test capi_algid-2.1 {Alg Id for sha1} -body {
+        twapi::capi_algid sha1
+    } -result 0x00008004
+
+    test capi_algid-2.2 {Alg Id for sha_256} -body {
+        twapi::capi_algid sha_256
+    } -result 0x0000800c
+
+    test capi_algid-2.3 {Alg Id for at_keyexchange} -body {
+        twapi::capi_algid at_keyexchange
+    } -result 1
+
+    test capi_algid-2.4 {Alg Id for at_signature} -body {
+        twapi::capi_algid at_signature
+    } -result 2
+
+    test capi_algid-3.0 {Alg Id for OID} -body {
+        twapi::capi_algid oid_oiwsec_md5rsa
+    } -result 0x00008003
+
+    test capi_algid-3.1 {Alg Id for OID} -body {
+        twapi::capi_algid 1.2.840.113549.1.1.4
+    } -result 0x00008003
+    
+    test capi_algid-4.0 {Alg Id for bad token} -body {
+        twapi::capi_algid xxx
+    } -result "" -errorCodes error
+    
+    test capi_algid-4.1 {Alg Id for bad OID} -body {
+        twapi::capi_algid 1.2.840.113549.1.1.40 
+    } -result "" -errorCodes error
+    
+    ################################################################
+
+    test capi_hash {
+        TBD - all hash routines
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
 }
 
 patience "Cleaning test certs"

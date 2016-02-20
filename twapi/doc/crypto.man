@@ -15,17 +15,17 @@ provided by the Windows platforms.
 
 [section "Overview"]
 
-This page describes the base commands related to the Win32 CryptoAPI which
-includes functions related to encryption, decryption, signatures
+This page describes the base commands related to the Win32 CryptoAPI
+(CAPI) which includes functions related to encryption, decryption, signatures
 and ancillary services.
 
 [para]
-Other functions provided by the Win32 CryptoAPI are documented
+Other functions provided by CAPI are documented
 in the [uri certs.html Certificates] and [uri sspi.html SSPI] pages.
 
 [para]
 This documentation expects the reader is familiar with the use of cryptography.
-An overview of the concepts in the CryptoAPI is provided but the API itself
+An overview of the concepts in CAPI is provided but the API itself
 is fairly complex and the reader may wish to
 refer to the
 [uri http://msdn.microsoft.com/en-us/library/windows/desktop/aa380255(v=vs.85).aspx "Windows SDK CryptoAPI documentation"] for detailed guides
@@ -186,10 +186,59 @@ Returns the size of the symmetric key.
 When no longer needed, cryptographic contexts must be freed with
 the [uri #crypt_free [cmd crypt_free]] command.
 
+[section "Algorithm identifiers"]
+CAPI internally uses numeric identifiers for cryptographic algorithms.
+Algorithms can also be identified by ASN.1 OID's. In addition, TWAPI
+uses allows use of mnemonics to identify algorithms as per the table
+below. The command [uri #capi_algid [cmd capi_algid]] can be used to map
+any of the above forms to the numeric algorithm identifier. Most commands
+that need algorithm identifiers to be supplied will also accept any
+of the forms.
+
+[list_begin opt]
+[opt_def [const 3des]] Triple DES
+[opt_def [const 3des_112]] Triple DES with 112-bit effective key length
+[opt_def [const aes]] Advanced Encryption Standard (AES)
+[opt_def [const aes_128]] 128-bit AES
+[opt_def [const aes_192]] 192-bit AES
+[opt_def [const aes_256]] 256-bit AES
+[opt_def [const at_keyexchange]] Maps to the key
+exchange algorithm for the CSP in use
+[opt_def [const at_signature]] Maps to the signature algorithm for
+the CSP in use
+[opt_def [const des]] Data Encryption Standard (DES)
+[opt_def [const desx]] DES-X
+[opt_def [const dh_ephem]] Diffie-Hellman ephemeral key exchange
+[opt_def [const dh_sf]] Diffie-Hellman store and forward key exchange
+[opt_def [const dss_sign]] DSA public key signature
+[opt_def [const ecdh]] Elliptic curve Diffie-Hellman key exchange
+[opt_def [const ecdsa]] Elliptic curve digital signature
+[opt_def [const hash_replace_owf]] One way function hashing
+[opt_def [const hughes_md5]] Hughes MD5
+[opt_def [const hmac]] HMAC keyed hash
+[opt_def [const mac]] MAC keyed hash
+[opt_def [const md2]] MD2 hashing
+[opt_def [const md4]] MD4 hashing
+[opt_def [const md5]] MD5 hashing
+[opt_def [const no_sign]] No signature algorithm
+[opt_def [const rc2]] RC2 block encryption
+[opt_def [const rc4]] RC4 block encryption
+[opt_def [const rc5]] RC5 block encryption
+[opt_def [const rsa_keyx]] RSA public key exchange
+[opt_def [const rsa_sign]] RSA public key signature
+[opt_def [const sha]] SHA hashing
+[opt_def [const sha1]] SHA-1 hashing
+[opt_def [const sha_256]] 256-bit SHA-2
+[opt_def [const sha_384]] 384-bit SHA-2
+[opt_def [const sha_512]] 512-bit SHA-2
+[list_end]
+
+Note that not all algorithms are supported on all platforms.
+
 [section "ASN.1 object identifiers"]
 An ASN.1 object identifier (OID) is a dotted decimal string such
 as [const 1.2.3.4] that represents a ASN.1 class or attribute.
-Many CryptoAPI command arguments use OID's to represent types and values
+Many CAPI command arguments use OID's to represent types and values
 such as algorithm identifiers. OID's can be passed in their dotted
 decimal form, or, for some commonly used ones, a mnemonic identifer.
 The list of mnemonic identifiers can be obtained through
@@ -200,6 +249,29 @@ can be done through the [uri #oidname [cmd oidname]] and
 The utility commands [uri #asn1_encode_string [cmd asn1_encode_string]]
 and [uri #asn1_decode_string [cmd asn1_decode_string]] can be used to
 convert OID's to and from binary formats.
+
+[section "Hashes and MACs"]
+
+CAPI supports functionality related to generating cryptographic hashes
+and message authentication codes (MAC). The related TWAPI commands
+are shown below.
+
+[list_begin opt]
+[opt_def [uri #capi_hash_bytes [cmd capi_hash_bytes]]]
+Incrementally hashes a binary string.
+[opt_def [uri #capi_hash_create [cmd capi_hash_create]]]
+Creates a hash context.
+[opt_def [uri #capi_hash_dup [cmd capi_hash_dup]]]
+Duplicates a hash context.
+[opt_def [uri #capi_hash_free [cmd capi_hash_free]]]
+Frees a hash context.
+[opt_def [uri #capi_hash_session_key [cmd capi_hash_session_key]]]
+Incrementally hashes the secret session key.
+[opt_def [uri #capi_hash_string [cmd capi_hash_string]]]
+Incrementally hashes a string.
+[opt_def [uri #capi_hash_value [cmd capi_hash_value]]]
+Returns the hashed value.
+[list_end]
 
 [section "Data protection"]
 
@@ -219,6 +291,51 @@ Returns the specified OID in ASN.1 binary encoded format.
 
 [call [cmd asn1_decode_string] [arg OID]]
 Returns the specified ASN.1 binary OID in string format.
+
+[call [cmd capi_algid] [arg ALGID]]
+Returns the numeric algorithm identifier for the algorithm [arg ALGID]
+which may be in any of the forms described in
+[sectref "Algorithm identifiers"].
+
+[call [cmd capi_hash_bytes] [arg HHASH] [arg BINVALUE]]
+Updates the hash context specified by [arg HHASH] with the result
+of hashing the binary string [arg BINVALUE].
+
+[call [cmd capi_hash_create] [arg HCRYPT] [arg ALGID] [opt [arg HKEY]]]
+Creates a hash context and returns a handle to it. [arg HCRYPT]
+is a handle to a cryptographic context as returned by
+[uri #crypt_acquire [cmd crypt_acquire]]. [arg ALGID] is an algorithm
+identifier as described in [sectref "Algorithm identifiers"]. If the
+algorithm is a key-based hash, [arg HKEY] must be a handle to the
+key. Otherwise it should be unspecified or [const NULL].
+[nl]
+The returned hash context should be freed when no longer needed by
+calling [uri #capi_hash_free [cmd capi_hash_free]].
+
+[call [cmd capi_hash_dup] [arg HHASH]]
+Creates a new hash context that is the duplicate of an existing hash
+context and returns a handle to it.
+[nl]
+The returned hash context should be freed when no longer needed by
+calling [uri #capi_hash_free [cmd capi_hash_free]].
+
+[call [cmd capi_hash_free] [arg HHASH]]
+Frees a hash context previously created through [cmd capi_hash_create]
+or [cmd capi_hash_dup].
+
+[call [cmd capi_hash_session_key] [arg HHASH] [arg HKEY]]
+Updates the hash context specified by [arg HHASH] with result of hashing
+the session key referenced by the handle [arg HKEY].
+
+[call [cmd capi_hash_string] [arg HHASH] [arg STRING] [opt [arg ENC]]]
+Converts [arg STRING] into a binary string using the specified
+encoding [arg ENC] (defaults to [const utf-8]) and
+updates the hash context specified by [arg HHASH] with the result.
+
+[call [cmd capi_hash_value] [arg HHASH]]
+Returns the hashed value from the specified hash context as a binary
+string. The [arg HHASH] handle should be used with [cmd capi_hash_bytes]
+or [cmd capi_hash_string] once this command is called.
 
 [call [cmd crypt_acquire] [opt [arg options]]]
 Returns a handle to a cryptographic context for a key container
@@ -482,6 +599,6 @@ If specified, the user is shown a dialog with the specified
 
 [list_end]
 
-[keywords key cryptography encryption decryption CryptoAPI PKCS]
+[keywords key hashing signatures MAC MIC cryptography encryption decryption CAPI CryptoAPI PKCS]
 
 [manpage_end]
