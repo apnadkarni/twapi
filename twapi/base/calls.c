@@ -1017,7 +1017,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.value.ival=swap2(i16);
         result.type = TRT_LONG;
         break;
-    case 1028: // bin2hex
+    case 1028: // hex
         pv = Tcl_GetByteArrayFromObj(objv[0], &i);
         result.type = TRT_OBJ;
         result.value.obj = ObjFromByteArrayHex(pv, i);
@@ -2365,7 +2365,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(swap8, 1025),
         DEFINE_FNCODE_CMD(swap4, 1026),
         DEFINE_FNCODE_CMD(swap2, 1027),
-        DEFINE_FNCODE_CMD(bin2hex, 1028), // TBD - document
+        DEFINE_FNCODE_CMD(hex, 1028), // TBD - document
     };
 
     static struct fncode_dispatch_s CallArgsDispatch[] = {
