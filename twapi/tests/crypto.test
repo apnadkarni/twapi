@@ -32,10 +32,17 @@ eval tcltest::configure $argv
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_crypto
 
+package require md5
+package require sha1
+package require sha256
 
 namespace eval twapi::crypto::test {
     namespace import ::tcltest::test
 
+    variable hash_bin_operand
+    variable hash_str_operand
+    set hash_bin_operand [string repeat "\001abc\u0100" 100]
+    set hash_str_operand "0123456789abcdefghijklmnopqrstuvwxyz"
 
     # TBD - add tests, including SSL, were data is passed in fragmented
 
@@ -3494,16 +3501,54 @@ namespace eval twapi::crypto::test {
     
     test capi_algid-4.0 {Alg Id for bad token} -body {
         twapi::capi_algid xxx
-    } -result "" -errorCodes error
+    } -result "" -returnCodes error
     
     test capi_algid-4.1 {Alg Id for bad OID} -body {
         twapi::capi_algid 1.2.840.113549.1.1.40 
-    } -result "" -errorCodes error
+    } -result "" -returnCodes error
     
     ################################################################
 
-    test capi_hash {
-        TBD - all hash routines
+    test md5-1.0 {md5 bin} -body {
+        twapi::md5 $hash_bin_operand
+    } -result [md5::md5 $hash_bin_operand]
+    
+    test md5-2.0 {md5 utf-8} -body {
+        twapi::md5 $hash_str_operand utf-8
+    } -result [md5::md5 [encoding convertto utf-8 $hash_str_operand]]
+    
+    test md5-2.1 {md5 unicode} -body {
+        twapi::md5 $hash_str_operand unicode
+    } -result [md5::md5 [encoding convertto unicode $hash_str_operand]]
+    
+    test sha1-1.0 {sha1 bin} -body {
+        twapi::sha1 $hash_bin_operand
+    } -result [sha1::sha1 -bin -- $hash_bin_operand]
+    
+    test sha1-2.0 {sha1 utf-8} -body {
+        twapi::sha1 $hash_str_operand utf-8
+    } -result [sha1::sha1 -bin -- [encoding convertto utf-8 $hash_str_operand]]
+    
+    test sha1-2.1 {sha1 unicode} -body {
+        twapi::sha1 $hash_str_operand unicode
+    } -result [sha1::sha1 -bin -- [encoding convertto unicode $hash_str_operand]]
+
+    test sha256-1.0 {sha256 bin} -body {
+        twapi::sha256 $hash_bin_operand
+    } -result [sha2::sha256 -bin -- $hash_bin_operand]
+    
+    test sha256-2.0 {sha256 utf-8} -body {
+        twapi::sha256 $hash_str_operand utf-8
+    } -result [sha2::sha256 -bin -- [encoding convertto utf-8 $hash_str_operand]]
+    
+    test sha256-2.1 {sha256 unicode} -body {
+        twapi::sha256 $hash_str_operand unicode
+    } -result [sha2::sha256 -bin -- [encoding convertto unicode $hash_str_operand]]
+    test sha-384 {SHA 384} -constraints {TBD} -body {TBD} -result TBD
+    test sha-512 {SHA 512} -constraints {TBD} -body {TBD} -result TBD
+    
+    test capi_hash-99 {
+        TBD - all hash routines - test against other hash implementations
     } -constraints {
         TBD
     } -body {

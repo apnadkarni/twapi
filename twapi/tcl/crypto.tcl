@@ -19,18 +19,41 @@ namespace eval twapi {
 
 ### Hash functions
 
-proc twapi::capi_hash_create {hcrypt algid {hkey NULL}} {
+proc twapi::hash_create {hcrypt algid {hkey NULL}} {
     return [CryptCreateHash $hcrypt [capi_algid $algid] $hkey]
 }
 
-proc twapi::capi_hash_string {hhash s {enc utf-8}} {
-    return [crypt_hash_bytes $hhash [encoding convertto $enc $s] 0]
+proc twapi::hash_string {hhash s {enc utf-8}} {
+    return [hash_bytes $hhash [encoding convertto $enc $s] 0]
 }
 
-proc twapi::capi_hash_value {hhash} {
+proc twapi::hash_value {hhash} {
     return [CryptGetHashParam $hhash 2]; # HP_HASHVAL
 }
-                              
+
+proc twapi::_do_hash {csptype alg s {enc ""}} {
+    if {$enc ne ""} {
+        set s [encoding convertto $enc $s]
+    }
+    set hcrypt [crypt_acquire -csptype $csptype]
+    trap {
+        set hhash [hash_create $hcrypt $alg]
+        hash_bytes $hhash $s
+        return [hash_value $hhash]
+    } finally {
+        if {[info exists hhash]} {
+            hash_free $hhash
+        }
+        crypt_free $hcrypt
+    }
+}
+
+interp alias {} twapi::md5 {} twapi::_do_hash prov_rsa_full md5
+interp alias {} twapi::sha1 {} twapi::_do_hash prov_rsa_full sha1
+interp alias {} twapi::sha256 {} twapi::_do_hash prov_rsa_aes sha_256
+interp alias {} twapi::sha384 {} twapi::_do_hash prov_rsa_aes sha_384
+interp alias {} twapi::sha512 {} twapi::_do_hash prov_rsa_aes sha_512
+
 ### Data protection
 
 proc twapi::protect_data {data args} {
