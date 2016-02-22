@@ -2207,8 +2207,7 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
 
     case PP_CERTCHAIN: /* FALLTHRU, TBD Tcl */
     default: /* Treat as byte array */
-        objP = ObjFromByteArray(NULL, n);
-        pv = ObjToByteArray(objP, &n);
+        objP = ObjAllocateByteArray(n, &pv);
         if (! CryptGetProvParam(hprov, param, pv, &n, flags)) {
             TwapiReturnSystemError(interp);
             ObjDecrRefs(objP);
@@ -2326,8 +2325,7 @@ static TCL_RESULT Twapi_PFXExportCertStoreExObjCmd(TwapiInterpContext *ticP, Tcl
     if (blob.cbData == 0)
         goto vamoose;
 
-    objP = ObjFromByteArray(NULL, blob.cbData);
-    blob.pbData = ObjToByteArray(objP, &blob.cbData);
+    objP = ObjAllocateByteArray(blob.cbData, &blob.pbData);
     status = PFXExportCertStoreEx(hstore, &blob, password, NULL, flags);
     if (! status) {
         res = TwapiReturnSystemError(interp);
@@ -3116,8 +3114,7 @@ static TCL_RESULT Twapi_CryptGetKeyParamObjCmd(TwapiInterpContext *ticP, Tcl_Int
         winerr = GetLastError();
         if (winerr != ERROR_MORE_DATA)
             return Twapi_AppendSystemError(interp, winerr);
-        objP = ObjFromByteArray(NULL, nbytes);
-        p = Tcl_GetByteArrayFromObj(objP, &nbytes);
+        objP = ObjAllocateByteArray(nbytes, &p);
         break;
     }
     if (!CryptGetKeyParam(hkey, param, p, &nbytes, flags)) {
@@ -3377,8 +3374,7 @@ static TCL_RESULT Twapi_CryptEncryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_
             res = TwapiReturnSystemError(interp);
             goto vamoose;
         }
-        objP = ObjFromByteArray(NULL, nout);
-        out = ObjToByteArray(objP, &nout);
+        objP = ObjAllocateByteArray(nout, &out);
         if (! CryptEncryptMessage(&param, ncerts, certsPP, in, nin, out, &nout)) {
             res = TwapiReturnSystemError(interp);
             ObjDecrRefs(objP);
@@ -3422,8 +3418,7 @@ static TCL_RESULT Twapi_CryptSignAndEncryptMessageObjCmd(TwapiInterpContext *tic
             res = TwapiReturnSystemError(interp);
             goto vamoose;
         }
-        objP = ObjFromByteArray(NULL, nout);
-        out = ObjToByteArray(objP, &nout);
+        objP = ObjAllocateByteArray(nout, &out);
         if (! CryptSignAndEncryptMessage(&sign_param, &enc_param, ncerts,
                                   certsPP, in, nin, out, &nout)) {
             res = TwapiReturnSystemError(interp);
@@ -3469,8 +3464,7 @@ static TCL_RESULT Twapi_CryptDecryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_
             res = TwapiReturnSystemError(interp);
             goto vamoose;
         }
-        objP = ObjFromByteArray(NULL, nout);
-        out = ObjToByteArray(objP, &nout);
+        objP = ObjAllocateByteArray(nout, &out);
         if (! CryptDecryptMessage(&param, in, nin, out, &nout, certPP)) {
                 res = TwapiReturnSystemError(interp);
                 ObjDecrRefs(objP);
@@ -3550,8 +3544,7 @@ static TCL_RESULT Twapi_CryptVerifyMessageSignatureObjCmd(TwapiInterpContext *ti
     }
     /* Verified. If we need the content, need to call it again with a buffer */
     if (contentVar && Tcl_GetStringFromObj(contentVar, &n) && n != 0) {
-        contentObj = ObjFromByteArray(NULL, nout);
-        out = ObjToByteArray(contentObj, &nout);
+        contentObj = ObjAllocateByteArray(nout, &out);
         if (! CryptVerifyMessageSignature(&param, signer_index, in, nin, out, &nout, certPP))
             goto system_error;
         Tcl_SetByteArrayLength(contentObj, nout);
@@ -3693,8 +3686,7 @@ static TCL_RESULT Twapi_CryptSignMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
         res = TwapiReturnSystemError(interp);
         goto vamoose;
     }
-    sigObj = ObjFromByteArray(NULL, nsig);
-    sig = ObjToByteArray(sigObj, &nsig);
+    sigObj = ObjAllocateByteArray(nsig, &sig);
     if (!CryptSignMessage(&param, detached, ndata, dataPP, datalenP,
                           sig, &nsig)) {
         res = TwapiReturnSystemError(interp);
@@ -4366,8 +4358,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         if (! CertSaveStore(hstore, PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
                             dw, CERT_STORE_SAVE_TO_MEMORY, &blob, 0))
             return TwapiReturnSystemError(interp);
-        result.value.obj = ObjFromByteArray(NULL, blob.cbData);
-        blob.pbData = ObjToByteArray(result.value.obj, &blob.cbData);
+        result.value.obj = ObjAllocateByteArray(blob.cbData, &blob.pbData);
         if (! CertSaveStore(hstore, PKCS_7_ASN_ENCODING | X509_ASN_ENCODING,
                             dw, CERT_STORE_SAVE_TO_MEMORY, &blob, 0)) {
             TwapiReturnSystemError(interp);
@@ -4385,8 +4376,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         s1 = ObjToUnicodeN(s1Obj, &dw2);
         if (!CryptStringToBinaryW(s1, dw2, dw, NULL, &dw3, NULL, NULL))
             return TwapiReturnSystemError(interp);
-        result.value.obj = ObjFromByteArray(NULL, dw3);
-        pv = ObjToByteArray(result.value.obj, &dw3);
+        result.value.obj = ObjAllocateByteArray(dw3, &pv);
         if (!CryptStringToBinaryW(s1, dw2, dw, pv, &dw3, NULL, NULL)) {
             TwapiReturnSystemError(interp);
             ObjDecrRefs(result.value.obj);
@@ -4605,8 +4595,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         dw3 = 1024; /* Assume big enough */
-        result.value.obj = ObjFromByteArray(NULL, dw3);
-        pv2 = Tcl_GetByteArrayFromObj(result.value.obj, &dw3);
+        result.value.obj = ObjAllocateByteArray(dw3, &pv2);
         if (CryptSignHash((HCRYPTHASH)pv, dw, NULL, dw2, pv2, &dw3)) {
             Tcl_SetByteArrayLength(result.value.obj, dw3);
             result.type = TRT_OBJ;
@@ -4656,8 +4645,8 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             result.type = TRT_DWORD;
         else {
             /* result.value.uval contains size of hash */
-            result.value.obj = ObjFromByteArray(NULL, result.value.uval);
-            pv2 = ObjToByteArray(result.value.obj, &dw2);
+            dw2 = result.value.uval;
+            result.value.obj = ObjAllocateByteArray(dw2, &pv2);
             if (CryptGetHashParam((HCRYPTHASH) pv, HP_HASHVAL, pv2, &dw2, 0)) {
                 Tcl_SetByteArrayLength(result.value.obj, dw2);
                 result.type = TRT_OBJ;
@@ -4697,8 +4686,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             result.type = TRT_GETLASTERROR;
             break;
         }
-        s1Obj = ObjFromByteArray(NULL,dw3);
-        cP = ObjToByteArray(s1Obj, &dw3);
+        s1Obj = ObjAllocateByteArray(dw3, &cP);
         if (!CryptExportKey((HCRYPTKEY)pv, (HCRYPTKEY)pv2, dw, dw2, cP, &dw3)) {
             result.value.ival = GetLastError(); /* Save before other calls */
             result.type = TRT_EXCEPTION_ON_ERROR;

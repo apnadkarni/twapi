@@ -1014,8 +1014,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                          GETINT(dw),          /* Num bytes to read */
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.value.obj = ObjFromByteArray(NULL, dw);
-        pv = ObjToByteArray(result.value.obj, &dw);
+        result.value.obj = ObjAllocateByteArray(dw, &pv);
         if (ReadProcessMemory(h, (void *)u.dwp, pv, dw, &sz)) {
             Tcl_SetByteArrayLength(result.value.obj, (int) sz);
             result.type = TRT_OBJ;
