@@ -588,6 +588,17 @@ data. The user will also be prompted at the time the data
 is decrypted.
 [list_end]
 
+[call [cmd sha1] [arg DATA] [opt [arg ENC]]]
+[call [cmd sha256] [arg DATA] [opt [arg ENC]]]
+[call [cmd sha384] [arg DATA] [opt [arg ENC]]]
+[call [cmd sha512] [arg DATA] [opt [arg ENC]]]
+Return the SHA-1, SHA-256, SHA-384 or SHA-512 digests respectively
+for [arg DATA]. If [arg ENC] is not
+specified or is an empty string, [arg DATA] is assumed to be
+a binary string. Otherwise, it is converted to a binary string
+using the specified encoding [arg ENC] and the digest is calculated
+on the result.
+
 [call [cmd unprotect_data] [arg BINDATA] [opt [arg options]]]
 Decrypts and verifies the signature on the binary data [arg BINDATA]
 which must have been encrypted with the
