@@ -462,8 +462,7 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
                 result.type = TRT_GETLASTERROR; /* TBD - is GetLastError set? */
                 break;
             }
-            result.value.obj = ObjFromByteArray(NULL, dw); // Alloc storage
-            pv = ObjToByteArray(result.value.obj, &dw); // and get ptr to it
+            result.value.obj = ObjAllocateByteArray(dw, &pv);
             dw = GetObjectW(h, dw, pv);
             if (dw == 0)
                 result.type = TRT_GETLASTERROR;
