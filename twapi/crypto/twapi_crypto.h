@@ -62,6 +62,14 @@ typedef WINTRUST_DATA TWAPI_WINTRUST_DATA;
 typedef PWINTRUST_DATA PTWAPI_WINTRUST_DATA;
 #endif
 
+typedef struct _TWAPI_PLAINTEXTKEYBLOB {
+    BLOBHEADER hdr;
+    DWORD dwKeySize;
+    BYTE  rgbKeyData[1]; /* Actually [dwKeySize] */
+} TWAPI_PLAINTEXTKEYBLOB;
+#define TWAPI_PLAINTEXTKEYBLOB_SIZE(klen_) \
+    ((klen_) + offsetof(struct _TWAPI_PLAINTEXTKEYBLOB, rgbKeyData))
+
 void TwapiRegisterPCCERT_CONTEXT(Tcl_Interp *, PCCERT_CONTEXT);
 void TwapiRegisterPCCERT_CONTEXTTic(TwapiInterpContext *, PCCERT_CONTEXT );
 TCL_RESULT TwapiUnregisterPCCERT_CONTEXT(Tcl_Interp *, PCCERT_CONTEXT);
