@@ -4477,18 +4477,18 @@ unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP)
     return Tcl_GetByteArrayFromObj(objP, lenP);
 }
 
-/* RtlEncryptMemory (aka SystemFunction040)
- * The Feb 2003 SDK does not define this in the headers, nor does it
- * include it in the export libs. So we have to dynamically load it.
+/*
+ * RtlEncryptMemory (aka SystemFunction040) and
+ * RtlDecryptMemory (aka SystemFunction041)
+ * The Feb 2003 SDK does not define these in the headers, nor does it
+ * include them in the export libs. So we have to dynamically load them
 */
 typedef BOOLEAN (NTAPI *SystemFunction040_t)(PVOID, ULONG, ULONG);
 MAKE_DYNLOAD_FUNC(SystemFunction040, advapi32, SystemFunction040_t)
+typedef BOOLEAN (NTAPI *SystemFunction041_t)(PVOID, ULONG, ULONG);
+MAKE_DYNLOAD_FUNC(SystemFunction041, advapi32, SystemFunction041_t)
 
-/* Encrypts the Unicode string rep to a byte array. We choose Unicode
-   as the base format because most API's need Unicode and makes it
-   easier to SecureZeroMemory the buffer. 
-*/
-Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nchars)
+Tcl_Obj *ObjEncryptByteArray(Tcl_Interp *interp, BYTE *bytes, int nchars)
 {
     int sz, len, pad_len;
     Tcl_Obj *objP;
@@ -4501,10 +4501,7 @@ Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nchars)
         return NULL;
     }
 
-    if (nchars < 0)
-        nchars = lstrlenW(uniP);
-
-    len = sizeof(WCHAR) * nchars;
+    len = nchars;
 
     /*
      * Total length has to be multiple of encryption block size
@@ -4532,7 +4529,7 @@ Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nchars)
     objP = ObjFromByteArray(NULL, sz);
     p = ObjToByteArray(objP, &sz);
     p[sz-1] = (unsigned char) pad_len;
-    CopyMemory(p, uniP, sizeof(WCHAR)*nchars);
+    CopyMemory(p, bytes, nchars);
     
     /* RtlEncryptMemory */
     status = fnP(p, sz, 0);
@@ -4544,13 +4541,97 @@ Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nchars)
     return objP;
 }
 
+static TCL_RESULT TwapiDecryptBlockLengthError(Tcl_Interp *interp, int len)
+{
+    return TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                              Tcl_ObjPrintf("Invalid length (%d) of encrypted object. Must be non-zero multiple of block size (%d).", len, RTL_ENCRYPT_MEMORY_SIZE));
+}
 
-/* RtlDecryptMemory (aka SystemFunction041)
- * The Feb 2003 SDK does not define this in the headers, nor does it
- * include it in the export libs. So we have to dynamically load it.
+static TCL_RESULT TwapiDecryptPadLengthError(Tcl_Interp *interp, int pad_len)
+{
+    return TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
+                       Tcl_ObjPrintf("Invalid pad (%d) in decrypted object. Object corrupted or was not encrypted.", pad_len));
+}
+
+/*
+ * Decrypts objP to memory. Must be freed via TwapiFree or
+ * TwapiFreeDecryptedByteArray (which also zeroes it out)
+ * Returns number of bytes in *ncharsP
+ */
+BYTE * ObjDecryptByteArray(Tcl_Interp *interp,
+                          Tcl_Obj *objP,
+                          int *ncharsP /* May be NULL */
+    )
+{
+    int len;
+    BYTE *enc, *dec;
+    int pad_len;
+    NTSTATUS status;
+    SystemFunction041_t fnP = Twapi_GetProc_SystemFunction041();
+
+    if (fnP == NULL) {
+        Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+        return NULL;
+    }
+    
+    enc = ObjToByteArray(objP, &len);
+    if (len == 0 || (len & BLOCK_SIZE_MASK)) {
+        TwapiDecryptPadLengthError(interp, len);
+        return NULL;
+    }
+
+    /* len is number of encrypted bytes. Number of decrypted bytes
+       will be at most len
+    */
+    dec = TwapiAlloc(len);
+    CopyMemory(dec, enc, len);
+
+    /* RtlDecryptMemory */
+    status = fnP(dec, len, 0);
+    if (status != 0) {
+        if (interp)
+            Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
+        goto error_return;
+    }
+
+    pad_len = dec[len-1];
+
+    if (pad_len == 0 || pad_len > RTL_ENCRYPT_MEMORY_SIZE || pad_len > len) {
+        TwapiDecryptPadLengthError(interp, pad_len);
+        goto error_return;
+    }
+    
+    len -= pad_len;
+    if (ncharsP)
+        *ncharsP = len;
+
+    return dec;
+
+error_return:
+    if (dec)
+        TwapiFree(dec);
+    return NULL;
+}
+
+void TwapiFreeDecryptedByteArray(BYTE *p, int len)
+{
+    if (p) {
+        SecureZeroMemory(p, len);
+        TwapiFree(p);
+    }
+}
+
+/* Encrypts the Unicode string rep to a byte array. We choose Unicode
+   as the base format for strings because most API's need Unicode and makes it
+   easier to SecureZeroMemory the buffer. 
 */
-typedef BOOLEAN (NTAPI *SystemFunction041_t)(PVOID, ULONG, ULONG);
-MAKE_DYNLOAD_FUNC(SystemFunction041, advapi32, SystemFunction041_t)
+Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nchars)
+{
+    if (nchars < 0)
+        nchars = lstrlenW(uniP);
+
+    return ObjEncryptByteArray(interp, (BYTE*) uniP, sizeof(WCHAR)*nchars);
+}
 
 /*
  * Decrypts Unicode string in objP to memory. Must be freed via TwapiFree
@@ -4575,9 +4656,7 @@ WCHAR * ObjDecryptUnicode(Tcl_Interp *interp,
     
     enc = ObjToByteArray(objP, &len);
     if (len == 0 || (len & BLOCK_SIZE_MASK)) {
-        if (interp)
-            TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                               Tcl_ObjPrintf("Invalid length (%d) of encrypted object. Must be non-zero multiple of block size (%d).", len, RTL_ENCRYPT_MEMORY_SIZE));
+        TwapiDecryptBlockLengthError(interp, len);
         return NULL;
     }
 
@@ -4601,8 +4680,7 @@ WCHAR * ObjDecryptUnicode(Tcl_Interp *interp,
     if (pad_len == 0 || (pad_len & 1) ||
         pad_len > RTL_ENCRYPT_MEMORY_SIZE ||
         pad_len > len) {
-        TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Invalid pad (%d) in decrypted object. Object corrupted or was not encrypted.", pad_len));
+        TwapiDecryptPadLengthError(interp, pad_len);
         goto error_return;
     }
     
