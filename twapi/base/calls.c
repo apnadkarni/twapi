@@ -845,8 +845,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         dw2 = GetLastError();
         if (dw2 != ERROR_INSUFFICIENT_BUFFER)
             return Twapi_AppendSystemError(interp, dw2);
-        result.value.obj = ObjFromByteArray(NULL, dw);
-        pv = ObjToByteArray(result.value.obj, &dw);
+        result.value.obj = ObjAllocateByteArray(dw, &pv);
         dw2 = MakeSelfRelativeSD(u.secdP, pv, &dw);
         TwapiFreeSECURITY_DESCRIPTOR(u.secdP);
         if (! dw2) {
@@ -2809,13 +2808,14 @@ static Tcl_Obj *TwapiRandomByteArrayObj(Tcl_Interp *interp, int nbytes)
 {
     SystemFunction036_t fnP = Twapi_GetProc_SystemFunction036();
     Tcl_Obj *objP;
+    void *pv;
     if (fnP == NULL) {
         Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
         return NULL;
     }
 
-    objP = ObjFromByteArray(NULL, nbytes);
-    if (fnP(ObjToByteArray(objP, NULL), nbytes))
+    objP = ObjAllocateByteArray(nbytes, &pv);
+    if (fnP(pv, nbytes))
         return objP;
 
     ObjDecrRefs(objP);

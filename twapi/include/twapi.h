@@ -1415,6 +1415,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *wstrP, int max, int *re
 TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeNoTrailingSpace(const WCHAR *strP);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len);
+TWAPI_EXTERN Tcl_Obj *ObjAllocateByteArray(int len, void **);
 TWAPI_EXTERN Tcl_Obj *ObjFromByteArrayHex(const unsigned char *bytes, int len);
 TWAPI_EXTERN unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP);
 

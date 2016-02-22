@@ -4452,6 +4452,16 @@ Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len)
     }
 }
 
+TWAPI_EXTERN Tcl_Obj *ObjAllocateByteArray(int len, void **ppv)
+{
+    Tcl_Obj *objP;
+    objP = ObjFromByteArray(NULL, len);
+    if (ppv)
+        *ppv = Tcl_GetByteArrayFromObj(objP, NULL);
+    return objP;
+}
+
+
 /* Hex conversion copied from Tcl 86 since 85 does not have it. */
 static const char HexDigits[16] = {
     '0', '1', '2', '3', '4', '5', '6', '7',
@@ -4526,8 +4536,7 @@ Tcl_Obj *ObjEncryptByteArray(Tcl_Interp *interp, BYTE *bytes, int nchars)
     TWAPI_ASSERT(pad_len > 0);
     TWAPI_ASSERT(pad_len <= RTL_ENCRYPT_MEMORY_SIZE);
 
-    objP = ObjFromByteArray(NULL, sz);
-    p = ObjToByteArray(objP, &sz);
+    objP = ObjAllocateByteArray(sz, &p);
     p[sz-1] = (unsigned char) pad_len;
     CopyMemory(p, bytes, nchars);
     
