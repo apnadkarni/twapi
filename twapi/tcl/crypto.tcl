@@ -1694,6 +1694,13 @@ proc twapi::asn1_encode_string {s {encformat utf8}} {
 }
 
 ###
+# Key utilities
+
+proc twapi::keyblob_plain {algid binkey} {
+    return [TwapiMakePlaintextKeyBlob [capi_algid $algid] $binkey]
+}
+
+###
 # Utility procs
 
 
