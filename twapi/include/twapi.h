@@ -1417,8 +1417,12 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeNoTrailingSpace(const WCHAR *strP);
 TWAPI_EXTERN Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len);
 TWAPI_EXTERN Tcl_Obj *ObjFromByteArrayHex(const unsigned char *bytes, int len);
 TWAPI_EXTERN unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP);
-TWAPI_EXTERN Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nchars);
-TWAPI_EXTERN WCHAR * ObjDecryptUnicode(Tcl_Interp *interp, Tcl_Obj *objP, int *ncharsP);
+
+TWAPI_EXTERN Tcl_Obj *ObjEncryptByteArray(Tcl_Interp *, BYTE *, int);
+TWAPI_EXTERN BYTE * ObjDecryptByteArray(Tcl_Interp *, Tcl_Obj *, int *);
+TWAPI_EXTERN void TwapiFreeDecryptedByteArray(BYTE *, int nchars);
+TWAPI_EXTERN Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *, WCHAR *, int);
+TWAPI_EXTERN WCHAR * ObjDecryptUnicode(Tcl_Interp *, Tcl_Obj *, int *);
 TWAPI_EXTERN WCHAR * ObjDecryptPassword(Tcl_Obj *objP, int *ncharsP);
 TWAPI_EXTERN void TwapiFreeDecryptedPassword(WCHAR *, int nchars);
 
