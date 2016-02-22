@@ -3513,6 +3513,10 @@ namespace eval twapi::crypto::test {
         twapi::md5 $hash_bin_operand
     } -result [md5::md5 $hash_bin_operand]
     
+    test md5-1.1 {md5 bin openssl} -body {
+        twapi::hex [twapi::md5 [read_binary crypto.test]]
+    } -result [lindex [openssl dgst -md5 -r crypto.test] 0 0]
+    
     test md5-2.0 {md5 utf-8} -body {
         twapi::md5 $hash_str_operand utf-8
     } -result [md5::md5 [encoding convertto utf-8 $hash_str_operand]]
@@ -3524,6 +3528,10 @@ namespace eval twapi::crypto::test {
     test sha1-1.0 {sha1 bin} -body {
         twapi::sha1 $hash_bin_operand
     } -result [sha1::sha1 -bin -- $hash_bin_operand]
+    
+    test sha1-1.1 {sha1 bin openssl} -body {
+        twapi::hex [twapi::sha1 [read_binary crypto.test]]
+    } -result [lindex [openssl dgst -sha1 -r crypto.test] 0 0]
     
     test sha1-2.0 {sha1 utf-8} -body {
         twapi::sha1 $hash_str_operand utf-8
@@ -3537,6 +3545,10 @@ namespace eval twapi::crypto::test {
         twapi::sha256 $hash_bin_operand
     } -result [sha2::sha256 -bin -- $hash_bin_operand]
     
+    test sha256-1.1 {sha256 bin openssl} -body {
+        twapi::hex [twapi::sha256 [read_binary crypto.test]]
+    } -result [lindex [openssl dgst -sha256 -r crypto.test] 0 0]
+    
     test sha256-2.0 {sha256 utf-8} -body {
         twapi::sha256 $hash_str_operand utf-8
     } -result [sha2::sha256 -bin -- [encoding convertto utf-8 $hash_str_operand]]
@@ -3549,6 +3561,10 @@ namespace eval twapi::crypto::test {
         string length [twapi::sha384 $hash_bin_operand]
     } -result 48
     
+    test sha384-1.1 {sha384 bin openssl} -body {
+        twapi::hex [twapi::sha384 [read_binary crypto.test]]
+    } -result [lindex [openssl dgst -sha384 -r crypto.test] 0 0]
+    
     test sha384-2.0 {sha384 bin} -body {
         string length [twapi::sha384 $hash_str_operand utf-8]
     } -result 48
@@ -3557,12 +3573,13 @@ namespace eval twapi::crypto::test {
         string length [twapi::sha512 $hash_bin_operand]
     } -result 64
     
+    test sha512-1.1 {sha512 bin openssl} -body {
+        twapi::hex [twapi::sha512 [read_binary crypto.test]]
+    } -result [lindex [openssl dgst -sha512 -r crypto.test] 0 0]
+    
     test sha512-2.0 {sha512 bin} -body {
         string length [twapi::sha512 $hash_str_operand utf-8]
     } -result 64
-    
-    test sha-384 {SHA 384 test against openssl} -constraints {TBD} -body {TBD} -result TBD
-    test sha-512 {SHA 512 test against openssl} -constraints {TBD} -body {TBD} -result TBD
     
     test capi_hash-99 {
         TBD - all hash routines - test against other hash implementations
