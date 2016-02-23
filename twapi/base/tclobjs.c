@@ -4551,7 +4551,7 @@ TCL_RESULT TwapiEncryptData(Tcl_Interp *interp, BYTE *inP, int nin, BYTE *outP, 
     return TCL_OK;
 }
 
-Tcl_Obj *ObjEncryptByteArray(Tcl_Interp *interp, BYTE *bytes, int nbytes)
+Tcl_Obj *ObjEncryptData(Tcl_Interp *interp, BYTE *bytes, int nbytes)
 {
     TCL_RESULT res;
     int nenc;
@@ -4571,60 +4571,6 @@ Tcl_Obj *ObjEncryptByteArray(Tcl_Interp *interp, BYTE *bytes, int nbytes)
         return NULL;
     }
 }
-
-#ifdef OBSOLETE
-Tcl_Obj *XXXObjEncryptByteArray(Tcl_Interp *interp, BYTE *bytes, int nchars)
-{
-    int sz, len, pad_len;
-    Tcl_Obj *objP;
-    NTSTATUS status;
-    SystemFunction040_t fnP = Twapi_GetProc_SystemFunction040();
-    char *p;
-
-    if (fnP == NULL) {
-        Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
-        return NULL;
-    }
-
-    len = nchars;
-
-    /*
-     * Total length has to be multiple of encryption block size
-     * so encryption involves padding. We will stick a byte
-     * at the end to hold actual pad length
-     */
-#ifndef RTL_ENCRYPT_MEMORY_SIZE // Not defined in all SDK's
-# define RTL_ENCRYPT_MEMORY_SIZE 8
-#endif    
-#define BLOCK_SIZE_MASK (RTL_ENCRYPT_MEMORY_SIZE-1)
-    
-    if (len & BLOCK_SIZE_MASK) {
-        /* Not a multiple of RTL_ENCRYPT_MEMORY_SIZE */
-        sz = (len + BLOCK_SIZE_MASK) & ~BLOCK_SIZE_MASK;
-        pad_len = sz - len;
-    } else {
-        /* Exact size. But we need a byte for the pad length field
-           so need to add an entire block for that */
-        pad_len = RTL_ENCRYPT_MEMORY_SIZE;
-        sz = len + pad_len;
-    }
-    TWAPI_ASSERT(pad_len > 0);
-    TWAPI_ASSERT(pad_len <= RTL_ENCRYPT_MEMORY_SIZE);
-
-    objP = ObjAllocateByteArray(sz, &p);
-    p[sz-1] = (unsigned char) pad_len;
-    CopyMemory(p, bytes, nchars);
-    
-    /* RtlEncryptMemory */
-    status = fnP(p, sz, 0);
-    if (status != 0) {
-        ObjDecrRefs(objP);
-        Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
-        return NULL;
-    }
-    return objP;
-}
-#endif
 
 static TCL_RESULT TwapiDecryptBlockLengthError(Tcl_Interp *interp, int len)
 {
@@ -4651,7 +4597,7 @@ TCL_RESULT TwapiDecryptData(Tcl_Interp *interp, BYTE *encP, int nenc, BYTE *outP
         return TwapiDecryptPadLengthError(interp, nenc);
 
     /* Plaintext length is always less than ciphertext */
-    if (noutP == NULL) {
+    if (outP == NULL) {
         *noutP = nenc; /* Max buffer size needed */
         return TCL_OK;
     }
@@ -4676,76 +4622,6 @@ TCL_RESULT TwapiDecryptData(Tcl_Interp *interp, BYTE *encP, int nenc, BYTE *outP
     return TCL_OK;
 }
 
-#ifdef OBSOLETE
-/*
- * Decrypts objP to memory. Must be freed via TwapiFree or
- * TwapiFreeDecryptedByteArray (which also zeroes it out)
- * Returns number of bytes in *ncharsP
- */
-BYTE * ObjDecryptByteArray(Tcl_Interp *interp,
-                          Tcl_Obj *objP,
-                          int *ncharsP /* May be NULL */
-    )
-{
-    int len;
-    BYTE *enc, *dec;
-    int pad_len;
-    NTSTATUS status;
-    SystemFunction041_t fnP = Twapi_GetProc_SystemFunction041();
-
-    if (fnP == NULL) {
-        Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
-        return NULL;
-    }
-    
-    enc = ObjToByteArray(objP, &len);
-    if (len == 0 || (len & BLOCK_SIZE_MASK)) {
-        TwapiDecryptPadLengthError(interp, len);
-        return NULL;
-    }
-
-    /* len is number of encrypted bytes. Number of decrypted bytes
-       will be at most len
-    */
-    dec = TwapiAlloc(len);
-    CopyMemory(dec, enc, len);
-
-    /* RtlDecryptMemory */
-    status = fnP(dec, len, 0);
-    if (status != 0) {
-        if (interp)
-            Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
-        goto error_return;
-    }
-
-    pad_len = dec[len-1];
-
-    if (pad_len == 0 || pad_len > RTL_ENCRYPT_MEMORY_SIZE || pad_len > len) {
-        TwapiDecryptPadLengthError(interp, pad_len);
-        goto error_return;
-    }
-    
-    len -= pad_len;
-    if (ncharsP)
-        *ncharsP = len;
-
-    return dec;
-
-error_return:
-    if (dec)
-        TwapiFree(dec);
-    return NULL;
-}
-
-void TwapiFreeDecryptedByteArray(BYTE *p, int len)
-{
-    if (p) {
-        SecureZeroMemory(p, len);
-        TwapiFree(p);
-    }
-}
-#endif /* OBSOLETE */
-
 /* Encrypts the Unicode string rep to a byte array. We choose Unicode
    as the base format for strings because most API's need Unicode and makes it
    easier to SecureZeroMemory the buffer. 
@@ -4755,7 +4631,7 @@ Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nchars)
     if (nchars < 0)
         nchars = lstrlenW(uniP);
 
-    return ObjEncryptByteArray(interp, (BYTE*) uniP, sizeof(WCHAR)*nchars);
+    return ObjEncryptData(interp, (BYTE*) uniP, sizeof(WCHAR)*nchars);
 }
 
 /*
@@ -4768,59 +4644,31 @@ WCHAR * ObjDecryptUnicode(Tcl_Interp *interp,
                           int *ncharsP /* May be NULL */
     )
 {
-    int len;
+    int nenc, ndec;
     char *enc, *dec;
-    int pad_len;
-    NTSTATUS status;
-    SystemFunction041_t fnP = Twapi_GetProc_SystemFunction041();
+    TCL_RESULT res;
+    
+    enc = ObjToByteArray(objP, &nenc);
+    
+    res = TwapiDecryptData(interp, enc, nenc, NULL, &ndec);
+    if (res != TCL_OK)
+        return NULL;
 
-    if (fnP == NULL) {
-        Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
+    /* Allocate additional WCHAR for terminating \0 */
+    dec = TwapiAlloc(ndec+sizeof(WCHAR));
+    
+    res = TwapiDecryptData(interp, enc, nenc, dec, &ndec);
+    if (res != TCL_OK) {
+        TwapiFree(dec);
         return NULL;
     }
-    
-    enc = ObjToByteArray(objP, &len);
-    if (len == 0 || (len & BLOCK_SIZE_MASK)) {
-        TwapiDecryptBlockLengthError(interp, len);
-        return NULL;
-    }
 
-    /* len is number of encrypted bytes. Number of decrypted bytes
-       will be at most len. We will need another 2 bytes for a WCHAR \0
-    */
-    dec = TwapiAlloc(len+sizeof(WCHAR));
-    CopyMemory(dec, enc, len);
-
-    /* RtlDecryptMemory */
-    status = fnP(dec, len, 0);
-    if (status != 0) {
-        if (interp)
-            Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
-        goto error_return;
-    }
-
-    pad_len = (unsigned char) dec[len-1];
-
-    /* Note we always encode unicode chars so pad_len is always even */
-    if (pad_len == 0 || (pad_len & 1) ||
-        pad_len > RTL_ENCRYPT_MEMORY_SIZE ||
-        pad_len > len) {
-        TwapiDecryptPadLengthError(interp, pad_len);
-        goto error_return;
-    }
-    
-    len -= pad_len;
-    len /= sizeof(WCHAR);
-    *(len + (WCHAR*) dec) = 0;             /* Terminate the Unicode string */
+    ndec /= sizeof(WCHAR);
+    *(ndec + (WCHAR*) dec) = 0;             /* Terminate the Unicode string */
     if (ncharsP)
-        *ncharsP = len;
+        *ncharsP = ndec;
 
     return (WCHAR*)dec;
-
-error_return:
-    if (dec)
-        TwapiFree(dec);
-    return NULL;
 }
 
 
