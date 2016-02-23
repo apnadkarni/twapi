@@ -3706,28 +3706,41 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     int nbytes, blob_type;
     void *cryptH, *keyH;
     DWORD flags;
-    Tcl_Obj *blobObj;
+    Tcl_Obj *blobObj, *keyObj;
     BLOBHEADER *blobP;
     MemLifoMarkHandle mark = NULL;
     TCL_RESULT res;
     HCRYPTKEY importH;
+    int nclear = 0;
+
+/* Note the CryptExportKey command does not currently implement plaintext
+   key encryption */
+#define TWAPI_ENCRYPT_PLAINTEXTKEY 0
     
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(cryptH, HCRYPTPROV, CryptReleaseContext),
-                     GETINT(blob_type),
-                     GETOBJ(blobObj),
+                     GETOBJ(keyObj),
                      GETVERIFIEDORNULL(keyH, HCRYPTKEY, CryptDestroyKey),
-                     GETINT(flags), ARGEND) != TCL_OK)
+                     GETINT(flags), ARGEND) != TCL_OK
+        ||
+        TwapiGetArgsObj(interp, keyObj,
+                        GETINT(blob_type),
+                        GETOBJ(blobObj), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     blobP = (BLOBHEADER*) ObjToByteArray(blobObj, &nbytes);
-    if (blob_type == PLAINTEXTKEYBLOB) {
+    if (nbytes <= sizeof(*blobP))
+        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "Truncated key blob.");
+
+    if (TWAPI_ENCRYPT_PLAINTEXTKEY && blob_type == PLAINTEXTKEYBLOB) {
         /* Plaintext keys are always stored in protected form */
         TWAPI_PLAINTEXTKEYBLOB *p;
-        p = MemLifoPushFrame(ticP->memlifoP, nbytes, NULL);
+        mark = MemLifoPushMark(ticP->memlifoP);
+        p = MemLifoAlloc(ticP->memlifoP, nbytes, NULL);
         res = TwapiDecryptData(interp, (BYTE*) blobP, nbytes, (BYTE*) p, &nbytes);
         if (res != TCL_OK)
             goto vamoose;
+        nclear = nbytes; /* Number of bytes of memory to clear out */
         if (TWAPI_PLAINTEXTKEYBLOB_SIZE(p->dwKeySize) != nbytes) {
             res = TwapiReturnErrorEx(interp, TWAPI_INVALID_DATA,
                                      Tcl_ObjPrintf("Inconsistent key blob size (%d versus %d).", TWAPI_PLAINTEXTKEYBLOB_SIZE(p->dwKeySize), nbytes));
@@ -3735,7 +3748,8 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
         }
         blobP = &p->hdr;
     }
-    
+
+    /* At this point, blobP may point into the Tcl_Obj data or memlifo memory */
     if (blobP->bType != blob_type) {
         res = TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
                            Tcl_ObjPrintf("KEYBLOB type %d does not match expected type %d", blobP->bType, blob_type));
@@ -3747,12 +3761,13 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
         }
         else
             res = TwapiReturnSystemError(interp);
-        /* TBD - SecureZeroMemory the plaintextblob if necessary */
     }
 
 vamoose:
-    if (blob_type == PLAINTEXTKEYBLOB)
-        MemLifoPopFrame(ticP->memlifoP);
+    if (nclear)
+        SecureZeroMemory(blobP, nclear); /* Clear out plaintext key */
+    if (mark)
+        MemLifoPopMark(mark);
 
     return res;
 }
@@ -4742,14 +4757,16 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             result.type = TRT_GETLASTERROR;
             break;
         }
-        s1Obj = ObjAllocateByteArray(dw3, &cP);
+        objs[1] = ObjAllocateByteArray(dw3, &cP);
         if (!CryptExportKey((HCRYPTKEY)pv, (HCRYPTKEY)pv2, dw, dw2, cP, &dw3)) {
             result.value.ival = GetLastError(); /* Save before other calls */
             result.type = TRT_EXCEPTION_ON_ERROR;
-            ObjDecrRefs(s1Obj);
+            ObjDecrRefs(objs[1]);
         } else {
-            result.value.obj = s1Obj;
-            result.type = TRT_OBJ;
+            objs[0] = ObjFromDWORD(((BLOBHEADER*)cP)->aiKeyAlg);
+            result.value.objv.objPP = objs;
+            result.value.objv.nobj = 2;
+            result.type = TRT_OBJV;
         }
         break;
                          
