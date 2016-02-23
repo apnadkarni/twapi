@@ -1421,11 +1421,7 @@ TWAPI_EXTERN unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP);
 
 TWAPI_EXTERN TCL_RESULT TwapiEncryptData(Tcl_Interp *, BYTE *, int, BYTE *, int *);
 TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *, BYTE *, int , BYTE *, int *);
-TWAPI_EXTERN Tcl_Obj *ObjEncryptByteArray(Tcl_Interp *, BYTE *, int);
-#ifdef OBSOLETE
-TWAPI_EXTERN BYTE * ObjDecryptByteArray(Tcl_Interp *, Tcl_Obj *, int *);
-TWAPI_EXTERN void TwapiFreeDecryptedByteArray(BYTE *, int nchars);
-#endif
+TWAPI_EXTERN Tcl_Obj *ObjEncryptData(Tcl_Interp *, BYTE *, int);
 TWAPI_EXTERN Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *, WCHAR *, int);
 TWAPI_EXTERN WCHAR * ObjDecryptUnicode(Tcl_Interp *, Tcl_Obj *, int *);
 TWAPI_EXTERN WCHAR * ObjDecryptPassword(Tcl_Obj *objP, int *ncharsP);
