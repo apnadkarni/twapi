@@ -881,6 +881,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
 
     case 1007: // conceal
+        /* TBD - if objv[0] is unshared, zero it out to erase from memory? */
         s = ObjToUnicodeN(objv[0], &dw);
         result.value.obj = ObjEncryptUnicode(interp, s, dw);
         result.type = TRT_OBJ;
