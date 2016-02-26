@@ -1463,6 +1463,41 @@ proc twapi::crypt_symmetric_key_size {hcrypt} {
     return [CryptGetProvParam $hcrypt 19 0]
 }
 
+# TBD - document
+proc twapi::crypt_key_export {hkey blob_type args} {
+    set blob_type [dict! {
+        keystate   12
+        opaque     9
+        plaintext  8
+        privatekey 7
+        publickey  6
+        publickeyex 10
+        simple     1
+        rfc3217    11
+    } $blob_type]
+
+    parseargs args {
+        {-hwrapper.arg NULL}
+        {v3.bool 0 0x80}
+        {oeap.bool 0 0x40}
+    } -setvars -maxleftover 0
+
+    return [CryptExportKey $hkey $hwrapper $blob_type [expr {$v3|$oeap}]]
+}
+
+# TBD - document
+proc twapi::crypt_key_import {hcrypt keyblob args} {
+    parseargs args {
+        {-hwrapper.arg NULL}
+        {exportable.bool 0x01}
+        {oaep.bool 0 0x40}
+        {userprotected.bool 0 0x02}
+        {ipsechmac.bool 0 0x100}
+    } -setvars -maxleftover 0
+    return [CryptImportKey $hcrypt $keyblob $hwrapper \
+                [expr {$exportable|$oaep|$userprotected|$ipsechmac}]]
+}
+
 proc twapi::crypt_algorithms {hcrypt} {
     set algs {}
     foreach alg [CryptGetProvParam $hcrypt 22 0] {
@@ -1696,9 +1731,6 @@ proc twapi::asn1_encode_string {s {encformat utf8}} {
 ###
 # Key utilities
 
-proc twapi::keyblob_plain {algid binkey} {
-    return [TwapiMakePlaintextKeyBlob [capi_algid $algid] $binkey]
-}
 
 ###
 # Utility procs
