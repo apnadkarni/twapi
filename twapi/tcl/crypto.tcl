@@ -19,15 +19,15 @@ namespace eval twapi {
 
 ### Hash functions
 
-proc twapi::hash_create {hcrypt algid {hkey NULL}} {
+proc twapi::capi_hash_create {hcrypt algid {hkey NULL}} {
     return [CryptCreateHash $hcrypt [capi_algid $algid] $hkey]
 }
 
-proc twapi::hash_string {hhash s {enc utf-8}} {
-    return [hash_bytes $hhash [encoding convertto $enc $s] 0]
+proc twapi::capi_hash_string {hhash s {enc utf-8}} {
+    return [capi_hash_bytes $hhash [encoding convertto $enc $s] 0]
 }
 
-proc twapi::hash_value {hhash} {
+proc twapi::capi_hash_value {hhash} {
     return [CryptGetHashParam $hhash 2]; # HP_HASHVAL
 }
 
@@ -37,12 +37,12 @@ proc twapi::_do_hash {csptype alg s {enc ""}} {
     }
     set hcrypt [crypt_acquire -csptype $csptype]
     trap {
-        set hhash [hash_create $hcrypt $alg]
-        hash_bytes $hhash $s
-        return [hash_value $hhash]
+        set hhash [capi_hash_create $hcrypt $alg]
+        capi_hash_bytes $hhash $s
+        return [capi_hash_value $hhash]
     } finally {
         if {[info exists hhash]} {
-            hash_free $hhash
+            capi_hash_free $hhash
         }
         crypt_free $hcrypt
     }

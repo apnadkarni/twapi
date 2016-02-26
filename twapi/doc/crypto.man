@@ -257,19 +257,19 @@ and message authentication codes (MAC). The related TWAPI commands
 are shown below.
 
 [list_begin opt]
-[opt_def [uri #hash_bytes [cmd hash_bytes]]]
+[opt_def [uri #capi_hash_bytes [cmd capi_hash_bytes]]]
 Incrementally hashes a binary string.
-[opt_def [uri #hash_create [cmd hash_create]]]
+[opt_def [uri #capi_hash_create [cmd capi_hash_create]]]
 Creates a hash context.
-[opt_def [uri #hash_dup [cmd hash_dup]]]
+[opt_def [uri #capi_hash_dup [cmd capi_hash_dup]]]
 Duplicates a hash context.
-[opt_def [uri #hash_free [cmd hash_free]]]
+[opt_def [uri #capi_hash_free [cmd capi_hash_free]]]
 Frees a hash context.
-[opt_def [uri #hash_session_key [cmd hash_session_key]]]
+[opt_def [uri #capi_hash_session_key [cmd capi_hash_session_key]]]
 Incrementally hashes the secret session key.
-[opt_def [uri #hash_string [cmd hash_string]]]
+[opt_def [uri #capi_hash_string [cmd capi_hash_string]]]
 Incrementally hashes a string.
-[opt_def [uri #hash_value [cmd hash_value]]]
+[opt_def [uri #capi_hash_value [cmd capi_hash_value]]]
 Returns the hashed value.
 [opt_def [uri #md5 [cmd md5]]]
 Calculates the MD5 hash.
@@ -515,11 +515,11 @@ Returns a list of pairs, each representing a CSP on the system.
 The first element of each pair is a CSP type 
 and the second is the name of the CSP.
 
-[call [cmd hash_bytes] [arg HHASH] [arg BINVALUE]]
+[call [cmd capi_hash_bytes] [arg HHASH] [arg BINVALUE]]
 Updates the hash context specified by [arg HHASH] with the result
 of hashing the binary string [arg BINVALUE].
 
-[call [cmd hash_create] [arg HCRYPT] [arg ALGID] [opt [arg HKEY]]]
+[call [cmd capi_hash_create] [arg HCRYPT] [arg ALGID] [opt [arg HKEY]]]
 Creates a hash context and returns a handle to it. [arg HCRYPT]
 is a handle to a cryptographic context as returned by
 [uri #crypt_acquire [cmd crypt_acquire]]. [arg ALGID] is an algorithm
@@ -528,32 +528,32 @@ algorithm is a key-based hash, [arg HKEY] must be a handle to the
 key. Otherwise it should be unspecified or [const NULL].
 [nl]
 The returned hash context should be freed when no longer needed by
-calling [uri #hash_free [cmd hash_free]].
+calling [uri #capi_hash_free [cmd capi_hash_free]].
 
-[call [cmd hash_dup] [arg HHASH]]
+[call [cmd capi_hash_dup] [arg HHASH]]
 Creates a new hash context that is the duplicate of an existing hash
 context and returns a handle to it.
 [nl]
 The returned hash context should be freed when no longer needed by
-calling [uri #hash_free [cmd hash_free]].
+calling [uri #capi_hash_free [cmd capi_hash_free]].
 
-[call [cmd hash_free] [arg HHASH]]
-Frees a hash context previously created through [cmd hash_create]
-or [cmd hash_dup].
+[call [cmd capi_hash_free] [arg HHASH]]
+Frees a hash context previously created through [cmd capi_hash_create]
+or [cmd capi_hash_dup].
 
-[call [cmd hash_session_key] [arg HHASH] [arg HKEY]]
+[call [cmd capi_hash_session_key] [arg HHASH] [arg HKEY]]
 Updates the hash context specified by [arg HHASH] with result of hashing
 the session key referenced by the handle [arg HKEY].
 
-[call [cmd hash_string] [arg HHASH] [arg STRING] [opt [arg ENC]]]
+[call [cmd capi_hash_string] [arg HHASH] [arg STRING] [opt [arg ENC]]]
 Converts [arg STRING] into a binary string using the specified
 encoding [arg ENC] (defaults to [const utf-8]) and
 updates the hash context specified by [arg HHASH] with the result.
 
-[call [cmd hash_value] [arg HHASH]]
+[call [cmd capi_hash_value] [arg HHASH]]
 Returns the hashed value from the specified hash context as a binary
-string. The [arg HHASH] handle should be used with [cmd hash_bytes]
-or [cmd hash_string] once this command is called.
+string. The [arg HHASH] handle should not be used with [cmd capi_hash_bytes]
+or [cmd capi_hash_string] once this command is called.
 
 [call [cmd md5] [arg DATA] [opt [arg ENC]]]
 Returns the MD5 digest for [arg DATA]. If [arg ENC] is not
