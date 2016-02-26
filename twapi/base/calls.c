@@ -1022,6 +1022,17 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.type = TRT_OBJ;
         result.value.obj = ObjFromByteArrayHex(pv, i);
         break;
+    case 1029: // seal
+    case 1030: // unseal
+        pv = Tcl_GetByteArrayFromObj(objv[0], &i);
+        result.value.obj = (func == 1029 ? ObjEncryptData : ObjDecryptData)(interp, pv, i);
+        if (result.value.obj)
+            result.type = TRT_OBJ;
+        else {
+            result.value.ival = TCL_ERROR;
+            result.type = TRT_TCL_RESULT;
+        }
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -2366,6 +2377,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(swap4, 1026),
         DEFINE_FNCODE_CMD(swap2, 1027),
         DEFINE_FNCODE_CMD(hex, 1028), // TBD - document
+        DEFINE_FNCODE_CMD(seal, 1029), // TBD - document
+        DEFINE_FNCODE_CMD(unseal, 1030), // TBD - document
     };
 
     static struct fncode_dispatch_s CallArgsDispatch[] = {

@@ -4498,6 +4498,9 @@ MAKE_DYNLOAD_FUNC(SystemFunction040, advapi32, SystemFunction040_t)
 typedef BOOLEAN (NTAPI *SystemFunction041_t)(PVOID, ULONG, ULONG);
 MAKE_DYNLOAD_FUNC(SystemFunction041, advapi32, SystemFunction041_t)
 
+/* Encrypt the given source bytes into the output buffer and length in *noutP.
+ * If outP is NULL places required buffer size in *noutP.
+ */
 TCL_RESULT TwapiEncryptData(Tcl_Interp *interp, BYTE *inP, int nin, BYTE *outP, int *noutP)
 {
     int sz, pad_len;
@@ -4551,6 +4554,7 @@ TCL_RESULT TwapiEncryptData(Tcl_Interp *interp, BYTE *inP, int nin, BYTE *outP, 
     return TCL_OK;
 }
 
+/* Return a bytearray Tcl_Obj containing ciphertext of given source bytes */
 Tcl_Obj *ObjEncryptData(Tcl_Interp *interp, BYTE *bytes, int nbytes)
 {
     TCL_RESULT res;
@@ -4620,6 +4624,28 @@ TCL_RESULT TwapiDecryptData(Tcl_Interp *interp, BYTE *encP, int nenc, BYTE *outP
     
     *noutP = nenc - pad_len;
     return TCL_OK;
+}
+
+/* Return a bytearray Tcl_Obj containing plaintext of given ciphertext */
+Tcl_Obj *ObjDecryptData(Tcl_Interp *interp, BYTE *bytes, int nbytes)
+{
+    TCL_RESULT res;
+    int ndec;
+    Tcl_Obj *objP;
+    BYTE *decP;
+    
+    res = TwapiDecryptData(interp, bytes, nbytes, NULL, &ndec);
+    if (res != TCL_OK)
+        return NULL;
+    objP = ObjAllocateByteArray(ndec, &decP);
+    res = TwapiDecryptData(interp, bytes, nbytes, decP, &ndec);
+    if (res == TCL_OK) {
+        Tcl_SetByteArrayLength(objP, ndec);
+        return objP;
+    } else {
+        ObjDecrRefs(objP);
+        return NULL;
+    }
 }
 
 /* Encrypts the Unicode string rep to a byte array. We choose Unicode
