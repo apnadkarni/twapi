@@ -3701,9 +3701,58 @@ vamoose:
     return res;
 }
 
+static TCL_RESULT Twapi_CryptExportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    void *hkey, *hkey2;
+    DWORD blob_type, flags, nbytes, winerr;
+    Tcl_Obj *objs[5];
+    BLOBHEADER *blobP;
+    
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETVERIFIEDPTR(hkey, HCRYPTKEY, CryptDestroyKey),
+                     GETVERIFIEDPTR(hkey2, HCRYPTKEY, CryptDestroyKey),
+                     GETINT(blob_type), GETINT(flags), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+    nbytes = 0;
+    if (!CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hkey2, blob_type, flags, NULL, &nbytes))
+        return TwapiReturnSystemError(interp);
+
+    objs[4] = ObjAllocateByteArray(nbytes, &blobP);
+    if (!CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hkey2, blob_type, flags, (BYTE*) blobP, &nbytes)) {
+        winerr = GetLastError(); /* Save before other calls */
+        ObjDecrRefs(objs[4]);
+        return Twapi_AppendSystemError(interp, winerr);
+    }
+    
+    /*
+     * If a plain text key, we want to wrap it up into an encrypted form
+     * to prevent leakage
+     */
+    objs[1] = ObjFromInt(blobP->bVersion);
+    objs[2] = ObjFromInt(blobP->reserved);
+    objs[3] = ObjFromInt(blobP->aiKeyAlg);
+    
+    if (blobP->bType != PLAINTEXTKEYBLOB)
+        objs[0] = ObjFromInt(blobP->bType);
+    else {
+        Tcl_Obj *encObj = ObjEncryptData(interp, (BYTE*) blobP, nbytes);
+        ObjDecrRefs(objs[4]); /* Free regardless of error */
+        if (encObj == NULL) {
+            int i;
+            for (i = 1; i < 4; ++i)
+                ObjDecrRefs(objs[i]);
+            return TCL_ERROR;
+        }
+        objs[0] = ObjFromInt(0); /* Special indicator for sealed PLAINTEXTKEYBLOB */
+        objs[4] = encObj;
+    }
+    return ObjSetResult(interp, ObjNewList(5, objs));
+}
+
 static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int nbytes, blob_type;
+    int nbytes, btype, bver, breserved;
+    ALG_ID balg_id;
     void *cryptH, *keyH;
     DWORD flags;
     Tcl_Obj *blobObj, *keyObj;
@@ -3713,10 +3762,6 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     HCRYPTKEY importH;
     int nclear = 0;
 
-/* Note the CryptExportKey command does not currently implement plaintext
-   key encryption */
-#define TWAPI_ENCRYPT_PLAINTEXTKEY 0
-    
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(cryptH, HCRYPTPROV, CryptReleaseContext),
                      GETOBJ(keyObj),
@@ -3724,16 +3769,18 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
                      GETINT(flags), ARGEND) != TCL_OK
         ||
         TwapiGetArgsObj(interp, keyObj,
-                        GETINT(blob_type),
-                        GETOBJ(blobObj), ARGEND) != TCL_OK)
+                        GETINT(btype), GETINT(bver), GETINT(breserved), 
+                        GETINT(balg_id), GETOBJ(blobObj), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     blobP = (BLOBHEADER*) ObjToByteArray(blobObj, &nbytes);
     if (nbytes <= sizeof(*blobP))
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "Truncated key blob.");
 
-    if (TWAPI_ENCRYPT_PLAINTEXTKEY && blob_type == PLAINTEXTKEYBLOB) {
-        /* Plaintext keys are always stored in protected form */
+    if (btype == 0) {
+        /* This is not a valid CryptoAPI blob type so we use it to indicate
+         * the key blob is sealed with twapi
+         */
         TWAPI_PLAINTEXTKEYBLOB *p;
         mark = MemLifoPushMark(ticP->memlifoP);
         p = MemLifoAlloc(ticP->memlifoP, nbytes, NULL);
@@ -3747,12 +3794,13 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
             goto vamoose;
         }
         blobP = &p->hdr;
+        btype = PLAINTEXTKEYBLOB;
     }
 
     /* At this point, blobP may point into the Tcl_Obj data or memlifo memory */
-    if (blobP->bType != blob_type) {
+    if (blobP->bType != btype || blobP->aiKeyAlg != balg_id) {
         res = TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("KEYBLOB type %d does not match expected type %d", blobP->bType, blob_type));
+                                 Tcl_ObjPrintf("KEYBLOB type/algorithm %d/%u does not match expected type/algorithm %d/%u", blobP->bType, blobP->aiKeyAlg, btype, balg_id));
     } else {
         if (CryptImportKey((HCRYPTPROV)cryptH, (BYTE *)blobP, nbytes, (HCRYPTKEY) keyH, flags, &importH)) {
             TwapiRegisterHCRYPTKEY(interp, importH);
@@ -4746,30 +4794,6 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             
         break;
         
-    case 10068: // CryptExportKey
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETVERIFIEDPTR(pv, HCRYPTKEY, CryptDestroyKey),
-                         GETVERIFIEDPTR(pv2, HCRYPTKEY, CryptDestroyKey),
-                         GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        dw3 = 0;
-        if (!CryptExportKey((HCRYPTKEY)pv, (HCRYPTKEY)pv2, dw, dw2, NULL, &dw3)) {
-            result.type = TRT_GETLASTERROR;
-            break;
-        }
-        objs[1] = ObjAllocateByteArray(dw3, &cP);
-        if (!CryptExportKey((HCRYPTKEY)pv, (HCRYPTKEY)pv2, dw, dw2, cP, &dw3)) {
-            result.value.ival = GetLastError(); /* Save before other calls */
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            ObjDecrRefs(objs[1]);
-        } else {
-            objs[0] = ObjFromDWORD(((BLOBHEADER*)cP)->aiKeyAlg);
-            result.value.objv.objPP = objs;
-            result.value.objv.nobj = 2;
-            result.type = TRT_OBJV;
-        }
-        break;
-                         
 
 #if 0
         /* Commented out because we might not want to keep plaintext keys
@@ -5115,7 +5139,6 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(hash_dup, 10065), // CryptDuplicateHash
         DEFINE_FNCODE_CMD(CryptGetHashParam, 10066), // TBD Tcl (ALGID only)
         DEFINE_FNCODE_CMD(CryptDeriveKey, 10067), // TBD Tcl
-        DEFINE_FNCODE_CMD(CryptExportKey, 10068), // TBD Tcl
 #if 0
         DEFINE_FNCODE_CMD(TwapiMakePlaintextKeyBlob, 10070), // TBD Tcl
 #endif
@@ -5153,6 +5176,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptSignMessage, Twapi_CryptSignMessageObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptSignAndEncryptMessage, Twapi_CryptSignAndEncryptMessageObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptImportKey, Twapi_CryptImportKeyObjCmd), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptExportKey, Twapi_CryptImportKeyObjCmd), // TBD - Tcl
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
