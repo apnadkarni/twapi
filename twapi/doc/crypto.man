@@ -119,15 +119,6 @@ To delete key containers, use the
 [uri #crypt_key_container_delete [cmd crypt_key_container_delete]] command.
 
 [para]
-Depending on the CSP chosen, key containers may be empty when created. 
-The command [uri #crypt_key_generate [cmd crypt_key_generate]]
-adds keys to the container. The algorithm with which the key will be
-used and the purpose (encryption, signing etc.) can be specified
-so the appropriate type of key is generated. The container may
-contain multiple keys and appropriate key must be chosen when
-cryptographic operations are invoked.
-
-[para]
 A key container may be created as a user key set or a computer key set.
 These are distinguished based on where they are stored and
 who has access to them.
@@ -138,6 +129,50 @@ for a key container. The
 [uri #crypt_set_security_descriptor [cmd crypt_set_security_descriptor]]
 commands can be used retrieve and change the security descriptor for
 a key container.
+
+[para]
+Depending on the CSP chosen, key containers may be empty when created. 
+The command [uri #crypt_key_generate [cmd crypt_key_generate]]
+adds keys to the container. The algorithm with which the key will be
+used and the purpose (encryption, signing etc.) can be specified
+so the appropriate type of key is generated. The container may
+contain multiple keys and appropriate key must be chosen when
+cryptographic operations are invoked.
+[para]
+The commands in the table below retrieve the various properties for a key.
+Note that a key is always associated with a specific cryptographic
+algorithm.
+
+[list_begin opt]
+[opt_def [uri #capi_key_algid [cmd capi_key_algid]]]
+Returns the numeric id for the associated algorithm.
+[opt_def [uri #capi_key_blocklen [cmd capi_key_blocklen]]]
+Returns the block length for the encryption algorithm.
+[opt_def [uri #capi_key_certificate [cmd capi_key_certificate]]]
+Returns the associated certificate.
+[opt_def [uri #capi_key_dss_p [cmd capi_key_dss_p]]]
+Returns the modulus prime number P if the key is a DSS key.
+[opt_def [uri #capi_key_dss_q [cmd capi_key_dss_q]]]
+Returns the modulus prime number Q if the key is a DSS key.
+[opt_def [uri #capi_key_dss_g [cmd capi_key_dss_g]]]
+Returns the generator G if the key is a DSS key.
+[opt_def [uri #capi_key_effective_keylen [cmd capi_key_effective_keylen]]]
+Returns the effective key length of the key.
+[opt_def [uri #capi_key_iv [cmd capi_key_iv]]]
+Returns the size of the initialization vector.
+[opt_def [uri #capi_key_keylen [cmd capi_key_keylen]]]
+Returns the actual key length.
+[opt_def [uri #capi_key_mode [cmd capi_key_mode]]]
+Returns the cipher mode, such as CBC, ECB etc.
+[opt_def [uri #capi_key_mode_bits [cmd capi_key_mode_bits]]]
+Returns the number of feedback bits for OFB and CFB modes.
+[opt_def [uri #capi_key_padding [cmd capi_key_padding]]]
+Returns the padding method.
+[opt_def [uri #capi_key_permissions [cmd capi_key_permissions]]]
+Returns the list of operations that are permitted for the key.
+[opt_def [uri #capi_key_salt [cmd capi_key_salt]]]
+Returns the sequence of bytes that are used as the salt value.
+[list_end]
 
 [section "Cryptographic contexts"]
 In order to perform cryptographic operations, an application must
@@ -347,6 +382,82 @@ updates the hash context specified by [arg HHASH] with the result.
 Returns the hashed value from the specified hash context as a binary
 string. The [arg HHASH] handle should not be used with [cmd capi_hash_bytes]
 or [cmd capi_hash_string] once this command is called.
+
+[call [cmd capi_key_algid] [arg HKEY]]
+Returns the numeric id for the algorithm associated with the key.
+
+[call [cmd capi_key_blocklen] [arg HKEY]]
+If [arg HKEY] references a session key, returns the block length of the
+key cipher with a value of 0 indicating it is a stream cipher. If [arg HKEY]
+references a public/private key pair, the return value is the encryption
+granularity. In both cases, the return value is in number of bits.
+
+[call [cmd capi_key_certificate] [arg HKEY]]
+Returns the certificate associated with the key, if any, as
+a DER-encoded binary string.
+
+[call [cmd capi_key_dss_p] [arg HKEY]]
+Returns the modulus prime number P if [arg HKEY] is a DSS key handle.
+
+[call [cmd capi_key_dss_q] [arg HKEY]]
+Returns the modulus prime number Q if [arg HKEY] is a handle to a DSS key.
+
+[call [cmd capi_key_dss_g] [arg HKEY]]
+Returns the generator G if [arg HKEY] is a DSS key handle.
+
+[call [cmd capi_key_effective_keylen] [arg HKEY]]
+Returns the effective key length of the key.
+
+[call [cmd capi_key_iv] [arg HKEY]]
+Returns the initialization vector as a binary string.
+[arg HKEY] must be a handle to a block cipher session key.
+
+[call [cmd capi_key_keylen] [arg HKEY]]
+Returns the actual key length in bits. This includes any parity and zeroed bits.
+[arg HKEY] can be a handle to any type of key.
+
+[call [cmd capi_key_mode] [arg HKEY]]
+Returns the cipher mode used with the key. The return value is one
+of [const cbc], [const ecb], [const ofb], [const cfb] and [const cts].
+[arg HKEY] must be a handle to a block cipher session key.
+
+[call [cmd capi_key_mode_bits] [arg HKEY]]
+Returns the number of feedback bits for OFB and CFB modes.
+[arg HKEY] must be a handle to a block cipher session key.
+
+[call [cmd capi_key_padding] [arg HKEY]]
+Returns the padding method used with the key.
+[arg HKEY] must be a handle to a block cipher session key.
+[nl]
+The possible return values are:
+[list_begin opt]
+[opt_def [const pkcs5]]
+Padding as specified by PKCS #5
+[opt_def [const random]]
+Random bytes of padding.
+[opt_def [const zeroes]]
+Padding filled with zeroes.
+[list_end]
+
+[call [cmd capi_key_permissions] [arg HKEY]]
+Returns the list of operations that are permitted for the key. The
+returned list contains zero or more elements from the following:
+
+[list_begin opt]
+[opt_def [const archive]] Key can be exported only on the initial key creation.
+[opt_def [const decrypt]] Usable for decryption.
+[opt_def [const encrypt]] Usable for encryption.
+[opt_def [const export]] Key can be exported.
+[opt_def [const export_key]] Key can be used to encrypt other exported keys.
+[opt_def [const import_key]] Key can be used decrypt keys being imported.
+[opt_def [const mac]] Key can be used with message authentication codes.
+[opt_def [const read]] Allow key values to be read.
+[opt_def [const write]] Allow key values to be written.
+[list_end]
+
+[call [cmd capi_key_salt] [arg HKEY]]
+Returns the sequence of bytes that are used as the salt value in little
+endian form.
 
 [call [cmd crypt_acquire] [opt [arg options]]]
 Returns a handle to a cryptographic context for a key container
