@@ -31,6 +31,15 @@ proc twapi::capi_hash_value {hhash} {
     return [CryptGetHashParam $hhash 2]; # HP_HASHVAL
 }
 
+# TBD - document
+proc twapi::capi_hash_sign {hhash keyspec args} {
+    parseargs args {
+        {nohashoid.bool 0 1}
+        {x931format.bool 0 4}
+    } -maxleftover 0 -setvars
+    return [CryptSignHash $hhash $keyspec [expr {$nohashoid|$x931format}]]
+}
+
 proc twapi::_do_hash {csptype alg s {enc ""}} {
     if {$enc ne ""} {
         set s [encoding convertto $enc $s]
@@ -1489,13 +1498,28 @@ proc twapi::crypt_key_export {hkey blob_type args} {
 proc twapi::crypt_key_import {hcrypt keyblob args} {
     parseargs args {
         {-hwrapper.arg NULL}
-        {exportable.bool 0x01}
+        {exportable.bool 1 0x01}
         {oaep.bool 0 0x40}
         {userprotected.bool 0 0x02}
         {ipsechmac.bool 0 0x100}
     } -setvars -maxleftover 0
     return [CryptImportKey $hcrypt $keyblob $hwrapper \
                 [expr {$exportable|$oaep|$userprotected|$ipsechmac}]]
+}
+
+# TBD - document
+proc twapi::crypt_key_derive  {hcrypt algid hhash args} {
+    parseargs args {
+        {keysize.int 0}
+        {exportable.bool 1 0x01}
+    } -maxleftover 0 -setvars
+
+    if {$keysize <= 0 || $keysize > 65535} {
+        badargs! "Key size $keysize is not between 1 and 65535"
+    }
+
+    return [CryptDeriveKey $hcrypt [capi_algid $algid] $hhash \
+                [expr {($keysize << 16) | $exportable}]]
 }
 
 proc twapi::crypt_algorithms {hcrypt} {
@@ -1514,7 +1538,6 @@ proc twapi::crypt_implementation_type {hcrypt} {
     return [dict* {1 hardware 2 software 3 mixed 4 unknown 8 removable} [CryptGetProvParam $hcrypt 3 0]]
 }
 
-# TBD - document
 proc twapi::capi_algid {s} {
     if {[string is integer -strict $s]} {
         return $s
@@ -1729,8 +1752,35 @@ proc twapi::asn1_encode_string {s {encformat utf8}} {
 }
 
 ###
-# Key utilities
+# Key procs
 
+# TBD - document all
+proc twapi::crypt_key_algid {hkey} {return [CryptKeyGetParam $hkey 7]}
+proc twapi::crypt_key_blocklen {hkey} {return [CryptKeyGetParam $hkey 8]}
+proc twapi::crypt_key_certificate {hkey} {return [CryptKeyGetParam $hkey 26]}
+proc twapi::crypt_key_keylen {hkey} {return [CryptKeyGetParam $hkey 9]}
+proc twapi::crypt_key_salt {hkey} {return [CryptKeyGetParam $hkey 2]}
+proc twapi::crypt_key_iv {hkey} {return [CryptKeyGetParam $hkey 1]}
+proc twapi::crypt_key_dss_p {hkey} {return [CryptKeyGetParam $hkey 11]}
+proc twapi::crypt_key_dss_q {hkey} {return [CryptKeyGetParam $hkey 13]}
+proc twapi::crypt_key_dss_g {hkey} {return [CryptKeyGetParam $hkey 12]}
+proc twapi::crypt_key_effective_keylen {hkey} {return [CryptKeyGetParam $hkey 19]}
+proc twapi::crypt_key_mode_bits {hkey} {return [CryptKeyGetParam $hkey 5]}
+
+proc twapi::crypt_key_mode {hkey} {
+    return [dict* {1 cbc 2 ecb 3 ofb 4 cfb 5 cts} [CryptKeyGetParam $hkey 4]]
+}
+
+proc twapi::crypt_key_padding {hkey} {
+    return [dict* {1 pkcs5 2 random 3 zeroes} [CryptKeyGetParam $hkey 3]]
+}
+
+proc twapi::crypt_key_permissions {hkey} {
+    return [_make_symbolic_bitmask [CryptKeyGetParam $hkey 6] {
+        encrypt 0x01 decrypt 0x02 export 0x04 read 0x08 write 0x10
+        mac 0x20 exportkey 0x40 importkey 0x80 archive 0x100
+    }]
+}
 
 ###
 # Utility procs
