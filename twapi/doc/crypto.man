@@ -398,12 +398,15 @@ a DER-encoded binary string.
 
 [call [cmd capi_key_dss_p] [arg HKEY]]
 Returns the modulus prime number P if [arg HKEY] is a DSS key handle.
+The return value is a binary string in little-endian form.
 
 [call [cmd capi_key_dss_q] [arg HKEY]]
 Returns the modulus prime number Q if [arg HKEY] is a handle to a DSS key.
+The return value is a binary string in little-endian form.
 
 [call [cmd capi_key_dss_g] [arg HKEY]]
 Returns the generator G if [arg HKEY] is a DSS key handle.
+The return value is a binary string in little-endian form.
 
 [call [cmd capi_key_effective_keylen] [arg HKEY]]
 Returns the effective key length of the key.
