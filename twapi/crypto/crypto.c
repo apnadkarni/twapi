@@ -5135,10 +5135,10 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(capi_hash_free, 10061), // CryptDestroyHash
         DEFINE_FNCODE_CMD(capi_hash_bytes, 10062), // CryptHashData
         DEFINE_FNCODE_CMD(capi_hash_session_key, 10063), // CryptHashSessionKey
-        DEFINE_FNCODE_CMD(CryptSignHash, 10064), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptSignHash, 10064),
         DEFINE_FNCODE_CMD(capi_hash_dup, 10065), // CryptDuplicateHash
         DEFINE_FNCODE_CMD(CryptGetHashParam, 10066), // TBD Tcl (ALGID only)
-        DEFINE_FNCODE_CMD(CryptDeriveKey, 10067), // TBD Tcl
+        DEFINE_FNCODE_CMD(CryptDeriveKey, 10067),
 #if 0
         DEFINE_FNCODE_CMD(TwapiMakePlaintextKeyBlob, 10070), // TBD Tcl
 #endif
@@ -5175,8 +5175,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptVerifyDetachedMessageSignature, Twapi_CryptVerifyDetachedMessageSignatureObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptSignMessage, Twapi_CryptSignMessageObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptSignAndEncryptMessage, Twapi_CryptSignAndEncryptMessageObjCmd), // TBD - Tcl
-        DEFINE_TCL_CMD(CryptImportKey, Twapi_CryptImportKeyObjCmd), // TBD - Tcl
-        DEFINE_TCL_CMD(CryptExportKey, Twapi_CryptImportKeyObjCmd), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptImportKey, Twapi_CryptImportKeyObjCmd),
+        DEFINE_TCL_CMD(CryptExportKey, Twapi_CryptImportKeyObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
