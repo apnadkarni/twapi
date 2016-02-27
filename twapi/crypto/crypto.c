@@ -3158,7 +3158,7 @@ static TCL_RESULT Twapi_CryptSetKeyParamObjCmd(TwapiInterpContext *ticP, Tcl_Int
         return TCL_ERROR;
 
     switch (param) {
-    case KP_ALGID:   case KP_BLOCKLEN: case KP_KEYLEN: case KP_PERMISSIONS:
+    case KP_ALGID:  case KP_PERMISSIONS:
     case KP_EFFECTIVE_KEYLEN: case KP_HIGHEST_VERSION:
     case KP_PADDING: case KP_MODE:     case KP_MODE_BITS:
         if (ObjToDWORD(interp, paramObj, &dw) != TCL_OK)
