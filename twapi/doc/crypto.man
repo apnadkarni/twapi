@@ -308,6 +308,46 @@ which may be in any of the forms described in
 [sectref "Algorithm identifiers"]. If [arg ALGID] is non-numeric,
 an error is raised if it cannot be mapped to a numeric id.
 
+[call [cmd capi_hash_bytes] [arg HHASH] [arg BINVALUE]]
+Updates the hash context specified by [arg HHASH] with the result
+of hashing the binary string [arg BINVALUE].
+
+[call [cmd capi_hash_create] [arg HCRYPT] [arg ALGID] [opt [arg HKEY]]]
+Creates a hash context and returns a handle to it. [arg HCRYPT]
+is a handle to a cryptographic context as returned by
+[uri #crypt_acquire [cmd crypt_acquire]]. [arg ALGID] is an algorithm
+identifier as described in [sectref "Algorithm identifiers"]. If the
+algorithm is a key-based hash, [arg HKEY] must be a handle to the
+key. Otherwise it should be unspecified or [const NULL].
+[nl]
+The returned hash context should be freed when no longer needed by
+calling [uri #capi_hash_free [cmd capi_hash_free]].
+
+[call [cmd capi_hash_dup] [arg HHASH]]
+Creates a new hash context that is the duplicate of an existing hash
+context and returns a handle to it.
+[nl]
+The returned hash context should be freed when no longer needed by
+calling [uri #capi_hash_free [cmd capi_hash_free]].
+
+[call [cmd capi_hash_free] [arg HHASH]]
+Frees a hash context previously created through [cmd capi_hash_create]
+or [cmd capi_hash_dup].
+
+[call [cmd capi_hash_session_key] [arg HHASH] [arg HKEY]]
+Updates the hash context specified by [arg HHASH] with result of hashing
+the session key referenced by the handle [arg HKEY].
+
+[call [cmd capi_hash_string] [arg HHASH] [arg STRING] [opt [arg ENC]]]
+Converts [arg STRING] into a binary string using the specified
+encoding [arg ENC] (defaults to [const utf-8]) and
+updates the hash context specified by [arg HHASH] with the result.
+
+[call [cmd capi_hash_value] [arg HHASH]]
+Returns the hashed value from the specified hash context as a binary
+string. The [arg HHASH] handle should not be used with [cmd capi_hash_bytes]
+or [cmd capi_hash_string] once this command is called.
+
 [call [cmd crypt_acquire] [opt [arg options]]]
 Returns a handle to a cryptographic context for a key container
 in a [uri #cryptographicserviceproviders CSP]. 
@@ -377,6 +417,7 @@ This is a list containing zero or more elements from amongst
 [const ipsec], [const pct1], [const signing], [const ssl2], [const ssl3]
 and [const tls1].
 [list_end]
+Applications must ignore any additional keys in the table.
 
 [call [cmd crypt_csp] [arg HCRYPT]]
 Returns the name of the CSP owning the cryptographic context [arg HCRYPT].
@@ -514,46 +555,6 @@ and the second is the name of the CSP.
 Returns a list of pairs, each representing a CSP on the system.
 The first element of each pair is a CSP type 
 and the second is the name of the CSP.
-
-[call [cmd capi_hash_bytes] [arg HHASH] [arg BINVALUE]]
-Updates the hash context specified by [arg HHASH] with the result
-of hashing the binary string [arg BINVALUE].
-
-[call [cmd capi_hash_create] [arg HCRYPT] [arg ALGID] [opt [arg HKEY]]]
-Creates a hash context and returns a handle to it. [arg HCRYPT]
-is a handle to a cryptographic context as returned by
-[uri #crypt_acquire [cmd crypt_acquire]]. [arg ALGID] is an algorithm
-identifier as described in [sectref "Algorithm identifiers"]. If the
-algorithm is a key-based hash, [arg HKEY] must be a handle to the
-key. Otherwise it should be unspecified or [const NULL].
-[nl]
-The returned hash context should be freed when no longer needed by
-calling [uri #capi_hash_free [cmd capi_hash_free]].
-
-[call [cmd capi_hash_dup] [arg HHASH]]
-Creates a new hash context that is the duplicate of an existing hash
-context and returns a handle to it.
-[nl]
-The returned hash context should be freed when no longer needed by
-calling [uri #capi_hash_free [cmd capi_hash_free]].
-
-[call [cmd capi_hash_free] [arg HHASH]]
-Frees a hash context previously created through [cmd capi_hash_create]
-or [cmd capi_hash_dup].
-
-[call [cmd capi_hash_session_key] [arg HHASH] [arg HKEY]]
-Updates the hash context specified by [arg HHASH] with result of hashing
-the session key referenced by the handle [arg HKEY].
-
-[call [cmd capi_hash_string] [arg HHASH] [arg STRING] [opt [arg ENC]]]
-Converts [arg STRING] into a binary string using the specified
-encoding [arg ENC] (defaults to [const utf-8]) and
-updates the hash context specified by [arg HHASH] with the result.
-
-[call [cmd capi_hash_value] [arg HHASH]]
-Returns the hashed value from the specified hash context as a binary
-string. The [arg HHASH] handle should not be used with [cmd capi_hash_bytes]
-or [cmd capi_hash_string] once this command is called.
 
 [call [cmd md5] [arg DATA] [opt [arg ENC]]]
 Returns the MD5 digest for [arg DATA]. If [arg ENC] is not
