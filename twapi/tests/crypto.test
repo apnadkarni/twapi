@@ -3588,6 +3588,121 @@ namespace eval twapi::crypto::test {
     } -body {
         TBD
     } -result TBD
+
+    ################################################################
+    
+    test capi_key_algid-99 {
+        TBD - capi_key_algid-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test capi_key_blocklen-99 {
+        TBD - capi_key_blocklen-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test capi_test_certificate-99 {
+        TBD - capi_key_certificate-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test capi_key_keylen-99 {
+        TBD -
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test capi_key_salt-99 {
+        TBD - capi_key_salt-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test capi_key_iv-99 {
+        TBD - capi_key_iv-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test capi_key_dss_p-99 {
+        TBD - capi_key_dss_p-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test capi_key_dss_q-99 {
+        TBD - capi_key_dss_q-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test capi_key_dss_g-99 {
+        TBD - capi_key_dss_g-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test capi_key_effective_keylen-99 {
+        TBD - capi_key_effective_keylen-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test capi_key_mode_bits-99 {
+        TBD - capi_key_mode_bits-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test capi_key_mode-99 {
+        TBD - capi_key_mode-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test capi_key_padding-99 {
+        TBD - capi_key_padding-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test capi_key_permissions-99 {
+        TBD - capi_key_permissions-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
 }
 
 patience "Cleaning test certs"

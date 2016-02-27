@@ -1755,32 +1755,33 @@ proc twapi::asn1_encode_string {s {encformat utf8}} {
 # Key procs
 
 # TBD - document all
-proc twapi::crypt_key_algid {hkey} {return [CryptKeyGetParam $hkey 7]}
-proc twapi::crypt_key_blocklen {hkey} {return [CryptKeyGetParam $hkey 8]}
-proc twapi::crypt_key_certificate {hkey} {return [CryptKeyGetParam $hkey 26]}
-proc twapi::crypt_key_keylen {hkey} {return [CryptKeyGetParam $hkey 9]}
-proc twapi::crypt_key_salt {hkey} {return [CryptKeyGetParam $hkey 2]}
-proc twapi::crypt_key_iv {hkey} {return [CryptKeyGetParam $hkey 1]}
-proc twapi::crypt_key_dss_p {hkey} {return [CryptKeyGetParam $hkey 11]}
-proc twapi::crypt_key_dss_q {hkey} {return [CryptKeyGetParam $hkey 13]}
-proc twapi::crypt_key_dss_g {hkey} {return [CryptKeyGetParam $hkey 12]}
-proc twapi::crypt_key_effective_keylen {hkey} {return [CryptKeyGetParam $hkey 19]}
-proc twapi::crypt_key_mode_bits {hkey} {return [CryptKeyGetParam $hkey 5]}
+proc twapi::capi_key_algid {hkey} {return [CryptGetKeyParam $hkey 7]}
+proc twapi::capi_key_blocklen {hkey} {return [CryptGetKeyParam $hkey 8]}
+proc twapi::capi_key_certificate {hkey} {return [CryptGetKeyParam $hkey 26]}
+proc twapi::capi_key_keylen {hkey} {return [CryptGetKeyParam $hkey 9]}
+proc twapi::capi_key_salt {hkey} {return [CryptGetKeyParam $hkey 2]}
+proc twapi::capi_key_iv {hkey} {return [CryptGetKeyParam $hkey 1]}
+proc twapi::capi_key_dss_p {hkey} {return [CryptGetKeyParam $hkey 11]}
+proc twapi::capi_key_dss_q {hkey} {return [CryptGetKeyParam $hkey 13]}
+proc twapi::capi_key_dss_g {hkey} {return [CryptGetKeyParam $hkey 12]}
+proc twapi::capi_key_effective_keylen {hkey} {return [CryptGetKeyParam $hkey 19]}
+proc twapi::capi_key_mode_bits {hkey} {return [CryptGetKeyParam $hkey 5]}
 
-proc twapi::crypt_key_mode {hkey} {
-    return [dict* {1 cbc 2 ecb 3 ofb 4 cfb 5 cts} [CryptKeyGetParam $hkey 4]]
+proc twapi::capi_key_mode {hkey} {
+    return [dict* {1 cbc 2 ecb 3 ofb 4 cfb 5 cts} [CryptGetKeyParam $hkey 4]]
 }
 
-proc twapi::crypt_key_padding {hkey} {
-    return [dict* {1 pkcs5 2 random 3 zeroes} [CryptKeyGetParam $hkey 3]]
+proc twapi::capi_key_padding {hkey} {
+    return [dict* {1 pkcs5 2 random 3 zeroes} [CryptGetKeyParam $hkey 3]]
 }
 
-proc twapi::crypt_key_permissions {hkey} {
-    return [_make_symbolic_bitmask [CryptKeyGetParam $hkey 6] {
+proc twapi::capi_key_permissions {hkey} {
+    return [_make_symbolic_bitmask [CryptGetKeyParam $hkey 6] {
         encrypt 0x01 decrypt 0x02 export 0x04 read 0x08 write 0x10
-        mac 0x20 exportkey 0x40 importkey 0x80 archive 0x100
+        mac 0x20 export_key 0x40 import_key 0x80 archive 0x100
     }]
 }
+
 
 ###
 # Utility procs
