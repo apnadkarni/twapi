@@ -139,39 +139,40 @@ so the appropriate type of key is generated. The container may
 contain multiple keys and appropriate key must be chosen when
 cryptographic operations are invoked.
 [para]
-The commands in the table below retrieve the various properties for a key.
+The commands in the table below retrieve or set the various
+parameters for a key.
 Note that a key is always associated with a specific cryptographic
 algorithm.
 
 [list_begin opt]
 [opt_def [uri #capi_key_algid [cmd capi_key_algid]]]
-Returns the numeric id for the associated algorithm.
+Numeric id for the associated algorithm.
 [opt_def [uri #capi_key_blocklen [cmd capi_key_blocklen]]]
-Returns the block length for the encryption algorithm.
+Block length for the encryption algorithm.
 [opt_def [uri #capi_key_certificate [cmd capi_key_certificate]]]
-Returns the associated certificate.
+Associated certificate.
 [opt_def [uri #capi_key_dss_p [cmd capi_key_dss_p]]]
-Returns the modulus prime number P if the key is a DSS key.
+Modulus prime number P if the key is a DSS key.
 [opt_def [uri #capi_key_dss_q [cmd capi_key_dss_q]]]
-Returns the modulus prime number Q if the key is a DSS key.
+Modulus prime number Q if the key is a DSS key.
 [opt_def [uri #capi_key_dss_g [cmd capi_key_dss_g]]]
-Returns the generator G if the key is a DSS key.
+Generator G if the key is a DSS key.
 [opt_def [uri #capi_key_effective_keylen [cmd capi_key_effective_keylen]]]
-Returns the effective key length of the key.
+Effective key length of the key.
 [opt_def [uri #capi_key_iv [cmd capi_key_iv]]]
-Returns the size of the initialization vector.
+Initialization vector.
 [opt_def [uri #capi_key_keylen [cmd capi_key_keylen]]]
-Returns the actual key length.
+Actual key length.
 [opt_def [uri #capi_key_mode [cmd capi_key_mode]]]
-Returns the cipher mode, such as CBC, ECB etc.
+Cipher mode, such as CBC, ECB etc.
 [opt_def [uri #capi_key_mode_bits [cmd capi_key_mode_bits]]]
-Returns the number of feedback bits for OFB and CFB modes.
+Number of feedback bits for OFB and CFB modes.
 [opt_def [uri #capi_key_padding [cmd capi_key_padding]]]
-Returns the padding method.
+Padding method.
 [opt_def [uri #capi_key_permissions [cmd capi_key_permissions]]]
-Returns the list of operations that are permitted for the key.
+Operations that are permitted for the key.
 [opt_def [uri #capi_key_salt [cmd capi_key_salt]]]
-Returns the sequence of bytes that are used as the salt value.
+Salt value.
 [list_end]
 
 [section "Cryptographic contexts"]
@@ -383,8 +384,11 @@ Returns the hashed value from the specified hash context as a binary
 string. The [arg HHASH] handle should not be used with [cmd capi_hash_bytes]
 or [cmd capi_hash_string] once this command is called.
 
-[call [cmd capi_key_algid] [arg HKEY]]
-Returns the numeric id for the algorithm associated with the key.
+[call [cmd capi_key_algid] [arg HKEY] [opt [arg ALGID]] [opt [arg options]]]
+If no optional arguments are specified,
+returns the numeric id for the algorithm associated with the key.
+Otherwise sets it to [arg ALGID]. Additional options such as key size
+may be specified. See [cmd crypt_key_generate] for valid options.
 
 [call [cmd capi_key_blocklen] [arg HKEY]]
 If [arg HKEY] references a session key, returns the block length of the
@@ -411,28 +415,37 @@ The return value is a binary string in little-endian form.
 [call [cmd capi_key_effective_keylen] [arg HKEY]]
 Returns the effective key length of the key.
 
-[call [cmd capi_key_iv] [arg HKEY]]
-Returns the initialization vector as a binary string.
+[call [cmd capi_key_iv] [arg HKEY] [opt [arg IV]]]
+If [arg IV] is not specified, the command
+returns the current initialization vector as a binary string. Otherwise
+[arg IV] is set as the initialization vector.
 [arg HKEY] must be a handle to a block cipher session key.
 
 [call [cmd capi_key_keylen] [arg HKEY]]
 Returns the actual key length in bits. This includes any parity and zeroed bits.
 [arg HKEY] can be a handle to any type of key.
 
-[call [cmd capi_key_mode] [arg HKEY]]
-Returns the cipher mode used with the key. The return value is one
+[call [cmd capi_key_mode] [arg HKEY] [opt [arg MODE]]]
+If [arg MODE] is not specified,
+returns the cipher mode used with the key. The return value is one
 of [const cbc], [const ecb], [const ofb], [const cfb] and [const cts].
+If [arg MODE] is specified it must be one of the aforementioned values
+and the cipher mode is set accordingly.
 [arg HKEY] must be a handle to a block cipher session key.
 
-[call [cmd capi_key_mode_bits] [arg HKEY]]
-Returns the number of feedback bits for OFB and CFB modes.
+[call [cmd capi_key_mode_bits] [arg HKEY] [opt [arg MODEBITS]]]
+If [arg MODEBITS] is not specified,
+returns the number of feedback bits for OFB and CFB modes.
+Otherwise sets the corresponding parameter to [arg MODEBITS].
 [arg HKEY] must be a handle to a block cipher session key.
 
-[call [cmd capi_key_padding] [arg HKEY]]
-Returns the padding method used with the key.
+[call [cmd capi_key_padding] [arg HKEY] [opt [arg PADMODE]]]
+If [arg PADMODE] is not specified,
+returns the padding method used with the key. Otherwise sets
+the padding method to [arg PADMODE].
 [arg HKEY] must be a handle to a block cipher session key.
 [nl]
-The possible return values are:
+The possible values for [arg PADMODE] are
 [list_begin opt]
 [opt_def [const pkcs5]]
 Padding as specified by PKCS #5
@@ -442,9 +455,12 @@ Random bytes of padding.
 Padding filled with zeroes.
 [list_end]
 
-[call [cmd capi_key_permissions] [arg HKEY]]
-Returns the list of operations that are permitted for the key. The
-returned list contains zero or more elements from the following:
+[call [cmd capi_key_permissions] [arg HKEY] [opt [arg PERMS]]]
+If [arg PERMS] is not specified,
+returns the list of operations that are permitted for the key.
+
+The permissions are returned and specified as a
+list containing zero or more elements from the following:
 
 [list_begin opt]
 [opt_def [const archive]] Key can be exported only on the initial key creation.
@@ -458,9 +474,11 @@ returned list contains zero or more elements from the following:
 [opt_def [const write]] Allow key values to be written.
 [list_end]
 
-[call [cmd capi_key_salt] [arg HKEY]]
-Returns the sequence of bytes that are used as the salt value in little
-endian form.
+[call [cmd capi_key_salt] [arg HKEY] [opt [arg SALT]]]
+If [arg SALT] is not specified,
+returns a binary string of bytes that are used as the salt value in little
+endian form. If [arg SALT] is specified, it is used as the salt value
+for the key.
 
 [call [cmd crypt_acquire] [opt [arg options]]]
 Returns a handle to a cryptographic context for a key container

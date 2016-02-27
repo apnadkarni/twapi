@@ -1335,6 +1335,7 @@ proc twapi::crypt_key_generate {hprov algid args} {
         {size.int 0}
     } -maxleftover 0]
 
+    # TBD - why are we not using capi_algid here?
     if {![string is integer -strict $algid]} {
         # See wincrypt.h in SDK
         switch -nocase -exact -- $algid {
@@ -1755,33 +1756,97 @@ proc twapi::asn1_encode_string {s {encformat utf8}} {
 # Key procs
 
 # TBD - document all
-proc twapi::capi_key_algid {hkey} {return [CryptGetKeyParam $hkey 7]}
+proc twapi::_capi_key_param {param_id hkey args} {
+    if {[llength $args] == 0} {
+        return [CryptGetKeyParam $hkey $param_id]
+    }
+    if {[llength $args] == 1} {
+        return [CryptSetKeyParam $hkey $param_id [lindex $args 0]]
+    }
+    badargs! "Invalid syntax. Should be [lindex [info level -1] 0] HKEY ?VALUE?" 3
+}
+
+proc twapi::capi_key_iv {args} {return [_capi_key_param 1 {*}$args]} 
+proc twapi::capi_key_mode_bits {args} {return [_capi_key_param 5 {*}$args]} 
+proc twapi::capi_key_dss_p {args} {return [_capi_key_param 11 {*}$args]} 
+proc twapi::capi_key_dss_q {args} {return [_capi_key_param 13 {*}$args]} 
+proc twapi::capi_key_dss_g {args} {return [_capi_key_param 12 {*}$args]} 
+proc twapi::capi_key_effective_keylen {args} {return [_capi_key_param 19 {*}$args]} 
+
 proc twapi::capi_key_blocklen {hkey} {return [CryptGetKeyParam $hkey 8]}
 proc twapi::capi_key_certificate {hkey} {return [CryptGetKeyParam $hkey 26]}
 proc twapi::capi_key_keylen {hkey} {return [CryptGetKeyParam $hkey 9]}
-proc twapi::capi_key_salt {hkey} {return [CryptGetKeyParam $hkey 2]}
-proc twapi::capi_key_iv {hkey} {return [CryptGetKeyParam $hkey 1]}
-proc twapi::capi_key_dss_p {hkey} {return [CryptGetKeyParam $hkey 11]}
-proc twapi::capi_key_dss_q {hkey} {return [CryptGetKeyParam $hkey 13]}
-proc twapi::capi_key_dss_g {hkey} {return [CryptGetKeyParam $hkey 12]}
-proc twapi::capi_key_effective_keylen {hkey} {return [CryptGetKeyParam $hkey 19]}
-proc twapi::capi_key_mode_bits {hkey} {return [CryptGetKeyParam $hkey 5]}
 
-proc twapi::capi_key_mode {hkey} {
-    return [dict* {1 cbc 2 ecb 3 ofb 4 cfb 5 cts} [CryptGetKeyParam $hkey 4]]
+proc twapi::capi_key_algid {hkey args} {
+    if {[llength $args] == 0} {
+        return [CryptGetKeyParam $hkey 7]
+    }
+    set args [lassign $args algid]
+    set algid [capi_algid $algid]
+    array set opts [parseargs args {
+        {archivable.bool 0 0x4000}
+        {salt.bool 0 4}
+        {exportable.bool 0 1}
+        {pregen.bool 0x40}
+        {userprotected.bool 0 2}
+        {nosalt40.bool 0 0x10}
+        {size.int 0}
+    } -maxleftover 0]
+    if {$opts(size) < 0 || $opts(size) > 65535} {
+        badargs! "Bad key size value '$size':  must be positive integer less than 65536"
+    }
+    set flags [expr {($opts(size) << 16) | $opts(archivable) | $opts(salt) | $opts(exportable) | $opts(pregen) | $opts(userprotected) | $opts(nosalt40)}]
+    return [CryptSetKeyParam $hkey 7 $algid $flags]
 }
 
-proc twapi::capi_key_padding {hkey} {
-    return [dict* {1 pkcs5 2 random 3 zeroes} [CryptGetKeyParam $hkey 3]]
+proc twapi::capi_key_mode {hkey args} {
+    if {[llength $args] == 0} {
+        return [dict* {1 cbc 2 ecb 3 ofb 4 cfb 5 cts} [CryptGetKeyParam $hkey 4]]
+    }
+    if {[llength $args] == 1} {
+        set val [dict* {cbc 1 ecb 2 ofb 3 cfb 4 cts 5} [lindex $args 0]]
+        return [CryptSetKeyParam $hkey 4 $val]
+    }
+    badargs! "Invalid syntax. Should be [lindex [info level 0] 0] HKEY ?VALUE?"
 }
 
-proc twapi::capi_key_permissions {hkey} {
-    return [_make_symbolic_bitmask [CryptGetKeyParam $hkey 6] {
+proc twapi::capi_key_padding {hkey args} {
+    if {[llength $args] == 0} {
+        return [dict* {1 pkcs5 2 random 3 zeroes} [CryptGetKeyParam $hkey 3]]
+    }
+    if {[llength $args] == 1} {
+        set val [dict* {pkcs5 1 random 2 zeroes 3} [lindex $args 0]]
+        return [CryptSetKeyParam $hkey 3 $val]
+    }
+    badargs! "Invalid syntax. Should be [lindex [info level 0] 0] HKEY ?VALUE?"
+}
+
+proc twapi::capi_key_permissions {hkey args} {
+    set bitmasks {
         encrypt 0x01 decrypt 0x02 export 0x04 read 0x08 write 0x10
         mac 0x20 export_key 0x40 import_key 0x80 archive 0x100
-    }]
+    }
+    if {[llength $args] == 0} {
+        return [_make_symbolic_bitmask [CryptGetKeyParam $hkey 6] $bitmasks]
+    }
+    if {[llength $args] == 1} {
+        set val [_parse_symbolic_bitmask [lindex $args 0] $bitmasks]
+        return [CryptSetKeyParam $hkey 6 $val]
+    }
+    badargs! "Invalid syntax. Should be [lindex [info level 0] 0] HKEY ?VALUE?"
 }
 
+proc twapi::capi_key_salt {hkey args} {
+    if {[llength $args] == 0} {
+        # 2 -> KP_SALT
+        return [CryptGetKeyParam $hkey 2]
+    }
+    if {[llength $args] == 1} {
+        # 10 -> KP_SALT_EX
+        return [CryptSetKeyParam $hkey 10 [lindex $args 0]]
+    } 
+    badargs! "Invalid syntax. Should be [lindex [info level 0] 0] HKEY ?VALUE?"
+}
 
 ###
 # Utility procs
