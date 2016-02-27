@@ -3082,7 +3082,7 @@ static TCL_RESULT Twapi_CryptQueryObjectObjCmd(TwapiInterpContext *ticP, Tcl_Int
 
 static TCL_RESULT Twapi_CryptGetKeyParamObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    DWORD winerr, param, flags;
+    DWORD param, flags;
     int nbytes;
     void *p;
     Tcl_Obj *objP = NULL;
@@ -3098,7 +3098,7 @@ static TCL_RESULT Twapi_CryptGetKeyParamObjCmd(TwapiInterpContext *ticP, Tcl_Int
 
     switch (param) {
     case KP_ALGID:   case KP_BLOCKLEN: case KP_KEYLEN: case KP_PERMISSIONS:
-    case KP_P:       case KP_Q:        case KP_G:      case KP_EFFECTIVE_KEYLEN:
+    case KP_EFFECTIVE_KEYLEN:
     case KP_PADDING: case KP_MODE:     case KP_MODE_BITS:
         p = &dw;
         nbytes = sizeof(dw);
@@ -3108,12 +3108,11 @@ static TCL_RESULT Twapi_CryptGetKeyParamObjCmd(TwapiInterpContext *ticP, Tcl_Int
         p = NULL;
         nbytes = 0;
         break;
+    case KP_P:       case KP_Q:        case KP_G:
     default:
         nbytes = 0;
-        CryptGetKeyParam(hkey, param, NULL, &nbytes, flags);
-        winerr = GetLastError();
-        if (winerr != ERROR_MORE_DATA)
-            return Twapi_AppendSystemError(interp, winerr);
+        if (!CryptGetKeyParam(hkey, param, NULL, &nbytes, flags))
+            return TwapiReturnSystemError(interp);
         objP = ObjAllocateByteArray(nbytes, &p);
         break;
     }
@@ -3124,7 +3123,7 @@ static TCL_RESULT Twapi_CryptGetKeyParamObjCmd(TwapiInterpContext *ticP, Tcl_Int
     } else {
         switch (param) {
         case KP_ALGID:   case KP_BLOCKLEN: case KP_KEYLEN: case KP_PERMISSIONS:
-        case KP_P:       case KP_Q:     case KP_G:  case KP_EFFECTIVE_KEYLEN:
+        case KP_EFFECTIVE_KEYLEN:
         case KP_PADDING: case KP_MODE:  case KP_MODE_BITS:
             res = ObjSetResult(interp, ObjFromDWORD(dw));
             break;
@@ -3132,6 +3131,7 @@ static TCL_RESULT Twapi_CryptGetKeyParamObjCmd(TwapiInterpContext *ticP, Tcl_Int
             /* Special case, no data is actually returned */
             res = TCL_OK;
             break;
+        case KP_P:       case KP_Q:     case KP_G:
         default:
             TWAPI_ASSERT(objP != NULL);
             res = ObjSetResult(interp, objP);
@@ -3140,6 +3140,62 @@ static TCL_RESULT Twapi_CryptGetKeyParamObjCmd(TwapiInterpContext *ticP, Tcl_Int
     }
 
     return res;
+}
+
+static TCL_RESULT Twapi_CryptSetKeyParamObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    DWORD param, flags;
+    void *p;
+    Tcl_Obj *paramObj = NULL;
+    HCRYPTKEY hkey;
+    DWORD dw, block_len;
+    CRYPT_INTEGER_BLOB cblob;
+    
+    if (TwapiGetArgs(interp, objc-1, objv+1,
+                     GETVERIFIEDPTR(hkey, HCRYPTKEY, CryptDestroyKey),
+                     GETINT(param), GETOBJ(paramObj), ARGUSEDEFAULT,
+                     GETINT(flags), ARGEND) != TCL_OK)
+        return TCL_ERROR;
+
+    switch (param) {
+    case KP_ALGID:   case KP_BLOCKLEN: case KP_KEYLEN: case KP_PERMISSIONS:
+    case KP_EFFECTIVE_KEYLEN: case KP_HIGHEST_VERSION:
+    case KP_PADDING: case KP_MODE:     case KP_MODE_BITS:
+        if (ObjToDWORD(interp, paramObj, &dw) != TCL_OK)
+            return TCL_ERROR;
+        p = &dw;
+        break;
+
+    case KP_SALT_EX:
+    case KP_P:       case KP_Q:        case KP_G:
+    case KP_OAEP_PARAMS:
+        cblob.pbData = ObjToByteArray(paramObj, &cblob.cbData);
+        p = &cblob;
+        break;
+    case KP_X:
+        p = NULL;
+        break;
+
+    case KP_IV:
+        /* Need to verify the correct size of Initialization vector */
+        dw = sizeof(block_len);
+        if (!CryptGetKeyParam(hkey, KP_BLOCKLEN, (BYTE*)&block_len, &dw, 0))
+            return TwapiReturnSystemError(interp);
+        p = ObjToByteArray(paramObj, &dw);
+        if (dw != block_len)
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid IV size.");
+        break;
+        
+    case KP_SALT:
+    case KP_CERTIFICATE:
+    default:
+        /* Not supported because can't verify size of byte array is correct */
+        return TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
+    }
+    if (!CryptSetKeyParam(hkey, param, p, flags))
+        return TwapiReturnSystemError(interp);
+    else
+        return TCL_OK;
 }
 
 static TCL_RESULT TwapiCloseContext(Tcl_Interp *interp, Tcl_Obj *objP,
@@ -3268,7 +3324,7 @@ static TCL_RESULT Twapi_CryptEncryptObjCmd(TwapiInterpContext *ticP, Tcl_Interp 
         block_len = 0;
     else {
         len = sizeof(block_len);
-        if (!CryptGetKeyParam(hkey, KP_ALGID, (BYTE*)&block_len, &len, 0))
+        if (!CryptGetKeyParam(hkey, KP_BLOCKLEN, (BYTE*)&block_len, &len, 0))
             return TwapiReturnSystemError(interp);
     }
 
@@ -5165,7 +5221,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptQueryObject, Twapi_CryptQueryObjectObjCmd), // TBD Tcl
         DEFINE_TCL_CMD(WinVerifyTrust, Twapi_WinVerifyTrustObjCmd), // TBD Tcl
         DEFINE_TCL_CMD(CryptCATAdminEnumCatalogFromHash, Twapi_CryptCATAdminEnumCatalogFromHashObjCmd), // TBD Tcl
-        DEFINE_TCL_CMD(CryptGetKeyParam, Twapi_CryptGetKeyParamObjCmd), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptGetKeyParam, Twapi_CryptGetKeyParamObjCmd),
+        DEFINE_TCL_CMD(CryptGetKeyParam, Twapi_CryptSetKeyParamObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptSetHashParam, Twapi_CryptSetHashParamObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptEncrypt, Twapi_CryptEncryptObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptDecrypt, Twapi_CryptDecryptObjCmd), // TBD - Tcl
