@@ -26,6 +26,15 @@
 #pragma comment(lib, "tdh.lib")	 /* New TDH library for Vista and beyond */
 #endif
 
+#ifndef ETW_BUFFER_CONTEXT_DEF
+/* TBD - note this struct has changed in the post-Win7 SDKs */
+typedef struct _ETW_BUFFER_CONTEXT {
+    UCHAR ProcessorNumber;
+    UCHAR Alignment;
+    USHORT LoggerId;
+} ETW_BUFFER_CONTEXT, *PETW_BUFFER_CONTEXT;
+#endif
+
 #ifdef RUNTIME_TDH_LOAD
 
 #define INITGUID // To get EventTraceGuid defined
@@ -93,12 +102,6 @@ typedef struct _EVENT_HEADER {
     GUID ActivityId;
 
 } EVENT_HEADER, *PEVENT_HEADER;
-
-typedef struct _ETW_BUFFER_CONTEXT {
-    UCHAR ProcessorNumber;
-    UCHAR Alignment;
-    USHORT LoggerId;
-} ETW_BUFFER_CONTEXT, *PETW_BUFFER_CONTEXT;
 
 typedef struct _EVENT_EXTENDED_ITEM_TS_ID {
   ULONG SessionId;
