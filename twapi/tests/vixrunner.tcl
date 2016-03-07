@@ -49,7 +49,7 @@ proc vm_path {os platform} {
 proc tclkits {{ver 8.6} {platform x86}} {
     set kitdir [file join $::Config(source_root_dir) tools tclkits]
     switch -exact -- $ver {
-        8.6 { set ver 8.6.3 }
+        8.6 { set ver 8.6.4 }
         8.5 { set ver 8.5.17 }
     }
     return [list \
@@ -94,7 +94,7 @@ oo::class create TestTarget {
 
         progress "Powering on $vm_name"
         $VM power_on
-        $VM wait_for_tools 60
+        $VM wait_for_tools 120
         usertask "Please login manually at the console to the virtual machine $vm_name\nand wait for the login to complete."
         # Use the GUI dialog so it will work in both tclsh and tkcon
         lassign [credentials_dialog -showsaveoption 0 -target $vm_name -message "Enter the same credentials that you used to login at the console"] user password
