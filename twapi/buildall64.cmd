@@ -1,5 +1,14 @@
 :: Builds all 64-bit release configurations of TWAPI
 
+:: Generate the mercurial ID. Need to do this before resetting PATH below
+:: The first echo is a hack to write to a file without a terminating newline
+:: We do it this way and not through the makefile because the compiler
+:: build env is pristine and does not have a path to hg
+if exist build\hgid.tmp goto init
+echo|set /P=HGID=>build\hgid.tmp
+hg identify -i >>build\hgid.tmp
+
+:init
 :: Clean out build environment before calling sdk setup
 set INCLUDE=
 SET LIB=
@@ -34,6 +43,6 @@ goto dobuild
 @exit /B 1
 
 :dobuild
-call buildall.cmd %1
+call buildone.cmd %1
 
 
