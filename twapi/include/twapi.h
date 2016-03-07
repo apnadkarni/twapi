@@ -81,6 +81,13 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
+#if _MSC_VER >= 1300
+/* TBD - functions deprecated in newer platforms have no XP equivalent so
+ * we have to live with them for now.
+ */
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#endif
+
 #include <winsock2.h>
 #include <windows.h>
 

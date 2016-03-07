@@ -161,9 +161,11 @@ distribution: build "$(PACKAGEDIR)"
         $(LIBTOOL) -nologo -out:$@ "@$(OBJDIR)\linkmodules" $(OBJS)
 !    else
         $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\linkmodules" "$(OBJDIR)\$(MODULENAME).res" $(OBJS)
-!      if $(VCVER) > 8
+#      See http://kb.froglogic.com/display/KB/Manifests. VC 9 *requires*
+#      manifests for DLL's as well. Newer compilers do not seem to care
+!      if $(VCVER) == 9
 	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
-!      endif $(VCVER) > 8
+!      endif $(VCVER) == 9
 !    endif  TWAPI_STATIC_BUILD
 !  else
 #    See [3b] - building a module other than twapi_base in single DLL mode
@@ -194,9 +196,11 @@ distribution: build "$(PACKAGEDIR)"
 #  dependencies in other rules defined for $(OBJDIR)\$(MODULE)
 $(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
         $(LINK) $(LOPT) -out:$@ $(LIBS) "$(OBJDIR)\$(MODULENAME).res" $(OBJS)
-!  if $(VCVER) > 8
+#  See http://kb.froglogic.com/display/KB/Manifests. VC 9 *requires*
+#  manifests for DLL's as well. Newer compilers do not seem to care
+!  if $(VCVER) == 9
 	cd $(OBJDIR) && $(MT) -manifest $(MODULE).manifest -outputresource:$(MODULE);2
-!  endif VCVER > 8
+!  endif VCVER == 9
 
 !endif defined(TWAPI_SINGLE_MODULE)
 

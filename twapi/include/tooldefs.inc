@@ -13,12 +13,22 @@
 #   "c:\program files\microsoft platform sdk\setenv.cmd /X64 /RETAIL
 
 # Set the compilation platform
+# Older compilers use MACHINE/CPU. Newer ones use Platform
+# Older compilers say AMD64, newer ones say X64
 !ifndef MACHINE
+!if "$(PLATFORM)" == ""
 !if "$(CPU)" == "" || "$(CPU)" == "i386"
 MACHINE		= X86
 !else
 MACHINE         = $(CPU)
 !endif
+!else
+MACHINE = $(PLATFORM)
+!endif
+!endif
+
+!if "$(MACHINE)" == "X64" || "$(MACHINE)" == "x64"
+MACHINE = AMD64
 !endif
 
 !ifndef TOOLDIR
