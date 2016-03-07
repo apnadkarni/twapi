@@ -223,7 +223,17 @@ VCVER=0
 !include $(OBJDIR)\vercl.p
 !endif
 
-!if $(VCVERSION) >= 1600
+!if $(VCVERSION) >= 1900
+# VS 2015
+VCVER=13
+!elseif $(VCVERSION) >= 1800
+# VS 2013
+VCVER=12
+!elseif $(VCVERSION) >= 1700
+# VS 2012
+VCVER=11
+!elseif $(VCVERSION) >= 1600
+# VS 2010
 VCVER=10
 !elseif $(VCVERSION) >= 1500
 VCVER=9
@@ -387,7 +397,7 @@ RCFLAGS = -DMODULEMAJOR=$(MODULEMAJOR) -DMODULEMINOR=$(MODULEMINOR) -DMODULEBUIL
 
 # Linking
 # -------
-LOPT      = /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:REF $(LENTRYFLAG)
+LOPT      = /MANIFEST /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:REF $(LENTRYFLAG)
 
 !if $(VCVER) >= 9
 # TBD - figure out how to put this in the eventlog makefile.
