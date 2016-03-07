@@ -1115,12 +1115,14 @@ Returns certificates that have a MD5 hash which matches the binary [arg SEARCHTE
 Returns certificates that have a property with id [arg SEARCHTERM]
 (see [uri #cert_property [cmd cert_property]]).
 [opt_def [const pubkey_md5_hash]]
-Returns certificates whose MD5-hashed public key matches the binary [arg SEARCHTERM].
+Returns certificates whose MD5-hashed public key matches the binary [arg SEARCHTERM]. The hash should be calculated over the public key in the format returned
+by [uri crypto.html#crypt_key_export [cmd crypt_key_export]].
 [opt_def [const public_key]]
-Returns certificates containint the specified public key [arg SEARCHTERM].
+Returns certificates containing the specified public key [arg SEARCHTERM].
 This is a pair consisting of the algorithm identifier 
 (in the same format as [const -signaturealgorithm]) and a binary
-containing the public key.
+containing the public key. This binary should be in the format returned by
+[uri crypto.html#crypt_key_export [cmd crypt_key_export]].
 [opt_def [const sha1_hash]]
 Returns certificates that have a SHA1 hash which matches the binary [arg SEARCHTERM].
 [opt_def [const signature_hash]]
