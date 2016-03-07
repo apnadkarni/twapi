@@ -99,7 +99,11 @@ proc makeindex {pkgdir lazy} {
         set dll {}
         if {$type eq "load"} {
             # Binary module. See if statically bound or not
-            if {[file exists [file join $pkgdir ${mod}.dll]]} {
+            set modfile $mod
+            if {$::tcl_platform(pointerSize) == 8} {
+                append modfile "64"
+            }
+            if {[file exists [file join $pkgdir ${modfile}.dll]]} {
                 set dll [file join $pkgdir ${mod}.dll]
             }
             uplevel #0 [list load $dll $mod]
