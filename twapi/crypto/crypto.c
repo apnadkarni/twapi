@@ -8,9 +8,30 @@
 /* Interface to CryptoAPI */
 /*
  * TBD - GetCryptProvFromCert, CryptVerifyCertificateSignature(Ex),
- * TBD - CryptRetrieveObjectByUrl
+ * TBD - CryptRetrieveObjectByUrl, CryptImportPublicKeyInfo
+ * TBD - CryptUI* functions
  */
 
+/* 
+   TBD - see if the following newsgroup comment has relevance somewhere
+   > When I use the CertVerifyCertificateChainPolicy method and the
+   > CERT_CHAIN_POLICY_SSL policy to verify a certificate chain, which checks
+   are
+   > exactly performed? In particular, does it check with the CRL server to see
+   > if one of the certificates is revoked?
+   No. Revocation checking is enabled and performed by CertGetCertificateChain.
+   >
+   > Also, where is the documentation of the SSL_EXTRA_CERT_CHAIN_POLICY_PARA
+   > structure [alias HTTPSPolicyCallbackData]? I'm unable to find it on MSDN.
+   > The structure has a member 'fdwChecks', but what are the possible values
+   of
+   > this member? WinCrypt.h says that the possible values are listed in
+   > WinInet.h, but it doesn't say which constants it's talking about.
+   SECURITY_FLAG_IGNORE_UNKNOWN_CA
+   SECURITY_FLAG_IGNORE_WRONG_USAGE
+   SECURITY_FLAG_IGNORE_CERT_DATE_INVALID
+   SECURITY_FLAG_IGNORE_CERT_CN_INVALID
+*/
 
 #include "twapi.h"
 #include "twapi_crypto.h"
@@ -767,6 +788,8 @@ static TCL_RESULT ParseCERT_CHAIN_PARA(
      * CERT_CHAIN_PARA is a list, currently containing exactly one element -
      * the RequestedUsage field. This is a list of two elements, a DWORD
      * indicating the boolean operation and an array of CERT_ENHKEY_USAGE
+     * TBD - add support for the extra fields by defining
+     * CERT_CHAIN_PARA_HAS_EXTRA_FIELDS
      */
     if (ObjGetElements(NULL, paramObj, &n, &objs) != TCL_OK ||
         n != 1 ||
@@ -1227,6 +1250,8 @@ static TCL_RESULT TwapiCryptDecodeObject(
     DWORD_PTR dwoid;
     Tcl_Obj * (*fnP)(void *);
 
+    /* TBD - add RSA_CSP_PUBLICKEYBLOB and other unimplemented types */
+
     /*
      * poid may be a Tcl_Obj or a dword corresponding to a Win32 #define
      * This is how the CryptDecodeObjEx API works
@@ -1389,6 +1414,12 @@ static TCL_RESULT TwapiCryptEncodeObject(
     LPCSTR oid;
     DWORD_PTR dwoid;
 
+    /* TBD - add RSA_CSP_PUBLICKEYBLOB and other unimplemented types
+    E.g. pkinfo.Algorithm.pszObjId = szOID_RSA_RSA (or "1.2.840.113549.1.1.1") 
+    pkinfo.Parameters.cbData = 2 
+    pkinfo.Parameters.pbData = pnull (NULL encoding) 
+    BYTE pnull[] = {05, 00} ;
+    */
     /*
      * poid may be a Tcl_Obj or a dword corresponding to a Win32 #define
      * This is how the CryptEncodeObjEx API works
@@ -3807,17 +3838,17 @@ static TCL_RESULT Twapi_CryptExportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
 
 static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int nbytes, btype, bver, breserved;
+    int btype, bver, breserved;
     ALG_ID balg_id;
     void *cryptH, *keyH;
-    DWORD flags;
+    DWORD nbytes, flags;
     Tcl_Obj *blobObj, *keyObj;
     BLOBHEADER *blobP;
     MemLifoMarkHandle mark = NULL;
     TCL_RESULT res;
     HCRYPTKEY importH;
     int nclear = 0;
-
+    
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(cryptH, HCRYPTPROV, CryptReleaseContext),
                      GETOBJ(keyObj),
@@ -4303,6 +4334,11 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         break;
 
     case 10027:
+        /* TBD - note for documentation
+           CryptAcquireCertificatePrivateKey gives you a handle to a CSP [phCryptProv] 
+           and a keyspec [pdwKeySpec]. You can pass these two values to the 
+           CryptGetUserKey to convert them into a HCRYPTKEY. 
+        */
         if (TwapiGetArgs(interp, objc, objv,
                          GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
                          GETINT(dw), ARGSKIP, ARGEND) != TCL_OK)
@@ -5218,11 +5254,11 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptUnprotectData, Twapi_CryptUnprotectObjCmd),
         DEFINE_TCL_CMD(PFXExportCertStoreEx, Twapi_PFXExportCertStoreExObjCmd),
         DEFINE_TCL_CMD(PFXImportCertStore, Twapi_PFXImportCertStoreObjCmd),
-        DEFINE_TCL_CMD(CryptQueryObject, Twapi_CryptQueryObjectObjCmd), // TBD Tcl
+        DEFINE_TCL_CMD(CryptQueryObject, Twapi_CryptQueryObjectObjCmd),
         DEFINE_TCL_CMD(WinVerifyTrust, Twapi_WinVerifyTrustObjCmd), // TBD Tcl
         DEFINE_TCL_CMD(CryptCATAdminEnumCatalogFromHash, Twapi_CryptCATAdminEnumCatalogFromHashObjCmd), // TBD Tcl
         DEFINE_TCL_CMD(CryptGetKeyParam, Twapi_CryptGetKeyParamObjCmd),
-        DEFINE_TCL_CMD(CryptGetKeyParam, Twapi_CryptSetKeyParamObjCmd), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptSetKeyParam, Twapi_CryptSetKeyParamObjCmd),
         DEFINE_TCL_CMD(CryptSetHashParam, Twapi_CryptSetHashParamObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptEncrypt, Twapi_CryptEncryptObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptDecrypt, Twapi_CryptDecryptObjCmd), // TBD - Tcl
