@@ -397,7 +397,7 @@ RCFLAGS = -DMODULEMAJOR=$(MODULEMAJOR) -DMODULEMINOR=$(MODULEMINOR) -DMODULEBUIL
 
 # Linking
 # -------
-LOPT      = /MANIFEST /RELEASE /NOLOGO /MACHINE:$(MACHINE) /DLL /OPT:REF $(LENTRYFLAG)
+LOPT      = /RELEASE /NOLOGO /DLL /OPT:REF $(LENTRYFLAG)
 
 !if $(VCVER) >= 9
 # TBD - figure out how to put this in the eventlog makefile.
