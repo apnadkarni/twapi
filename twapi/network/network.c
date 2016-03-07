@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2010 Ashok P. Nadkarni
+ * Copyright (c) 2004-2016 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -77,8 +77,15 @@ typedef struct _IP_ADAPTER_GATEWAY_ADDRESS_LH {
     SOCKET_ADDRESS Address;
 } IP_ADAPTER_GATEWAY_ADDRESS_LH, *PIP_ADAPTER_GATEWAY_ADDRESS_LH;
 
-/* Vista+ IP_ADAPTER_ADDRESSES */
-typedef struct _IP_ADAPTER_ADDRESSES_LH {
+#endif
+
+/*
+ * Vista+ IP_ADAPTER_ADDRESSES. We define our own structure even for newer
+ * SDK's because we determine field availability at runtime and not compile
+ * time whereas the SDKS disable fields based on the compile time selection
+ * of target platform.
+ */
+typedef struct {
   union {
     ULONGLONG Alignment;
     struct {
@@ -121,9 +128,8 @@ typedef struct _IP_ADAPTER_ADDRESSES_LH {
   ULONG                              Dhcpv6ClientDuidLength;
   ULONG                              Dhcpv6Iaid;
   PIP_ADAPTER_DNS_SUFFIX             FirstDnsSuffix;
-} IP_ADAPTER_ADDRESSES_LH, *PIP_ADAPTER_ADDRESSES_LH;
+} TWAPI_IP_ADAPTER_ADDRESSES_LH, *PTWAPI_IP_ADAPTER_ADDRESSES_LH;
 
-#endif
 
 typedef struct _TwapiHostnameEvent {
     Tcl_Event tcl_ev;           /* Must be first field */
@@ -434,7 +440,7 @@ Tcl_Obj *ObjFromIP_ADAPTER_ADDRESSES(IP_ADAPTER_ADDRESSES *iaaP)
 {
     Tcl_Obj *objv[33];
     Tcl_Obj *fieldObjs[16];
-    IP_ADAPTER_ADDRESSES_LH *ilhP = NULL;
+    TWAPI_IP_ADAPTER_ADDRESSES_LH *ilhP = NULL;
     IP_ADAPTER_UNICAST_ADDRESS *unicastP;
     IP_ADAPTER_ANYCAST_ADDRESS *anycastP;
     IP_ADAPTER_MULTICAST_ADDRESS *multicastP;
@@ -507,11 +513,12 @@ Tcl_Obj *ObjFromIP_ADAPTER_ADDRESSES(IP_ADAPTER_ADDRESSES *iaaP)
         objv[16] = objv[15];
     }
 
+    /* Remainining fields only available on Vista SP1 and later */
     if (iaaP->Length < sizeof(*ilhP)) {
         return ObjNewList(17, objv);
     }
 
-    ilhP = (IP_ADAPTER_ADDRESSES_LH *)iaaP;
+    ilhP = (TWAPI_IP_ADAPTER_ADDRESSES_LH *)iaaP;
 
     objv[17] = ObjFromULONGLONG(ilhP->TransmitLinkSpeed);
     objv[18] = ObjFromULONGLONG(ilhP->ReceiveLinkSpeed);
