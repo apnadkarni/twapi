@@ -1,6 +1,11 @@
 SRCROOT=$(MAKEDIR)
 DISTDIR=$(MAKEDIR)\dist
 
+# Whether to zip everything into a distributable package
+!ifndef MAKEDIST
+MAKEDIST=0
+!endif
+
 # If 1, the generated pkgindex file will do lazy loading
 !ifndef LAZYPACKAGELOAD
 # TBD - lazy loading improves start up time (~50ms versus 250). However
@@ -64,21 +69,15 @@ base : $(PURETCLMODULES)
 
 # Traditional build with single dll and not embedding
 twapi-build: 
-!if "$(MACHINE)" != "AMD64"
 	-$(DEL) "$(DISTDIR)\twapi\pkgindex.modules"
-!endif
 	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\twapi" $(BUILD_OPTIONS)
 
 twapi-bin-build: 
-!if "$(MACHINE)" != "AMD64"
 	-$(DEL) "$(DISTDIR)\twapi-bin\pkgindex.modules"
-!endif
 	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma TWAPI_SINGLE_MODULE=1 PACKAGEDIR="$(DISTDIR)\twapi-bin" $(BUILD_OPTIONS)
 
 twapi-modular-build: 
-!if "$(MACHINE)" != "AMD64"
 	-$(DEL) "$(DISTDIR)\twapi-modular\pkgindex.modules"
-!endif
 	$(MAKE) /$(MAKEFLAGS) ACTIONS="build distribution" TARGETS="$(TARGETS)" EMBED_SCRIPT=lzma PACKAGEDIR="$(DISTDIR)\twapi-modular" $(BUILD_OPTIONS)
 
 twapi-lib-build:
@@ -89,14 +88,14 @@ twapi-lib-build:
 	$(TCLSH) "$(TOOLDIR)\makepkgindex.tcl" $(@D) $(LAZYPACKAGELOAD) >> $@
 	-$(DEL) $(@D)\pkgindex.modules
 
-!if "$(MACHINE)" == "AMD64"
+!if $(MAKEDIST) == 0
 twapi twapi-bin twapi-modular twapi-lib: $(@)-build
 !else
 twapi twapi-bin twapi-modular: $(@)-build "$(DISTDIR)\$@\pkgindex.tcl"
         $(COPY) LICENSE "$(DISTDIR)\$@"
-!if "$(TWAPI_RELEASETYPE)" == "."
+! if "$(TWAPI_RELEASETYPE)" == "."
 	$(COPY) doc\announce.md "$(DISTDIR)\$@\README.TXT"
-!else
+! else
 	copy << "$(DISTDIR)\$@\README.TXT"
 This directory holds the development version of TWAPI.
 Documentation is at http://twapi.magicsplat.com/v$(TWAPI_MAJOR).$(TWAPI_MINOR)-dev
@@ -104,7 +103,7 @@ Documentation is at http://twapi.magicsplat.com/v$(TWAPI_MAJOR).$(TWAPI_MINOR)-d
 Note development releases are not fully regression tested
 and features are liable to be changed or removed.
 <<KEEP
-!endif
+! endif
 	cd "$(DISTDIR)" && $(ZIP) -r "$@-$(TWAPI_VERSION).zip" $@
 	if exist "$(USERPROFILE)\Downloads\twapi" $(COPY) "$(DISTDIR)\$@-$(TWAPI_VERSION).zip" "$(USERPROFILE)\Downloads\twapi"
 
