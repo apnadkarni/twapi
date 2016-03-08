@@ -104,7 +104,7 @@ proc makeindex {pkgdir lazy} {
                 append modfile "64"
             }
             if {[file exists [file join $pkgdir ${modfile}.dll]]} {
-                set dll [file join $pkgdir ${mod}.dll]
+                set dll [file join $pkgdir ${modfile}.dll]
             }
             uplevel #0 [list load $dll $mod]
             if {$mod eq "twapi_base"} {

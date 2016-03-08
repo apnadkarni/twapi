@@ -132,18 +132,14 @@ distribution: build "$(PACKAGEDIR)"
 	for %f in ($(TCLFILES)) do @xcopy /i/q/y %f "$(PACKAGEDIR)" >NUL
 !endif
 !if defined(OBJS)
-! if "$(MACHINE)" != "AMD64"
 	echo $(MODULENAME) load $(PREREQUISITES) >> "$(PACKAGEDIR)\pkgindex.modules"
-! endif
 ! if "$(MODULENAME)" == "twapi_base" || ! defined(TWAPI_SINGLE_MODULE)
         $(COPY) "$(OBJDIR)\$(MODULE)" "$(PACKAGEDIR)"
 ! endif
 !else
-! if "$(MACHINE)" != "AMD64"
 	echo $(MODULENAME) source $(PREREQUISITES) >> "$(PACKAGEDIR)\pkgindex.modules"
-! endif
 !endif
-!  if defined(TWAPI_STATIC_BUILD) && "$(MODULENAME)" == "twapi_base" && "$(MACHINE)" != "AMD64"
+!  if defined(TWAPI_STATIC_BUILD) && "$(MODULENAME)" == "twapi_base" 
 	$(COPY) "$(TWAPI_SCRIPT_RESOURCE_DIR)\*.*" "$(PACKAGEDIR)"
 	$(COPY) "$(OBJDIR)\*.rcfrag" "$(PACKAGEDIR)\$(MODULENAME).rcfrag"
 !  endif
