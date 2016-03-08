@@ -4,6 +4,8 @@
 :: invokes it in a separate command shell.
 :: See the BUILD_INSTRUCTIONS file for more details.
 
+setlocal
+
 :: Generate the mercurial ID. Need to do this before resetting PATH below
 :: The first echo is a hack to write to a file without a terminating newline
 :: We do it this way and not through the makefile because the compiler
@@ -13,6 +15,11 @@ echo|set /P=HGID=>build\hgid.tmp
 hg identify -i >>build\hgid.tmp
 
 :init
+set arch=%1
+set target=%2
+:: If target is unspecified, or an empty string, treat as all
+IF ".%target%" == "." set target=all
+IF ".%target%" == ".""" set target=all
 
 :: Clean out build environment before calling sdk setup
 set INCLUDE=
@@ -32,9 +39,9 @@ set TWAPI_COMPILER_DIR=c:\bin\x86\twapi-tcl-vc6
 
 :check_arch
 
-if /i ".%1" == ".x86" goto setup_x86
-if /i ".%1" == ".amd64" goto setup_amd64
-if /i ".%1" == ".x64" goto setup_amd64
+if /i ".%arch%" == ".x86" goto setup_x86
+if /i ".%arch%" == ".amd64" goto setup_amd64
+if /i ".%arch%" == ".x64" goto setup_amd64
 
 @echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 @echo Syntax: %0 x86/x64/amd64 ?config?
@@ -82,37 +89,40 @@ goto do_builds
 
 :sdkerror
 @echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-@echo ERROR: Could not set up %1 compiler and SDK
+@echo ERROR: Could not set up %arch% compiler and SDK
 @echo !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 @exit /B 1
 
 :do_builds
 
-@if "x%2" == "x" goto build_twapi
-@if NOT "x%2" == "xtwapi" goto check_twapi_bin
+:: NOTE: we use %3... etc and not %* because that would include all
+:: arguments even if we were to use shift
+
+@if "x%target%" == "xall" goto build_twapi
+@if NOT "x%target%" == "xtwapi" goto check_twapi_bin
 :build_twapi
-@echo BUILDING twapi
-nmake /nologo /a /s twapi
+@echo BUILDING twapi %3 %4 %5 %6
+nmake /nologo /a /s twapi %3 %4 %5 %6 %7 %8 %9
 
 :check_twapi_bin
-@if "x%2" == "x" goto build_twapi_bin
-@if NOT "x%2" == "xtwapi_bin" goto check_twapi_mod
+@if "x%target%" == "xall" goto build_twapi_bin
+@if NOT "x%target%" == "xtwapi_bin" goto check_twapi_mod
 :build_twapi_bin
 @echo BUILDING twapi-bin
-nmake /nologo /a /s twapi-bin
+nmake /nologo /a /s twapi-bin %3 %4 %5 %6 %7 %8 %9
 
 :check_twapi_mod
-@if "x%2" == "x" goto build_twapi_mod
-@if NOT "x%2" == "xtwapi_modular" goto check_twapi_lib
+@if "x%target%" == "xall" goto build_twapi_mod
+@if NOT "x%target%" == "xtwapi_modular" goto check_twapi_lib
 :build_twapi_mod
 @echo BUILDING twapi-modular
-nmake /nologo /a /s twapi-modular
+nmake /nologo /a /s twapi-modular %3 %4 %5 %6 %7 %8 %9
 
 :check_twapi_lib
-@if "x%2" == "x" goto build_lib
-@if NOT "x%2" == "xtwapi_lib" goto vamoose
+@if "x%target%" == "xall" goto build_lib
+@if NOT "x%target%" == "xtwapi_lib" goto vamoose
 :build_lib
 @echo BUILDING twapi-lib
-nmake /nologo /a /s twapi-lib
+nmake /nologo /a /s twapi-lib %3 %4 %5 %6 %7 %8 %9
 
 :vamoose
