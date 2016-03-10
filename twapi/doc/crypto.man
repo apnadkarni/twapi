@@ -415,6 +415,9 @@ The return value is a binary string in little-endian form.
 [call [cmd capi_key_effective_keylen] [arg HKEY]]
 Returns the effective key length of the key.
 
+[call [cmd capi_key_free] [arg HKEY]]
+Frees a handle to a cryptographic key.
+
 [call [cmd capi_key_iv] [arg HKEY] [opt [arg IV]]]
 If [arg IV] is not specified, the command
 returns the current initialization vector as a binary string. Otherwise
@@ -609,7 +612,7 @@ Returns the names of the other key containers owned by the CSP other
 than the one current one.
 
 [call [cmd crypt_key_free] [arg HCRYPTKEY]]
-Frees a handle to a cryptographic key.
+Deprecated. Use [uri #capi_key_free [cmd capi_key_free]] instead.
 
 [call [cmd crypt_key_generate] [arg HCRYPT] [arg ALGORITHM] [opt [arg options]]]
 Generates a new key or public/private key pair in the cryptographic

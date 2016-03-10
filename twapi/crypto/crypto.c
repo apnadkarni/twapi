@@ -5171,7 +5171,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertEnumCertificatesInStore, 10006),
         DEFINE_FNCODE_CMD(CertEnumCertificateContextProperties, 10007),
         DEFINE_FNCODE_CMD(CertGetCertificateContextProperty, 10008),
-        DEFINE_FNCODE_CMD(crypt_key_free, 10009),
+        DEFINE_FNCODE_CMD(capi_key_free, 10009),
         DEFINE_FNCODE_CMD(CryptGenKey, 10010),
         DEFINE_FNCODE_CMD(CertStrToName, 10011),
         DEFINE_FNCODE_CMD(CertNameToStr, 10012),
