@@ -77,6 +77,11 @@ Use [uri crypto.html#csps [cmd csps]] and
 [uri crypto.html#csp_types [cmd csp_types]] instead.
 
 [bullet]
+[emph "Deprecated"]
+Command [cmd crypt_key_free] is deprecated. Use
+[uri crypto.html#capi_key_free [cmd capi_key_free]] instead.
+
+[bullet]
 [emph "Incompatible change"]
 The [uri crypto.html#crypt_acquire [cmd crypt_acquire]] command behaviour
 has changed. It now takes the key container name as the [cmd -keycontainer]

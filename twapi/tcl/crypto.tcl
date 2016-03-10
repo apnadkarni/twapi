@@ -1335,21 +1335,7 @@ proc twapi::crypt_key_generate {hprov algid args} {
         {size.int 0}
     } -maxleftover 0]
 
-    # TBD - why are we not using capi_algid here?
-    if {![string is integer -strict $algid]} {
-        # See wincrypt.h in SDK
-        switch -nocase -exact -- $algid {
-            keyexchange {set algid 1}
-            signature {set algid 2}
-            default {
-                set id [CertOIDToAlgId [oid $algid]]
-                if {$id == 0} {
-                    badargs! "Invalid algorithm id '$algid'"
-                }
-                set algid $id
-            }
-        }
-    }
+    set algid [capi_algid $algid]
 
     if {$opts(size) < 0 || $opts(size) > 65535} {
         badargs! "Bad key size value '$size':  must be positive integer less than 65536"
@@ -1523,6 +1509,9 @@ proc twapi::crypt_key_derive  {hcrypt algid hhash args} {
                 [expr {($keysize << 16) | $exportable}]]
 }
 
+# For backwards compat
+interp alias {} twapi::crypt_key_free {} twapi::capi_key_free
+
 proc twapi::crypt_algorithms {hcrypt} {
     set algs {}
     foreach alg [CryptGetProvParam $hcrypt 22 0] {
@@ -1551,8 +1540,8 @@ proc twapi::capi_algid {s} {
         aes_192 0x0000660f
         aes_256 0x00006610
         agreedkey_any 0x0000aa03
-        at_keyexchange 1
-        at_signature 2
+        keyexchange 1
+        signature 2
         cylink_mek 0x0000660c
         des 0x00006601
         desx 0x00006604
