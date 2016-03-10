@@ -2612,7 +2612,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set subject twapitest-[clock microseconds]
         set crypt [twapi::crypt_acquire $subject -create 1]
-        twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+        twapi::capi_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
     } -body {
         set x509_name "CN=$subject SSL Server, O=Twapi Open Source, OU=test"
         set req [twapi::cert_request_create $x509_name $crypt keyexchange -purpose server -encoding pem]
@@ -2627,7 +2627,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set subject twapitest-[clock microseconds]
         set crypt [twapi::crypt_acquire $subject -create 1]
-        twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+        twapi::capi_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
     } -body {
         set x509_name "CN=$subject No Options, O=Twapi Open Source, OU=test"
         set req [twapi::cert_request_create $x509_name $crypt keyexchange]
@@ -2642,7 +2642,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set subject twapitest-[clock microseconds]
         set crypt [twapi::crypt_acquire $subject -create 1]
-        twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+        twapi::capi_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
     } -body {
         set x509_name "CN=$subject Full, O=Twapi Open Source, OU=test"
         set altnames [list [list [list email ${subject}@twapitest.com] [list dns ${subject}.twapitest.com] [list url http://${subject}.twapitest.com] [list directory [twapi::cert_name_to_blob "CN=${subject}altname"]] [list ip [binary format c4 {127 0 0 1}]]]]
@@ -2668,7 +2668,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set subject twapitest-[clock microseconds]
         set crypt [twapi::crypt_acquire $subject -create 1]
-        twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+        twapi::capi_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
         set x509_name "CN=$subject Full, O=Twapi Open Source, OU=test"
         set altnames [list [list [list email ${subject}@twapitest.com] [list dns ${subject}.twapitest.com] [list url http://${subject}.twapitest.com] [list directory [twapi::cert_name_to_blob "CN=${subject}altname"]] [list ip [binary format c4 {127 0 0 1}]]]]
         set req [twapi::cert_request_create $x509_name $crypt keyexchange \
