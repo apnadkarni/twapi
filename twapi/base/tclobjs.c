@@ -2025,6 +2025,66 @@ Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP)
 
 Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
 {
+    Tcl_Obj *objP;
+    char *p;
+    int nbytes;
+
+    /* Note WideChar... does not like 0 length strings */
+    if (wsP == NULL || nchars == 0)
+        return ObjFromEmptyString();
+
+    nbytes = WideCharToMultiByte(
+        CP_UTF8, /* CodePag */
+        0,       /* dwFlags */
+        wsP,     /* lpWideCharStr */
+        nchars < 0 ? -1 : nchars, /* cchWideChar */
+        NULL,    /* lpMultiByteStr */
+        0,       /* cbMultiByte */
+        NULL,    /* lpDefaultChar */
+        NULL     /* lpUsedDefaultChar */
+        );
+    
+    if (nbytes == 0) {
+        Tcl_Panic("WideCharToMultiByte returned 0, with error code %d", GetLastError());
+    }
+
+    p = ckalloc(nbytes+1); /* +1 for case where WCTMB doesn't terminate \0 */ 
+    
+    nbytes = WideCharToMultiByte(
+        CP_UTF8, /* CodePag */
+        0,       /* dwFlags */
+        wsP,     /* lpWideCharStr */
+        nchars < 0 ? -1 : nchars, /* cchWideChar */
+        p,       /* lpMultiByteStr */
+        nbytes,  /* cbMultiByte */
+        NULL,    /* lpDefaultChar */
+        NULL     /* lpUsedDefaultChar */
+        );
+    
+    if (nbytes == 0) {
+        Tcl_Panic("WideCharToMultiByte returned 0, with error code %d", GetLastError());
+    }
+
+    /*
+     * Note WideCharToMultiByte does not explicitly terminate with \0
+     * if nchars was specifically specified (-1)
+     */
+    if (nchars < 0)
+        --nbytes;          /* Exclude terminating \0 from length */
+    else
+        p[nbytes] = '\0';  /* Add terminating \0 (but not counted in length) */
+
+    objP = Tcl_NewObj();
+    objP->bytes = p;
+    objP->length = nbytes;
+
+    return objP;
+}
+
+#ifdef OBSOLETE
+/* Replaced by version above */
+Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
+{
     Tcl_DString ds;
     Tcl_Obj *objP;
     int nbytes;
@@ -2084,6 +2144,7 @@ Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
     Tcl_DStringFree(&ds);
     return objP;
 }
+#endif
 
 Tcl_Obj *ObjFromTIME_ZONE_INFORMATION(const TIME_ZONE_INFORMATION *tzP)
 {
