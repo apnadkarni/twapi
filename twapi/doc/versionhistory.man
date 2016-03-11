@@ -71,6 +71,9 @@ Added [uri crypto.html#crypt_algorithms [cmd crypt_algorithms]],
 [uri crypto.html#crypt_implementation_type [cmd crypt_implementation_type]].
 
 [bullet]
+Added [uri base.html#seal [cmd seal]] and [uri base.html#unseal [cmd unseal]].
+
+[bullet]
 [emph "Deprecated"]
 Commands [cmd crypt_csps] and [cmd crypt_csptypes] are deprecated.
 Use [uri crypto.html#csps [cmd csps]] and

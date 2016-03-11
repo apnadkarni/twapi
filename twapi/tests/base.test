@@ -3824,6 +3824,29 @@ namespace eval twapi::base::test {
 
     ################################################################
 
+    test seal-1.0 {
+        Seal binary string
+    } -body {
+        set c [twapi::seal "\x00\xff\x80"]
+        list [string length $c] [string first \x00 $c] [twapi::unseal $c]
+    } -result [list 8 -1 "\x00\xff\x80"]
+
+    test seal-1.1 {
+        Seal binary string, block size (8)
+    } -body {
+        set c [twapi::seal "\x00\x01\x02\x03\xff\xfe\xfd\xfc"]
+        list [string length $c] [string first \x00 $c] [twapi::unseal $c]
+    } -result [list 16 -1 "\x00\x01\x02\x03\xff\xfe\xfd\xfc"]
+    
+    test seal-1.2 {
+        Seal empty string
+    } -body {
+        set c [twapi::seal ""]
+        list [string length $c] [string equal "" $c] [twapi::unseal $c]
+    } -result [list 8 0 {}]
+
+    ################################################################
+
     test concealed?-1.0 {
         Unconcealed text
     } -body {

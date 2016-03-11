@@ -2377,8 +2377,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(swap4, 1026),
         DEFINE_FNCODE_CMD(swap2, 1027),
         DEFINE_FNCODE_CMD(hex, 1028), // TBD - document
-        DEFINE_FNCODE_CMD(seal, 1029), // TBD - document
-        DEFINE_FNCODE_CMD(unseal, 1030), // TBD - document
+        DEFINE_FNCODE_CMD(seal, 1029),
+        DEFINE_FNCODE_CMD(unseal, 1030),
     };
 
     static struct fncode_dispatch_s CallArgsDispatch[] = {
