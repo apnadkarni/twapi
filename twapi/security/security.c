@@ -1163,7 +1163,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 ObjGetElements(interp, objv[2], &nobjs, &objPP) != TCL_OK) {
                 return TCL_ERROR;
             }
-            iP = TwapiPushFrame(sizeof(int) * nobjs, NULL);
+            iP = SWSPushFrame(sizeof(int) * nobjs, NULL);
             for (dw = 0; dw < nobjs; ++dw) {
                 if (ObjToInt(interp, objPP[dw], &iP[dw]) != TCL_OK)
                     break;
@@ -1183,7 +1183,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                                                             &paei);
             }
 
-            TwapiPopFrame();
+            SWSPopFrame();
             break;
 
         case 10013: // Unused

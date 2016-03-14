@@ -802,8 +802,7 @@ static int Twapi_UiCallWStructObjCmd(ClientData clientdata, Tcl_Interp *interp, 
     DWORD dw;
     HWND hwnd;
     int func = PtrToInt(clientdata);
-    MemLifo *memlifoP;
-    MemLifoMarkHandle mark;
+    SWSMark mark;
     TCL_RESULT res;
     void *pv;
     Tcl_Obj *objP;
@@ -821,8 +820,7 @@ static int Twapi_UiCallWStructObjCmd(ClientData clientdata, Tcl_Interp *interp, 
                      ARGTERM) != TCL_OK)
         return TCL_ERROR;
 
-    memlifoP = TwapiMemLifo();
-    mark = MemLifoPushMark(memlifoP);
+    mark = SWSPushMark();
     objc -= 3;
     objv += 3;
     result.type = TRT_BADFUNCTIONCODE;
@@ -830,7 +828,7 @@ static int Twapi_UiCallWStructObjCmd(ClientData clientdata, Tcl_Interp *interp, 
     res = TCL_OK;
     switch (func) {
     case 1: // SetWindowPlacement
-        res = TwapiCStructParse(interp, memlifoP, objP, 0, &dw, &pv);
+        res = TwapiCStructParse(interp, SWS(), objP, 0, &dw, &pv);
         if (res == TCL_OK) {
             if (SetWindowPlacement(hwnd, pv))
                 result.type = TRT_EMPTY;
@@ -857,7 +855,7 @@ static int Twapi_UiCallWStructObjCmd(ClientData clientdata, Tcl_Interp *interp, 
     }
 
     res = TwapiSetResult(interp, &result);
-    MemLifoPopMark(mark);
+    SWSPopMark(mark);
     return res;
 }
 

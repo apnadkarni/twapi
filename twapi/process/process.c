@@ -984,17 +984,17 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         dw = 2048;
         s =  ObjToUnicode(objv[1]);
         while (1) {
-            bufP = TwapiPushFrame(dw, &dw);
+            bufP = SWSPushFrame(dw, &dw);
             if (ExpandEnvironmentStringsForUserW(h, s, bufP, dw/sizeof(WCHAR))) {
                 result.value.obj = ObjFromUnicode(bufP);
                 result.type = TRT_OBJ;
-                TwapiPopFrame();
+                SWSPopFrame();
                 break;
             } else {
                 result.type = TRT_EXCEPTION_ON_ERROR;
                 result.value.ival = GetLastError(); /* Save error BEFORE any
                                                        other calls */
-                TwapiPopFrame();
+                SWSPopFrame();
                 if (result.value.ival != ERROR_INSUFFICIENT_BUFFER ||
                     dw > 128000)
                     break;
