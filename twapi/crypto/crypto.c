@@ -35,6 +35,7 @@
 
 #include "twapi.h"
 #include "twapi_crypto.h"
+#include "pbkdf2.h"
 #include <mscat.h>
 
 #ifndef TWAPI_SINGLE_MODULE
@@ -5159,6 +5160,62 @@ static int Twapi_WinVerifyTrustObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
     return ret;
 }
 
+static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    unsigned char *utfpassP, *saltP, *keyP;
+    WCHAR *unipassP = NULL;
+    int nuni, nutf, nsalt, niterations, nkeybytes, nkeybits;
+    TCL_RESULT res;
+    Tcl_Obj *passObj;
+    BOOL pbkdf2_status;
+    MemLifoMarkHandle mark;
+    
+    mark = MemLifoPushMark(ticP->memlifoP);
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETOBJ(passObj),
+                         GETBA(saltP, nsalt), GETINT(niterations),
+                         GETINT(nkeybits), ARGEND);
+    if (res != TCL_OK)
+        goto vamoose;
+    
+    if (nkeybits <= 0 || nkeybits & 7) {
+        res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Number of key bits must be a positive multiple of 8.");
+        goto vamoose;
+    }
+    nkeybytes = nkeybits/8;
+    keyP = MemLifoAlloc(ticP->memlifoP, nkeybytes, NULL);
+    
+    unipassP = ObjDecryptUnicode(interp, passObj, &nuni);
+    if (unipassP == NULL)
+        goto vamoose;                    /* Error already filled in */ 
+
+    TWAPI_ASSERT(unipassP[nuni] == 0); /* Should be terminated */
+    //APN nuni += 1; /* Include \0 in len */
+    nutf = TwapiUnicharToUtf8(unipassP, nuni, NULL, 0);
+    if (nutf == -1) goto system_error;
+    utfpassP = MemLifoAlloc(ticP->memlifoP, nutf, NULL);
+    nutf = TwapiUnicharToUtf8(unipassP, nuni, utfpassP, nutf);
+    if (nutf == -1) goto system_error;
+
+    pbkdf2_status = PBKDF2(sha1Prf, utfpassP, nutf, saltP, nsalt, niterations,
+                           keyP, nkeybytes);
+    if (! pbkdf2_status)
+        res = TwapiReturnSystemError(interp);
+    else
+        res = ObjSetResult(interp, ObjFromByteArray(keyP, nkeybytes));
+
+    SecureZeroMemory(utfpassP, nutf);
+    
+vamoose:
+    if (unipassP)
+        TwapiFreeDecryptedPassword(unipassP, nuni);
+    MemLifoPopMark(mark);
+    return res;
+
+system_error:
+    res = TwapiReturnSystemError(interp);
+    goto vamoose;
+}
+
 static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s CryptoDispatch[] = {
@@ -5270,6 +5327,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptSignAndEncryptMessage, Twapi_CryptSignAndEncryptMessageObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptImportKey, Twapi_CryptImportKeyObjCmd),
         DEFINE_TCL_CMD(CryptExportKey, Twapi_CryptImportKeyObjCmd),
+        DEFINE_TCL_CMD(pbkdf2, Twapi_PBKDF2ObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);

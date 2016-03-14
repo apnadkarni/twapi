@@ -2022,7 +2022,89 @@ Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP)
     return ObjNewList(6, objv);
 }
 
+/* If buf is NULL or buf_sz is 0, returns the number of bytes required
+   for the result. Else stores the utf-8 in the buffer and returns number
+   of bytes stored. 
 
+   The function does not explicitly add a terminating null. If the length
+   (nchars) of wsP is explicitly specified, a terminating null will be included
+   only if the wsP[nchars] was a null. If nchars was passed as a negative
+   number, the terminating null is implicitly included in the length and will
+   be present in the returned buffer as well.
+
+   On error returns -1. Detail about error should be retrieved with
+   GetLastError()
+*/
+int TwapiUnicharToUtf8(CONST WCHAR *wsP, int nchars, char *buf, int buf_sz)
+{
+    int nbytes;
+    
+    if (buf_sz < 1)
+        buf = NULL;
+    else if (buf == NULL)
+        buf_sz = 0;
+    
+    /* Note WideChar... does not like 0 length strings */
+    if (wsP == NULL || nchars == 0)
+        return 0;
+
+    if (nchars < 0)
+        nchars = -1;
+    
+    nbytes = WideCharToMultiByte(
+        CP_UTF8, /* CodePag */
+        0,       /* dwFlags */
+        wsP,     /* lpWideCharStr */
+        nchars,  /* cchWideChar */
+        buf,     /* lpMultiByteStr */
+        buf_sz,  /* cbMultiByte */
+        NULL,    /* lpDefaultChar */
+        NULL     /* lpUsedDefaultChar */
+        );
+    
+    if (nbytes == 0)
+        return -1; /* Caller should use GetLastError() */
+
+    return nbytes;
+}
+
+/* The Unicode string should not contain embedded nulls */
+Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
+{
+    int nbytes;
+    char *p;
+    Tcl_Obj *objP;
+    
+    nbytes = TwapiUnicharToUtf8(wsP, nchars, NULL, 0);
+    if (nbytes == -1)
+        goto do_panic;
+    
+    p = ckalloc(nbytes+1); /* +1 for case where WCTMB doesn't terminate \0 */ 
+    nbytes = TwapiUnicharToUtf8(wsP, nchars, p, nbytes);
+    if (nbytes == -1)
+        goto do_panic;
+
+    if (nbytes == 0)
+        p[0] = '\0';
+    else if (p[nbytes-1] == '\0')
+        nbytes -= 1; /* Don't include terminating null */
+    else
+        p[nbytes] = '\0'; /* Terminate string */
+    
+    objP = Tcl_NewObj();
+    if (objP->bytes)
+        Tcl_InvalidateStringRep(objP);
+    objP->bytes = p;
+    objP->length = nbytes; /* Note length does not include terminating \0 */
+
+    return objP;
+
+do_panic:
+    Tcl_Panic("TwapiUnicharToUtf8 returned -1, with error code %d", GetLastError());
+    return NULL; /* To keep compiler happy. Never reaches here */
+}
+
+#ifdef OBSOLETE
 Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
 {
     Tcl_Obj *objP;
@@ -2082,6 +2164,7 @@ Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
 
     return objP;
 }
+#endif
 
 Tcl_Obj *ObjFromTIME_ZONE_INFORMATION(const TIME_ZONE_INFORMATION *tzP)
 {

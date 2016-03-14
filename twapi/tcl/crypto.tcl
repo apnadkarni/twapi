@@ -1497,19 +1497,31 @@ proc twapi::crypt_key_import {hcrypt keyblob args} {
 # TBD - document
 proc twapi::crypt_key_derive  {hcrypt algid hhash args} {
     parseargs args {
-        {keysize.int 0}
+        {size.int 0}
         {exportable.bool 1 0x01}
     } -maxleftover 0 -setvars
 
-    if {$keysize <= 0 || $keysize > 65535} {
-        badargs! "Key size $keysize is not between 1 and 65535"
+    if {$size <= 0 || $size > 65535} {
+        badargs! "Key size $size is not between 1 and 65535"
     }
 
     return [CryptDeriveKey $hcrypt [capi_algid $algid] $hhash \
-                [expr {($keysize << 16) | $exportable}]]
+                [expr {($size << 16) | $exportable}]]
 }
 
-# For backwards compat
+# TBD - document
+proc twapi::crypt_key_from_passphrase {hcrypt algid passphrase args} {
+    parseargs args {
+        {size.int 0}
+        {exportable.bool 1 0x01}
+    } -maxleftover 0 -setvars
+
+    TBD
+    
+}
+
+
+# For backwards compat - deprecated
 interp alias {} twapi::crypt_key_free {} twapi::capi_key_free
 
 proc twapi::crypt_algorithms {hcrypt} {

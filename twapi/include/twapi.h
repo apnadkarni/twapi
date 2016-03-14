@@ -1410,6 +1410,7 @@ TWAPI_EXTERN char *ObjToString(Tcl_Obj *objP);
 TWAPI_EXTERN char *ObjToStringN(Tcl_Obj *objP, int *lenP);
 TWAPI_EXTERN Tcl_UniChar *ObjToUnicode(Tcl_Obj *objP);
 TWAPI_EXTERN Tcl_UniChar *ObjToUnicodeN(Tcl_Obj *objP, int *lenP);
+TWAPI_EXTERN int TwapiUnicharToUtf8(CONST WCHAR *wsP, int nchars, char *buf, int buf_sz);
 TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *p, int len);
 TWAPI_EXTERN Tcl_Obj *ObjFromEmptyString();
 TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeN(const Tcl_UniChar *ws, int len);
