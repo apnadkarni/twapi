@@ -3703,6 +3703,183 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
+    test pbkdf2-1.0 {
+        Empty password
+    } -body {
+        twapi::hex [twapi::pbkdf2 [twapi::conceal ""] salt 1 160]
+    } -result a33dddc30478185515311f8752895d36ea4363a2
+    
+    test pbkdf2-1.1 {
+        pbkdf2 8/4/1/160
+    } -body {
+        twapi::pbkdf2 [twapi::conceal password] salt 1 160
+    } -result [binary format c* {0x0c 0x60 0xc8 0x0f 0x96 0x1f 0x0e 0x71 0xf3 0xa9 0xb5 0x24 0xaf 0x60 0x12 0x06 0x2f 0xe0 0x37 0xa6}]
+
+    test pbkdf2-1.2 {
+        pbkdf2 8/4/2/160
+    } -body {
+        twapi::pbkdf2 [twapi::conceal password] salt 2 160
+    } -result [binary format c* {0xea 0x6c 0x01 0x4d 0xc7 0x2d 0x6f 0x8c 0xcd 0x1e 0xd9 0x2a 0xce 0x1d 0x41 0xf0 0xd8 0xde 0x89 0x57}]
+
+    test pbkdf2-1.3 {
+        pbkdf2 8/4/4096/160
+    } -body {
+        twapi::pbkdf2 [twapi::conceal password] salt 4096 160
+    } -result [binary format c* {0x4b 0x00 0x79 0x01 0xb7 0x65 0x48 0x9a 0xbe 0xad 0x49 0xd9 0x26 0xf7 0x21 0xd0 0x65 0xa4 0x29 0xc1}]
+
+    test pbkdf2-1.4 {
+        pbkdf2 8/8/2048/192
+    } -body {
+        twapi::pbkdf2 [twapi::conceal password] [binary format c* {0x78 0x57 0x8E 0x5A 0x5D 0x63 0xCB 0x06}] 2048 192
+    } -result [binary format c* {0xBF 0xDE 0x6B 0xE9 0x4D 0xF7 0xE1 0x1D 0xD4 0x09 0xBC 0xE2 0x0A 0x02 0x55 0xEC 0x32 0x7C 0xB9 0x36 0xFF 0xE9 0x36 0x43}]
+
+    test pbkdf2-1.5 {
+        pbkdf2 11/8/1000/160
+    } -body {
+        twapi::pbkdf2 [twapi::conceal "Hello World"] [binary format c* {0xDB 0x2F 0x38 0xA2 0x24 0x39 0x03 0xDE}] 1000 160
+    } -result [binary format c* {0xEC 0xD1 0x54 0x2B 0x2E 0xFB 0x3F 0x52 0x0F 0x12 0xA5 0x27 0xE3 0x86 0xB3 0x3C 0xF4 0xAD 0xE3 0xA2}]
+
+    test pbkdf2-1.6 {
+        pbkdf2 8/21/1/256
+    } -body {
+        twapi::pbkdf2 [twapi::conceal password] "ATHENA.MIT.EDUraeburn" 1 256
+    } -result [binary format c* {
+        0xcd 0xed 0xb5 0x28 0x1b 0xb2 0xf8 0x01
+        0x56 0x5a 0x11 0x22 0xb2 0x56 0x35 0x15
+        0x0a 0xd1 0xf7 0xa0 0x4b 0xb9 0xf3 0xa3
+        0x33 0xec 0xc0 0xe2 0xe1 0xf7 0x08 0x37
+    }]
+
+    test pbkdf2-1.7 {
+        pbkdf2 8/21/2/256
+    } -body {
+        twapi::pbkdf2 [twapi::conceal password] "ATHENA.MIT.EDUraeburn" 2 256
+    } -result [binary format c* {
+        0x01 0xdb 0xee 0x7f 0x4a 0x9e 0x24 0x3e 
+        0x98 0x8b 0x62 0xc7 0x3c 0xda 0x93 0x5d
+        0xa0 0x53 0x78 0xb9 0x32 0x44 0xec 0x8f
+        0x48 0xa9 0x9e 0x61 0xad 0x79 0x9d 0x86
+    }]
+
+    test pbkdf2-1.8 {
+        pbkdf2 8/21/1200/256
+    } -body {
+        twapi::pbkdf2 [twapi::conceal password] "ATHENA.MIT.EDUraeburn" 1200 256
+    } -result [binary format c* {
+        0x5c 0x08 0xeb 0x61 0xfd 0xf7 0x1e 0x4e
+        0x4e 0xc3 0xcf 0x6b 0xa1 0xf5 0x51 0x2b
+        0xa7 0xe5 0x2d 0xdb 0xc5 0xe5 0x14 0x2f
+        0x70 0x8a 0x31 0xe2 0xe6 0x2b 0x1e 0x13
+    }]
+
+    test pbkdf2-1.9 {
+        pbkdf2 8/8/5/256
+    } -body {
+        twapi::pbkdf2 [twapi::conceal password] "\0224VxxV4\022" 5 256
+    } -result [binary format c* {
+        0xd1 0xda 0xa7 0x86 0x15 0xf2 0x87 0xe6
+        0xa1 0xc8 0xb1 0x20 0xd7 0x06 0x2a 0x49
+        0x3f 0x98 0xd2 0x03 0xe6 0xbe 0x49 0xa6
+        0xad 0xf4 0xfa 0x57 0x4b 0x6e 0x64 0xee
+    }]
+
+    test pbkdf2-1.10 {
+        pbkdf2 pass phrase equals block size
+    } -body {
+        twapi::pbkdf2 [twapi::conceal [string repeat X 64]] "pass phrase equals block size" 1200 256
+    } -result [binary format c* {
+        0x13 0x9c 0x30 0xc0 0x96 0x6b 0xc3 0x2b
+        0xa5 0x5f 0xdb 0xf2 0x12 0x53 0x0a 0xc9
+        0xc5 0xec 0x59 0xf1 0xa4 0x52 0xf5 0xcc
+        0x9a 0xd9 0x40 0xfe 0xa0 0x59 0x8e 0xd1
+    }]
+
+    test pbkdf2-1.11 {
+        pbkdf2 pass phrase exceeds block size
+    } -body {
+        twapi::pbkdf2 [twapi::conceal [string repeat X 65]] "pass phrase exceeds block size" 1200 256
+    } -result [binary format c* {
+        0x9c 0xca 0xd6 0xd4 0x68 0x77 0x0c 0xd5
+        0x1b 0x10 0xe6 0xa6 0x87 0x21 0xbe 0x61
+        0x1a 0x8b 0x4d 0x28 0x26 0x01 0xdb 0x3b
+        0x36 0xbe 0x92 0x46 0x91 0x5e 0xc8 0x2a
+    }]
+
+    test pbkdf2-1.12 {
+        pbkdf2 binary password
+    } -constraints {
+        TBD - cannot pass a raw binary string as a password
+    } -body {
+        twapi::pbkdf2 [twapi::conceal "\360\235\204\236"] EXAMPLE.COMpianist 50 256
+    } -result [binary format c* {
+        0x6b 0x9c 0xf2 0x6d 0x45 0x45 0x5a 0x43
+        0xa5 0xb8 0xbb 0x27 0x6a 0x40 0x3b 0x39
+        0xe7 0xfe 0x37 0xa0 0xc4 0x1e 0x02 0xc2
+        0x81 0xff 0x30 0x69 0xe1 0xe9 0x4f 0x52
+    }]
+
+    test pbkdf2-1.13 {
+        Empty Salt
+    } -body {
+        twapi::hex [twapi::pbkdf2 [twapi::conceal password] "" 1 160]
+    } -result 8754c32c64b0f524fc50c00f788135de2d2dd767
+    
+    test pbkdf2-2.0 {
+        pbkdf2 rfc6070 iterations=16777216
+    } -body {
+        twapi::hex [twapi::pbkdf2 [twapi::conceal password] salt 16777216 160]
+    } -result eefe3d61cd4da4e4e9945b3d6ba2158c2634e984
+
+    test pbkdf2-2.1 {
+        pbkdf2 rfc6070 
+    } -body {
+        twapi::hex [twapi::pbkdf2 [twapi::conceal passwordPASSWORDpassword] [string repeat saltSALT 4]salt 4096 200]
+    } -result 3d2eec4fe41c849b80c8d83662c0e44a8b291a964cf2f07038
+    
+    test pbkdf2-2.2 {
+        pbkdf2 rfc6070 nulls
+    } -body {
+        twapi::hex [twapi::pbkdf2 [twapi::conceal "pass\0word"] "sa\0lt" 4096 128]
+    } -result 56fa6aa75548099dcc37d7f03425e0c3
+
+    test pbkdf2-3.0 {
+        Unencrypted password
+    } -body {
+        twapi::pbkdf2 password salt 1 160
+    } -result "Invalid pad*" -match glob -returnCodes error
+
+    test pbkdf2-3.1 {
+        Negative key length
+    } -body {
+        twapi::pbkdf2 [twapi::conceal password] salt 1 -160
+    } -result "Number of key bits must be a positive multiple of 8.*" -match glob -returnCodes error
+
+    test pbkdf2-3.2 {
+        Key length 0
+    } -body {
+        twapi::pbkdf2 [twapi::conceal password] salt 1 0
+    } -result "Number of key bits must be a positive multiple of 8.*" -match glob -returnCodes error
+
+    test pbkdf2-3.3 {
+        Key length not multiple of 8
+    } -body {
+        twapi::pbkdf2 [twapi::conceal password] salt 1 159
+    } -result "Number of key bits must be a positive multiple of 8.*" -match glob -returnCodes error
+
+    test pbkdf2-3.4 {
+        Negative iterations
+    } -body {
+        twapi::pbkdf2 [twapi::conceal password] salt -1 160
+    } -result "Number of iterations must be a positive integer.*" -match glob -returnCodes error
+
+    test pbkdf2-3.5 {
+        Zero iterations
+    } -body {
+        twapi::pbkdf2 [twapi::conceal password] salt 0 160
+    } -result "Number of iterations must be a positive integer.*" -match glob -returnCodes error
+
 }
 
 patience "Cleaning test certs"
