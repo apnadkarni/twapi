@@ -5177,6 +5177,10 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     if (res != TCL_OK)
         goto vamoose;
     
+    if (niterations <= 0) {
+        res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Number of iterations must be a positive integer.");
+        goto vamoose;
+    }
     if (nkeybits <= 0 || nkeybits & 7) {
         res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Number of key bits must be a positive multiple of 8.");
         goto vamoose;
@@ -5185,11 +5189,12 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     keyP = MemLifoAlloc(ticP->memlifoP, nkeybytes, NULL);
     
     unipassP = ObjDecryptUnicode(interp, passObj, &nuni);
-    if (unipassP == NULL)
+    if (unipassP == NULL) {
+        res = TCL_ERROR;
         goto vamoose;                    /* Error already filled in */ 
-
+    }
+    
     TWAPI_ASSERT(unipassP[nuni] == 0); /* Should be terminated */
-    //APN nuni += 1; /* Include \0 in len */
     nutf = TwapiUnicharToUtf8(unipassP, nuni, NULL, 0);
     if (nutf == -1) goto system_error;
     utfpassP = MemLifoAlloc(ticP->memlifoP, nutf, NULL);
