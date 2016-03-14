@@ -241,7 +241,6 @@ TCL_RESULT Twapi_GetLogicalProcessorInformationEx(
     )
 {
     FARPROC fn;
-    MemLifo *memlifoP;
     DWORD sz = 0, winerr;
     TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiexP;
 
@@ -249,14 +248,13 @@ TCL_RESULT Twapi_GetLogicalProcessorInformationEx(
     if (fn == NULL)
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
 
-    memlifoP = TwapiMemLifo();
-    slpiexP = MemLifoPushFrame(memlifoP, 1000, &sz);
+    slpiexP = SWSPushFrame(1000, &sz);
     winerr = ERROR_SUCCESS;
     if (fn(rel, slpiexP, &sz) == 0) {
         winerr = GetLastError();
         if (winerr == ERROR_INSUFFICIENT_BUFFER) {
             winerr = ERROR_SUCCESS;
-            slpiexP = MemLifoAlloc(memlifoP, sz, NULL);
+            slpiexP = SWSAlloc(sz, NULL);
             if (fn(rel, slpiexP, &sz) == 0)
                 winerr = GetLastError();
         }
@@ -277,14 +275,13 @@ TCL_RESULT Twapi_GetLogicalProcessorInformationEx(
         }
         ObjSetResult(interp, objP);
     }
-    MemLifoPopFrame(memlifoP);
+    SWSPopFrame();
     return winerr == ERROR_SUCCESS ? TCL_OK : Twapi_AppendSystemError(interp, winerr);
 }
 
 TCL_RESULT Twapi_GetLogicalProcessorInformation(Tcl_Interp *interp)
 {
     FARPROC fn;
-    MemLifo *memlifoP;
     DWORD sz = 0, winerr;
     TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION *slpiP;
 
@@ -292,14 +289,13 @@ TCL_RESULT Twapi_GetLogicalProcessorInformation(Tcl_Interp *interp)
     if (fn == NULL)
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
 
-    memlifoP = TwapiMemLifo();
-    slpiP = MemLifoPushFrame(memlifoP, 1000, &sz);
+    slpiP = SWSPushFrame(1000, &sz);
     winerr = ERROR_SUCCESS;
     if (fn(slpiP, &sz) == 0) {
         winerr = GetLastError();
         if (winerr == ERROR_INSUFFICIENT_BUFFER) {
             winerr = ERROR_SUCCESS;
-            slpiP = MemLifoAlloc(memlifoP, sz, NULL);
+            slpiP = SWSAlloc(sz, NULL);
             if (fn(slpiP, &sz) == 0)
                 winerr = GetLastError();
         }
@@ -315,7 +311,7 @@ TCL_RESULT Twapi_GetLogicalProcessorInformation(Tcl_Interp *interp)
         }
         ObjSetResult(interp, objP);
     }
-    MemLifoPopFrame(memlifoP);
+    SWSPopFrame();
     return winerr == ERROR_SUCCESS ? TCL_OK : Twapi_AppendSystemError(interp, winerr);
 }
 

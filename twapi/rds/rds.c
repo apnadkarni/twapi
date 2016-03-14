@@ -19,15 +19,13 @@ int Twapi_WTSEnumerateSessions(Tcl_Interp *interp, HANDLE wtsH)
     Tcl_Obj **records;
     Tcl_Obj *fields = NULL;
     Tcl_Obj *objv[3];
-    MemLifo *memlifoP;
 
     /* Note wtsH == NULL means current server */
     if (! (BOOL) (WTSEnumerateSessionsW)(wtsH, 0, 1, &sessP, &count)) {
         return TwapiReturnSystemError(interp);
     }
 
-    memlifoP = TwapiMemLifo();
-    records = MemLifoPushFrame(memlifoP, count * sizeof(Tcl_Obj*), NULL);
+    records = SWSPushFrame(count * sizeof(Tcl_Obj*), NULL);
     for (i = 0; i < count; ++i) {
         objv[0] = ObjFromLong(sessP[i].SessionId);
         objv[1] = ObjFromUnicode(sessP[i].pWinStationName);
@@ -47,7 +45,7 @@ int Twapi_WTSEnumerateSessions(Tcl_Interp *interp, HANDLE wtsH)
     objv[0] = fields;
     objv[1] = ObjNewList(count, records);
     ObjSetResult(interp, ObjNewList(2, objv));
-    MemLifoPopFrame(memlifoP);
+    SWSPopFrame();
     return TCL_OK;
 }
 

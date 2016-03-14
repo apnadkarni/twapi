@@ -1243,14 +1243,14 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
 
     case 14:
         /* First verify syntax of handles */
-        if (objc < ARRAYSIZE(u.hevts))
-            hevtP = u.hevts;
+        if (objc >= ARRAYSIZE(u.hevts))
+            hevtP = SWSPushFrame(objc * sizeof(*hevtP), NULL);
         else
-            hevtP = TwapiPushFrame(objc * sizeof(*hevtP), NULL);
+            hevtP = u.hevts;
         for (i = 0; i < objc; ++i) {
             if (ObjToOpaque(interp, objv[i], &hevtP[i], "EVT_HANDLE") != TCL_OK) {
                 if (objc >= ARRAYSIZE(u.hevts))
-                    TwapiPopFrame();
+                    SWSPopFrame();
                 return TCL_ERROR;
             }
         }
@@ -1263,7 +1263,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             }
         }
         if (objc >= ARRAYSIZE(u.hevts))
-            TwapiPopFrame();
+            SWSPopFrame();
         break;
 
     default:
