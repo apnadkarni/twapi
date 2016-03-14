@@ -1429,6 +1429,7 @@ TWAPI_EXTERN unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP);
 
 TWAPI_EXTERN TCL_RESULT TwapiEncryptData(Tcl_Interp *, BYTE *, int, BYTE *, int *);
 TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *, BYTE *, int , BYTE *, int *);
+TWAPI_EXTERN BYTE *TwapiDecryptDataSWS(Tcl_Interp *, BYTE *, int , int *);
 TWAPI_EXTERN Tcl_Obj *ObjEncryptData(Tcl_Interp *, BYTE *, int);
 TWAPI_EXTERN Tcl_Obj *ObjDecryptData(Tcl_Interp *, BYTE *, int);
 TWAPI_EXTERN Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *, WCHAR *, int);
@@ -1592,10 +1593,12 @@ TWAPI_EXTERN TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes,
 #define CSTRUCT_RETURN_DICT 0x1
 
 /* Wrappers for memlifo based s/w stack */
+typedef MemLifo *SWS;
 TWAPI_INLINE MemLifo *TwapiMemLifo(void) {
     TwapiTls *tlsP = Twapi_GetTls();
     return &tlsP->memlifo;
 }
+TWAPI_INLINE SWS TwapiSWS(void) { return TwapiMemLifo(); }
 
 TWAPI_INLINE MemLifoMarkHandle TwapiPushMark(void) {
     return MemLifoPushMark(TwapiMemLifo());
@@ -1611,6 +1614,10 @@ TWAPI_INLINE void *TwapiPushFrame(DWORD sz, DWORD *szP) {
 
 TWAPI_INLINE void TwapiPopFrame(void) {
     MemLifoPopFrame(TwapiMemLifo());
+}
+
+TWAPI_INLINE void *TwapiMemLifoAlloc(DWORD sz, DWORD *actual_szP) {
+    return MemLifoAlloc(TwapiMemLifo(), sz, actual_szP);
 }
 
 
