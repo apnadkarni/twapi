@@ -4707,6 +4707,24 @@ TCL_RESULT TwapiDecryptData(Tcl_Interp *interp, BYTE *encP, int nenc, BYTE *outP
     return TCL_OK;
 }
 
+BYTE *TwapiDecryptDataSWS(Tcl_Interp *interp, BYTE *encP, int nenc, int *noutP)
+{
+    TCL_RESULT res;
+    int nout;
+    BYTE *outP;
+    
+    res = TwapiDecryptData(interp, encP, nenc, NULL, &nout);
+    if (res == TCL_OK) {
+        outP = TwapiMemLifoAlloc(nout, NULL);
+        res = TwapiDecryptData(interp, encP, nenc, outP, &nout);
+        if (res == TCL_OK) {
+            *noutP = nout;
+            return outP;
+        }
+    }
+    return NULL;
+}
+
 /* Return a bytearray Tcl_Obj containing plaintext of given ciphertext */
 Tcl_Obj *ObjDecryptData(Tcl_Interp *interp, BYTE *bytes, int nbytes)
 {
