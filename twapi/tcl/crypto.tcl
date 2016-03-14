@@ -1501,8 +1501,9 @@ proc twapi::crypt_key_derive  {hcrypt algid hhash args} {
         {exportable.bool 1 0x01}
     } -maxleftover 0 -setvars
 
-    if {$size <= 0 || $size > 65535} {
-        badargs! "Key size $size is not between 1 and 65535"
+    if {$size < 0 || $size > 65535} {
+        # Key size of 0 is default. Else it must be within 1-65535
+        badargs! "Option -size value \"$size\" is not between 0 and 65535."
     }
 
     return [CryptDeriveKey $hcrypt [capi_algid $algid] $hhash \
@@ -1514,10 +1515,16 @@ proc twapi::crypt_key_from_passphrase {hcrypt algid passphrase args} {
     parseargs args {
         {size.int 0}
         {exportable.bool 1 0x01}
+        {hashalgid.arg sha1}
     } -maxleftover 0 -setvars
 
-    TBD
-    
+    set hhash [capi_hash_create $hcrypt $hashalgid]
+    twapi::trap {
+        capi_hash_string $hhash $passphrase
+        return [crypt_key_derive $hcrypt $algid $hhash -size $size -exportable $exportable]
+    } finally {
+        capi_hash_free $hhash
+    }
 }
 
 
