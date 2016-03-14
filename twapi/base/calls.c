@@ -680,7 +680,7 @@ static TCL_RESULT Twapi_CallNoargsObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 18:
         if (! HeapValidate(GetProcessHeap(), 0, NULL))
             Tcl_Panic("Process heap corrupted");
-        if (MemLifoValidate(TwapiMemLifo()) != 0)
+        if (MemLifoValidate(SWS()) != 0)
             Tcl_Panic("MemLifo corrupted");
         result.type = TRT_EMPTY;
         break;

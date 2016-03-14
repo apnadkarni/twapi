@@ -337,11 +337,9 @@ TCL_RESULT Twapi_PdhGetFormattedCounterArray(
     PDH_FMT_COUNTERVALUE_ITEM_W *itemP;
     TCL_RESULT res;
     DWORD i;
-    MemLifo *memlifoP;
-    MemLifoMarkHandle mark;
+    SWSMark mark;
 
-    memlifoP = TwapiMemLifo();
-    mark = MemLifoPushMark(memlifoP);
+    mark = SWSPushMark();
     
     /* Always get required size first since docs say do not rely on
      * returned size for allocation if it was not passed in as 0.
@@ -350,13 +348,14 @@ TCL_RESULT Twapi_PdhGetFormattedCounterArray(
     pdh_status = PdhGetFormattedCounterArrayW(hCounter, dwFormat, &sz, &nitems, NULL);
     /* Number of items might change so try a few times in a loop */
     for (i = 0; i < 10 && pdh_status == PDH_MORE_DATA; ++i) {
-        itemP = MemLifoPushFrame(memlifoP, sz, NULL);
+        /* TBD - why is this PushFrame instead of plain Alloc ? */
+        itemP = SWSPushFrame(sz, NULL);
         pdh_status = PdhGetFormattedCounterArrayW(hCounter, dwFormat, &sz, &nitems, itemP);
     }
     if (pdh_status != ERROR_SUCCESS)
         res = Twapi_AppendSystemError(interp, pdh_status);
     else {
-        Tcl_Obj **itemObjs = MemLifoAlloc(memlifoP, 2 * nitems * sizeof(*itemObjs), NULL);
+        Tcl_Obj **itemObjs = SWSAlloc(2 * nitems * sizeof(*itemObjs), NULL);
         Tcl_Obj **objPP;
         res = TCL_OK;
         for (i = 0, objPP = &itemObjs[0]; i < nitems; ++i, objPP += 2) {
@@ -369,7 +368,7 @@ TCL_RESULT Twapi_PdhGetFormattedCounterArray(
         if (res == TCL_OK)
             ObjSetResult(interp, ObjNewList(2*nitems, itemObjs));
     }
-    MemLifoPopMark(mark);
+    SWSPopMark(mark);
     return res;
 }
 

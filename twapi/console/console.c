@@ -576,7 +576,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                              GETINT(dw), ARGEND) != TCL_OK)
                 return TCL_ERROR;
 
-            u.inrecP = TwapiPushFrame(dw * sizeof(INPUT_RECORD), NULL);
+            u.inrecP = SWSPushFrame(dw * sizeof(INPUT_RECORD), NULL);
             if ((func == 1014 ? ReadConsoleInputW : PeekConsoleInputW)(h, u.inrecP, dw, &dw2) == 0)
                 result.type = TRT_GETLASTERROR;
             else if (dw2 == 0)
@@ -588,7 +588,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                     ObjAppendElement(interp, result.value.obj,
                                      ObjFromINPUT_RECORD(&u.inrecP[dw]));
             }
-            TwapiPopFrame();
+            SWSPopFrame();
             break;
         }
     }

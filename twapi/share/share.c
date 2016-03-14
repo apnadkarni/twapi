@@ -933,8 +933,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     TwapiResult result;
     int func = PtrToInt(clientdata);
     LPWSTR s, s2;
-    MemLifo *memlifoP;
-    MemLifoMarkHandle mark = NULL;
+    SWSMark mark = NULL;
     NETRESOURCEW *netresP;
     HANDLE h;
     TCL_RESULT res;
@@ -1037,9 +1036,8 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
                          GETINT(dw), GETINT(dw2), GETINT(dw3),
                          ARGSKIP, ARGEND) != TCL_OK)
             return TCL_ERROR;
-        memlifoP = TwapiMemLifo();
-        mark = MemLifoPushMark(memlifoP);
-        res = TwapiCStructParse(interp, memlifoP, objv[3], CSTRUCT_ALLOW_NULL, &dw4, &netresP);
+        mark = SWSPushMark();
+        res = TwapiCStructParse(interp, SWS(), objv[3], CSTRUCT_ALLOW_NULL, &dw4, &netresP);
         if (res == TCL_OK) {
             if (netresP && dw4 != sizeof(NETRESOURCEW))
                 res = TwapiReturnError(interp, TWAPI_INVALID_ARGS);
@@ -1075,9 +1073,8 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         if (res != TCL_OK)
             return res;
 
-        memlifoP = TwapiMemLifo();
-        mark = MemLifoPushMark(memlifoP);
-        netresP = MemLifoAlloc(memlifoP, 1024, &dw2); /* 16K per MSDN */
+        mark = SWSPushMark();
+        netresP = SWSAlloc(1024, &dw2); /* 16K per MSDN */
         result.value.ival = WNetEnumResourceW(h, &dw, netresP, &dw2);
         switch (result.value.ival) {
         case NO_ERROR:
@@ -1107,9 +1104,8 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
 
     case 17: // WNetGetConnection
         CHECK_NARGS(interp, objc, 1);
-        memlifoP = TwapiMemLifo();
-        mark = MemLifoPushMark(memlifoP);
-        s = MemLifoAlloc(memlifoP, sizeof(WCHAR)*MAX_PATH, &dw2);
+        mark = SWSPushMark();
+        s = SWSAlloc(sizeof(WCHAR)*MAX_PATH, &dw2);
         dw2 /= sizeof(WCHAR);
         result.value.ival = WNetGetConnectionW(ObjToUnicode(objv[0]), s, &dw2);
         if (result.value.ival == NO_ERROR) {
@@ -1118,16 +1114,14 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         } else
             result.type = TRT_EXCEPTION_ON_WNET_ERROR;
 
-        MemLifoPopFrame(memlifoP);
         break;
 
     case 18: // WNetGetProviderName
         CHECK_NARGS(interp, objc, 1);
         CHECK_INTEGER_OBJ(interp, dw, objv[0]);
-        memlifoP = TwapiMemLifo();
-        mark = MemLifoPushMark(memlifoP);
+        mark = SWSPushMark();
         dw2 = MAX_PATH;
-        s = MemLifoAlloc(memlifoP, sizeof(WCHAR)*dw2, NULL);
+        s = SWSAlloc(sizeof(WCHAR)*dw2, NULL);
         result.value.ival = WNetGetProviderNameW(dw, s, &dw2);
         if (result.value.ival == NO_ERROR) {
             result.type = TRT_UNICODE;
@@ -1159,7 +1153,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     res = TwapiSetResult(interp, &result);
     /* Clear memlifo AFTER setting result */
     if (mark)
-        MemLifoPopMark(mark);
+        SWSPopMark(mark);
     return res;
 }
 

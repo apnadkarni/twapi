@@ -1593,31 +1593,21 @@ TWAPI_EXTERN TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes,
 #define CSTRUCT_RETURN_DICT 0x1
 
 /* Wrappers for memlifo based s/w stack */
-typedef MemLifo *SWS;
-TWAPI_INLINE MemLifo *TwapiMemLifo(void) {
+typedef MemLifo *SWStack;
+typedef MemLifoMarkHandle SWSMark;
+TWAPI_INLINE SWStack SWS(void) {
     TwapiTls *tlsP = Twapi_GetTls();
     return &tlsP->memlifo;
 }
-TWAPI_INLINE SWS TwapiSWS(void) { return TwapiMemLifo(); }
 
-TWAPI_INLINE MemLifoMarkHandle TwapiPushMark(void) {
-    return MemLifoPushMark(TwapiMemLifo());
+TWAPI_INLINE SWSMark SWSPushMark(void) { return MemLifoPushMark(SWS()); }
+TWAPI_INLINE void SWSPopMark(SWSMark mark) { MemLifoPopMark(mark); }
+TWAPI_INLINE void *SWSPushFrame(DWORD sz, DWORD *szP) {
+    return MemLifoPushFrame(SWS(), sz, szP);
 }
-
-TWAPI_INLINE void TwapiPopMark(MemLifoMarkHandle mark) {
-    MemLifoPopMark(mark);
-}
-
-TWAPI_INLINE void *TwapiPushFrame(DWORD sz, DWORD *szP) {
-    return MemLifoPushFrame(TwapiMemLifo(), sz, szP);
-}
-
-TWAPI_INLINE void TwapiPopFrame(void) {
-    MemLifoPopFrame(TwapiMemLifo());
-}
-
-TWAPI_INLINE void *TwapiMemLifoAlloc(DWORD sz, DWORD *actual_szP) {
-    return MemLifoAlloc(TwapiMemLifo(), sz, actual_szP);
+TWAPI_INLINE void SWSPopFrame(void) { MemLifoPopFrame(SWS()); }
+TWAPI_INLINE void *SWSAlloc(DWORD sz, DWORD *actual_szP) {
+    return MemLifoAlloc(SWS(), sz, actual_szP);
 }
 
 

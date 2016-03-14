@@ -1651,7 +1651,7 @@ Tcl_Obj *ObjFromEXPAND_SZW(WCHAR *ws)
     required = ExpandEnvironmentStringsW(ws, bufP, sz);
     if (required > sz) {
         // Need a bigger buffer
-        bufP = TwapiPushFrame(required*sizeof(WCHAR), NULL);
+        bufP = SWSPushFrame(required*sizeof(WCHAR), NULL);
         sz = required;
         required = ExpandEnvironmentStringsW(ws, bufP, sz);
     }
@@ -1663,7 +1663,7 @@ Tcl_Obj *ObjFromEXPAND_SZW(WCHAR *ws)
     }
 
     if (bufP != buf)
-        TwapiPopFrame();
+        SWSPopFrame();
     return objP;
 }
 
@@ -1766,11 +1766,11 @@ Tcl_Obj *ObjFromRegValueCooked(Tcl_Interp *interp, int regtype,
                 return ObjFromEXPAND_SZW(ws);
             else {
                 Tcl_Obj *objP;
-                WCHAR *ws2 = TwapiPushFrame(sizeof(WCHAR)*(count+1), NULL);
+                WCHAR *ws2 = SWSPushFrame(sizeof(WCHAR)*(count+1), NULL);
                 memcpy(ws2, ws, sizeof(WCHAR)*count);
                 ws2[count] = 0;
                 objP = ObjFromEXPAND_SZW(ws2);
-                TwapiPopFrame();
+                SWSPopFrame();
                 return objP;
             }
         }
@@ -4707,6 +4707,7 @@ TCL_RESULT TwapiDecryptData(Tcl_Interp *interp, BYTE *encP, int nenc, BYTE *outP
     return TCL_OK;
 }
 
+/* Note: caller responsible for SWS maintenance */
 BYTE *TwapiDecryptDataSWS(Tcl_Interp *interp, BYTE *encP, int nenc, int *noutP)
 {
     TCL_RESULT res;
@@ -4715,7 +4716,7 @@ BYTE *TwapiDecryptDataSWS(Tcl_Interp *interp, BYTE *encP, int nenc, int *noutP)
     
     res = TwapiDecryptData(interp, encP, nenc, NULL, &nout);
     if (res == TCL_OK) {
-        outP = TwapiMemLifoAlloc(nout, NULL);
+        outP = SWSAlloc(nout, NULL);
         res = TwapiDecryptData(interp, encP, nenc, outP, &nout);
         if (res == TCL_OK) {
             *noutP = nout;
