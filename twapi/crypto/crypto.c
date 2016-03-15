@@ -2382,18 +2382,21 @@ static TCL_RESULT Twapi_PFXImportCertStoreObjCmd(TwapiInterpContext *ticP, Tcl_I
     CRYPT_DATA_BLOB blob;
     int flags;
     TCL_RESULT res;
-    
-    if (TwapiGetArgsEx(ticP, objc-1, objv+1,
-                       GETBA(blob.pbData, blob.cbData),
-                       GETOBJ(passObj),
-                       GETINT(flags), ARGEND) != TCL_OK)
-        return TCL_ERROR;
+    MemLifoMarkHandle mark;
+
+    mark = MemLifoPushMark(ticP->memlifoP);
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1,
+                         GETBA(blob.pbData, blob.cbData),
+                         GETOBJ(passObj),
+                         GETINT(flags), ARGEND);
+    if (res != TCL_OK)
+        goto vamoose;
     
     password = ObjDecryptUnicode(interp, passObj, &password_len);
-    if (password == NULL)
-        return TCL_ERROR;
-
-    res = TCL_OK;
+    if (password == NULL) {
+        res = TCL_ERROR;
+        goto vamoose;
+    }
 
     hstore = PFXImportCertStore(&blob, password, flags);
     if (hstore == NULL) {
@@ -2409,6 +2412,7 @@ vamoose:
         SecureZeroMemory(password, sizeof(WCHAR) * password_len);
         TwapiFree(password);
     }
+    MemLifoPopMark(mark);
     return res;
 }
 
@@ -2534,9 +2538,9 @@ static TCL_RESULT Twapi_CryptSignAndEncodeCertObjCmd(
         CERT_REQUEST_INFO cri;
     } u;
     HCRYPTPROV hprov;
-    MemLifoMarkHandle mark;
     DWORD nbytes;
     DWORD structtype;
+    MemLifoMarkHandle mark;
 
     mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
