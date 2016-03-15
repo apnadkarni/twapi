@@ -30,7 +30,7 @@ static int TwapiGetProfileSectionHelper(
     DWORD  numchars;
 
     bufsz = 4000;
-    bufP = TwapiAlloc(bufsz);
+    bufP = SWSPushFrame(bufsz, NULL);
     while (1) {
         DWORD bufchars = bufsz/sizeof(WCHAR);
         if (lpAppName) {
@@ -46,10 +46,9 @@ static int TwapiGetProfileSectionHelper(
         }
 
         if (numchars >= (bufchars-2)) {
-            /* Buffer not big enough */
-            TwapiFree(bufP);
+            /* Buf not big enough. Note no need to SWSPopFrame, just SWSAlloc */
             bufsz = 2*bufsz;
-            bufP = TwapiAlloc(bufsz);
+            bufP = SWSAlloc(bufsz, NULL);
         } else
             break;
     }
@@ -57,7 +56,7 @@ static int TwapiGetProfileSectionHelper(
     if (numchars)
         ObjSetResult(interp, ObjFromMultiSz(bufP, numchars+1));
 
-    TwapiFree(bufP);
+    SWSPopFrame();
     return TCL_OK;
 }
 

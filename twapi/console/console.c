@@ -182,7 +182,7 @@ static int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numch
     int status;
 
     if (numchars > ARRAYSIZE(buf))
-        bufP = TwapiAlloc(numchars * sizeof(WCHAR));
+        bufP = SWSPushFrame(numchars * sizeof(WCHAR), NULL);
     else
         bufP = buf;
 
@@ -195,7 +195,7 @@ static int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numch
     }
 
     if (bufP != buf)
-        TwapiFree(bufP);
+        SWSPopFrame();
 
     return status;
 }
