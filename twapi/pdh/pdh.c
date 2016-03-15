@@ -337,10 +337,8 @@ TCL_RESULT Twapi_PdhGetFormattedCounterArray(
     PDH_FMT_COUNTERVALUE_ITEM_W *itemP;
     TCL_RESULT res;
     DWORD i;
-    SWSMark mark;
+    SWSMark mark = SWSPushMark();
 
-    mark = SWSPushMark();
-    
     /* Always get required size first since docs say do not rely on
      * returned size for allocation if it was not passed in as 0.
      */

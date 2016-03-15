@@ -1487,7 +1487,6 @@ TWAPI_EXTERN TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT 
 
 /* Note: the returned multiszPP must be free()'ed */
 TWAPI_EXTERN int ObjToMultiSzEx (Tcl_Interp *interp, Tcl_Obj *listPtr, LPCWSTR *multiszPP, MemLifo *lifoP);
-TWAPI_EXTERN int ObjToMultiSz (Tcl_Interp *interp, Tcl_Obj *listPtr, LPCWSTR *multiszPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromMultiSz (LPCWSTR lpcw, int maxlen);
 #define ObjFromMultiSz_MAX(lpcw) ObjFromMultiSz(lpcw, INT_MAX)
 TWAPI_EXTERN Tcl_Obj *ObjFromEXPAND_SZW(WCHAR *ws);

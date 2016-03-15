@@ -216,13 +216,13 @@ Tcl_Obj *ObjFromCERT_NAME_BLOB(CERT_NAME_BLOB *blobP, DWORD flags)
     if (len == 0)
         return ObjFromEmptyString();
     if (len > ARRAYSIZE(buf))
-        wP = TwapiAlloc(len*sizeof(WCHAR));
+        wP = SWSPushFrame(len*sizeof(WCHAR), NULL);
     else
         wP = buf;
     len = CertNameToStrW(X509_ASN_ENCODING, blobP, flags, wP, len) - 1;
     objP = ObjFromUnicodeN(wP, len);
     if (wP != buf)
-        TwapiFree(wP);
+        SWSPopFrame();
     return objP;
 }
 
@@ -1863,13 +1863,13 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
         case CERT_ENHKEY_USAGE_PROP_ID:
             if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n))
                 return TwapiReturnSystemError(interp);
-            pv = TwapiAlloc(n);
+            pv = SWSPushFrame(n, NULL);
             if (! CertGetCertificateContextProperty(certP, prop_id, pv, &n)) {
-                TwapiFree(pv);
+                SWSPopFrame();
                 return TwapiReturnSystemError(interp);
             }        
             res = TwapiCryptDecodeObject(interp, (void*)X509_ENHANCED_KEY_USAGE, pv, n, &result.value.obj);
-            TwapiFree(pv);
+            SWSPopFrame();
             if (res != TCL_OK)
                 return res;
             result.type = TRT_OBJ;
@@ -1878,13 +1878,13 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
         case CERT_KEY_PROV_INFO_PROP_ID:
             if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n))
                 return TwapiReturnSystemError(interp);
-            pv = TwapiAlloc(n);
+            pv = SWSPushFrame(n, NULL);
             if (! CertGetCertificateContextProperty(certP, prop_id, pv, &n)) {
-                TwapiFree(pv);
+                SWSPopFrame();
                 return TwapiReturnSystemError(interp);
             }        
             result.value.obj = ObjFromCRYPT_KEY_PROV_INFO(pv);
-            TwapiFree(pv);
+            SWSPopFrame();
             result.type = TRT_OBJ;
             break;
 
@@ -1926,16 +1926,15 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
         case CERT_DESCRIPTION_PROP_ID:
             if (! CertGetCertificateContextProperty(certP, prop_id, NULL, &n))
                 return TwapiReturnSystemError(interp);
-            result.value.unicode.str = TwapiAlloc(n);
-            if (CertGetCertificateContextProperty(certP, prop_id,
-                                                  result.value.unicode.str, &n)) {
-                result.value.unicode.len = -1;
-                result.type = TRT_UNICODE_DYNAMIC; /* Will also free memory */
+            pv = SWSPushFrame(n, NULL);
+            if (CertGetCertificateContextProperty(certP, prop_id, pv, &n)) {
+                result.value.obj = ObjFromUnicode(pv);
+                result.type = TRT_OBJ;
             } else {
-                TwapiReturnSystemError(interp);
-                TwapiFree(result.value.unicode.str);
-                return TCL_ERROR;
+                result.value.ival = TwapiReturnSystemError(interp);
+                result.type = TRT_TCL_RESULT;
             }
+            SWSPopFrame();
             break;
         }
     } 
@@ -2029,10 +2028,10 @@ static TCL_RESULT TwapiCertGetNameString(
             /* Buffer might have been truncated. Explicitly get buffer size */
             WCHAR *bufP;
             nchars = CertGetNameStringW(certP, type, flags, pv, NULL, 0);
-            bufP = TwapiAlloc(nchars*sizeof(WCHAR));
+            bufP = SWSPushFrame(nchars*sizeof(WCHAR), NULL);
             nchars = CertGetNameStringW(certP, type, flags, pv, bufP, nchars);
             ObjSetResult(interp, ObjFromUnicodeN(bufP, nchars-1));
-            TwapiFree(bufP);
+            SWSPopFrame();
         }
     }
     return TCL_OK;
@@ -2118,7 +2117,7 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
         if (! CryptGetProvParam(hprov, param, NULL, &n, CRYPT_FIRST))
             return TwapiReturnSystemError(interp);
         /* n is now the max size buffer. Subsequent calls will not change that value */
-        pv = TwapiAlloc(n * sizeof(char));
+        pv = SWSPushFrame(n * sizeof(char), NULL);
         objP = Tcl_NewListObj(0, NULL);
         flags = CRYPT_FIRST;
         /* !!!NOTE!!! - n will remain unchanged in the following call so do
@@ -2128,7 +2127,7 @@ static TCL_RESULT Twapi_CryptGetProvParam(Tcl_Interp *interp,
             flags = CRYPT_NEXT;
         }
         n = GetLastError();
-        TwapiFree(pv);
+        SWSPopFrame();
         if (n != ERROR_NO_MORE_ITEMS) {
             ObjDecrRefs(objP);
             return Twapi_AppendSystemError(interp, n);
@@ -4273,7 +4272,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             result.type = TRT_GETLASTERROR;
             break;
         }
-        bufP = TwapiAlloc(buf_sz);
+        bufP = SWSPushFrame(buf_sz, NULL);
         if (CryptExportPublicKeyInfoEx((HCRYPTPROV)pv, dw, dw2, cP, dw3, NULL, bufP, &buf_sz)) {
             result.type = TRT_OBJ;
             result.value.obj = ObjFromCERT_PUBLIC_KEY_INFO(bufP);
@@ -4281,7 +4280,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             result.type = TRT_TCL_RESULT;
             result.value.ival = TwapiReturnSystemError(interp);
         }
-        TwapiFree(bufP);
+        SWSPopFrame();
         break;
 
     case 10024:
@@ -4368,7 +4367,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         dw2 = 0;
         result.type = TRT_GETLASTERROR;
         if (CertGetEnhancedKeyUsage(certP, dw, NULL, &dw2)) {
-            pv = TwapiAlloc(dw2);
+            pv = SWSPushFrame(dw2, NULL);
             if (CertGetEnhancedKeyUsage(certP, dw, pv, &dw2)) {
                 CERT_ENHKEY_USAGE *ceuP = pv;
                 result.type = TRT_OBJ;
@@ -4383,7 +4382,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
                         result.type = TRT_EMPTY;
                 }
             }
-            TwapiFree(pv);
+            SWSPopFrame();
         } else {
             if (GetLastError() == CRYPT_E_NOT_FOUND) {
                 /* Extension/Property not present -> all uses valid */
@@ -4603,14 +4602,17 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         pv = ObjToByteArray(s1Obj, &dw2);
         if (!CryptBinaryToStringW(pv, dw2, dw, NULL, &dw3))
             return TwapiReturnSystemError(interp);
-        result.value.unicode.str = TwapiAlloc(sizeof(WCHAR)*dw3);
-        if (!CryptBinaryToStringW(pv, dw2, dw, result.value.unicode.str, &dw3)) {
-            TwapiReturnSystemError(interp);
-            TwapiFree(result.value.unicode.str);
-            return TCL_ERROR;
+        /* dw3 includes space for terminating \0 since we passed NULL above */
+        pv2 = SWSPushFrame(sizeof(WCHAR)*dw3, NULL);
+        if (CryptBinaryToStringW(pv, dw2, dw, pv2, &dw3)) {
+            /* dw3 does NOT include terminating \0 */
+            result.value.obj = ObjFromUnicodeN(pv2, dw3);
+            result.type = TRT_OBJ;
+        } else {
+            result.value.ival = TwapiReturnSystemError(interp);
+            result.type = TRT_TCL_RESULT;
         }        
-        result.value.unicode.len = dw3;
-        result.type = TRT_UNICODE_DYNAMIC;
+        SWSPopFrame();
         break;
     case 10048: // CryptFindLocalizedName
         CHECK_NARGS(interp, objc, 1);
