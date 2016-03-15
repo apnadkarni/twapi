@@ -126,7 +126,8 @@ int Twapi_VerQueryValue_STRING(
     WCHAR *valueP;
     UINT   len;
 
-    if (TwapiGetArgs(interp, objc, objv, GETPTR(verP, TWAPI_FILEVERINFO),
+    if (TwapiGetArgs(interp, objc, objv,
+                     GETVERIFIEDPTR(verP, TWAPI_FILEVERINFO, Twapi_FreeFileVersionInfo),
                      GETASTR(lang_and_cp), GETASTR(name), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -520,7 +521,7 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
     case 4: // FALLTHRU
     case 5: // FALLTHRU
     case 6:
-        if (ObjToOpaque(interp, objv[0], &pv, "TWAPI_FILEVERINFO") != TCL_OK)
+        if (ObjToVerifiedPointer(interp, objv[0], &pv, "TWAPI_FILEVERINFO", Twapi_FreeFileVersionInfo) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 4:
@@ -529,6 +530,7 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
             return Twapi_VerQueryValue_TRANSLATIONS(interp, pv);
         case 6:
             Twapi_FreeFileVersionInfo(pv);
+            TwapiUnregisterPointer(interp, pv, Twapi_FreeFileVersionInfo);
             return TCL_OK;
         }
         break;
@@ -547,7 +549,13 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
     case 13: // LoadImage
         return Twapi_LoadImage(interp, objc, objv);
     case 14:
-        TwapiResult_SET_NONNULL_PTR(result, TWAPI_FILEVERINFO, Twapi_GetFileVersionInfo(ObjToUnicode(objv[0])));
+        pv = Twapi_GetFileVersionInfo(ObjToUnicode(objv[0]));
+        if (pv) {
+            if (TwapiRegisterPointer(interp, pv, Twapi_FreeFileVersionInfo) != TCL_OK)
+                return TCL_ERROR;
+            TwapiResult_SET_NONNULL_PTR(result, TWAPI_FILEVERINFO, pv);
+        } else
+            result.type = TRT_GETLASTERROR;
         break;
     case 15: // AddFontResourceEx
     case 16: // BeginUpdateResource
