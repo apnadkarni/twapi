@@ -259,7 +259,7 @@ DWORD Twapi_PrivilegeCheck(
     sz = sizeof(PRIVILEGE_SET)
         + (num_privs*sizeof(privSet->Privilege[0]))
         - sizeof(privSet->Privilege);
-    privSet = TwapiAlloc(sz);
+    privSet = SWSPushFrame(sz, NULL);
 
     privSet->PrivilegeCount = num_privs;
     privSet->Control = all_required ? PRIVILEGE_SET_ALL_NECESSARY : 0;
@@ -271,7 +271,7 @@ DWORD Twapi_PrivilegeCheck(
     if (success)
         *resultP = have_priv;
 
-    TwapiFree(privSet);
+    SWSPopFrame();
 
     return success;
 }
@@ -543,12 +543,12 @@ int Twapi_AdjustTokenPrivileges(
     BOOL ret;
     Tcl_Obj *objP;
     DWORD buf_size;
-    void *bufP = NULL;
+    void *bufP;
     WIN32_ERROR winerr;
     TCL_RESULT tcl_result = TCL_ERROR;
 
     buf_size = 128;             /* TBD - instrument or use LIFO */
-    bufP = TwapiAlloc(buf_size);
+    bufP = SWSPushFrame(buf_size, NULL);
     ret = AdjustTokenPrivileges(tokenH, disableAll, tokprivP,
                                 buf_size,
                                 (PTOKEN_PRIVILEGES) bufP, &buf_size);
@@ -556,8 +556,7 @@ int Twapi_AdjustTokenPrivileges(
         winerr = GetLastError();
         if (winerr == ERROR_INSUFFICIENT_BUFFER) {
             /* Retry with larger buffer */
-            TwapiFree(bufP);
-            bufP = TwapiAlloc(buf_size);
+            bufP = SWSAlloc(buf_size, NULL);
             ret = AdjustTokenPrivileges(tokenH, disableAll, tokprivP,
                                         buf_size,
                                         (PTOKEN_PRIVILEGES) bufP, &buf_size);
@@ -565,7 +564,7 @@ int Twapi_AdjustTokenPrivileges(
         if (!ret) {
             /* No joy.*/
             winerr = GetLastError();
-            TwapiFree(bufP);
+            SWSPopFrame();
             return Twapi_AppendSystemError(interp, winerr);
         }
     }
@@ -590,8 +589,7 @@ int Twapi_AdjustTokenPrivileges(
             /* interp->result should already contain the error */
         }
     }
-    if (bufP)
-        TwapiFree(bufP);
+    SWSPopFrame();
     return tcl_result;
 }
 

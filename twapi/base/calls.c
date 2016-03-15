@@ -2529,6 +2529,7 @@ int Twapi_LookupAccountSid (
     int          i;
     WCHAR        name_buf[256];
     WCHAR        domain_buf[256];
+    SWSMark      mark = NULL;
 
     domainP         = domain_buf;
     domain_buf_size = ARRAYSIZE(domain_buf);
@@ -2553,8 +2554,9 @@ int Twapi_LookupAccountSid (
         }
 
         /* Allocate required space. Perhaps only one was too small but what the heck...allocate both buffers */
-        domainP = TwapiAlloc(domain_buf_size * sizeof(*domainP));
-        nameP = TwapiAlloc(name_buf_size * sizeof(*nameP));
+        mark = SWSPushMark();
+        domainP = SWSAlloc(domain_buf_size * sizeof(*domainP), NULL);
+        nameP = SWSAlloc(name_buf_size * sizeof(*nameP), NULL);
 
         if (LookupAccountSidW(lpSystemName, sidP, nameP, &name_buf_size,
                               domainP, &domain_buf_size, &account_type) == 0) {
@@ -2574,10 +2576,8 @@ int Twapi_LookupAccountSid (
     result = ObjSetResult(interp, ObjNewList(3, objs));
 
  done:
-    if (domainP != domain_buf)
-        TwapiFree(domainP);
-    if (nameP != name_buf)
-        TwapiFree(nameP);
+    if (mark)
+        SWSPopMark(mark);
 
     return result;
 }
@@ -2600,6 +2600,7 @@ int Twapi_LookupAccountName (
     int          result;
     Tcl_Obj     *objs[3];
     int          i;
+    SWSMark      mark = NULL;
 
     domainP         = domain_buf;
     domain_buf_size = ARRAYSIZE(domain_buf);
@@ -2632,8 +2633,9 @@ int Twapi_LookupAccountName (
         }
 
         /* Allocate required space. */
-        domainP = TwapiAlloc(domain_buf_size * sizeof(*domainP));
-        sidP = TwapiAlloc(sid_buf_size);
+        mark = SWSPushMark();
+        domainP = SWSAlloc(domain_buf_size * sizeof(*domainP), NULL);
+        sidP = SWSAlloc(sid_buf_size, NULL);
 
         if (LookupAccountNameW(lpSystemName, lpAccountName, sidP, &sid_buf_size,
                                domainP, &domain_buf_size, &account_type) == 0) {
@@ -2649,6 +2651,7 @@ int Twapi_LookupAccountName (
      * is for the machine, not the user. As suggested there, we look
      * for this case by checking the account type returned and if we have hit
      * this case, recurse using a user name of "\\domain\\username"
+     * TBD - need a test case for this
      */
     if (account_type == SidTypeDomain) {
         /* Redo the operation */
@@ -2660,7 +2663,7 @@ int Twapi_LookupAccountName (
         sysnamelen = lstrlenW(lpSystemName);
         accnamelen = lstrlenW(lpAccountName);
         len = sysnamelen + 1 + accnamelen + 1;
-        new_accountP = TwapiAlloc(len * sizeof(*new_accountP));
+        new_accountP = SWSPushFrame(len * sizeof(*new_accountP), NULL);
         CopyMemory(new_accountP, lpSystemName, sizeof(*new_accountP)*sysnamelen);
         new_accountP[sysnamelen] = L'\\';
         CopyMemory(new_accountP+sysnamelen+1, lpAccountName, sizeof(*new_accountP)*accnamelen);
@@ -2668,10 +2671,9 @@ int Twapi_LookupAccountName (
 
         /* Recurse */
         result = Twapi_LookupAccountName(interp, lpSystemName, new_accountP);
-        TwapiFree(new_accountP);
+        SWSPopFrame();
         goto done;
     }
-
 
     /*
      * Got everything we need, now format it
@@ -2686,10 +2688,8 @@ int Twapi_LookupAccountName (
     result = ObjSetResult(interp, ObjNewList(3, objs));
 
  done:
-    if (domainP != domain_buf)
-        TwapiFree(domainP);
-    if (sidP != sid_buf)
-        TwapiFree(sidP);
+    if (mark)
+        SWSPopMark(mark);
 
     return result;
 }

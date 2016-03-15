@@ -802,7 +802,7 @@ static int Twapi_UiCallWStructObjCmd(ClientData clientdata, Tcl_Interp *interp, 
     DWORD dw;
     HWND hwnd;
     int func = PtrToInt(clientdata);
-    SWSMark mark;
+    SWSMark mark = NULL;
     TCL_RESULT res;
     void *pv;
     Tcl_Obj *objP;

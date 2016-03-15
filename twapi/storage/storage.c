@@ -115,7 +115,7 @@ int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName)
     DWORD result;
 
     path_cch = MAX_PATH;
-    pathP = TwapiAlloc(sizeof(WCHAR)*path_cch); // TBD - instrument
+    pathP = SWSPushFrame(sizeof(WCHAR)*path_cch, NULL); // TBD - instrument
     while (1) {
         // TBD - Tcl interface for when lpDeviceName is NULL ?
 
@@ -141,8 +141,7 @@ int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName)
             SetLastError(ERROR_INSUFFICIENT_BUFFER);
             break;
         }
-        TwapiFree(pathP);
-        pathP = TwapiAlloc(sizeof(WCHAR)*path_cch);
+        pathP = SWSAlloc(sizeof(WCHAR)*path_cch, NULL);
     }
 
     if (result) {
@@ -152,7 +151,7 @@ int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName)
         result = TwapiReturnSystemError(interp);
     }
 
-    TwapiFree(pathP);
+    SWSPopFrame();
     return result;
 }
 

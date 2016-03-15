@@ -270,12 +270,12 @@ static TCL_RESULT Twapi_AppendEvtExtendedStatus(Tcl_Interp *interp)
         return TCL_ERROR;       /* No additional info available */
 
     
-    bufP = TwapiAlloc(sizeof(WCHAR) * sz);
+    bufP = SWSPushFrame(sizeof(WCHAR) * sz, NULL);
     if (EvtGetExtendedStatus(sz, bufP, &used) != FALSE && used != 0) {
         /* TBD - verify this works (is bufP null terminated ?) */
         Tcl_AppendResult(interp, " ", bufP, NULL);
     }
-    TwapiFree(bufP);
+    SWSPopFrame();
 
     return TCL_ERROR;           /* Always returns TCL_ERROR */
 }

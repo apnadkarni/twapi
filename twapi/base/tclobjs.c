@@ -1352,11 +1352,10 @@ Tcl_Obj *ObjFromSIDNoFail(SID *sidP)
 
 /*
  * Convert a Tcl list to a "MULTI_SZ" list of Unicode strings, terminated
- * with two nulls.  Pointer to dynamically alloced multi_sz is stored
- * in *multiszPtrPtr on success. If lifoP is NULL, the allocated memory
- * must be freed using TwapiFree. If lifoP is not NULL, it is allocated
- * from that pool and is to be freed as appropriate. Note in this latter
- * case, memory may or may not have been allocated from pool even for errors.
+ * with two nulls.  Pointer to memlifo alloced multi_sz is stored
+ * in *multiszPtrPtr on success. Note that
+ * memory may or may not have been allocated from pool even when error
+ * is returned and must be freed.
  */
 TCL_RESULT ObjToMultiSzEx (
      Tcl_Interp *interp,
@@ -1372,6 +1371,8 @@ TCL_RESULT ObjToMultiSzEx (
     LPWSTR    dst;
     LPCWSTR   src;
 
+    TWAPI_ASSERT(lifoP); /* Check since original API allowed lifoP == NULL */
+    
     *multiszPtrPtr = NULL;
     for (i=0, len=0; ; ++i) {
         if (ObjListIndex(interp, listPtr, i, &objPtr) == TCL_ERROR)
@@ -1382,17 +1383,11 @@ TCL_RESULT ObjToMultiSzEx (
     }
 
     ++len;                      /* One extra null char at the end */
-    if (lifoP)
-        buf = MemLifoAlloc(lifoP, len*sizeof(*buf), NULL);
-    else
-        buf = TwapiAlloc(len*sizeof(*buf));
+    buf = MemLifoAlloc(lifoP, len*sizeof(*buf), NULL);
 
     for (i=0, dst=buf; ; ++i) {
-        if (ObjListIndex(interp, listPtr, i, &objPtr) == TCL_ERROR) {
-            if (lifoP == NULL)
-                TwapiFree(buf);
+        if (ObjListIndex(interp, listPtr, i, &objPtr) == TCL_ERROR)
             return TCL_ERROR;
-        }
         if (objPtr == NULL)
             break;              /* No more items */
         src = ObjToUnicodeN(objPtr, &len);
@@ -1408,16 +1403,6 @@ TCL_RESULT ObjToMultiSzEx (
 
     *multiszPtrPtr = buf;
     return TCL_OK;
-}
-
-/* This wrapper needed for ObjToMultiSzEx so it can be used from GETVAR */
-TCL_RESULT ObjToMultiSz (
-     Tcl_Interp *interp,
-     Tcl_Obj    *listPtr,
-     LPCWSTR     *multiszPtrPtr
-    )
-{
-    return ObjToMultiSzEx(interp, listPtr, multiszPtrPtr, NULL);
 }
 
 /*
@@ -3966,7 +3951,7 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
      * OK, now allocate the ACL and add the ACE's to it
      * We currently use AddAce, not AddMandatoryAce even for integrity labels.
      * This seems to work and avoids AddMandatoryAce which is not present
-     * on XP/2k3
+     * on XP/2k3. TBD
      */
     *aclPP = TwapiAlloc(aclsz);
     InitializeAcl(*aclPP, aclsz, aclrev);

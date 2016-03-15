@@ -565,20 +565,25 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     SHFILEOPSTRUCTW sfop;
     Tcl_Obj *objs[2];
-    int      tcl_status = TCL_ERROR;
-    Tcl_Obj  *titleObj;
+    Tcl_Obj  *titleObj, *fromObj, *toObj;
+    SWSMark  mark = NULL;
+    TCL_RESULT res;
+    SWStack sws = SWS();
 
-    sfop.pFrom = NULL;          /* Init to track necessary deallocs */
-    sfop.pTo   = NULL;
+    mark = SWSPushMark();
+    res = TCL_ERROR;
     if (TwapiGetArgs(interp, objc, objv,
-                     GETHANDLE(sfop.hwnd), GETINT(sfop.wFunc),
-                     GETVAR(sfop.pFrom, ObjToMultiSz),
-                     GETVAR(sfop.pTo, ObjToMultiSz),
-                     GETWORD(sfop.fFlags), GETOBJ(titleObj),
-                     ARGEND) != TCL_OK)
+                       GETHANDLE(sfop.hwnd), GETINT(sfop.wFunc),
+                       GETOBJ(fromObj), GETOBJ(toObj),
+                       GETWORD(sfop.fFlags), GETOBJ(titleObj),
+                       ARGEND) != TCL_OK
+        ||
+        ObjToMultiSzEx(interp, fromObj, &sfop.pFrom, sws) != TCL_OK
+        ||
+        ObjToMultiSzEx(interp, toObj, &sfop.pTo, sws) != TCL_OK
+        )
         goto vamoose;
-
-
+     
     sfop.lpszProgressTitle = ObjToUnicode(titleObj);
     sfop.hNameMappings = NULL;
 
@@ -609,15 +614,13 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     }
 
     ObjSetResult(interp, ObjNewList(2, objs));
-    tcl_status = TCL_OK;
+    res = TCL_OK;
 
 vamoose:
-    if (sfop.pFrom)
-        TwapiFree((void*)sfop.pFrom);
-    if (sfop.pTo)
-        TwapiFree((void*)sfop.pTo);
+    if (mark)
+        SWSPopMark(mark);
 
-    return tcl_status;
+    return res;
 }
 
 static TCL_RESULT Twapi_ShellExecuteExObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])

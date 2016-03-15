@@ -87,7 +87,7 @@ Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n)
     Tcl_Obj **objs;
 
     if ((2*n) > ARRAYSIZE(objv))
-        objs = TwapiAlloc(2 * n * sizeof(*objs));
+        objs = SWSPushFrame(2 * n * sizeof(*objs), NULL);
     else
         objs = objv;
 
@@ -99,7 +99,7 @@ Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n)
     resultObj = ObjNewList(2*n, objs);
 
     if (objs != objv)
-        TwapiFree(objs);
+        SWSPopFrame();
 
     return resultObj;
 }
