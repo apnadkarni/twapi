@@ -23,33 +23,11 @@ Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (Tcl_Interp *, const SID_AND_ATTRIBUTES *);
 Tcl_Obj *ObjFromLUID_AND_ATTRIBUTES (Tcl_Interp *, const LUID_AND_ATTRIBUTES *);
 int ObjToLUID_AND_ATTRIBUTES (Tcl_Interp *interp, Tcl_Obj *listobj,
                               LUID_AND_ATTRIBUTES *luidattrP);
-int ObjToPTOKEN_PRIVILEGES(Tcl_Interp *interp,
-                          Tcl_Obj *tokprivObj, TOKEN_PRIVILEGES **tokprivPP);
+TOKEN_PRIVILEGES * ParseTOKEN_PRIVILEGES(Tcl_Interp *interp, Tcl_Obj *);
 Tcl_Obj *ObjFromTOKEN_PRIVILEGES(Tcl_Interp *interp,
                                  const TOKEN_PRIVILEGES *tokprivP);
 void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP);
 
-
-/*
- * Allocate and return memory for a TOKEN_PRIVILEGES structure big enough
- * to hold num_privs privileges
- */
-static int TwapiAllocateTOKEN_PRIVILEGES (Tcl_Interp *interp, int num_privs, TOKEN_PRIVILEGES **tpPP)
-{
-    *tpPP = TwapiAlloc(sizeof(TOKEN_PRIVILEGES)
-                       + (num_privs*sizeof((*tpPP)->Privileges[0]))
-                       - sizeof((*tpPP)->Privileges));
-
-    (*tpPP)->PrivilegeCount = num_privs;
-    return TCL_OK;
-}
-
-
-void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP)
-{
-    if (tokPrivP)
-        TwapiFree(tokPrivP);
-}
 
 /* interp may be NULL */
 Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (
@@ -177,38 +155,39 @@ Tcl_Obj *ObjFromTOKEN_PRIVILEGES(
                                                 tokprivP->PrivilegeCount);
 }
 
-
-/* Returned memory should be freed with TwapiFreeTOKEN_PRIVILEGES.
-   interp may be NULL */
-int ObjToPTOKEN_PRIVILEGES(
-    Tcl_Interp *interp, Tcl_Obj *tokprivObj, TOKEN_PRIVILEGES **tokprivPP
+/* Returns pointer to memory allocated on SWS. Caller responsible for
+ * SWS memory release even on error returns.
+ */
+static TOKEN_PRIVILEGES *ParseTOKEN_PRIVILEGES(
+    Tcl_Interp *interp, Tcl_Obj *tokprivObj
 )
 {
-    int       objc;
+    TOKEN_PRIVILEGES *tokprivP;
+    int       num_privs, sz;
     Tcl_Obj **objv;
 
-    if (ObjGetElements(interp, tokprivObj, &objc, &objv) != TCL_OK ||
-        TwapiAllocateTOKEN_PRIVILEGES(interp, objc, tokprivPP) != TCL_OK)
-        return TCL_ERROR;
-
-    (*tokprivPP)->PrivilegeCount = objc;
-    while (objc--) {
-        if (ObjToLUID_AND_ATTRIBUTES(interp, objv[objc],
-                                         &(*tokprivPP)->Privileges[objc])
+    if (ObjGetElements(interp, tokprivObj, &num_privs, &objv) != TCL_OK)
+        return NULL;
+    sz = sizeof(TOKEN_PRIVILEGES) 
+        + (num_privs*sizeof(tokprivP->Privileges[0]))
+        - sizeof(tokprivP->Privileges);
+    tokprivP = SWSAlloc(sz, NULL);
+    tokprivP->PrivilegeCount = num_privs;
+    while (num_privs--) {
+        if (ObjToLUID_AND_ATTRIBUTES(interp, objv[num_privs],
+                                         &tokprivP->Privileges[num_privs])
             == TCL_ERROR) {
-
-            TwapiFreeTOKEN_PRIVILEGES(*tokprivPP);
-            *tokprivPP = NULL;
-            return TCL_ERROR;
+            return NULL;
         }
     }
 
-    return TCL_OK;
+    return tokprivP; 
 }
 
-
-
-/* Generic routine to retrieve token information - returns a dynamic alloc block */
+/* 
+ * Generic routine to retrieve token information. Returns pointer to memory\
+ * allocated on SWS. Caller responsible for memory management
+ */
 static void *AllocateAndGetTokenInformation(HANDLE tokenH,
                                             TOKEN_INFORMATION_CLASS class)
 {
@@ -226,18 +205,11 @@ static void *AllocateAndGetTokenInformation(HANDLE tokenH,
         if ((error = GetLastError()) != ERROR_INSUFFICIENT_BUFFER) {
             break;
         }
-        /* Need a bigger buffer */
-        if (infoP)
-            TwapiFree(infoP);
-        infoP = TwapiAlloc(info_buf_sz);
+        /* Need a bigger buffer. Note no need to free up prior allocation */
+        infoP = SWSAlloc(info_buf_sz, NULL);
     } while (infoP);
 
-    /*
-     * Some error occurred. Either no memory (infoP==NULL) or something
-     * else. Variable error is already set above
-     */
-    if (infoP)
-        TwapiFree(infoP);
+    /* Some error occurred. Variable error is already set above */
     SetLastError(error);
     return NULL;
 }
@@ -296,6 +268,7 @@ int Twapi_GetTokenInformation(
         TWAPI_TOKEN_ELEVATION_TYPE elevation_type;
         TWAPI_TOKEN_LINKED_TOKEN linked_token;
     } value;
+    SWSMark mark = NULL;
 
     switch (token_class) {
     case TwapiTokenElevation:
@@ -370,14 +343,16 @@ int Twapi_GetTokenInformation(
 
     default:
         /* Other classes are variable size */
+        mark = SWSPushMark();
         infoP = AllocateAndGetTokenInformation(tokenH, token_class);
+        /* Note infoP is allocated on the SWS */
         break;
     }
 
     if (infoP == NULL) {
         ObjSetStaticResult(interp, "Error getting security token information: ");
-        Twapi_AppendSystemError(interp, GetLastError());
-        return TCL_ERROR;
+        result = Twapi_AppendSystemError(interp, GetLastError());
+        goto vamoose;
     }
 
     switch (token_class) {
@@ -527,8 +502,9 @@ int Twapi_GetTokenInformation(
     else if (resultObj)
         Twapi_FreeNewTclObj(resultObj);
 
-    if (infoP)
-        TwapiFree(infoP);
+vamoose:
+    if (mark)
+        SWSPopMark(mark);
 
     return result;
 }
@@ -852,7 +828,8 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     Tcl_Obj **objPP;
     DWORD nobjs;
     int *iP;
-
+    Tcl_Obj *objP;
+    SWSMark mark = NULL;
 
     /* These will be freed at end of routine if not NULL! */
     daclP = saclP = NULL;
@@ -1339,26 +1316,35 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case 10024: // AdjustTokenPrivileges
             if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETBOOL(dw),
-                             GETVAR(u.tokprivsP, ObjToPTOKEN_PRIVILEGES),
-                             ARGEND) != TCL_OK)
+                             GETOBJ(objP), ARGEND) != TCL_OK)
                 return TCL_ERROR;
+            mark = SWSPushMark();
+            u.tokprivsP = ParseTOKEN_PRIVILEGES(interp, objP);
+            if (u.tokprivsP) {
+                result.value.ival = Twapi_AdjustTokenPrivileges(
+                    interp, h, dw, u.tokprivsP);
+            } else
+                result.value.ival = TCL_ERROR;
             result.type = TRT_TCL_RESULT;
-            result.value.ival = Twapi_AdjustTokenPrivileges(
-                interp, h, dw, u.tokprivsP);
-            TwapiFreeTOKEN_PRIVILEGES(u.tokprivsP);
             break;
         case 10025: // PrivilegeCheck
             if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h),
-                             GETVAR(u.tokprivsP, ObjToPTOKEN_PRIVILEGES),
+                             GETOBJ(objP),
                              GETBOOL(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (Twapi_PrivilegeCheck(h, u.tokprivsP, dw, &result.value.ival))
-                result.type = TRT_LONG;
-            else
-                result.type = TRT_GETLASTERROR;
-            TwapiFreeTOKEN_PRIVILEGES(u.tokprivsP);
+            mark = SWSPushMark();
+            u.tokprivsP = ParseTOKEN_PRIVILEGES(interp, objP);
+            if (u.tokprivsP) {
+                if (Twapi_PrivilegeCheck(h, u.tokprivsP, dw, &result.value.ival))
+                    result.type = TRT_LONG;
+                else
+                    result.type = TRT_GETLASTERROR;
+            } else {
+                result.value.ival = TCL_ERROR;
+                result.type = TRT_TCL_RESULT;
+            }
             break;
         }
     }
@@ -1369,6 +1355,8 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     if (saclP) TwapiFree(saclP);
     if (osidP) TwapiFree(osidP);
     if (gsidP) TwapiFree(gsidP);
+    if (mark)
+        SWSPopMark(mark);
 
     return dw;
 }
