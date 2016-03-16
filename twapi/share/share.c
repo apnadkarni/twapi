@@ -474,12 +474,12 @@ int Twapi_WNetUseConnection(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     LPWSTR  passwordP, decrypted_password;
     int     password_len;
     DWORD   flags;
-
     WCHAR accessname[MAX_PATH];
     DWORD accessname_size;
     NETRESOURCEW netresource;
     DWORD       outflags;       /* Not really used */
     int         error;
+    SWSMark mark = NULL;
 
     CHECK_NARGS(interp, objc, 9);
     /* TBD - what is the type of HWD ? SHould it not use ObjToHWND ? */
@@ -492,7 +492,9 @@ int Twapi_WNetUseConnection(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     netresource.lpRemoteName = ObjToUnicode(objv[3]);
     netresource.lpProvider = ObjToLPWSTR_NULL_IF_EMPTY(objv[4]);
     usernameP = ObjToLPWSTR_NULL_IF_EMPTY(objv[5]);
-    decrypted_password = ObjDecryptPassword(objv[7], &password_len);
+
+    mark = SWSPushMark();
+    decrypted_password = ObjDecryptPasswordSWS(objv[7], &password_len);
 
     if (ignore_password) {
         passwordP = L"";        /* Password is ignored */
@@ -504,7 +506,10 @@ int Twapi_WNetUseConnection(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     accessname_size = ARRAYSIZE(accessname);
     error = WNetUseConnectionW(winH, &netresource, passwordP, usernameP, flags,
                                accessname, &accessname_size, &outflags);
-    TwapiFreeDecryptedPassword(decrypted_password, password_len);
+
+    SecureZeroMemory(decrypted_password, password_len);
+    SWSPopMark(mark);
+
     if (error == NO_ERROR) {
         ObjSetResult(interp, ObjFromUnicode(accessname));
         return TCL_OK;
@@ -621,13 +626,14 @@ static TCL_RESULT Twapi_WNetAddConnection3ObjCmd(TwapiInterpContext *ticP, Tcl_I
             if (sz != sizeof(NETRESOURCEW))
                 res = TwapiReturnError(interp, TWAPI_INVALID_ARGS);
             else {
-                decryptedP = ObjDecryptPassword(objv[3], &decrypted_len);
+                TWAPI_ASSERT(ticP->memlifoP == SWS());
+                decryptedP = ObjDecryptPasswordSWS(objv[3], &decrypted_len);
                 wnet_status = WNetAddConnection3W(hwnd, netresP,
                                          decryptedP, username, flags);
                 if (wnet_status != NO_ERROR)
                     res = Twapi_AppendWNetError(ticP->interp, wnet_status);
 
-                TwapiFreeDecryptedPassword(decryptedP, decrypted_len);
+                SecureZeroMemory(decryptedP, decrypted_len);
             }
         }
     }
