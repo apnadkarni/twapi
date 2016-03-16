@@ -3498,37 +3498,33 @@ Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
 }
 
 
-/* Returned memory in *arrayPP has to be freed by caller */
-int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UNICODE_STRING **arrayP, ULONG *countP)
+/* Returned SWS memory has to be freed by caller even in case of errors */
+int ObjToLSASTRINGARRAYSWS(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UNICODE_STRING **arrayP, ULONG *countP)
 {
     Tcl_Obj **listobjv;
     int       i, nitems, sz;
     LSA_UNICODE_STRING *ustrP;
-    WCHAR    *dstP;
+    MemLifo *memlifoP = SWS();
 
     if (ObjGetElements(interp, obj, &nitems, &listobjv) == TCL_ERROR) {
         return TCL_ERROR;
     }
 
-    /* Figure out how much space we need */
+    /* Allocate the array of structures */
     sz = nitems * sizeof(LSA_UNICODE_STRING);
-    for (i = 0; i < nitems; ++i) {
-        sz += sizeof(*dstP) * (ObjCharLength(listobjv[i]) + 1);
-    }
-
-    ustrP = TwapiAlloc(sz);
-
-    /* Figure out where the string area starts and do the construction */
-    dstP = (WCHAR *) ((nitems * sizeof(LSA_UNICODE_STRING)) + (char *)(ustrP));
+    ustrP = MemLifoAlloc(memlifoP, sz, NULL);
+    
     for (i = 0; i < nitems; ++i) {
         WCHAR *srcP;
         int    slen;
         srcP = ObjToUnicodeN(listobjv[i], &slen);
-        CopyMemory(dstP, srcP, sizeof(WCHAR)*(slen+1));
-        ustrP[i].Buffer = dstP;
-        ustrP[i].Length = (USHORT) (sizeof(WCHAR) * slen); /* Num *bytes*, not WCHARs */
+        if (slen >= (USHRT_MAX/sizeof(WCHAR))) {
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "LSA_UNICODE_STRING length must be less than 32767.");
+        }
+        slen *= sizeof(WCHAR); /* # bytes */
+        ustrP[i].Buffer = MemLifoCopy(memlifoP, srcP, slen+sizeof(WCHAR));
+        ustrP[i].Length = (USHORT) slen; /* Num *bytes*, not WCHARs */
         ustrP[i].MaximumLength = ustrP[i].Length;
-        dstP += slen+1;
     }
 
     *arrayP = ustrP;
@@ -3536,9 +3532,6 @@ int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UNICODE_STRING **a
 
     return TCL_OK;
 }
-
-
-
 
 /*
  * Returns a pointer to dynamic memory containing a SID corresponding
