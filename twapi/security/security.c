@@ -1138,7 +1138,8 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 ObjGetElements(interp, objv[2], &nobjs, &objPP) != TCL_OK) {
                 return TCL_ERROR;
             }
-            iP = SWSPushFrame(sizeof(int) * nobjs, NULL);
+            mark = SWSPushMark();
+            iP = SWSAlloc(sizeof(int) * nobjs, NULL);
             for (dw = 0; dw < nobjs; ++dw) {
                 if (ObjToInt(interp, objPP[dw], &iP[dw]) != TCL_OK)
                     break;
@@ -1158,7 +1159,6 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                                                             &paei);
             }
 
-            SWSPopFrame();
             break;
 
         case 10013: // Unused
@@ -1168,7 +1168,8 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                              ARGSKIP, ARGSKIP, ARGSKIP,
                              GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            passwordP = ObjDecryptPassword(objv[2], &dw3);
+            mark = SWSPushMark();
+            passwordP = ObjDecryptPasswordSWS(objv[2], &dw3);
             if (LogonUserW(
                     ObjToUnicode(objv[0]),
                     ObjToLPWSTR_NULL_IF_EMPTY(objv[1]),
@@ -1176,7 +1177,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 result.type = TRT_HANDLE;
             else
                 result.type = TRT_GETLASTERROR;
-            TwapiFreeDecryptedPassword(passwordP, dw3);
+            SecureZeroMemory(passwordP, dw3);
             break;
             
         case 10015:

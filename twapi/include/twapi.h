@@ -1433,9 +1433,8 @@ TWAPI_EXTERN BYTE *TwapiDecryptDataSWS(Tcl_Interp *, BYTE *, int , int *);
 TWAPI_EXTERN Tcl_Obj *ObjEncryptData(Tcl_Interp *, BYTE *, int);
 TWAPI_EXTERN Tcl_Obj *ObjDecryptData(Tcl_Interp *, BYTE *, int);
 TWAPI_EXTERN Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *, WCHAR *, int);
-TWAPI_EXTERN WCHAR * ObjDecryptUnicode(Tcl_Interp *, Tcl_Obj *, int *);
-TWAPI_EXTERN WCHAR * ObjDecryptPassword(Tcl_Obj *objP, int *ncharsP);
-TWAPI_EXTERN void TwapiFreeDecryptedPassword(WCHAR *, int nchars);
+TWAPI_EXTERN WCHAR * ObjDecryptUnicodeSWS(Tcl_Interp *, Tcl_Obj *, int *);
+TWAPI_EXTERN WCHAR * ObjDecryptPasswordSWS(Tcl_Obj *objP, int *ncharsP);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
 TWAPI_EXTERN void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP);
@@ -1531,7 +1530,7 @@ TWAPI_EXTERN void TwapiFreeSECURITY_DESCRIPTOR(SECURITY_DESCRIPTOR *secdP);
 TWAPI_EXTERN int ObjToPSECURITY_DESCRIPTOR(Tcl_Interp *, Tcl_Obj *, SECURITY_DESCRIPTOR **secdPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(Tcl_Interp *, SECURITY_DESCRIPTOR *);
 TWAPI_EXTERN TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (TwapiInterpContext *, Tcl_Obj *, SEC_WINNT_AUTH_IDENTITY_W **);
-
+TWAPI_EXTERN void SecureZeroSEC_WINNT_AUTH_IDENTITY(SEC_WINNT_AUTH_IDENTITY_W *);
 int TwapiFormatMessageHelper( Tcl_Interp *interp, DWORD dwFlags,
                               LPCVOID lpSource, DWORD dwMessageId,
                               DWORD dwLanguageId, int argc, LPCWSTR *argv );

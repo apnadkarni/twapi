@@ -4745,6 +4745,7 @@ Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nchars)
     return ObjEncryptData(interp, (BYTE*) uniP, sizeof(WCHAR)*nchars);
 }
 
+#ifdef OBSOLETE
 /*
  * Decrypts Unicode string in objP to memory. Must be freed via TwapiFree
  * Returns length of string (in unichars, not bytes) NOT including terminating
@@ -4781,8 +4782,69 @@ WCHAR * ObjDecryptUnicode(Tcl_Interp *interp,
 
     return (WCHAR*)dec;
 }
+#endif
 
+/*
+ * Decrypts Unicode string in objP to SWS. Caller responsible for
+ * SWS storage management and should also zero out the password
+ * after use.
+ * Returns length of string (in unichars, not bytes) NOT including terminating
+ * char in *ncharsP
+ */
+WCHAR * ObjDecryptUnicodeSWS(Tcl_Interp *interp,
+                          Tcl_Obj *objP,
+                          int *ncharsP /* May be NULL */
+    )
+{
+    int nenc, ndec;
+    char *enc, *dec;
+    TCL_RESULT res;
+    
+    enc = ObjToByteArray(objP, &nenc);
+    
+    res = TwapiDecryptData(interp, enc, nenc, NULL, &ndec);
+    if (res != TCL_OK)
+        return NULL;
 
+    /* additional WCHAR is for terminating \0 */
+    dec = SWSAlloc(ndec+sizeof(WCHAR), NULL);
+    
+    res = TwapiDecryptData(interp, enc, nenc, dec, &ndec);
+    if (res != TCL_OK)
+        return NULL;
+
+    ndec /= sizeof(WCHAR);
+    *(ndec + (WCHAR*) dec) = 0;             /* Terminate the Unicode string */
+    if (ncharsP)
+        *ncharsP = ndec;
+
+    return (WCHAR*)dec;
+}
+
+/*
+ * Like ObjDecryptUnicodeSWS but
+ * if decryption fails, assumes password in unencrypted form and returns it.
+ * Return data is on the SWS.
+ * See ObjDecryptUnicodeSWS comments regarding SWS memory management.
+ * ncharsP may be NULL
+ */
+WCHAR * ObjDecryptPasswordSWS(Tcl_Obj *objP, int *ncharsP)
+{
+    WCHAR *uniP, *toP;
+    int nchars;
+
+    toP =  ObjDecryptUnicodeSWS(NULL, objP, ncharsP);
+    if (toP)
+        return toP;
+    /* Not encrypted, assume plaintext password */
+    uniP = ObjToUnicodeN(objP, &nchars);
+    toP = MemLifoCopy(SWS(), uniP, sizeof(WCHAR)*(nchars+1));
+    if (ncharsP)
+        *ncharsP = nchars;
+    return toP;
+}
+
+#ifdef OBSOLETE
 /* If decryption fails, assumes password in unencrypted form and returns it.
  * Returned buffer must be freed via TwapiFreeDecryptedPassword
  */
@@ -4801,6 +4863,7 @@ void TwapiFreeDecryptedPassword(WCHAR *p, int len)
         TwapiFree(p);
     }
 }
+#endif
 
 /*
  * TwapiEnum is a Tcl "type" that maps strings to their positions in a
@@ -4898,6 +4961,21 @@ TCL_RESULT ObjToEnum(Tcl_Interp *interp, Tcl_Obj *enumsObj, Tcl_Obj *nameObj,
     return TCL_OK;
 }
 
+void SecureZeroSEC_WINNT_AUTH_IDENTITY(PSEC_WINNT_AUTH_IDENTITY_W swaiP)
+{
+    int len;
+    if (swaiP == NULL)
+        return;
+    if (swaiP->Password == NULL || swaiP->PasswordLength == 0)
+        return;
+    if (swaiP->Flags & SEC_WINNT_AUTH_IDENTITY_UNICODE)
+        len = swaiP->PasswordLength * sizeof(WCHAR);
+    else 
+        len = swaiP->PasswordLength;
+    SecureZeroMemory(swaiP->Password, len);
+}
+
+
 TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (
     TwapiInterpContext *ticP,
     Tcl_Obj *authObj,
@@ -4929,9 +5007,11 @@ TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (
     if (res != TCL_OK)
         return res;
 
-    password = ObjDecryptPassword(passwordObj, &swaiP->PasswordLength);
-    swaiP->Password = MemLifoCopy(ticP->memlifoP, password, sizeof(WCHAR)*(swaiP->PasswordLength+1));
-    TwapiFreeDecryptedPassword(password, swaiP->PasswordLength);
+    /* The decrypted password will be on the SWS which should be the same
+       as ticP->memlifoP
+    */
+    TWAPI_ASSERT(SWS() == ticP->memlifoP);
+    swaiP->Password = ObjDecryptPasswordSWS(passwordObj, &swaiP->PasswordLength);
 
     *swaiPP = swaiP;
     return TCL_OK;

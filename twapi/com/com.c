@@ -38,7 +38,7 @@ TWAPI_INLINE static TCL_RESULT ParsePCOAUTHIDENTITY(
     COAUTHIDENTITY **coaiPP
     )
 {
-    /* COAUTHINDENTITY is same as SEC_WINNT_AUTH_IDENTITY */
+    /* COAUTHIDENTITY is same as SEC_WINNT_AUTH_IDENTITY */
     return ParsePSEC_WINNT_AUTH_IDENTITY(ticP, objP, (SEC_WINNT_AUTH_IDENTITY_W **)coaiPP);
 }
 
@@ -1684,7 +1684,7 @@ static TCL_RESULT Twapi_CoCreateInstanceExObjCmd(TwapiInterpContext *ticP, Tcl_I
     DWORD nmqi;
     MULTI_QI *mqiP;
     DWORD dwClsCtx;
-    COSERVERINFO *cosiP;
+    COSERVERINFO *cosiP = NULL;
     HRESULT hr;
 
     mark = MemLifoPushMark(ticP->memlifoP);
@@ -1706,6 +1706,9 @@ static TCL_RESULT Twapi_CoCreateInstanceExObjCmd(TwapiInterpContext *ticP, Tcl_I
     } else
         res = TCL_ERROR;
 
+    if (cosiP && cosiP->pAuthInfo && cosiP->pAuthInfo->pAuthIdentityData)
+        SecureZeroSEC_WINNT_AUTH_IDENTITY((SEC_WINNT_AUTH_IDENTITY_W *)cosiP->pAuthInfo->pAuthIdentityData);
+        
     MemLifoPopMark(mark);
     return res;
 }
@@ -1757,6 +1760,9 @@ static TCL_RESULT Twapi_CoSetProxyBlanketObjCmd(TwapiInterpContext *ticP, Tcl_In
         hr = CoSetProxyBlanket(ifc, authn, authz, principal_name,
                                authn_level, impersonation_level,
                                swaiP, capabilities);
+        if (creds_tag && swaiP)
+            SecureZeroSEC_WINNT_AUTH_IDENTITY(swaiP);
+
         if (SUCCEEDED(hr))
             res = TCL_OK;
         else {
@@ -1818,6 +1824,19 @@ static TCL_RESULT Twapi_CoInitializeSecurityObjCmd(TwapiInterpContext *ticP, Tcl
                                   sole_auth_listP, capabilities, NULL);
         if ((capabilities & EOAC_APPID) == 0 && secdP)
             TwapiFree(secdP);
+
+        /* Zero out passwords in memory */
+        if (sole_auth_listP && sole_auth_listP->aAuthInfo) {
+            int i;
+            SOLE_AUTHENTICATION_INFO *saiP = sole_auth_listP->aAuthInfo;
+            for (i = 0; i < sole_auth_listP->cAuthInfo;  ++i) {
+                if (saiP[i].dwAuthnSvc == RPC_C_AUTHN_WINNT ||
+                    saiP[i].dwAuthnSvc == RPC_C_AUTHN_GSS_KERBEROS ||
+                    saiP[i].dwAuthnSvc == RPC_C_AUTHN_GSS_NEGOTIATE) {
+                    SecureZeroSEC_WINNT_AUTH_IDENTITY(saiP[i].pAuthInfo);
+                }
+            }
+        }
 
         if (SUCCEEDED(hr))
             res = TCL_OK;

@@ -814,6 +814,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     GUID guid;
     SYSTEMTIME systime;
     int i;
+    SWSMark mark = NULL;
 
     if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -823,9 +824,10 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 1001: // concealed?
-        s = ObjDecryptUnicode(interp, objv[0], &i);
+        mark = SWSPushMark();
+        s = ObjDecryptUnicodeSWS(interp, objv[0], &i);
         if (s)
-            TwapiFreeDecryptedPassword(s, i);
+            SecureZeroMemory(s, sizeof(WCHAR) * i);
         result.value.bval = (s != NULL);
         result.type = TRT_BOOL;
         break;
@@ -873,11 +875,16 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
         
     case 1006: // reveal
-        result.value.unicode.str = ObjDecryptUnicode(interp, objv[0],
-                                                     &result.value.unicode.len);
-        if (result.value.unicode.str == NULL)
-            return TCL_ERROR;
-        result.type = TRT_UNICODE_DYNAMIC;
+        mark = SWSPushMark();
+        s = ObjDecryptUnicodeSWS(interp, objv[0], &dw);
+        if (s) {
+            result.value.obj = ObjFromUnicodeN(s, dw);
+            result.type = TRT_OBJ;
+            SecureZeroMemory(s, sizeof(WCHAR) * dw);
+        } else {
+            result.value.ival = TCL_ERROR;
+            result.type = TRT_TCL_RESULT;
+        }
         break;
 
     case 1007: // conceal
@@ -1034,6 +1041,9 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         }
         break;
     }
+
+    if (mark)
+        SWSPopMark(mark);
 
     return TwapiSetResult(interp, &result);
 }
@@ -2138,15 +2148,18 @@ static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int
         password_buf[0] = 0;
     } else {
         WCHAR *decryptP;
-        decryptP = ObjDecryptUnicode(interp, passwordObj, &password_len);
+        TWAPI_ASSERT(ticP->memlifoP == SWS());
+        decryptP = ObjDecryptUnicodeSWS(interp, passwordObj, &password_len);
         if (decryptP == NULL)
             goto vamoose;
         if (password_len > CREDUI_MAX_PASSWORD_LENGTH) {
+            SecureZeroMemory(decryptP, sizeof(WCHAR) * password_len);
             res = TwapiReturnError(interp, TWAPI_BUFFER_OVERRUN);
             goto vamoose;
         }
+        /* Have to copy to separate buf with CREDUI_MAX_PASSWORD_LENGTH space */
         CopyMemory(password_buf, decryptP, sizeof(WCHAR) * (password_len+1));
-        TwapiFreeDecryptedPassword(decryptP, password_len);
+        SecureZeroMemory(decryptP, sizeof(WCHAR) * password_len);
     }
 
     if (user_len > CREDUI_MAX_USERNAME_LENGTH) {

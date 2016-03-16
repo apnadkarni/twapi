@@ -2331,6 +2331,7 @@ static TCL_RESULT Twapi_PFXExportCertStoreExObjCmd(TwapiInterpContext *ticP, Tcl
     BOOL status;
     int flags;
     TCL_RESULT res;
+    SWSMark mark = NULL;
     
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(hstore, HCERTSTORE, CertCloseStore),
@@ -2338,9 +2339,12 @@ static TCL_RESULT Twapi_PFXExportCertStoreExObjCmd(TwapiInterpContext *ticP, Tcl
                      GETINT(flags), ARGEND) != TCL_OK)
         return TCL_ERROR;
     
-    password = ObjDecryptUnicode(interp, passObj, &password_len);
-    if (password == NULL)
-        return TCL_ERROR;
+    mark = SWSPushMark();
+    password = ObjDecryptUnicodeSWS(interp, passObj, &password_len);
+    if (password == NULL) {
+        res = TCL_ERROR;
+        goto vamoose;
+    }
 
     res = TCL_OK;
 
@@ -2366,10 +2370,10 @@ static TCL_RESULT Twapi_PFXExportCertStoreExObjCmd(TwapiInterpContext *ticP, Tcl
     ObjSetResult(interp, objP);
 
 vamoose:
-    if (password) {
+    if (password)
         SecureZeroMemory(password, sizeof(WCHAR) * password_len);
-        TwapiFree(password);
-    }
+    if (mark)
+        SWSPopMark(mark);
     return res;
 }
 
@@ -2392,7 +2396,8 @@ static TCL_RESULT Twapi_PFXImportCertStoreObjCmd(TwapiInterpContext *ticP, Tcl_I
     if (res != TCL_OK)
         goto vamoose;
     
-    password = ObjDecryptUnicode(interp, passObj, &password_len);
+    TWAPI_ASSERT(ticP->memlifoP == SWS());
+    password = ObjDecryptUnicodeSWS(interp, passObj, &password_len);
     if (password == NULL) {
         res = TCL_ERROR;
         goto vamoose;
@@ -2408,10 +2413,8 @@ static TCL_RESULT Twapi_PFXImportCertStoreObjCmd(TwapiInterpContext *ticP, Tcl_I
     ObjSetResult(interp, ObjFromOpaque(hstore, "HCERTSTORE"));
 
 vamoose:
-    if (password) {
+    if (password)
         SecureZeroMemory(password, sizeof(WCHAR) * password_len);
-        TwapiFree(password);
-    }
     MemLifoPopMark(mark);
     return res;
 }
@@ -3940,6 +3943,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
 #if 0
     TWAPI_PLAINTEXTKEYBLOB *keyblobP;
 #endif
+    SWSMark mark = NULL;
     
     --objc;
     ++objv;
@@ -4553,14 +4557,18 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
 
     case 10044: // PFXVerifyPassword
         CHECK_NARGS(interp, objc, 2);
-        pv = ObjDecryptUnicode(interp, objv[1], &dw);
-        if (pv == NULL)
-            return TCL_ERROR;
+        mark = SWSPushMark();
+        pv = ObjDecryptUnicodeSWS(interp, objv[1], &dw);
+        if (pv == NULL) {
+            /* Can't just return because have to clean up SWS at bottom */
+            result.type = TRT_TCL_RESULT;
+            result.value.ival = TCL_ERROR;
+            break;
+        }
         result.type = TRT_BOOL;
         blob.pbData = ObjToByteArray(objv[0], &blob.cbData);
         result.value.bval = PFXVerifyPassword(&blob, pv, 0);
         SecureZeroMemory(pv, sizeof(WCHAR) * dw);
-        TwapiFree(pv);
         break;
 
     case 10045: // Twapi_CertStoreSerialize
@@ -4936,6 +4944,9 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
 
     }
 
+    if (mark)
+        SWSPopMark(mark);
+    
     return TwapiSetResult(interp, &result);
 }
 
@@ -5194,7 +5205,8 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     nkeybytes = nkeybits/8;
     keyP = MemLifoAlloc(ticP->memlifoP, nkeybytes, NULL);
     
-    unipassP = ObjDecryptUnicode(interp, passObj, &nuni);
+    TWAPI_ASSERT(ticP->memlifoP == SWS());
+    unipassP = ObjDecryptUnicodeSWS(interp, passObj, &nuni);
     if (unipassP == NULL) {
         res = TCL_ERROR;
         goto vamoose;                    /* Error already filled in */ 
@@ -5218,7 +5230,7 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     
 vamoose:
     if (unipassP)
-        TwapiFreeDecryptedPassword(unipassP, nuni);
+        SecureZeroMemory(unipassP, sizeof(WCHAR) * nuni);
     MemLifoPopMark(mark);
     return res;
 

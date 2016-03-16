@@ -653,7 +653,8 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
             goto vamoose;
     }
     
-    password = ObjDecryptPassword(passwordObj, &password_len);
+    TWAPI_ASSERT(ticP->memlifoP == SWS());
+    password = ObjDecryptPasswordSWS(passwordObj, &password_len);
     if (ChangeServiceConfigW(h, service_type, start_type, error_control,
                              path, logrp, tag_idP, dependencies,
                              start_name,
@@ -668,7 +669,7 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     } else
         res = TwapiReturnSystemError(interp);
 
-    TwapiFreeDecryptedPassword(password, password_len);
+    SecureZeroMemory(password, password_len);
 
 vamoose:    
     MemLifoPopMark(mark);
@@ -727,7 +728,8 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
             goto vamoose;
     }
 
-    password = ObjDecryptPassword(passwordObj, &password_len);
+    TWAPI_ASSERT(ticP->memlifoP == SWS());
+    password = ObjDecryptPasswordSWS(passwordObj, &password_len);
 
     svcH = CreateServiceW(
         scmH, service_name, display_name, access, service_type,
@@ -735,7 +737,7 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
         tag_idP, dependencies, service_start_name,
         password[0] ? password : NULL);
 
-    TwapiFreeDecryptedPassword(password, password_len);
+    SecureZeroMemory(password, password_len);
 
     /* Check return handle validity */
     if (svcH) {

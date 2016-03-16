@@ -790,7 +790,7 @@ static int TwapiCreateProcessHelper2(TwapiInterpContext *ticP, int have_token, i
     Tcl_Interp *interp = ticP->interp;
     MemLifoMarkHandle mark;
     Tcl_Obj *startinfoObj, *envObj, *authObj;
-    SEC_WINNT_AUTH_IDENTITY_W *swaiP;
+    SEC_WINNT_AUTH_IDENTITY_W *swaiP = NULL;
 
     mark = MemLifoPushMark(ticP->memlifoP);
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
@@ -857,6 +857,8 @@ static int TwapiCreateProcessHelper2(TwapiInterpContext *ticP, int have_token, i
         // Do not return just yet as we have to free buffers
     }        
 vamoose:
+    if (swaiP)
+        SecureZeroSEC_WINNT_AUTH_IDENTITY(swaiP);
 
     MemLifoPopMark(mark);
     return status ? TCL_OK : TCL_ERROR;
