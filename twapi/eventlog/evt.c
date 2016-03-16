@@ -1034,6 +1034,7 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     TCL_RESULT res;
     WCHAR *passwordP;
     int password_len;
+    SWSMark mark = NULL;
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(login_class),
                      ARGSKIP, ARGUSEDEFAULT, GETINT(timeout), GETINT(flags),
@@ -1055,7 +1056,8 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     erl.Server = ObjToUnicode(loginObjs[0]);
     erl.User = ObjToLPWSTR_NULL_IF_EMPTY(loginObjs[1]);
     erl.Domain = ObjToLPWSTR_NULL_IF_EMPTY(loginObjs[2]);
-    passwordP = ObjDecryptPassword(loginObjs[3], &password_len);
+    mark = SWSPushMark();
+    passwordP = ObjDecryptPasswordSWS(loginObjs[3], &password_len);
     erl.Password = passwordP;
     NULLIFY_EMPTY(erl.Password);
     res = TwapiReturnNonnullHandle(interp,
@@ -1063,7 +1065,7 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Inter
                                                   timeout, flags),
                                    "EVT_HANDLE");
     SecureZeroMemory(passwordP, sizeof(WCHAR) * password_len);
-    TwapiFree(passwordP);
+    SWSPopMark(mark);
     return res;
 }
 

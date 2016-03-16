@@ -373,6 +373,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
     TASK_TRIGGER tasktrigger;
     int func = PtrToInt(clientdata);
     WCHAR *s, *passwordP;
+    SWSMark mark = NULL;
 
     hr = S_OK;
     result.type = TRT_BADFUNCTIONCODE;
@@ -668,12 +669,17 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
             s = ObjToUnicode(objv[1]);
             if (objc == 2 || s[0] == 0)
                 passwordP = NULL;
-            else
-                passwordP = ObjDecryptPassword(objv[2], &dw1);
+            else {
+                mark = SWSPushMark();
+                passwordP = ObjDecryptPasswordSWS(objv[2], &dw1);
+            }
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetAccountInformation(
                 ifc.scheduledworkitem, s, passwordP);
-            TwapiFreeDecryptedPassword(passwordP, dw1);
+            if (mark) {
+                SecureZeroMemory(passwordP, dw1);
+                SWSPopMark(mark);
+            }
             break;
         case 5220: // SetComment
             if (objc != 2)

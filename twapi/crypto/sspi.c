@@ -1117,11 +1117,8 @@ static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_In
     res = TCL_OK;
 
 vamoose:
-    if (pv && !is_unisp) {
-        SEC_WINNT_AUTH_IDENTITY_W *swaiP = pv;
-        if (swaiP->Password && swaiP->PasswordLength)
-            SecureZeroMemory(swaiP->Password, sizeof(WCHAR)*(swaiP->PasswordLength));
-    }
+    if (pv && !is_unisp)
+        SecureZeroSEC_WINNT_AUTH_IDENTITY(pv);
 
     MemLifoPopMark(mark);
     return res;

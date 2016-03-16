@@ -411,7 +411,8 @@ static int Twapi_NetUserAddObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
     char          *error_field;
     WCHAR         *decryptedP;
     int            decrypted_len;
-
+    SWSMark mark;
+    
     CHECK_NARGS(interp, objc, 9);
 
     /* As always to avoid shimmering problems, extract integer object first */
@@ -421,7 +422,8 @@ static int Twapi_NetUserAddObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
     userinfo.usri1_name        = ObjToUnicode(objv[2]);
 
     /* Now get the decrypted password object */
-    decryptedP = ObjDecryptPassword(objv[3], &decrypted_len);
+    mark = SWSPushMark();
+    decryptedP = ObjDecryptPasswordSWS(objv[3], &decrypted_len);
     userinfo.usri1_password    = decryptedP;
     userinfo.usri1_password_age = 0;
     userinfo.usri1_priv        = priv;
@@ -432,7 +434,8 @@ static int Twapi_NetUserAddObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
 
     status = NetUserAdd(ObjToLPWSTR_NULL_IF_EMPTY(objv[1]), 1, (LPBYTE) &userinfo, &error_parm);
 
-    TwapiFreeDecryptedPassword(decryptedP, decrypted_len);
+    SecureZeroMemory(decryptedP, decrypted_len);
+    SWSPopMark(mark);
 
     if (status == NERR_Success)
         return TCL_OK;
@@ -547,6 +550,7 @@ int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     Tcl_Obj *s1Obj, *s2Obj;
     WCHAR *passwordP = NULL;
     int    password_len;
+    SWSMark mark = NULL;
 
     /* Note: to prevent shimmering issues, we do not extract the internal
        string pointers s1 and s2 until integer args have been parsed */
@@ -582,7 +586,8 @@ int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     case 1052:
     case 1053:
         if (func == 1003) {
-            s3 = ObjDecryptPassword(objv[4], &password_len);
+            mark = SWSPushMark();
+            s3 = ObjDecryptPasswordSWS(objv[4], &password_len);
         } else
             s3 = ObjToUnicode(objv[4]);
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
@@ -590,8 +595,10 @@ int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
         result.value.ival = Twapi_NetUserSetInfoLPWSTR(func, s1,
                                                        ObjToUnicode(s2Obj),
                                                        s3);
-        if (func == 1003)
-            TwapiFreeDecryptedPassword(s3, password_len);
+        if (func == 1003) {
+            SecureZeroMemory(s3, password_len);
+            SWSPopMark(mark);
+        }
         break;
     }
 

@@ -526,7 +526,12 @@ TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmod
     if (ticP == NULL)
         return NULL;
 
-    /* Cache a pointer to the TLS memlifo */
+    /* 
+     * Cache a pointer to the TLS memlifo. Note there are assumptions
+     * in the code that the ticP->memlifoP is the same as the TLS memlifo
+     * whereby the SWS* operations and ticP->memlifo operations 
+     * impact the same memlifo.
+     */
     tlsP = Twapi_GetTls();
     tlsP->nrefs += 1;           /* Will be unrefed when ticP is deleted */
     ticP->memlifoP = &tlsP->memlifo;
