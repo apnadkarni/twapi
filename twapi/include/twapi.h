@@ -1438,7 +1438,7 @@ TWAPI_EXTERN WCHAR * ObjDecryptPasswordSWS(Tcl_Obj *objP, int *ncharsP);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
 TWAPI_EXTERN void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP);
-TWAPI_EXTERN int ObjToLSASTRINGARRAY(Tcl_Interp *interp, Tcl_Obj *obj,
+TWAPI_EXTERN int ObjToLSASTRINGARRAYSWS(Tcl_Interp *interp, Tcl_Obj *obj,
                         LSA_UNICODE_STRING **arrayP, ULONG *countP);
 TWAPI_EXTERN PSID TwapiGetSidFromStringRep(char *strP);
 TWAPI_EXTERN TCL_RESULT ObjToPSID(Tcl_Interp *, Tcl_Obj *obj, PSID *sidPP);

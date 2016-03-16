@@ -1188,7 +1188,8 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             result.type = TRT_TCL_RESULT;
             if (result.value.ival != TCL_OK)
                 break;
-            result.value.ival = ObjToLSASTRINGARRAY(interp, objv[2],
+            mark = SWSPushMark();
+            result.value.ival = ObjToLSASTRINGARRAYSWS(interp, objv[2],
                                                     &lsa_strings, &lsa_count);
             if (result.value.ival != TCL_OK)
                 break;
@@ -1196,7 +1197,6 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             result.type = TRT_NTSTATUS;
             result.value.ival = LsaAddAccountRights(h, osidP,
                                                     lsa_strings, lsa_count);
-            TwapiFree(lsa_strings);
             break;
 
         case 10016:
@@ -1207,7 +1207,8 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             result.type = TRT_TCL_RESULT;
             if (result.value.ival != TCL_OK)
                 break;
-            result.value.ival = ObjToLSASTRINGARRAY(interp, objv[3],
+            mark = SWSPushMark();
+            result.value.ival = ObjToLSASTRINGARRAYSWS(interp, objv[3],
                                                     &lsa_strings, &lsa_count);
             if (result.value.ival != TCL_OK)
                 break;
@@ -1215,7 +1216,6 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             result.type = TRT_NTSTATUS;
             result.value.ival = LsaRemoveAccountRights(
                 h, osidP, (BOOLEAN) (dw ? 1 : 0), lsa_strings, lsa_count);
-            TwapiFree(lsa_strings);
             break;
 
         case 10017:
