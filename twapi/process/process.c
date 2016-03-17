@@ -707,13 +707,14 @@ static int TwapiCreateProcessHelper(TwapiInterpContext *ticP, int asuser, int ob
         
     mark = MemLifoPushMark(ticP->memlifoP);
 
-    pattrP = NULL;              /* May be alloc'ed even on error */
-    tattrP = NULL;              /* May be alloc'ed even on error */
+    pattrP = NULL; /* SWS alloc'ed, no need to free */
+    tattrP = NULL; /* SWS alloc'ed, no need to free */
     envP = NULL;
+    TWAPI_ASSERT(ticP->memlifoP == SWS());
     if (TwapiGetArgsEx(ticP, objc-asuser-1, objv+asuser+1,
                        GETEMPTYASNULL(appname),   GETEMPTYASNULL(cmdline),
-                       GETVAR(pattrP, ObjToPSECURITY_ATTRIBUTES),
-                       GETVAR(tattrP, ObjToPSECURITY_ATTRIBUTES),
+                       GETVAR(pattrP, ObjToPSECURITY_ATTRIBUTESSWS),
+                       GETVAR(tattrP, ObjToPSECURITY_ATTRIBUTESSWS),
                        GETINT(inherit), GETINT(flags),
                        GETOBJ(envObj),   GETEMPTYASNULL(curdir),
                        GETOBJ(startinfoObj), ARGEND) != TCL_OK)
@@ -764,10 +765,6 @@ static int TwapiCreateProcessHelper(TwapiInterpContext *ticP, int asuser, int ob
         // Do not return just yet as we have to free buffers
     }        
 vamoose:
-    if (pattrP)
-        TwapiFreeSECURITY_ATTRIBUTES(pattrP);
-    if (tattrP)
-        TwapiFreeSECURITY_ATTRIBUTES(tattrP);
 
     MemLifoPopMark(mark);
     return status ? TCL_OK : TCL_ERROR;
