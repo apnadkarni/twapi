@@ -859,6 +859,11 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     --objc;
     ++objv;
 
+    /* Guard against CHECK* macros as they return without calling SWSPopMark */
+#undef CHECK_NARGS
+#undef CHECK_NARGS_RANGE
+#undef CHECK_INTEGER_OBJ
+    
     mark = SWSPushMark();
     if (func < 100) {
         if (objc != 0) {
@@ -899,7 +904,9 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             result.value.bval = daclP ? IsValidAcl(daclP) : 0;
             break;
         case 103:
-            CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+            res = ObjToInt(interp, objv[0], &dw);
+            if (res != TCL_OK)
+                goto vamoose;
             result.value.ival = ImpersonateSelf(dw);
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
@@ -1171,7 +1178,8 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             break;
 
         case 10012:
-            CHECK_NARGS(interp, objc, 3);
+            if (objc != 3)
+                goto badargcount;
             if (ObjToOpaque(interp, objv[0], (void **) &lsah, "LSA_HANDLE") != TCL_OK ||
                 ObjToBoolean(interp, objv[1], &dw2) != TCL_OK ||
                 ObjGetElements(interp, objv[2], &nobjs, &objPP) != TCL_OK) {
@@ -1379,6 +1387,10 @@ vamoose:
         SWSPopMark(mark);
 
     return res;
+
+badargcount:
+    res = TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+    goto vamoose;
 }
 
 

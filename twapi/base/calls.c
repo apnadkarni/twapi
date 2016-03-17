@@ -815,6 +815,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     SYSTEMTIME systime;
     int i;
     SWSMark mark = NULL;
+    TCL_RESULT res;
 
     if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -835,24 +836,27 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 1002: // IsValidACL
         u.aclP = NULL;
         result.type = TRT_BOOL;
-        result.value.bval = (ObjToPACL(interp, objv[0], &u.aclP) == TCL_OK);
-        if (u.aclP)
-            TwapiFree(u.aclP);
+        mark = SWSPushMark();
+        result.value.bval = (ObjToPACLSWS(interp, objv[0], &u.aclP) == TCL_OK);
         break;
     case 1003: // Twapi_FormatBinarySECURITY_DESCRIPTOR
-        if (ObjToPSECURITY_DESCRIPTOR(interp, objv[0], &u.secdP) != TCL_OK)
-            return TCL_ERROR;
+        mark = SWSPushMark();
+        res = ObjToPSECURITY_DESCRIPTORSWS(interp, objv[0], &u.secdP);
+        if (res != TCL_OK)
+            goto vamoose;
         dw = 0;
         MakeSelfRelativeSD(u.secdP, NULL, &dw);
         dw2 = GetLastError();
-        if (dw2 != ERROR_INSUFFICIENT_BUFFER)
-            return Twapi_AppendSystemError(interp, dw2);
+        if (dw2 != ERROR_INSUFFICIENT_BUFFER) {
+            res = Twapi_AppendSystemError(interp, dw2);
+            goto vamoose;
+        }
         result.value.obj = ObjAllocateByteArray(dw, &pv);
         dw2 = MakeSelfRelativeSD(u.secdP, pv, &dw);
-        TwapiFreeSECURITY_DESCRIPTOR(u.secdP);
         if (! dw2) {
             ObjDecrRefs(result.value.obj);
-            return TwapiReturnSystemError(interp);
+            res = TwapiReturnSystemError(interp);
+            goto vamoose;
         }
         result.type = TRT_OBJ;
         break;
@@ -877,14 +881,13 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 1006: // reveal
         mark = SWSPushMark();
         s = ObjDecryptUnicodeSWS(interp, objv[0], &dw);
-        if (s) {
-            result.value.obj = ObjFromUnicodeN(s, dw);
-            result.type = TRT_OBJ;
-            SecureZeroMemory(s, sizeof(WCHAR) * dw);
-        } else {
-            result.value.ival = TCL_ERROR;
-            result.type = TRT_TCL_RESULT;
+        if (s == NULL) {
+            res = TCL_ERROR;
+            goto vamoose;
         }
+        result.value.obj = ObjFromUnicodeN(s, dw);
+        result.type = TRT_OBJ;
+        SecureZeroMemory(s, sizeof(WCHAR) * dw);
         break;
 
     case 1007: // conceal
@@ -902,9 +905,8 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 1009: // IsValidSid
         u.sidP = NULL;
         result.type = TRT_BOOL;
-        result.value.bval = (ObjToPSID(interp, objv[0], &u.sidP) == TCL_OK);
-        if (u.sidP)
-            TwapiFree(u.sidP);
+        mark = SWSPushMark();
+        result.value.bval = (ObjToPSIDSWS(interp, objv[0], &u.sidP) == TCL_OK);
         break;
     case 1010:
         if (ObjToDouble(interp, objv[0], &u.d) != TCL_OK)
@@ -1042,10 +1044,13 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
     }
 
+    res = TwapiSetResult(interp, &result);
+    
+vamoose:
+    /* Interpreter result must be set. res must contain return code */
     if (mark)
         SWSPopMark(mark);
-
-    return TwapiSetResult(interp, &result);
+    return res;
 }
 
 
@@ -1080,6 +1085,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     LSA_UNICODE_STRING lsa_ustr; /* Used with lsa_oattr so not in union */
     TwapiResult result;
     int i;
+    SWSMark mark = NULL;
 
     --objc;
     ++objv;
@@ -1096,12 +1102,13 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     case 10002:
         u.sidP = NULL;
         CHECK_NARGS(interp, objc, 2);
-        if (ObjToPSID(interp, objv[1], &u.sidP) != TCL_OK)
-            return TCL_ERROR;
+        mark = SWSPushMark();
+        result.value.ival = ObjToPSIDSWS(interp, objv[1], &u.sidP);
+        if (result.value.ival == TCL_OK) {
+            result.value.ival = Twapi_LookupAccountSid(interp, ObjToUnicode(objv[0]), u.sidP);
+        }
+        SWSPopMark(mark);
         result.type = TRT_TCL_RESULT;
-        result.value.ival = Twapi_LookupAccountSid(interp, ObjToUnicode(objv[0]), u.sidP);
-        if (u.sidP)
-            TwapiFree(u.sidP);
         break;
     case 10003:
     case 10004:
@@ -1167,9 +1174,10 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         break;
     case 10012: // CreateFile
         secattrP = NULL;
+        mark = SWSPushMark();
         if (TwapiGetArgs(interp, objc, objv,
                          ARGSKIP, GETINT(dw), GETINT(dw2),
-                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
+                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
                          GETINT(dw3), GETINT(dw4), GETHANDLE(h),
                          ARGEND) == TCL_OK) {
             result.type = TRT_VALID_HANDLE;
@@ -1179,7 +1187,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.type = TRT_TCL_RESULT;
             result.value.ival = TCL_ERROR;
         }
-        TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
+        SWSPopMark(mark);
         break;
     case 10013:
         if (TwapiGetArgs(interp, objc, objv,
@@ -1338,12 +1346,12 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         return Twapi_GenerateWin32Error(interp, dw, cP);
     case 10026:
         secattrP = NULL;        /* Even on error, it might be filled */
+        mark = SWSPushMark();
         if (TwapiGetArgs(interp, objc, objv,
-                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
+                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
                          GETBOOL(dw), ARGSKIP,
                          ARGUSEDEFAULT, GETINT(dw2),
                          ARGEND) == TCL_OK) {
-
             result.type = TRT_HANDLE;                        
             result.value.hval = CreateMutexW(secattrP, dw, ObjToLPWSTR_NULL_IF_EMPTY(objv[2]));
             if (result.value.hval) {
@@ -1361,7 +1369,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.type = TRT_TCL_RESULT;
             result.value.ival = TCL_ERROR;
         }
-        TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
+        SWSPopMark(mark);
         break;
     case 10027: // OpenMutex
     case 10028: // OpenSemaphore
@@ -1387,8 +1395,9 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         break;
     case 10029:
         secattrP = NULL;        /* Even on error, it might be filled */
+        mark = SWSPushMark();
         if (TwapiGetArgs(interp, objc, objv,
-                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
+                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
                          GETINT(dw), GETINT(dw2), ARGSKIP,
                          ARGEND) == TCL_OK) {
             result.type = TRT_HANDLE;
@@ -1397,7 +1406,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.type = TRT_TCL_RESULT;
             result.value.ival = TCL_ERROR;
         }
-        TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
+        SWSPopMark(mark);
         break;
     case 10030: // malloc
         if (TwapiGetArgs(interp, objc, objv,
@@ -1441,8 +1450,9 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
 
     case 10034:
         secattrP = NULL;        /* Even on error, it might be filled */
+        mark = SWSPushMark();
         if (TwapiGetArgs(interp, objc, objv,
-                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
+                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
                          GETBOOL(dw), GETBOOL(dw2), ARGSKIP,
                          ARGEND) == TCL_OK) {
             h = CreateEventW(secattrP, dw, dw2, ObjToLPWSTR_NULL_IF_EMPTY(objv[3]));
@@ -1459,7 +1469,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.type = TRT_TCL_RESULT;
             result.value.ival = TCL_ERROR;
         }
-        TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
+        SWSPopMark(mark);
         break;
     case 10035: // IsEqualGuid
         if (TwapiGetArgs(interp, objc, objv,
@@ -1922,10 +1932,11 @@ static int Twapi_ReportEventObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     MemLifoMarkHandle mark;
     TCL_RESULT res;
 
+    TWAPI_ASSERT(ticP->memlifoP == SWS());
     mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
                          GETHANDLE(hEventLog), GETWORD(wType), GETWORD(wCategory),
-                         GETINT(dwEventID), GETVAR(lpUserSid, ObjToPSID),
+                         GETINT(dwEventID), GETVAR(lpUserSid, ObjToPSIDSWS),
                          GETARGVW(argv, argc), GETOBJ(dataObj),
                          ARGEND);
     if (res == TCL_OK) {
@@ -1939,8 +1950,6 @@ static int Twapi_ReportEventObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             res = TwapiReturnSystemError(interp);
     }
     MemLifoPopMark(mark);
-    if (lpUserSid)
-        TwapiFree(lpUserSid);
     return res;
 }
 
