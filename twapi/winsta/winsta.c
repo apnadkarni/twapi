@@ -133,7 +133,9 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     HANDLE h;
     int func = PtrToInt(clientdata);
     TwapiResult result;
-
+    SWSMark mark = NULL;
+    TCL_RESULT res;
+    
     --objc;
     ++objv;
     result.type = TRT_BADFUNCTIONCODE;
@@ -145,14 +147,15 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.value.hval = GetProcessWindowStation();
         break;
     case 3:
-        if (TwapiGetArgs(interp, objc, objv, ARGSKIP,
-                         GETINT(dw), GETINT(dw2),
-                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
+        mark = SWSPushMark();
+        res = TwapiGetArgs(interp, objc, objv, ARGSKIP,
+                           GETINT(dw), GETINT(dw2),
+                           GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
+                           ARGEND);
+        if (res != TCL_OK)
+            goto vamoose;
         result.type = TRT_HWINSTA;
         result.value.hval = CreateWindowStationW(ObjToUnicode(objv[0]), dw, dw2, secattrP);
-        TwapiFreeSECURITY_ATTRIBUTES(secattrP);
         break;
     case 4:
         if (TwapiGetArgs(interp, objc, objv,
@@ -185,16 +188,16 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
     case 8: // CreateDesktopW
         /* Note second, third args are ignored and are reserved as NULL */
-        if (TwapiGetArgs(interp, objc, objv,
-                         ARGSKIP, ARGUNUSED, ARGUNUSED, GETINT(dw),
-                         GETINT(dw2),
-                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
+        mark = SWSPushMark();
+        res = TwapiGetArgs(interp, objc, objv,
+                           ARGSKIP, ARGUNUSED, ARGUNUSED, GETINT(dw),
+                           GETINT(dw2),
+                           GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
+                           ARGEND);
+        if (res != TCL_OK)
+            goto vamoose;
         result.type = TRT_HDESK;
         result.value.hval = CreateDesktopW(ObjToUnicode(objv[0]), NULL, NULL, dw, dw2, secattrP);
-        if (secattrP)
-            TwapiFreeSECURITY_ATTRIBUTES(secattrP);
         break;
     default:
         if (TwapiGetArgs(interp, objc, objv,
@@ -227,7 +230,12 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
     }
 
-    return TwapiSetResult(interp, &result);
+    res = TwapiSetResult(interp, &result);
+
+vamoose:
+    if (mark)
+        SWSPopMark(mark);
+    return res;
 }
 
 

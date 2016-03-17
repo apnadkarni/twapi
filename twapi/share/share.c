@@ -329,14 +329,19 @@ int Twapi_NetShareAdd(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     SHARE_INFO_502 share_info;
     DWORD          parm_err;
     NET_API_STATUS status;
+    SWSMark mark;
 
     CHECK_NARGS(interp, objc, 7);
 
     /* Extract integer args before WSTRs to avoid shimmering issues */
     CHECK_INTEGER_OBJ(interp, share_info.shi502_type, objv[2]);
     CHECK_INTEGER_OBJ(interp, share_info.shi502_max_uses, objv[4]);
-    if (ObjToPSECURITY_DESCRIPTOR(interp, objv[6], &secdP) != TCL_OK)
+
+    mark = SWSPushMark();
+    if (ObjToPSECURITY_DESCRIPTORSWS(interp, objv[6], &secdP) != TCL_OK) {
+        SWSPopMark(mark);
         return TCL_ERROR;
+    }
     server_name = ObjToLPWSTR_NULL_IF_EMPTY(objv[0]);
     share_info.shi502_netname = ObjToUnicode(objv[1]);
     share_info.shi502_remark  = ObjToUnicode(objv[3]);
@@ -348,8 +353,7 @@ int Twapi_NetShareAdd(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     share_info.shi502_security_descriptor = secdP;
     
     status = NetShareAdd(server_name, 502, (unsigned char *)&share_info, &parm_err);
-    if (secdP)
-        TwapiFreeSECURITY_DESCRIPTOR(secdP);
+    SWSPopMark(mark);
 
     if (status == NERR_Success)
         return TCL_OK;
@@ -984,16 +988,17 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     case 7: // NetShareSetInfo
         CHECK_NARGS(interp, objc, 5);
         CHECK_INTEGER_OBJ(interp, dw, objv[3]);
-        if (ObjToPSECURITY_DESCRIPTOR(interp, objv[4], &secdP) != TCL_OK)
-            return TCL_ERROR;
+        mark = SWSPushMark();
+        res = ObjToPSECURITY_DESCRIPTORSWS(interp, objv[4], &secdP);
         /* Note secdP may be NULL even on success */
-        res = Twapi_NetShareSetInfo(interp,
-                                    ObjToUnicode(objv[0]),
-                                    ObjToUnicode(objv[1]),
-                                    ObjToUnicode(objv[2]),
-                                    dw, secdP);
-        if (secdP)
-            TwapiFreeSECURITY_DESCRIPTOR(secdP);
+        if (res == TCL_OK) {
+            res = Twapi_NetShareSetInfo(interp,
+                                        ObjToUnicode(objv[0]),
+                                        ObjToUnicode(objv[1]),
+                                        ObjToUnicode(objv[2]),
+                                        dw, secdP);
+        }
+        SWSPopMark(mark);
         return res;
 
     case 8:
