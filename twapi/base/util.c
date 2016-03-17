@@ -157,7 +157,8 @@ char *TwapiAllocAStringFromObj(Tcl_Obj *objP, int *lenP) {
 
 void *TwapiAlloc(size_t sz)
 {
-    void *p = HeapAlloc(GetProcessHeap(), 0, sz); /* TBD */
+    /* TBD - why not use malloc or ckalloc? */
+    void *p = HeapAlloc(GetProcessHeap(), 0, sz);
     if (p == NULL)
         Tcl_Panic("Could not allocate %d bytes.", sz);
     return p;

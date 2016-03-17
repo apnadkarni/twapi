@@ -564,6 +564,7 @@ static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
 }
 
     
+/* TBD - should we make this SWS based ? */
 TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     Tcl_Interp *interp,
     Tcl_Obj *objP,

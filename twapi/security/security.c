@@ -64,25 +64,6 @@ Tcl_Obj *ObjFromSID_AND_ATTRIBUTES_Array (
     return resultObj;
 }
 
-
-#ifdef OBSOLETE
-/* Note sidattrP->Sid is dynamically allocated and must be freed by calling TwapiFree(). */
-int ObjToSID_AND_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBUTES *sidattrP)
-{
-    Tcl_Obj **objv;
-    int       objc;
-
-    if (ObjGetElements(interp, obj, &objc, &objv) == TCL_OK &&
-        objc == 2 &&
-        ObjToLong(interp, objv[1], &sidattrP->Attributes) == TCL_OK &&
-        ObjToPSID(interp, objv[0], &sidattrP->Sid) == TCL_OK) {
-
-        return TCL_OK;
-    } else
-        return TCL_ERROR;
-}
-#endif
-
 /* Note sidattrP->Sid is allocated on the SWS. SWS management is entirely
    caller responsibility */
 int ObjToSID_AND_ATTRIBUTESSWS(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBUTES *sidattrP)
