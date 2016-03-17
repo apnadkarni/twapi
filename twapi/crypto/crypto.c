@@ -2046,6 +2046,7 @@ static TCL_RESULT Twapi_CryptSetProvParam(Tcl_Interp *interp,
     HWND hwnd;
     SECURITY_DESCRIPTOR *secdP = NULL;
     HCERTSTORE hstore;
+    SWSMark mark = NULL;
     
     switch (param) {
     case PP_CLIENT_HWND:
@@ -2061,7 +2062,8 @@ static TCL_RESULT Twapi_CryptSetProvParam(Tcl_Interp *interp,
         pv = ObjToString(objP);
         break;
     case PP_KEYSET_SEC_DESCR:
-        if ((res = ObjToPSECURITY_DESCRIPTOR(interp, objP, &secdP)) != TCL_OK)
+        mark = SWSPushMark();
+        if ((res = ObjToPSECURITY_DESCRIPTORSWS(interp, objP, &secdP)) != TCL_OK)
             return res;
         /* TBD - check what happens with NULL secdP (which is valid) */
         pv = secdP;
@@ -2093,9 +2095,9 @@ static TCL_RESULT Twapi_CryptSetProvParam(Tcl_Interp *interp,
         res = TwapiReturnSystemError(interp);
     }
 
-    if (secdP)
-        TwapiFreeSECURITY_DESCRIPTOR(secdP); 
-    
+    if (mark)
+        SWSPopMark(mark);
+
     return res;
 }
 

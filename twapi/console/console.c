@@ -346,7 +346,8 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     TwapiResult result;
     Tcl_Obj *sObj;
     LPWSTR s;
-
+    SWSMark mark = NULL;
+    
     --objc;
     ++objv;
 
@@ -519,16 +520,16 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                 (h, coord);
             break;
         case 1007: // CreateConsoleScreenBuffer
+            mark = SWSPushMark();
             if (TwapiGetArgs(interp, objc, objv,
                              GETINT(dw),
                              GETINT(dw2),
-                             GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
+                             GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
                              GETINT(dw3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_HANDLE;
             result.value.hval = CreateConsoleScreenBuffer(dw, dw2, secattrP, dw3, NULL);
-            TwapiFreeSECURITY_ATTRIBUTES(secattrP);
             break;
         case 1008:
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -576,7 +577,8 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                              GETINT(dw), ARGEND) != TCL_OK)
                 return TCL_ERROR;
 
-            u.inrecP = SWSPushFrame(dw * sizeof(INPUT_RECORD), NULL);
+            mark = SWSPushMark();
+            u.inrecP = SWSAlloc(dw * sizeof(INPUT_RECORD), NULL);
             if ((func == 1014 ? ReadConsoleInputW : PeekConsoleInputW)(h, u.inrecP, dw, &dw2) == 0)
                 result.type = TRT_GETLASTERROR;
             else if (dw2 == 0)
@@ -588,11 +590,13 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                     ObjAppendElement(interp, result.value.obj,
                                      ObjFromINPUT_RECORD(&u.inrecP[dw]));
             }
-            SWSPopFrame();
             break;
         }
     }
 
+    if (mark)
+        SWSPopMark(mark);
+    
     return TwapiSetResult(interp, &result);
 }
 

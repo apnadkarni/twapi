@@ -1163,7 +1163,10 @@ Tcl_Obj *ObjFromMONITORINFOEX(MONITORINFO *miP);
 Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP);
+#ifdef OBSOLETE
 TWAPI_EXTERN int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP);
+#endif
+TWAPI_EXTERN TCL_RESULT ObjToACESWS (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP);
 TWAPI_EXTERN Tcl_Obj *ObjFromACL(Tcl_Interp *interp, ACL *aclP);
 
 /* Window stuff */
@@ -1440,9 +1443,14 @@ TWAPI_EXTERN Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauni
 TWAPI_EXTERN void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP);
 TWAPI_EXTERN int ObjToLSASTRINGARRAYSWS(Tcl_Interp *interp, Tcl_Obj *obj,
                         LSA_UNICODE_STRING **arrayP, ULONG *countP);
+#ifdef OBSOLETE
 TWAPI_EXTERN PSID TwapiGetSidFromStringRep(char *strP);
 TWAPI_EXTERN TCL_RESULT ObjToPSID(Tcl_Interp *, Tcl_Obj *obj, PSID *sidPP);
 TWAPI_EXTERN TCL_RESULT ObjToPSIDNonNull(Tcl_Interp *, Tcl_Obj *, PSID *sidPP);
+#endif
+TWAPI_EXTERN PSID TwapiSidFromStringSWS(char *strP);
+TWAPI_EXTERN TCL_RESULT ObjToPSIDSWS(Tcl_Interp *, Tcl_Obj *obj, PSID *sidPP);
+TWAPI_EXTERN TCL_RESULT ObjToPSIDNonNullSWS(Tcl_Interp *, Tcl_Obj *, PSID *sidPP);
 TWAPI_EXTERN int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSIDNoFail(SID *sidP);
 
@@ -1522,12 +1530,22 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP);
 /* Security stuff */
 #define TWAPI_SID_LENGTH(sid_) GetSidLengthRequired((sid_)->SubAuthorityCount)
 TWAPI_EXTERN TCL_RESULT TwapiValidateSID(Tcl_Interp *interp, SID *sidP, DWORD len);
+#ifdef OBSOLETE
 TWAPI_EXTERN int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP);
+#endif
+TWAPI_EXTERN int ObjToPACLSWS(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP);
+#ifdef OBSOLETE
 TWAPI_EXTERN int ObjToPSECURITY_ATTRIBUTES(Tcl_Interp *interp, Tcl_Obj *secattrObj,
                                  SECURITY_ATTRIBUTES **secattrPP);
 TWAPI_EXTERN void TwapiFreeSECURITY_ATTRIBUTES(SECURITY_ATTRIBUTES *secattrP);
+#endif
+TWAPI_EXTERN int ObjToPSECURITY_ATTRIBUTESSWS(Tcl_Interp *interp, Tcl_Obj *secattrObj,
+                                 SECURITY_ATTRIBUTES **secattrPP);
+#ifdef OBSOLETE
 TWAPI_EXTERN void TwapiFreeSECURITY_DESCRIPTOR(SECURITY_DESCRIPTOR *secdP);
 TWAPI_EXTERN int ObjToPSECURITY_DESCRIPTOR(Tcl_Interp *, Tcl_Obj *, SECURITY_DESCRIPTOR **secdPP);
+#endif
+TWAPI_EXTERN int ObjToPSECURITY_DESCRIPTORSWS(Tcl_Interp *, Tcl_Obj *, SECURITY_DESCRIPTOR **secdPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(Tcl_Interp *, SECURITY_DESCRIPTOR *);
 TWAPI_EXTERN TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (TwapiInterpContext *, Tcl_Obj *, SEC_WINNT_AUTH_IDENTITY_W **);
 TWAPI_EXTERN void SecureZeroSEC_WINNT_AUTH_IDENTITY(SEC_WINNT_AUTH_IDENTITY_W *);
