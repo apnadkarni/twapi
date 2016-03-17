@@ -3534,6 +3534,51 @@ int ObjToLSASTRINGARRAYSWS(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UNICODE_STRING 
 }
 
 /*
+ * Returns a pointer to SWS memory containing a SID corresponding
+ * to the given string representation. Returns NULL on error, and
+ * sets the windows error. Caller responsible for SWS memory in
+ * both success and failure cases.
+ */
+PSID TwapiSidFromStringSWS(char *strP)
+{
+    DWORD   len;
+    PSID    sidP;
+    PSID    local_sidP;
+    int error;
+
+    local_sidP = NULL;
+    sidP = NULL;
+
+    if (ConvertStringSidToSidA(strP, &local_sidP) == 0)
+        return NULL;
+
+    /*
+     * Have a valid SID
+     * Copy it into dynamic memory after validating
+     */
+    len = GetLengthSid(local_sidP);
+    sidP = SWSAlloc(len, NULL);
+    if (! CopySid(len, sidP, local_sidP)) {
+        goto errorExit;
+    }
+
+    /* Free memory allocated by ConvertStringSidToSidA */
+    LocalFree(local_sidP);
+    return sidP;
+
+ errorExit:
+    error = GetLastError();
+
+    if (local_sidP) {
+        LocalFree(local_sidP);
+    }
+
+    SetLastError(error);
+    return NULL;
+}
+
+#ifdef OBSOLETE
+/*
  * Returns a pointer to dynamic memory containing a SID corresponding
  * to the given string representation. Returns NULL on error, and
  * sets the windows error
@@ -3578,7 +3623,45 @@ PSID TwapiGetSidFromStringRep(char *strP)
     SetLastError(error);
     return NULL;
 }
+#endif
 
+/* Tcl_Obj to SID - the object may hold the SID string rep, a binary
+   or a list of ints. If the object is an empty string, error returned.
+   Else the SID is allocated  on the SWS and a pointer to it is
+   stored in *sidPP. Caller responsible for SWS memory on success
+   and failure.
+*/
+TCL_RESULT ObjToPSIDNonNullSWS(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
+{
+    DWORD   len;
+    SID  *sidP;
+    DWORD winerror;
+
+    *sidPP = TwapiSidFromStringSWS(ObjToString(obj));
+    if (*sidPP)
+        return TCL_OK;
+
+    winerror = GetLastError();
+
+    /* Not a string rep. See if it is a binary of the right size */
+    sidP = (SID *) ObjToByteArray(obj, &len);
+    if (len >= sizeof(*sidP)) {
+        /* Seems big enough, validate revision and size */
+        if (IsValidSid(sidP) && GetLengthSid(sidP) == len) {
+            *sidPP = SWSAlloc(len, NULL);
+            /* Note SID is a variable length struct so we cannot do this
+                    *(SID *) (*sidPP) = *sidP;
+               (from bitter experience!)
+             */
+            if (CopySid(len, *sidPP, sidP))
+                return TCL_OK;
+            winerror = GetLastError();
+        }
+    }
+    return Twapi_AppendSystemError(interp, winerror);
+}
+
+#ifdef OBSOLETE
 /* Tcl_Obj to SID - the object may hold the SID string rep, a binary
    or a list of ints. If the object is an empty string, error returned.
    Else the SID is dynamically allocated and a pointer to it is
@@ -3613,7 +3696,29 @@ TCL_RESULT ObjToPSIDNonNull(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
     }
     return Twapi_AppendSystemError(interp, winerror);
 }
+#endif
 
+
+/* Tcl_Obj to SID - the object may hold the SID string rep, a binary
+   or a list of ints. If the object is an empty string, *sidPP is
+   stored as NULL. Else the SID is allocated on the SWS and a pointer to it is
+   stored in *sidPP. Caller responsible for all SWS management.
+*/
+TCL_RESULT ObjToPSIDSWS(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
+{
+    char *s;
+    DWORD   len;
+
+    s = ObjToStringN(obj, &len);
+    if (len == 0) {
+        *sidPP = NULL;
+        return TCL_OK;
+    }
+
+    return ObjToPSIDNonNullSWS(interp, obj, sidPP);
+}
+
+#ifdef OBSOLETE
 /* Tcl_Obj to SID - the object may hold the SID string rep, a binary
    or a list of ints. If the object is an empty string, *sidPP is
    stored as NULL. Else the SID is dynamically allocated and a pointer to it is
@@ -3632,6 +3737,7 @@ TCL_RESULT ObjToPSID(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
 
     return ObjToPSIDNonNull(interp, obj, sidPP);
 }
+#endif
 
 /* Convert a ACE object to a Tcl list. interp may be NULL */
 Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
@@ -3732,7 +3838,88 @@ Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
     return NULL;
 }
 
+/* Returns an allocated on SWS. Caller responsible for all SWS management */
+TCL_RESULT ObjToACESWS (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
+{
+    Tcl_Obj **objv;
+    int       objc;
+    int       acetype;
+    int       aceflags;
+    int       acesz;
+    SID      *sidP;
+    unsigned char *bytes;
+    int            bytecount;
+    ACCESS_ALLOWED_ACE    *aceP;
 
+    *acePP = NULL;
+
+    if (ObjGetElements(interp, aceobj, &objc, &objv) != TCL_OK)
+        return TCL_ERROR;
+
+    if (objc < 2)
+        goto format_error;
+
+    if ((ObjToInt(interp, objv[0], &acetype) != TCL_OK) ||
+        (ObjToInt(interp, objv[1], &aceflags) != TCL_OK)) {
+        return TCL_ERROR;
+    }
+
+    /* Max size of an SID */
+    acesz = GetSidLengthRequired(SID_MAX_SUB_AUTHORITIES);
+
+    /* Figure out how much space is required for the ACE based on type */
+    switch (acetype) {
+    case ACCESS_ALLOWED_ACE_TYPE:
+    case ACCESS_DENIED_ACE_TYPE:
+    case SYSTEM_AUDIT_ACE_TYPE:
+    case SYSTEM_MANDATORY_LABEL_ACE_TYPE:
+        if (objc != 4)
+            goto format_error;
+        acesz += sizeof(*aceP);
+        aceP = (ACCESS_ALLOWED_ACE *) SWSAlloc(acesz, NULL);
+        aceP->Header.AceType = acetype;
+        aceP->Header.AceFlags = aceflags;
+        aceP->Header.AceSize  = acesz; /* TBD - this is a upper bound since we
+                                          allocated max SID size. Is that OK?*/
+        if (ObjToInt(interp, objv[2], &aceP->Mask) != TCL_OK)
+            goto format_error;
+
+        sidP = TwapiSidFromStringSWS(ObjToString(objv[3]));
+        if (sidP == NULL)
+            goto system_error;
+
+        if (! CopySid(aceP->Header.AceSize - sizeof(*aceP) + sizeof(aceP->SidStart),
+                      &aceP->SidStart, sidP)) {
+            goto system_error;
+        }
+
+        sidP = NULL;
+        break;
+
+    default: /* TBD - what is the logic of this? What is objv[2] ?  Need tests*/
+        /* TBD - ObjFromACE seems to handle many more types than we do here */
+        if (objc != 3)
+            goto format_error;
+        bytes = ObjToByteArray(objv[2], &bytecount);
+        acesz += bytecount;
+        aceP = (ACCESS_ALLOWED_ACE *) SWSAlloc(acesz, NULL);
+        CopyMemory(aceP, bytes, bytecount);
+        break;
+    }
+
+    *acePP = aceP;
+    return TCL_OK;
+
+ format_error:
+    if (interp)
+        ObjSetStaticResult(interp, "Invalid ACE format.");
+    return TCL_ERROR;
+
+ system_error:
+    return TwapiReturnSystemError(interp);
+}
+
+#ifdef OBSOLETE
 int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
 {
     Tcl_Obj **objv;
@@ -3814,6 +4001,7 @@ int ObjToACE (Tcl_Interp *interp, Tcl_Obj *aceobj, void **acePP)
  system_error:
     return TwapiReturnSystemError(interp);
 }
+#endif
 
 Tcl_Obj *ObjFromACL (
     Tcl_Interp *interp,
@@ -3866,7 +4054,108 @@ Tcl_Obj *ObjFromACL (
     return NULL;
 }
 
+/*
+ * Returns a pointer to SWS memory containing a ACL corresponding
+ * to the given string representation. The string "null" is treated
+ * as no acl and a NULL pointer is returned in *aclPP
+ * Caller responsible for all SWS memory management
+ */
+int ObjToPACLSWS(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
+{
+    int       objc;
+    Tcl_Obj **objv;
+    Tcl_Obj **aceobjv;
+    int       aceobjc;
+    void    **acePP = NULL;
+    int       i;
+    int       aclsz;
+    ACE_HEADER *acehdrP;
+    int       aclrev;
 
+    *aclPP = NULL;
+    if (!lstrcmpA("null", ObjToString(aclObj)))
+        return TCL_OK;
+
+    if (ObjGetElements(interp, aclObj, &objc, &objv) != TCL_OK)
+        return TCL_ERROR;
+
+    if (objc != 2) {
+        if (interp)
+            ObjSetStaticResult(interp, "Invalid ACL format.");
+        return TCL_ERROR;
+    }
+
+    /*
+     * First figure out how much space we need to allocate. For this, we
+     * first need to figure out space for the ACE's
+     */
+#if 0
+    objv[0] is the ACL rev. We always recalculate it, ignore value passed in.
+    if (ObjToInt(interp, objv[0], &aclrev) != TCL_OK)
+        goto error_return;
+#endif
+    if (ObjGetElements(interp, objv[1], &aceobjc, &aceobjv) != TCL_OK)
+        goto error_return;
+
+    aclsz = sizeof(ACL);
+    aclrev = ACL_REVISION;
+    if (aceobjc) {
+        acePP = SWSAlloc(aceobjc*sizeof(*acePP), NULL);
+        for (i = 0; i < aceobjc; ++i) {
+            if (ObjToACESWS(interp, aceobjv[i], &acePP[i]) != TCL_OK)
+                goto error_return;
+            acehdrP = (ACE_HEADER *)acePP[i];
+            aclsz += acehdrP->AceSize;
+            switch (acehdrP->AceType) {
+            case ACCESS_ALLOWED_OBJECT_ACE_TYPE:
+            case ACCESS_DENIED_OBJECT_ACE_TYPE:
+            case SYSTEM_AUDIT_OBJECT_ACE_TYPE:
+            case SYSTEM_ALARM_OBJECT_ACE_TYPE:
+            case ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE:
+            case ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE:
+            case SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE:
+            case SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE:
+                /* Change rev if object ace's present */
+                aclrev = ACL_REVISION_DS;
+                break;
+            default:
+                /* TBD - do we need to add others for VISTA and later ? */
+                break;
+            }
+
+        }
+    }
+
+    /*
+     * OK, now allocate the ACL and add the ACE's to it
+     * We currently use AddAce, not AddMandatoryAce even for integrity labels.
+     * This seems to work and avoids AddMandatoryAce which is not present
+     * on XP/2k3. TBD
+     */
+    *aclPP = SWSAlloc(aclsz, NULL);
+    InitializeAcl(*aclPP, aclsz, aclrev);
+    for (i = 0; i < aceobjc; ++i) {
+        acehdrP = (ACE_HEADER *)acePP[i];
+        if (! AddAce(*aclPP, aclrev, MAXDWORD, acePP[i], acehdrP->AceSize)) {
+            TwapiReturnSystemError(interp);
+            goto error_return;
+        }
+    }
+
+    if (! IsValidAcl(*aclPP)) {
+        if (interp)
+            ObjSetStaticResult(interp, "Internal error constructing ACL");
+        goto error_return;
+    }
+
+    return TCL_OK;
+
+ error_return:
+    *aclPP = NULL;
+    return TCL_ERROR;
+}
+
+#ifdef OBSOLETE
 /*
  * Returns a pointer to dynamic memory containing a ACL corresponding
  * to the given string representation. The string "null" is treated
@@ -3985,6 +4274,7 @@ int ObjToPACL(Tcl_Interp *interp, Tcl_Obj *aclObj, ACL **aclPP)
 
     return TCL_ERROR;
 }
+#endif
 
 /* Create a list object from a security descriptor */
 Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
@@ -4065,6 +4355,140 @@ Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
 }
 
 
+/*
+ * Returns a pointer to SWS memory containing a structure corresponding
+ * to the given string representation. Note that the owner, group, sacl
+ * and dacl fields of the descriptor point to SWS memory as well!
+ * Note some functions that use this, such as CoInitializeSecurity
+ * require the security descriptor to be in absolute format so do not
+ * change this function to return a self-relative descriptor
+ * Caller is responsible for all SWS memory in both success and failure cases
+ */
+TCL_RESULT ObjToPSECURITY_DESCRIPTORSWS(
+    Tcl_Interp *interp,
+    Tcl_Obj *secdObj,
+    SECURITY_DESCRIPTOR **secdPP
+)
+{
+    int       objc;
+    Tcl_Obj **objv;
+    int       temp;
+    SECURITY_DESCRIPTOR_CONTROL      secd_control;
+    SECURITY_DESCRIPTOR_CONTROL      secd_control_mask;
+    SID      *owner_sidP;
+    SID      *group_sidP;
+    ACL      *daclP;
+    ACL      *saclP;
+    char     *s;
+    int       slen;
+
+    owner_sidP = group_sidP = NULL;
+    *secdPP = NULL;
+
+    if (ObjGetElements(interp, secdObj, &objc, &objv) != TCL_OK)
+        return TCL_ERROR;
+
+    if (objc == 0)
+        return TCL_OK;          /* NULL security descriptor */
+
+    if (objc != 5) {
+        if (interp)
+            ObjSetStaticResult(interp, "Invalid SECURITY_DESCRIPTOR format.");
+        return TCL_ERROR;
+    }
+
+
+    *secdPP = SWSAlloc (sizeof(SECURITY_DESCRIPTOR), NULL);
+    if (! InitializeSecurityDescriptor(*secdPP, SECURITY_DESCRIPTOR_REVISION))
+        goto system_error;
+
+    /*
+     * Set control field
+     */
+    if (ObjToInt(interp, objv[0], &temp) != TCL_OK)
+        goto error_return;
+    secd_control = (SECURITY_DESCRIPTOR_CONTROL) temp;
+    if (secd_control != temp) {
+        /* Truncation error */
+        if (interp)
+            ObjSetStaticResult(interp, "Invalid control flags for SECURITY_DESCRIPTOR");
+        goto error_return;
+    }
+
+    /* Mask of control bits to be set through SetSecurityDescriptorControl*/
+    /* Note you cannot set any other bits than these through the
+       SetSecurityDescriptorControl */
+    secd_control_mask =  (SE_DACL_AUTO_INHERIT_REQ | SE_DACL_AUTO_INHERITED |
+                          SE_DACL_PROTECTED |
+                          SE_SACL_AUTO_INHERIT_REQ | SE_SACL_AUTO_INHERITED |
+                          SE_SACL_PROTECTED);
+
+    if (! SetSecurityDescriptorControl(*secdPP, secd_control_mask, (SECURITY_DESCRIPTOR_CONTROL) (secd_control_mask & secd_control)))
+        goto system_error;
+
+    /*
+     * Set Owner field if specified
+     */
+    s = ObjToStringN(objv[1], &slen);
+    if (slen) {
+        owner_sidP = TwapiSidFromStringSWS(s);
+        if (owner_sidP == NULL)
+            goto system_error;
+        /* TBD - the owner field is allowed to be NULL. How do we set that ?*/
+        if (! SetSecurityDescriptorOwner(*secdPP, owner_sidP,
+                                         secd_control & SE_OWNER_DEFAULTED))
+            goto system_error;
+        /* Note the owner field in *secdPP now points directly to owner_sidP! */
+    }
+
+    /*
+     * Set group field if specified
+     */
+    s = ObjToStringN(objv[2], &slen);
+    if (slen) {
+        group_sidP = TwapiSidFromStringSWS(s);
+        if (group_sidP == NULL)
+            goto system_error;
+
+        if (! SetSecurityDescriptorGroup(*secdPP, group_sidP,
+                                         secd_control & SE_GROUP_DEFAULTED))
+            goto system_error;
+        /* Note the group field in *secdPP now points directly to group_sidP! */
+    }
+
+    /*
+     * Set the DACL. Keyword "null" means no DACL (as opposed to an empty one)
+     * TBD - this behaviour seems to be wrong. daclP = NULL is valid
+     * even when second parameter is true. Ditto for sacl below
+     * Maybe we can check if ACL length is 0 before calling ObjToPACLSWS
+     */
+    if (ObjToPACLSWS(interp, objv[3], &daclP) != TCL_OK)
+        goto error_return;
+    if (! SetSecurityDescriptorDacl(*secdPP, (daclP != NULL), daclP,
+                                  (secd_control & SE_DACL_DEFAULTED)))
+        goto system_error;
+    /* Note the dacl field in *secdPP now points directly to daclP! */
+
+    /*
+     * Set the SACL. Keyword "null" means no SACL (as opposed to an empty one)
+     */
+    if (ObjToPACLSWS(interp, objv[4], &saclP) != TCL_OK)
+        goto error_return;
+    if (! SetSecurityDescriptorSacl(*secdPP, (saclP != NULL), saclP,
+                                  (secd_control & SE_SACL_DEFAULTED)))
+        goto system_error;
+    /* Note the sacl field in *secdPP now points directly to saclP! */
+    return TCL_OK;
+
+ system_error:
+    TwapiReturnSystemError(interp);
+    
+ error_return:
+    *secdPP = NULL;
+    return TCL_ERROR;
+}
+
+#ifdef OBSOLETE
 /*
  * Returns a pointer to dynamic memory containing a structure corresponding
  * to the given string representation. Note that the owner, group, sacl
@@ -4249,7 +4673,9 @@ void TwapiFreeSECURITY_DESCRIPTOR(SECURITY_DESCRIPTOR *secdP)
 
     TwapiFree(secdP);
 }
+#endif
 
+#ifdef OBSOLETE
 /* Free the security descriptor contents as if it was allocated through
  * ObjToPSECURITY_ATTRIBUTES
  */
@@ -4316,6 +4742,56 @@ int ObjToPSECURITY_ATTRIBUTES(
         TwapiFree(*secattrPP);
         *secattrPP = NULL;
     }
+    return TCL_ERROR;
+}
+#endif
+
+/*
+ * Returns a pointer to SWS memory containing a structure corresponding
+ * to the given string representation.
+ * Caller responsible for all SWS management.
+ */
+int ObjToPSECURITY_ATTRIBUTESSWS(
+    Tcl_Interp *interp,
+    Tcl_Obj *secattrObj,
+    SECURITY_ATTRIBUTES **secattrPP
+)
+{
+    int       objc;
+    Tcl_Obj **objv;
+    int       inherit;
+
+    *secattrPP = NULL;
+
+    if (ObjGetElements(interp, secattrObj, &objc, &objv) != TCL_OK)
+        return TCL_ERROR;
+
+    if (objc == 0)
+        return TCL_OK;          /* NULL security attributes */
+
+    if (objc != 2) {
+        if (interp)
+            ObjSetStaticResult(interp, "Invalid SECURITY_ATTRIBUTES format.");
+        return TCL_ERROR;
+    }
+
+    *secattrPP = SWSAlloc (sizeof(**secattrPP), NULL);
+    (*secattrPP)->nLength = sizeof(**secattrPP);
+
+    if (ObjToInt(interp, objv[1], &inherit) == TCL_ERROR)
+        goto error_return;
+    (*secattrPP)->bInheritHandle = (inherit != 0);
+
+    if (ObjToPSECURITY_DESCRIPTORSWS(interp, objv[0],
+                                     &(SECURITY_DESCRIPTOR *)((*secattrPP)->lpSecurityDescriptor))
+        == TCL_ERROR) {
+        goto error_return;
+    }
+
+    return TCL_OK;
+
+ error_return:
+    *secattrPP = NULL;
     return TCL_ERROR;
 }
 

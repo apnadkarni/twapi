@@ -1223,15 +1223,17 @@ int Twapi_NPipeServerObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
     NPipeChannel *pcP;
     DWORD winerr = ERROR_SUCCESS;
     NPipeTls *tlsP;
-    Tcl_Obj *nameObj;
-
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETOBJ(nameObj), GETINT(open_mode), GETINT(pipe_mode),
-                     GETINT(max_instances), GETINT(outbuf_sz),
-                     GETINT(inbuf_sz), GETINT(timeout),
-                     GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES), ARGEND)
-        != TCL_OK)
-        return TCL_ERROR;
+    Tcl_Obj *nameObj, *secattrObj;
+    SWSMark mark = NULL;
+    TCL_RESULT res;
+    
+    res = TwapiGetArgs(interp, objc-1, objv+1,
+                       GETOBJ(nameObj), GETINT(open_mode), GETINT(pipe_mode),
+                       GETINT(max_instances), GETINT(outbuf_sz),
+                       GETINT(inbuf_sz), GETINT(timeout),
+                       GETOBJ(secattrObj), ARGEND);
+    if (res != TCL_OK)
+        return res;
 
     /*
      * Note: Use GetNPipeTls, not GET_NPIPE_TLS here as tls
@@ -1248,10 +1250,19 @@ int Twapi_NPipeServerObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
     }
 
     pcP = NPipeChannelNew();
-
     open_mode |= FILE_FLAG_OVERLAPPED;
-    pcP->hpipe = CreateNamedPipeW(ObjToUnicode(nameObj), open_mode, pipe_mode, max_instances,
+
+    mark = SWSPushMark();
+    res = ObjToPSECURITY_ATTRIBUTESSWS(interp, secattrObj, &secattrP);
+    if (res != TCL_OK) {
+        SWSPopMark(mark);
+        return res;
+    }
+
+    pcP->hpipe = CreateNamedPipeW(ObjToUnicode(nameObj), open_mode,
+                                  pipe_mode, max_instances,
                                   outbuf_sz, inbuf_sz, timeout, secattrP);
+    SWSPopMark(mark);
 
     if (pcP->hpipe != INVALID_HANDLE_VALUE) {
         /* Create event used for sync i/o. Note this is manual reset event */
@@ -1339,13 +1350,14 @@ int Twapi_NPipeClientObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
     DWORD winerr;
     NPipeTls *tlsP;
     HANDLE hpipe;
-    Tcl_Obj *nameObj;
+    Tcl_Obj *nameObj, *secattrObj;
+    SWSMark mark = NULL;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETOBJ(nameObj),
                      GETINT(desired_access),
                      GETINT(share_mode),
-                     GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
+                     GETOBJ(secattrObj),
                      GETINT(creation_disposition),
                      GETINT(flags_attr),
                      ARGEND) != TCL_OK) {
@@ -1359,12 +1371,18 @@ int Twapi_NPipeClientObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
      * which expect the tls to have been initialized.
      */
     tlsP = GetNPipeTls();
-
     flags_attr |= FILE_FLAG_OVERLAPPED;
+    
+    mark = SWSPushMark();
+    if (ObjToPSECURITY_ATTRIBUTESSWS(interp, secattrObj, &secattrP) != TCL_OK) {
+        SWSPopMark(mark);
+        return TCL_ERROR;
+    }
     hpipe = CreateFileW(ObjToUnicode(nameObj), desired_access,
                         share_mode, secattrP,
                         creation_disposition,
                         flags_attr, NULL);
+    SWSPopMark(mark);
     if (hpipe == INVALID_HANDLE_VALUE)
         return TwapiReturnSystemError(interp);
 

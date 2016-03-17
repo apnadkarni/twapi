@@ -1815,15 +1815,14 @@ static TCL_RESULT Twapi_CoInitializeSecurityObjCmd(TwapiInterpContext *ticP, Tcl
                 goto vamoose;
             secdP = (SECURITY_DESCRIPTOR *) &appid;
         } else {
-            if (ObjToPSECURITY_DESCRIPTOR(interp, objv[1], &secdP) != TCL_OK)
+            TWAPI_ASSERT(ticP->memlifoP == SWS());
+            if (ObjToPSECURITY_DESCRIPTORSWS(interp, objv[1], &secdP) != TCL_OK)
                 goto vamoose;
         }
 
         hr = CoInitializeSecurity(secdP, -1, NULL, NULL,
                                   authn_level, impersonation_level,
                                   sole_auth_listP, capabilities, NULL);
-        if ((capabilities & EOAC_APPID) == 0 && secdP)
-            TwapiFree(secdP);
 
         /* Zero out passwords in memory */
         if (sole_auth_listP && sole_auth_listP->aAuthInfo) {
@@ -1850,7 +1849,6 @@ vamoose:
     MemLifoPopMark(mark);
     return res;
 }
-
 
 
 /* Dispatcher for calling COM functions with no args */

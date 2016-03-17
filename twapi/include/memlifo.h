@@ -2,11 +2,13 @@
 #define MEMLIFO_H
 
 /*
- * Copyright (c) 2010, Ashok P. Nadkarni
+ * Copyright (c) 2010-2016, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
  */
+
+/* TBD - what if allocation of size 0 is requested ? */
 
 #include <windows.h>
 #include <stdlib.h>
