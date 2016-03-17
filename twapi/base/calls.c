@@ -1314,11 +1314,12 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     case 10024: // RegCreateKeyEx
 #ifdef TBD
         secattrP = NULL;
+        mark = SWSPushMark();
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(u.hkey, HKEY),
                          GETWSTR(s), GETINT(dw), ARGSKIP, GETINT(dw2),
                          GETINT(dw3),
-                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTES),
+                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
                          ARGEND) == TCL_OK) {
             result.value.ival = RegCreateKeyExW(u.hkey, s, dw, NULL, dw2, dw3, secattrP, &u.hkey2, &dw4);
             if (result.value.ival != ERROR_SUCCESS)
@@ -1334,7 +1335,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.type = TRT_TCL_RESULT;
             result.value.ival = TCL_ERROR;
         }
-        TwapiFreeSECURITY_ATTRIBUTES(secattrP); // Even in case of error or NULL
+        SWSPopMark(mark);
 #endif
         break;
     case 10025:
