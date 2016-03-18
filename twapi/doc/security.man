@@ -1525,17 +1525,23 @@ specified with [const -protect_sacl]. If neither is specified, the
 current SACL inherit settings are preserved.
 [list_end]
 
-[call [cmd set_security_descriptor_dacl] [arg SECD] [arg ACL]]
+[call [cmd set_security_descriptor_dacl] [arg SECD] [arg ACL] [opt [arg DEFAULTED]]]
 Returns a security descriptor identical to [arg SECD]
 except for the DACL field which is set to [arg ACL]. If [arg ACL] is
 the string [const \"null\"], the security descriptor is set to have no DACL.
 If [arg ACL] is an empty list, the security descriptor has an empty DACL,
 which is [emph not] the same not having a DACL.
+The boolean argument [arg DEFAULTED] (default [const false]) should be
+[const true] if the DACL is to marked
+as having been set by a default mechanism as opposed to being explicitly set.
 
-[call [cmd set_security_descriptor_group] [arg SECD] [arg ACCOUNT]]
+[call [cmd set_security_descriptor_group] [arg SECD] [arg ACCOUNT] [opt [arg DEFAULTED]]]
 Returns a security descriptor identical to [arg SECD]
 except for the group field which is set to the SID for account [arg ACCOUNT].
 [arg ACCOUNT] may be the SID itself or the name of the group.
+The boolean argument [arg DEFAULTED] (default [const false]) should be
+[const true] if the group is to marked
+as having been set by a default mechanism as opposed to being explicitly set.
 
 [call [cmd set_security_descriptor_integrity] [arg SECD] [arg INTEGRITYLEVEL] [arg INTEGRITYPOLICY] [opt [arg options]]]
 Returns a new security descriptor based on [arg SECD] with the specified
@@ -1561,16 +1567,22 @@ are [emph not] themselves containers.
 If 0 (default), the integrity does not apply to descendents that are not containers.
 [list_end]
 
-[call [cmd set_security_descriptor_owner] [arg SECD] [arg ACCOUNT]]
+[call [cmd set_security_descriptor_owner] [arg SECD] [arg ACCOUNT] [opt [arg DEFAULTED]]]
 Returns a security descriptor identical to [arg SECD]
 except for the owner field which is set to the SID for account [arg ACCOUNT].
 [arg ACCOUNT] may be the SID itself or the name of
 the user or group.
+The boolean argument [arg DEFAULTED] (default [const false]) should be
+[const true] if the owner is to marked
+as having been set by a default mechanism as opposed to being explicitly set.
 
-[call [cmd set_security_descriptor_sacl] [arg SECD] [arg ACL]]
+[call [cmd set_security_descriptor_sacl] [arg SECD] [arg ACL] [opt [arg DEFAULTED]]]
 Returns a security descriptor identical to [arg SECD]
 except for the SACL field which is set to [arg ACL]. If [arg ACL] is
 the string [const \"null\"], the security descriptor is set to have no SACL.
+The boolean argument [arg DEFAULTED] (default [const false]) should be
+[const true] if the SACL is to marked
+as having been set by a default mechanism as opposed to being explicitly set.
 
 
 [call [cmd set_thread_token] [arg TOKEN]]
