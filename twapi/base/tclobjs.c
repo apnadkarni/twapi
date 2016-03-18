@@ -4025,7 +4025,6 @@ TCL_RESULT ObjToPSECURITY_DESCRIPTORSWS(
         return TCL_ERROR;
     }
 
-
     *secdPP = SWSAlloc (sizeof(SECURITY_DESCRIPTOR), NULL);
     if (! InitializeSecurityDescriptor(*secdPP, SECURITY_DESCRIPTOR_REVISION))
         goto system_error;
@@ -4064,7 +4063,7 @@ TCL_RESULT ObjToPSECURITY_DESCRIPTORSWS(
             goto system_error;
         /* TBD - the owner field is allowed to be NULL. How do we set that ?*/
         if (! SetSecurityDescriptorOwner(*secdPP, owner_sidP,
-                                         secd_control & SE_OWNER_DEFAULTED))
+                                         (secd_control & SE_OWNER_DEFAULTED) != 0))
             goto system_error;
         /* Note the owner field in *secdPP now points directly to owner_sidP! */
     }
@@ -4079,33 +4078,46 @@ TCL_RESULT ObjToPSECURITY_DESCRIPTORSWS(
             goto system_error;
 
         if (! SetSecurityDescriptorGroup(*secdPP, group_sidP,
-                                         secd_control & SE_GROUP_DEFAULTED))
+                                         (secd_control & SE_GROUP_DEFAULTED) != 0))
             goto system_error;
         /* Note the group field in *secdPP now points directly to group_sidP! */
     }
 
     /*
-     * Set the DACL. Keyword "null" means no DACL (as opposed to an empty one)
-     * TBD - this behaviour seems to be wrong. daclP = NULL is valid
-     * even when second parameter is true. Ditto for sacl below
-     * Maybe we can check if ACL length is 0 before calling ObjToPACLSWS
+     * Set the DACL if the control flags mark it as being present.
      */
-    if (ObjToPACLSWS(interp, objv[3], &daclP) != TCL_OK)
-        goto error_return;
-    if (! SetSecurityDescriptorDacl(*secdPP, (daclP != NULL), daclP,
-                                  (secd_control & SE_DACL_DEFAULTED)))
-        goto system_error;
-    /* Note the dacl field in *secdPP now points directly to daclP! */
+    if (secd_control & SE_DACL_PRESENT) {
+        /*
+         * Keyword "null" means no DACL (as opposed to an empty one)
+         * In that case daclP will be NULL. We don't need to call
+         * SetSecurityDescriptorDacl in that case because it is already 
+         * initialized to not have a DACL. However, if the secd_control
+         * flags have SE_DACL_DEFAULTED is set, we make the call because
+         * we're not sure how the system treates a NULL DACL with
+         * that flag set.
+         */
+        if (ObjToPACLSWS(interp, objv[3], &daclP) != TCL_OK)
+            goto error_return;
+        if (daclP || (secd_control & SE_DACL_DEFAULTED)) {
+            if (! SetSecurityDescriptorDacl(*secdPP, TRUE, daclP,
+                                            (secd_control & SE_DACL_DEFAULTED) != 0))
+                goto system_error;
+        }
+        /* Note the dacl field in *secdPP now points directly to daclP! */
+    }
 
-    /*
-     * Set the SACL. Keyword "null" means no SACL (as opposed to an empty one)
-     */
-    if (ObjToPACLSWS(interp, objv[4], &saclP) != TCL_OK)
-        goto error_return;
-    if (! SetSecurityDescriptorSacl(*secdPP, (saclP != NULL), saclP,
-                                  (secd_control & SE_SACL_DEFAULTED)))
-        goto system_error;
-    /* Note the sacl field in *secdPP now points directly to saclP! */
+    /* Same as above but for SACLs */
+    if (secd_control & SE_SACL_PRESENT) {
+        if (ObjToPACLSWS(interp, objv[4], &saclP) != TCL_OK)
+            goto error_return;
+        if (saclP || (secd_control & SE_SACL_DEFAULTED)) {
+            if (! SetSecurityDescriptorSacl(*secdPP, TRUE, saclP,
+                                            (secd_control & SE_SACL_DEFAULTED) != 0))
+                goto system_error;
+        }
+        /* Note the sacl field in *secdPP now points directly to saclP! */
+    }
+    
     return TCL_OK;
 
  system_error:

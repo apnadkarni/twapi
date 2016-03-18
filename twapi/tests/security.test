@@ -6670,7 +6670,6 @@ namespace eval twapi::security::test {
         twapi::delete_user $username
     } -result SeBackupPrivilege
 
-
     # This create_file test is here because it needs security functions
     test create_file-with-integrity-1.0 {
         Create a file with a specific integrity value
