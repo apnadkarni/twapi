@@ -1484,7 +1484,7 @@ proc twapi::crypt_key_export {hkey blob_type args} {
 # TBD - document
 proc twapi::crypt_key_import {hcrypt keyblob args} {
     parseargs args {
-        {-hwrapper.arg NULL}
+        {hwrapper.arg NULL}
         {exportable.bool 1 0x01}
         {oaep.bool 0 0x40}
         {userprotected.bool 0 0x02}
