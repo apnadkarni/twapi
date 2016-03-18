@@ -1495,35 +1495,45 @@ proc twapi::crypt_key_import {hcrypt keyblob args} {
 }
 
 # TBD - document
-proc twapi::crypt_key_derive  {hcrypt algid hhash args} {
+proc twapi::crypt_key_derive {hcrypt algid passphrase args} {
     parseargs args {
         {size.int 0}
         {exportable.bool 1 0x01}
+        {hashmethod.arg sha1}
+        {iterations.int 10000}
+        {salt.arg ""}
     } -maxleftover 0 -setvars
 
-    if {$size < 0 || $size > 65535} {
-        # Key size of 0 is default. Else it must be within 1-65535
-        badargs! "Option -size value \"$size\" is not between 0 and 65535."
-    }
-
-    return [CryptDeriveKey $hcrypt [capi_algid $algid] $hhash \
-                [expr {($size << 16) | $exportable}]]
-}
-
-# TBD - document
-proc twapi::crypt_key_from_passphrase {hcrypt algid passphrase args} {
-    parseargs args {
-        {size.int 0}
-        {exportable.bool 1 0x01}
-        {hashalgid.arg sha1}
-    } -maxleftover 0 -setvars
-
-    set hhash [capi_hash_create $hcrypt $hashalgid]
-    twapi::trap {
-        capi_hash_string $hhash $passphrase
-        return [crypt_key_derive $hcrypt $algid $hhash -size $size -exportable $exportable]
-    } finally {
-        capi_hash_free $hhash
+    if {$method eq "pbkdf2"} {
+        set algnum [capi_algid $algid]
+        if {$size == 0} {
+            # Need to figure out the default key size for the algorithm
+            foreach alg [crypt_algorithms $hcrypt] {
+                if {[dict get $alg algid] == $algnum} {
+                    set size [dict get $alg defkeylen]
+                    break
+                }
+            }
+            if {$size == 0} {
+                error "Could not figure out default key size for algorithm $algid. Please use the -size option."
+            }
+        }
+        set pbkdf2 [pbkdf2 $passphrase $salt $iterations $size]
+        set keyblob [list 0 2 0 $algnum $pbkdf2]
+        return [crypt_key_import $hcrypt $keyblob -exportable $exportable]
+    } else {
+        if {$size < 0 || $size > 65535} {
+            # Key size of 0 is default. Else it must be within 1-65535
+            badargs! "Option -size value \"$size\" is not between 0 and 65535."
+        }
+        set hhash [capi_hash_create $hcrypt $hashalgid]
+        twapi::trap {
+            capi_hash_password $hhash $passphrase
+            return [CryptDeriveKey $hcrypt [capi_algid $algid] $hhash \
+                        [expr {($size << 16) | $exportable}]]
+        } finally {
+            capi_hash_free $hhash
+        }
     }
 }
 

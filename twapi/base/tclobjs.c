@@ -4634,6 +4634,49 @@ WCHAR * ObjDecryptUnicodeSWS(Tcl_Interp *interp,
 }
 
 /*
+ * Decrypts Unicode string in objP to SWS in UTF8 encoding.
+ * Caller responsible for SWS storage management and should also zero out 
+ * the password after use.
+ * Returns length of string (in bytes) NOT including terminating
+ * char in *ncharsP
+ */
+char *ObjDecryptUtf8SWS(Tcl_Interp *interp, Tcl_Obj *objP, int *nbytesP)
+{
+    WCHAR *uniP;
+    char *utfP;
+    int nuni, nutf;
+    TCL_RESULT res;
+
+    uniP = ObjDecryptUnicodeSWS(interp, objP, &nuni);
+    if (uniP == NULL)
+        return NULL;
+    TWAPI_ASSERT(uniP[nuni] == 0); /* Should be terminated */
+
+    /* REMEMBER we have to zero out uniP beyond this point */
+    
+    nutf = TwapiUnicharToUtf8(uniP, nuni, NULL, 0);
+    if (nutf == -1)
+        utfP = NULL;
+    else {
+        utfP = SWSAlloc(nutf+1, NULL); /* Additional byte for \0 */
+        nutf = TwapiUnicharToUtf8(uniP, nuni, utfP, nutf);
+        if (nutf == -1)
+            utfP = NULL;
+         else {
+            utfP[nutf] = '\0';
+            if (nbytesP)
+                *nbytesP = nutf;
+        }
+    }
+    if (utfP == NULL)
+        TwapiReturnSystemError(interp);
+
+    SecureZeroMemory(uniP, sizeof(WCHAR) * nuni);
+    
+    return utfP;
+}
+
+/*
  * Like ObjDecryptUnicodeSWS but
  * if decryption fails, assumes password in unencrypted form and returns it.
  * Return data is on the SWS.

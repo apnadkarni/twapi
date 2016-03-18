@@ -5186,8 +5186,7 @@ static int Twapi_WinVerifyTrustObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
 static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     unsigned char *utfpassP, *saltP, *keyP;
-    WCHAR *unipassP = NULL;
-    int nuni, nutf, nsalt, niterations, nkeybytes, nkeybits;
+    int nutf, nsalt, niterations, nkeybytes, nkeybits;
     TCL_RESULT res;
     Tcl_Obj *passObj;
     BOOL pbkdf2_status;
@@ -5217,19 +5216,12 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     keyP = &blobP->rgbKeyData[0];
     
     TWAPI_ASSERT(ticP->memlifoP == SWS());
-    unipassP = ObjDecryptUnicodeSWS(interp, passObj, &nuni);
-    if (unipassP == NULL) {
+    utfpassP = ObjDecryptUtf8SWS(interp, passObj, &nutf);
+    if (utfpassP == NULL) {
         res = TCL_ERROR;
         goto vamoose;                    /* Error already filled in */ 
     }
     
-    TWAPI_ASSERT(unipassP[nuni] == 0); /* Should be terminated */
-    nutf = TwapiUnicharToUtf8(unipassP, nuni, NULL, 0);
-    if (nutf == -1) goto system_error;
-    utfpassP = MemLifoAlloc(ticP->memlifoP, nutf, NULL);
-    nutf = TwapiUnicharToUtf8(unipassP, nuni, utfpassP, nutf);
-    if (nutf == -1) goto system_error;
-
     pbkdf2_status = PBKDF2(sha1Prf, utfpassP, nutf, saltP, nsalt, niterations,
                            keyP, nkeybytes);
     if (! pbkdf2_status)
@@ -5255,8 +5247,6 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     SecureZeroMemory(utfpassP, nutf);
     
 vamoose:
-    if (unipassP)
-        SecureZeroMemory(unipassP, sizeof(WCHAR) * nuni);
     MemLifoPopMark(mark);
     return res;
 

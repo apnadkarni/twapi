@@ -1434,6 +1434,7 @@ TWAPI_EXTERN Tcl_Obj *ObjEncryptData(Tcl_Interp *, BYTE *, int);
 TWAPI_EXTERN Tcl_Obj *ObjDecryptData(Tcl_Interp *, BYTE *, int);
 TWAPI_EXTERN Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *, WCHAR *, int);
 TWAPI_EXTERN WCHAR * ObjDecryptUnicodeSWS(Tcl_Interp *, Tcl_Obj *, int *);
+TWAPI_EXTERN char * ObjDecryptUtf8SWS(Tcl_Interp *, Tcl_Obj *, int *);
 TWAPI_EXTERN WCHAR * ObjDecryptPasswordSWS(Tcl_Obj *objP, int *ncharsP);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
