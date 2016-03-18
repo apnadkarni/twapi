@@ -3889,8 +3889,12 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
                                      Tcl_ObjPrintf("Inconsistent key blob size (%d versus %d).", TWAPI_PLAINTEXTKEYBLOB_SIZE(p->dwKeySize), nbytes));
             goto vamoose;
         }
-        blobP = &p->hdr;
         btype = PLAINTEXTKEYBLOB;
+        blobP = &p->hdr;
+        if (blobP->aiKeyAlg == 0) {
+            /* PBKDF2 for example returns keys without a alg id */
+            blobP->aiKeyAlg = balg_id;
+        }
     }
 
     /* At this point, blobP may point into the Tcl_Obj data or memlifo memory */
@@ -5188,6 +5192,7 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     Tcl_Obj *passObj;
     BOOL pbkdf2_status;
     MemLifoMarkHandle mark;
+    TWAPI_PLAINTEXTKEYBLOB *blobP;
     
     mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETOBJ(passObj),
@@ -5205,7 +5210,11 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
         goto vamoose;
     }
     nkeybytes = nkeybits/8;
-    keyP = MemLifoAlloc(ticP->memlifoP, nkeybytes, NULL);
+
+    /* We will bundle the plaintext key in sealed form as a PLAINTEXTKEYBLOB */
+    blobP = MemLifoAlloc(ticP->memlifoP, 
+                         TWAPI_PLAINTEXTKEYBLOB_SIZE(nkeybytes), NULL);
+    keyP = &blobP->rgbKeyData[0];
     
     TWAPI_ASSERT(ticP->memlifoP == SWS());
     unipassP = ObjDecryptUnicodeSWS(interp, passObj, &nuni);
@@ -5225,8 +5234,23 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
                            keyP, nkeybytes);
     if (! pbkdf2_status)
         res = TwapiReturnSystemError(interp);
-    else
-        res = ObjSetResult(interp, ObjFromByteArray(keyP, nkeybytes));
+    else {
+        /* Return the key in sealed form as a PLAINTEXTKEYBLOB */
+        Tcl_Obj *encObj;
+        blobP->hdr.bType = PLAINTEXTKEYBLOB;
+        blobP->hdr.bVersion = CUR_BLOB_VERSION;
+        blobP->hdr.reserved = 0;
+        blobP->hdr.aiKeyAlg = 0;
+        blobP->dwKeySize = nkeybytes;
+        encObj = ObjEncryptData(interp, (BYTE *) blobP, 
+                                TWAPI_PLAINTEXTKEYBLOB_SIZE(nkeybytes));
+        if (encObj)
+            res = ObjSetResult(interp, encObj);
+        else
+            res = TCL_ERROR;
+                                          
+        SecureZeroMemory(keyP, nkeybytes);
+    }
 
     SecureZeroMemory(utfpassP, nutf);
     
