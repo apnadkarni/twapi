@@ -1140,6 +1140,8 @@ proc twapi::new_security_descriptor {args} {
 
     set secd [Twapi_InitializeSecurityDescriptor]
 
+    # TBD - where are the control bits set? THe set_security_descrip[tor_*
+    # don't seem to set the control bits for related fields either.
     foreach field {owner group dacl sacl} {
         if {[info exists opts($field)]} {
             set secd [set_security_descriptor_$field $secd $opts($field)]
@@ -1215,12 +1217,18 @@ proc twapi::get_security_descriptor_owner {secd} {
 }
 
 # Set the owner in a security descriptor
-proc twapi::set_security_descriptor_owner {secd account} {
+proc twapi::set_security_descriptor_owner {secd account {defaulted 0}} {
     if {[_null_secd $secd]} {
         set secd [new_security_descriptor]
     }
+    lassign $secd control - group dacl sacl
     set sid [map_account_to_sid $account]
-    return [lreplace $secd 1 1 $sid]
+    if {$defaulted} {
+        set control [expr {$control | 0x1}]; # SE_OWNER_DEFAULTED
+    } else {
+        set control [expr {$control & ~0x1}]; # ! SE_OWNER_DEFAULTED
+    }
+    return [list $control $sid $group $dacl $sacl]
 }
 
 # Return the group in a security descriptor
@@ -1232,12 +1240,18 @@ proc twapi::get_security_descriptor_group {secd} {
 }
 
 # Set the group in a security descriptor
-proc twapi::set_security_descriptor_group {secd account} {
+proc twapi::set_security_descriptor_group {secd account {defaulted 0}} {
     if {[_null_secd $secd]} {
         set secd [new_security_descriptor]
     }
+    lassign $secd control owner - dacl sacl
     set sid [map_account_to_sid $account]
-    return [lreplace $secd 2 2 $sid]
+    if {$defaulted} {
+        set control [expr {$control | 0x2}]; # SE_GROUP_DEFAULTED
+    } else {
+        set control [expr {$control & ~0x2}]; # ! SE_GROUP_DEFAULTED
+    }
+    return [list $control $owner $sid $dacl $sacl]
 }
 
 # Return the DACL in a security descriptor
@@ -1249,11 +1263,25 @@ proc twapi::get_security_descriptor_dacl {secd} {
 }
 
 # Set the dacl in a security descriptor
-proc twapi::set_security_descriptor_dacl {secd acl} {
+proc twapi::set_security_descriptor_dacl {secd acl {defaulted 0}} {
+    if {![_is_valid_acl $acl]} {
+        error "Invalid ACL <$acl>."
+    }
     if {[_null_secd $secd]} {
         set secd [new_security_descriptor]
     }
-    return [lreplace $secd 3 3 $acl]
+    lassign $secd control owner group - sacl
+    if {$acl eq "null"} {
+        set control [expr {$control & ~0x4}]; # ! SE_DACL_PRESENT
+    } else {
+        set control [expr {$control | 0x4}]; # SE_DACL_PRESENT
+    }
+    if {$defaulted} {
+        set control [expr {$control | 0x8}]; # SE_DACL_DEFAULTED
+    } else {
+        set control [expr {$control & ~0x8}]; # ! SE_DACL_DEFAULTED
+    }
+    return [list $control $owner $group $acl $sacl]
 }
 
 # Return the SACL in a security descriptor
@@ -1265,11 +1293,25 @@ proc twapi::get_security_descriptor_sacl {secd} {
 }
 
 # Set the sacl in a security descriptor
-proc twapi::set_security_descriptor_sacl {secd acl} {
+proc twapi::set_security_descriptor_sacl {secd acl {defaulted 0}} {
+    if {![_is_valid_acl $acl]} {
+        error "Invalid ACL <$acl>."
+    }
     if {[_null_secd $secd]} {
         set secd [new_security_descriptor]
     }
-    return [lreplace $secd 4 4 $acl]
+    lassign $secd control owner group dacl -
+    if {$acl eq "null"} {
+        set control [expr {$control & ~0x10}]; # ! SE_SACL_PRESENT
+    } else {
+        set control [expr {$control | 0x10}]; # SE_SACL_PRESENT
+    }
+    if {$defaulted} {
+        set control [expr {$control | 0x20}]; # SE_SACL_DEFAULTED
+    } else {
+        set control [expr {$control & ~0x20}]; # ! SE_SACL_DEFAULTED
+    }
+    return [list $control $owner $group $dacl $acl]
 }
 
 # Get the specified security information for the given object
