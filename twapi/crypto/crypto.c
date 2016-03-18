@@ -4907,6 +4907,23 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             
         break;
         
+    case 10068: // crypt_hash_password
+        if (TwapiGetArgs(interp, objc, objv, 
+                         GETVERIFIEDPTR(pv, HCRYPTHASH, CryptDestroyHash),
+                         GETOBJ(s1Obj), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        pv2 = ObjDecryptUtf8SWS(interp, s1Obj, &dw2);
+        if (pv2 == NULL) {
+            result.type = TRT_TCL_RESULT;
+            result.value.ival = TCL_ERROR;
+            break;
+        }
+        if (CryptHashData((HCRYPTHASH) pv, pv2, dw2, 0))
+            result.type = TRT_EMPTY;
+        else
+            result.type = TRT_GETLASTERROR;
+        SecureZeroMemory(pv2, dw2);
+        break;
 
 #if 0
         /* Commented out because we might not want to keep plaintext keys
@@ -5327,6 +5344,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(capi_hash_dup, 10065), // CryptDuplicateHash
         DEFINE_FNCODE_CMD(CryptGetHashParam, 10066), // TBD Tcl (ALGID only)
         DEFINE_FNCODE_CMD(CryptDeriveKey, 10067),
+        DEFINE_FNCODE_CMD(crypt_hash_password, 10068), // TBD - document
 #if 0
         DEFINE_FNCODE_CMD(TwapiMakePlaintextKeyBlob, 10070), // TBD Tcl
 #endif
