@@ -4911,7 +4911,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             
         break;
         
-    case 10068: // crypt_hash_password
+    case 10068: // capi_hash_password
         if (TwapiGetArgs(interp, objc, objv, 
                          GETVERIFIEDPTR(pv, HCRYPTHASH, CryptDestroyHash),
                          GETOBJ(s1Obj), ARGEND) != TCL_OK)
@@ -5348,7 +5348,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(capi_hash_dup, 10065), // CryptDuplicateHash
         DEFINE_FNCODE_CMD(CryptGetHashParam, 10066), // TBD Tcl (ALGID only)
         DEFINE_FNCODE_CMD(CryptDeriveKey, 10067),
-        DEFINE_FNCODE_CMD(crypt_hash_password, 10068), // TBD - document
+        DEFINE_FNCODE_CMD(capi_hash_password, 10068), // TBD - document
 #if 0
         DEFINE_FNCODE_CMD(TwapiMakePlaintextKeyBlob, 10070), // TBD Tcl
 #endif

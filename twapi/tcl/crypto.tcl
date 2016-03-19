@@ -1537,9 +1537,9 @@ proc twapi::crypt_key_derive {hcrypt algid passphrase args} {
             # Key size of 0 is default. Else it must be within 1-65535
             badargs! "Option -size value \"$size\" is not between 0 and 65535."
         }
-        set hhash [capi_hash_password $hcrypt $method]
+        set hhash [capi_hash_create $hcrypt $method]
         twapi::trap {
-            capi_hash_string $hhash $passphrase
+            capi_hash_password $hhash $passphrase
             return [CryptDeriveKey $hcrypt [capi_algid $algid] $hhash \
                         [expr {($size << 16) | $exportable}]]
         } finally {
@@ -1548,23 +1548,19 @@ proc twapi::crypt_key_derive {hcrypt algid passphrase args} {
     }
 }
 
-# TBD - doc
-proc twapi::capi_encrypt_bytes {hkey bytes {hhash NULL}} {
+proc twapi::capi_encrypt_bytes {bytes hkey {hhash NULL}} {
     return [CryptEncrypt $hkey $hhash 1 0 $bytes]
 }
 
-# TBD - doc
-proc twapi::capi_encrypt_string {hkey s {hhash NULL}} {
-    return [capi_encrypt_bytes $hkey [encoding convertto utf-8 $s] $hhash]
+proc twapi::capi_encrypt_string {s hkey {hhash NULL}} {
+    return [capi_encrypt_bytes [encoding convertto utf-8 $s] $hkey $hhash]
 }
 
-# TBD - doc
-proc twapi::capi_decrypt_bytes {hkey bytes {hhash NULL}} {
+proc twapi::capi_decrypt_bytes {bytes hkey {hhash NULL}} {
     return [CryptDecrypt $hkey $hhash 1 0 $bytes]
 }
 
-# TBD - doc
-proc twapi::capi_decrypt_string {hkey bytes {hhash NULL}} {
+proc twapi::capi_decrypt_string {bytes hkey {hhash NULL}} {
     return [encoding convertfrom utf-8 [CryptDecrypt $hkey $hhash 1 0 $bytes]]
 }
 

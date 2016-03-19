@@ -23,7 +23,14 @@ Added [const bstr] type to [uri base.html#tclcast [cmd tclcast]]
 for casting COM parameters as strings.
 
 [bullet]
-Added commands
+Added
+[uri crypto.html#capi_encrypt_bytes [cmd capi_encrypt_bytes]],
+[uri crypto.html#capi_encrypt_string [cmd capi_encrypt_string]],
+[uri crypto.html#capi_decrypt_bytes [cmd capi_decrypt_bytes]],
+[uri crypto.html#capi_decrypt_string [cmd capi_decrypt_string]].
+
+[bullet]
+Added crypto key related commands
 [uri crypto.html#capi_key_algid [cmd capi_key_algid]],
 [uri crypto.html#capi_key_blocklen [cmd capi_key_blocklen]],
 [uri crypto.html#capi_key_certificate [cmd capi_key_certificate]],
