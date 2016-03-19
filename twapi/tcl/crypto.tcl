@@ -1508,10 +1508,21 @@ proc twapi::crypt_key_derive {hcrypt algid passphrase args} {
         set algnum [capi_algid $algid]
         if {$size == 0} {
             # Need to figure out the default key size for the algorithm
-            foreach alg [crypt_algorithms $hcrypt] {
-                if {[dict get $alg algid] == $algnum} {
-                    set size [dict get $alg defkeylen]
-                    break
+            # The loop below does not work for des/3des/3des_112 because
+            # it will get the actual key size whereas CryptImportKey
+            # wants key size with pad/parity bits. So hardcode these
+            if {$algnum == 0x6601} {
+                set size 64;    #
+            } elseif {$algnum == 0x6603} {
+                set size 192;   # 3des
+            } elseif {$algnum == 0x6609} {
+                set size 128;   # 3des_112
+            } else {
+                foreach alg [crypt_algorithms $hcrypt] {
+                    if {[dict get $alg algid] == $algnum} {
+                        set size [dict get $alg defkeylen]
+                        break
+                    }
                 }
             }
             if {$size == 0} {
