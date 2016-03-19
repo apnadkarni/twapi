@@ -319,6 +319,24 @@ Calculates the SHA-384 hash.
 Calculates the SHA-512 hash.
 [list_end]
 
+[section "Encryption and decryption"]
+
+The following commands support encryption and decryption operations via
+CAPI.
+
+[list_begin opt]
+[opt_def [uri #capi_encrypt_bytes [cmd capi_encrypt_bytes]]]
+Encrypts a binary string with optional hashing.
+[opt_def [uri #capi_encrypt_string [cmd capi_encrypt_string]]]
+Encrypts a string with optional hashing.
+[opt_def [uri #capi_decrypt_bytes [cmd capi_decrypt_bytes]]]
+Decrypts a binary string with optional hashing.
+[opt_def [uri #capi_decrypt_string [cmd capi_decrypt_string]]]
+Decrypts a string with optional hashing.
+
+[list_end]
+
+
 [section "Data protection"]
 
 Windows provides facilities to encrypt and protect data based on the
@@ -327,6 +345,10 @@ system with the same credentials. The
 The [uri #protect_data [cmd protect_data]] and
 [uri #unprotect_data [cmd unprotect_data]] commands provide
 access to this facility.
+
+The TWAPI base module also provides the [cmd seal]/[cmd unseal] and
+[cmd conceal]/[cmd reveal] commands to protect data within the current
+process. See the [uri base.html base] module reference for details.
 
 [section Commands]
 
@@ -343,6 +365,34 @@ Returns the numeric algorithm identifier for the algorithm [arg ALGID]
 which may be in any of the forms described in
 [sectref "Algorithm identifiers"]. If [arg ALGID] is non-numeric,
 an error is raised if it cannot be mapped to a numeric id.
+
+[call [cmd capi_decrypt_bytes] [arg BINDATA] [arg HKEY] [opt [arg HHASH]]]
+Decrypts the passed binary string [arg BINDATA] and returns the
+plaintext result.
+[arg HKEY] should be the handle of the key to be used for the operation.
+If the optional argument [arg HHASH] is specified, it should be the
+handle of a hash context. This will be updated with the decrypted data.
+
+[call [cmd capi_decrypt_string] [arg BINDATA] [arg HKEY] [opt [arg HHASH]]]
+Decrypts the passed binary string [arg BINDATA] converts it from
+UTF-8 encoding and returns the plaintext result. Note that it is assumed
+that the original encrypted text was UTF-8 encoded.
+[arg HKEY] should be the handle of the key to be used for the operation.
+If the optional argument [arg HHASH] is specified, it should be the
+handle of a hash context. This will be updated with the decrypted data.
+
+[call [cmd capi_encrypt_bytes] [arg BINDATA] [arg HKEY] [opt [arg HHASH]]]
+Encrypts the passed binary string [arg BINDATA] and returns the result.
+[arg HKEY] should be the handle of the key to be used for the operation.
+If the optional argument [arg HHASH] is specified, it should be the
+handle of a hash context. This will be updated with [arg BINDATA].
+
+[call [cmd capi_encrypt_string] [arg STRING] [arg HKEY] [opt [arg HHASH]]]
+Encrypts the passed string [arg STRING] after encoding it in UTF-8
+and returns the result.
+[arg HKEY] should be the handle of the key to be used for the operation.
+If the optional argument [arg HHASH] is specified, it should be the
+handle of a hash context. This will be updated with [arg STRING].
 
 [call [cmd capi_hash_bytes] [arg HHASH] [arg BINVALUE]]
 Updates the hash context specified by [arg HHASH] with the result

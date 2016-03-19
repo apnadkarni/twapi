@@ -3880,6 +3880,171 @@ namespace eval twapi::crypto::test {
         twapi::pbkdf2 [twapi::conceal password] salt 0 160
     } -result "Number of iterations must be a positive integer.*" -match glob -returnCodes error
 
+    ################################################################
+
+    test capi_encrypt_bytes-1.0.0 {
+        Encrypt single byte - des
+    } -setup {
+        set hcrypt [twapi::crypt_acquire]
+        set hk [twapi::crypt_key_derive $hcrypt des [twapi::conceal abc]]
+    } -cleanup {
+        twapi::capi_key_free $hk
+        twapi::crypt_free $hcrypt
+    } -body {
+        set enc [twapi::capi_encrypt_bytes "\001" $hk]
+        list [string length $enc] [twapi::capi_decrypt_bytes $enc $hk]
+    } -result [list 8 "\001"]
+    
+    test capi_encrypt_bytes-1.0.1 {
+        Encrypt block size byte - des
+    } -setup {
+        set hcrypt [twapi::crypt_acquire]
+        set hk [twapi::crypt_key_generate $hcrypt des]
+    } -cleanup {
+        twapi::capi_key_free $hk
+        twapi::crypt_free $hcrypt
+    } -body {
+        set enc [twapi::capi_encrypt_bytes "\x00\x01\x20\x30\x40\x50\x80\xff" $hk]
+        list [string length $enc] [twapi::capi_decrypt_bytes $enc $hk]
+    } -result [list 16 "\x00\x01\x20\x30\x40\x50\x80\xff"]
+
+    test capi_encrypt_bytes-1.0.2 {
+        Encrypt block size byte - des
+    } -setup {
+        set hcrypt [twapi::crypt_acquire]
+        set hk [twapi::crypt_key_generate $hcrypt des]
+    } -cleanup {
+        twapi::capi_key_free $hk
+        twapi::crypt_free $hcrypt
+    } -body {
+        set bytes [string repeat "\x00\x01\x20\x40\x50\x80\xff" 1000]
+        set enc [twapi::capi_encrypt_bytes $bytes $hk]
+        string equal $bytes [twapi::capi_decrypt_bytes $enc $hk]
+    } -result 1
+
+    test capi_encrypt_bytes-1.1.0 {
+        Encrypt single byte - 3des
+    } -setup {
+        set hcrypt [twapi::crypt_acquire]
+        set hk [twapi::crypt_key_derive $hcrypt 3des [twapi::conceal abc]]
+    } -cleanup {
+        twapi::capi_key_free $hk
+        twapi::crypt_free $hcrypt
+    } -body {
+        set enc [twapi::capi_encrypt_bytes "\001" $hk]
+        list [string length $enc] [twapi::capi_decrypt_bytes $enc $hk]
+    } -result [list 8 "\001"]
+    
+    test capi_encrypt_bytes-1.1.1 {
+        Encrypt block size byte
+    } -setup {
+        set hcrypt [twapi::crypt_acquire]
+        set hk [twapi::crypt_key_generate $hcrypt 3des]
+    } -cleanup {
+        twapi::capi_key_free $hk
+        twapi::crypt_free $hcrypt
+    } -body {
+        set enc [twapi::capi_encrypt_bytes "\x00\x01\x20\x30\x40\x50\x80\xff" $hk]
+        list [string length $enc] [twapi::capi_decrypt_bytes $enc $hk]
+    } -result [list 16 "\x00\x01\x20\x30\x40\x50\x80\xff"]
+
+    test capi_encrypt_bytes-1.1.2 {
+        Encrypt block size byte
+    } -setup {
+        set hcrypt [twapi::crypt_acquire]
+        set hk [twapi::crypt_key_generate $hcrypt 3des]
+    } -cleanup {
+        twapi::capi_key_free $hk
+        twapi::crypt_free $hcrypt
+    } -body {
+        set bytes [string repeat "\x00\x01\x20\x40\x50\x80\xff" 1000]
+        set enc [twapi::capi_encrypt_bytes $bytes $hk]
+        string equal $bytes [twapi::capi_decrypt_bytes $enc $hk]
+    } -result 1
+    
+    test capi_encrypt_bytes-1.2.0 {
+        Encrypt single byte - aes_128
+    } -setup {
+        set hcrypt [twapi::crypt_acquire -csptype prov_rsa_aes]
+        set hk [twapi::crypt_key_derive $hcrypt aes_128 [twapi::conceal abc]]
+    } -cleanup {
+        twapi::capi_key_free $hk
+        twapi::crypt_free $hcrypt
+    } -body {
+        set enc [twapi::capi_encrypt_bytes "\001" $hk]
+        list [string length $enc] [twapi::capi_decrypt_bytes $enc $hk]
+    } -result [list 16 "\001"]
+    
+    test capi_encrypt_bytes-1.2.1 {
+        Encrypt block size byte - aes_192
+    } -setup {
+        set hcrypt [twapi::crypt_acquire -csptype prov_rsa_aes]
+        set hk [twapi::crypt_key_generate $hcrypt aes_192]
+    } -cleanup {
+        twapi::capi_key_free $hk
+        twapi::crypt_free $hcrypt
+    } -body {
+        set enc [twapi::capi_encrypt_bytes "\x00\x01\x20\x30\x40\x50\x80\xff" $hk]
+        list [string length $enc] [twapi::capi_decrypt_bytes $enc $hk]
+    } -result [list 16 "\x00\x01\x20\x30\x40\x50\x80\xff"]
+
+    test capi_encrypt_bytes-1.2.2 {
+        Encrypt block size byte - aes_256
+    } -setup {
+        set hcrypt [twapi::crypt_acquire -csptype prov_rsa_aes]
+        set hk [twapi::crypt_key_generate $hcrypt aes_256]
+    } -cleanup {
+        twapi::capi_key_free $hk
+        twapi::crypt_free $hcrypt
+    } -body {
+        set bytes [string repeat "\x00\x01\x20\x40\x50\x80\xff" 1000]
+        set enc [twapi::capi_encrypt_bytes $bytes $hk]
+        string equal $bytes [twapi::capi_decrypt_bytes $enc $hk]
+    } -result 1
+
+    test capi_encrypt_bytes-99 {
+        TBD - more capi_encrypt_bytes tests
+    } -constraints {
+        TBD
+    } -body {
+        TBD - HHASH parameter, other encryptions, particularly rsa
+    } -result TBD
+    
+    ################################################################
+    
+    test capi_encrypt_string-1.0.0 {
+        Encrypt empty string - des
+    } -setup {
+        set hcrypt [twapi::crypt_acquire]
+        set hk [twapi::crypt_key_derive $hcrypt des [twapi::conceal abc]]
+    } -cleanup {
+        twapi::capi_key_free $hk
+        twapi::crypt_free $hcrypt
+    } -body {
+        set enc [twapi::capi_encrypt_string "" $hk]
+        list [string length $enc] [twapi::capi_decrypt_string $enc $hk]
+    } -result [list 8 ""]
+    
+    test capi_encrypt_string-1.0.1 {
+        Encrypt single char - des
+    } -setup {
+        set hcrypt [twapi::crypt_acquire]
+        set hk [twapi::crypt_key_derive $hcrypt des [twapi::conceal abc]]
+    } -cleanup {
+        twapi::capi_key_free $hk
+        twapi::crypt_free $hcrypt
+    } -body {
+        set enc [twapi::capi_encrypt_string "\u0100" $hk]
+        list [string length $enc] [twapi::capi_decrypt_string $enc $hk]
+    } -result [list 8 "\u0100"]
+    
+    test capi_encrypt_string-99 {
+        TBD - more capi_encrypt_string tests
+    } -constraints {
+        TBD
+    } -body {
+        TBD - HHASH parameter, other encryptions, particularly rsa
+    } -result TBD
 }
 
 patience "Cleaning test certs"
