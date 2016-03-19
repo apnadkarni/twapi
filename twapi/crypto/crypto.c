@@ -3799,22 +3799,26 @@ vamoose:
 
 static TCL_RESULT Twapi_CryptExportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    void *hkey, *hkey2;
+    void *hkey, *hwrapper;
     DWORD blob_type, flags, nbytes, winerr;
     Tcl_Obj *objs[5];
     BLOBHEADER *blobP;
     
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(hkey, HCRYPTKEY, CryptDestroyKey),
-                     GETVERIFIEDPTR(hkey2, HCRYPTKEY, CryptDestroyKey),
+                     GETVERIFIEDPTR(hwrapper, HCRYPTKEY, CryptDestroyKey),
                      GETINT(blob_type), GETINT(flags), ARGEND) != TCL_OK)
         return TCL_ERROR;
+
+    if (blob_type == PUBLICKEYBLOB)
+        hwrapper = NULL; /* As per SDK */
+    
     nbytes = 0;
-    if (!CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hkey2, blob_type, flags, NULL, &nbytes))
+    if (!CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hwrapper, blob_type, flags, NULL, &nbytes))
         return TwapiReturnSystemError(interp);
 
     objs[4] = ObjAllocateByteArray(nbytes, &blobP);
-    if (!CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hkey2, blob_type, flags, (BYTE*) blobP, &nbytes)) {
+    if (!CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hwrapper, blob_type, flags, (BYTE*) blobP, &nbytes)) {
         winerr = GetLastError(); /* Save before other calls */
         ObjDecrRefs(objs[4]);
         return Twapi_AppendSystemError(interp, winerr);
@@ -5374,8 +5378,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptGetKeyParam, Twapi_CryptGetKeyParamObjCmd),
         DEFINE_TCL_CMD(CryptSetKeyParam, Twapi_CryptSetKeyParamObjCmd),
         DEFINE_TCL_CMD(CryptSetHashParam, Twapi_CryptSetHashParamObjCmd), // TBD - Tcl
-        DEFINE_TCL_CMD(CryptEncrypt, Twapi_CryptEncryptObjCmd), // TBD - Tcl
-        DEFINE_TCL_CMD(CryptDecrypt, Twapi_CryptDecryptObjCmd), // TBD - Tcl
+        DEFINE_TCL_CMD(CryptEncrypt, Twapi_CryptEncryptObjCmd),
+        DEFINE_TCL_CMD(CryptDecrypt, Twapi_CryptDecryptObjCmd),
         DEFINE_TCL_CMD(CryptEncryptMessage, Twapi_CryptEncryptMessageObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptDecryptMessage, Twapi_CryptDecryptMessageObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptVerifyMessageSignature, Twapi_CryptVerifyMessageSignatureObjCmd), // TBD - Tcl
@@ -5383,8 +5387,8 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptSignMessage, Twapi_CryptSignMessageObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptSignAndEncryptMessage, Twapi_CryptSignAndEncryptMessageObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptImportKey, Twapi_CryptImportKeyObjCmd),
-        DEFINE_TCL_CMD(CryptExportKey, Twapi_CryptImportKeyObjCmd),
-        DEFINE_TCL_CMD(pbkdf2, Twapi_PBKDF2ObjCmd),
+        DEFINE_TCL_CMD(CryptExportKey, Twapi_CryptExportKeyObjCmd),
+        DEFINE_TCL_CMD(pbkdf2, Twapi_PBKDF2ObjCmd), // TBD - document
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
