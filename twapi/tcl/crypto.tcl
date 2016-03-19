@@ -1548,6 +1548,25 @@ proc twapi::crypt_key_derive {hcrypt algid passphrase args} {
     }
 }
 
+# TBD - doc
+proc twapi::capi_encrypt_bytes {hkey bytes {hhash NULL}} {
+    return [CryptEncrypt $hkey $hhash 1 0 $bytes]
+}
+
+# TBD - doc
+proc twapi::capi_encrypt_string {hkey s {hhash NULL}} {
+    return [capi_encrypt_bytes $hkey [encoding convertto utf-8 $s] $hhash]
+}
+
+# TBD - doc
+proc twapi::capi_decrypt_bytes {hkey bytes {hhash NULL}} {
+    return [CryptDecrypt $hkey $hhash 1 0 $bytes]
+}
+
+# TBD - doc
+proc twapi::capi_decrypt_string {hkey bytes {hhash NULL}} {
+    return [encoding convertfrom utf-8 [CryptDecrypt $hkey $hhash 1 0 $bytes]]
+}
 
 # For backwards compat - deprecated
 interp alias {} twapi::crypt_key_free {} twapi::capi_key_free
