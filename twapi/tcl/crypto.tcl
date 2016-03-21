@@ -1323,7 +1323,7 @@ proc twapi::crypt_key_container_delete {keycontainer args} {
     return [CryptAcquireContext $keycontainer $csp [_csp_type_name_to_id $csptype] $flags]
 }
 
-proc twapi::crypt_key_generate {hprov algid args} {
+proc twapi::crypt_generate_key {hprov algid args} {
 
     array set opts [parseargs args {
         {archivable.bool 0 0x4000}
@@ -1459,8 +1459,8 @@ proc twapi::crypt_symmetric_key_size {hcrypt} {
     return [CryptGetProvParam $hcrypt 19 0]
 }
 
-# TBD - document
-proc twapi::crypt_key_export {hkey blob_type args} {
+# TBD - test
+proc twapi::capi_key_export {hkey blob_type args} {
     set blob_type [dict! {
         keystate   12
         opaque     9
@@ -1480,9 +1480,11 @@ proc twapi::crypt_key_export {hkey blob_type args} {
 
     return [CryptExportKey $hkey $hwrapper $blob_type [expr {$v3|$oeap}]]
 }
+interp alias {} twapi::crypt_export_key {} twapi::capi_key_export
+
 
 # TBD - document
-proc twapi::crypt_key_import {hcrypt keyblob args} {
+proc twapi::crypt_import_key {hcrypt keyblob args} {
     parseargs args {
         {hwrapper.arg NULL}
         {exportable.bool 1 0x01}
@@ -1493,14 +1495,15 @@ proc twapi::crypt_key_import {hcrypt keyblob args} {
     return [CryptImportKey $hcrypt $keyblob $hwrapper \
                 [expr {$exportable|$oaep|$userprotected|$ipsechmac}]]
 }
+interp alias {} twapi::capi_key_import {} twapi::crypt_import_key
 
 # TBD - document
-proc twapi::crypt_key_derive {hcrypt algid passphrase args} {
+proc twapi::crypt_derive_key {hcrypt algid passphrase args} {
     parseargs args {
         {size.int 0}
         {exportable.bool 1 0x01}
         {method.arg sha1}
-        {iterations.int 10000}
+        {iterations.int 100000}
         {salt.arg ""}
     } -maxleftover 0 -setvars
 
@@ -2759,7 +2762,7 @@ proc twapi::make_test_certs {{hstore {}} args} {
     # Create the self signed CA cert
     set container twapitestca$uuid
     set crypt [twapi::crypt_acquire $container -csp $csp -csptype $csptype -create 1]
-    twapi::crypt_key_free [twapi::crypt_key_generate $crypt signature -exportable 1]
+    twapi::crypt_key_free [twapi::crypt_generate_key $crypt signature -exportable 1]
     set ca_altnames [list [list [list email ${container}@twapitest.com] [list dns ${container}.twapitest.com] [list url http://${container}.twapitest.com] [list directory [cert_name_to_blob "CN=${container}altname"]] [list ip [binary format c4 {127 0 0 2}]]]]
     set cert [twapi::cert_create_self_signed_from_crypt_context "CN=$container, C=IN, O=Tcl, OU=twapi" $crypt -purpose {ca} -altnames $ca_altnames -end $enddate]
     if {[llength $hstore] == 0} {
@@ -2775,7 +2778,7 @@ proc twapi::make_test_certs {{hstore {}} args} {
         set container twapitest${cert_type}$uuid
         set subject $container
         set crypt [twapi::crypt_acquire $container -csp $csp -csptype $csptype -create 1]
-        twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+        twapi::crypt_key_free [twapi::crypt_generate_key $crypt keyexchange -exportable 1]
         switch $cert_type {
             intermediate {
                 set req [cert_request_create "CN=$container, C=IN, O=Tcl, OU=twapi" $crypt keyexchange -purpose ca]

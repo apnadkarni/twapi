@@ -2597,7 +2597,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set subject twapitest-[clock microseconds]
         set crypt [twapi::crypt_acquire $subject -create 1]
-        twapi::crypt_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+        twapi::crypt_key_free [twapi::crypt_generate_key $crypt keyexchange -exportable 1]
     } -body {
         set x509_name "CN=$subject SSL Client, O=Twapi Open Source, OU=test"
         set req [twapi::cert_request_create $x509_name $crypt keyexchange -purpose client]
@@ -2612,7 +2612,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set subject twapitest-[clock microseconds]
         set crypt [twapi::crypt_acquire $subject -create 1]
-        twapi::capi_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+        twapi::capi_key_free [twapi::crypt_generate_key $crypt keyexchange -exportable 1]
     } -body {
         set x509_name "CN=$subject SSL Server, O=Twapi Open Source, OU=test"
         set req [twapi::cert_request_create $x509_name $crypt keyexchange -purpose server -encoding pem]
@@ -2627,7 +2627,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set subject twapitest-[clock microseconds]
         set crypt [twapi::crypt_acquire $subject -create 1]
-        twapi::capi_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+        twapi::capi_key_free [twapi::crypt_generate_key $crypt keyexchange -exportable 1]
     } -body {
         set x509_name "CN=$subject No Options, O=Twapi Open Source, OU=test"
         set req [twapi::cert_request_create $x509_name $crypt keyexchange]
@@ -2642,7 +2642,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set subject twapitest-[clock microseconds]
         set crypt [twapi::crypt_acquire $subject -create 1]
-        twapi::capi_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+        twapi::capi_key_free [twapi::crypt_generate_key $crypt keyexchange -exportable 1]
     } -body {
         set x509_name "CN=$subject Full, O=Twapi Open Source, OU=test"
         set altnames [list [list [list email ${subject}@twapitest.com] [list dns ${subject}.twapitest.com] [list url http://${subject}.twapitest.com] [list directory [twapi::cert_name_to_blob "CN=${subject}altname"]] [list ip [binary format c4 {127 0 0 1}]]]]
@@ -2668,7 +2668,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set subject twapitest-[clock microseconds]
         set crypt [twapi::crypt_acquire $subject -create 1]
-        twapi::capi_key_free [twapi::crypt_key_generate $crypt keyexchange -exportable 1]
+        twapi::capi_key_free [twapi::crypt_generate_key $crypt keyexchange -exportable 1]
         set x509_name "CN=$subject Full, O=Twapi Open Source, OU=test"
         set altnames [list [list [list email ${subject}@twapitest.com] [list dns ${subject}.twapitest.com] [list url http://${subject}.twapitest.com] [list directory [twapi::cert_name_to_blob "CN=${subject}altname"]] [list ip [binary format c4 {127 0 0 1}]]]]
         set req [twapi::cert_request_create $x509_name $crypt keyexchange \
@@ -3122,7 +3122,7 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    test crypt_key_generate {
+    test crypt_generate_key {
         TBD
     } -body {
         TBD 
@@ -3886,7 +3886,7 @@ namespace eval twapi::crypto::test {
         Encrypt single byte - des
     } -setup {
         set hcrypt [twapi::crypt_acquire]
-        set hk [twapi::crypt_key_derive $hcrypt des [twapi::conceal abc]]
+        set hk [twapi::crypt_derive_key $hcrypt des [twapi::conceal abc]]
     } -cleanup {
         twapi::capi_key_free $hk
         twapi::crypt_free $hcrypt
@@ -3899,7 +3899,7 @@ namespace eval twapi::crypto::test {
         Encrypt block size byte - des
     } -setup {
         set hcrypt [twapi::crypt_acquire]
-        set hk [twapi::crypt_key_generate $hcrypt des]
+        set hk [twapi::crypt_generate_key $hcrypt des]
     } -cleanup {
         twapi::capi_key_free $hk
         twapi::crypt_free $hcrypt
@@ -3912,7 +3912,7 @@ namespace eval twapi::crypto::test {
         Encrypt block size byte - des
     } -setup {
         set hcrypt [twapi::crypt_acquire]
-        set hk [twapi::crypt_key_generate $hcrypt des]
+        set hk [twapi::crypt_generate_key $hcrypt des]
     } -cleanup {
         twapi::capi_key_free $hk
         twapi::crypt_free $hcrypt
@@ -3926,7 +3926,7 @@ namespace eval twapi::crypto::test {
         Encrypt single byte - 3des
     } -setup {
         set hcrypt [twapi::crypt_acquire]
-        set hk [twapi::crypt_key_derive $hcrypt 3des [twapi::conceal abc]]
+        set hk [twapi::crypt_derive_key $hcrypt 3des [twapi::conceal abc]]
     } -cleanup {
         twapi::capi_key_free $hk
         twapi::crypt_free $hcrypt
@@ -3939,7 +3939,7 @@ namespace eval twapi::crypto::test {
         Encrypt block size byte
     } -setup {
         set hcrypt [twapi::crypt_acquire]
-        set hk [twapi::crypt_key_generate $hcrypt 3des]
+        set hk [twapi::crypt_generate_key $hcrypt 3des]
     } -cleanup {
         twapi::capi_key_free $hk
         twapi::crypt_free $hcrypt
@@ -3952,7 +3952,7 @@ namespace eval twapi::crypto::test {
         Encrypt block size byte
     } -setup {
         set hcrypt [twapi::crypt_acquire]
-        set hk [twapi::crypt_key_generate $hcrypt 3des]
+        set hk [twapi::crypt_generate_key $hcrypt 3des]
     } -cleanup {
         twapi::capi_key_free $hk
         twapi::crypt_free $hcrypt
@@ -3966,7 +3966,7 @@ namespace eval twapi::crypto::test {
         Encrypt single byte - aes_128
     } -setup {
         set hcrypt [twapi::crypt_acquire -csptype prov_rsa_aes]
-        set hk [twapi::crypt_key_derive $hcrypt aes_128 [twapi::conceal abc]]
+        set hk [twapi::crypt_derive_key $hcrypt aes_128 [twapi::conceal abc]]
     } -cleanup {
         twapi::capi_key_free $hk
         twapi::crypt_free $hcrypt
@@ -3979,7 +3979,7 @@ namespace eval twapi::crypto::test {
         Encrypt block size byte - aes_192
     } -setup {
         set hcrypt [twapi::crypt_acquire -csptype prov_rsa_aes]
-        set hk [twapi::crypt_key_generate $hcrypt aes_192]
+        set hk [twapi::crypt_generate_key $hcrypt aes_192]
     } -cleanup {
         twapi::capi_key_free $hk
         twapi::crypt_free $hcrypt
@@ -3992,7 +3992,7 @@ namespace eval twapi::crypto::test {
         Encrypt block size byte - aes_256
     } -setup {
         set hcrypt [twapi::crypt_acquire -csptype prov_rsa_aes]
-        set hk [twapi::crypt_key_generate $hcrypt aes_256]
+        set hk [twapi::crypt_generate_key $hcrypt aes_256]
     } -cleanup {
         twapi::capi_key_free $hk
         twapi::crypt_free $hcrypt
@@ -4016,7 +4016,7 @@ namespace eval twapi::crypto::test {
         Encrypt empty string - des
     } -setup {
         set hcrypt [twapi::crypt_acquire]
-        set hk [twapi::crypt_key_derive $hcrypt des [twapi::conceal abc]]
+        set hk [twapi::crypt_derive_key $hcrypt des [twapi::conceal abc]]
     } -cleanup {
         twapi::capi_key_free $hk
         twapi::crypt_free $hcrypt
@@ -4029,7 +4029,7 @@ namespace eval twapi::crypto::test {
         Encrypt single char - des
     } -setup {
         set hcrypt [twapi::crypt_acquire]
-        set hk [twapi::crypt_key_derive $hcrypt des [twapi::conceal abc]]
+        set hk [twapi::crypt_derive_key $hcrypt des [twapi::conceal abc]]
     } -cleanup {
         twapi::capi_key_free $hk
         twapi::crypt_free $hcrypt
@@ -4045,6 +4045,18 @@ namespace eval twapi::crypto::test {
     } -body {
         TBD - HHASH parameter, other encryptions, particularly rsa
     } -result TBD
+
+    ################################################################
+
+    test crypt_derive_key-99 {
+        TBD - more crypt_derive_key-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    
 }
 
 patience "Cleaning test certs"
