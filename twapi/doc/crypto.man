@@ -132,15 +132,19 @@ a key container.
 
 [para]
 Depending on the CSP chosen, key containers may be empty when created. 
-The command [uri #crypt_key_generate [cmd crypt_key_generate]]
-adds keys to the container. The algorithm with which the key will be
+The command [uri #crypt_generate_key [cmd crypt_generate_key]]
+adds randomly generated keys to the container. 
+On the other hand,
+the command [uri #crypt_derive_key [cmd crypt_derive_key]] will
+add a key derived from a passphrase. In both cases,
+the algorithm with which the key will be
 used and the purpose (encryption, signing etc.) can be specified
 so the appropriate type of key is generated. The container may
 contain multiple keys and appropriate key must be chosen when
 cryptographic operations are invoked.
 [para]
-The commands in the table below retrieve or set the various
-parameters for a key.
+The properties for a key may be retrieved or set using the commands
+in the table below.
 Note that a key is always associated with a specific cryptographic
 algorithm.
 
@@ -438,7 +442,7 @@ or [cmd capi_hash_string] once this command is called.
 If no optional arguments are specified,
 returns the numeric id for the algorithm associated with the key.
 Otherwise sets it to [arg ALGID]. Additional options such as key size
-may be specified. See [cmd crypt_key_generate] for valid options.
+may be specified. See [cmd crypt_generate_key] for valid options.
 
 [call [cmd capi_key_blocklen] [arg HKEY]]
 If [arg HKEY] references a session key, returns the block length of the
@@ -610,6 +614,49 @@ Returns the name of the CSP owning the cryptographic context [arg HCRYPT].
 [call [cmd crypt_csp_type] [arg HCRYPT]]
 Returns the type of the CSP owning the cryptographic context [arg HCRYPT].
 
+[call [cmd crypt_derive_key] [arg HCRYPT] [arg ALGID] [arg PASSPHRASE] [opt [arg options]]]
+
+Generates a cryptographic key based on a pass phrase and returns a handle
+to it which must be freed using [uri #capi_key_free [cmd capi_key_free]].
+[arg HCRYPT] is the handle to the cryptographic context in which
+the key is to be created and [arg ALGID] should specify the
+[uri #algorithmidentifiers "algorithm identifier"] for the cryptographic
+algorithm with which the key will be used. [arg PASSPHRASE] is the
+pass phrase from which the key will be derived. This must be
+in the form returned by one of the TWAPI password or credential
+input commands so as to avoid inadvertent leakage. If the pass phrase
+comes from some other source, you can use the
+[uri base.html#conceal [cmd conceal]] command to convert to this form
+although this is not recommended as the original plain text pass phrase
+is then exposed at the script level and may show up on any error stacks etc.
+
+The command supports the following options:
+
+[list_begin opt]
+[opt_def [cmd -exportable] [arg BOOLEAN]]
+If [const true] (default), the key can be exported later with
+[uri #capi_key_export [cmd capi_key_export]]. If [const false], the
+derived key can be used in cryptographic operations with the containing
+CSP but cannot be exported.
+[opt_def [cmd -iterations] [arg NUMITERS]]
+Number of iterations to execute if [cmd -method] option is specified
+as [const pbkdf2]. Ignored for other methods. Default is [const 100000].
+[opt_def [cmd -method] [arg KEYDERIVATIONMETHOD]]
+Specifies the method by which the key is derived from the pass phrase.
+See description below for details.
+[opt_def [cmd -salt] [arg BINSTRING]]
+Specifies a binary string to use as the salt value
+if [cmd -method] option is specified
+as [const pbkdf2]. Ignored for other methods.
+[opt_def [cmd -size] [arg KEYSIZE]]
+Specifies the desired number of bits in the derived key. If unspecified or
+[const 0], the derived key size is based on the specified algorithm.
+[list_end]
+
+The method by which the passphrase is transformed into a key is controlled
+by the [cmd -method] option. If 
+
+
 [call [cmd crypt_keyx_keysize_increment] [arg HCRYPT]]
 Returns the number of bits by which the key exchange key size can
 be incremented. The [uri #crypt_algorithms [cmd crypt_algorithms]]
@@ -621,6 +668,36 @@ the context.
 [call [cmd crypt_free] [arg HCRYPT]]
 Frees a cryptographic context returned by
 [uri #crypt_acquire [cmd crypt_acquire]].
+
+[call [cmd crypt_generate_key] [arg HCRYPT] [arg ALGORITHM] [opt [arg options]]]
+Generates a new key or public/private key pair in the cryptographic
+context [arg HCRYPT] and returns a handle to it. 
+[arg ALGORITHM] specifies the algorithm with which the keys will be used
+and must be one of 
+[const keyexchange], [const signature], or the OID of an algorithm
+in either dotted decimal or mnemonic form.
+
+[nl]
+The following options may be specified with the command:
+[list_begin opt]
+[opt_def [cmd -archivable] [arg BOOLEAN]]
+If [const true], the key can be exported until its handle is freed
+after which it is no longer exportable.
+[opt_def [cmd -exportable] [arg BOOLEAN]]
+If [const true], the key is exportable. If [const false], session keys
+and private keys are not exportable.
+[opt_def [cmd -pregen] [arg BOOLEAN]] If [const true], specifies
+an initial Diffie-Hellman or DSS key generation. Not applicable
+for other algorithms.
+[opt_def [cmd -userprotected] [arg BOOLEAN]] If [const true],
+the user is notified by some CSP-specific means for some uses of the key.
+[opt_def [cmd -size] [arg KEYSIZE]] Specifies the key size to override
+the default key size. Since default key sizes are platform dependent,
+Microsoft recommends key size be explicitly set.
+[list_end]
+
+The returned handle must be freed by calling
+[uri #crypt_key_free [cmd crypt_key_free]].
 
 [call [cmd crypt_get_security_descriptor] [arg HCRYPT]]
 Returns the [uri security.html#securitydescriptors "security descriptor"]
@@ -663,36 +740,6 @@ than the one current one.
 
 [call [cmd crypt_key_free] [arg HCRYPTKEY]]
 Deprecated. Use [uri #capi_key_free [cmd capi_key_free]] instead.
-
-[call [cmd crypt_key_generate] [arg HCRYPT] [arg ALGORITHM] [opt [arg options]]]
-Generates a new key or public/private key pair in the cryptographic
-context [arg HCRYPT] and returns a handle to it. 
-[arg ALGORITHM] specifies the algorithm with which the keys will be used
-and must be one of 
-[const keyexchange], [const signature], or the OID of an algorithm
-in either dotted decimal or mnemonic form.
-
-[nl]
-The following options may be specified with the command:
-[list_begin opt]
-[opt_def [cmd -archivable] [arg BOOLEAN]]
-If [const true], the key can be exported until its handle is freed
-after which it is no longer exportable.
-[opt_def [cmd -exportable] [arg BOOLEAN]]
-If [const true], the key is exportable. If [const false], session keys
-and private keys are not exportable.
-[opt_def [cmd -pregen] [arg BOOLEAN]] If [const true], specifies
-an initial Diffie-Hellman or DSS key generation. Not applicable
-for other algorithms.
-[opt_def [cmd -userprotected] [arg BOOLEAN]] If [const true],
-the user is notified by some CSP-specific means for some uses of the key.
-[opt_def [cmd -size] [arg KEYSIZE]] Specifies the key size to override
-the default key size. Since default key sizes are platform dependent,
-Microsoft recommends key size be explicitly set.
-[list_end]
-
-The returned handle must be freed by calling
-[uri #crypt_key_free [cmd crypt_key_free]].
 
 [call [cmd crypt_key_specifiers] [arg HCRYPT]]
 Returns the key specifiers supported by the context. This is a list from
