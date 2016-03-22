@@ -804,7 +804,7 @@ a binary string. Otherwise, it is converted to a binary string
 using the specified encoding [arg ENC] and the digest is calculated
 on the result.
 
-[call [cmd pbkdf2] [arg PASSPHRASE] [arg KEYSIZE] [arg SALT] [opt [arg options]]]
+[call [cmd pbkdf2] [arg PASSPHRASE] [arg KEYSIZE] [arg SALT] [opt "[cmd -iterations] [arg NITERATIONS]"]]
 Generates a key of the specified number of bits [arg KEYSIZE]
 based on the specified pass phrase [arg PASSPHRASE]. The key derivation
 is based on the PBKDF2 algorithm defined by RFC 2898 using SHA1 as the
