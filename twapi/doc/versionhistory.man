@@ -31,6 +31,8 @@ Added
 
 [bullet]
 Added crypto key related commands
+[uri crypto.html#pbkdf2 [cmd pbkdf2]],
+[uri crypto.html#crypt_derive_key [cmd crypt_derive_key]],
 [uri crypto.html#capi_key_algid [cmd capi_key_algid]],
 [uri crypto.html#capi_key_blocklen [cmd capi_key_blocklen]],
 [uri crypto.html#capi_key_certificate [cmd capi_key_certificate]],

@@ -5213,11 +5213,13 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     BOOL pbkdf2_status;
     MemLifoMarkHandle mark;
     TWAPI_PLAINTEXTKEYBLOB *blobP;
+    int return_format;
     
     mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETOBJ(passObj),
+                         GETINT(nkeybits), 
                          GETBA(saltP, nsalt), GETINT(niterations),
-                         GETINT(nkeybits), ARGEND);
+                         ARGUSEDEFAULT, GETINT(return_format), ARGEND);
     if (res != TCL_OK)
         goto vamoose;
     
@@ -5248,15 +5250,20 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     if (! pbkdf2_status)
         res = TwapiReturnSystemError(interp);
     else {
-        /* Return the key in sealed form as a PLAINTEXTKEYBLOB */
         Tcl_Obj *encObj;
-        blobP->hdr.bType = PLAINTEXTKEYBLOB;
-        blobP->hdr.bVersion = CUR_BLOB_VERSION;
-        blobP->hdr.reserved = 0;
-        blobP->hdr.aiKeyAlg = 0;
-        blobP->dwKeySize = nkeybytes;
-        encObj = ObjEncryptData(interp, (BYTE *) blobP, 
-                                TWAPI_PLAINTEXTKEYBLOB_SIZE(nkeybytes));
+        if (return_format) {
+            /* Return the key in sealed form as a PLAINTEXTKEYBLOB */
+            blobP->hdr.bType = PLAINTEXTKEYBLOB;
+            blobP->hdr.bVersion = CUR_BLOB_VERSION;
+            blobP->hdr.reserved = 0;
+            blobP->hdr.aiKeyAlg = 0;
+            blobP->dwKeySize = nkeybytes;
+            encObj = ObjEncryptData(interp, (BYTE *) blobP, 
+                                    TWAPI_PLAINTEXTKEYBLOB_SIZE(nkeybytes));
+        } else {
+            /* Return as a plain sealed object */
+            encObj = ObjEncryptData(interp, keyP, nkeybytes);
+        }
         if (encObj)
             res = ObjSetResult(interp, encObj);
         else
@@ -5388,7 +5395,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptSignAndEncryptMessage, Twapi_CryptSignAndEncryptMessageObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptImportKey, Twapi_CryptImportKeyObjCmd),
         DEFINE_TCL_CMD(CryptExportKey, Twapi_CryptExportKeyObjCmd),
-        DEFINE_TCL_CMD(pbkdf2, Twapi_PBKDF2ObjCmd), // TBD - document
+        DEFINE_TCL_CMD(PBKDF2, Twapi_PBKDF2ObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);

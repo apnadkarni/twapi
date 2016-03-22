@@ -1497,7 +1497,6 @@ proc twapi::crypt_import_key {hcrypt keyblob args} {
 }
 interp alias {} twapi::capi_key_import {} twapi::crypt_import_key
 
-# TBD - document
 proc twapi::crypt_derive_key {hcrypt algid passphrase args} {
     parseargs args {
         {size.int 0}
@@ -1532,7 +1531,7 @@ proc twapi::crypt_derive_key {hcrypt algid passphrase args} {
                 error "Could not figure out default key size for algorithm $algid. Please use the -size option."
             }
         }
-        set pbkdf2 [pbkdf2 $passphrase $salt $iterations $size]
+        set pbkdf2 [PBKDF2 $passphrase $size $salt $iterations 1]
         set keyblob [list 0 2 0 $algnum $pbkdf2]
         return [crypt_key_import $hcrypt $keyblob -exportable $exportable]
     } else {
@@ -1549,6 +1548,13 @@ proc twapi::crypt_derive_key {hcrypt algid passphrase args} {
             capi_hash_free $hhash
         }
     }
+}
+
+proc twapi::pbkdf2 {passphrase size salt args} {
+    parseargs args {
+        {iterations.int 100000}
+    } -maxleftover 0 -setvars
+    return [PBKDF2 $passphrase $size $salt $iterations]
 }
 
 proc twapi::capi_encrypt_bytes {bytes hkey {hhash NULL}} {
