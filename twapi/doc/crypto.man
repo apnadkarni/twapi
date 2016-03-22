@@ -141,7 +141,9 @@ the algorithm with which the key will be
 used and the purpose (encryption, signing etc.) can be specified
 so the appropriate type of key is generated. The container may
 contain multiple keys and appropriate key must be chosen when
-cryptographic operations are invoked.
+cryptographic operations are invoked. A raw key of a specified
+number of bits derived from a passphrase can be generated using
+the [uri #pbkdf2 pbkdf2] command.
 [para]
 The properties for a key may be retrieved or set using the commands
 in the table below.
@@ -654,8 +656,15 @@ Specifies the desired number of bits in the derived key. If unspecified or
 [list_end]
 
 The method by which the passphrase is transformed into a key is controlled
-by the [cmd -method] option. If 
-
+by the [cmd -method] option. If the value
+[arg KEYDERIVATIONMETHOD] is [const pbkdf2], the
+command [uri #pbkdf2 [cmd pbkdf2]] is used for generating the key
+passing it the values specified for [cmd -iterations], [cmd -salt]
+and [cmd -size]. Otherwise, [arg KEYDERIVATIONMETHOD] must
+be a [uri #algorithmidentifiers "hashing algorithm identifier"].
+This will passed along with other parameters to the
+Win32 [cmd CryptDeriveKey] function. Refer to the SDK documentation
+for details regarding how the function derives keys.
 
 [call [cmd crypt_keyx_keysize_increment] [arg HCRYPT]]
 Returns the number of bits by which the key exchange key size can
@@ -795,6 +804,15 @@ a binary string. Otherwise, it is converted to a binary string
 using the specified encoding [arg ENC] and the digest is calculated
 on the result.
 
+[call [cmd pbkdf2] [arg PASSPHRASE] [arg KEYSIZE] [arg SALT] [opt [arg options]]]
+Generates a key of the specified number of bits [arg KEYSIZE]
+based on the specified pass phrase [arg PASSPHRASE]. The key derivation
+is based on the PBKDF2 algorithm defined by RFC 2898 using SHA1 as the
+hash function. [arg SALT] and [arg NITERATIONS] are used as defined
+in the RFC.
+[nl]
+The return key is in a [uri base.html#protectingdatainmemory sealed] form.
+                    
 [call [cmd protect_data] [arg BINDATA] [opt [arg options]]]
 Encrypts and signs the binary data [arg BINDATA] so that it can only
 be recovered by a process running under the same user credentials
