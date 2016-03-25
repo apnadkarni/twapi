@@ -471,6 +471,43 @@ The return value is a binary string in little-endian form.
 [call [cmd capi_key_effective_keylen] [arg HKEY]]
 Returns the effective key length of the key.
 
+[call [cmd capi_key_export] [arg HKEY] [arg BLOBTYPE] [opt "[cmd -wrapper] [arg HWRAPPER]"]]
+
+Exports the key referenced by the specified handle [arg HKEY].
+The return value  is a list containing 5 elements.
+The first element is a numeric value corresponding to the blob type. 
+The second is the version number of the blob format. The third is a
+reserved value that should be ignored by applications. The
+fourth is the numeric [uri #algorithmidentifiers "algorithm identifier"].
+Finally, the fifth value is a binary key blob
+whose format and structure depends on [arg BLOBTYPE]
+and is described in the
+[uri https://msdn.microsoft.com/en-us/library/windows/desktop/aa375601(v=vs.85).aspx "SDK documentation"].
+The possible values of [arg BLOBTYPE] and corresponding
+formats are shown in the table below. 
+
+[list_begin opt]
+[opt_def [const opaque]] The returned key blob is in a
+format is a vendor-specific format that can only be used with the same CSP.
+[opt_def [const plaintext]] The returned key blob is a
+[const PLAINTEXTKEYBLOB] blob.
+[opt_def [const privatekey]]
+The returned key blob is a [const PRIVATEKEYBLOB] containing the public
+and private keys. If the [cmd -wrapper] option is specified, it must
+be the handle to a symmetric key in which case the blob is encrypted
+with that key.
+[opt_def [const publickey]]
+The returned key blob is a [const PUBLICKEYBLOB] containing the
+public key of a key pair.
+[opt_def [const rfc3217]] The returned key blob is in the format
+specified by RFC3217. Both [arg HKEY] and the wrapping key specified
+by the [cmd -wrapper] option must be symmetric keys.
+[opt_def [const simple]] The returned key blob is a
+[const SIMPLEBLOB] where the symmetric key specified by [arg HKEY]
+is wrapped by a key exchange key specified with the [cmd -wrapper]
+option.
+[list_end]
+
 [call [cmd capi_key_free] [arg HKEY]]
 Frees a handle to a cryptographic key.
 
