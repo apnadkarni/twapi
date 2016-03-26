@@ -30,6 +30,11 @@ Added
 [uri crypto.html#capi_decrypt_string [cmd capi_decrypt_string]].
 
 [bullet]
+Added key import/export commands
+[uri crypto.html#crypt_import_key [cmd crypt_import_key]],
+[uri crypto.html#capi_key_export [cmd capi_key_export]].
+
+[bullet]
 Added crypto key related commands
 [uri crypto.html#pbkdf2 [cmd pbkdf2]],
 [uri crypto.html#crypt_derive_key [cmd crypt_derive_key]],

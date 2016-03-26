@@ -3806,7 +3806,7 @@ static TCL_RESULT Twapi_CryptExportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(hkey, HCRYPTKEY, CryptDestroyKey),
-                     GETVERIFIEDPTR(hwrapper, HCRYPTKEY, CryptDestroyKey),
+                     GETVERIFIEDORNULL(hwrapper, HCRYPTKEY, CryptDestroyKey),
                      GETINT(blob_type), GETINT(flags), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
