@@ -4065,6 +4065,22 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    test crypt_export_key-99 {
+        TBD - more crypt_export_key-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test crypt_import_key-99 {
+        TBD - more crypt_import_key-99
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
     
 }
 

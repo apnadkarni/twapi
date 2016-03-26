@@ -181,6 +181,12 @@ Operations that are permitted for the key.
 Salt value.
 [list_end]
 
+Keys received from other applications can be imported into a cryptographic
+context with the [uri #crypt_import_key [cmd crypt_import_key]] command.
+Conversely, a key that needs to be communicated to another application
+can be exported with the
+[uri #capi_key_export [cmd capi_key_export]] command.
+
 [section "Cryptographic contexts"]
 In order to perform cryptographic operations, an application must
 choose a CSP, the algorithms to use and their parameters including keys.
@@ -754,6 +760,31 @@ Returns the implementation type of the context. This is one of the
 values [const software], [const hardware], [const removable], [const mixed]
 (combination of the others), or [const unknown]. Applications should be
 aware other values might be returned as well.
+
+[call [cmd crypt_import_key] [arg HCRYPT] [arg KEYBLOB] [opt [arg options]]]
+Imports a key blob into the cryptographic context specified by [arg HCRYPT]
+and returns a handle to the imported key. The returned key handle must
+be freed by passing it to [uri #capi_key_free [cmd capi_key_free]]
+when no longer required. [arg KEYBLOB] is in one of
+the formats returned by [uri #capi_key_export [cmd capi_key_export]].
+[nl]
+The command accepts the following options
+
+[list_begin opt]
+[opt_def [cmd -exportable] [arg BOOLEAN]]
+If [arg true] (default), the imported key can be exported at a later
+time. If [const false] the key cannot be exported although it can
+be used for cryptographic operations.
+[opt_def [cmd -ipsechmac] [arg BOOLEAN]] TBD
+[opt_def [cmd -oaep] [arg BOOLEAN]] TBD
+[opt_def [cmd -userprotected] [arg BOOLEAN]]
+If specified as [const true], the user is notified in a CSP-dependent
+manner whenever the key is used. Default is [const false].
+[opt_def [cmd -wrapper] [arg HWRAPPER]]
+If [arg KEYBLOB] was in an encrypted form, this option must be specified
+and [arg HWRAPPER] should be the handle to the key that can decrypt
+the key blob.
+[list_end]
 
 [call [cmd crypt_key_container_delete] [arg KEYCONTAINER] [opt [arg options]]]
 Deletes the key container identified by the specified options.
