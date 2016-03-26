@@ -1459,7 +1459,6 @@ proc twapi::crypt_symmetric_key_size {hcrypt} {
     return [CryptGetProvParam $hcrypt 19 0]
 }
 
-# TBD - test
 proc twapi::capi_key_export {hkey blob_type args} {
     set blob_type [dict! {
         keystate   12
@@ -1473,26 +1472,26 @@ proc twapi::capi_key_export {hkey blob_type args} {
     } $blob_type]
 
     parseargs args {
-        {-hwrapper.arg NULL}
+        {wrapper.arg NULL}
         {v3.bool 0 0x80}
         {oeap.bool 0 0x40}
+        {destroy.bool 0 0x04}
     } -setvars -maxleftover 0
 
-    return [CryptExportKey $hkey $hwrapper $blob_type [expr {$v3|$oeap}]]
+    return [CryptExportKey $hkey $wrapper $blob_type [expr {$v3|$oeap}]]
 }
 interp alias {} twapi::crypt_export_key {} twapi::capi_key_export
 
 
-# TBD - document
 proc twapi::crypt_import_key {hcrypt keyblob args} {
     parseargs args {
-        {hwrapper.arg NULL}
+        {wrapper.arg NULL}
         {exportable.bool 1 0x01}
         {oaep.bool 0 0x40}
         {userprotected.bool 0 0x02}
         {ipsechmac.bool 0 0x100}
     } -setvars -maxleftover 0
-    return [CryptImportKey $hcrypt $keyblob $hwrapper \
+    return [CryptImportKey $hcrypt $keyblob $wrapper \
                 [expr {$exportable|$oaep|$userprotected|$ipsechmac}]]
 }
 interp alias {} twapi::capi_key_import {} twapi::crypt_import_key
@@ -1808,7 +1807,6 @@ proc twapi::asn1_encode_string {s {encformat utf8}} {
 ###
 # Key procs
 
-# TBD - document all
 proc twapi::_capi_key_param {param_id hkey args} {
     if {[llength $args] == 0} {
         return [CryptGetKeyParam $hkey $param_id]
