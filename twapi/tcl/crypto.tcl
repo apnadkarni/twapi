@@ -786,7 +786,7 @@ proc twapi::cert_get_chain {hcert args} {
 }
 
 # TBD - document
-proc twapi::cert_free_chain {hchain} {
+proc twapi::cert_chain_free {hchain} {
     CertFreeCertificateChain $hchain
 }
 
@@ -1720,17 +1720,17 @@ proc twapi::crypt_enumerate_oid_info {{oidgroup 0}} {
     }]
 }
 
-# TBD - document
-proc twapi::_crypt_query_object {type arg args} {
+# TBD - test
+proc twapi::_crypt_parse {type arg args} {
     parseargs args {
-        {expectedcontenttype.arg any}
-        {expectedformattype.arg any}
+        {contenttype.arg any}
+        {formattype.arg any}
         {typesonly.bool 0}
     } -setvars -maxleftover 0
         
     # Note - CERT_QUERY_CONTENT_FLAG_PFX_AND_LOAD not supported
     # on XP/2k3 hence not included in expected_content_type
-    set expectedcontenttype [dict! {
+    set contenttype [dict! {
         cert 2
         ctl  4
         crl  8
@@ -1745,17 +1745,17 @@ proc twapi::_crypt_query_object {type arg args} {
         pfx 4096
         certpair 8192
         any 0x3FFE
-    } $expectedcontenttype]
+    } $contenttype]
     
-    set expectedformattype [dict! {
+    set formattype [dict! {
         binary 2
         base64 4
         asn1hex 8
         any    14
-    } $expectedformattype]
+    } $formattype]
 
     set ret [CryptQueryObject $type $arg \
-                 $expectedcontenttype $expectedformattype 0 $typesonly]
+                 $contenttype $formattype 0 $typesonly]
     # We don't mention PKCS7_ASN v/s X509_ASN anywhere and use encoding
     # to refer to PEM/DER so leave it off for now
     dict unset ret encoding
@@ -1782,8 +1782,8 @@ proc twapi::_crypt_query_object {type arg args} {
 
     return $ret
 }
-interp alias {} twapi::crypt_query_file {} twapi::_crypt_query_object 1
-interp alias {} twapi::crypt_query_blob {} twapi::_crypt_query_object 2
+interp alias {} twapi::crypt_parse_file {} twapi::_crypt_parse 1
+interp alias {} twapi::crypt_parse {} twapi::_crypt_parse 2
 
 ###
 # ASN.1 procs

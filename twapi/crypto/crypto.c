@@ -3080,12 +3080,12 @@ static TCL_RESULT Twapi_CryptQueryObjectObjCmd(TwapiInterpContext *ticP, Tcl_Int
             nobjs = 6;
             if (hstore) {
                 TwapiRegisterHCERTSTORETic(ticP, hstore);
-                objs[nobjs++] = STRING_LITERAL_OBJ("certstore");
+                objs[nobjs++] = STRING_LITERAL_OBJ("store");
                 objs[nobjs++] = ObjFromOpaque(hstore, "HCERTSTORE");
             }
             if (hmsg) {
                 TwapiRegisterHCRYPTMSGTic(ticP, hmsg);
-                objs[nobjs++] = STRING_LITERAL_OBJ("cryptmsg");
+                objs[nobjs++] = STRING_LITERAL_OBJ("message");
                 objs[nobjs++] = ObjFromOpaque(hstore, "HCRYPTMSG");
             }
             if (pvP) {
@@ -3093,19 +3093,19 @@ static TCL_RESULT Twapi_CryptQueryObjectObjCmd(TwapiInterpContext *ticP, Tcl_Int
                 case CERT_QUERY_CONTENT_CERT:
                 case CERT_QUERY_CONTENT_SERIALIZED_CERT:
                     TwapiRegisterPCCERT_CONTEXTTic(ticP, (PCCERT_CONTEXT)pv);
-                    objs[nobjs++] = STRING_LITERAL_OBJ("cert_context");
+                    objs[nobjs++] = STRING_LITERAL_OBJ("certificate");
                     objs[nobjs++] = ObjFromOpaque(pv, "PCCERT_CONTEXT");
                     break;
                 case CERT_QUERY_CONTENT_CRL:
                 case CERT_QUERY_CONTENT_SERIALIZED_CRL:
                     TwapiRegisterPCCRL_CONTEXTTic(ticP, (PCCRL_CONTEXT)pv);
-                    objs[nobjs++] = STRING_LITERAL_OBJ("crl_context");
+                    objs[nobjs++] = STRING_LITERAL_OBJ("crl");
                     objs[nobjs++] = ObjFromOpaque(pv, "PCCRL_CONTEXT");
                     break;
                 case CERT_QUERY_CONTENT_CTL:
                 case CERT_QUERY_CONTENT_SERIALIZED_CTL:
                     TwapiRegisterPCCTL_CONTEXTTic(ticP, (PCCTL_CONTEXT)pv);
-                    objs[nobjs++] = STRING_LITERAL_OBJ("ctl_context");
+                    objs[nobjs++] = STRING_LITERAL_OBJ("ctl");
                     objs[nobjs++] = ObjFromOpaque(pv, "PCCTL_CONTEXT");
                     break;
                 }
@@ -5338,9 +5338,9 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CertCompareCertificateName, 10049), // TBD Tcl
         DEFINE_FNCODE_CMD(CryptEnumProviderTypes, 10050),
         DEFINE_FNCODE_CMD(CryptEnumProviders, 10051),
-        DEFINE_FNCODE_CMD(CryptMsgClose, 10052), // TBD Tcl
-        DEFINE_FNCODE_CMD(CertFreeCRLContext, 10053), // TBD Tcl
-        DEFINE_FNCODE_CMD(CertFreeCTLContext, 10054), // TBD Tcl
+        DEFINE_FNCODE_CMD(capi_msg_release, 10052), // TBD doc
+        DEFINE_FNCODE_CMD(crl_release, 10053), // TBD doc
+        DEFINE_FNCODE_CMD(ctl_release, 10054), // TBD doc
         DEFINE_FNCODE_CMD(CryptCATAdminCalcHashFromFileHandle, 10055), // TBD Tcl
         // TBD DEFINE_FNCODE_CMD(CertCreateContext, TBD),
         DEFINE_FNCODE_CMD(CryptCATAdminAcquireContext, 10056), // TBD Tcl
