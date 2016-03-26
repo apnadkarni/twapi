@@ -362,6 +362,14 @@ The TWAPI base module also provides the [cmd seal]/[cmd unseal] and
 [cmd conceal]/[cmd reveal] commands to protect data within the current
 process. See the [uri base.html base] module reference for details.
 
+[section "Parsing cryptographic objects"]
+Cryptographic objects such as certificates, stores signed messages etc.
+may be of different formats and encodings. The command
+[uri #crypt_parse [cmd crypt_parse]] analyses and parses
+a binary string containing a serialized cryptographic object, possibly
+of an unknown type. The command [uri #crypt_parse_file [cmd crypt_parse_file]]
+is similar except it reads the serialized data directly from a file.
+
 [section Commands]
 
 [list_begin definitions]
@@ -836,6 +844,132 @@ The returned handle must be freed by calling
 [call [cmd crypt_keyset_type] [arg HCRYPT]]
 Returns [const user] or [const machine] depending on
 whether the key set in the container is per-user or per-machine.
+
+[call [cmd crypt_parse] [arg BINSTRING] [opt [arg options]]]
+Parses a serialized form of a cryptographic object, stored as a
+binary string [arg BINSTRING], which may be in
+one of several different formats and encodings and whose type may
+be a certificate, certificate store, a CTL or a CRL.
+[nl]
+The following options may be specified with the command.
+[list_begin opt]
+[opt_def [cmd -contenttype] [arg CONTENTTYPE]]
+Specifies the type of cryptographic object expected. See below for the
+possible values. If unspecified, or if [arg CONTENTTYPE] is [const any],
+the command will attempt to guess the type of content. Otherwise, it
+will raise an error if the content is not of the specified type.
+[opt_def [const -format] [arg FORMAT]]
+Specifies the format of the data. [arg FORMAT] must be on of the values
+[const binary], [const base64], [const asn1hex] or [const any]. If the
+option is unspecified or [const any],
+the command will attempt to guess the format. Otherwise, it
+will raise an error if the data format is not that specified.
+[opt_def [const -typesonly]]
+If specified as [const true], the actual content is not included in the
+returned dictionary. Only the information related to format and
+object type is returned. Defaults to [const false].
+[list_end]
+
+The return value is a dictionary with at least the
+keys shown in the table below.
+
+[list_begin opt]
+[opt_def [const formattype]]
+The associated value is one of [const binary], [const base64] or
+[const asn1hex] depending on the format of the data.
+[opt_def [const contenttype]]
+The associated value indicates the type of data that was parsed. The
+parsed data is stored in additional keys in the returned dictionary that
+depend on this type. This is discussed below.
+[list_end]
+
+The possible values in the [const contenttype] key of the
+returned dictionary and the semantics of each are shown in the table below.
+Note that the return dictionary also contains additional keys
+that depend on this value.
+
+[list_begin opt]
+[opt_def [const cert]]
+The data is a certificate. The returned dictionary has two additional keys
+[const store] and [const certificate] that contain handles to a certificate
+store and certificate context. These must be released
+after use with [uri #cert_store_release [cmd cert_store_release]] and
+[uri #cert_release [cmd cert_release]] respectively.
+[opt_def [const certpair]]
+TBD.
+[opt_def [const crl]]
+The data is a CRL. The returned dictionary has two additional keys
+[const store] and [const crl] that contain handles to a certificate
+store and CRL context. These must be released
+after use with [uri #cert_store_release [cmd cert_store_release]] and
+[uri #crl_release [cmd crl_release]] respectively.
+[opt_def [const ctl]]
+The data is a CTL. The returned dictionary has two additional keys
+[const store] and [const ctl] that contain handles to a certificate
+store and CTL context. These must be released
+after use with [uri #cert_store_release [cmd cert_store_release]] and
+[uri #ctl_release [cmd ctl_release]] respectively.
+[opt_def [const pfx]]
+The data is a PFX (PKCS#12) packet. No additional keys are returned in
+the dictionary. The application can use the
+[uri #cert_temporary_store [cmd cert_temporary_store]] command
+to import the PFX packet.
+[opt_def [const pkcs10]]
+The data is a PKCS#10 message.
+[opt_def [const pkcs7signed]]
+The data is a PKCS#7 signed message.
+The returned dictionary has two additional keys
+[const store] and [const message] that contain handles to a certificate
+store and signed message. These must be released
+after use with [uri #cert_store_release [cmd cert_store_release]] and
+[uri #capi_msg_release [cmd capi_msg_release]] respectively.
+[opt_def [const pkcs7signedembed]]
+The data is an embedded PKCS#7 signed message.
+The returned dictionary has two additional keys
+[const store] and [const message] that contain handles to a certificate
+store and signed message. These must be released
+after use with [uri #cert_store_release [cmd cert_store_release]] and
+[uri #capi_msg_release [cmd capi_msg_release]] respectively.
+[opt_def [const pkcs7unsigned]]
+The data is a PKCS#7 unsigned message.
+The returned dictionary has an additional key, [const message]
+that contains a handle to a signed message.
+This must be released with
+[uri #capi_msg_release [cmd capi_msg_release]].
+[opt_def [const serializedcert]]
+The data is a serialized certificate.
+The returned dictionary has two additional keys
+[const store] and [const certificate] that contain handles to a certificate
+store and certificate context. These must be released
+after use with [uri #cert_store_release [cmd cert_store_release]] and
+[uri #cert_release [cmd cert_release]] respectively.
+[opt_def [const serializedcrl]]
+The data is a serialized CRL. The returned dictionary has two additional keys
+[const store] and [const crl] that contain handles to a certificate
+store and CRL context. These must be released
+after use with [uri #cert_store_release [cmd cert_store_release]] and
+[uri #crl_release [cmd crl_release]] respectively.
+[opt_def [const serializedctl]]
+The data is a serialized CTL. The returned dictionary has two additional keys
+[const store] and [const ctl] that contain handles to a certificate
+store and CTL context. These must be released
+after use with [uri #cert_store_release [cmd cert_store_release]] and
+[uri #ctl_release [cmd ctl_release]] respectively.
+[opt_def [const serializedstore]]
+The data is a serialized certificate store.
+The returned dictionary has an additional key
+[const store] that contains a handle to a certificate
+store created from the data. This must be released
+after use with [uri #cert_store_release [cmd cert_store_release]].
+
+[list_end]
+
+[call [cmd crypt_parse_file] [arg FILEPATH] [opt [arg options]]]
+Parses a cryptographic object
+in the same manner as [uri #crypt_parse [cmd crypt_parse]]
+except that the object is read from the file [arg FILEPATH].
+See the documentation of [uri #crypt_parse [cmd crypt_parse]]
+for details.
 
 [call [cmd crypt_set_security_descriptor] [arg HCRYPT] [opt [arg SECD]]]
 Sets the [uri security.html#securitydescriptors "security descriptor"]
