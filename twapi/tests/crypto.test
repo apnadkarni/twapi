@@ -4048,17 +4048,8 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    test pbkdf2-99 {
-        TBD - pbkdf2-99
-    } -constraints {
-        TBD
-    } -body {
-        TBD
-    } -result TBD
-
-    
     test crypt_derive_key-99 {
-        TBD - more crypt_derive_key-99
+        TBD - crypt_derive_key-99
     } -constraints {
         TBD
     } -body {
