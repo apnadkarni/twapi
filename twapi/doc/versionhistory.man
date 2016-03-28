@@ -71,6 +71,7 @@ Added hashing commands
 [uri crypto.html#capi_hash_bytes [cmd capi_hash_bytes]],
 [uri crypto.html#capi_hash_string [cmd capi_hash_string]],
 [uri crypto.html#capi_hash_dup [cmd capi_hash_dup]],
+[uri crypto.html#capi_hash_sign [cmd capi_hash_sign]],
 [uri crypto.html#capi_hash_session_key [cmd capi_hash_session_key]].
 
 [bullet]
