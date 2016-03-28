@@ -3835,7 +3835,8 @@ static TCL_RESULT Twapi_CryptExportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     if (blobP->bType != PLAINTEXTKEYBLOB)
         objs[0] = ObjFromInt(blobP->bType);
     else {
-        Tcl_Obj *encObj = ObjEncryptData(interp, (BYTE*) blobP, nbytes);
+        TWAPI_PLAINTEXTKEYBLOB *ptblobP = (TWAPI_PLAINTEXTKEYBLOB *) blobP;
+        Tcl_Obj *encObj = ObjEncryptData(interp, (BYTE*) &ptblobP->rgbKeyData[0], ptblobP->dwKeySize);
         ObjDecrRefs(objs[4]); /* Free regardless of error */
         if (encObj == NULL) {
             int i;
@@ -3878,27 +3879,25 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "Truncated key blob.");
 
     if (btype == 0) {
-        /* This is not a valid CryptoAPI blob type so we use it to indicate
-         * the key blob is sealed with twapi
+        /* 0 is not a valid CryptoAPI blob type so we use it to indicate
+         * the key blob is plaintext sealed with twapi. We have to build
+         * a PLAINTEXTBLOB header in front of it.
          */
         TWAPI_PLAINTEXTKEYBLOB *p;
         mark = MemLifoPushMark(ticP->memlifoP);
-        p = MemLifoAlloc(ticP->memlifoP, nbytes, NULL);
-        res = TwapiDecryptData(interp, (BYTE*) blobP, nbytes, (BYTE*) p, &nbytes);
+        p = MemLifoAlloc(ticP->memlifoP, sizeof(*p)+nbytes, NULL);
+        p->dwKeySize = nbytes; /* Size of output buffer */
+        res = TwapiDecryptData(interp, (BYTE*) blobP, nbytes, (BYTE*) &p->rgbKeyData[0], &p->dwKeySize);
         if (res != TCL_OK)
             goto vamoose;
-        nclear = nbytes; /* Number of bytes of memory to clear out */
-        if (TWAPI_PLAINTEXTKEYBLOB_SIZE(p->dwKeySize) != nbytes) {
-            res = TwapiReturnErrorEx(interp, TWAPI_INVALID_DATA,
-                                     Tcl_ObjPrintf("Inconsistent key blob size (%d versus %d).", TWAPI_PLAINTEXTKEYBLOB_SIZE(p->dwKeySize), nbytes));
-            goto vamoose;
-        }
+        TWAPI_ASSERT(p->dwKeySize < nbytes);
+        nclear = sizeof(*p) + p->dwKeySize; /* Number of bytes to clear out */
         btype = PLAINTEXTKEYBLOB;
         blobP = &p->hdr;
-        if (blobP->aiKeyAlg == 0) {
-            /* PBKDF2 for example returns keys without a alg id */
-            blobP->aiKeyAlg = balg_id;
-        }
+        blobP->bType = btype;
+        blobP->bVersion = bver;
+        blobP->reserved = 0;
+        blobP->aiKeyAlg = balg_id;
     }
 
     /* At this point, blobP may point into the Tcl_Obj data or memlifo memory */
@@ -5251,7 +5250,7 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
         res = TwapiReturnSystemError(interp);
     else {
         Tcl_Obj *encObj;
-        if (return_format) {
+        if (0 && return_format) {
             /* Return the key in sealed form as a PLAINTEXTKEYBLOB */
             blobP->hdr.bType = PLAINTEXTKEYBLOB;
             blobP->hdr.bVersion = CUR_BLOB_VERSION;
