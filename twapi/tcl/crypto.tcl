@@ -31,7 +31,7 @@ proc twapi::capi_hash_value {hhash} {
     return [CryptGetHashParam $hhash 2]; # HP_HASHVAL
 }
 
-# TBD - document
+# TBD - test
 proc twapi::capi_hash_sign {hhash keyspec args} {
     parseargs args {
         {nohashoid.bool 0 1}
@@ -63,6 +63,18 @@ interp alias {} twapi::sha256 {} twapi::_do_hash prov_rsa_aes sha_256
 interp alias {} twapi::sha384 {} twapi::_do_hash prov_rsa_aes sha_384
 interp alias {} twapi::sha512 {} twapi::_do_hash prov_rsa_aes sha_512
 
+proc twapi::hmac {data key args} {
+    parseargs args {
+        encoding.arg
+    } -maxleftover 0 -setvars
+    if {[info exists encoding]} {
+        set data [encoding convertto $encoding $data]
+    }
+    TBD
+    set hcrypt [crypt_acquire 
+}
+
+                  
 ### Data protection
 
 proc twapi::protect_data {data args} {
@@ -1530,7 +1542,7 @@ proc twapi::crypt_derive_key {hcrypt algid passphrase args} {
                 error "Could not figure out default key size for algorithm $algid. Please use the -size option."
             }
         }
-        set pbkdf2 [PBKDF2 $passphrase $size $salt $iterations 1]
+        set pbkdf2 [PBKDF2 $passphrase $size $salt $iterations]
         set keyblob [list 0 2 0 $algnum $pbkdf2]
         return [crypt_key_import $hcrypt $keyblob -exportable $exportable]
     } else {
