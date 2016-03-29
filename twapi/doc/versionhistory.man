@@ -80,7 +80,8 @@ Added
 [uri crypto.html#sha1 [cmd sha1]],
 [uri crypto.html#sha256 [cmd sha256]],
 [uri crypto.html#sha384 [cmd sha384]],
-[uri crypto.html#sha512 [cmd sha512]].
+[uri crypto.html#sha512 [cmd sha512]],
+[uri crypto.html#hmac [cmd hmac]].
 
 [bullet]
 Added [uri crypto.html#crypt_algorithms [cmd crypt_algorithms]],
