@@ -66,12 +66,39 @@ interp alias {} twapi::sha512 {} twapi::_do_hash prov_rsa_aes sha_512
 proc twapi::hmac {data key args} {
     parseargs args {
         encoding.arg
+        {algid.arg sha1}
     } -maxleftover 0 -setvars
+    
     if {[info exists encoding]} {
         set data [encoding convertto $encoding $data]
     }
-    TBD
-    set hcrypt [crypt_acquire 
+
+    # Choose prov_rsa_aes because older CSP's do not support sha256
+    set hcrypt [crypt_acquire -csptype prov_rsa_aes]
+    try {
+        # The algorithm specified for importing the key actually is not
+        # executed at all. It's only used for importing the key.
+        # However it has to be something that will accept any key size.
+        # On Windows 8 at least, RC4 seems to require at least 5 byte keys.
+        # RC2 on the other hand, if the -ipsechmac flag is specifie
+        # will accept any number. TBD - the pbkdf2 source code implies
+        # on Win8.1 single byte keys will not be accepted by rc2 and
+        # keys need to be padded with 0's. Need to check that.
+        set hkey [crypt_import_key $hcrypt [_make_plaintextkeyblob rc2 $key] -ipsechmac 1]
+        set hhash [capi_hash_create $hcrypt hmac $hkey]
+        # 5 -> HP_HMAC_INFO
+        CryptSetHashParam $hhash 5 [list [capi_algid $algid] "" ""]
+        capi_hash_bytes $hhash $data
+        return [capi_hash_value $hhash]
+    } finally {
+        if {[info exists hhash]} {
+            capi_hash_free $hhash
+        }
+        if {[info exists hkey]} {
+            capi_key_free $hkey
+        }
+        crypt_free $hcrypt
+    }
 }
 
                   
@@ -1544,7 +1571,7 @@ proc twapi::crypt_derive_key {hcrypt algid passphrase args} {
         }
         set pbkdf2 [PBKDF2 $passphrase $size $salt $iterations]
         set keyblob [list 0 2 0 $algnum $pbkdf2]
-        return [crypt_key_import $hcrypt $keyblob -exportable $exportable]
+        return [crypt_import_key $hcrypt $keyblob -exportable $exportable]
     } else {
         if {$size < 0 || $size > 65535} {
             # Key size of 0 is default. Else it must be within 1-65535
@@ -2751,6 +2778,12 @@ proc twapi::_parse_store_open_opts {optvals} {
     return $flags
 }
 
+proc twapi::_make_plaintextkeyblob {algid rawkey} {
+    # 0 -> sealed plaintextkeyblob
+    # 2 -> bVersion
+    # 0 -> reserved
+    return [list 0 2 0 [capi_algid $algid] $rawkey]
+}
 
 # Utility proc to generate certs in a memory store - 
 # one self signed which is used to sign a client and a server cert
