@@ -44,6 +44,11 @@ namespace eval twapi::crypto::test {
     set hash_bin_operand [string repeat "\001abc\u0100" 100]
     set hash_str_operand "0123456789abcdefghijklmnopqrstuvwxyz"
 
+    # Return a binary
+    proc hexbin {hex} {
+        return [binary format H* $hex]
+    }
+    
     # TBD - add tests, including SSL, were data is passed in fragmented
 
     proc setup_contexts {package} {
@@ -4046,6 +4051,72 @@ namespace eval twapi::crypto::test {
         TBD - HHASH parameter, other encryptions, particularly rsa
     } -result TBD
 
+    ################################################################
+
+    test hmac-1.0 {hmac bin} -body {
+        twapi::hmac $hash_bin_operand [twapi::seal mykey]
+    } -result [sha1::hmac -bin -key mykey $hash_bin_operand]
+    
+    test hmac-1.1 {hmac bin openssl} -body {
+        twapi::hex [twapi::hmac [read_binary crypto.test] [twapi::seal mykey]]
+    } -result [lindex [openssl dgst -sha1 -hmac mykey crypto.test] 0 1]
+    
+    test hmac-1.2 {hmac bin empty key} -body {
+        twapi::hmac $hash_bin_operand [twapi::seal ""]
+    } -result [sha1::hmac -bin -key "" $hash_bin_operand]
+    
+    test hmac-1.3 {hmac bin empty data} -body {
+        twapi::hmac "" [twapi::seal mykey]
+    } -result [sha1::hmac -bin -key mykey ""]
+    
+    test hmac-2.0 {hmac utf-8} -body {
+        twapi::hmac $hash_str_operand [twapi::seal mykey] -encoding utf-8
+    } -result [sha1::hmac -bin -key mykey [encoding convertto utf-8 $hash_str_operand]]
+    
+    test hmac-2.1 {hmac unicode} -body {
+        twapi::hmac $hash_str_operand [twapi::seal $hash_bin_operand] -encoding unicode
+    } -result [sha1::hmac -bin -key $hash_bin_operand [encoding convertto unicode $hash_str_operand]]
+    
+    # Test vectors from RFC 4868
+    test xhmac-256-3.0 {hmac sha256} -body {
+        twapi::hex [twapi::hmac [hexbin 4869205468657265] [twapi::seal [hexbin [string repeat 0b 20]]] -prf sha_256]
+    } -result b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7
+
+    set testnum -1
+    foreach {prf data key hmac} {
+        sha1 4869205468657265 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b b617318655057264e28bc0b6fb378c8ef146be00
+        sha_256 4869205468657265 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7
+        sha_384 4869205468657265 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b afd03944d84895626b0825f4ab46907f15f9dadbe4101ec682aa034c7cebc59cfaea9ea9076ede7f4af152e8b2fa9cb6
+        sha_512 4869205468657265 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b 87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b30545e17cdedaa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f1702e696c203a126854
+
+        sha1 7768617420646f2079612077616e7420666f72206e6f7468696e673f  4a656665 effcdf6ae5eb2fa2d27416d5f184df9c259a7c79
+        sha_256 7768617420646f2079612077616e7420666f72206e6f7468696e673f  4a656665 5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843
+        sha_384 7768617420646f2079612077616e7420666f72206e6f7468696e673f  4a656665 af45d2e376484031617f78d2b58a6b1b9c7ef464f5a01b47e42ec3736322445e8e2240ca5e69e2c78b3239ecfab21649
+        sha_512 7768617420646f2079612077616e7420666f72206e6f7468696e673f  4a656665 164b7a7bfcf819e2e395fbe73b56e0a387bd64222e831fd610270cd7ea2505549758bf75c05a994a6d034f65f8f0e6fdcaeab1a34d4a6b4b636e070a38bce737
+        
+        sha1 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 125d7342b9ac11cd91a39af48aa17b4f63f175d3
+        sha_256 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 773ea91e36800e46854db8ebd09181a72959098b3ef8c122d9635514ced565fe
+        sha_384 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 88062608d3e6ad8a0aa2ace014c8a86f0aa635d947ac9febe83ef4e55966144b2a5ab39dc13814b94e3ab6e101a34f27
+        sha_512 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa fa73b0089d56a284efb0f0756c890be9b1b5dbdd8ee81a3655f83e33b2279d39bf3e848279a722c806b485a47e67c807b946a337bee8942674278859e13292fb
+
+        sha1 cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd 0102030405060708090a0b0c0d0e0f10111213141516171819 4c9007f4026250c6bc8414f9bf50c86c2d7235da
+        sha_256 cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd 0102030405060708090a0b0c0d0e0f10111213141516171819 82558a389a443c0ea4cc819899f2083a85f0faa3e578f8077a2e3ff46729665b
+        sha_384 cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd 0102030405060708090a0b0c0d0e0f10111213141516171819 3e8a69b7783c25851933ab6290af6ca77a9981480850009cc5577c6e1f573b4e6801dd23c4a7d679ccf8a386c674cffb
+        sha_512 cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd 0102030405060708090a0b0c0d0e0f10111213141516171819 b0ba465637458c6990e5a8c5f61d4af7e576d97ff94b872de76f8050361ee3dba91ca5c11aa25eb4d679275cc5788063a5f19741120c4f2de2adebeb10a298dd
+
+        sha1 54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 90d0dace1c1bdc957339307803160335bde6df2b
+        sha_256 54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54
+        sha_384 54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 4ece084485813e9088d2c63a041bc5b44f9ef1012a2b588f3cd11f05033ac4c60c2ef6ab4030fe8296248df163f44952
+        sha_512 54657374205573696e67204c6172676572205468616e20426c6f636b2d53697a65204b6579202d2048617368204b6579204669727374 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 80b24263c7c1a3ebb71493c1dd7be8b49b46d1f41b4aeec1121b013783f8f3526b56d037e05f2598bd0fd2215d6a1e5295e64f73f63f0aec8b915a985d786598
+
+        sha1 5468697320697320612074657374207573696e672061206c6172676572207468616e20626c6f636b2d73697a65206b657920616e642061206c6172676572207468616e20626c6f636b2d73697a6520646174612e20546865206b6579206e6565647320746f20626520686173686564206265666f7265206265696e6720757365642062792074686520484d414320616c676f726974686d2e aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 217e44bb08b6e06a2d6c30f3cb9f537f97c63356
+        sha_256 5468697320697320612074657374207573696e672061206c6172676572207468616e20626c6f636b2d73697a65206b657920616e642061206c6172676572207468616e20626c6f636b2d73697a6520646174612e20546865206b6579206e6565647320746f20626520686173686564206265666f7265206265696e6720757365642062792074686520484d414320616c676f726974686d2e aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f51535c3a35e2
+        sha_384 5468697320697320612074657374207573696e672061206c6172676572207468616e20626c6f636b2d73697a65206b657920616e642061206c6172676572207468616e20626c6f636b2d73697a6520646174612e20546865206b6579206e6565647320746f20626520686173686564206265666f7265206265696e6720757365642062792074686520484d414320616c676f726974686d2e aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 6617178e941f020d351e2f254e8fd32c602420feb0b8fb9adccebb82461e99c5a678cc31e799176d3860e6110c46523e
+        sha_512 5468697320697320612074657374207573696e672061206c6172676572207468616e20626c6f636b2d73697a65206b657920616e642061206c6172676572207468616e20626c6f636b2d73697a6520646174612e20546865206b6579206e6565647320746f20626520686173686564206265666f7265206265696e6720757365642062792074686520484d414320616c676f726974686d2e aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa e37b6a775dc87dbaa4dfa9f96e5e3ffddebd71f8867289865df5a32d20cdc944b6022cac3c4982b10d5eeb55c3e4de15134676fb6de0446065c97440fa8c6a58
+    } {
+        test hmac-rfc4868-[incr testnum] "hmac $prf" -body {twapi::hex [twapi::hmac [hexbin $data] [twapi::seal [hexbin $key]] -prf $prf]} -result $hmac
+    }
+        
     ################################################################
 
     test crypt_derive_key-99 {

@@ -321,6 +321,8 @@ Signs a hash using a private key.
 Incrementally hashes a string.
 [opt_def [uri #capi_hash_value [cmd capi_hash_value]]]
 Returns the hashed value.
+[opt_def [uri #hmac [cmd hmac]]]
+Calculates the HMAC hash using a specified PRF.
 [opt_def [uri #md5 [cmd md5]]]
 Calculates the MD5 hash.
 [opt_def [uri #sha1 [cmd sha1]]]
@@ -1024,6 +1026,23 @@ Returns a list of pairs, each representing a CSP on the system.
 The first element of each pair is a CSP type 
 and the second is the name of the CSP.
 
+[call [cmd hmac] [arg DATA] [arg SEALEDKEY] [opt "[cmd -encoding] [arg ENC]"] [opt "[cmd -prf] [arg ALGID]"]]
+Computes the HMAC hash for the specified data [arg DATA] and
+key [arg SEALEDKEY].
+[arg DATA] must be a binary string unless option [cmd -encoding] is specified
+in which case it is converted to a binary string using the specified
+encoding [arg ENC] and the HMAC is calculated on the result.
+[nl]
+The key used in computation of the HMAC is [arg SEALEDKEY] and must be
+in a [uri base.html#protectingdatainmemory sealed] form.
+[nl]
+The default PRF used in calculating the HMAC is SHA-1 but a different
+one can be specified with the [cmd -prf] option. [arg ALGID] should be
+specify an appropriate [uri #algorithmidentifiers "algorithm identifier"]
+such as [const sha_256].
+[nl]
+The command returns the computed HMAC as a binary string.
+
 [call [cmd md5] [arg DATA] [opt [arg ENC]]]
 Returns the MD5 digest for [arg DATA]. If [arg ENC] is not
 specified or is an empty string, [arg DATA] is assumed to be
@@ -1033,12 +1052,17 @@ on the result.
 
 [call [cmd pbkdf2] [arg PASSPHRASE] [arg KEYSIZE] [arg SALT] [opt "[cmd -iterations] [arg NITERATIONS]"]]
 Generates a key of the specified number of bits [arg KEYSIZE]
-based on the specified pass phrase [arg PASSPHRASE]. The key derivation
+based on the specified pass phrase [arg PASSPHRASE].
+[arg PASSPHRASE] must be in [uri base.html#protectingdatainmemory concealed]
+form as returned by a password input command like
+[uri base.html#read_credentials [cmd read_credentials]].
+[nl]
+The key derivation
 is based on the PBKDF2 algorithm defined by RFC 2898 using SHA1 as the
 hash function. [arg SALT] and [arg NITERATIONS] are used as defined
 in the RFC.
 [nl]
-The return key is in a [uri base.html#protectingdatainmemory sealed] form.
+The returned key is in a [uri base.html#protectingdatainmemory sealed] form.
                     
 [call [cmd protect_data] [arg BINDATA] [opt [arg options]]]
 Encrypts and signs the binary data [arg BINDATA] so that it can only
