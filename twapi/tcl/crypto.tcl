@@ -66,7 +66,7 @@ interp alias {} twapi::sha512 {} twapi::_do_hash prov_rsa_aes sha_512
 proc twapi::hmac {data key args} {
     parseargs args {
         encoding.arg
-        {algid.arg sha1}
+        {prf.arg sha1}
     } -maxleftover 0 -setvars
     
     if {[info exists encoding]} {
@@ -87,7 +87,7 @@ proc twapi::hmac {data key args} {
         set hkey [crypt_import_key $hcrypt [_make_plaintextkeyblob rc2 $key] -ipsechmac 1]
         set hhash [capi_hash_create $hcrypt hmac $hkey]
         # 5 -> HP_HMAC_INFO
-        CryptSetHashParam $hhash 5 [list [capi_algid $algid] "" ""]
+        CryptSetHashParam $hhash 5 [list [capi_algid $prf] "" ""]
         capi_hash_bytes $hhash $data
         return [capi_hash_value $hhash]
     } finally {
