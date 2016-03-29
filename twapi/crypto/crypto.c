@@ -3280,6 +3280,7 @@ static TCL_RESULT Twapi_CryptSetHashParamObjCmd(TwapiInterpContext *ticP, Tcl_In
         hmaci.cbOuterString = 0;
     } else {
         mark = MemLifoPushMark(ticP->memlifoP);
+        ZeroMemory(&hmaci, sizeof(hmaci));
         res = TwapiGetArgsExObj(ticP, paramObj, GETINT(hmaci.HashAlgid),
                              GETBA(hmaci.pbInnerString, hmaci.cbInnerString),
                              GETBA(hmaci.pbOuterString, hmaci.cbOuterString),
@@ -3288,9 +3289,11 @@ static TCL_RESULT Twapi_CryptSetHashParamObjCmd(TwapiInterpContext *ticP, Tcl_In
             goto vamoose;
     }
 
-    if (CryptSetHashParam((HCRYPTHASH)pv, param, (BYTE*) &hmaci, 0))
+    if (CryptSetHashParam((HCRYPTHASH)pv, param, (BYTE*) &hmaci, 0) == FALSE)
         res = TwapiReturnSystemError(interp);
-    /* Else empty result */
+    else
+        res = TCL_OK; /* Else empty result */
+
 vamoose:
     if (mark)
         MemLifoPopMark(mark);
@@ -3875,8 +3878,6 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
         return TCL_ERROR;
 
     blobP = (BLOBHEADER*) ObjToByteArray(blobObj, &nbytes);
-    if (nbytes <= sizeof(*blobP))
-        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "Truncated key blob.");
 
     if (btype == 0) {
         /* 0 is not a valid CryptoAPI blob type so we use it to indicate
@@ -3891,13 +3892,17 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
         if (res != TCL_OK)
             goto vamoose;
         TWAPI_ASSERT(p->dwKeySize < nbytes);
-        nclear = sizeof(*p) + p->dwKeySize; /* Number of bytes to clear out */
+        nbytes = TWAPI_PLAINTEXTKEYBLOB_SIZE(p->dwKeySize);
+        nclear = nbytes; /* Number of bytes to clear out */
         btype = PLAINTEXTKEYBLOB;
         blobP = &p->hdr;
         blobP->bType = btype;
         blobP->bVersion = bver;
         blobP->reserved = 0;
         blobP->aiKeyAlg = balg_id;
+    } else {
+        if (nbytes <= sizeof(*blobP))
+            return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "Truncated key blob.");
     }
 
     /* At this point, blobP may point into the Tcl_Obj data or memlifo memory */
