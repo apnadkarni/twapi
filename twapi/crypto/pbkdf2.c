@@ -51,7 +51,7 @@ typedef struct {
    DWORD cbKeySize;
 } HMAC_KEY_BLOB;
 
-BOOL WINAPI hmacInit_sha1(
+BOOL WINAPI hmacInit_sha(
    PRF_CTX*       pContext,   /* PRF context used in HMAC computation */
    unsigned char* pbKey,      /* pointer to authentication key */
    DWORD          cbKey       /* length of authentication key */                        
@@ -88,7 +88,7 @@ BOOL WINAPI hmacInit_sha1(
       goto hmacInit_end;
    }
 
-   if (!CryptAcquireContext(&hProv, NULL, MS_ENHANCED_PROV, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) 
+   if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) 
    {
       dwError = GetLastError();
       goto hmacInit_end;
@@ -99,7 +99,7 @@ BOOL WINAPI hmacInit_sha1(
    {
       // we pad with zeros till the size of SHA1 digest.
       // this is to avoid erros under Windows 8.1 wich doesn't accept 1-byte RC2 keys
-	  // the result will be the same since the HMAC-SHA1 will perform the same padding
+      // the result will be the same since the HMAC-SHA1 will perform the same padding
 	  DWORD dwPad = 20 - dwLen;
 	  memset(((LPBYTE) pKeyBlob) + dwLen, 0, dwPad);
 	  dwLen += dwPad;
@@ -140,23 +140,24 @@ hmacInit_end:
    return bStatus;
 }
 
-BOOL WINAPI hmac_sha1(
-   PRF_CTX*       pContext,               /* PRF context used in HMAC computation */  
-   unsigned char*  pbData,                /* pointer to data stream */
-   DWORD           cbData,                /* length of data stream */
-   unsigned char   pbDigest[20]           /* caller digest to be filled in */
+static BOOL WINAPI hmac_sha(
+   ALG_ID          algid,         /* CALG_SHA1, CALG_SHA256 etc. */
+   PRF_CTX*        pContext,      /* PRF context used in HMAC computation */  
+   unsigned char*  pbData,        /* pointer to data stream */
+   DWORD           cbData,        /* length of data stream */
+   unsigned char*  pbDigest,      /* caller digest to be filled in */
+   DWORD           cbDigest
 )
 {
    HCRYPTPROV hProv = 0;
    HCRYPTHASH hHash = 0;
    HCRYPTKEY hKey = 0;
-   DWORD cbDigest = 20;
    HMAC_INFO   HmacInfo;
    BOOL bStatus = FALSE;
    DWORD dwError = 0;
 
    ZeroMemory(&HmacInfo, sizeof(HmacInfo));
-   HmacInfo.HashAlgid = CALG_SHA1;
+   HmacInfo.HashAlgid = algid;
 
    if (!pContext || (pContext->magic != HMAC_SHA1_MAGIC) || (!pContext->pParam))
    {
@@ -201,8 +202,29 @@ hmac_end:
    return bStatus;
 }
 
+BOOL WINAPI hmac_sha1(
+   PRF_CTX*       pContext,        /* PRF context used in HMAC computation */  
+   unsigned char*  pbData,         /* pointer to data stream */
+   DWORD           cbData,         /* length of data stream */
+   unsigned char*  pbDigest,       /* caller digest to be filled in */
+   DWORD           cbDigest        /* Space in pbDigest */
+)
+{
+   return hmac_sha(CALG_SHA1, pContext, pbData, cbData, pbDigest, cbDigest);
+}
 
-BOOL WINAPI hmacFree_sha1(
+BOOL WINAPI hmac_sha256(
+   PRF_CTX*       pContext,        /* PRF context used in HMAC computation */  
+   unsigned char*  pbData,         /* pointer to data stream */
+   DWORD           cbData,         /* length of data stream */
+   unsigned char*  pbDigest,       /* caller digest to be filled in */
+   DWORD           cbDigest        /* Space in pbDigest */
+)
+{
+   return hmac_sha(CALG_SHA_256, pContext, pbData, cbData, pbDigest, cbDigest);
+}
+
+BOOL WINAPI hmacFree_sha(
    PRF_CTX*       pContext          /* PRF context used in HMAC computation */  
 )
 {
@@ -232,8 +254,8 @@ BOOL WINAPI hmacFree_sha1(
 /*
  * Definition of the HMAC-SHA1 PRF
  */
-PRF sha1Prf = {hmacInit_sha1, hmac_sha1, hmacFree_sha1, 20};
-
+PRF sha1Prf = {hmacInit_sha, hmac_sha1, hmacFree_sha, 20};
+PRF sha256Prf = {hmacInit_sha, hmac_sha256, hmacFree_sha, 32};
 
 static __inline void xor(LPBYTE ptr1, LPBYTE ptr2, DWORD dwLen)
 {
@@ -244,7 +266,7 @@ static __inline void xor(LPBYTE ptr1, LPBYTE ptr2, DWORD dwLen)
 /*
  * PBKDF2 implementation
  */
-BOOL PBKDF2(PRF pPrf,
+BOOL PBKDF2(PRF *pPrf,
             unsigned char* pbPassword,
             DWORD cbPassword,
             unsigned char* pbSalt,
@@ -256,7 +278,7 @@ BOOL PBKDF2(PRF pPrf,
    BOOL bStatus = FALSE;
    DWORD dwError = 0;
    DWORD l, r, i,j;
-   DWORD hlen = pPrf.cbHmacLength;
+   DWORD hlen = pPrf->cbHmacLength;
    LPBYTE Ti = NULL;
    LPBYTE V = NULL;
    LPBYTE U = NULL;
@@ -293,7 +315,7 @@ BOOL PBKDF2(PRF pPrf,
    l = (DWORD) ceil((double) cbDerivedKey / (double) hlen);
    r = cbDerivedKey - (l - 1) * hlen;
 
-   if (!pPrf.hmacInit(&prfCtx, pbPassword, cbPassword))
+   if (!pPrf->hmacInit(&prfCtx, pbPassword, cbPassword))
    {
       dwError = GetLastError();
       goto PBKDF2_end;
@@ -320,7 +342,7 @@ BOOL PBKDF2(PRF pPrf,
             dwULen = hlen;
          }
 
-         if (!pPrf.hmac(&prfCtx, U, dwULen, V))
+         if (!pPrf->hmac(&prfCtx, U, dwULen, V, hlen))
          {
             dwError = GetLastError();
             goto PBKDF2_end;
@@ -344,7 +366,7 @@ BOOL PBKDF2(PRF pPrf,
 
 PBKDF2_end:
 
-   pPrf.hmacFree(&prfCtx);
+   pPrf->hmacFree(&prfCtx);
 
 #ifdef USE_SWS
    if (mark)

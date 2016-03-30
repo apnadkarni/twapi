@@ -1587,6 +1587,10 @@ proc twapi::crypt_derive_key {hcrypt algid passphrase args} {
     }
 }
 
+proc twapi::pbkdf2 {pass nbits alg_id salt niters} {
+    return [PBKDF2 $pass $nbits [capi_algid $alg_id] $salt $niters]
+}
+                    
 proc twapi::capi_encrypt_bytes {bytes hkey {hhash NULL}} {
     return [CryptEncrypt $hkey $hhash 1 0 $bytes]
 }
