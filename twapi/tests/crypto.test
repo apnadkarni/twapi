@@ -4078,10 +4078,6 @@ namespace eval twapi::crypto::test {
     } -result [sha1::hmac -bin -key $hash_bin_operand [encoding convertto unicode $hash_str_operand]]
     
     # Test vectors from RFC 4868
-    test xhmac-256-3.0 {hmac sha256} -body {
-        twapi::hex [twapi::hmac [hexbin 4869205468657265] [twapi::seal [hexbin [string repeat 0b 20]]] -prf sha_256]
-    } -result b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7
-
     set testnum -1
     foreach {prf data key hmac} {
         sha1 4869205468657265 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b b617318655057264e28bc0b6fb378c8ef146be00

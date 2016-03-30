@@ -3273,7 +3273,7 @@ static TCL_RESULT Twapi_CryptSetHashParamObjCmd(TwapiInterpContext *ticP, Tcl_In
     if (param != HP_HMAC_INFO)
         return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
     if (paramObj == NULL) {
-        hmaci.HashAlgid = CALG_SHA1; // TBD
+        hmaci.HashAlgid = CALG_SHA1;
         hmaci.pbInnerString = NULL;
         hmaci.cbInnerString = 0;
         hmaci.pbOuterString = NULL;
@@ -4933,28 +4933,6 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         SecureZeroMemory(pv2, dw2);
         break;
 
-#if 0
-        /* Commented out because we might not want to keep plaintext keys
-           in memory */
-    case 10070: // TwapiMakePlaintextKeyBlob
-        if (TwapiGetArgs(interp, objc, objv, GETINT(dw), 
-                         GETOBJ(s1Obj), ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        pv = ObjToByteArray(s1Obj, &dw2);
-        result.value.obj = ObjFromByteArray(NULL,
-                                            TWAPI_PLAINTEXTKEYBLOB_SIZE(dw2));
-        keyblobP = (TWAPI_PLAINTEXTKEYBLOB *) ObjToByteArray(result.value.obj,
-                                                             &dw3);
-        keyblobP->hdr.bType = PLAINTEXTKEYBLOB;
-        keyblobP->hdr.bVersion = CUR_BLOB_VERSION;
-        keyblobP->hdr.reserved = 0;
-        keyblobP->hdr.aiKeyAlg = dw;
-        keyblobP->dwKeySize = dw2;
-        CopyMemory(&keyblobP->rgbKeyData[0], pv, dw2);
-        result.type = TRT_OBJ;
-        break;
-#endif
-        
 #ifdef TBD
     case TBD: // CertCreateContext
         if (TwapiGetArgs(interp, objc, objv,
@@ -5360,9 +5338,6 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptGetHashParam, 10066), // TBD Tcl (ALGID only)
         DEFINE_FNCODE_CMD(CryptDeriveKey, 10067),
         DEFINE_FNCODE_CMD(capi_hash_password, 10068), // TBD - document
-#if 0
-        DEFINE_FNCODE_CMD(TwapiMakePlaintextKeyBlob, 10070), // TBD Tcl
-#endif
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
