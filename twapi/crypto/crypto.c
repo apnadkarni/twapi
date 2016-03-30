@@ -5195,11 +5195,16 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
     BOOL pbkdf2_status;
     MemLifoMarkHandle mark;
     TWAPI_PLAINTEXTKEYBLOB *blobP;
+    PRF *prf;
+    ALG_ID alg_id;
     
     mark = MemLifoPushMark(ticP->memlifoP);
-    res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETOBJ(passObj),
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1, 
+                         GETOBJ(passObj),
                          GETINT(nkeybits), 
-                         GETBA(saltP, nsalt), GETINT(niterations),
+                         GETINT(alg_id),
+                         GETBA(saltP, nsalt), 
+                         GETINT(niterations),
                          ARGEND);
     if (res != TCL_OK)
         goto vamoose;
@@ -5226,7 +5231,15 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
         goto vamoose;                    /* Error already filled in */ 
     }
     
-    pbkdf2_status = PBKDF2(sha1Prf, utfpassP, nutf, saltP, nsalt, niterations,
+    switch (alg_id) {
+    case CALG_SHA1: prf = &sha1Prf; break;
+    case CALG_SHA_256: prf = &sha256Prf; break;
+    default:
+        res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS,
+                                  "Invalid PRF value specified.");
+        goto vamoose;
+    }
+    pbkdf2_status = PBKDF2(prf, utfpassP, nutf, saltP, nsalt, niterations,
                            keyP, nkeybytes);
     if (! pbkdf2_status)
         res = TwapiReturnSystemError(interp);
@@ -5361,7 +5374,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptSignAndEncryptMessage, Twapi_CryptSignAndEncryptMessageObjCmd), // TBD - Tcl
         DEFINE_TCL_CMD(CryptImportKey, Twapi_CryptImportKeyObjCmd),
         DEFINE_TCL_CMD(CryptExportKey, Twapi_CryptExportKeyObjCmd),
-        DEFINE_TCL_CMD(pbkdf2, Twapi_PBKDF2ObjCmd),
+        DEFINE_TCL_CMD(PBKDF2, Twapi_PBKDF2ObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);
