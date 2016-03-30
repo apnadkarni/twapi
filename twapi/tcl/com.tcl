@@ -860,7 +860,7 @@ proc twapi::_variant_values_from_safearray {sa ndims {raw false} {addref false} 
 
 proc twapi::outvar {varname} { return [Twapi_InternalCast outvar $varname] }
 
-proc twapi::variant_value {variant raw addref lcid} {
+proc twapi::variant_value {variant raw addref {lcid 0}} {
     # TBD - format appropriately depending on variant type for dates and
     # currency
     if {[llength $variant] == 0} {
