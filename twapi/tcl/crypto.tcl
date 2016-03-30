@@ -1587,13 +1587,6 @@ proc twapi::crypt_derive_key {hcrypt algid passphrase args} {
     }
 }
 
-proc twapi::pbkdf2 {passphrase size salt args} {
-    parseargs args {
-        {iterations.int 100000}
-    } -maxleftover 0 -setvars
-    return [PBKDF2 $passphrase $size $salt $iterations]
-}
-
 proc twapi::capi_encrypt_bytes {bytes hkey {hhash NULL}} {
     return [CryptEncrypt $hkey $hhash 1 0 $bytes]
 }
