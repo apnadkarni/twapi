@@ -720,10 +720,17 @@ derived key can be used in cryptographic operations with the containing
 CSP but cannot be exported.
 [opt_def [cmd -iterations] [arg NUMITERS]]
 Number of iterations to execute if [cmd -method] option is specified
-as [const pbkdf2]. Ignored for other methods. Default is [const 100000].
+as [const pbkdf2]. Ignored otherwise. Default is [const 100000].
 [opt_def [cmd -method] [arg KEYDERIVATIONMETHOD]]
 Specifies the method by which the key is derived from the pass phrase.
 See description below for details.
+[opt_def [cmd -prf] [arg ALGID]]
+Specifies the pseudo-random function (PRF) to use in the key derivation.
+[arg ALGID] (default [const sha1])
+should be a [uri #algorithmidentifiers "algorithm identifier"]
+that refers to an appropriate message digest algorithm. If [cmd -method]
+is specified as [const pbkdf2], [arg ALGID] must be either [const sha1]
+or [const sha_256].
 [opt_def [cmd -salt] [arg BINSTRING]]
 Specifies a binary string to use as the salt value
 if [cmd -method] option is specified
@@ -738,10 +745,9 @@ by the [cmd -method] option. If the value
 [arg KEYDERIVATIONMETHOD] is [const pbkdf2], the
 command [uri #pbkdf2 [cmd pbkdf2]] is used for generating the key
 passing it the values specified for [cmd -iterations], [cmd -salt]
-and [cmd -size]. Otherwise, [arg KEYDERIVATIONMETHOD] must
-be a [uri #algorithmidentifiers "hashing algorithm identifier"].
-This will passed along with other parameters to the
-Win32 [cmd CryptDeriveKey] function. Refer to the SDK documentation
+and [cmd -size]. 
+If [arg KEYDERIVATIONMETHOD] is [const native] or unspecified,
+the Win32 [cmd CryptDeriveKey] function is used. Refer to the SDK documentation
 for details regarding how the function derives keys.
 
 [call [cmd crypt_keyx_keysize_increment] [arg HCRYPT]]
