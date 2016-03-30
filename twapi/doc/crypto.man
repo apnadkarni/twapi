@@ -1050,16 +1050,17 @@ a binary string. Otherwise, it is converted to a binary string
 using the specified encoding [arg ENC] and the digest is calculated
 on the result.
 
-[call [cmd pbkdf2] [arg PASSPHRASE] [arg KEYSIZE] [arg SALT] [opt "[cmd -iterations] [arg NITERATIONS]"]]
+[call [cmd pbkdf2] [arg PASSPHRASE] [arg KEYSIZE] [arg PRF] [arg SALT] [arg NITERATIONS]]
 Generates a key of the specified number of bits [arg KEYSIZE]
-based on the specified pass phrase [arg PASSPHRASE].
+based on the specified pass phrase [arg PASSPHRASE] using the
+PBKDF2 algorithm defined by RFC 2898.
 [arg PASSPHRASE] must be in [uri base.html#protectingdatainmemory concealed]
 form as returned by a password input command like
 [uri base.html#read_credentials [cmd read_credentials]].
 [nl]
-The key derivation
-is based on the PBKDF2 algorithm defined by RFC 2898 using SHA1 as the
-hash function. [arg SALT] and [arg NITERATIONS] are used as defined
+[arg PRF] specifies the pseudo random function and must be
+either [const sha1] or [const sha_256].
+[arg SALT] and [arg NITERATIONS] are used as defined
 in the RFC.
 [nl]
 The returned key is in a [uri base.html#protectingdatainmemory sealed] form.

@@ -20,7 +20,8 @@ typedef BOOL (WINAPI* PRF_HmacPtr)(
                            PRF_CTX*       pContext,   /* PRF context initialized by HmacInit */
                            unsigned char*  pbData,    /* pointer to data stream */
                            DWORD          cbData,     /* length of data stream */                           
-                           unsigned char* pbDigest    /* caller digest to be filled in */                           
+                           unsigned char* pbDigest,   /* caller digest to be filled in */
+                           DWORD          cbDigest    /* Space allocated for pbDigest */
                            );
 
 typedef BOOL (WINAPI* PRF_HmacFreePtr)(
@@ -38,8 +39,9 @@ typedef struct
 } PRF;
 
 extern PRF sha1Prf;
+extern PRF sha256Prf;
 
-BOOL PBKDF2(PRF pPrf,
+BOOL PBKDF2(PRF *pPrf,
             unsigned char* pbPassword,
             DWORD cbPassword,
             unsigned char* pbSalt,
