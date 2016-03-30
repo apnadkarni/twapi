@@ -671,7 +671,6 @@ proc twapi::cert_extension {hcert oid} {
 proc twapi::cert_create_self_signed {subject args} {
     set args [_cert_create_parse_options $args opts]
 
-    # TBD - make keycontainer explicit arg
     array set opts [parseargs args {
         {keyspec.arg signature {keyexchange signature}}
         {keycontainer.arg {}}
