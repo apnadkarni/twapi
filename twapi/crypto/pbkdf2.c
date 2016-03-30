@@ -14,8 +14,22 @@
 #define _WIN32_WINNT 0x0501
 #endif
 
-#include <windows.h>
-#include <wincrypt.h>
+/*
+ * Defining USE_SWS uses the TWAPI software stack for allocations
+ * and assumes twapi integration.
+ */
+#define USE_SWS 1
+
+#ifdef USE_SWS
+# include "twapi.h"
+# include "twapi_crypto.h"
+#define LocalAlloc LocalAllocShouldNotBeUsedIfSWSEnabled
+#define LocalFree LocalFreeShouldNotBeUsedIfSWSEnabled
+#else
+# include <windows.h>
+# include <wincrypt.h>
+#endif
+
 #include <stdio.h>
 #include <math.h>
 
@@ -45,10 +59,21 @@ BOOL WINAPI hmacInit_sha1(
 {
    HCRYPTPROV hProv = 0;
    HCRYPTKEY hKey = 0;
-   HMAC_KEY_BLOB *pKeyBlob = (HMAC_KEY_BLOB *) LocalAlloc(0, sizeof(HMAC_KEY_BLOB) + cbKey + 20); // we put enough room for 0's padding
+   HMAC_KEY_BLOB *pKeyBlob = NULL;
    BOOL bStatus = FALSE;
    DWORD dwError = 0, dwLen;
    CAPI_CTX_PARAM* pParam = NULL;
+
+#ifdef USE_SWS
+   pKeyBlob = (HMAC_KEY_BLOB *) SWSAlloc(sizeof(HMAC_KEY_BLOB) + cbKey + 20,
+                                         NULL); // enough room for 0's padding
+#else
+   pKeyBlob = (HMAC_KEY_BLOB *) LocalAlloc(0, sizeof(HMAC_KEY_BLOB) + cbKey + 20); // we put enough room for 0's padding
+   if (pKeyBlob == NULL) {
+      dwError = ERROR_NOT_ENOUGH_MEMORY;
+      goto hmacInit_end;
+   }
+#endif
    
    pKeyBlob->hdr.bType = PLAINTEXTKEYBLOB;
    pKeyBlob->hdr.bVersion = CUR_BLOB_VERSION;
@@ -87,7 +112,11 @@ BOOL WINAPI hmacInit_sha1(
       goto hmacInit_end;
    }
 
+#ifdef USE_SWS
+   pParam = (CAPI_CTX_PARAM*) SWSAlloc(sizeof(CAPI_CTX_PARAM), NULL);
+#else
    pParam = (CAPI_CTX_PARAM*) LocalAlloc(0, sizeof(CAPI_CTX_PARAM));
+#endif
    pParam->hProv = hProv;
    pParam->hKey = hKey;
 
@@ -103,9 +132,10 @@ hmacInit_end:
 
    if (hKey) CryptDestroyKey(hKey);
    if (hProv) CryptReleaseContext(hProv, 0);
-
+#ifndef USE_SWS
    if (pKeyBlob) LocalFree(pKeyBlob);
-
+#endif
+   
    SetLastError(dwError);
    return bStatus;
 }
@@ -191,7 +221,9 @@ BOOL WINAPI hmacFree_sha1(
    CryptDestroyKey(hKey);
    CryptReleaseContext(hProv, 0);
 
+#ifndef USE_SWS
    LocalFree(pContext->pParam);
+#endif
    SecureZeroMemory(pContext, sizeof(PRF_CTX));
 
    return TRUE;
@@ -225,24 +257,39 @@ BOOL PBKDF2(PRF pPrf,
    DWORD dwError = 0;
    DWORD l, r, i,j;
    DWORD hlen = pPrf.cbHmacLength;
-   LPBYTE Ti = (LPBYTE) LocalAlloc(0, hlen);
-   LPBYTE V = (LPBYTE) LocalAlloc(0, hlen);
-   LPBYTE U = (LPBYTE) LocalAlloc(0, max((cbSalt + 4), hlen));
+   LPBYTE Ti = NULL;
+   LPBYTE V = NULL;
+   LPBYTE U = NULL;
    DWORD dwULen;
    PRF_CTX prfCtx = {0};
+#ifdef USE_SWS
+   SWSMark mark = NULL;
+#endif
 
+   
    if (!pbDerivedKey || !cbDerivedKey || (!pbPassword && cbPassword) )
    {
       dwError = ERROR_BAD_ARGUMENTS;
       goto PBKDF2_end;
    }
 
+#ifdef USE_SWS
+   mark = SWSPushMark();
+   Ti = (LPBYTE) SWSAlloc(hlen, NULL);
+   V = (LPBYTE) SWSAlloc(hlen, NULL);
+   U = (LPBYTE) SWSAlloc(max((cbSalt + 4), hlen), NULL);
+#else
+   Ti = (LPBYTE) LocalAlloc(0, hlen);
+   V = (LPBYTE) LocalAlloc(0, hlen);
+   U = (LPBYTE) LocalAlloc(0, max((cbSalt + 4), hlen));
+
    if (!Ti || !U || !V)
    {
       dwError = ERROR_NOT_ENOUGH_MEMORY;
       goto PBKDF2_end;
    }
-
+#endif
+   
    l = (DWORD) ceil((double) cbDerivedKey / (double) hlen);
    r = cbDerivedKey - (l - 1) * hlen;
 
@@ -299,14 +346,20 @@ PBKDF2_end:
 
    pPrf.hmacFree(&prfCtx);
 
+#ifdef USE_SWS
+   if (mark)
+       SWSPopMark(mark);
+#else
    if (Ti) LocalFree(Ti);
    if (U) LocalFree(U);
    if (V) LocalFree(V);
+#endif
+   
    SetLastError(dwError);
    return bStatus;
 }
    
-#ifdef PBKDF2TEST
+#if defined(PBKDF2TEST)
 int main(int argc, char* argv[])
 {  
    unsigned char pbDerivedKey[32];
@@ -649,3 +702,9 @@ main_end:
 	return 0;
 }
 #endif
+
+/*
+ * Local Variables:
+ * c-basic-offset: 3
+ * End:
+ */
