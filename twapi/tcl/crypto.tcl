@@ -1538,7 +1538,8 @@ proc twapi::crypt_derive_key {hcrypt algid passphrase args} {
     parseargs args {
         {size.int 0}
         {exportable.bool 1 0x01}
-        {method.arg sha1}
+        {prf.arg sha1}
+        {method.arg native {native pbkdf2}}
         {iterations.int 100000}
         {salt.arg ""}
     } -maxleftover 0 -setvars
@@ -1568,7 +1569,7 @@ proc twapi::crypt_derive_key {hcrypt algid passphrase args} {
                 error "Could not figure out default key size for algorithm $algid. Please use the -size option."
             }
         }
-        set pbkdf2 [PBKDF2 $passphrase $size $salt $iterations]
+        set pbkdf2 [PBKDF2 $passphrase $size [capi_algid $prf] $salt $iterations]
         set keyblob [list 0 2 0 $algnum $pbkdf2]
         return [crypt_import_key $hcrypt $keyblob -exportable $exportable]
     } else {
@@ -1576,7 +1577,7 @@ proc twapi::crypt_derive_key {hcrypt algid passphrase args} {
             # Key size of 0 is default. Else it must be within 1-65535
             badargs! "Option -size value \"$size\" is not between 0 and 65535."
         }
-        set hhash [capi_hash_create $hcrypt $method]
+        set hhash [capi_hash_create $hcrypt [capi_algid $prf]]
         twapi::trap {
             capi_hash_password $hhash $passphrase
             return [CryptDeriveKey $hcrypt [capi_algid $algid] $hhash \
