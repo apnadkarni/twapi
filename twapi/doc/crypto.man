@@ -726,15 +726,12 @@ Specifies the method by which the key is derived from the pass phrase.
 See description below for details.
 [opt_def [cmd -prf] [arg ALGID]]
 Specifies the pseudo-random function (PRF) to use in the key derivation.
-[arg ALGID] (default [const sha1])
-should be a [uri #algorithmidentifiers "algorithm identifier"]
-that refers to an appropriate message digest algorithm. If [cmd -method]
-is specified as [const pbkdf2], [arg ALGID] must be either [const sha1]
-or [const sha_256].
+If specified, [arg ALGID] must be [const sha1] (default) or [const sha_256].
+Ignored if [cmd -method] is not [const pbkdf2].
 [opt_def [cmd -salt] [arg BINSTRING]]
 Specifies a binary string to use as the salt value
 if [cmd -method] option is specified
-as [const pbkdf2]. Ignored for other methods.
+as [const pbkdf2]. Ignored otherwise.
 [opt_def [cmd -size] [arg KEYSIZE]]
 Specifies the desired number of bits in the derived key. If unspecified or
 [const 0], the derived key size is based on the specified algorithm.
@@ -742,13 +739,19 @@ Specifies the desired number of bits in the derived key. If unspecified or
 
 The method by which the passphrase is transformed into a key is controlled
 by the [cmd -method] option. If the value
-[arg KEYDERIVATIONMETHOD] is [const pbkdf2], the
+[arg KEYDERIVATIONMETHOD] is [const pbkdf2] (default), the
 command [uri #pbkdf2 [cmd pbkdf2]] is used for generating the key
 passing it the values specified for [cmd -iterations], [cmd -salt]
-and [cmd -size]. 
-If [arg KEYDERIVATIONMETHOD] is [const native] or unspecified,
-the Win32 [cmd CryptDeriveKey] function is used. Refer to the SDK documentation
-for details regarding how the function derives keys.
+and [cmd -size].
+[nl]
+
+Otherwise, the key is derived based on the method described in the
+Windows SDK documentation. [arg KEYDERIVATIONMETHOD] must be a
+[uri #algorithmidentifiers "algorithm identifier"] that refers to a
+hash. The key is derived by hashing the UTF-8 encoding of the
+passphrase and passing the hash value to the [cmd CryptDeriveKey]
+Win32 API.  Refer to the SDK documentation for details regarding how
+the function derives keys.
 
 [call [cmd crypt_keyx_keysize_increment] [arg HCRYPT]]
 Returns the number of bits by which the key exchange key size can
