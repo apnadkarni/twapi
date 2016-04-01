@@ -3822,28 +3822,33 @@ namespace eval twapi::base::test {
         list [string length $c] [string equal "" $c] [twapi::reveal $c]
     } -result [list 8 0 {}]
 
-    ################################################################
-
-    test seal-1.0 {
-        Seal binary string
+    test conceal-1.3 {
+        Conceal string
     } -body {
-        set c [twapi::seal "\x00\xff\x80"]
-        list [string length $c] [string first \x00 $c] [twapi::unseal $c]
+        set c [twapi::conceal "\x00\xff\x80"]
+        list [string length $c] [string first \x00 $c] [twapi::reveal $c]
     } -result [list 8 -1 "\x00\xff\x80"]
 
-    test seal-1.1 {
-        Seal binary string, block size (8)
+    test conceal-1.4 {
+        Conceal string, block size (8)
     } -body {
-        set c [twapi::seal "\x00\x01\x02\x03\xff\xfe\xfd\xfc"]
-        list [string length $c] [string first \x00 $c] [twapi::unseal $c]
-    } -result [list 16 -1 "\x00\x01\x02\x03\xff\xfe\xfd\xfc"]
-    
-    test seal-1.2 {
-        Seal empty string
+        set c [twapi::conceal "\x00\x01\x02\x03\xff\xfe\xfd\xfc"]
+        list [string length $c] [string first \x00 $c] [twapi::reveal $c]
+    } -result [list 24 -1 "\x00\x01\x02\x03\xff\xfe\xfd\xfc"]
+
+    test conceal-1.5 {
+        Conceal binary
+    } -setup {
+        set l {}
+        for {set i 0} {$i < 256} {incr i} {
+            lappend l $i
+        }
+        set binstr [binary format c* $l]
     } -body {
-        set c [twapi::seal ""]
-        list [string length $c] [string equal "" $c] [twapi::unseal $c]
-    } -result [list 8 0 {}]
+        set c [twapi::conceal $binstr]
+        # binary will be encoded as unicode (256*2) plus 8 byte pad = 520
+        list [string length $c] [string equal $binstr [twapi::reveal $c]]
+    } -result [list 520 1]
 
     ################################################################
 

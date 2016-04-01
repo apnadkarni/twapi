@@ -4472,25 +4472,29 @@ TCL_RESULT TwapiEncryptData(Tcl_Interp *interp, BYTE *inP, int nin, BYTE *outP, 
 }
 
 /* Return a bytearray Tcl_Obj containing ciphertext of given source bytes */
-Tcl_Obj *ObjEncryptData(Tcl_Interp *interp, BYTE *bytes, int nbytes)
+Tcl_Obj *ObjEncryptBytes(Tcl_Interp *interp, void *pv, int nbytes)
 {
     TCL_RESULT res;
-    int nenc;
-    Tcl_Obj *objP;
-    BYTE *encP;
+    int nenc, nalloc;
+    Tcl_Obj *objP = NULL;
+    unsigned char *bytes = pv;
+    unsigned char *encP;
+    WCHAR *wsP;
+
+    /* Note data is always encrypted in Unicode form */
     
-    res = TwapiEncryptData(interp, bytes, nbytes, NULL, &nenc);
-    if (res != TCL_OK)
-        return NULL;
-    objP = ObjAllocateByteArray(nenc, &encP);
-    res = TwapiEncryptData(interp, bytes, nbytes, encP, &nenc);
-    if (res == TCL_OK) {
-        Tcl_SetByteArrayLength(objP, nenc);
-        return objP;
-    } else {
-        ObjDecrRefs(objP);
-        return NULL;
-    }
+    nalloc = nbytes*sizeof(WCHAR);
+    if (nalloc == 0)
+        nalloc = sizeof(WCHAR); /* Can't alloc 0 */
+
+    wsP = SWSPushFrame(nalloc, NULL);
+    
+    for (nenc = 0; nenc < nbytes; ++nenc)
+        wsP[nenc] = bytes[nenc];
+    objP = ObjEncryptUnicode(interp, wsP, nbytes);
+
+    SWSPopFrame();
+    return objP;
 }
 
 static TCL_RESULT TwapiDecryptBlockLengthError(Tcl_Interp *interp, int len)
@@ -4562,38 +4566,32 @@ BYTE *TwapiDecryptDataSWS(Tcl_Interp *interp, BYTE *encP, int nenc, int *noutP)
     return NULL;
 }
 
-/* Return a bytearray Tcl_Obj containing plaintext of given ciphertext */
-Tcl_Obj *ObjDecryptData(Tcl_Interp *interp, BYTE *bytes, int nbytes)
-{
-    TCL_RESULT res;
-    int ndec;
-    Tcl_Obj *objP;
-    BYTE *decP;
-    
-    res = TwapiDecryptData(interp, bytes, nbytes, NULL, &ndec);
-    if (res != TCL_OK)
-        return NULL;
-    objP = ObjAllocateByteArray(ndec, &decP);
-    res = TwapiDecryptData(interp, bytes, nbytes, decP, &ndec);
-    if (res == TCL_OK) {
-        Tcl_SetByteArrayLength(objP, ndec);
-        return objP;
-    } else {
-        ObjDecrRefs(objP);
-        return NULL;
-    }
-}
-
 /* Encrypts the Unicode string rep to a byte array. We choose Unicode
    as the base format for strings because most API's need Unicode and makes it
    easier to SecureZeroMemory the buffer. 
 */
 Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nchars)
 {
+    int nenc;
+    Tcl_Obj *objP = NULL;
+    TCL_RESULT res;
+    
     if (nchars < 0)
         nchars = lstrlenW(uniP);
 
-    return ObjEncryptData(interp, (BYTE*) uniP, sizeof(WCHAR)*nchars);
+    res = TwapiEncryptData(interp, (BYTE *) uniP, nchars*sizeof(WCHAR), NULL, &nenc);
+    if (res == TCL_OK) {
+        unsigned char *encP;
+        objP = ObjAllocateByteArray(nenc, &encP);
+        res = TwapiEncryptData(interp, (BYTE *) uniP, nchars*sizeof(WCHAR), encP, &nenc);
+        if (res == TCL_OK)
+            Tcl_SetByteArrayLength(objP, nenc);
+        else {
+            ObjDecrRefs(objP);
+            objP = NULL;
+        }
+    }
+    return objP;
 }
 
 /*
@@ -4634,9 +4632,9 @@ WCHAR * ObjDecryptUnicodeSWS(Tcl_Interp *interp,
 }
 
 /*
- * Decrypts Unicode string in objP to SWS in UTF8 encoding.
+ * Decrypts encrypted objP to SWS in UTF8 encoding.
  * Caller responsible for SWS storage management and should also zero out 
- * the password after use.
+ * the plaintext after use.
  * Returns length of string (in bytes) NOT including terminating
  * char in *ncharsP
  */
@@ -4674,6 +4672,44 @@ char *ObjDecryptUtf8SWS(Tcl_Interp *interp, Tcl_Obj *objP, int *nbytesP)
     SecureZeroMemory(uniP, sizeof(WCHAR) * nuni);
     
     return utfP;
+}
+
+/*
+ * Decrypts encrypted objP to SWS as a byte array.
+ * Caller responsible for SWS storage management and should also zero out 
+ * the plaintext after use.
+ * Leaves nleading bytes space in front so decrypted data starts at
+ * offset nleading bytes from returned pointer. *nbytesP is length of
+ * decrypted data not including nleading.
+ */
+void *ObjDecryptBytesExSWS(Tcl_Interp *interp, Tcl_Obj *objP, int nleading, int *nbytesP)
+{
+    WCHAR *uniP, *from, *end;
+    unsigned char *p, *to;
+    int nuni, nalloc;
+
+    uniP = ObjDecryptUnicodeSWS(interp, objP, &nuni);
+    if (uniP == NULL)
+        return NULL;
+
+    /* REMEMBER we have to zero out uniP[] beyond this point */
+
+    nalloc = nleading + nuni;
+    if (nalloc == 0)
+        nalloc = 1;
+    p = SWSAlloc(nalloc, NULL);
+    
+    to = p + nleading;    /* Leave nleading bytes space in front */
+    from = uniP;
+    end = uniP + nuni;
+    while (from < end)
+        *to++ = (unsigned char) *from++;
+    
+    SecureZeroMemory(uniP, sizeof(WCHAR) * nuni);
+    
+    if (nbytesP)
+        *nbytesP = nuni;
+    return p;
 }
 
 /*

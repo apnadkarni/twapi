@@ -3839,7 +3839,8 @@ static TCL_RESULT Twapi_CryptExportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
         objs[0] = ObjFromInt(blobP->bType);
     else {
         TWAPI_PLAINTEXTKEYBLOB *ptblobP = (TWAPI_PLAINTEXTKEYBLOB *) blobP;
-        Tcl_Obj *encObj = ObjEncryptData(interp, (BYTE*) &ptblobP->rgbKeyData[0], ptblobP->dwKeySize);
+        Tcl_Obj *encObj = ObjEncryptBytes(interp, (BYTE*) &ptblobP->rgbKeyData[0], ptblobP->dwKeySize);
+        SecureZeroMemory(blobP, nbytes);
         ObjDecrRefs(objs[4]); /* Free regardless of error */
         if (encObj == NULL) {
             int i;
@@ -3877,7 +3878,6 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
                         GETINT(balg_id), GETOBJ(blobObj), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    blobP = (BLOBHEADER*) ObjToByteArray(blobObj, &nbytes);
 
     if (btype == 0) {
         /* 0 is not a valid CryptoAPI blob type so we use it to indicate
@@ -3885,13 +3885,13 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
          * a PLAINTEXTBLOB header in front of it.
          */
         TWAPI_PLAINTEXTKEYBLOB *p;
-        mark = MemLifoPushMark(ticP->memlifoP);
-        p = MemLifoAlloc(ticP->memlifoP, sizeof(*p)+nbytes, NULL);
-        p->dwKeySize = nbytes; /* Size of output buffer */
-        res = TwapiDecryptData(interp, (BYTE*) blobP, nbytes, (BYTE*) &p->rgbKeyData[0], &p->dwKeySize);
-        if (res != TCL_OK)
+        int keysize;
+        mark = SWSPushMark();
+        p = ObjDecryptBytesExSWS(interp, blobObj, offsetof(TWAPI_PLAINTEXTKEYBLOB, rgbKeyData), &keysize);
+        if (p == NULL)
             goto vamoose;
-        TWAPI_ASSERT(p->dwKeySize < nbytes);
+        
+        p->dwKeySize = keysize;
         nbytes = TWAPI_PLAINTEXTKEYBLOB_SIZE(p->dwKeySize);
         nclear = nbytes; /* Number of bytes to clear out */
         btype = PLAINTEXTKEYBLOB;
@@ -3901,6 +3901,7 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
         blobP->reserved = 0;
         blobP->aiKeyAlg = balg_id;
     } else {
+        blobP = (BLOBHEADER*) ObjToByteArray(blobObj, &nbytes);
         if (nbytes <= sizeof(*blobP))
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "Truncated key blob.");
     }
@@ -3923,7 +3924,7 @@ vamoose:
     if (nclear)
         SecureZeroMemory(blobP, nclear); /* Clear out plaintext key */
     if (mark)
-        MemLifoPopMark(mark);
+        SWSPopMark(mark);
 
     return res;
 }
@@ -5245,7 +5246,7 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
         res = TwapiReturnSystemError(interp);
     else {
         Tcl_Obj *encObj;
-        encObj = ObjEncryptData(interp, keyP, nkeybytes);
+        encObj = ObjEncryptBytes(interp, keyP, nkeybytes);
         if (encObj)
             res = ObjSetResult(interp, encObj);
         else
