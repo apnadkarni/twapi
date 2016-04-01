@@ -3713,43 +3713,43 @@ namespace eval twapi::crypto::test {
     test pbkdf2-sha1-1.0 {
         Empty password
     } -body {
-        twapi::hex [twapi::unseal [twapi::pbkdf2 [twapi::conceal ""] 160 sha1 salt 1]]
+        twapi::hex [twapi::reveal [twapi::pbkdf2 [twapi::conceal ""] 160 sha1 salt 1]]
     } -result a33dddc30478185515311f8752895d36ea4363a2
     
     test pbkdf2-sha1-1.1 {
         pbkdf2 8/4/1/160
     } -body {
-        twapi::unseal [twapi::pbkdf2 [twapi::conceal password] 160 sha1 salt 1]
+        twapi::reveal [twapi::pbkdf2 [twapi::conceal password] 160 sha1 salt 1]
     } -result [binary format c* {0x0c 0x60 0xc8 0x0f 0x96 0x1f 0x0e 0x71 0xf3 0xa9 0xb5 0x24 0xaf 0x60 0x12 0x06 0x2f 0xe0 0x37 0xa6}]
 
     test pbkdf2-sha1-1.2 {
         pbkdf2 8/4/2/160
     } -body {
-        twapi::unseal [twapi::pbkdf2 [twapi::conceal password] 160 sha1 salt 2]
+        twapi::reveal [twapi::pbkdf2 [twapi::conceal password] 160 sha1 salt 2]
     } -result [binary format c* {0xea 0x6c 0x01 0x4d 0xc7 0x2d 0x6f 0x8c 0xcd 0x1e 0xd9 0x2a 0xce 0x1d 0x41 0xf0 0xd8 0xde 0x89 0x57}]
 
     test pbkdf2-sha1-1.3 {
         pbkdf2 8/4/4096/160
     } -body {
-        twapi::unseal [twapi::pbkdf2 [twapi::conceal password] 160 sha1 salt 4096]
+        twapi::reveal [twapi::pbkdf2 [twapi::conceal password] 160 sha1 salt 4096]
     } -result [binary format c* {0x4b 0x00 0x79 0x01 0xb7 0x65 0x48 0x9a 0xbe 0xad 0x49 0xd9 0x26 0xf7 0x21 0xd0 0x65 0xa4 0x29 0xc1}]
 
     test pbkdf2-sha1-1.4 {
         pbkdf2 8/8/2048/192
     } -body {
-        twapi::unseal [twapi::pbkdf2 [twapi::conceal password] 192 sha1 [binary format c* {0x78 0x57 0x8E 0x5A 0x5D 0x63 0xCB 0x06}] 2048]
+        twapi::reveal [twapi::pbkdf2 [twapi::conceal password] 192 sha1 [binary format c* {0x78 0x57 0x8E 0x5A 0x5D 0x63 0xCB 0x06}] 2048]
     } -result [binary format c* {0xBF 0xDE 0x6B 0xE9 0x4D 0xF7 0xE1 0x1D 0xD4 0x09 0xBC 0xE2 0x0A 0x02 0x55 0xEC 0x32 0x7C 0xB9 0x36 0xFF 0xE9 0x36 0x43}]
 
     test pbkdf2-sha1-1.5 {
         pbkdf2 11/8/1000/160
     } -body {
-        twapi::unseal [twapi::pbkdf2 [twapi::conceal "Hello World"] 160 sha1 [binary format c* {0xDB 0x2F 0x38 0xA2 0x24 0x39 0x03 0xDE}] 1000]
+        twapi::reveal [twapi::pbkdf2 [twapi::conceal "Hello World"] 160 sha1 [binary format c* {0xDB 0x2F 0x38 0xA2 0x24 0x39 0x03 0xDE}] 1000]
     } -result [binary format c* {0xEC 0xD1 0x54 0x2B 0x2E 0xFB 0x3F 0x52 0x0F 0x12 0xA5 0x27 0xE3 0x86 0xB3 0x3C 0xF4 0xAD 0xE3 0xA2}]
 
     test pbkdf2-sha1-1.6 {
         pbkdf2 8/21/1/256
     } -body {
-        twapi::unseal [twapi::pbkdf2 [twapi::conceal password] 256 sha1 "ATHENA.MIT.EDUraeburn" 1]
+        twapi::reveal [twapi::pbkdf2 [twapi::conceal password] 256 sha1 "ATHENA.MIT.EDUraeburn" 1]
     } -result [binary format c* {
         0xcd 0xed 0xb5 0x28 0x1b 0xb2 0xf8 0x01
         0x56 0x5a 0x11 0x22 0xb2 0x56 0x35 0x15
@@ -3760,7 +3760,7 @@ namespace eval twapi::crypto::test {
     test pbkdf2-sha1-1.7 {
         pbkdf2 8/21/2/256
     } -body {
-        twapi::unseal [twapi::pbkdf2 [twapi::conceal password] 256 sha1 "ATHENA.MIT.EDUraeburn" 2]
+        twapi::reveal [twapi::pbkdf2 [twapi::conceal password] 256 sha1 "ATHENA.MIT.EDUraeburn" 2]
     } -result [binary format c* {
         0x01 0xdb 0xee 0x7f 0x4a 0x9e 0x24 0x3e 
         0x98 0x8b 0x62 0xc7 0x3c 0xda 0x93 0x5d
@@ -3771,7 +3771,7 @@ namespace eval twapi::crypto::test {
     test pbkdf2-sha1-1.8 {
         pbkdf2 8/21/1200/256
     } -body {
-        twapi::unseal [twapi::pbkdf2 [twapi::conceal password] 256 sha1 "ATHENA.MIT.EDUraeburn" 1200]
+        twapi::reveal [twapi::pbkdf2 [twapi::conceal password] 256 sha1 "ATHENA.MIT.EDUraeburn" 1200]
     } -result [binary format c* {
         0x5c 0x08 0xeb 0x61 0xfd 0xf7 0x1e 0x4e
         0x4e 0xc3 0xcf 0x6b 0xa1 0xf5 0x51 0x2b
@@ -3782,7 +3782,7 @@ namespace eval twapi::crypto::test {
     test pbkdf2-sha1-1.9 {
         pbkdf2 8/8/5/256
     } -body {
-        twapi::unseal [twapi::pbkdf2 [twapi::conceal password] 256 sha1 "\0224VxxV4\022" 5]
+        twapi::reveal [twapi::pbkdf2 [twapi::conceal password] 256 sha1 "\0224VxxV4\022" 5]
     } -result [binary format c* {
         0xd1 0xda 0xa7 0x86 0x15 0xf2 0x87 0xe6
         0xa1 0xc8 0xb1 0x20 0xd7 0x06 0x2a 0x49
@@ -3793,7 +3793,7 @@ namespace eval twapi::crypto::test {
     test pbkdf2-sha1-1.10 {
         pbkdf2 pass phrase equals block size
     } -body {
-        twapi::unseal [twapi::pbkdf2 [twapi::conceal [string repeat X 64]] 256 sha1 "pass phrase equals block size" 1200]
+        twapi::reveal [twapi::pbkdf2 [twapi::conceal [string repeat X 64]] 256 sha1 "pass phrase equals block size" 1200]
     } -result [binary format c* {
         0x13 0x9c 0x30 0xc0 0x96 0x6b 0xc3 0x2b
         0xa5 0x5f 0xdb 0xf2 0x12 0x53 0x0a 0xc9
@@ -3804,7 +3804,7 @@ namespace eval twapi::crypto::test {
     test pbkdf2-sha1-1.11 {
         pbkdf2 pass phrase exceeds block size
     } -body {
-        twapi::unseal [twapi::pbkdf2 [twapi::conceal [string repeat X 65]] 256 sha1 "pass phrase exceeds block size" 1200]
+        twapi::reveal [twapi::pbkdf2 [twapi::conceal [string repeat X 65]] 256 sha1 "pass phrase exceeds block size" 1200]
     } -result [binary format c* {
         0x9c 0xca 0xd6 0xd4 0x68 0x77 0x0c 0xd5
         0x1b 0x10 0xe6 0xa6 0x87 0x21 0xbe 0x61
@@ -3818,7 +3818,7 @@ namespace eval twapi::crypto::test {
         TBD - fails because binary passphrases not supported due to conceal as unicode strings and conversion to utf-8
     } -body {
         set pass [binary format H* f09d849e]
-        twapi::unseal [twapi::pbkdf2 [twapi::conceal $pass] 256 sha1 EXAMPLE.COMpianist 50]
+        twapi::reveal [twapi::pbkdf2 [twapi::conceal $pass] 256 sha1 EXAMPLE.COMpianist 50]
     } -result [binary format c* {
         0x6b 0x9c 0xf2 0x6d 0x45 0x45 0x5a 0x43
         0xa5 0xb8 0xbb 0x27 0x6a 0x40 0x3b 0x39
@@ -3829,25 +3829,25 @@ namespace eval twapi::crypto::test {
     test pbkdf2-sha1-1.13 {
         Empty Salt
     } -body {
-        twapi::hex [twapi::unseal [twapi::pbkdf2 [twapi::conceal password] 160 sha1 "" 1]]
+        twapi::hex [twapi::reveal [twapi::pbkdf2 [twapi::conceal password] 160 sha1 "" 1]]
     } -result 8754c32c64b0f524fc50c00f788135de2d2dd767
     
     test pbkdf2-sha1-2.0 {
         pbkdf2 rfc6070 iterations=16777216
     } -body {
-        twapi::hex [twapi::unseal [twapi::pbkdf2 [twapi::conceal password] 160 sha1 salt 16777216]]
+        twapi::hex [twapi::reveal [twapi::pbkdf2 [twapi::conceal password] 160 sha1 salt 16777216]]
     } -result eefe3d61cd4da4e4e9945b3d6ba2158c2634e984
 
     test pbkdf2-sha1-2.1 {
         pbkdf2 rfc6070 
     } -body {
-        twapi::hex [twapi::unseal [twapi::pbkdf2 [twapi::conceal passwordPASSWORDpassword] 200 sha1 [string repeat saltSALT 4]salt 4096]]
+        twapi::hex [twapi::reveal [twapi::pbkdf2 [twapi::conceal passwordPASSWORDpassword] 200 sha1 [string repeat saltSALT 4]salt 4096]]
     } -result 3d2eec4fe41c849b80c8d83662c0e44a8b291a964cf2f07038
     
     test pbkdf2-sha1-2.2 {
         pbkdf2 rfc6070 nulls
     } -body {
-        twapi::hex [twapi::unseal [twapi::pbkdf2 [twapi::conceal "pass\0word"] 128 sha1 "sa\0lt" 4096]]
+        twapi::hex [twapi::reveal [twapi::pbkdf2 [twapi::conceal "pass\0word"] 128 sha1 "sa\0lt" 4096]]
     } -result 56fa6aa75548099dcc37d7f03425e0c3
 
     test pbkdf2-sha1-3.0 {
@@ -3895,31 +3895,31 @@ namespace eval twapi::crypto::test {
     test pbkdf2-sha_256-1.0 {
         Josefsson set 1
     } -body {
-        twapi::hex [twapi::unseal [twapi::pbkdf2 [twapi::conceal password] 256 sha_256 salt 1]]
+        twapi::hex [twapi::reveal [twapi::pbkdf2 [twapi::conceal password] 256 sha_256 salt 1]]
     } -result 120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b
     
     test pbkdf2-sha_256-1.1 {
         Josefsson set 2
     } -body {
-        twapi::hex [twapi::unseal [twapi::pbkdf2 [twapi::conceal password] 256 sha_256 salt 2]]
+        twapi::hex [twapi::reveal [twapi::pbkdf2 [twapi::conceal password] 256 sha_256 salt 2]]
     } -result ae4d0c95af6b46d32d0adff928f06dd02a303f8ef3c251dfd6e2d85a95474c43
     
     test pbkdf2-sha_256-1.2 {
         Josefsson set 3
     } -body {
-        twapi::hex [twapi::unseal [twapi::pbkdf2 [twapi::conceal password] 256 sha_256 salt 4096]]
+        twapi::hex [twapi::reveal [twapi::pbkdf2 [twapi::conceal password] 256 sha_256 salt 4096]]
     } -result c5e478d59288c841aa530db6845c4c8d962893a001ce4e11a4963873aa98134a
     
     test pbkdf2-sha_256-1.3 {
         Josefsson set 5
     } -body {
-        twapi::hex [twapi::unseal [twapi::pbkdf2 [twapi::conceal passwordPASSWORDpassword] 320 sha_256 saltSALTsaltSALTsaltSALTsaltSALTsalt 4096]]
+        twapi::hex [twapi::reveal [twapi::pbkdf2 [twapi::conceal passwordPASSWORDpassword] 320 sha_256 saltSALTsaltSALTsaltSALTsaltSALTsalt 4096]]
     } -result 348c89dbcbd32b2f32d814b8116e84cf2b17347ebc1800181c4e2a1fb8dd53e1c635518c7dac47e9
 
     test pbkdf2-sha_256-1.4 {
         Josefsson set 6
     } -body {
-        twapi::hex [twapi::unseal [twapi::pbkdf2 [twapi::conceal pass\0word] 128 sha_256 sa\0lt 4096]]
+        twapi::hex [twapi::reveal [twapi::pbkdf2 [twapi::conceal pass\0word] 128 sha_256 sa\0lt 4096]]
     } -result 89b69d0516f829893c696226650a8687
     
     ################################################################

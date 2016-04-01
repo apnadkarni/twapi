@@ -83,10 +83,6 @@ The [uri #conceal [cmd conceal]] and [uri #reveal [cmd reveal]]
 commands can also be used for this purpose. Note however using [cmd conceal]
 is not as secure as the argument passed to it is still in clear text.
 
-The commands
-[uri #seal [cmd seal]] and [uri #unseal [cmd unseal]] offer similar
-functionality for binary strings.
-
 [section "Writing to the Windows event log"]
 Commands for writing to the Windows event log are included
 in the [package twapi_base] package. Documentation for these
@@ -299,9 +295,6 @@ canceled (via [uri #cancel_wait_on_handle [cmd cancel_wait_on_handle]]).
 Returns an encrypted binary string corresponding to [arg PLAINTEXT].
 [uri #reveal [cmd reveal]] can be used to decrypt the result within the
 same process.
-[nl]
-This command should be used to encrypt text strings. For binary data,
-use the [uri #seal [cmd seal]] command instead.
 
 [call [cmd confirm_credentials] [arg TARGET] [arg VALIDITY]]
 Informs the Windows Credentials Manager that the previously obtained
@@ -921,15 +914,6 @@ type [arg TYPE]. [arg TYPE] must be one of the COM types
 [const bool], [const int] or [const i4], [const double] or [const r8], 
 [const bstr], or [const variant].
 
-[call [cmd seal] [arg BINARY]]
-Returns an encrypted binary string corresponding to the binary string
-[arg BINARY].
-[uri #unseal [cmd unseal]] can be used to decrypt the result within the
-same process.
-[nl]
-This command should be used to encrypt binary strings. For text,
-use the [uri #conceal [cmd conceal]] command instead.
-
 [call [cmd secs_since_1970_to_large_system_time] [arg SECONDS]]
 This command converts [arg SECONDS] which is the number of seconds since
 the epoch Jan 1, 1970 to the number of 100 nanoseconds since Jan 1, 1601.
@@ -1007,10 +991,6 @@ cannot handle the case and wants to raise the original error.
 Similarly, the [cmd trapresult] and [cmd trapoptions] commands
 can be used in a [cmd onerror] clause to retrieve the error message
 and error options dictionary captured by the [cmd onerror] clause.
-
-[call [cmd unseal] [arg ENCRYPTED]]
-Decrypts a binary string that was encrypted by [uri #seal [cmd seal]]
-within the same process.
 
 [call [cmd wait_on_handle] [arg HANDLE] [opt [arg options]]]
 The command waits on the specified [arg HANDLE] until it is either
