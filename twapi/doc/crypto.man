@@ -362,7 +362,7 @@ The [uri #protect_data [cmd protect_data]] and
 [uri #unprotect_data [cmd unprotect_data]] commands provide
 access to this facility.
 
-The TWAPI base module also provides the [cmd seal]/[cmd unseal] and
+The TWAPI base module also provides the 
 [cmd conceal]/[cmd reveal] commands to protect data within the current
 process. See the [uri base.html base] module reference for details.
 
@@ -1035,15 +1035,15 @@ Returns a list of pairs, each representing a CSP on the system.
 The first element of each pair is a CSP type 
 and the second is the name of the CSP.
 
-[call [cmd hmac] [arg DATA] [arg SEALEDKEY] [opt "[cmd -encoding] [arg ENC]"] [opt "[cmd -prf] [arg ALGID]"]]
+[call [cmd hmac] [arg DATA] [arg KEY] [opt "[cmd -encoding] [arg ENC]"] [opt "[cmd -prf] [arg ALGID]"]]
 Computes the HMAC hash for the specified data [arg DATA] and
-key [arg SEALEDKEY].
+key [arg KEY].
 [arg DATA] must be a binary string unless option [cmd -encoding] is specified
 in which case it is converted to a binary string using the specified
 encoding [arg ENC] and the HMAC is calculated on the result.
 [nl]
-The key used in computation of the HMAC is [arg SEALEDKEY] and must be
-in a [uri base.html#protectingdatainmemory sealed] form.
+The key used in computation of the HMAC is [arg KEY] and must be
+in a [uri base.html#protectingdatainmemory concealed] form.
 [nl]
 The default PRF used in calculating the HMAC is SHA-1 but a different
 one can be specified with the [cmd -prf] option. [arg ALGID] should be
@@ -1072,7 +1072,7 @@ either [const sha1] or [const sha_256].
 [arg SALT] and [arg NITERATIONS] are used as defined
 in the RFC.
 [nl]
-The returned key is in a [uri base.html#protectingdatainmemory sealed] form.
+The returned key is in a [uri base.html#protectingdatainmemory concealed] form.
                     
 [call [cmd protect_data] [arg BINDATA] [opt [arg options]]]
 Encrypts and signs the binary data [arg BINDATA] so that it can only

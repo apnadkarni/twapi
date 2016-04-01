@@ -92,9 +92,6 @@ Added [uri crypto.html#crypt_algorithms [cmd crypt_algorithms]],
 [uri crypto.html#crypt_implementation_type [cmd crypt_implementation_type]].
 
 [bullet]
-Added [uri base.html#seal [cmd seal]] and [uri base.html#unseal [cmd unseal]].
-
-[bullet]
 Added a new optional [arg DEFAULTED] parameter to
 [uri security.html#set_security_descriptor_dacl [cmd set_security_descriptor_dacl]],
 [uri security.html#set_security_descriptor_sacl [cmd set_security_descriptor_sacl]],

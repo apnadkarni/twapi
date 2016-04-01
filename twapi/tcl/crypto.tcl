@@ -2776,7 +2776,7 @@ proc twapi::_parse_store_open_opts {optvals} {
 }
 
 proc twapi::_make_plaintextkeyblob {algid rawkey} {
-    # 0 -> sealed plaintextkeyblob
+    # 0 -> concealed plaintextkeyblob
     # 2 -> bVersion
     # 0 -> reserved
     return [list 0 2 0 [capi_algid $algid] $rawkey]
