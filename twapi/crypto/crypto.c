@@ -8,7 +8,7 @@
 /* Interface to CryptoAPI */
 /*
  * TBD - GetCryptProvFromCert, CryptVerifyCertificateSignature(Ex),
- * TBD - CryptRetrieveObjectByUrl, CryptImportPublicKeyInfo
+ * TBD - CryptRetrieveObjectByUrl, 
  * TBD - CryptUI* functions
  */
 
@@ -1382,6 +1382,9 @@ static TCL_RESULT TwapiCryptDecodeObject(
     case X509_UNICODE_ANY_STRING:
         fnP = ObjFromCERT_NAME_VALUE_Unicode;
         break;
+    case X509_PUBLIC_KEY_INFO:
+        fnP = ObjFromCERT_PUBLIC_KEY_INFO;
+        break;
     case RSA_CSP_PUBLICKEYBLOB:
         objP = ObjFromBLOBHEADER(u.pv, n);
         break;
@@ -1430,6 +1433,7 @@ static TCL_RESULT TwapiCryptEncodeObject(
         CRYPT_ALGORITHM_IDENTIFIER algid;
         CERT_EXTENSIONS cexts;
         CERT_NAME_VALUE cnv;
+        CERT_PUBLIC_KEY_INFO cpki;
     } u;
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj **objs;
@@ -1524,6 +1528,10 @@ static TCL_RESULT TwapiCryptEncodeObject(
         break;
     case (DWORD_PTR) X509_UNICODE_ANY_STRING:
         if ((res = ParseCERT_NAME_VALUE_Unicode(ticP, valObj, &u.cnv)) != TCL_OK)
+            return res;
+        break;
+    case X509_PUBLIC_KEY_INFO:
+        if ((res = ParseCERT_PUBLIC_KEY_INFO(ticP, valObj, &u.cpki)) != TCL_OK)
             return res;
         break;
     case RSA_CSP_PUBLICKEYBLOB:
@@ -3948,6 +3956,45 @@ vamoose:
     return res;
 }
 
+static TCL_RESULT Twapi_CryptImportPublicKeyInfoExObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    int btype, bver, breserved;
+    ALG_ID alg_id;
+    void *cryptH, *keyH;
+    DWORD nbytes, cert_encoding;
+    Tcl_Obj *blobObj, *keyObj;
+    BLOBHEADER *blobP;
+    MemLifoMarkHandle mark = NULL;
+    TCL_RESULT res;
+    HCRYPTKEY importH;
+    CERT_PUBLIC_KEY_INFO cpki;
+    int nclear = 0;
+    
+    mark = MemLifoPushMark(ticP->memlifoP); /* For ParseCERT* below */
+    if ((res = TwapiGetArgs(interp, objc-1, objv+1,
+                            GETVERIFIEDPTR(cryptH, HCRYPTPROV, CryptReleaseContext),
+                            GETINT(cert_encoding),
+                            GETOBJ(keyObj),
+                            GETINT(alg_id), ARGEND)) != TCL_OK ||
+        (res = ParseCERT_PUBLIC_KEY_INFO(ticP, keyObj, &cpki)) != TCL_OK) {
+        goto vamoose;
+    }
+
+    if (CryptImportPublicKeyInfoEx((HCRYPTPROV)cryptH, cert_encoding,
+                                   &cpki, alg_id, 0, NULL, &importH)) {
+        TwapiRegisterHCRYPTKEY(interp, importH);
+        res = ObjSetResult(interp, ObjFromOpaque((void*)importH, "HCRYPTKEY"));
+    }
+    else
+        res = TwapiReturnSystemError(interp);
+
+vamoose:
+    if (mark)
+        MemLifoPopMark(mark);
+
+    return res;
+}
+
 static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
@@ -3974,9 +4021,6 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         char ansi[MAX_PATH+1];
         CATALOG_INFO catinfo;
     } buf;
-#if 0
-    TWAPI_PLAINTEXTKEYBLOB *keyblobP;
-#endif
     SWSMark mark = NULL;
     
     --objc;
@@ -4310,6 +4354,8 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         buf_sz = 0;
+        if (*cP == 0)
+            cP = NULL; /* Get default OID for the algorithm if not specified */
         if (!CryptExportPublicKeyInfoEx((HCRYPTPROV)pv, dw, dw2, cP, dw3, NULL, NULL, &buf_sz)) {
             result.type = TRT_GETLASTERROR;
             break;
