@@ -1757,7 +1757,7 @@ proc twapi::crypt_enumerate_oid_info {{oidgroup 0}} {
 }
 
 # TBD - test
-proc twapi::_crypt_parse {type arg args} {
+proc twapi::_capi_parse {type arg args} {
     parseargs args {
         {contenttype.arg any}
         {formattype.arg any}
@@ -1818,8 +1818,8 @@ proc twapi::_crypt_parse {type arg args} {
 
     return $ret
 }
-interp alias {} twapi::crypt_parse_file {} twapi::_crypt_parse 1
-interp alias {} twapi::crypt_parse {} twapi::_crypt_parse 2
+interp alias {} twapi::capi_parse_file {} twapi::_capi_parse 1
+interp alias {} twapi::capi_parse {} twapi::_capi_parse 2
 
 ###
 # ASN.1 procs
