@@ -195,7 +195,7 @@ static Tcl_Obj *ObjFromCRYPT_BLOB(const CRYPT_DATA_BLOB *blobP)
 static Tcl_Obj *ObjFromCRYPT_BIT_BLOB(CRYPT_BIT_BLOB *blobP)
 {
     Tcl_Obj *objs[2];
-    if (blobP->cbData && blobP->pbData) {
+    if (blobP && blobP->cbData && blobP->pbData) {
         objs[0] = ObjFromByteArray(blobP->pbData, blobP->cbData);
         objs[1] = ObjFromDWORD(blobP->cUnusedBits);
     } else {
@@ -696,7 +696,7 @@ static TCL_RESULT ParseCERT_NAME_VALUE_Unicode(
         cnvP->Value.cbData = nchars * sizeof(WCHAR);
         return TCL_OK;
     } else
-        return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid CERT_NAME_VALUE");
+        return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid CERT_NAME_VALUE.");
 }
 
 
@@ -1230,6 +1230,25 @@ static Tcl_Obj *ObjFromCERT_AUTHORITY_INFO_ACCESS(CERT_AUTHORITY_INFO_ACCESS *ca
 }
 
 
+static Tcl_Obj *ObjFromBLOBHEADER(BLOBHEADER *blobP, int nbytes)
+{
+    Tcl_Obj *objs[5];
+
+    TWAPI_ASSERT(nbytes >= sizeof(*blobP));
+    objs[1] = ObjFromInt(blobP->bVersion);
+    objs[2] = ObjFromInt(blobP->reserved);
+    objs[3] = ObjFromInt(blobP->aiKeyAlg);
+    if (blobP->bType != PLAINTEXTKEYBLOB) {
+        objs[0] = ObjFromInt(blobP->bType);
+        objs[4] = ObjFromByteArray((unsigned char *)blobP, nbytes);
+    } else {
+        TWAPI_PLAINTEXTKEYBLOB *ptblobP = (TWAPI_PLAINTEXTKEYBLOB *) blobP;
+        objs[0] = ObjFromInt(0); /* Special indicator for sealed PLAINTEXTKEYBLOB */
+        objs[4] = ObjEncryptBytes(NULL, (BYTE*) &ptblobP->rgbKeyData[0], ptblobP->dwKeySize);
+    }
+    return ObjNewList(5, objs);
+}
+
 static TCL_RESULT TwapiCryptDecodeObject(
     Tcl_Interp *interp,
     void *poid, /* Either a Tcl_Obj or a #define X509* int value */
@@ -1251,7 +1270,7 @@ static TCL_RESULT TwapiCryptDecodeObject(
     DWORD_PTR dwoid;
     Tcl_Obj * (*fnP)(void *);
 
-    /* TBD - add RSA_CSP_PUBLICKEYBLOB and other unimplemented types */
+    /* TBD - add other unimplemented types */
 
     /*
      * poid may be a Tcl_Obj or a dword corresponding to a Win32 #define
@@ -1363,6 +1382,9 @@ static TCL_RESULT TwapiCryptDecodeObject(
     case X509_UNICODE_ANY_STRING:
         fnP = ObjFromCERT_NAME_VALUE_Unicode;
         break;
+    case RSA_CSP_PUBLICKEYBLOB:
+        objP = ObjFromBLOBHEADER(u.pv, n);
+        break;
     case 65535-1: // szOID_SUBJECT_KEY_IDENTIFIER
         fnP = ObjFromCRYPT_BLOB;
         break;
@@ -1414,8 +1436,9 @@ static TCL_RESULT TwapiCryptEncodeObject(
     int       nobjs;
     LPCSTR oid;
     DWORD_PTR dwoid;
+    void *dataP;
 
-    /* TBD - add RSA_CSP_PUBLICKEYBLOB and other unimplemented types
+    /* TBD - add other unimplemented types X509_PUBLIC_KEY_INFO etc.
     E.g. pkinfo.Algorithm.pszObjId = szOID_RSA_RSA (or "1.2.840.113549.1.1.1") 
     pkinfo.Parameters.cbData = 2 
     pkinfo.Parameters.pbData = pnull (NULL encoding) 
@@ -1450,15 +1473,16 @@ static TCL_RESULT TwapiCryptEncodeObject(
             else if (STREQ(oid, szOID_AUTHORITY_KEY_IDENTIFIER2))
                 dwoid = (DWORD_PTR) X509_AUTHORITY_KEY_ID2;
             else if (STREQ(oid, szOID_SUBJECT_KEY_IDENTIFIER))
-                dwoid = 65535-1;
+                dwoid = 65535-1; /* Assumes there is no OID mapped to this */
             else if (STREQ(oid, szOID_CERT_EXTENSIONS) ||
                      STREQ(oid, szOID_RSA_certExtensions))
                 dwoid = (DWORD_PTR) X509_EXTENSIONS;
             else
-                dwoid = 65535;      /* Will return as a byte array */
+                return TwapiReturnErrorMsg(interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported OID.");
         }
     }
 
+    dataP = &u; /* Most types get parsed into &u */
     switch (dwoid) {
     case (DWORD_PTR) X509_KEY_USAGE:
         if ((res = ParseCRYPT_BIT_BLOB(ticP, valObj, &u.bitblob)) != TCL_OK)
@@ -1502,7 +1526,25 @@ static TCL_RESULT TwapiCryptEncodeObject(
         if ((res = ParseCERT_NAME_VALUE_Unicode(ticP, valObj, &u.cnv)) != TCL_OK)
             return res;
         break;
-
+    case RSA_CSP_PUBLICKEYBLOB:
+        if (ObjGetElements(NULL, valObj, &nobjs, &objs) == TCL_OK &&
+            nobjs == 5) {
+            int n;
+            BLOBHEADER *bhdrP = (BLOBHEADER*) ObjToByteArray(objs[4], &n);
+            /* Sanity check that it is a public key blob */
+            if (bhdrP->bType == PUBLICKEYBLOB &&
+                n > (sizeof(BLOBHEADER)+sizeof(RSAPUBKEY))) {
+                RSAPUBKEY *rsaP = (RSAPUBKEY*) (sizeof(BLOBHEADER) + (char*)bhdrP);
+                if (rsaP->magic == 0x31415352 &&
+                    (rsaP->bitlen/8) == (n-sizeof(BLOBHEADER)-sizeof(RSAPUBKEY))) {
+                    /* Sigh, seems ok. */
+                    dataP = bhdrP;
+                    break; /* Break from switch, else we return error below */
+                }
+            }
+        }
+        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid RSA public key blob.");
+        
     case 65535-1: // szOID_SUBJECT_KEY_IDENTIFIER
         res = ParseCRYPT_BLOB(ticP, valObj, &u.blob);
         if (res != TCL_OK)
@@ -1510,13 +1552,13 @@ static TCL_RESULT TwapiCryptEncodeObject(
         break;
         
     default:
-        return TwapiReturnErrorMsg(interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported OID");
+        return TwapiReturnErrorMsg(interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported OID.");
     }
 
     /* Assume 1000 bytes enough but get as much as we can */
     penc = MemLifoAlloc(ticP->memlifoP, 1000, &nenc);
     if (CryptEncodeObjectEx(PKCS_7_ASN_ENCODING|X509_ASN_ENCODING,
-                            oid, &u, 
+                            oid, dataP, 
                             0, NULL, penc, &nenc) == 0) {
         if (GetLastError() != ERROR_MORE_DATA)
             return TwapiReturnSystemError(interp);
@@ -3804,8 +3846,8 @@ static TCL_RESULT Twapi_CryptExportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
 {
     void *hkey, *hwrapper;
     DWORD blob_type, flags, nbytes, winerr;
-    Tcl_Obj *objs[5];
     BLOBHEADER *blobP;
+    TCL_RESULT res;
     
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(hkey, HCRYPTKEY, CryptDestroyKey),
@@ -3820,38 +3862,15 @@ static TCL_RESULT Twapi_CryptExportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     if (!CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hwrapper, blob_type, flags, NULL, &nbytes))
         return TwapiReturnSystemError(interp);
 
-    objs[4] = ObjAllocateByteArray(nbytes, &blobP);
-    if (!CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hwrapper, blob_type, flags, (BYTE*) blobP, &nbytes)) {
-        winerr = GetLastError(); /* Save before other calls */
-        ObjDecrRefs(objs[4]);
-        return Twapi_AppendSystemError(interp, winerr);
-    }
-    
-    /*
-     * If a plain text key, we want to wrap it up into an encrypted form
-     * to prevent leakage
-     */
-    objs[1] = ObjFromInt(blobP->bVersion);
-    objs[2] = ObjFromInt(blobP->reserved);
-    objs[3] = ObjFromInt(blobP->aiKeyAlg);
-    
-    if (blobP->bType != PLAINTEXTKEYBLOB)
-        objs[0] = ObjFromInt(blobP->bType);
-    else {
-        TWAPI_PLAINTEXTKEYBLOB *ptblobP = (TWAPI_PLAINTEXTKEYBLOB *) blobP;
-        Tcl_Obj *encObj = ObjEncryptBytes(interp, (BYTE*) &ptblobP->rgbKeyData[0], ptblobP->dwKeySize);
-        SecureZeroMemory(blobP, nbytes);
-        ObjDecrRefs(objs[4]); /* Free regardless of error */
-        if (encObj == NULL) {
-            int i;
-            for (i = 1; i < 4; ++i)
-                ObjDecrRefs(objs[i]);
-            return TCL_ERROR;
-        }
-        objs[0] = ObjFromInt(0); /* Special indicator for sealed PLAINTEXTKEYBLOB */
-        objs[4] = encObj;
-    }
-    return ObjSetResult(interp, ObjNewList(5, objs));
+    blobP = MemLifoPushFrame(ticP->memlifoP, nbytes, &nbytes);
+    if (CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hwrapper, blob_type, flags, (BYTE*) blobP, &nbytes)) {
+        res = ObjSetResult(interp, ObjFromBLOBHEADER(blobP, nbytes));
+        SecureZeroMemory(blobP, nbytes); /* In case plaintext secret keys */
+    } else
+        res = TwapiReturnSystemError(interp);
+
+    MemLifoPopFrame(ticP->memlifoP);
+    return res;
 }
 
 static TCL_RESULT Twapi_CryptImportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
