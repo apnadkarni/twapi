@@ -1387,11 +1387,14 @@ proc twapi::crypt_keypair {hprov keyspec} {
 }
 
 # TBD - Document
-proc twapi::crypt_public_key {hprov keyspec {sigoid oid_rsa_rsa}} {
+proc twapi::crypt_public_key {hprov keyspec {sigoid {}}} {
+    if {$sigoid ne ""} {
+        set sigoid [oid $sigoid]
+    }
     set pubkey [CryptExportPublicKeyInfoEx $hprov \
                     [_crypt_keyspec $keyspec] \
                     0x10001 \
-                    [oid $sigoid] \
+                    $sigoid \
                     0]
 }
 
