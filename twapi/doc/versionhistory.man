@@ -54,8 +54,8 @@ Added crypto key related commands
 [uri crypto.html#capi_key_salt [cmd capi_key_salt]].
 
 [bullet]
-Added [uri crypto.html#crypt_parse [cmd crypt_parse]] and
-[uri crypto.html#crypt_parse_file [cmd crypt_parse_file]] to
+Added [uri crypto.html#capi_parse [cmd capi_parse]] and
+[uri crypto.html#capi_parse_file [cmd capi_parse_file]] to
 parse serialized cryptographic objects.
 
 [bullet]

@@ -4176,16 +4176,16 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
-    test crypt_parse-99 {
-        TBD - more crypt_parse-99
+    test capi_parse-99 {
+        TBD - more capi_parse-99
     } -constraints {
         TBD
     } -body {
         TBD
     } -result TBD
 
-    test crypt_parse_file-99 {
-        TBD - more crypt_parse_file-99
+    test capi_parse_file-99 {
+        TBD - more capi_parse_file-99
     } -constraints {
         TBD
     } -body {
