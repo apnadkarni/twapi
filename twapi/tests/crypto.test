@@ -3147,7 +3147,15 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
-    test crypt_public_key {
+    test crypt_public_key_export {
+        TBD
+    } -body {
+        TBD 
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test crypt_public_key_import {
         TBD
     } -body {
         TBD 

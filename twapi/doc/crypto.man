@@ -185,7 +185,11 @@ Keys received from other applications can be imported into a cryptographic
 context with the [uri #crypt_import_key [cmd crypt_import_key]] command.
 Conversely, a key that needs to be communicated to another application
 can be exported with the
-[uri #capi_key_export [cmd capi_key_export]] command.
+[uri #capi_key_export [cmd capi_key_export]] command. Public keys
+can be imported and exported in a portable format with
+[uri #crypt_public_key_import [cmd crypt_public_key_import]] and
+[uri #crypt_public_key_export [cmd crypt_public_key_export]]
+respectively.
 
 [section "Cryptographic contexts"]
 In order to perform cryptographic operations, an application must
@@ -878,6 +882,26 @@ hash. The key is derived by hashing the UTF-8 encoding of the
 passphrase and passing the hash value to the [cmd CryptDeriveKey]
 Win32 API.  Refer to the SDK documentation for details regarding how
 the function derives keys.
+
+[call [cmd crypt_public_key_export] [arg HCRYPT] [arg KEYSPEC] [opt [cmd "-format native|pem|der"]]]
+Returns the public key of a key pair in a specified format. [arg KEYSPEC]
+must be either [const keyexchange] or [const signature] and specifies
+a key pair in the cryptographic context indicated by [arg HCRYPT].
+The [cmd -format] option controls the format of the returned public
+key as shown in the following table.
+[list_begin opt]
+[opt_def [const der]] DER encoded ASN.1 type [const SubjectPublicKeyInfo].
+[opt_def [const pem]] PEM encoded ASN.1 type [const SubjectPublicKeyInfo].
+[opt_def [const native]] Internal Tcl string format.
+[list_end]
+
+[call [cmd crypt_public_key_import] [arg HCRYPT] [arg KEY] [opt [cmd "-format native|pem|der"]]]
+Imports the public key [arg KEY] into the cryptographic context specified
+by [arg HCRYPT] and returns a handle to it. The option [cmd -format]
+specifies the format of the [arg KEY] as described for the
+[uri #crypt_public_key_export [cmd crypt_public_key_export]] command.
+If the option is not specified or is specified as an empty string, the
+command will attempt to guess the format.
 
 [call [cmd crypt_keyx_keysize_increment] [arg HCRYPT]]
 Returns the number of bits by which the key exchange key size can

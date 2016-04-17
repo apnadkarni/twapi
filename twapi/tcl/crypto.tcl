@@ -1386,16 +1386,53 @@ proc twapi::crypt_keypair {hprov keyspec} {
     return [CryptGetUserKey $hprov [dict! {keyexchange 1 signature 2} $keyspec]]
 }
 
-# TBD - Document
-proc twapi::crypt_public_key {hprov keyspec {sigoid {}}} {
-    if {$sigoid ne ""} {
-        set sigoid [oid $sigoid]
+proc twapi::crypt_public_key_import {hprov key args} {
+    parseargs args {
+        {algid.arg 0}
+        {format.arg {} {native pem der {}}}
+    } -setvars
+
+    if {$format eq "native"} {
+        set pub $key
+    } elseif {$format eq "der"} {
+        set pub [CryptDecodeObjectEx 8 $key]
+    } elseif {$format eq "pem" ||
+              ($format eq "" && [string match -nocase "-----BEGIN*" $key])} {
+        set pub [CryptDecodeObjectEx 8 [CryptStringToBinary $key 0]]
+    } else {
+        # Format is unspecified and is either der or native
+        if {[catch {set pub [CryptDecodeObjectEx 8 $key]}]} {
+            # Not DER, assume native
+            set pub $key
+        }
+    }
+    
+    return [CryptImportPublicKeyInfoEx $hprov 0x10001 $pub [capi_algid $algid]]
+}
+                    
+proc twapi::crypt_public_key_export {hprov keyspec args} {
+    parseargs args {
+        algoid.arg
+        {format.arg pem {pem der native}}
+    } -setvars -nulldefault
+    
+    if {$algoid ne ""} {
+        set algoid [oid $algoid]
     }
     set pubkey [CryptExportPublicKeyInfoEx $hprov \
                     [_crypt_keyspec $keyspec] \
                     0x10001 \
-                    $sigoid \
+                    $algoid \
                     0]
+    if {$format eq "native"} {
+        return $pubkey
+    }
+    set der [CryptEncodeObjectEx 8 $pubkey]
+    if {$format eq "der"} {
+        return $der
+    }
+    # 0x80000001 -> No CR (only LF) and headers
+    return "-----BEGIN PUBLIC KEY-----\n[CryptBinaryToString $der 0x80000001]-----END PUBLIC KEY-----\n"
 }
 
 proc twapi::crypt_get_security_descriptor {hprov} {
