@@ -31,6 +31,8 @@ Added
 
 [bullet]
 Added key import/export commands
+[uri crypto.html#crypt_public_key_export [cmd crypt_public_key_export]],
+[uri crypto.html#crypt_public_key_import [cmd crypt_public_key_import]],
 [uri crypto.html#crypt_import_key [cmd crypt_import_key]],
 [uri crypto.html#capi_key_export [cmd capi_key_export]].
 
