@@ -5441,6 +5441,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptImportKey, Twapi_CryptImportKeyObjCmd),
         DEFINE_TCL_CMD(CryptExportKey, Twapi_CryptExportKeyObjCmd),
         DEFINE_TCL_CMD(PBKDF2, Twapi_PBKDF2ObjCmd),
+        DEFINE_TCL_CMD(CryptImportPublicKeyInfoEx, Twapi_CryptImportPublicKeyInfoExObjCmd),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CryptoDispatch), CryptoDispatch, Twapi_CryptoCallObjCmd);

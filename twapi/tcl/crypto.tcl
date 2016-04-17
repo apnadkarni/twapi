@@ -1941,7 +1941,6 @@ proc twapi::capi_key_salt {hkey args} {
 ###
 # Utility procs
 
-
 proc twapi::_make_algorithm_identifier {oid {param {}}} {
     if {[string length $oid] == 0} {
         return ""
