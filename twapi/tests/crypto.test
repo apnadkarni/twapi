@@ -403,15 +403,24 @@ namespace eval twapi::crypto::test {
     } -result 7
 
     test cert_temporary_store-pkcs7-1.0 {
-        Open a PKCS7 certificate store
+        Open a PKCS7 certificate store (der default)
     } -body {
-        set hstore [twapi::cert_temporary_store -pkcs7 [twapi::cert_store_export_pkcs7 [samplestore]]]
+        set hstore [twapi::cert_temporary_store -pkcs7 [twapi::cert_store_export_pkcs7 [samplestore] -encoding der]]
         set count 0
         twapi::cert_store_iterate $hstore hcert { incr count }
         set count
     } -result 7
 
     test cert_temporary_store-pkcs7-1.1 {
+        Open a PKCS7 certificate store (pem default)
+    } -body {
+        set hstore [twapi::cert_temporary_store -pkcs7 [twapi::cert_store_export_pkcs7 [samplestore] -encoding pem]]
+        set count 0
+        twapi::cert_store_iterate $hstore hcert { incr count }
+        set count
+    } -result 7
+
+    test cert_temporary_store-pkcs7-1.2 {
         Open a PKCS7 certificate store (der)
     } -body {
         set hstore [twapi::cert_temporary_store -pkcs7 [twapi::cert_store_export_pkcs7 [samplestore] -encoding der] -encoding der]
@@ -420,7 +429,7 @@ namespace eval twapi::crypto::test {
         set count
     } -result 7
 
-    test cert_temporary_store-pkcs7-1.2 {
+    test cert_temporary_store-pkcs7-1.3 {
         Open a PKCS7 certificate store (pem)
     } -body {
         set hstore [twapi::cert_temporary_store -pkcs7 [twapi::cert_store_export_pkcs7 [samplestore] -encoding pem] -encoding pem]
@@ -1283,10 +1292,24 @@ namespace eval twapi::crypto::test {
     ################################################################
 
     test cert_store_add_encoded_certificate-1.0 {
-        Add encoded certificate to store
+        Add DER encoded certificate to store
     } -setup {
         set hstore [twapi::cert_temporary_store]
         set cer [sampleencodedcert]
+    } -body {
+        twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
+        set hcert [twapi::cert_store_enum_contents $hstore]
+        twapi::cert_subject_name $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+        twapi::cert_store_release $hstore
+    } -result twapitestfull
+
+    test cert_store_add_encoded_certificate-1.1 {
+        Add PEM encoded certificate to store (pem default)
+    } -setup {
+        set hstore [twapi::cert_temporary_store]
+        set cer [samplepemencodedcert]
     } -body {
         twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer]
         set hcert [twapi::cert_store_enum_contents $hstore]
@@ -1324,7 +1347,7 @@ namespace eval twapi::crypto::test {
         Add duplicate encoded certificate to store -disposition overwrite
     } -setup {
         set hstore [twapi::cert_temporary_store]
-        set cer [sampleencodedcert]
+        set cer [samplepemencodedcert]
         twapi::cert_release [twapi::cert_store_add_encoded_certificate $hstore $cer -disposition overwrite]
     } -body {
         set count 0
@@ -1521,7 +1544,7 @@ namespace eval twapi::crypto::test {
         Export a certificate store as pkcs7
     } -body {
         set path [write_test_file [twapi::cert_store_export_pkcs7 [samplestore]]]
-        lassign [openssl pkcs7 -in $path -noout -inform der -print_certs] output stderr
+        lassign [openssl pkcs7 -in $path -noout -inform pem -print_certs] output stderr
         llength [regexp -inline -all {subject=/CN=twapitest} $output]
     } -result 6
 
@@ -2338,7 +2361,7 @@ namespace eval twapi::crypto::test {
         twapi::cert_release $cert2
     } -result 1
 
-    test cert_export_import-1.1 {
+    test cert_export_import-1.1.0 {
         Export and import certificates (der, default)
     } -setup {
         set cert [samplecert]
@@ -2350,12 +2373,24 @@ namespace eval twapi::crypto::test {
         twapi::cert_release $cert2
     } -result 1
 
-    test cert_export_import-1.2 {
-        Export and import certificates (default, der)
+    test cert_export_import-1.1.1 {
+        Export and import certificates (pem, default)
     } -setup {
         set cert [samplecert]
     } -body {
-        set cert2 [twapi::cert_import [twapi::cert_export $cert] -encoding der]
+        set cert2 [twapi::cert_import [twapi::cert_export $cert -encoding pem]]
+        string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
+    } -cleanup {
+        twapi::cert_release $cert
+        twapi::cert_release $cert2
+    } -result 1
+
+    test cert_export_import-1.2 {
+        Export and import certificates (default, pem)
+    } -setup {
+        set cert [samplecert]
+    } -body {
+        set cert2 [twapi::cert_import [twapi::cert_export $cert] -encoding pem]
         string equal [twapi::cert_thumbprint $cert] [twapi::cert_thumbprint $cert2]
     } -cleanup {
         twapi::cert_release $cert
@@ -2598,14 +2633,14 @@ namespace eval twapi::crypto::test {
     ################################################################
 
     test cert_request_create-1.0 {
-        Create a certificate request for a TLS client
+        Create a certificate request for a TLS client (DER)
     } -setup {
         set subject twapitest-[clock microseconds]
         set crypt [twapi::crypt_acquire $subject -create 1]
         twapi::crypt_key_free [twapi::crypt_generate_key $crypt keyexchange -exportable 1]
     } -body {
         set x509_name "CN=$subject SSL Client, O=Twapi Open Source, OU=test"
-        set req [twapi::cert_request_create $x509_name $crypt keyexchange -purpose client]
+        set req [twapi::cert_request_create $x509_name $crypt keyexchange -purpose client -encoding der]
         set path [write_test_file $req wb]
         lassign [openssl req -inform der -in $path -noout -text -verify] stdout stderr
         list [regexp "Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Key Encipherment, Key Agreement\n.+X509v3 Extended Key Usage: critical.+TLS Web Client Authentication\n.+" $stdout] \
@@ -2637,7 +2672,7 @@ namespace eval twapi::crypto::test {
         set x509_name "CN=$subject No Options, O=Twapi Open Source, OU=test"
         set req [twapi::cert_request_create $x509_name $crypt keyexchange]
         set path [write_test_file $req wb]
-        lassign [openssl req -in $path -inform der -noout -text -verify] stdout stderr
+        lassign [openssl req -in $path -inform pem -noout -text -verify] stdout stderr
         list [regexp "Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE\\s+Signature Algorithm:" $stdout] \
             [string match "*verify OK*" $stderr]
     } -result {1 1}
@@ -2716,6 +2751,23 @@ namespace eval twapi::crypto::test {
             [dict exists $csr extensions] \
             [dict exists $csr pubkey]
     } -result {0 1 {} 0 1}
+
+    test cert_request_parse-1.1.1 {
+        Parse a certificate request (PEM default encoding, openssl)
+    } -setup {
+        set subject twapitest-[clock microseconds]
+        set x509_name "/CN=$subject/O=Twapi/OU=test"
+        lassign [openssl req -new -batch -nodes -keyout [tcltest::makeFile "" $subject.key] -subj $x509_name] req stderr
+    } -body {
+        set csr [twapi::cert_request_parse $req]
+        list \
+            [dict get $csr version] \
+            [string equal [dict get $csr subject] "CN=$subject, O=Twapi, OU=test"] \
+            [dict get $csr attributes] \
+            [dict exists $csr extensions] \
+            [dict exists $csr pubkey]
+    } -result {0 1 {} 0 1}
+
     
     ################################################################
 
