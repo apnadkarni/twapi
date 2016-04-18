@@ -669,26 +669,26 @@ that depend on this value.
 The data is a certificate. The returned dictionary has two additional keys
 [const store] and [const certificate] that contain handles to a certificate
 store and certificate context. These must be released
-after use with [uri #cert_store_release [cmd cert_store_release]] and
-[uri #cert_release [cmd cert_release]] respectively.
+after use with [uri certs.html#cert_store_release [cmd cert_store_release]] and
+[uri certs.html#cert_release [cmd cert_release]] respectively.
 [opt_def [const certpair]]
 TBD.
 [opt_def [const crl]]
 The data is a CRL. The returned dictionary has two additional keys
 [const store] and [const crl] that contain handles to a certificate
 store and CRL context. These must be released
-after use with [uri #cert_store_release [cmd cert_store_release]] and
+after use with [uri certs.html#cert_store_release [cmd cert_store_release]] and
 [uri #crl_release [cmd crl_release]] respectively.
 [opt_def [const ctl]]
 The data is a CTL. The returned dictionary has two additional keys
 [const store] and [const ctl] that contain handles to a certificate
 store and CTL context. These must be released
-after use with [uri #cert_store_release [cmd cert_store_release]] and
+after use with [uri certs.html#cert_store_release [cmd cert_store_release]] and
 [uri #ctl_release [cmd ctl_release]] respectively.
 [opt_def [const pfx]]
 The data is a PFX (PKCS#12) packet. No additional keys are returned in
 the dictionary. The application can use the
-[uri #cert_temporary_store [cmd cert_temporary_store]] command
+[uri certs.html#cert_temporary_store [cmd cert_temporary_store]] command
 to import the PFX packet.
 [opt_def [const pkcs10]]
 The data is a PKCS#10 message.
@@ -697,14 +697,14 @@ The data is a PKCS#7 signed message.
 The returned dictionary has two additional keys
 [const store] and [const message] that contain handles to a certificate
 store and signed message. These must be released
-after use with [uri #cert_store_release [cmd cert_store_release]] and
+after use with [uri certs.html#cert_store_release [cmd cert_store_release]] and
 [uri #capi_msg_release [cmd capi_msg_release]] respectively.
 [opt_def [const pkcs7signedembed]]
 The data is an embedded PKCS#7 signed message.
 The returned dictionary has two additional keys
 [const store] and [const message] that contain handles to a certificate
 store and signed message. These must be released
-after use with [uri #cert_store_release [cmd cert_store_release]] and
+after use with [uri certs.html#cert_store_release [cmd cert_store_release]] and
 [uri #capi_msg_release [cmd capi_msg_release]] respectively.
 [opt_def [const pkcs7unsigned]]
 The data is a PKCS#7 unsigned message.
@@ -717,26 +717,26 @@ The data is a serialized certificate.
 The returned dictionary has two additional keys
 [const store] and [const certificate] that contain handles to a certificate
 store and certificate context. These must be released
-after use with [uri #cert_store_release [cmd cert_store_release]] and
-[uri #cert_release [cmd cert_release]] respectively.
+after use with [uri certs.html#cert_store_release [cmd cert_store_release]] and
+[uri certs.html#cert_release [cmd cert_release]] respectively.
 [opt_def [const serializedcrl]]
 The data is a serialized CRL. The returned dictionary has two additional keys
 [const store] and [const crl] that contain handles to a certificate
 store and CRL context. These must be released
-after use with [uri #cert_store_release [cmd cert_store_release]] and
+after use with [uri certs.html#cert_store_release [cmd cert_store_release]] and
 [uri #crl_release [cmd crl_release]] respectively.
 [opt_def [const serializedctl]]
 The data is a serialized CTL. The returned dictionary has two additional keys
 [const store] and [const ctl] that contain handles to a certificate
 store and CTL context. These must be released
-after use with [uri #cert_store_release [cmd cert_store_release]] and
+after use with [uri certs.html#cert_store_release [cmd cert_store_release]] and
 [uri #ctl_release [cmd ctl_release]] respectively.
 [opt_def [const serializedstore]]
 The data is a serialized certificate store.
 The returned dictionary has an additional key
 [const store] that contains a handle to a certificate
 store created from the data. This must be released
-after use with [uri #cert_store_release [cmd cert_store_release]].
+after use with [uri certs.html#cert_store_release [cmd cert_store_release]].
 
 [list_end]
 
