@@ -113,6 +113,14 @@ Command [cmd crypt_key_free] is deprecated. Use
 
 [bullet]
 [emph "Incompatible change"]
+Commands in the [uri crypto.html CryptoAPI] and [uri certs.html Certificates]
+modules that have an [cmd -encoding] option have changed behaviour. For
+input, if [cmd -encoding] is not specified, they now try to determine
+the input encoding instead of defaulting to DER. For output, the default
+encoding has changed from DER to PEM.
+
+[bullet]
+[emph "Incompatible change"]
 The [uri crypto.html#crypt_acquire [cmd crypt_acquire]] command behaviour
 has changed. It now takes the key container name as the [cmd -keycontainer]
 option instead of the first argument. The [cmd -create] option will not

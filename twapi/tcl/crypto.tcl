@@ -166,7 +166,7 @@ proc twapi::cert_temporary_store {args} {
     # Also CryptAcquireCertificatePrivateKey and GetCryptProvFromCert
     # might be useful in this regard
     parseargs args {
-        {encoding.arg der {der cer crt pem base64}}
+        {encoding.arg {} {der pem {}}}
         serialized.arg
         pkcs7.arg
         {password.arg ""}
@@ -200,12 +200,8 @@ proc twapi::cert_temporary_store {args} {
     }
 
     if {[info exists pkcs7]} {
-        if {$encoding in {pem base64}} {
-            # 6 -> CRYPT_STRING_BASE64_ANY 
-            set data [CryptStringToBinary $data 6]
-        }
         # 5 -> CERT_STORE_PROV_PKCS7
-        return [CertOpenStore 5 0x10001 NULL 0 $data]
+        return [CertOpenStore 5 0x10001 NULL 0 [_pem_decode $data $encoding]]
     }
 
     # PFX/PKCS12
@@ -367,14 +363,10 @@ proc twapi::cert_store_add_certificate {hstore hcert args} {
 
 proc twapi::cert_store_add_encoded_certificate {hstore enccert args} {
     parseargs args {
-        {encoding.arg der {der pem}}
+        {encoding.arg {} {der pem {}}}
     } -ignoreunknown -setvars
     array set opts [_cert_add_parseargs args]
-    if {$encoding eq "pem"} {
-        # 6 -> CRYPT_STRING_BASE64_ANY 
-        set enccert [CryptStringToBinary $enccert 6]
-    }
-    return [CertAddEncodedCertificateToStore $hstore 0x10001 $enccert $opts(disposition)]
+    return [CertAddEncodedCertificateToStore $hstore 0x10001 [_pem_decode $enccert $encoding] $opts(disposition)]
 }
 
 proc twapi::cert_store_export_pfx {hstore password args} {
@@ -412,17 +404,10 @@ proc twapi::cert_store_serialize {hstore} {
 
 proc twapi::cert_store_export_pkcs7 {hstore args} {
     parseargs args {
-        {encoding.arg der {der pem}}
+        {encoding.arg pem {der pem}}
     } -setvars -maxleftover 0
     
-    set exp [Twapi_CertStoreSerialize $hstore 2]
-    if {$encoding eq "pem"} {
-        # 1 -> CRYPT_STRING_BASE64
-        # 0x80000000 -> LF-only, not CRLF
-        return "-----BEGIN PKCS7-----\n[CryptBinaryToString $exp 0x80000001]-----END PKCS7-----\n"
-    } else {
-        return $exp
-    }
+    return [_as_pem_or_der [Twapi_CertStoreSerialize $hstore 2] "BEGIN PKCS7" $encoding]
 }
 
 ################################################################
@@ -606,32 +591,18 @@ proc twapi::cert_set_key_prov {hcert args} {
 
 proc twapi::cert_export {hcert args} {
     parseargs args {
-        {encoding.arg der {der pem}}
+        {encoding.arg pem {der pem}}
     } -maxleftover 0 -setvars
 
-    set enc [lindex [Twapi_CertGetEncoded $hcert] 1]
-    if {$encoding eq "pem"} {
-        # 0 -> CRYPT_STRING_BASE64HEADER 
-        # 0x80000000 -> LF-only, not CRLF
-        return [CryptBinaryToString $enc 0x80000000]
-    } else {
-        return $enc
-    }
+    return [_as_pem_or_der [lindex [Twapi_CertGetEncoded $hcert] 1] CERTIFICATE $encoding]
 }
 
 proc twapi::cert_import {enccert args} {
     parseargs args {
-        {encoding.arg der {der pem}}
+        {encoding.arg {} {der pem {}}}
     } -maxleftover 0 -setvars
-
-    if {$encoding eq "pem"} {
-        # 6 -> CRYPT_STRING_BASE64_ANY 
-        set enccert [CryptStringToBinary $enccert 6]
-    }
-
-    return [CertCreateCertificateContext 0x10001 $enccert]
+    return [CertCreateCertificateContext 0x10001 [_pem_decode $enccert $encoding]]
 }
-
 
 proc twapi::cert_enhkey_usage {hcert {loc both}} {
     return [_cert_decode_enhkey [CertGetEnhancedKeyUsage $hcert [dict! {property 4 extension 2 both 0} $loc 1]]]
@@ -716,7 +687,7 @@ proc twapi::cert_create {subject pubkey cissuer args} {
 
     parseargs args {
         {keyspec.arg signature {keyexchange signature}}
-        {encoding.arg der {der pem}}
+        {encoding.arg pem {der pem}}
     } -maxleftover 0 -setvars
     
     # TBD - check that issuer is a CA
@@ -764,16 +735,10 @@ proc twapi::cert_create {subject pubkey cissuer args} {
     set hissuerprov [crypt_acquire $issuer_container -csp $issuer_provname -csptype $issuer_provtype -keysettype [expr {$issuer_flags & 0x20 ? "machine" : "user"}]]
     trap {
         # 0x10001 -> X509_ASN_ENCODING, 2 -> X509_CERT_TO_BE_SIGNED
-        set enc [CryptSignAndEncodeCertificate $hissuerprov $issuer_keyspec \
-                      0x10001 2 $cert_info $sigalgo]
-
-        if {$encoding eq "pem"} {
-            # 0 -> CRYPT_STRING_BASE64HEADER 
-            # 0x80000000 -> LF-only, not CRLF
-            return [CryptBinaryToString $enc 0x80000000]
-        } else {
-            return $enc
-        }
+        return [_as_pem_or_der [CryptSignAndEncodeCertificate $hissuerprov \
+                             $issuer_keyspec \
+                             0x10001 2 $cert_info $sigalgo] \
+                    CERTIFICATE $encoding]
     } finally {
         # TBD - test to make sure ok to close this if caller had
         # it open
@@ -1203,16 +1168,12 @@ proc twapi::cert_locate_private_key {hcert args} {
 
 proc twapi::cert_request_parse {req args} {
     parseargs args {
-        {encoding.arg der {der pem}}
+        {encoding.arg {} {der pem {}}}
     } -setvars -maxleftover 0
 
-    if {$encoding eq "pem"} {
-        # 3 -> CRYPT_STRING_BASE64REQUESTHEADER 
-        set req [CryptStringToBinary $req 3]
-    }
-
+    # 3 -> CRYPT_STRING_BASE64REQUESTHEADER 
     # 4 -> X509_CERT_REQUEST_TO_BE_SIGNED 
-    lassign [::twapi::CryptDecodeObjectEx 4 $req] ver subject pubkey attrs
+    lassign [::twapi::CryptDecodeObjectEx 4 [_pem_decode $req $encoding 3]] ver subject pubkey attrs
     lappend reqdict version $ver pubkey $pubkey attributes $attrs
     lappend reqdict subject [cert_blob_to_name $subject]
     foreach attr $attrs {
@@ -1246,7 +1207,7 @@ proc twapi::cert_request_create {subject hprov keyspec args} {
     # TBD - document signaturealgorithmid
     parseargs args {
         {signaturealgorithmid.arg oid_rsa_sha1rsa}
-        {encoding.arg der {der pem}}
+        {encoding.arg pem {der pem}}
     } -setvars -maxleftover 0
     
     set sigoid [oid $signaturealgorithmid]
@@ -1264,14 +1225,7 @@ proc twapi::cert_request_create {subject hprov keyspec args} {
     } else {
         lappend attrs {}
     }
-    set req [CryptSignAndEncodeCertificate $hprov $keyspec 0x10001 4 $attrs $sigoid]
-    if {$encoding eq "pem"} {
-        # 3 -> CRYPT_STRING_BASE64REQUESTHEADER 
-        # 0x80000000 -> LF-only, not CRLF
-        return [CryptBinaryToString $req 0x80000003]
-    } else {
-        return $req
-    }
+    return [_as_pem_or_der [CryptSignAndEncodeCertificate $hprov $keyspec 0x10001 4 $attrs $sigoid] "NEW CERTIFICATE REQUEST" $encoding]
 }
 
 
@@ -2816,11 +2770,32 @@ proc twapi::_make_plaintextkeyblob {algid rawkey} {
     return [list 0 2 0 [capi_algid $algid] $rawkey]
 }
 
-# Makes a guess as to whether PEM and if so converts it to binary. Else
-# returns as is.
-proc twapi::unpemify {pem_or_der} {
-    if {[regexp -nocase {^\s*-----\s*BEGIN\s+} $pem_or_der]} {
-        return [CryptStringToBinary $pem_or_der 0]
+# Helper to return as der/pem based on encoding option
+proc twapi::_as_pem_or_der {bin tag encoding} {
+    if {$encoding eq "pem"} {
+        # 1 -> CRYPT_STRING_BASE64
+        # 0x80000000 -> LF-only, not CRLF
+        return "-----BEGIN $tag-----\n[CryptBinaryToString $bin 0x80000001]-----END $tag-----\n"
+    } else {
+        return $bin
+    }
+}
+
+# Helper for converting input parameters if they are in PEM format
+# pem_or_der is the data
+# enc specifies the type of pem_or_der. If empty, we guess.
+# pemtype should generally be
+# 0 -> CRYPT_STRING_BASE64HEADER for certificates
+# 1 -> CRYPT_STRING_BASE64 (no header)
+# 3 -> CRYPT_STRING_BASE64REQUESTHEADER
+# 6 -> CRYPT_STIRNG_BASE64_ANY (actually same as 0 or 1)
+proc twapi::_pem_decode {pem_or_der enc {pemtype 6}} {
+    if {$enc eq "der"} {
+        return $pem_or_der
+    }
+    if {$enc eq "pem" || 
+        [regexp -nocase {^\s*-----\s*BEGIN\s+} $pem_or_der]} {
+        return [CryptStringToBinary $pem_or_der $pemtype]
     }
     return $pem_or_der
 }

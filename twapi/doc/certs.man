@@ -435,7 +435,7 @@ is a boolean indicating whether the corresponding certificate extension
 should be marked critical or not.
 [opt_def [cmd -encoding] [arg ENCODING]]
 Specifies the encoding in which the encoded certificate is returned.
-[arg ENCODING] may be [const der] (default) or [const pem]
+[arg ENCODING] may be [const der] or [const pem] (default)
 for DER- and PEM-encoding respectively.
 [opt_def [cmd -keyspec] [arg KEYSPEC]]
 [arg KEYSPEC] must be one of [const signature] (default) or 
@@ -602,7 +602,7 @@ the integer value otherwise.
 [call [cmd cert_export] [arg HCERT] [opt "[cmd -encoding] [arg ENCODING]"]]
 Returns the certificate content for the specified certificate context.
 The [cmd -encoding] option controls the encoding of the returned content.
-[arg ENCODING] may be [const der] (default) or [const pem]
+[arg ENCODING] may be [const der] or [const pem] (default)
 for DER- and PEM-encoding respectively.
 
 [call [cmd cert_extension] [arg HCERT] [arg EXTENSION]]
@@ -669,8 +669,9 @@ when no longer needed.
 [call [cmd cert_import] [arg ENCODEDCERT] [opt "[cmd -encoding] [arg encoding]"]]
 Creates and returns a certificate context from encoded data in
 [arg ENCODEDCERT]. 
-[arg ENCODING] should be [const der] (default) or [const pem]
+[arg ENCODING] may be [const der] or [const pem]
 depending on whether [arg ENCODEDCERT] uses DER- or PEM-encoding.
+If unspecified, the command attempts to determine the encoding itself.
 
 [call [cmd cert_info] [arg HCERT]]
 Returns the following fields from a certificate context as a dictionary.
@@ -876,7 +877,7 @@ See [uri #cert_create [cmd cert_create]]
 See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -encoding] [arg ENCODING]]
 Specifies the encoding of the returned CSR.
-[arg ENCODING] may be [const der] (default) or [const pem]
+[arg ENCODING] may be [const der] or [const pem] (default)
 for DER- and PEM-encoding respectively.
 [opt_def [cmd -enhkeyusage] [arg ENHKEYUSAGE]]
 See [uri #cert_create [cmd cert_create]]
@@ -889,8 +890,9 @@ See [uri #cert_create [cmd cert_create]]
 [call [cmd cert_request_parse] [arg CSR] [opt "[cmd -encoding] [arg ENCODING]"]]
 Parses a certificate signing request [arg CSR] and returns a dictionary with
 its contents. 
-[arg ENCODING] should be [const der] (default) or [const pem]
+[arg ENCODING] may be [const der] or [const pem]
 depending on whether [arg ENCODEDCERT] uses DER- or PEM-encoding.
+If unspecified, the command attempts to determine the encoding itself.
 [nl]
 The returned dictionary has the following keys:
 [list_begin opt]
@@ -997,8 +999,9 @@ is less than that of the new certificate. Otherwise an error is raised.
 [list_end]
 [opt_def [cmd -encoding] [arg ENCODING]]
 Specifies the encoding of [arg ENCODEDCERT].
-[arg ENCODING] should be [const der] (default) or [const pem]
-depending on whether [arg ENCODEDCERT] uses DER- or PEM-encoding.
+[arg ENCODING] should be [const der] or [const pem]
+depending on whether [arg ENCODEDCERT] uses DER- or PEM-encoding. If unspecified
+or the empty string, the command will attempt to make the determination itself.
 [list_end]
 
 [call [cmd cert_store_commit] [arg HSTORE] [opt "[cmd -force] [arg BOOLEAN]"]]
@@ -1069,7 +1072,7 @@ in a certificate store.
 with certificate are not exported.
 The [cmd -encoding] option
 specifies the encoding for the returned certificate.
-[arg ENCODING] should be [const der] (default) or [const pem]
+[arg ENCODING] should be [const der] or [const pem] (default)
 for DER- and PEM-encoding respectively.
 
 [call [cmd cert_store_find_certificate] [arg HSTORE] [opt [arg SEARCHTYPE]] [opt [arg SEARCHTERM]] [opt [arg HCERT]]]
@@ -1310,8 +1313,9 @@ This an alias for the [cmd -pfx] option.
 [opt_def [cmd -pkcs7] [arg PKCS7BLOB]]
 [arg PKCS7BLOB] is a PKCS #7 packet containing certificates. The additional
 option "[cmd -encoding] [arg ENCODING]" may be used with [cmd -pkcs7]
-where [arg ENCODING] must be [const der] (default), or [const pem] to
-indicate the packet is DER- or PEM-encoded.
+where [arg ENCODING] may be [const der], or [const pem] to
+indicate the packet is DER- or PEM-encoded. If unspecified, the
+command will attempt to guess the encoding.
 [opt_def [cmd -serialized] [arg SERIALIZEDBLOB]]
 [arg SERIALIZEDBLOB] is a serialized certificate store,
 such as returned from [uri #cert_store_serialize [cmd cert_store_serialize]].
