@@ -564,7 +564,7 @@ proc twapi::cert_property_delete {hcert prop} {
 
 # TBD - Also add cert_set_key_prov_from_crypt_context
 proc twapi::cert_set_key_prov {hcert args} {
-    # TB - make keycontainer explicit arg
+    # TBD - make keycontainer and keyspec explicit arg
     parseargs args {
         keycontainer.arg
         csp.arg
@@ -635,6 +635,7 @@ proc twapi::cert_extension {hcert oid} {
 }
 
 proc twapi::cert_create_self_signed {subject args} {
+    # TBD - make keycontainer and keyspec explicit arg
     set args [_cert_create_parse_options $args opts]
 
     array set opts [parseargs args {
@@ -686,7 +687,6 @@ proc twapi::cert_create {subject pubkey cissuer args} {
     set args [_cert_create_parse_options $args opts]
 
     parseargs args {
-        {keyspec.arg signature {keyexchange signature}}
         {encoding.arg pem {der pem}}
     } -maxleftover 0 -setvars
     

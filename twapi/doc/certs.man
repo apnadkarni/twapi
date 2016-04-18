@@ -437,10 +437,6 @@ should be marked critical or not.
 Specifies the encoding in which the encoded certificate is returned.
 [arg ENCODING] may be [const der] or [const pem] (default)
 for DER- and PEM-encoding respectively.
-[opt_def [cmd -keyspec] [arg KEYSPEC]]
-[arg KEYSPEC] must be one of [const signature] (default) or 
-[const keyexchange] and specifies the public/private key pair
-in the container for which the certificate is being created.
 [opt_def [cmd -keyusage] [arg KEYUSAGE]]
 Specifies values to use for the X.509 key usage extension.
 [arg KEYUSAGE] is a pair of one or two elements, the first of which
