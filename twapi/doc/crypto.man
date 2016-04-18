@@ -1062,28 +1062,29 @@ Returns a list of pairs, each representing a CSP on the system.
 The first element of each pair is a CSP type 
 and the second is the name of the CSP.
 
-[call [cmd hmac] [arg DATA] [arg KEY] [opt "[cmd -encoding] [arg ENC]"] [opt "[cmd -prf] [arg ALGID]"]]
-Computes the HMAC hash for the specified data [arg DATA] and
-key [arg KEY].
-[arg DATA] must be a binary string unless option [cmd -encoding] is specified
-in which case it is converted to a binary string using the specified
-encoding [arg ENC] and the HMAC is calculated on the result.
-[nl]
-The key used in computation of the HMAC is [arg KEY] and must be
+[call [cmd hmac] [arg DATA] [arg KEY] [opt [arg PRF]] [opt [arg CHARSET]]]
+Computes the HMAC hash for the specified data [arg DATA].
+The key [arg KEY] used in computation of the HMAC is and must be
 in a [uri base.html#protectingdatainmemory concealed] form.
 [nl]
-The default PRF used in calculating the HMAC is SHA-1 but a different
-one can be specified with the [cmd -prf] option. [arg ALGID] should be
-specify an appropriate [uri #algorithmidentifiers "algorithm identifier"]
+The pseudo random function used in calculating the MAC is
+specified by [arg PRF] which defaults to SHA-1. If explicitly specified,
+[arg PRF] should be an appropriate
+[uri #algorithmidentifiers "algorithm identifier"]
 such as [const sha_256].
+[nl]
+[arg DATA] must be a binary string unless [arg CHARSET] is specified
+in which case it is converted to a binary string using the specified
+character set encoding [arg CHARSET] using the Tcl [cmd encoding] command
+and the HMAC is calculated on the result.
 [nl]
 The command returns the computed HMAC as a binary string.
 
-[call [cmd md5] [arg DATA] [opt [arg ENC]]]
-Returns the MD5 digest for [arg DATA]. If [arg ENC] is not
+[call [cmd md5] [arg DATA] [opt [arg CHARSET]]]
+Returns the MD5 digest for [arg DATA]. If [arg CHARSET] is not
 specified or is an empty string, [arg DATA] is assumed to be
 a binary string. Otherwise, it is converted to a binary string
-using the specified encoding [arg ENC] and the digest is calculated
+using the specified encoding [arg CHARSET] and the digest is calculated
 on the result.
 
 [call [cmd pbkdf2] [arg PASSPHRASE] [arg KEYSIZE] [arg PRF] [arg SALT] [arg NITERATIONS]]
@@ -1127,15 +1128,15 @@ data. The user will also be prompted at the time the data
 is decrypted.
 [list_end]
 
-[call [cmd sha1] [arg DATA] [opt [arg ENC]]]
-[call [cmd sha256] [arg DATA] [opt [arg ENC]]]
-[call [cmd sha384] [arg DATA] [opt [arg ENC]]]
-[call [cmd sha512] [arg DATA] [opt [arg ENC]]]
+[call [cmd sha1] [arg DATA] [opt [arg CHARSET]]]
+[call [cmd sha256] [arg DATA] [opt [arg CHARSET]]]
+[call [cmd sha384] [arg DATA] [opt [arg CHARSET]]]
+[call [cmd sha512] [arg DATA] [opt [arg CHARSET]]]
 Return the SHA-1, SHA-256, SHA-384 or SHA-512 digests respectively
-for [arg DATA]. If [arg ENC] is not
+for [arg DATA]. If [arg CHARSET] is not
 specified or is an empty string, [arg DATA] is assumed to be
 a binary string. Otherwise, it is converted to a binary string
-using the specified encoding [arg ENC] and the digest is calculated
+using the specified encoding [arg CHARSET] and the digest is calculated
 on the result.
 
 [call [cmd unprotect_data] [arg BINDATA] [opt [arg options]]]

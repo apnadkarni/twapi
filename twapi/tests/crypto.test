@@ -4099,27 +4099,27 @@ namespace eval twapi::crypto::test {
     ################################################################
 
     test hmac-1.0 {hmac bin} -body {
-        twapi::hmac $hash_bin_operand [twapi::seal mykey]
+        twapi::hmac $hash_bin_operand [twapi::conceal mykey]
     } -result [sha1::hmac -bin -key mykey $hash_bin_operand]
     
     test hmac-1.1 {hmac bin openssl} -body {
-        twapi::hex [twapi::hmac [read_binary crypto.test] [twapi::seal mykey]]
+        twapi::hex [twapi::hmac [read_binary crypto.test] [twapi::conceal mykey]]
     } -result [lindex [openssl dgst -sha1 -hmac mykey crypto.test] 0 1]
     
     test hmac-1.2 {hmac bin empty key} -body {
-        twapi::hmac $hash_bin_operand [twapi::seal ""]
+        twapi::hmac $hash_bin_operand [twapi::conceal ""]
     } -result [sha1::hmac -bin -key "" $hash_bin_operand]
     
     test hmac-1.3 {hmac bin empty data} -body {
-        twapi::hmac "" [twapi::seal mykey]
+        twapi::hmac "" [twapi::conceal mykey]
     } -result [sha1::hmac -bin -key mykey ""]
     
     test hmac-2.0 {hmac utf-8} -body {
-        twapi::hmac $hash_str_operand [twapi::seal mykey] -encoding utf-8
+        twapi::hmac $hash_str_operand [twapi::conceal mykey] sha1 utf-8
     } -result [sha1::hmac -bin -key mykey [encoding convertto utf-8 $hash_str_operand]]
     
     test hmac-2.1 {hmac unicode} -body {
-        twapi::hmac $hash_str_operand [twapi::seal $hash_bin_operand] -encoding unicode
+        twapi::hmac $hash_str_operand [twapi::conceal $hash_bin_operand] sha1 unicode
     } -result [sha1::hmac -bin -key $hash_bin_operand [encoding convertto unicode $hash_str_operand]]
     
     # Test vectors from RFC 4868
@@ -4155,7 +4155,7 @@ namespace eval twapi::crypto::test {
         sha_384 5468697320697320612074657374207573696e672061206c6172676572207468616e20626c6f636b2d73697a65206b657920616e642061206c6172676572207468616e20626c6f636b2d73697a6520646174612e20546865206b6579206e6565647320746f20626520686173686564206265666f7265206265696e6720757365642062792074686520484d414320616c676f726974686d2e aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 6617178e941f020d351e2f254e8fd32c602420feb0b8fb9adccebb82461e99c5a678cc31e799176d3860e6110c46523e
         sha_512 5468697320697320612074657374207573696e672061206c6172676572207468616e20626c6f636b2d73697a65206b657920616e642061206c6172676572207468616e20626c6f636b2d73697a6520646174612e20546865206b6579206e6565647320746f20626520686173686564206265666f7265206265696e6720757365642062792074686520484d414320616c676f726974686d2e aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa e37b6a775dc87dbaa4dfa9f96e5e3ffddebd71f8867289865df5a32d20cdc944b6022cac3c4982b10d5eeb55c3e4de15134676fb6de0446065c97440fa8c6a58
     } {
-        test hmac-rfc4868-[incr testnum] "hmac $prf" -body {twapi::hex [twapi::hmac [hexbin $data] [twapi::seal [hexbin $key]] -prf $prf]} -result $hmac
+        test hmac-rfc4868-[incr testnum] "hmac $prf" -body {twapi::hex [twapi::hmac [hexbin $data] [twapi::conceal [hexbin $key]] $prf]} -result $hmac
     }
         
     ################################################################

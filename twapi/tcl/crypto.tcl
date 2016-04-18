@@ -63,14 +63,9 @@ interp alias {} twapi::sha256 {} twapi::_do_hash prov_rsa_aes sha_256
 interp alias {} twapi::sha384 {} twapi::_do_hash prov_rsa_aes sha_384
 interp alias {} twapi::sha512 {} twapi::_do_hash prov_rsa_aes sha_512
 
-proc twapi::hmac {data key args} {
-    parseargs args {
-        encoding.arg
-        {prf.arg sha1}
-    } -maxleftover 0 -setvars
-    
-    if {[info exists encoding]} {
-        set data [encoding convertto $encoding $data]
+proc twapi::hmac {data key {prf sha1} {charset {}}} {
+    if {$charset ne ""} {
+        set data [encoding convertto $charset $data]
     }
 
     # Choose prov_rsa_aes because older CSP's do not support sha256
@@ -2819,6 +2814,15 @@ proc twapi::_make_plaintextkeyblob {algid rawkey} {
     # 2 -> bVersion
     # 0 -> reserved
     return [list 0 2 0 [capi_algid $algid] $rawkey]
+}
+
+# Makes a guess as to whether PEM and if so converts it to binary. Else
+# returns as is.
+proc twapi::unpemify {pem_or_der} {
+    if {[regexp -nocase {^\s*-----\s*BEGIN\s+} $pem_or_der]} {
+        return [CryptStringToBinary $pem_or_der 0]
+    }
+    return $pem_or_der
 }
 
 # Utility proc to generate certs in a memory store - 
