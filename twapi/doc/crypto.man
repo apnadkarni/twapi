@@ -892,11 +892,11 @@ passphrase and passing the hash value to the [cmd CryptDeriveKey]
 Win32 API.  Refer to the SDK documentation for details regarding how
 the function derives keys.
 
-[call [cmd crypt_public_key_export] [arg HCRYPT] [arg KEYSPEC] [opt [cmd "-format native|pem|der"]]]
-Returns the public key of a key pair in a specified format. [arg KEYSPEC]
+[call [cmd crypt_public_key_export] [arg HCRYPT] [arg KEYSPEC] [opt [cmd "-encoding native|pem|der"]]]
+Returns the public key of a key pair in a specified encoding. [arg KEYSPEC]
 must be either [const keyexchange] or [const signature] and specifies
 a key pair in the cryptographic context indicated by [arg HCRYPT].
-The [cmd -format] option controls the format of the returned public
+The [cmd -encoding] option controls the encoding of the returned public
 key as shown in the following table.
 [list_begin opt]
 [opt_def [const der]] DER encoded ASN.1 type [const SubjectPublicKeyInfo].
@@ -904,13 +904,13 @@ key as shown in the following table.
 [opt_def [const native]] Internal Tcl string format.
 [list_end]
 
-[call [cmd crypt_public_key_import] [arg HCRYPT] [arg KEY] [opt [cmd "-format native|pem|der"]]]
+[call [cmd crypt_public_key_import] [arg HCRYPT] [arg KEY] [opt [cmd "-encoding native|pem|der"]]]
 Imports the public key [arg KEY] into the cryptographic context specified
-by [arg HCRYPT] and returns a handle to it. The option [cmd -format]
-specifies the format of the [arg KEY] as described for the
+by [arg HCRYPT] and returns a handle to it. The option [cmd -encoding]
+specifies the encoding of [arg KEY] as described for the
 [uri #crypt_public_key_export [cmd crypt_public_key_export]] command.
 If the option is not specified or is specified as an empty string, the
-command will attempt to guess the format.
+command will attempt to guess the encoding.
 
 [call [cmd crypt_keyx_keysize_increment] [arg HCRYPT]]
 Returns the number of bits by which the key exchange key size can
