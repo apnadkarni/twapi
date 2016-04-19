@@ -1572,20 +1572,29 @@ proc twapi::pbkdf2 {pass nbits alg_id salt niters} {
     return [PBKDF2 $pass $nbits [capi_algid $alg_id] $salt $niters]
 }
                     
-proc twapi::capi_encrypt_bytes {bytes hkey {hhash NULL}} {
-    return [CryptEncrypt $hkey $hhash 1 0 $bytes]
+proc twapi::capi_encrypt_bytes {bytes hkey args} {
+    parseargs args {
+        {pad.arg oaep {oaep pkcs1}}
+        {hhash.arg NULL}
+    } -setvars -maxleftover 0
+        
+    return [CryptEncrypt $hkey $hhash 1 [dict! {pkcs1 0 oaep 0x40} $pad] $bytes]
 }
 
-proc twapi::capi_encrypt_string {s hkey {hhash NULL}} {
-    return [capi_encrypt_bytes [encoding convertto utf-8 $s] $hkey $hhash]
+proc twapi::capi_encrypt_string {s hkey args} {
+    return [capi_encrypt_bytes [encoding convertto utf-8 $s] $hkey {*}$args]
 }
 
-proc twapi::capi_decrypt_bytes {bytes hkey {hhash NULL}} {
-    return [CryptDecrypt $hkey $hhash 1 0 $bytes]
+proc twapi::capi_decrypt_bytes {bytes hkey args} {
+    parseargs args {
+        {pad.arg oaep {oaep pkcs1 nopadcheck}}
+        {hhash.arg NULL}
+    } -setvars -maxleftover 0
+    return [CryptDecrypt $hkey $hhash 1 [dict! {pkcs1 0 oaep 0x40 nopadcheck 0x20} $pad] $bytes]
 }
 
-proc twapi::capi_decrypt_string {bytes hkey {hhash NULL}} {
-    return [encoding convertfrom utf-8 [CryptDecrypt $hkey $hhash 1 0 $bytes]]
+proc twapi::capi_decrypt_string {s hkey args} {
+    return [encoding convertfrom utf-8 [capi_decrypt_bytes $s $hkey {*}$args]]
 }
 
 # For backwards compat - deprecated
