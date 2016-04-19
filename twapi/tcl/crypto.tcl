@@ -1744,6 +1744,62 @@ proc twapi::_capi_parse {type arg args} {
         {typesonly.bool 0}
     } -setvars -maxleftover 0
         
+    # First try the formats not supported by CryptQueryObject
+    if {$contenttype in {any rsapublickey subjectpublickeyinfo}} {
+        if {$formattype eq "binary"} {
+            set encoding der
+        } elseif {$formattype eq "base64"} {
+            set encoding pem
+        } else {
+            set encoding ""
+        }
+        if {$type == 1} {
+            # arg is a file
+            set fd [open $arg]
+            trap {
+                fconfigure $fd -translation binary
+                set content [_pem_decode [read $fd] $encoding]
+                set is_pem  [_is_pem $content]
+            } finally {
+                close $fd
+            }
+        }
+        if {$contenttype in {any subjectpublickeyinfo}} {
+            trap {
+                set data [CryptDecodeObjectEx 8 $content]
+                dict set ret contenttype subjectpublickeyinfo
+                dict set ret formattype [lindex {binary base64} $is_pem]
+                if {! $typesonly} {
+                    dict set ret subjectpublickeyinfo $data
+                }
+                return $ret
+            } onerror {} {
+                if {$contenttype eq "subjectpublickeyinfo"} {
+                    rethrow
+                }
+                # Go on to try other types
+            }
+        }
+        if {$contenttype in {any rsapublickey}} {
+            trap {
+                set data [CryptDecodeObjectEx 19 $content]
+                dict set ret contenttype rsapublickey
+                dict set ret formattype [lindex {binary base64} $is_pem]
+                if {! $typesonly} {
+                    dict set ret rsapublickey $data
+                }
+                return $ret
+            } onerror {} {
+                if {$contenttype eq "rsapublickey"} {
+                    rethrow
+                }
+                # Go on to try other types
+            }
+        }
+    }
+
+    # No joy. Go on to try CryptQueryObject
+
     # Note - CERT_QUERY_CONTENT_FLAG_PFX_AND_LOAD not supported
     # on XP/2k3 hence not included in expected_content_type
     set contenttype [dict! {
@@ -2789,6 +2845,10 @@ proc twapi::_pem_decode {pem_or_der enc {pemtype 6}} {
         return [CryptStringToBinary $pem_or_der $pemtype]
     }
     return $pem_or_der
+}
+
+proc twapi::_is_pem {pem_or_der} {
+    return [regexp -nocase {^\s*-----\s*BEGIN\s+} $pem_or_der]
 }
 
 # Utility proc to generate certs in a memory store - 
