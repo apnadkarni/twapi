@@ -1329,18 +1329,18 @@ proc twapi::crypt_keypair {hprov keyspec} {
 proc twapi::crypt_public_key_import {hprov key args} {
     parseargs args {
         {algid.arg 0}
-        {format.arg {} {native pem der {}}}
+        {encoding.arg {} {native pem der {}}}
     } -setvars
 
-    if {$format eq "native"} {
+    if {$encoding eq "native"} {
         set pub $key
-    } elseif {$format eq "der"} {
+    } elseif {$encoding eq "der"} {
         set pub [CryptDecodeObjectEx 8 $key]
-    } elseif {$format eq "pem" ||
-              ($format eq "" && [string match -nocase "-----BEGIN*" $key])} {
+    } elseif {$encoding eq "pem" ||
+              ($encoding eq "" && [string match -nocase "-----BEGIN*" $key])} {
         set pub [CryptDecodeObjectEx 8 [CryptStringToBinary $key 0]]
     } else {
-        # Format is unspecified and is either der or native
+        # encoding is unspecified and is either der or native
         if {[catch {set pub [CryptDecodeObjectEx 8 $key]}]} {
             # Not DER, assume native
             set pub $key
@@ -1353,7 +1353,7 @@ proc twapi::crypt_public_key_import {hprov key args} {
 proc twapi::crypt_public_key_export {hprov keyspec args} {
     parseargs args {
         algoid.arg
-        {format.arg pem {pem der native}}
+        {encoding.arg pem {pem der native}}
     } -setvars -nulldefault
     
     if {$algoid ne ""} {
@@ -1364,11 +1364,11 @@ proc twapi::crypt_public_key_export {hprov keyspec args} {
                     0x10001 \
                     $algoid \
                     0]
-    if {$format eq "native"} {
+    if {$encoding eq "native"} {
         return $pubkey
     }
     set der [CryptEncodeObjectEx 8 $pubkey]
-    if {$format eq "der"} {
+    if {$encoding eq "der"} {
         return $der
     }
     # 0x80000001 -> No CR (only LF) and headers
