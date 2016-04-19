@@ -186,21 +186,20 @@ if desired.
 Creating a new certificate involves several steps. As always, first
 a cryptographic context is needed that defines the algorithms,
 keys etc. that will be used to create the certificate.
-[example {set crypt [crypt_acquire twapi_test_container -csp {Microsoft Strong Cryptographic Provider} -csptype prov_rsa_full -create 1]}]
+[example {set crypt [crypt_acquire -keycontainer twapi_test_container -csp {Microsoft Strong Cryptographic Provider} -csptype prov_rsa_full -create 1]}]
 This assumes a key container called twapi_test_container does not exist.
 All the options specified above happen to be the defaults if unspecified.
 [para]
 The key container is created without any keys so we need to generate
 public/private key pairs. As we will use the certificate for both
-signing and key exchange, we generate two key pairs for the container.
+signing only, we specify [const signature] for the second parameter.
 [example_begin]
 crypt_key_free [lb]crypt_key_generate $crypt signature -exportable 1[rb]
-crypt_key_free [lb]crypt_key_generate $crypt keyexchange -exportable 1[rb]
 [example_end]
 Note we immediately release the key handles as they are not needed. This
-does not destroy the underlying keys. Also, because we want to write
-the certificate out to a file with the private keys, we mark the keys
-exportable.
+does not destroy the underlying keys. We have marked the keys as exportable
+because we want to later save them to a file for pedagogic purposes.
+In a real application, signature keys should not and need be exportable.
 [para]
 Next, we create a self signed certificate from the cryptographic context
 we created. This will use the keys we just added.
@@ -231,7 +230,7 @@ created by [uri #cert_request_create [cmd cert_request_create]].
 On the requester's side, assuming the key container for the requestor
 has been already created as in the example above,
 [example_begin]
-set crypt [lb]crypt_acquire twapi_requestor_container -csp {Microsoft Strong Cryptographic Provider} -csptype prov_rsa_full[rb]
+set crypt [lb]crypt_acquire -keycontainer twapi_requestor_container -csp {Microsoft Strong Cryptographic Provider} -csptype prov_rsa_full[rb]
 set req [lb]cert_request_create "CN=My Subject Name" $crypt keyexchange -keyusage {key_agreement key_encipherment} -enhkeyusage client_auth[rb]
 crypt_free $crypt
 [example_end]
@@ -284,7 +283,7 @@ part of the certificate. We therefore have to explicitly make the
 association between the CSP key container and the new certificate context
 for the temporary store.
 
-[example {cert_set_key_prov $mcert -csp {Microsoft Strong Cryptographic Provider} -keycontainer twapi_test_container -csptype prov_rsa_full}]
+[example {cert_set_key_prov $mcert twapi_test_container signature -csp {Microsoft Strong Cryptographic Provider} -csptype prov_rsa_full}]
 Notice we have specified exactly the key container we had created earlier.
 [para]
 The certificate is now stored in the temporary store and will be available
@@ -480,13 +479,13 @@ of the form [arg "Year-Month-Day Hour:Minutes:Seconds"].
 Defaults to the current time.
 [list_end]
 
-[call [cmd cert_create_self_signed] [arg SUBJECT] [opt [arg options]]]
+[call [cmd cert_create_self_signed] [arg SUBJECT] [arg KEYCONTAINER] [arg KEYSPEC] [opt [arg options]]]
 Creates a new certificate context for a self-signed certificate
-and returns a handle to it. The certificate is signed using 
-a cryptographic context based on the specified options. Alternatively, the 
-[uri #cert_create_self_signed_from_crypt_context [cmd cert_create_self_signed_from_crypt_context]]
-may be used instead if a handle to a cryptographic context is already
-available.
+and returns a handle to it.
+[arg KEYCONTAINER] specifies the name of the key container containing
+the private key to use for signing. [arg KEYSPEC], which must be either
+[const keyexchange] or [const signature], specifies the key within that
+container.
 [nl]
 [arg SUBJECT] is the name of the subject (and issuer) in X.500 format.
 [nl]
@@ -505,14 +504,9 @@ See [sectref "Cryptographic Service Providers"] for all possible types.
 See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -enhkeyusage] [arg ENHKEYUSAGE]]
 See [uri #cert_create [cmd cert_create]]
-[opt_def [cmd -keycontainer] [arg CONTAINERNAME]]
-Specifies the name of the key container to use. If unspecified,
-the default container for the CSP is used.
 [opt_def [cmd -keysettype] [arg KEYSETTYPE]]
 [arg KEYSETTYPE] type must be [const user] (default) or [const machine]
 depending on whether the key container is user-specific or not.
-[opt_def [cmd -keyspec] [arg KEYSPEC]]
-See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -keyusage] [arg KEYUSAGE]]
 See [uri #cert_create [cmd cert_create]]
 [opt_def [cmd -purpose] [arg PURPOSELIST]]
@@ -532,6 +526,11 @@ See [uri #cert_create [cmd cert_create]]
 
 The returned certificate handle must be freed by calling
 [uri #cert_release [cmd cert_release]].
+
+Alternatively, the 
+[uri #cert_create_self_signed_from_crypt_context [cmd cert_create_self_signed_from_crypt_context]]
+may be used instead if a handle to a cryptographic context is already
+available.
 
 [call [cmd cert_create_self_signed_from_crypt_context] [arg SUBJECT] [arg HCRYPT] [opt [arg options]]]
 Creates a new certificate context for a self-signed certificate
@@ -917,9 +916,13 @@ keys [cmd -basicconstraints], [cmd -keyusage] and [cmd -enhkeyusage].
 The corresponding values have the same format as the corresponding
 options to the [uri #cert_create [cmd cert_create]] command.
 
-[call [cmd cert_set_key_prov] [arg HCERT] [opt [arg options]]]
-Associates the certificate context [arg HCERT] with a CSP key container.
-The following options specify the container:
+[call [cmd cert_set_key_prov] [arg HCERT] [arg KEYCONTAINER] [arg KEYSPEC] [opt [arg options]]]
+Associates the certificate context [arg HCERT] with the CSP key container
+[arg KEYCONTAINER].
+[arg KEYSPEC] must be one of
+[const keyexchange] (default) or [const signature] and identifies
+the key within the container.
+The following options may be specified.
 
 [list_begin opt]
 [opt_def [cmd -csp] [arg CSP]] Specifies the name of the CSP for
@@ -928,13 +931,8 @@ If unspecified, the default Microsoft CSP for the system is used.
 [opt_def [cmd -csptype] [arg CSPTYPE]] Indicates the type of
 CSP. Defaults to [const prov_rsa_full]. 
 See [sectref "Cryptographic Service Providers"] for all possible types.
-[opt_def [cmd -keycontainer] [arg CONTAINERNAME]] 
-Specifies the name of the key container.
-If unspecified, the default container is used.
 [opt_def [cmd -keysettype] [arg KEYSETTYPE]] [arg KEYSETTYPE] must be
 [const user] (default) or [const machine].
-[opt_def [cmd -keyspec] [arg KEYSPEC]] [arg KEYSPEC] must be one of
-[const keyexchange] (default) or [const signature].
 [opt_def [cmd -silent] [arg BOOLEAN]] Normally, the CSP may prompt the user
 for any information that may be required to create the context. If this
 option is specified as [const true], the user is never prompted. Instead

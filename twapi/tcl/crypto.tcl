@@ -563,24 +563,18 @@ proc twapi::cert_property_delete {hcert prop} {
 }
 
 # TBD - Also add cert_set_key_prov_from_crypt_context
-proc twapi::cert_set_key_prov {hcert args} {
-    # TBD - make keycontainer and keyspec explicit arg
+proc twapi::cert_set_key_prov {hcert keycontainer keyspec args} {
     parseargs args {
-        keycontainer.arg
         csp.arg
         {csptype.arg prov_rsa_full}
         {keysettype.arg user {user machine}}
         {silent.bool 0 0x40}
-        {keyspec.arg signature {keyexchange signature}}
     } -maxleftover 0 -nulldefault -setvars
 
     set flags $silent
     if {$keysettype eq "machine"} {
         incr flags 0x20;        # CRYPT_KEYSET_MACHINE
     }
-
-    # TBD - does the keyspec matter ? In case of self signed cert
-    # which (keyexchange/signature) or both have to be specified ?
 
     # 2 -> CERT_KEY_PROV_INFO_PROP_ID
     # TBD - the provider param is hardcoded as {}. Should that be an option ?
@@ -634,13 +628,10 @@ proc twapi::cert_extension {hcert oid} {
     return [list $critical [_cert_decode_extension $oid $val]]
 }
 
-proc twapi::cert_create_self_signed {subject args} {
-    # TBD - make keycontainer and keyspec explicit arg
+proc twapi::cert_create_self_signed {subject keycontainer keyspec args} {
     set args [_cert_create_parse_options $args opts]
 
     array set opts [parseargs args {
-        {keyspec.arg signature {keyexchange signature}}
-        {keycontainer.arg {}}
         {keysettype.arg user {machine user}}
         {silent.bool 0 0x40}
         {csp.arg {}}
@@ -655,12 +646,12 @@ proc twapi::cert_create_self_signed {subject args} {
         incr kiflags 0x20;  # CRYPT_MACHINE_KEYSET
     }
     set keyinfo [list \
-                     $opts(keycontainer) \
+                     $keycontainer \
                      $opts(csp) \
                      [_csp_type_name_to_id $opts(csptype)] \
                      $kiflags \
                      {} \
-                     [_crypt_keyspec $opts(keyspec)]]
+                     [_crypt_keyspec $keyspec]]
     
     set flags 0;                # Always 0 for now
     return [CertCreateSelfSignCertificate NULL $name_blob $flags $keyinfo \
@@ -2834,7 +2825,7 @@ proc twapi::make_test_certs {{hstore {}} args} {
     }
     set ca_certificate [twapi::cert_store_add_certificate $hstore $cert]
     twapi::cert_release $cert
-    twapi::cert_set_key_prov $ca_certificate -csp $csp -keycontainer $container -csptype $csptype
+    twapi::cert_set_key_prov $ca_certificate $container signature -csp $csp -csptype $csptype
     crypt_free $crypt
 
     # Create the client and server certs
@@ -2886,7 +2877,7 @@ proc twapi::make_test_certs {{hstore {}} args} {
         }
         set encoded_cert [cert_create $subject $pubkey $signing_cert {*}$opts -end $enddate]
         set certificate [twapi::cert_store_add_encoded_certificate $hstore $encoded_cert]
-        twapi::cert_set_key_prov $certificate -csp $csp -keycontainer $container -csptype $csptype -keyspec keyexchange
+        twapi::cert_set_key_prov $certificate $container keyexchange -csp $csp -csptype $csptype
         if {$cert_type eq "intermediate"} {
             set intermediate_certificate $certificate
         } else {
