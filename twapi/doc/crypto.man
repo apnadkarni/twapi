@@ -712,6 +712,10 @@ The returned dictionary has an additional key, [const message]
 that contains a handle to a signed message.
 This must be released with
 [uri #capi_msg_release [cmd capi_msg_release]].
+[opt_def [const rsapublickey]]
+The data is RSA public key encoded as defined by the
+ASN.1 RSAPublicKey definition in RFC3279. The returned dictionary has
+the key [const rsapublickey] containing the key in an internal form.
 [opt_def [const serializedcert]]
 The data is a serialized certificate.
 The returned dictionary has two additional keys
@@ -737,6 +741,11 @@ The returned dictionary has an additional key
 [const store] that contains a handle to a certificate
 store created from the data. This must be released
 after use with [uri certs.html#cert_store_release [cmd cert_store_release]].
+[opt_def [const subjectpublickeyinfo]]
+The data is as per
+ASN.1 SubjectPublicKeyInfo definition in RFC3279. The returned dictionary has
+the key [const subjectpublickeyinfo] containing the key in an internal form
+that can be passed to [uri #crypt_public_key_import [cmd crypt_public_key_import]].
 
 [list_end]
 
