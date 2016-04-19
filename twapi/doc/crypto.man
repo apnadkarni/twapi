@@ -394,33 +394,50 @@ which may be in any of the forms described in
 [sectref "Algorithm identifiers"]. If [arg ALGID] is non-numeric,
 an error is raised if it cannot be mapped to a numeric id.
 
-[call [cmd capi_decrypt_bytes] [arg BINDATA] [arg HKEY] [opt [arg HHASH]]]
+[call [cmd capi_decrypt_bytes] [arg BINDATA] [arg HKEY] [opt "[cmd -hhash] [arg HHASH]"] [opt "[cmd -oaep] [arg BOOLEAN]"] [opt "[cmd -nopadcheck] [arg BOOL]"]]
 Decrypts the passed binary string [arg BINDATA] and returns the
 plaintext result.
-[arg HKEY] should be the handle of the key to be used for the operation.
-If the optional argument [arg HHASH] is specified, it should be the
-handle of a hash context. This will be updated with the decrypted data.
+If the option [cmd -hhash] is specified [arg HHASH] should be the
+handle of a hash context. This will be updated with the decrypted
+data.
+The option [cmd -pad] can only be used with RSA. If unspecified
+or [const oaep], OAEP padding
+is assumed. A value of [const pkcs1] implies PKCS #1
+format padding. The value
+[const nopadcheck] specifies no check for padding should be done.
 
-[call [cmd capi_decrypt_string] [arg BINDATA] [arg HKEY] [opt [arg HHASH]]]
+[call [cmd capi_decrypt_string] [arg BINDATA] [arg HKEY] [opt "[cmd -hhash] [arg HHASH]"] [opt "[cmd -oaep] [arg BOOLEAN]"] [opt "[cmd -nopadcheck] [arg BOOL]"]]
 Decrypts the passed binary string [arg BINDATA] converts it from
 UTF-8 encoding and returns the plaintext result. Note that it is assumed
 that the original encrypted text was UTF-8 encoded.
-[arg HKEY] should be the handle of the key to be used for the operation.
-If the optional argument [arg HHASH] is specified, it should be the
-handle of a hash context. This will be updated with the decrypted data.
+If the option [cmd -hhash] is specified [arg HHASH] should be the
+handle of a hash context. This will be updated with the decrypted
+data.
+The option [cmd -pad] can only be used with RSA. If unspecified
+or [const oaep], OAEP padding
+is assumed. A value of [const pkcs1] implies PKCS #1
+format padding. The value
+[const nopadcheck] specifies no check for padding should be done.
 
-[call [cmd capi_encrypt_bytes] [arg BINDATA] [arg HKEY] [opt [arg HHASH]]]
+[call [cmd capi_encrypt_bytes] [arg BINDATA] [arg HKEY] [opt "[cmd -hhash] [arg HHASH]"] [opt "[cmd -pad] [arg PADTYPE]"]]
 Encrypts the passed binary string [arg BINDATA] and returns the result.
 [arg HKEY] should be the handle of the key to be used for the operation.
-If the optional argument [arg HHASH] is specified, it should be the
+If the option [cmd -hhash] is specified [arg HHASH] should be the
 handle of a hash context. This will be updated with [arg BINDATA].
+The option [cmd -pad] can only be used with RSA. If unspecified
+or [const oaep], OAEP padding
+is used. The only other valid value is [const pkcs1] for PKCS #1
+format padding.
 
-[call [cmd capi_encrypt_string] [arg STRING] [arg HKEY] [opt [arg HHASH]]]
+[call [cmd capi_encrypt_string] [arg STRING] [arg HKEY] [opt "[cmd -hhash] [arg HHASH]"] [opt "[cmd -pad] [arg PADTYPE]"]]
 Encrypts the passed string [arg STRING] after encoding it in UTF-8
 and returns the result.
-[arg HKEY] should be the handle of the key to be used for the operation.
-If the optional argument [arg HHASH] is specified, it should be the
-handle of a hash context. This will be updated with [arg STRING].
+If the option [cmd -hhash] is specified [arg HHASH] should be the
+handle of a hash context. This will be updated with [arg BINDATA].
+The option [cmd -pad] can only be used with RSA. If unspecified
+or [const oaep], OAEP padding
+is used. The only other valid value is [const pkcs1] for PKCS #1
+format padding.
 
 [call [cmd capi_hash_bytes] [arg HHASH] [arg BINVALUE]]
 Updates the hash context specified by [arg HHASH] with the result

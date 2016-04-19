@@ -106,15 +106,33 @@ proc load_twapi_package {{pkg twapi}} {
     set _twapi_test_loaded_packages($pkg) 1
 }
 
-proc read_file {path} {
-    set fd [open $path r]
-    return [read $fd][close $fd]
+proc write_test_file {content {mode wb}} {
+    set path [tcltest::makeFile "" twapitest-[clock microseconds]]
+    set fd [open $path $mode]
+    puts -nonewline $fd $content
+    close $fd
+    return $path
+}
+
+proc read_file {path {mode r}} {
+    set fd [open $path $mode]
+    set data [read $fd]
+    close $fd
+    return $data
 }
 
 proc read_binary {path} {
-    set fd [open $path r]
-    fconfigure $fd -translation binary
-    return [read $fd][close $fd]
+    return [read_file $path rb]
+}
+
+proc write_file {path content {mode w}} {
+    set fd [open $path $mode]
+    puts -nonewline $fd $content
+    close $fd
+}
+
+proc write_binary {path content} {
+    return [write_file $path $content wb]
 }
 
 # Create a new user with a random password
@@ -1422,20 +1440,6 @@ proc attempt_lock_mutex {mutex open_call} {
     twapi::close_handle $hmutex
 }
 
-proc write_test_file {content {mode wb}} {
-    set path [tcltest::makeFile "" twapitest-[clock microseconds]]
-    set fd [open $path $mode]
-    puts -nonewline $fd $content
-    close $fd
-    return $path
-}
-
-proc read_file {path {mode r}} {
-    set fd [open $path $mode]
-    set data [read $fd]
-    close $fd
-    return $data
-}
 
 ####
 # Certificate stuff
