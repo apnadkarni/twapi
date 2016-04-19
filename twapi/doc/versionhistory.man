@@ -128,6 +128,13 @@ raise an error if the key container already exists. The option
 [cmd -verifycontext] now defaults to a value that is dependent on other
 arguments.
 
+[bullet]
+[emph "Incompatible change"]
+The commands
+[uri certs.html#cert_set_key_prov [cmd cert_set_key_prov]],
+[uri certs.html#cert_create_self_signed [cmd cert_create_self_signed]]
+now take the key container and key specifier as explicit arguments.
+
 [list_end]
 
 [section "Version 4.1.27"]
