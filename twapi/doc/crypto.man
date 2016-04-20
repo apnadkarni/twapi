@@ -428,6 +428,9 @@ The option [cmd -pad] can only be used with RSA. If unspecified
 or [const oaep], OAEP padding
 is used. The only other valid value is [const pkcs1] for PKCS #1
 format padding.
+[nl]
+Note that the maximum length of data that can be encrypted depends
+on the algorithm and parameters like key size.
 
 [call [cmd capi_encrypt_string] [arg STRING] [arg HKEY] [opt "[cmd -hhash] [arg HHASH]"] [opt "[cmd -pad] [arg PADTYPE]"]]
 Encrypts the passed string [arg STRING] after encoding it in UTF-8

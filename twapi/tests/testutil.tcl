@@ -1583,14 +1583,14 @@ proc openssl_path {args} {
     return [file normalize [file join [file dirname [file dirname $path]] {*}$args]]
 }
 
-# WARNING: return value combines stdout and stderr so the two
-# can be intermixed. Take into consideration when matching
 proc openssl {args} {
+    # WARNING: exec converts line endings so do not use for binary output
+    # Pass openssl the -out option instead in that case
     set cmd [openssl_path bin openssl.exe]
     set ::env(OPENSSL_CONF) [openssl_path ssl openssl.cnf]
     set stderr_temp [file join [temp_crypto_dir_path] twapi-openssl-stderr.tmp]
     set status 0
-    if {[catch {exec $cmd {*}$args 2> $stderr_temp} stdout options]} {
+    if {[catch {exec -keepnewline -- $cmd {*}$args 2> $stderr_temp} stdout options]} {
         if {[lindex [dict get $options -errorcode] 0] eq "CHILDSTATUS"} {
             error [read_binary $stderr_temp]
         } else {
