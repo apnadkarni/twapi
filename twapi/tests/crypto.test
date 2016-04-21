@@ -4186,6 +4186,21 @@ namespace eval twapi::crypto::test {
             openssl pkeyutl -decrypt -in $encpath -inkey certs/rsa-$nbits-private.pem  -out $outpath -pkeyopt rsa_padding_mode:$pad
             read_binary  $outpath
         } -result [hexbin $bytes]
+
+        tcltest::test capi_decrypt_bytes-$nbits-$pad-2.3.$id "capi_decrypt_bytes - RSA $pad vector $id (openssl)" -setup {
+            set hcrypt [crypt_rsa $nbits]
+            set hk [twapi::crypt_keypair $hcrypt keyexchange]
+            set inpath [write_test_file [hexbin $bytes]]
+            set pubpem [twapi::crypt_public_key_export $hcrypt keyexchange -encoding pem]
+            set keyfile [tcltest::makeFile $pubpem twapitest-[info cmdcount]]
+            set outpath [tcltest::makeFile "" twapitest-[info cmdcount]]
+        } -cleanup {
+            twapi::capi_key_free $hk
+            twapi::crypt_free $hcrypt
+        } -body {
+            openssl pkeyutl -encrypt -in $inpath -pubin -inkey $keyfile -out $outpath -pkeyopt rsa_padding_mode:$pad
+            twapi::capi_decrypt_bytes [string reverse [read_binary $outpath]] $hk -pad $pad
+        } -result [hexbin $bytes]
     }
     testdef 1.1 {
         66 28 19 4e 12 07 3d b0 3b a9 4c da 9e f9 53 23 
