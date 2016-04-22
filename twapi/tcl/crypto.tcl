@@ -40,7 +40,7 @@ proc twapi::capi_hash_sign {hhash keyspec args} {
     return [CryptSignHash $hhash [_crypt_keyspec $keyspec] "" [expr {$nohashoid|$x931format}]]
 }
 
-# TBD - document
+# TBD - test
 proc twapi::capi_hash_verify {hhash sig hkey args} {
     parseargs args {
         {nohashoid.bool 0 1}

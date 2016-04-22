@@ -3999,6 +3999,39 @@ namespace eval twapi::crypto::test {
     
     ################################################################
 
+    proc testdef {id desc bytes args} {
+        tcltest::test capi_hash_sign-$id "capi_sign_hash - $desc" -setup {
+            set hcryptsign [crypt_rsa 1024]
+            set hcryptverify [twapi::crypt_acquire]
+            set hhashsign [twapi::capi_hash_create $hcryptsign sha1]
+            set hhashverify [twapi::capi_hash_create $hcryptverify sha1]
+            set hkverify [twapi::crypt_public_key_import $hcryptverify [twapi::crypt_public_key_export $hcryptsign signature]]
+        } -cleanup {
+            twapi::capi_key_free $hkverify
+            twapi::capi_hash_free $hhashsign
+            twapi::capi_hash_free $hhashverify
+            twapi::crypt_free $hcryptsign
+            twapi::crypt_free $hcryptverify
+        } -body {
+            twapi::capi_hash_bytes $hhashsign $bytes
+            set sig [twapi::capi_hash_sign $hhashsign signature {*}$args]
+            twapi::capi_hash_bytes $hhashverify $bytes
+            twapi::capi_hash_verify $hhashverify $sig $hkverify {*}$args
+        } -result 1
+    }
+    testdef 1.0 "single byte" "a"
+    testdef 1.1 "multiple bytes" "\x00\x01\x20\x40\x50\x80\xff"
+    testdef 1.2 "bytes more than sig size" [string repeat \x80 1000]
+    testdef 2.0 "single byte" "a" -nohashoid 1
+    testdef 2.1 "multiple bytes" "\x00\x01\x20\x40\x50\x80\xff" -nohashoid 0
+    testdef 2.2 "bytes more than sig size" [string repeat \x80 1000] -nohashoid 1
+    testdef 3.0 "single byte" "a" -x931format 1
+    testdef 3.1 "multiple bytes" "\x00\x01\x20\x40\x50\x80\xff" -x931format 0
+    testdef 3.2 "bytes more than sig size" [string repeat \x80 1000] -x931format 1
+
+
+    ################################################################
+
     test capi_encrypt_bytes-1.0.0 {
         Encrypt single byte - des
     } -setup {
