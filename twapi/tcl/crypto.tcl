@@ -37,7 +37,16 @@ proc twapi::capi_hash_sign {hhash keyspec args} {
         {nohashoid.bool 0 1}
         {x931format.bool 0 4}
     } -maxleftover 0 -setvars
-    return [CryptSignHash $hhash $keyspec [expr {$nohashoid|$x931format}]]
+    return [CryptSignHash $hhash [_crypt_keyspec $keyspec] "" [expr {$nohashoid|$x931format}]]
+}
+
+# TBD - document
+proc twapi::capi_hash_verify {hhash sig hkey args} {
+    parseargs args {
+        {nohashoid.bool 0 1}
+        {x931format.bool 0 4}
+    } -maxleftover 0 -setvars
+    return [CryptVerifySignature $hhash $sig $hkey "" [expr {$nohashoid|$x931format}]]
 }
 
 proc twapi::_do_hash {csptype alg s {enc ""}} {

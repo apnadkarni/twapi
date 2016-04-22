@@ -4999,6 +4999,28 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         SecureZeroMemory(pv2, dw2);
         break;
 
+    case 10069: // CryptVerifySignature
+        if (TwapiGetArgs(interp, objc, objv, 
+                         GETVERIFIEDPTR(pv, HCRYPTHASH, CryptDestroyHash),
+                         GETOBJ(s1Obj),
+                         GETVERIFIEDPTR(pv2, HCRYPTKEY, CryptDestroyKey),
+                         ARGSKIP, GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        cP = ObjToByteArray(s1Obj, &dw2);
+        if (CryptVerifySignature((HCRYPTHASH) pv, cP, dw2, (HCRYPTKEY)pv2, NULL, dw)) {
+            result.value.bval = 1;
+            result.type = TRT_BOOL;
+        } else {
+            result.value.ival = GetLastError();
+            if (result.value.ival == NTE_BAD_SIGNATURE) {
+                result.type = TRT_BOOL;
+                result.value.bval = 0;
+            } else
+                result.type = TRT_EXCEPTION_ON_ERROR;
+        }
+        break;
+
 #ifdef TBD
     case TBD: // CertCreateContext
         if (TwapiGetArgs(interp, objc, objv,
@@ -5404,6 +5426,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptGetHashParam, 10066), // TBD Tcl (ALGID only)
         DEFINE_FNCODE_CMD(CryptDeriveKey, 10067),
         DEFINE_FNCODE_CMD(capi_hash_password, 10068), // TBD - document
+        DEFINE_FNCODE_CMD(CryptVerifySignature, 10069), // TBD - Tcl
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
