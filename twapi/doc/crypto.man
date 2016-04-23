@@ -492,9 +492,9 @@ The following options may be specified with the command.
 If [const true], the hash object OID is not placed in the RSA public key
 encryption. If [const false] (default), the hash OID in the default
 signature is as specified in the definition of DigestInfo in PKCS #1.
-[opt_def [cmd -x931format] [arg BOOLEAN]]
-If [const true], indicates that the RSA signature padding method used
-in the ANSI X.931 standard should be used. Defaults is [const false].
+[opt_def [cmd -pad] [const pkcs1|x931]]
+If [const pkcs1] (default) PKCS1 padding is used. If [const x931],
+the ANSI X.931 standard is used.
 [list_end]
 
 [call [cmd capi_hash_string] [arg HHASH] [arg STRING] [opt [arg ENC]]]
@@ -525,9 +525,9 @@ present and is not checked.
 If [const false] (default), the hash OID in the default
 signature is expected to be
 as specified in the definition of DigestInfo in PKCS #1.
-[opt_def [cmd -x931format] [arg BOOLEAN]]
-If [const true], indicates that the RSA signature padding method used
-in the ANSI X.931 standard should be used. Defaults is [const false].
+[opt_def [cmd -pad] [const pkcs1|x931]]
+If [const pkcs1] (default) PKCS1 padding is used. If [const x931],
+the ANSI X.931 standard is used.
 [list_end]
 
 [call [cmd capi_key_algid] [arg HKEY] [opt [arg ALGID]] [opt [arg options]]]
