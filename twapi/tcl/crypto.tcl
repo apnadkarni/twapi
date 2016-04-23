@@ -31,22 +31,22 @@ proc twapi::capi_hash_value {hhash} {
     return [CryptGetHashParam $hhash 2]; # HP_HASHVAL
 }
 
-# TBD - test
 proc twapi::capi_hash_sign {hhash keyspec args} {
     parseargs args {
         {nohashoid.bool 0 1}
-        {x931format.bool 0 4}
+        {pad.arg pkcs1 {pkcs1 x931}}
     } -maxleftover 0 -setvars
-    return [CryptSignHash $hhash [_crypt_keyspec $keyspec] "" [expr {$nohashoid|$x931format}]]
+    set flags [expr {[dict get {pkcs1 0 x931 4} $pad] | $nohashoid}]
+    return [CryptSignHash $hhash [_crypt_keyspec $keyspec] "" $flags]
 }
 
-# TBD - test
 proc twapi::capi_hash_verify {hhash sig hkey args} {
     parseargs args {
         {nohashoid.bool 0 1}
-        {x931format.bool 0 4}
+        {pad.arg pkcs1 {pkcs1 x931}}
     } -maxleftover 0 -setvars
-    return [CryptVerifySignature $hhash $sig $hkey "" [expr {$nohashoid|$x931format}]]
+    set flags [expr {[dict get {pkcs1 0 x931 4} $pad] | $nohashoid}]
+    return [CryptVerifySignature $hhash $sig $hkey "" $flags]
 }
 
 proc twapi::_do_hash {csptype alg s {enc ""}} {
