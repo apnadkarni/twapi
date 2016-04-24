@@ -24,6 +24,8 @@ for casting COM parameters as strings.
 
 [bullet]
 Added
+[uri crypto.html#capi_hash_sign [cmd capi_hash_sign]],
+[uri crypto.html#capi_hash_verify [cmd capi_hash_verify]],
 [uri crypto.html#capi_encrypt_bytes [cmd capi_encrypt_bytes]],
 [uri crypto.html#capi_encrypt_string [cmd capi_encrypt_string]],
 [uri crypto.html#capi_decrypt_bytes [cmd capi_decrypt_bytes]],
@@ -66,19 +68,14 @@ Added [uri crypto.html#capi_algid [cmd capi_algid]],
 [uri crypto.html#asn1_decode_string [cmd asn1_decode_string]].
 
 [bullet]
-Added hashing commands
+Added hashing and message digest commands
 [uri crypto.html#capi_hash_create [cmd capi_hash_create]],
 [uri crypto.html#capi_hash_free [cmd capi_hash_free]],
 [uri crypto.html#capi_hash_value [cmd capi_hash_value]],
 [uri crypto.html#capi_hash_bytes [cmd capi_hash_bytes]],
 [uri crypto.html#capi_hash_string [cmd capi_hash_string]],
 [uri crypto.html#capi_hash_dup [cmd capi_hash_dup]],
-[uri crypto.html#capi_hash_sign [cmd capi_hash_sign]],
-[uri crypto.html#capi_hash_verify [cmd capi_hash_verify]],
-[uri crypto.html#capi_hash_session_key [cmd capi_hash_session_key]].
-
-[bullet]
-Added
+[uri crypto.html#capi_hash_session_key [cmd capi_hash_session_key]],
 [uri crypto.html#md5 [cmd md5]],
 [uri crypto.html#sha1 [cmd sha1]],
 [uri crypto.html#sha256 [cmd sha256]],
