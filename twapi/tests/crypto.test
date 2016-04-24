@@ -4045,6 +4045,7 @@ namespace eval twapi::crypto::test {
             set outpath [tcltest::makeFile "" twapitest-[info cmdcount]]
         } -cleanup {
             twapi::capi_key_free $hkverify
+            twapi::capi_hash_free $hhashverify
             twapi::crypt_free $hcryptverify
         } -body {
             openssl dgst -$openssl_hash -binary -out $dgstpath $inpath
@@ -4052,14 +4053,41 @@ namespace eval twapi::crypto::test {
             twapi::capi_hash_bytes $hhashverify [hexbin $bytes]
             twapi::capi_hash_verify $hhashverify [string reverse [read_binary $outpath]] $hkverify -pad $pad
         } -result 1
+
+        tcltest::test capi_hash_sign-$hash-$nbits-$pad-$id "capi_hash_sign - $hash/RSA $nbits (openssl)" -setup {
+            set hcryptsign [twapi::crypt_acquire -csptype prov_rsa_aes -keycontainer twapitest-[info cmdcount] -create 1]
+            twapi::capi_key_free [twapi::crypt_generate_key $hcryptsign signature]
+            set inpath [write_test_file [hexbin $bytes]]
+            set hhashsign [twapi::capi_hash_create $hcryptsign $hash]
+            set pubpem [twapi::crypt_public_key_export $hcryptsign signature]
+            set keypath [tcltest::makeFile $pubpem twapitest-[info cmdcount]]
+            set dgstpath [tcltest::makeFile "" twapitest-[info cmdcount]]
+            set outpath [tcltest::makeFile "" twapitest-[info cmdcount]]
+        } -cleanup {
+            twapi::capi_hash_free $hhashsign
+            twapi::crypt_free $hcryptsign
+        } -body {
+            twapi::capi_hash_bytes $hhashsign [hexbin $bytes]
+            set sig [twapi::capi_hash_sign $hhashsign signature -pad $pad]
+            set sigpath [write_test_file [string reverse $sig]]
+            openssl dgst -$openssl_hash -binary -out $dgstpath $inpath
+            # Some versions of openssl always exit with return code 1
+            # even on success for pkeyutl -verify
+            catch {openssl pkeyutl -verify -pubin -inkey $keypath -in $dgstpath -sigfile $sigpath -pkeyopt digest:$openssl_hash -pkeyopt rsa_padding_mode:$pad -out $outpath}
+            string trim [read_file $outpath]
+        } -result "Signature Verified Successfully"
     }
+
+    # TBD - it appears as though x931 is only supported with sha1. The docs
+    # and tests below reflect that
     # First some size based tests
     testdef 1.0 aa 1024 sha1 pkcs1
     testdef 1.0.1 aa 1024 sha1 x931
     testdef 1.0.2 [string repeat aa55 10000] 1024 sha1 pkcs1
     testdef 1.0.3 [string repeat aa55 10000] 1024 sha1 x931
-    testdef 1.0.4 [string repeat aa55 10000] 2048 sha_384 pkcs1
-    testdef 1.0.5 [string repeat aa55 10000] 2048 sha_512 x931
+    testdef 1.0.4 [string repeat aa55 10000] 2048 sha_256 pkcs1
+    testdef 1.0.5 [string repeat aa55 10000] 2048 sha_384 pkcs1
+    testdef 1.0.6 [string repeat aa55 10000] 2048 sha_512 pkcs1
     
     # Test vectors from
     # https://github.com/pyca/cryptography/blob/master/vectors/cryptography_vectors/asymmetric/RSA/pkcs1v15sign-vectors.txt
@@ -4132,7 +4160,7 @@ namespace eval twapi::crypto::test {
         3c c5 c6 72 d6 ff dc 90 a0 0f 98 48 71 2c 4b cf 
         e4 6c 60 57 36 59 b1 1e 64 57 e8 61 f0 f6 04 b6 
         13 8d 14 4f 8c e4 e2 da 73
-    } 1024 sha1 x931
+    } 1024 sha1 pkcs1
     testdef 1.7 {
         ef b5 da 1b 4d 1e 6d 9a 5d ff 92 d0 18 4d a7 e3 
         1f 87 7d 12 81 dd da 62 56 64 86 9e 83 79 e6 7a 
@@ -4142,7 +4170,7 @@ namespace eval twapi::crypto::test {
         7f ac 76 aa 1c 0b b5 a3 cb 4a 54 38 35 87 c7 bb 
         78 d1 3e ef da 20 54 43 e6 ce 43 65 80 2d f5 5c 
         64 71 34 97 98 4e 7c a9 67 22 b3 ed f8 4d 56 
-    } 1024 sha_256 x931
+    } 1024 sha_256 pkcs1
     testdef 1.8 {
         53 bb 58 ce 42 f1 98 49 40 55 26 57 23 3b 14 96 
         9a f3 65 c0 a5 61 a4 13 2a f1 8a f3 94 32 28 0e 
@@ -4159,12 +4187,12 @@ namespace eval twapi::crypto::test {
         da 2a 43 6d 1d 8f f1 cc 51 93 e2 a6 43 89 fc ed 
         91 8e 7f eb 67 16 33 0f 66 80 1d b9 49 75 49 cf 
         1d 3b d9 7c f1 bc 62 55
-    } 1024 sha_384 x931
+    } 1024 sha_384 pkcs1
     testdef 1.9 {
         27 ca dc 69 84 50 94 5f 20 4e c3 cf 8c 6c bd 8c 
         eb 4c c0 cb e3 12 27 4f a9 6b 04 de ac 85 51 60 
         c0 e0 4e 4a c5 d3 82 10 c2 7c
-    } 1024 sha_512 x931
+    } 1024 sha_512 pkcs1
     testdef 15.1 {
         f4 5d 55 f3 55 51 e9 75 d6 a8 dc 7e a9 f4 88 59 
         39 40 cc 75 69 4a 27 8f 27 e5 78 a1 63 d8 39 b3 
@@ -4193,7 +4221,7 @@ namespace eval twapi::crypto::test {
         88 cd e7 c9 7f 8a 66 cd 66 30 12 81 da c3 f3 a4 
         33 24 8c 75 d6 c2 dc d7 08 b6 a9 7b 0a 3f 32 5e 
         0b 29 64 f8 a5 81 9e 47 9b
-    } 2048 sha_256 x931
+    } 2048 sha_256 pkcs1
     testdef 15.3 {
         d0 23 71 ad 7e e4 8b bf db 27 63 de 7a 84 3b 94 
         08 ce 5e b5 ab f8 47 ca 3d 73 59 86 df 84 e9 06 
@@ -4217,9 +4245,7 @@ namespace eval twapi::crypto::test {
         2d c9 a4 1d 73 e2 82 00 07 b0 f6 e2 1f ec cd 5b 
         d9 db b9 ef 88 cd 67 58 76 9e e1 f9 56 da 7a d1 
         84 41 de 6f ab 83 86 db c6 93
-    } 2048 sha_512 x931
-
-    
+    } 2048 sha_512 pkcs1
 
     ################################################################
 
