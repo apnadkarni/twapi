@@ -1592,7 +1592,7 @@ proc openssl {args} {
     set status 0
     if {[catch {exec -keepnewline -- $cmd {*}$args 2> $stderr_temp} stdout options]} {
         if {[lindex [dict get $options -errorcode] 0] eq "CHILDSTATUS"} {
-            error [read_binary $stderr_temp]
+            error "$stdout. Stderror: [read_binary $stderr_temp]"
         } else {
             return -options $options -level 0 $stdout
         }
