@@ -416,7 +416,7 @@ proc twapi::cert_store_export_pkcs7 {hstore args} {
         {encoding.arg pem {der pem}}
     } -setvars -maxleftover 0
     
-    return [_as_pem_or_der [Twapi_CertStoreSerialize $hstore 2] "BEGIN PKCS7" $encoding]
+    return [_as_pem_or_der [Twapi_CertStoreSerialize $hstore 2] "PKCS7" $encoding]
 }
 
 ################################################################
@@ -1382,6 +1382,11 @@ proc twapi::crypt_public_key_export {hprov keyspec args} {
     }
     # 0x80000001 -> No CR (only LF) and headers
     return "-----BEGIN PUBLIC KEY-----\n[CryptBinaryToString $der 0x80000001]-----END PUBLIC KEY-----\n"
+}
+
+# For back compat - undocumented
+proc twapi::crypt_public_key {hcrypt algid oid} {
+    return [crypt_public_key_export $hcrypt $algid -encoding native -algoid $oid]
 }
 
 proc twapi::crypt_get_security_descriptor {hprov} {
