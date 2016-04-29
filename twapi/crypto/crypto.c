@@ -1442,12 +1442,7 @@ static TCL_RESULT TwapiCryptEncodeObject(
     DWORD_PTR dwoid;
     void *dataP;
 
-    /* TBD - add other unimplemented types X509_PUBLIC_KEY_INFO etc.
-    E.g. pkinfo.Algorithm.pszObjId = szOID_RSA_RSA (or "1.2.840.113549.1.1.1") 
-    pkinfo.Parameters.cbData = 2 
-    pkinfo.Parameters.pbData = pnull (NULL encoding) 
-    BYTE pnull[] = {05, 00} ;
-    */
+    /* TBD - add other unimplemented types */
     /*
      * poid may be a Tcl_Obj or a dword corresponding to a Win32 #define
      * This is how the CryptEncodeObjEx API works

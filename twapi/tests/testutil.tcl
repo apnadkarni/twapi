@@ -1632,6 +1632,10 @@ proc openssl_ca_cert {} {
     return $cert
 }
 
+proc openssl_dgst {alg data args} {
+    return [lindex [openssl dgst -$alg -r {*}$args [write_test_file $data]] 0 0]
+}
+    
 #####
 #
 # "SetOps, Code, 8.x v2"
