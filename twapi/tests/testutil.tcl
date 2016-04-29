@@ -1504,6 +1504,10 @@ proc sampleencodedcert {{which full}} {
     return $_sampleencodedcert($which)
 }
 
+proc samplepemencodedcert {{which full}} {
+    return [twapi::_as_pem_or_der [sampleencodedcert $which] "CERTIFICATE" pem]
+}
+
 proc temp_system_store_path {} {
     variable temp_system_store_path
 

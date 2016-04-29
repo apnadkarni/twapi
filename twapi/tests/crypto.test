@@ -1317,7 +1317,7 @@ namespace eval twapi::crypto::test {
     } -result twapitestfull
 
     test cert_store_add_encoded_certificate-1.1 {
-        Add PEM encoded certificate to store (pem default)
+        Add PEM encoded certificate to store 
     } -setup {
         set hstore [twapi::cert_temporary_store]
         set cer [samplepemencodedcert]
@@ -3304,10 +3304,10 @@ namespace eval twapi::crypto::test {
             }
             set algs([dict get $e name]) $e
         }
-        list [dict get $algs(RSA_KEYX) algid] [dict get $algs(RSA_KEYX) defkeylen] [dict get $algs(RSA_KEYX) minkeylen] [dict get $algs(RSA_KEYX) maxkeylen] [dict get $algs(RSA_KEYX) protocols] [dict get $algs(RSA_KEYX) description]
+        set result "[dict get $algs(RSA_KEYX) algid] [dict get $algs(RSA_KEYX) defkeylen] [dict get $algs(RSA_KEYX) minkeylen] [dict get $algs(RSA_KEYX) maxkeylen] [dict get $algs(RSA_KEYX) protocols] [dict get $algs(RSA_KEYX) description]"
     } -cleanup {
         twapi::crypt_free $crypt
-    } -result {41984 1024 384 16384 {ipsec signing} {RSA Signature}}
+    } -result "41984 1024 384 16384 ipsec signing RSA *" -match glob
     
     test crypt_implementation_type-1.0 {Get crypt implementation} -setup {
         set crypt [twapi::crypt_acquire]
@@ -3559,12 +3559,12 @@ namespace eval twapi::crypto::test {
         twapi::capi_algid sha_256
     } -result 0x0000800c
 
-    test capi_algid-2.3 {Alg Id for at_keyexchange} -body {
-        twapi::capi_algid at_keyexchange
+    test capi_algid-2.3 {Alg Id for keyexchange} -body {
+        twapi::capi_algid keyexchange
     } -result 1
 
-    test capi_algid-2.4 {Alg Id for at_signature} -body {
-        twapi::capi_algid at_signature
+    test capi_algid-2.4 {Alg Id for signature} -body {
+        twapi::capi_algid signature
     } -result 2
 
     test capi_algid-3.0 {Alg Id for OID} -body {
@@ -3577,11 +3577,11 @@ namespace eval twapi::crypto::test {
     
     test capi_algid-4.0 {Alg Id for bad token} -body {
         twapi::capi_algid xxx
-    } -result "" -returnCodes error
+    } -result "Invalid OID 'xxx'" -returnCodes error
     
     test capi_algid-4.1 {Alg Id for bad OID} -body {
         twapi::capi_algid 1.2.840.113549.1.1.40 
-    } -result "" -returnCodes error
+    } -result {Could not map "1.2.840.113549.1.1.40" to algorithm id} -returnCodes error
     
     ################################################################
 
