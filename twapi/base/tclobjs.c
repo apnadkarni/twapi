@@ -4474,11 +4474,9 @@ TCL_RESULT TwapiEncryptData(Tcl_Interp *interp, BYTE *inP, int nin, BYTE *outP, 
 /* Return a bytearray Tcl_Obj containing ciphertext of given source bytes */
 Tcl_Obj *ObjEncryptBytes(Tcl_Interp *interp, void *pv, int nbytes)
 {
-    TCL_RESULT res;
     int nenc, nalloc;
     Tcl_Obj *objP = NULL;
     unsigned char *bytes = pv;
-    unsigned char *encP;
     WCHAR *wsP;
 
     /* Note data is always encrypted in Unicode form */
@@ -4643,7 +4641,6 @@ char *ObjDecryptUtf8SWS(Tcl_Interp *interp, Tcl_Obj *objP, int *nbytesP)
     WCHAR *uniP;
     char *utfP;
     int nuni, nutf;
-    TCL_RESULT res;
 
     uniP = ObjDecryptUnicodeSWS(interp, objP, &nuni);
     if (uniP == NULL)
@@ -4853,7 +4850,6 @@ TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (
     )
 {
     Tcl_Obj *passwordObj;
-    LPWSTR    password;
     Tcl_Obj **objv;
     int objc;
     TCL_RESULT res;
