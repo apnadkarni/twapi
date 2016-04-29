@@ -3848,7 +3848,7 @@ vamoose:
 static TCL_RESULT Twapi_CryptExportKeyObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     void *hkey, *hwrapper;
-    DWORD blob_type, flags, nbytes, winerr;
+    DWORD blob_type, flags, nbytes;
     BLOBHEADER *blobP;
     TCL_RESULT res;
     
@@ -3953,12 +3953,10 @@ vamoose:
 
 static TCL_RESULT Twapi_CryptImportPublicKeyInfoExObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int btype, bver, breserved;
     ALG_ID alg_id;
-    void *cryptH, *keyH;
-    DWORD nbytes, cert_encoding;
-    Tcl_Obj *blobObj, *keyObj;
-    BLOBHEADER *blobP;
+    void *cryptH;
+    DWORD cert_encoding;
+    Tcl_Obj *keyObj;
     MemLifoMarkHandle mark = NULL;
     TCL_RESULT res;
     HCRYPTKEY importH;
@@ -5342,10 +5340,6 @@ static int Twapi_PBKDF2ObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int 
 vamoose:
     MemLifoPopMark(mark);
     return res;
-
-system_error:
-    res = TwapiReturnSystemError(interp);
-    goto vamoose;
 }
 
 static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
