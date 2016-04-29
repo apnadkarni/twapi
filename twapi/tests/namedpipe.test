@@ -63,7 +63,7 @@ namespace eval twapi::pipe::test {
         nt
     } -body {
         foreach {msgs total last} [np_echo_client -name {\\.\pipe\twapitestasyncserver}] break
-        foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
+        foreach {msgs2 total2 last2} [gets_timeout $control_channel 10000] break
         set result ""
         if {$msgs != $msgs2} {
             lappend result "Mismatch in number of messages: $msgs != $msgs2"
