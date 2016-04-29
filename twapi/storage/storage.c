@@ -383,7 +383,7 @@ static int TwapiStorageInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(GetFileType, 16), // TBD - TCL 
         DEFINE_FNCODE_CMD(GetFileTime, 17),
         DEFINE_FNCODE_CMD(FlushFileBuffers, 18),
-        DEFINE_FNCODE_CMD(MoveFileEx, 19),
+        DEFINE_FNCODE_CMD(MoveFileEx, 19), // TBD - Tcl
         DEFINE_FNCODE_CMD(SetVolumeLabel, 20),
         DEFINE_FNCODE_CMD(SetVolumeMountPoint, 21),
         DEFINE_FNCODE_CMD(SetFileTime, 22),

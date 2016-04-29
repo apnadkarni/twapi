@@ -1,4 +1,9 @@
-package require twapi
+if {[catch {
+    package require twapi
+}]} {
+    lappend auto_path [file normalize ../dist/twapi]
+    package require twapi
+}
 package require vix
 
 vix::initialize
@@ -222,8 +227,10 @@ oo::class create TestTarget {
 }
 
 proc usage {} {
-    puts "[file tail [info nameofexecutable]] OS ?options?"
+    set program "[file tail [info nameofexecutable]] $::argv0"
+    puts "$program OS ?options?"
     puts "Options: -platform, -tclversion, -distribution, -constraints, -testfile, -outfile"
+    puts "Examples:\n\t$program xppro\n\t$program w2k12r2 -platform x64 -distribution bin"
     exit 1
 }
 
