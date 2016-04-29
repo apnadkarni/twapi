@@ -32,10 +32,6 @@ eval tcltest::configure $argv
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_crypto
 
-package require md5
-package require sha1
-package require sha256
-
 namespace eval twapi::crypto::test {
     namespace import ::tcltest::test
 
@@ -3590,76 +3586,85 @@ namespace eval twapi::crypto::test {
     ################################################################
 
     test md5-1.0 {md5 bin} -body {
-        twapi::md5 $hash_bin_operand
-    } -result [md5::md5 $hash_bin_operand]
+        twapi::hex [twapi::md5 $hash_bin_operand]
+    } -result [openssl_dgst md5 $hash_bin_operand]
     
     test md5-1.1 {md5 bin openssl} -body {
         twapi::hex [twapi::md5 [read_binary crypto.test]]
-    } -result [lindex [openssl dgst -md5 -r crypto.test] 0 0]
+    } -result [openssl_dgst md5 [read_binary crypto.test]]
     
     test md5-2.0 {md5 utf-8} -body {
-        twapi::md5 $hash_str_operand utf-8
-    } -result [md5::md5 [encoding convertto utf-8 $hash_str_operand]]
+        twapi::hex [twapi::md5 $hash_str_operand utf-8]
+    } -result [openssl_dgst md5 [encoding convertto utf-8 $hash_str_operand]]
     
     test md5-2.1 {md5 unicode} -body {
-        twapi::md5 $hash_str_operand unicode
-    } -result [md5::md5 [encoding convertto unicode $hash_str_operand]]
+        twapi::hex [twapi::md5 $hash_str_operand unicode]
+    } -result [openssl_dgst md5 [encoding convertto unicode $hash_str_operand]]
     
     test sha1-1.0 {sha1 bin} -body {
-        twapi::sha1 $hash_bin_operand
-    } -result [sha1::sha1 -bin -- $hash_bin_operand]
+        twapi::hex [twapi::sha1 $hash_bin_operand]
+    } -result [openssl_dgst sha1 $hash_bin_operand]
     
     test sha1-1.1 {sha1 bin openssl} -body {
         twapi::hex [twapi::sha1 [read_binary crypto.test]]
-    } -result [lindex [openssl dgst -sha1 -r crypto.test] 0 0]
+    } -result [openssl_dgst sha1 [read_binary crypto.test]]
     
     test sha1-2.0 {sha1 utf-8} -body {
-        twapi::sha1 $hash_str_operand utf-8
-    } -result [sha1::sha1 -bin -- [encoding convertto utf-8 $hash_str_operand]]
-    
-    test sha1-2.1 {sha1 unicode} -body {
-        twapi::sha1 $hash_str_operand unicode
-    } -result [sha1::sha1 -bin -- [encoding convertto unicode $hash_str_operand]]
+        twapi::hex [twapi::sha1 $hash_str_operand utf-8]
+    } -result [openssl_dgst sha1 [encoding convertto utf-8 $hash_str_operand]]
 
+    test sha1-2.1 {sha1 unicode} -body {
+        twapi::hex [twapi::sha1 $hash_str_operand unicode]
+    } -result [openssl_dgst sha1 [encoding convertto unicode $hash_str_operand]]
+    
     test sha256-1.0 {sha256 bin} -body {
-        twapi::sha256 $hash_bin_operand
-    } -result [sha2::sha256 -bin -- $hash_bin_operand]
+        twapi::hex [twapi::sha256 $hash_bin_operand]
+    } -result [openssl_dgst sha256 $hash_bin_operand]
     
     test sha256-1.1 {sha256 bin openssl} -body {
         twapi::hex [twapi::sha256 [read_binary crypto.test]]
-    } -result [lindex [openssl dgst -sha256 -r crypto.test] 0 0]
+    } -result [openssl_dgst sha256 [read_binary crypto.test]]
     
     test sha256-2.0 {sha256 utf-8} -body {
-        twapi::sha256 $hash_str_operand utf-8
-    } -result [sha2::sha256 -bin -- [encoding convertto utf-8 $hash_str_operand]]
-    
+        twapi::hex [twapi::sha256 $hash_str_operand utf-8]
+    } -result [openssl_dgst sha256 [encoding convertto utf-8 $hash_str_operand]]
+
     test sha256-2.1 {sha256 unicode} -body {
-        twapi::sha256 $hash_str_operand unicode
-    } -result [sha2::sha256 -bin -- [encoding convertto unicode $hash_str_operand]]
-    # There is no 384 or 512 bit tcllib sha
+        twapi::hex [twapi::sha256 $hash_str_operand unicode]
+    } -result [openssl_dgst sha256 [encoding convertto unicode $hash_str_operand]]
+    
     test sha384-1.0 {sha384 bin} -body {
-        string length [twapi::sha384 $hash_bin_operand]
-    } -result 48
+        twapi::hex [twapi::sha384 $hash_bin_operand]
+    } -result [openssl_dgst sha384 $hash_bin_operand]
     
     test sha384-1.1 {sha384 bin openssl} -body {
         twapi::hex [twapi::sha384 [read_binary crypto.test]]
-    } -result [lindex [openssl dgst -sha384 -r crypto.test] 0 0]
+    } -result [openssl_dgst sha384 [read_binary crypto.test]]
     
-    test sha384-2.0 {sha384 bin} -body {
-        string length [twapi::sha384 $hash_str_operand utf-8]
-    } -result 48
+    test sha384-2.0 {sha384 utf-8} -body {
+        twapi::hex [twapi::sha384 $hash_str_operand utf-8]
+    } -result [openssl_dgst sha384 [encoding convertto utf-8 $hash_str_operand]]
+
+    test sha384-2.1 {sha384 unicode} -body {
+        twapi::hex [twapi::sha384 $hash_str_operand unicode]
+    } -result [openssl_dgst sha384 [encoding convertto unicode $hash_str_operand]]
     
     test sha512-1.0 {sha512 bin} -body {
-        string length [twapi::sha512 $hash_bin_operand]
-    } -result 64
+        twapi::hex [twapi::sha512 $hash_bin_operand]
+    } -result [openssl_dgst sha512 $hash_bin_operand]
     
     test sha512-1.1 {sha512 bin openssl} -body {
         twapi::hex [twapi::sha512 [read_binary crypto.test]]
-    } -result [lindex [openssl dgst -sha512 -r crypto.test] 0 0]
+    } -result [openssl_dgst sha512 [read_binary crypto.test]]
     
-    test sha512-2.0 {sha512 bin} -body {
-        string length [twapi::sha512 $hash_str_operand utf-8]
-    } -result 64
+    test sha512-2.0 {sha512 utf-8} -body {
+        twapi::hex [twapi::sha512 $hash_str_operand utf-8]
+    } -result [openssl_dgst sha512 [encoding convertto utf-8 $hash_str_operand]]
+
+    test sha512-2.1 {sha512 unicode} -body {
+        twapi::hex [twapi::sha512 $hash_str_operand unicode]
+    } -result [openssl_dgst sha512 [encoding convertto unicode $hash_str_operand]]
+    
     
     test capi_hash-99 {
         TBD - all hash routines - test against other hash implementations
@@ -4572,28 +4577,25 @@ namespace eval twapi::crypto::test {
     ################################################################
 
     test hmac-1.0 {hmac bin} -body {
-        twapi::hmac $hash_bin_operand [twapi::conceal mykey]
-    } -result [sha1::hmac -bin -key mykey $hash_bin_operand]
+        twapi::hex [twapi::hmac $hash_bin_operand [twapi::conceal mykey]]
+    } -result [openssl_dgst sha1 $hash_bin_operand -mac HMAC -macopt key:mykey]
     
     test hmac-1.1 {hmac bin openssl} -body {
         twapi::hex [twapi::hmac [read_binary crypto.test] [twapi::conceal mykey]]
-    } -result [lindex [openssl dgst -sha1 -hmac mykey crypto.test] 0 1]
+    } -result [openssl_dgst sha1 [read_binary crypto.test] -hmac mykey]
     
-    test hmac-1.2 {hmac bin empty key} -body {
-        twapi::hmac $hash_bin_operand [twapi::conceal ""]
-    } -result [sha1::hmac -bin -key "" $hash_bin_operand]
-    
-    test hmac-1.3 {hmac bin empty data} -body {
-        twapi::hmac "" [twapi::conceal mykey]
-    } -result [sha1::hmac -bin -key mykey ""]
+    test hmac-1.2 {hmac bin empty data} -body {
+        twapi::hex [twapi::hmac "" [twapi::conceal mykey]]
+    } -result [openssl_dgst sha1 "" -mac HMAC -macopt key:mykey]
     
     test hmac-2.0 {hmac utf-8} -body {
-        twapi::hmac $hash_str_operand [twapi::conceal mykey] sha1 utf-8
-    } -result [sha1::hmac -bin -key mykey [encoding convertto utf-8 $hash_str_operand]]
+        twapi::hex [twapi::hmac $hash_str_operand [twapi::conceal mykey] sha1 utf-8]
+    } -result [openssl_dgst sha1 [encoding convertto utf-8 $hash_str_operand] -hmac mykey]
     
     test hmac-2.1 {hmac unicode} -body {
-        twapi::hmac $hash_str_operand [twapi::conceal $hash_bin_operand] sha1 unicode
-    } -result [sha1::hmac -bin -key $hash_bin_operand [encoding convertto unicode $hash_str_operand]]
+        twapi::hex [twapi::hmac $hash_str_operand [twapi::conceal mykey] sha1 unicode]
+    } -result [openssl_dgst sha1 [encoding convertto unicode $hash_str_operand] -hmac mykey]
+    
     
     # Test vectors from RFC 4868
     set testnum -1
