@@ -2673,7 +2673,7 @@ int Twapi_LookupAccountName (
         sysnamelen = lstrlenW(lpSystemName);
         accnamelen = lstrlenW(lpAccountName);
         len = sysnamelen + 1 + accnamelen + 1;
-        new_accountP = SWSPushFrame(len * sizeof(*new_accountP), NULL);
+        new_accountP = SWSPushFrame((DWORD) (len * sizeof(*new_accountP)), NULL);
         CopyMemory(new_accountP, lpSystemName, sizeof(*new_accountP)*sysnamelen);
         new_accountP[sysnamelen] = L'\\';
         CopyMemory(new_accountP+sysnamelen+1, lpAccountName, sizeof(*new_accountP)*accnamelen);
