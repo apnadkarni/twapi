@@ -4023,6 +4023,48 @@ namespace eval twapi::crypto::test {
             twapi::capi_hash_bytes $hhashverify $bytes
             twapi::capi_hash_verify $hhashverify $sig $hkverify {*}$args
         } -result 1
+
+        tcltest::test capi_hash_verify-$id "capi_verify_hash - $desc (fail)" -setup {
+            set hcryptsign [crypt_rsa 1024]
+            set hcryptverify [twapi::crypt_acquire]
+            set hhashsign [twapi::capi_hash_create $hcryptsign sha1]
+            set hhashverify [twapi::capi_hash_create $hcryptverify sha1]
+            set hkverify [twapi::crypt_public_key_import $hcryptverify [twapi::crypt_public_key_export $hcryptsign signature]]
+        } -cleanup {
+            twapi::capi_key_free $hkverify
+            twapi::capi_hash_free $hhashsign
+            twapi::capi_hash_free $hhashverify
+            twapi::crypt_free $hcryptsign
+            twapi::crypt_free $hcryptverify
+        } -body {
+            # Change hash bytes so verification fails
+            twapi::capi_hash_bytes $hhashsign $bytes\0
+            set sig [twapi::capi_hash_sign $hhashsign signature {*}$args]
+            twapi::capi_hash_bytes $hhashverify $bytes
+            twapi::capi_hash_verify $hhashverify $sig $hkverify {*}$args
+        } -result 0
+        
+        tcltest::test capi_hash_verify-$id.1 "capi_verify_hash - $desc (fail)" -setup {
+            set hcryptsign [crypt_rsa 1024]
+            set hcryptverify [twapi::crypt_acquire]
+            set hhashsign [twapi::capi_hash_create $hcryptsign sha1]
+            set hhashverify [twapi::capi_hash_create $hcryptverify sha1]
+            set hkverify [twapi::crypt_public_key_import $hcryptverify [twapi::crypt_public_key_export $hcryptsign signature]]
+        } -cleanup {
+            twapi::capi_key_free $hkverify
+            twapi::capi_hash_free $hhashsign
+            twapi::capi_hash_free $hhashverify
+            twapi::crypt_free $hcryptsign
+            twapi::crypt_free $hcryptverify
+        } -body {
+            twapi::capi_hash_bytes $hhashsign $bytes
+            set sig [twapi::capi_hash_sign $hhashsign signature {*}$args]
+            # Change sig so verification fails
+            set sig "[string range $sig 0 end-1]\0"
+
+            twapi::capi_hash_bytes $hhashverify $bytes
+            twapi::capi_hash_verify $hhashverify $sig $hkverify {*}$args
+        } -result 0
     }
     testdef 1.0 "single byte" "a"
     testdef 1.1 "multiple bytes" "\x00\x01\x20\x40\x50\x80\xff"
