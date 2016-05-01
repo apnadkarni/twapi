@@ -795,8 +795,8 @@ proc twapi::cert_chain_free {hchain} {
 # TBD - test
 proc twapi::cert_verify {policy hcert args} {
     set policy_id [dict! {
-        authenticode 2   authenticode_ts 3   base 1   basic_constraints 5
-        extended_validation 8   microsoft_root 7   nt_auth 6
+        authenticode 2   authenticodets 3   base 1   basicconstraints 5
+        extendedvalidation 8   microsoftroot 7   ntauth 6
         ssl 4   tls 4
     } $policy]
 
@@ -812,15 +812,15 @@ proc twapi::cert_verify {policy hcert args} {
             lappend optdefs server.arg
         }
         5 {
-            # basic_constraints
+            # basicconstraints
             lappend optdefs isa.arg
         }
         6 {
-            # nt_auth also accepts -isa as it includes basic constraints checks
+            # ntauth also accepts -isa as it includes basic constraints checks
             lappend optdefs isa.arg
         }
         7 {
-            # microsoft_root
+            # microsoftroot
             lappend optdefs enabletestroot.bool
         }
     }
@@ -876,7 +876,10 @@ proc twapi::cert_verify {policy hcert args} {
     }
     
     foreach ignore $ignoreerrors {
-        set verify_flags [expr {$verify_flags | [dict! $ignore_options $ignore]}]
+        if {![dict exists $ignore_options $ignore]} {
+            error "Value $ignore for option -ignoreerrors cannot be used with policy $policy."
+        }
+        set verify_flags [expr {$verify_flags | [dict get $ignore_options $ignore]}]
     }
 
     if {![info exists policyparams]} {
