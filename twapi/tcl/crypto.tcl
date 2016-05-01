@@ -746,8 +746,10 @@ proc twapi::cert_create {subject pubkey cissuer args} {
     }
 }
 
-# TBD - document
+# TBD - undocumented because used internally by cert_verify but no other
+# commands implemented that get passed a chain
 proc twapi::cert_get_chain {hcert args} {
+    # -timestamp not documented because not clear exactly how it behaves
     parseargs args {
         {cacheendcert.bool 0 0x1}
         {revocationcheckcacheonly.bool 0 0x80000000}
@@ -775,6 +777,8 @@ proc twapi::cert_get_chain {hcert args} {
         set usage [_get_enhkey_usage_oids $usageall]
     } elseif {[info exists usageany]} {
         set usage [_get_enhkey_usage_oids $usageany]
+    } else {
+        set usage {}
     }
 
     return [CertGetCertificateChain \
@@ -783,12 +787,12 @@ proc twapi::cert_get_chain {hcert args} {
                 [list [list $usage_op $usage]] $flags]
 }
 
-# TBD - document
+# TBD - documented because cert_get_chain is not documented
 proc twapi::cert_chain_free {hchain} {
     CertFreeCertificateChain $hchain
 }
 
-# TBD - document
+# TBD - test
 proc twapi::cert_verify {policy hcert args} {
     set policy_id [dict! {
         authenticode 2   authenticode_ts 3   base 1   basic_constraints 5
@@ -1000,161 +1004,6 @@ proc twapi::cert_policy_params_tls {args} {
     return [list $role $checks $server]
 }
 interp alias {} twapi::cert_tls_verify {} twapi::cert_verify tls
-
-proc twapi::OBSOLETEcert_tls_verify {hcert args} {
-
-    parseargs args {
-        {ignoreerrors.arg {}}
-        {cacheendcert.bool 0 0x1}
-        {revocationcheckcacheonly.bool 0 0x80000000}
-        {urlretrievalcacheonly.bool 0 0x4}
-        {disablepass1qualityfiltering.bool 0 0x40}
-        {returnlowerqualitycontexts.bool 0 0x80}
-        {disableauthrootautoupdate.bool 0 0x100}
-        {revocationcheck.arg all {none all leaf excluderoot}}
-        usageall.arg
-        usageany.arg 
-        {engine.arg user {user machine}}
-        {timestamp.arg ""}
-        {hstore.arg NULL}
-        {trustedroots.arg}
-        server.arg
-    } -setvars -maxleftover 0
-
-    set flags [dict! {none 0 all 0x20000000 leaf 0x10000000 excluderoot 0x40000000} $revocationcheck]
-    set flags [tcl::mathop::| $flags $cacheendcert $revocationcheckcacheonly $urlretrievalcacheonly $disablepass1qualityfiltering $returnlowerqualitycontexts $disableauthrootautoupdate]
-
-    set usage_op 1;             # USAGE_MATCH_TYPE_OR
-    if {[info exists usageall]} {
-        if {[info exists usageany]} {
-            error "Only one of -usageall and -usageany may be specified"
-        }
-        set usage_op 0;         # USAGE_MATCH_TYPE_AND
-        set usage [_get_enhkey_usage_oids $usageall]
-    } elseif {[info exists usageany]} {
-        set usage [_get_enhkey_usage_oids $usageany]
-    } else {
-        if {[info exists server]} {
-            set usage [_get_enhkey_usage_oids [list server_auth]]
-        } else {
-            set usage [_get_enhkey_usage_oids [list client_auth]]
-        }
-    }
-
-    set chainh [CertGetCertificateChain \
-                    [dict* {user NULL machine {1 HCERTCHAINENGINE}} $engine] \
-                    $hcert $timestamp $hstore \
-                    [list [list $usage_op $usage]] $flags]
-    
-    trap {
-        set verify_flags 0
-        foreach ignore $ignoreerrors {
-            set verify_flags [expr {$verify_flags | [dict! {
-                time             0x07
-                basicconstraints 0x08
-                unknownca        0x10
-                usage            0x20
-                name             0x40
-                policy           0x80
-                revocation       0xf00
-                criticalextensions 0x2000
-            } $ignore]}]
-        }
-
-        if {[info exists server]} {
-            set role 2;         # AUTHTYPE_SERVER
-        } else {
-            set role 1;         # AUTHTYPE_CLIENT
-            set server ""
-        }
-
-        # I have no clue as to why some of these options have to
-        # be specified in two different places
-        set checks 0
-        foreach {verify check} {
-            0x7 0x2000
-            0xf00 0x80
-            0x10 0x100
-            0x20 0x200
-            0x40 0x1000
-        } {
-            if {$verify_flags & $verify} {
-                set checks [expr {$checks | $check}]
-            }
-        }
-
-        set status [Twapi_CertVerifyChainPolicySSL $chainh [list $verify_flags [list $role $checks $server]]]
-
-        # If caller had provided additional trusted roots that are not
-        # in the Windows trusted store, and the error is that the root is
-        # untrusted, see if the root cert is one of the passed trusted ones
-        if {$status == 0x800B0109 &&
-            [info exists trustedroots] &&
-            [llength $trustedroots]} {
-            set chains [twapi::Twapi_CertChainContexts $chainh]
-            set simple_chains [lindex $chains 1]
-            # We will only deal when there is a single possible chain else
-            # the recheck becomes very complicated as we are not sure if
-            # the recheck will employ the same chain or not.
-            if {[llength $simple_chains] == 1} {
-                set certs_in_chain [lindex $simple_chains 0 1]
-                # Get thumbprint of root cert
-                set thumbprint [cert_thumbprint [lindex $certs_in_chain end 0]]
-                # Match against each trusted root
-                set trusted 0
-                foreach trusted_cert $trustedroots {
-                    if {$thumbprint eq [cert_thumbprint $trusted_cert]} {
-                        set trusted 1
-                        break
-                    }
-                }
-                if {$trusted} {
-                    # Yes, the root is trusted. It is not enough to
-                    # say validation is ok because even if root
-                    # is trusted, other errors might show up
-                    # once untrusted roots are ignored. So we have
-                    # to call the verification again.
-                    # 0x10 -> CERT_CHAIN_POLICY_ALLOW_UNKNOWN_CA_FLAG
-                    set verify_flags [expr {$verify_flags | 0x10}]
-                    # 0x100 -> SECURITY_FLAG_IGNORE_UNKNOWN_CA
-                    set checks [expr {$checks | 0x100}]
-                    # Retry the call ignoring root errors
-                    set status [Twapi_CertVerifyChainPolicySSL $chainh [list $verify_flags [list $role $checks $server]]]
-                }
-            }
-        }
-
-        return [dict*  {
-            0x00000000 ok
-            0x80096004 signature
-            0x80092010 revoked
-            0x800b0109 untrustedroot
-            0x800b010d untrustedtestroot
-            0x800b010a chaining
-            0x800b0110 wrongusage
-            0x800b0101 expired
-            0x800b0114 name
-            0x800b0113 policy
-            0x80096019 basicconstraints
-            0x800b0105 criticalextension
-            0x800b0102 validityperiodnesting
-            0x80092012 norevocationcheck
-            0x80092013 revocationoffline
-            0x800b010f cnmatch
-            0x800b0106 purpose
-            0x800b0103 carole
-        } [hex32 $status]]
-    } finally {
-        if {[info exists certs_in_chain]} {
-            foreach cert_stat $certs_in_chain {
-                cert_release [lindex $cert_stat 0]
-            }
-        }
-        CertFreeCertificateChain $chainh
-    }
-
-    return $status
-}
 
 proc twapi::cert_locate_private_key {hcert args} {
     parseargs args {
@@ -1376,6 +1225,7 @@ proc twapi::crypt_public_key_export {hprov keyspec args} {
     if {$encoding eq "native"} {
         return $pubkey
     }
+    # Generate SubjectPublicKeyInfo
     set der [CryptEncodeObjectEx 8 $pubkey]
     if {$encoding eq "der"} {
         return $der
@@ -2233,6 +2083,7 @@ twapi::proc* twapi::oidname {oid} {
     }
 }
 
+# TBD - change OID mnemonics to those in RFC (see pki.tcl in tcllib)
 twapi::proc* twapi::oids {{pattern *}} {
     variable _oid_name_map
     variable _name_oid_map
