@@ -1469,19 +1469,19 @@ below.
 [list_begin opt]
 [opt_def [const authenticode]]
 Verifies the certificate for Authenticode use.
-[opt_def [const authenticode_ts]]
+[opt_def [const authenticodets]]
 Verifies the certificate for Authenticode Time Stamp policy.
 [opt_def [const base]]
 Implementes the base chain policy verification checks.
-[opt_def [const basic_constraints]]
+[opt_def [const basicconstraints]]
 Checks the basic constraints policy. This relates to whether
 certificates are constrained to be end entity certificates or certificate
 authority certificates.
-[opt_def [const extended_validation]]
+[opt_def [const extendedvalidation]]
 Does extended validation of certificates. Requires Windows 7 or later.
-[opt_def [const microsoft_root]]
+[opt_def [const microsoftroot]]
 Checks if the root element is a Microsoft root public key.
-[opt_def [const nt_auth]]
+[opt_def [const ntauth]]
 Verifies the Windows NT authentication policy.
 [opt_def [const ssl]]
 Verifies the certificate for use as 
