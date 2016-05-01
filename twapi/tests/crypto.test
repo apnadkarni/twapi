@@ -4717,7 +4717,29 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    test cert_get_chain {
+        TBD cert_get_chain
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    test cert_chain_free {
+        TBD cert_chain_free
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
     
+    test cert_verify {
+        TBD cert_verify
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
 }
 
 patience "Cleaning test certs"

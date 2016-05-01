@@ -12,6 +12,9 @@ Summarizes the list of changes for each version of TWAPI.
 [list_begin bullet]
 
 [bullet]
+Added [uri certs.html#cert_verify [cmd cert_verify]] for certificate validation.
+
+[bullet]
 Added [uri comserver.html#com_query_client_blanket [cmd com_query_client_blanket]].
 
 [bullet]

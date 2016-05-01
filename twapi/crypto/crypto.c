@@ -761,14 +761,17 @@ static TCL_RESULT ParseCERT_ENHKEY_USAGE(
         return res;
 
     cekuP->cUsageIdentifier = nobjs;
-    cekuP->rgpszUsageIdentifier = MemLifoAlloc(ticP->memlifoP,
-                                               nobjs * sizeof(cekuP->rgpszUsageIdentifier[0]),
-                                               NULL);
-    for (i = 0; i < nobjs; ++i) {
-        p = ObjToStringN(objs[i], &n);
-        cekuP->rgpszUsageIdentifier[i] = MemLifoCopy(ticP->memlifoP, p, n+1);
+    if (nobjs == 0) {
+        cekuP->rgpszUsageIdentifier = 0;
+    } else {
+        cekuP->rgpszUsageIdentifier = MemLifoAlloc(ticP->memlifoP,
+                                                   nobjs * sizeof(cekuP->rgpszUsageIdentifier[0]),
+                                                   NULL);
+        for (i = 0; i < nobjs; ++i) {
+            p = ObjToStringN(objs[i], &n);
+            cekuP->rgpszUsageIdentifier[i] = MemLifoCopy(ticP->memlifoP, p, n+1);
+        }
     }
-
     return TCL_OK;
 }
 
@@ -1415,9 +1418,11 @@ static TCL_RESULT TwapiCryptDecodeObject(
         fnP = ObjFromCERT_NAME_VALUE_Unicode;
         break;
     case X509_PUBLIC_KEY_INFO:
+        /* SubjectPublicKeyInfo decoded to CERT_PUBLIC_KEY_INFO */
         fnP = ObjFromCERT_PUBLIC_KEY_INFO;
         break;
     case RSA_CSP_PUBLICKEYBLOB:
+        /* RSAPublicKey decoded to PUBLICKEYBLOB */
         objP = ObjFromBLOBHEADER(u.pv, n);
         break;
     case 65535-1: // szOID_SUBJECT_KEY_IDENTIFIER

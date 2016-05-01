@@ -322,9 +322,11 @@ a trusted root certificate authority,
 [bullet] the identity specified in the certificate is what is expected
 [list_end]
 
-The [uri #cert_tls_verify [cmd cert_tls_verify]] command can be used for this
-purpose. Currently, TWAPI only supports certificate verification for use
-in SSL connections.
+The command
+[uri #cert_verify [cmd cert_verify]] verifies certificates as above.
+As a special case,
+[uri #cert_tls_verify [cmd cert_tls_verify]] command can be used for
+validating certificates in connection with the SSL/TLS protocol.
 
 [section "X.509 alternative names"]
 The X.509 certificate extensions allow for a list of alternative names to
@@ -784,8 +786,6 @@ store. [arg NAME] is the name of the physical store including the
 system store component, e.g. [const Root\\.Default]. [arg LOCATION]
 specifies the location of the system store and must be one of
 the values listed in [sectref "Certificate stores"].
-
-
 
 [call [cmd cert_property] [arg HCERT] [arg PROPERTY]]
 Returns the value of a 
@@ -1408,6 +1408,180 @@ is as described for the [cmd -usageall] option above.
 
 [list_end]
 
+The [cmd -ignoreerrors] option allows the caller to specify
+certain error types that are to be ignored in the verification process.
+[emph "This option must be used with great care and only in special circumstances."] The argument to the option is a list with one or more of the
+following values:
+[list_begin opt]
+[opt_def [const basicconstraints]] Ignore errors in basic constraints.
+[opt_def [const criticalextensions]] Ignore errors pertaining to
+extensions marked as critical that are not understood by CryptoAPI.
+[opt_def [const name]] Ignore errors in name validation.
+[opt_def [const policy]] Ignore invalid policy errors.
+[opt_def [const revocation]] Ignore errors related to certificate revocation.
+[opt_def [const time]] Ignore errors in validity period checks.
+[opt_def [const unknownca]] Allow the root certificate to not
+be in the trusted roots list.
+[opt_def [const usage]] Ignore errors related to the [cmd -usageall]
+and [cmd -usageany] options.
+[list_end]
+The command returns [const ok] if the certificate was verified
+successfully. If the certificate verification [emph process] could
+not be executed, a Tcl exception is raised. If the verification
+process completed but the certificate did not successfully pass,
+the command does not raise an exception but returns a Win32 error
+code or one of the following values:
+[list_begin opt]
+[opt_def [const signature]] Signature verification failed
+[opt_def [const revoked]] Certificate has been revoked
+[opt_def [const untrustedroot]] The root certificate is not in
+the Windows trusted root list
+[opt_def [const chaining]] Invalid certificate chain
+[opt_def [const wrongusage]] Certificate usage extension did not
+match specified usage.
+[opt_def [const expired]] Certificate has expired.
+[opt_def [const name]] Name does not match
+[opt_def [const policy]] Certificate did not match policy conditions
+[opt_def [const basicconstraints]] Basic constraints check failed
+[opt_def [const criticalextension]] Certificate includes an unsupported
+extension marked as critical
+[opt_def [const validityperiodnesting]] Time periods for certificates
+in the chain are not nested.
+[opt_def [const norevocationcheck]] Revocation status of one of the
+certificates in the chain is unknown.
+[opt_def [const revocationoffline]] Revocation checks could not be done
+because the revocation server was offline.
+[opt_def [const cnmatch]] Common name does not match [cmd -server]
+option.
+[opt_def [const purpose]] The specified purpose is different from
+the one specified by the issuing CA.
+[opt_def [const carole]]
+The certificate that can be marked for use as a CA is being used
+as a leaf or vice-versa.
+[list_end]
+
+
+[call [cmd cert_verify] [arg HCERT] [arg POLICY] [opt [arg options]]]
+Verifies a certificate context [arg HCERT] for a specified purpose
+as defined by [arg POLICY] which must have one of the values shown
+below.
+
+[list_begin opt]
+[opt_def [const authenticode]]
+Verifies the certificate for Authenticode use.
+[opt_def [const authenticode_ts]]
+Verifies the certificate for Authenticode Time Stamp policy.
+[opt_def [const base]]
+Implementes the base chain policy verification checks.
+[opt_def [const basic_constraints]]
+Checks the basic constraints policy. This relates to whether
+certificates are constrained to be end entity certificates or certificate
+authority certificates.
+[opt_def [const extended_validation]]
+Does extended validation of certificates. Requires Windows 7 or later.
+[opt_def [const microsoft_root]]
+Checks if the root element is a Microsoft root public key.
+[opt_def [const nt_auth]]
+Verifies the Windows NT authentication policy.
+[opt_def [const ssl]]
+Verifies the certificate for use as 
+[opt_def [const tls]] Same as [const ssl].
+[list_end]
+
+
+The following options may be specified for all [arg POLICY] values:
+
+[list_begin opt]
+[opt_def [cmd -cacheendcert] [arg BOOLEAN]]
+If [arg BOOLEAN] is [const true], the end (leaf) certificate is cached.
+Default is [const false].
+
+[opt_def [cmd -disableauthrootautoupdate] [arg BOOLEAN]]
+If [arg BOOLEAN] is [const true], auto-update of third party roots
+from the Windows update server is disabled.
+Default is [const false].
+
+[opt_def [cmd -engine] [arg ENGINE]]
+Specifies the chain engine to be used for verification. [arg ENGINE]
+must be [const user] (default) or [const machine]. The engine indicates
+the namespace and cache to be used for building the verification chain.
+
+[opt_def [cmd -hstore] [arg HSTORE]]
+Allows specification of another certificate store to be searched for
+supporting certificates. [arg HSTORE] is a handle to a certificate
+store as returned by commands like [cmd cert_system_store_open].
+
+[opt_def [cmd -ignoreerrors] [arg ERRORLIST]]
+Specifies that certain errors in verification are to be ignored.
+See description later.
+
+[opt_def [cmd -revocationcheck] [arg REVOCATIONSPEC]]
+Specifies which certificates in the chain are checked for revocation.
+[arg REVOCATIONSPEC] must be one of [const all] (default) indicating
+all certificates are to be checked, [const leaf] indicating only
+the leaf certificate is to be checked, [const none] which disables
+revocation checks, and [const excluderoot] which indicates all
+certificates other than the root are to be checked.
+
+[opt_def [cmd -revocationcheckcacheonly] [arg BOOLEAN]]
+If [arg BOOLEAN] is [const true], only cached revocation lists are
+checked when verifying revocation. Default is [const false].
+
+[opt_def [cmd -trustedroots] [arg HCERTLIST]]
+Windows requires the root of the certificate verification
+chain belong to one the Windows' trusted stores. Under some circumstances,
+such as use of a private certificate authority whose root certificate is
+not in the Windows trusted store list, the command will return
+a status of [const untrustedroot]. Instead of ignoring this error
+through the [cmd "-ignoreerrors unknownca"] option, the caller
+can provide a list of certificate contexts [arg HCERTLIST] 
+that are acceptable as trusted root certificates [emph "in addition"] to
+those in the Windows trusted store.
+
+[opt_def [cmd -urlretrievalcacheonly] [arg BOOLEAN]]
+If [arg BOOLEAN] is [const true], only cached URLs are used in building
+the certificate chain without searching the network.
+Default is [const false].
+
+[opt_def [cmd -usageall] [arg USAGELIST]]
+Specifies that the certificate enhanced key usage field must include
+[emph all] the values for [arg USAGELIST]. [arg USAGELIST]
+is a list containing OID's or the following values: 
+[const server_auth], [const client_auth], [const code_signing], 
+[const email_protection],
+[const ipsec_end_system], [const ipsec_tunnel], [const ipsec_user], 
+[const timestamp_signing] or [const ipsec_ike_intermediate].
+
+[opt_def [cmd -usageany] [arg USAGELIST]]
+Specifies that the certificate enhanced key usage field must include
+[emph any] of the values for [arg USAGELIST]. [arg USAGELIST]
+is as described for the [cmd -usageall] option above.
+
+[list_end]
+
+If [arg POLICY] is [const ssl] or [const tls], the option [cmd -server]
+may be specified. If specified, the verification is done assuming the
+certificate is a server certificate and the corresponding option value
+is the name of the server which must match the certificate. If this
+option is not specified, the certificate is assumed to be a client-side
+certificate and no name verification is done. Moreover,
+if neither of the options [cmd -usageall] or [cmd -usageany] is explicitly
+specified, they default to [const server_auth] and [const client_auth]
+respectively depending on whether [cmd -server] is specified or not.
+
+If [arg POLICY] is [const basic_constraints] or [const nt_auth],
+the option [cmd -isa] may be specified. This may take one of the values
+[const ca] or [const endentity] indicating whether the certificate.
+If the option is not specified, the certificate may either be for a CA or an
+end entity. Otherwise, it must match the value specified for the option.
+
+If [arg POLICY] is [const microsoft_root], the additional option
+[cmd -enabletestroot] may be specified. The corresponding value
+is a boolean (default [const false]) which indicates whether the
+Microsoft test root should be included in addition to the Microsoft
+public roots.
+
+[nl]
 The [cmd -ignoreerrors] option allows the caller to specify
 certain error types that are to be ignored in the verification process.
 [emph "This option must be used with great care and only in special circumstances."] The argument to the option is a list with one or more of the
