@@ -827,15 +827,20 @@ proc twapi::cert_verify {policy hcert args} {
 
     array set opts [parseargs args $optdefs -ignoreunknown -setvars]
     
-    if {$policy_id == 4} {
-        # SSL/TLS
-        if {![dict exists $args -usageall] && ![dict exists $args -usageany]} {
-            if {[info exists server]} {
-                set auth server_auth
-            } else {
-                set auth client_auth
+    if {![dict exists $args -usageall] && ![dict exists $args -usageany]} {
+        switch -exact -- $policy {
+            authenticodets -
+            authenticode {
+                dict lappend args -usageany code_signing
             }
-            dict lappend args -usageany $auth
+            ssl -
+            tls {
+                if {[info exists server]} {
+                    dict lappend args -usageany server_auth
+                } else {
+                    dict lappend args -usageany client_auth
+                }
+            }
         }
     }
 
