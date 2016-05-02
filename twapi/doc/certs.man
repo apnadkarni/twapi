@@ -1484,7 +1484,7 @@ Checks if the root element is a Microsoft root public key.
 [opt_def [const ntauth]]
 Verifies the Windows NT authentication policy.
 [opt_def [const ssl]]
-Verifies the certificate for use as 
+Verifies the certificate for use in SSL/TLS connections.
 [opt_def [const tls]] Same as [const ssl].
 [list_end]
 
@@ -1568,13 +1568,19 @@ certificate and no name verification is done. Moreover,
 if neither of the options [cmd -usageall] or [cmd -usageany] is explicitly
 specified, they default to [const server_auth] and [const client_auth]
 respectively depending on whether [cmd -server] is specified or not.
-
+[nl]
 If [arg POLICY] is [const basic_constraints] or [const nt_auth],
 the option [cmd -isa] may be specified. This may take one of the values
 [const ca] or [const endentity] indicating whether the certificate.
 If the option is not specified, the certificate may either be for a CA or an
 end entity. Otherwise, it must match the value specified for the option.
 
+[nl]
+If [arg POLICY] is [const authenticode] or [const authenticodets]
+and neither [cmd -usageall] nor [cmd -usageany] is specified,
+they default to [const code_signing].
+
+[nl]
 If [arg POLICY] is [const microsoft_root], the additional option
 [cmd -enabletestroot] may be specified. The corresponding value
 is a boolean (default [const false]) which indicates whether the

@@ -3152,7 +3152,7 @@ static TCL_RESULT Twapi_CryptQueryObjectObjCmd(TwapiInterpContext *ticP, Tcl_Int
             if (hmsg) {
                 TwapiRegisterHCRYPTMSGTic(ticP, hmsg);
                 objs[nobjs++] = STRING_LITERAL_OBJ("message");
-                objs[nobjs++] = ObjFromOpaque(hstore, "HCRYPTMSG");
+                objs[nobjs++] = ObjFromOpaque(hmsg, "HCRYPTMSG");
             }
             if (pvP) {
                 switch (expected_content_type) {
