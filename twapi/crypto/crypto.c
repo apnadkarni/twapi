@@ -2958,7 +2958,7 @@ static TCL_RESULT Twapi_CertVerifyChainPolicyObjCmd(TwapiInterpContext *ticP, Tc
     return res;
 }
 
-static TCL_RESULT Twapi_CertChainIndexObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_CertChainSimpleChainObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     PCCERT_CHAIN_CONTEXT chainP;
     DWORD slot;
@@ -5584,16 +5584,13 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CertFindCertificateInStore, Twapi_CertFindCertificateInStoreObjCmd),
         DEFINE_TCL_CMD(CertGetCertificateChain, Twapi_CertGetCertificateChainObjCmd),
         DEFINE_TCL_CMD(Twapi_CertVerifyChainPolicy, Twapi_CertVerifyChainPolicyObjCmd),
-#ifdef OBSOLETE
-        DEFINE_TCL_CMD(Twapi_CertVerifyChainPolicySSL, Twapi_CertVerifyChainPolicySSLObjCmd),
-#endif
         DEFINE_TCL_CMD(Twapi_HashPublicKeyInfo, Twapi_HashPublicKeyInfoObjCmd),
         DEFINE_TCL_CMD(CryptFindOIDInfo, Twapi_CryptFindOIDInfoObjCmd),
         DEFINE_TCL_CMD(CryptDecodeObjectEx, Twapi_CryptDecodeObjectExObjCmd), // Tcl
         DEFINE_TCL_CMD(CryptEncodeObjectEx, Twapi_CryptEncodeObjectExObjCmd),
         DEFINE_TCL_CMD(CryptFormatObject, Twapi_CryptFormatObjectObjCmd), // Tcl
         DEFINE_TCL_CMD(CertSetCertificateContextProperty, Twapi_CertSetCertificateContextPropertyObjCmd),
-        DEFINE_TCL_CMD(Twapi_CertChainIndex, Twapi_CertChainIndexObjCmd),
+        DEFINE_TCL_CMD(Twapi_CertChainSimpleChain, Twapi_CertChainSimpleChainObjCmd),
         DEFINE_TCL_CMD(CryptProtectData, Twapi_CryptProtectObjCmd),
         DEFINE_TCL_CMD(CryptUnprotectData, Twapi_CryptUnprotectObjCmd),
         DEFINE_TCL_CMD(PFXExportCertStoreEx, Twapi_PFXExportCertStoreExObjCmd),
