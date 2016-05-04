@@ -746,9 +746,8 @@ proc twapi::cert_create {subject pubkey cissuer args} {
     }
 }
 
-# TBD - undocumented because used internally by cert_verify but no other
-# commands implemented that get passed a chain
-proc twapi::cert_get_chain {hcert args} {
+# TBD - document
+proc twapi::cert_build_chain {hcert args} {
     # -timestamp not documented because not clear exactly how it behaves
     parseargs args {
         {cacheendcert.bool 0 0x1}
@@ -787,11 +786,95 @@ proc twapi::cert_get_chain {hcert args} {
                 [list [list $usage_op $usage]] $flags]
 }
 
-# TBD - documented because cert_get_chain is not documented
-proc twapi::cert_chain_free {hchain} {
-    CertFreeCertificateChain $hchain
+# TBD - document
+proc twapi::cert_chain_simple_chain {hchain index} {
+    set simple_chain [twapi::Twapi_CertChainIndex $hchain $index]
+    set errors [_map_trust_error [dict get $simple_chain trust_errors]]
+    dict set simple_chain trust_errors $errors
+    if {[llength $errors]} {
+        dict set simple_chain status fail
+    } else {
+        dict set simple_chain status ok
+    }
+    dict set simple_chain trust_info [_map_trust_info [dict get $simple_chain trust_info]]
+    set chain_elements {}
+    foreach elem [dict get $simple_chain chain] {
+        set errors [_map_trust_error [dict get $elem trust_errors]]
+        dict set elem trust_errors $errors
+        if {[llength $errors]} {
+            dict set elem status fail
+        } else {
+            dict set elem status ok
+        }
+        dict set elem trust_info [_map_trust_info [dict get $elem trust_info]]
+        if {[dict exists $elem revocation]} {
+            set revocation [dict get $elem revocation]
+            if {$revocation == 0} {
+                dict unset elem revocation
+            } else {
+                dict set elem revocation [_map_cert_verify_error $revocation]
+            }
+        }
+        lappend chain_elements $elem
+    }
+    dict set simple_chain chain $chain_elements
+    return $simple_chain
 }
 
+# TBD - document
+proc twapi::cert_chain_trust_info {hchain} {
+    return [_map_trust_info [Twapi_CertChainInfo $hchain]]
+}
+
+proc twapi::_map_trust_info {info} {
+    return [_make_symbolic_bitmask $info {
+        hasexactmatchissuer               0x00000001
+        haskeymatchissuer                 0x00000002
+        hasnamematchissuer                0x00000004
+        isselfsigned                       0x00000008
+        haspreferredissuer                 0x00000100
+        hasissuancechainpolicy            0x00000200
+        hasvalidnameconstraints           0x00000400
+        ispeertrusted                      0x00000800
+        hascrlvalidityextended            0x00001000
+        isfromexclusivetruststore        0x00002000
+        iscomplexchain                     0x00010000
+    }]
+}
+
+proc twapi::cert_chain_trust_errors {hchain} {
+    return [_map_trust_error [Twapi_CertChainError $hchain]]
+}
+
+proc twapi::_map_trust_error {errbits} {
+    return [_make_symbolic_bitmask $errbits {
+        time 1
+        revoked 4
+        signature 8
+        wrongusage 0x10
+        untrustedroot 0x20
+        revocationunknown 0x40
+        trustcycle 0x80
+        extension 0x100
+        policy 0x200
+        basiconstraints 0x400
+        nameconstraints 0x800
+        unsupportednameconstraint 0x1000
+        undefinednameconstraint 0x2000
+        unpermittednameconstraint 0x4000
+        excludednameconstraint 0x8000
+        revocationoffline 0x01000000
+        noissuancechainpolicy 0x02000000
+        distrust 0x04000000
+        criticalextension 0x08000000
+        weaksignature 0x00100000
+        partialchain 0x00010000
+        ctltime 0x00020000
+        ctlsignature 0x00040000
+        ctlusage 0x00080000
+    }]
+}
+                            
 # TBD - test
 proc twapi::cert_verify {policy hcert args} {
     set policy_id [dict! {
@@ -903,7 +986,7 @@ proc twapi::cert_verify {policy hcert args} {
         }
     }
     
-    set chainh [cert_get_chain $hcert {*}$args]
+    set chainh [cert_build_chain $hcert {*}$args]
     trap {
         set status [Twapi_CertVerifyChainPolicy $policy_id $chainh [list $verify_flags $policyparams]]
 
@@ -949,26 +1032,7 @@ proc twapi::cert_verify {policy hcert args} {
             }
         }
 
-        return [dict*  {
-            0x00000000 ok
-            0x80096004 signature
-            0x80092010 revoked
-            0x800b0109 untrustedroot
-            0x800b010d untrustedtestroot
-            0x800b010a chaining
-            0x800b0110 wrongusage
-            0x800b0101 expired
-            0x800b0114 name
-            0x800b0113 policy
-            0x80096019 basicconstraints
-            0x800b0105 criticalextension
-            0x800b0102 validityperiodnesting
-            0x80092012 norevocationcheck
-            0x80092013 revocationoffline
-            0x800b010f cnmatch
-            0x800b0106 purpose
-            0x800b0103 carole
-        } [hex32 $status]]
+        return [_map_cert_verify_error $status]
     } finally {
         if {[info exists certs_in_chain]} {
             foreach cert_stat $certs_in_chain {
@@ -979,6 +1043,30 @@ proc twapi::cert_verify {policy hcert args} {
     }
 
     return $status
+}
+
+proc twapi::_map_cert_verify_error {err} {
+    return [dict*  {
+        0x00000000 ok
+        0x80096004 signature
+        0x80092010 revoked
+        0x800b0109 untrustedroot
+        0x800b010d untrustedtestroot
+        0x800b010a chaining
+        0x800b0110 wrongusage
+        0x800b0101 expired
+        0x800b0114 name
+        0x800b0113 policy
+        0x80096019 basicconstraints
+        0x800b0105 criticalextension
+        0x800b0102 validityperiodnesting
+        0x80092012 norevocationcheck
+        0x80092013 revocationoffline
+        0x800b010f cnmatch
+        0x800b0106 purpose
+        0x800b010e revocationunknown
+        0x800b0103 carole
+    } [format 0x%x $err]]
 }
 
 # TBD - document
