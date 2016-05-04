@@ -600,7 +600,7 @@ static TCL_RESULT ParseSCHANNEL_CRED (
     while (objc--) {
         res = ObjToVerifiedPointer(ticP->interp, objv[objc],
                                    (void **)&credP->paCred[objc],
-                                   "CERT_CONTEXT*",
+                                   "PCCERT_CONTEXT",
                                    CertFreeCertificateContext);
         /* TBD - should we dup the cert context ? Will that even help ?
            What if the app frees the cert_context ? Dos AcquireCredentials
@@ -723,7 +723,7 @@ int Twapi_QueryContextAttributes(
             case SECPKG_ATTR_LOCAL_CERT_CONTEXT: /* FALLTHRU */
             case SECPKG_ATTR_REMOTE_CERT_CONTEXT:
                 TwapiRegisterPCCERT_CONTEXT(interp, param.certP);
-                obj = ObjFromOpaque(param.certP, "CERT_CONTEXT*");
+                obj = ObjFromOpaque(param.certP, "PCCERT_CONTEXT");
                 break;
             case SECPKG_ATTR_ISSUER_LIST_EX:
                 obj = ObjNewList(param.issuerlist.cIssuers, NULL);
