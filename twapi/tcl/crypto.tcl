@@ -1120,6 +1120,17 @@ proc twapi::cert_tls_verify {hcert args} {
     return [cert_verify $hcert tls {*}$args]
 }
 
+proc twapi::cert_fetch {addr {port 443}} {
+    set so [tls_socket $addr $port]
+    trap {
+        set sspi_ctx [chan configure $so -context]
+        return [sspi_remote_cert $sspi_ctx]
+    } finally {
+        close $so
+    }
+}
+
+                        
 proc twapi::cert_locate_private_key {hcert args} {
     parseargs args {
         {keysettype.arg any {any user machine}}

@@ -1007,6 +1007,12 @@ have been made to the in-memory copy.
 Deletes the specified certificate context from its containing store.
 Also decreases the reference count on the certificate context.
 
+[call [cmd cert_fetch] [arg IPADDR] [arg PORT]]
+Returns a certificate context for a remote server certificate by
+establishing a TLS connection to it. The connection is closed before
+the command returns. The returned handle to the certificate context
+must be released by calling [uri #cert_release [cmd cert_release].
+
 [call [cmd cert_store_enum_contents] [arg HSTORE] [opt [arg HCERT]]]
 The command returns a handle to a certificate context for 
 the next certificate in the store specified by the handle
