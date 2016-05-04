@@ -4682,7 +4682,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -server www.google.com
+        twapi::cert_verify $hcert tls -server www.google.com
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4692,7 +4692,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert
+        twapi::cert_verify $hcert tls
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4730,7 +4730,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -server www.yahoo.com
+        twapi::cert_verify $hcert tls -server www.yahoo.com
     } -cleanup {
         twapi::cert_release $hcert
     } -result cnmatch
@@ -4740,7 +4740,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -server www.yahoo.com -ignoreerrors {name}
+        twapi::cert_verify $hcert tls -server www.yahoo.com -ignoreerrors {name}
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4750,7 +4750,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -server www.google.com -usageany {server_auth}
+        twapi::cert_verify $hcert tls -server www.google.com -usageany {server_auth}
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4760,7 +4760,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -server www.google.com -usageany {code_signing}
+        twapi::cert_verify $hcert tls -server www.google.com -usageany {code_signing}
     } -cleanup {
         twapi::cert_release $hcert
     } -result wrongusage
@@ -4770,7 +4770,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -server www.google.com -usageany {code_signing server_auth}
+        twapi::cert_verify $hcert tls -server www.google.com -usageany {code_signing server_auth}
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4780,7 +4780,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -server www.google.com -usageall {server_auth}
+        twapi::cert_verify $hcert tls -server www.google.com -usageall {server_auth}
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4790,7 +4790,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -server www.google.com -usageall {server_auth code_signing}
+        twapi::cert_verify $hcert tls -server www.google.com -usageall {server_auth code_signing}
     } -cleanup {
         twapi::cert_release $hcert
     } -result wrongusage
@@ -4800,7 +4800,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -server www.google.com -usageall {client_auth server_auth}
+        twapi::cert_verify $hcert tls -server www.google.com -usageall {client_auth server_auth}
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4810,7 +4810,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -server www.google.com -engine user
+        twapi::cert_verify $hcert tls -server www.google.com -engine user
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4820,7 +4820,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -server www.google.com -engine machine
+        twapi::cert_verify $hcert tls -server www.google.com -engine machine
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4830,7 +4830,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [samplecert server]
     } -body {
-        twapi::cert_verify tls $hcert
+        twapi::cert_verify $hcert tls
     } -cleanup {
         twapi::cert_release $hcert
     } -result untrustedroot
@@ -4840,7 +4840,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [samplecert server]
     } -body {
-        twapi::cert_verify tls $hcert -ignoreerrors {}
+        twapi::cert_verify $hcert tls -ignoreerrors {}
     } -cleanup {
         twapi::cert_release $hcert
     } -result untrustedroot
@@ -4850,7 +4850,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [samplecert server]
     } -body {
-        twapi::cert_verify tls $hcert -ignoreerrors {unknownca}
+        twapi::cert_verify $hcert tls -ignoreerrors {unknownca}
     } -cleanup {
         twapi::cert_release $hcert
     } -result wrongusage
@@ -4860,7 +4860,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [samplecert server]
     } -body {
-        twapi::cert_verify tls $hcert -ignoreerrors {unknownca usage} -usageany {client_auth}
+        twapi::cert_verify $hcert tls -ignoreerrors {unknownca usage} -usageany {client_auth}
     } -cleanup {
         twapi::cert_release $hcert
     } -result revocationoffline
@@ -4870,7 +4870,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [samplecert server]
     } -body {
-        twapi::cert_verify tls $hcert -ignoreerrors {unknownca usage revocation} -usageany {client_auth}
+        twapi::cert_verify $hcert tls -ignoreerrors {unknownca usage revocation} -usageany {client_auth}
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4880,7 +4880,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -ignoreerrors {name} -server www.yahoo.com
+        twapi::cert_verify $hcert tls -ignoreerrors {name} -server www.yahoo.com
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4892,7 +4892,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [samplecert server]
     } -body {
-        twapi::cert_verify tls $hcert -ignoreerrors {unknownca usage revocation} -usageany {client_auth}
+        twapi::cert_verify $hcert tls -ignoreerrors {unknownca usage revocation} -usageany {client_auth}
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4910,7 +4910,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -cacheendcert false -server www.google.com
+        twapi::cert_verify $hcert tls -cacheendcert false -server www.google.com
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4920,7 +4920,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -cacheendcert 1 -server www.google.com
+        twapi::cert_verify $hcert tls -cacheendcert 1 -server www.google.com
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4932,7 +4932,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -cacheendcert 1 -server www.google.com
+        twapi::cert_verify $hcert tls -cacheendcert 1 -server www.google.com
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4942,7 +4942,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -disableauthrootautoupdate false -server www.google.com
+        twapi::cert_verify $hcert tls -disableauthrootautoupdate false -server www.google.com
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4952,7 +4952,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -disableauthrootautoupdate 1 -server www.google.com
+        twapi::cert_verify $hcert tls -disableauthrootautoupdate 1 -server www.google.com
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4964,7 +4964,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -disableauthrootautoupdate 1 -server www.google.com
+        twapi::cert_verify $hcert tls -disableauthrootautoupdate 1 -server www.google.com
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -5008,7 +5008,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -urlretrievalcacheonly false -server www.google.com
+        twapi::cert_verify $hcert tls -urlretrievalcacheonly false -server www.google.com
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -5018,7 +5018,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -urlretrievalcacheonly 1 -server www.google.com
+        twapi::cert_verify $hcert tls -urlretrievalcacheonly 1 -server www.google.com
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -5030,7 +5030,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify tls $hcert -urlretrievalcacheonly 1 -server www.google.com
+        twapi::cert_verify $hcert tls -urlretrievalcacheonly 1 -server www.google.com
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok

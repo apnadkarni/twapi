@@ -882,7 +882,7 @@ proc twapi::_map_trust_error {errbits} {
 }
                             
 # TBD - test
-proc twapi::cert_verify {policy hcert args} {
+proc twapi::cert_verify {hcert policy args} {
     set policy_id [dict! {
         authenticode 2   authenticodets 3   base 1   basicconstraints 5
         extendedvalidation 8   microsoftroot 7   ntauth 6
@@ -1115,7 +1115,10 @@ proc twapi::cert_policy_params_tls {args} {
     }
     return [list $role $checks $server]
 }
-interp alias {} twapi::cert_tls_verify {} twapi::cert_verify tls
+
+proc twapi::cert_tls_verify {hcert args} {
+    return [cert_verify $hcert tls {*}$args]
+}
 
 proc twapi::cert_locate_private_key {hcert args} {
     parseargs args {
