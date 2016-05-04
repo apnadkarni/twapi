@@ -5073,6 +5073,34 @@ namespace eval twapi::crypto::test {
         twapi::cert_release $hcert
     } -result basicconstraints
     
+    test cert_verify-99 {
+        TBD - cert_verify for other policies and various options
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+
+    ################################################################
+
+    test cert_fetch-1.0 {
+        Fetch a server cert
+    } -body {
+        set c [twapi::cert_fetch www.google.com 443]
+        twapi::cert_subject_name $c
+    } -cleanup {
+        twapi::cert_release $c
+    } -result www.google.com
+    
+    test cert_fetch-1.1 {
+        Fetch a server cert (default port)
+    } -body {
+        set c [twapi::cert_fetch www.yahoo.com]
+        twapi::cert_subject_name $c
+    } -cleanup {
+        twapi::cert_release $c
+    } -result www.yahoo.com
+    
     ################################################################
     
     test crypt_derive_key-99 {
