@@ -622,13 +622,16 @@ proc twapi::cert_thumbprint {hcert} {
 }
 
 proc twapi::cert_info {hcert} {
-    return [twine {
+    # TBD - add option to cook extensions using _cert_decode_extension
+    # instead of returning the raw form
+    set info [twine {
         -version -serialnumber -signaturealgorithm -issuer
         -start -end -subject -publickey -issuerid -subjectid -extensions} \
                 [Twapi_CertGetInfo $hcert]]
 }
 
 proc twapi::cert_extension {hcert oid} {
+    # TBD - add option to "cook" OID
     set ext [CertFindExtension $hcert [oid $oid]]
     if {[llength $ext] == 0} {
         return $ext
@@ -815,6 +818,9 @@ proc twapi::cert_chain_simple_chain {hchain index} {
                 dict set elem revocation [_map_cert_verify_error $revocation]
             }
         }
+        if {[dict exists $elem application_usage]} {
+            dict set elem application_usage [_cert_decode_enhkey [dict get $elem application_usage]]
+        }
         lappend chain_elements $elem
     }
     dict set simple_chain chain $chain_elements
@@ -941,7 +947,7 @@ proc twapi::cert_verify {policy hcert args} {
         set verify_flags [expr {$verify_flags | 0x00010000}]
     }
     
-    if {$policy_id == 5} {
+    if {$policy eq "basicconstraints"} {
         # TBD - peertrust 0x1000, see below
         set ignore_options {}
     } else {
@@ -988,6 +994,13 @@ proc twapi::cert_verify {policy hcert args} {
     
     set chainh [cert_build_chain $hcert {*}$args]
     trap {
+        set chain_errors [cert_chain_trust_errors $chainh]
+        # In case of errors, keep going if we have not been told to ignore
+        # errors.
+        if {[llength $ignoreerrors] == 0 && [llength $chain_errors] != 0} {
+            return [lindex $chain_errors 0]
+        }
+
         set status [Twapi_CertVerifyChainPolicy $policy_id $chainh [list $verify_flags $policyparams]]
 
         # If caller had provided additional trusted roots that are not
@@ -1039,13 +1052,16 @@ proc twapi::cert_verify {policy hcert args} {
                 cert_release [lindex $cert_stat 0]
             }
         }
-        CertFreeCertificateChain $chainh
+        cert_chain_release $chainh
     }
 
     return $status
 }
 
 proc twapi::_map_cert_verify_error {err} {
+    if {![string is integer -strict $err]} {
+        return $err
+    }
     return [dict*  {
         0x00000000 ok
         0x80096004 signature
@@ -1054,7 +1070,7 @@ proc twapi::_map_cert_verify_error {err} {
         0x800b010d untrustedtestroot
         0x800b010a chaining
         0x800b0110 wrongusage
-        0x800b0101 expired
+        0x800b0101 time
         0x800b0114 name
         0x800b0113 policy
         0x80096019 basicconstraints
@@ -1066,7 +1082,7 @@ proc twapi::_map_cert_verify_error {err} {
         0x800b0106 purpose
         0x800b010e revocationunknown
         0x800b0103 carole
-    } [format 0x%x $err]]
+    } [format 0x%8.8x $err]]
 }
 
 # TBD - document
