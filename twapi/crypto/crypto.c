@@ -205,6 +205,11 @@ static Tcl_Obj *ObjFromCRYPT_BIT_BLOB(CRYPT_BIT_BLOB *blobP)
     return ObjNewList(2, objs);
 }
 
+static Tcl_Obj *ObjFromCERT_ENHKEY_USAGE(CERT_ENHKEY_USAGE *ceuP)
+{
+    return ObjFromArgvA(ceuP->cUsageIdentifier, ceuP->rgpszUsageIdentifier);
+}
+
 Tcl_Obj *ObjFromCERT_NAME_BLOB(CERT_NAME_BLOB *blobP, DWORD flags)
 {
     int len;
@@ -402,26 +407,53 @@ static Tcl_Obj *ObjFromCERT_TRUST_STATUS(const CERT_TRUST_STATUS *ctsP)
 
 static Tcl_Obj *ObjFromCERT_CHAIN_ELEMENT(Tcl_Interp *interp, CERT_CHAIN_ELEMENT *cceP)
 {
-    Tcl_Obj *objs[2];
+    Tcl_Obj *objs[14];
+    int nobjs;
     PCCERT_CONTEXT certP;
 
     certP = CertDuplicateCertificateContext(cceP->pCertContext);
     TwapiRegisterPCCERT_CONTEXT(interp, certP);
-    objs[0] = ObjFromOpaque((void*) certP, "PCCERT_CONTEXT");
-    objs[1] = ObjFromCERT_TRUST_STATUS(&cceP->TrustStatus);
-    return ObjNewList(2, objs);
+    nobjs = 0;
+    objs[nobjs++] = STRING_LITERAL_OBJ("hcert");
+    objs[nobjs++] = ObjFromOpaque((void*) certP, "PCCERT_CONTEXT");
+    objs[nobjs++] = STRING_LITERAL_OBJ("trust_errors");
+    objs[nobjs++] = ObjFromDWORD(cceP->TrustStatus.dwErrorStatus);
+    objs[nobjs++] = STRING_LITERAL_OBJ("trust_info");
+    objs[nobjs++] = ObjFromDWORD(cceP->TrustStatus.dwInfoStatus);
+    if (cceP->pRevocationInfo) {
+        objs[nobjs++] = STRING_LITERAL_OBJ("revocation");
+        objs[nobjs++] = ObjFromLong(cceP->pRevocationInfo->dwRevocationResult);
+    }
+    if (cceP->pIssuanceUsage) {
+        objs[nobjs++] = STRING_LITERAL_OBJ("issuance_usage");
+        objs[nobjs++] = ObjFromCERT_ENHKEY_USAGE(cceP->pIssuanceUsage);
+    }
+    if (cceP->pApplicationUsage) {
+        objs[nobjs++] = STRING_LITERAL_OBJ("application_usage");
+        objs[nobjs++] = ObjFromCERT_ENHKEY_USAGE(cceP->pApplicationUsage);
+    }
+    if (cceP->pwszExtendedErrorInfo) {
+        objs[nobjs++] = STRING_LITERAL_OBJ("extended_error");
+        objs[nobjs++] = ObjFromUnicode(cceP->pwszExtendedErrorInfo);
+    }
+    TWAPI_ASSERT(nobjs <= ARRAYSIZE(objs));
+    return ObjNewList(nobjs, objs);
 }
 
 static Tcl_Obj *ObjFromCERT_SIMPLE_CHAIN(Tcl_Interp *interp,
                                          CERT_SIMPLE_CHAIN *cscP)
 {
-    Tcl_Obj *objs[2];
+    Tcl_Obj *objs[6];
     DWORD dw;
-    objs[0] = ObjFromCERT_TRUST_STATUS(&cscP->TrustStatus);
-    objs[1] = ObjNewList(0, NULL);
+    objs[0] = STRING_LITERAL_OBJ("trust_errors");
+    objs[1] = ObjFromDWORD(cscP->TrustStatus.dwErrorStatus);
+    objs[2] = STRING_LITERAL_OBJ("trust_info");
+    objs[3] = ObjFromDWORD(cscP->TrustStatus.dwInfoStatus);
+    objs[4] = STRING_LITERAL_OBJ("chain");
+    objs[5] = ObjNewList(cscP->cElement, NULL);
     for (dw = 0; dw < cscP->cElement; ++dw)
-        ObjAppendElement(interp, objs[1], ObjFromCERT_CHAIN_ELEMENT(interp, cscP->rgpElement[dw]));
-    return ObjNewList(2, objs);
+        ObjAppendElement(interp, objs[5], ObjFromCERT_CHAIN_ELEMENT(interp, cscP->rgpElement[dw]));
+    return ObjNewList(ARRAYSIZE(objs), objs);
 }
 
 static Tcl_Obj *ObjFromPROV_ENUMALGS_EX(Tcl_Interp *interp,
@@ -2881,40 +2913,6 @@ static TCL_RESULT Twapi_CryptDecodeObjectExObjCmd(TwapiInterpContext *ticP, Tcl_
     return res;
 }
 
-#ifdef OBSOLETE
-static TCL_RESULT Twapi_CertVerifyChainPolicySSLObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
-{
-    PCERT_CHAIN_POLICY_PARA policy_paramP;
-    CERT_CHAIN_POLICY_STATUS policy_status;
-    PCCERT_CHAIN_CONTEXT chainP;
-    Tcl_Obj *paramObj;
-    TCL_RESULT res;
-    MemLifoMarkHandle mark;
-
-    if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETVERIFIEDPTR(chainP, PCCERT_CHAIN_CONTEXT, CertFreeCertificateChain),
-                     GETOBJ(paramObj), ARGEND) != TCL_OK)
-        return TCL_ERROR;
-
-    mark = MemLifoPushMark(ticP->memlifoP);
-    res = ParseCERT_CHAIN_POLICY_PARA_SSL(ticP, paramObj, &policy_paramP);
-    if (res == TCL_OK) {
-        ZeroMemory(&policy_status, sizeof(policy_status));
-        policy_status.cbSize = sizeof(policy_status);
-        if (CertVerifyCertificateChainPolicy(CERT_CHAIN_POLICY_SSL,
-                                             chainP,
-                                             policy_paramP,
-                                             &policy_status)) {
-            ObjSetResult(interp, ObjFromDWORD(policy_status.dwError));
-        } else
-            res = TwapiReturnSystemError(interp);
-    }
-
-    MemLifoPopMark(mark);
-    return res;
-}
-#endif
-
 static TCL_RESULT Twapi_CertVerifyChainPolicyObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     PCERT_CHAIN_POLICY_PARA policy_paramP;
@@ -2960,24 +2958,19 @@ static TCL_RESULT Twapi_CertVerifyChainPolicyObjCmd(TwapiInterpContext *ticP, Tc
     return res;
 }
 
-static TCL_RESULT Twapi_CertChainContextsObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_CertChainIndexObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     PCCERT_CHAIN_CONTEXT chainP;
-    Tcl_Obj *objs[2];
-    DWORD dw;
+    DWORD slot;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(chainP, PCCERT_CHAIN_CONTEXT, CertFreeCertificateChain),
-                     ARGEND) != TCL_OK)
+                     GETINT(slot), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    objs[0] = ObjFromCERT_TRUST_STATUS(&chainP->TrustStatus);
-    objs[1] = ObjNewList(0, NULL);
-    for (dw = 0; dw < chainP->cChain; ++dw) {
-        ObjAppendElement(NULL, objs[1], ObjFromCERT_SIMPLE_CHAIN(interp, chainP->rgpChain[dw]));
-    }
-    ObjSetResult(interp, ObjNewList(2, objs));
-    return TCL_OK;
+    if (slot >= chainP->cChain) 
+        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Chain index out of range.");
+    return ObjSetResult(interp, ObjFromCERT_SIMPLE_CHAIN(interp, chainP->rgpChain[slot]));
 }
 
 static int Twapi_CryptFindOIDInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
@@ -4597,8 +4590,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
                 CERT_ENHKEY_USAGE *ceuP = pv;
                 result.type = TRT_OBJ;
                 if (ceuP->cUsageIdentifier)
-                    result.value.obj = ObjFromArgvA(ceuP->cUsageIdentifier,
-                                                    ceuP->rgpszUsageIdentifier);
+                    result.value.obj = ObjFromCERT_ENHKEY_USAGE(ceuP);
                 else {
                     if (GetLastError() == CRYPT_E_NOT_FOUND) {
                         /* Extension not present -> all uses valid */
@@ -5158,6 +5150,27 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         }
         break;
 
+    case 10070: // Twapi_CertChainErrors
+    case 10071: // Twapi_CertChainInfo
+    case 10072: // Twapi_CertChainSimpleChainCount
+        if (TwapiGetArgs( interp, objc, objv,
+            GETVERIFIEDPTR(pv, PCCERT_CHAIN_CONTEXT, CertFreeCertificateChain),
+            ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_DWORD;
+        switch (func) {
+        case 10070:
+            result.value.uval = ((PCCERT_CHAIN_CONTEXT)pv)->TrustStatus.dwErrorStatus;
+            break;
+        case 10071:
+            result.value.uval = ((PCCERT_CHAIN_CONTEXT)pv)->TrustStatus.dwInfoStatus;
+            break;
+        case 10072:
+            result.value.uval = ((PCCERT_CHAIN_CONTEXT)pv)->cChain;
+            break;
+        }
+        break;
+        
 #ifdef TBD
     case TBD: // CertCreateContext
         if (TwapiGetArgs(interp, objc, objv,
@@ -5521,7 +5534,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_CertStoreCommit, 10029),
         DEFINE_FNCODE_CMD(Twapi_CertGetIntendedKeyUsage, 10030),
         DEFINE_FNCODE_CMD(CertGetIssuerCertificateFromStore, 10031), // TBD - Tcl
-        DEFINE_FNCODE_CMD(CertFreeCertificateChain, 10032),
+        DEFINE_FNCODE_CMD(cert_chain_release, 10032), // TBD - document
         DEFINE_FNCODE_CMD(CertFindExtension, 10033),
         DEFINE_FNCODE_CMD(CryptGenRandom, 10034),
         DEFINE_FNCODE_CMD(Twapi_CertGetInfo, 10035),
@@ -5560,6 +5573,9 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CryptDeriveKey, 10067),
         DEFINE_FNCODE_CMD(capi_hash_password, 10068), // TBD - document
         DEFINE_FNCODE_CMD(CryptVerifySignature, 10069), // TBD - Tcl
+        DEFINE_FNCODE_CMD(Twapi_CertChainError, 10070),
+        DEFINE_FNCODE_CMD(Twapi_CertChainInfo, 10071),
+        DEFINE_FNCODE_CMD(cert_chain_simple_chain_count, 10072), // TBD - doc
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
@@ -5577,7 +5593,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(CryptEncodeObjectEx, Twapi_CryptEncodeObjectExObjCmd),
         DEFINE_TCL_CMD(CryptFormatObject, Twapi_CryptFormatObjectObjCmd), // Tcl
         DEFINE_TCL_CMD(CertSetCertificateContextProperty, Twapi_CertSetCertificateContextPropertyObjCmd),
-        DEFINE_TCL_CMD(Twapi_CertChainContexts, Twapi_CertChainContextsObjCmd),
+        DEFINE_TCL_CMD(Twapi_CertChainIndex, Twapi_CertChainIndexObjCmd),
         DEFINE_TCL_CMD(CryptProtectData, Twapi_CryptProtectObjCmd),
         DEFINE_TCL_CMD(CryptUnprotectData, Twapi_CryptUnprotectObjCmd),
         DEFINE_TCL_CMD(PFXExportCertStoreEx, Twapi_PFXExportCertStoreExObjCmd),

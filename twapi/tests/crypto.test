@@ -4677,6 +4677,404 @@ namespace eval twapi::crypto::test {
         
     ################################################################
 
+    test cert_verify-tls-1.0 {
+        Verify TLS certificate with trusted system root (success, server)
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -server www.google.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-1.1 {
+        Verify TLS certificate with trusted system root (client)
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-1.2 {
+        Verify TLS certificate - common name matches (server)
+    } -setup {
+        set ca [samplecert ca]
+        set server [samplecert server]
+    } -body {
+        twapi::cert_verify tls $server -revocationcheck none -trustedroots [list $ca] -hstore [samplestore] -server twapitestserver
+    } -cleanup {
+        twapi::cert_release $ca
+        twapi::cert_release $server
+    } -result ok
+
+    test cert_verify-tls-1.3 {
+        Verify TLS certificate - DNS name matches
+    } -setup {
+        set ca [samplecert ca]
+        set server [samplecert altserver]
+    } -body {
+        # Note altserver has no CN in subject, otherwise that would 
+        # have been used
+        list \
+            [twapi::cert_verify tls $server -revocationcheck none -trustedroots [list $ca] -hstore [samplestore] -server altserver.twapitest.com] \
+            [twapi::cert_verify tls $server -revocationcheck none -trustedroots [list $ca] -hstore [samplestore] -server altserver2.twapitest.com]
+    } -cleanup {
+        twapi::cert_release $ca
+        twapi::cert_release $server
+    } -result {ok ok}
+
+    test cert_verify-tls-2.0 {
+        Verify TLS certificate with trusted system root (cnmatch)
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -server www.yahoo.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result cnmatch
+
+    test cert_verify-tls-2.1 {
+        Verify TLS certificate with trusted system root (cnmatch, ignoreerror)
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -server www.yahoo.com -ignoreerrors {name}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-3.0 {
+        Verify TLS certificate with trusted system root (usageany)
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -server www.google.com -usageany {server_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-3.1 {
+        Verify TLS certificate with trusted system root (usageany, wrongusage)
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -server www.google.com -usageany {code_signing}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result wrongusage
+
+    test cert_verify-tls-3.2 {
+        Verify TLS certificate with trusted system root (usageany, any)
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -server www.google.com -usageany {code_signing server_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-4.0 {
+        Verify TLS certificate with trusted system root (usageall)
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -server www.google.com -usageall {server_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-4.1 {
+        Verify TLS certificate with trusted system root (usageall, wrongusage)
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -server www.google.com -usageall {server_auth code_signing}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result wrongusage
+
+    test cert_verify-tls-4.2 {
+        Verify TLS certificate with trusted system root (usageall, all)
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -server www.google.com -usageall {client_auth server_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-5.0 {
+        Verify TLS certificate with trusted system root (engine user)
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -server www.google.com -engine user
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-5.1 {
+        Verify TLS certificate with trusted system root (engine machine)
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -server www.google.com -engine machine
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-6.0 {
+        Verify TLS certificate with errors
+    } -setup {
+        set hcert [samplecert server]
+    } -body {
+        twapi::cert_verify tls $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result untrustedroot
+
+    test cert_verify-tls-6.1 {
+        Verify TLS certificate with errors
+    } -setup {
+        set hcert [samplecert server]
+    } -body {
+        twapi::cert_verify tls $hcert -ignoreerrors {}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result untrustedroot
+
+    test cert_verify-tls-6.2 {
+        Verify TLS certificate with errors
+    } -setup {
+        set hcert [samplecert server]
+    } -body {
+        twapi::cert_verify tls $hcert -ignoreerrors {unknownca}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result wrongusage
+
+    test cert_verify-tls-6.3 {
+        Verify TLS certificate with errors
+    } -setup {
+        set hcert [samplecert server]
+    } -body {
+        twapi::cert_verify tls $hcert -ignoreerrors {unknownca usage} -usageany {client_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result revocationoffline
+
+    test cert_verify-tls-6.4 {
+        Verify TLS certificate with errors
+    } -setup {
+        set hcert [samplecert server]
+    } -body {
+        twapi::cert_verify tls $hcert -ignoreerrors {unknownca usage revocation} -usageany {client_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-6.5 {
+        Verify TLS certificate with errors -ignoreerrors name
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -ignoreerrors {name} -server www.yahoo.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-6.6 {
+        Verify TLS certificate with -ignoreerrors criticalextensions basicconstraints policy time
+    } -constraints {
+        TBD
+    } -setup {
+        set hcert [samplecert server]
+    } -body {
+        twapi::cert_verify tls $hcert -ignoreerrors {unknownca usage revocation} -usageany {client_auth}
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-6.7 {
+        Verify TLS expired certificate  -ignoreerrors time
+    } -setup {
+        set cert [expiredcert]
+    } -body {
+        twapi::cert_verify tls $cert -ignoreerrors time
+    } -result ok
+
+    test cert_verify-tls-7.0 {
+        Verify TLS certificate with errors -cacheendcert false
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -cacheendcert false -server www.google.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-7.1 {
+        Verify TLS certificate with errors -cacheendcert true
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -cacheendcert 1 -server www.google.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-7.2 {
+        Verify TLS certificate with errors -cacheendcert true need test to verify end cert is cached
+    } -constraints {
+        TBD 
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -cacheendcert 1 -server www.google.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-8.0 {
+        Verify TLS certificate with errors -disableauthrootautoupdate false
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -disableauthrootautoupdate false -server www.google.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-8.1 {
+        Verify TLS certificate with errors -disableauthrootautoupdate true
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -disableauthrootautoupdate 1 -server www.google.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-8.2 {
+        Verify TLS certificate with errors -disableauthrootautoupdate true - verify autoupdate disabled
+    } -constraints {
+        TBD
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -disableauthrootautoupdate 1 -server www.google.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-9.0 {
+        Verify TLS certificate with -hstore, -trustedroots
+    } -setup {
+        set ca [samplecert ca]
+        set intermediate [samplecert intermediate]
+        set client [samplecert client]
+    } -body {
+        list \
+            [twapi::cert_verify tls $client -revocationcheck none] \
+            [twapi::cert_verify tls $client -revocationcheck none -trustedroots [list $ca]] \
+            [twapi::cert_verify tls $client -revocationcheck none -trustedroots [list $ca]] \
+            [twapi::cert_verify tls $client -revocationcheck none -trustedroots {} -hstore [samplestore]] \
+            [twapi::cert_verify tls $client -revocationcheck none -trustedroots [list $intermediate] -hstore [samplestore]] \
+            [twapi::cert_verify tls $client -trustedroots [list $ca] -hstore [samplestore]] \
+            [twapi::cert_verify tls $client -revocationcheck none -trustedroots [list $ca] -hstore [samplestore]]
+    } -cleanup {
+        twapi::cert_release $ca
+        twapi::cert_release $intermediate
+        twapi::cert_release $client
+    } -result {untrustedroot untrustedroot untrustedroot untrustedroot untrustedroot revocationoffline ok}
+
+    test cert_verify-tls-10.0 {
+        Verify TLS revoked certificate 
+    } -setup {
+        set cert [revokedcert]
+    } -body {
+        list \
+            [twapi::cert_verify tls $cert] \
+            [twapi::cert_verify tls $cert -revocationcheck all] \
+            [twapi::cert_verify tls $cert -revocationcheck leaf] \
+            [twapi::cert_verify tls $cert -revocationcheck excluderoot] \
+            [twapi::cert_verify tls $cert -revocationcheck none] \
+    } -result {revoked revoked revoked revoked ok}
+
+    test cert_verify-tls-11.0 {
+        Verify TLS certificate with errors -urlretrievalcacheonly false
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -urlretrievalcacheonly false -server www.google.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-11.1 {
+        Verify TLS certificate with errors -urlretrievalcacheonly true
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -urlretrievalcacheonly 1 -server www.google.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-11.2 {
+        Verify TLS certificate with errors -urlretrievalcacheonly true - verify only cache
+    } -constraints {
+        TBD
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify tls $hcert -urlretrievalcacheonly 1 -server www.google.com
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-tls-12.0 {
+        Verify TLS expired certificate
+    } -setup {
+        set cert [expiredcert]
+    } -body {
+        twapi::cert_verify tls $cert
+    } -result expired
+
+    test cert_verify-basicconstraints-1.0 {
+        Verify basicconstraints
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify basicconstraints $hcert
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-basicconstraints-1.1 {
+        Verify basicconstraints
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify basicconstraints $hcert -isa endentity
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result ok
+
+    test cert_verify-basicconstraints-1.2 {
+        Verify basicconstraints
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        twapi::cert_verify basicconstraints $hcert -isa ca
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result basicconstraints
+    
+    ################################################################
+    
     test crypt_derive_key-99 {
         TBD - crypt_derive_key-99
     } -constraints {
@@ -4733,13 +5131,6 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
     
-    test cert_verify {
-        TBD cert_verify
-    } -constraints {
-        TBD
-    } -body {
-        TBD
-    } -result TBD
 }
 
 patience "Cleaning test certs"

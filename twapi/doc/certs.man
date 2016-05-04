@@ -1483,9 +1483,8 @@ Does extended validation of certificates. Requires Windows 7 or later.
 Checks if the root element is a Microsoft root public key.
 [opt_def [const ntauth]]
 Verifies the Windows NT authentication policy.
-[opt_def [const ssl]]
+[opt_def [const tls]]
 Verifies the certificate for use in SSL/TLS connections.
-[opt_def [const tls]] Same as [const ssl].
 [list_end]
 
 
@@ -1559,7 +1558,7 @@ is as described for the [cmd -usageall] option above.
 
 [list_end]
 
-If [arg POLICY] is [const ssl] or [const tls], the option [cmd -server]
+If [arg POLICY] is [const tls], the option [cmd -server]
 may be specified. If specified, the verification is done assuming the
 certificate is a server certificate and the corresponding option value
 is the name of the server which must match the certificate. If this
