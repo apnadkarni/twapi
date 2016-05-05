@@ -5083,6 +5083,134 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
+    proc testdef {id desc getcertcmd errors info args} {
+        test cert_chain-$id $desc -setup {
+            set c [{*}$getcertcmd]
+        } -cleanup {
+            twapi::cert_chain_release $ch
+            twapi::cert_release $c
+        } -body {
+            set ch [twapi::cert_chain_build $c {*}$args]
+            list [twapi::cert_chain_trust_errors $ch] \
+                [twapi::cert_chain_trust_info $ch]
+        } -result [list $errors $info]
+    }
+    testdef 1.0 "Normal chain" googlecert {wrongusage} {haspreferredissuer}
+    testdef 1.0.1 "Normal chain" googlecert {} {haspreferredissuer} -usageany {server_auth client_auth}
+    testdef 1.0.2 "Normal chain" googlecert {} {haspreferredissuer} -usageany {server_auth code_signing}
+    testdef 1.0.3 "Normal chain" googlecert {wrongusage} {haspreferredissuer} -usageall {server_auth code_signing}
+    testdef 1.1 "Expired chain" expiredcert {time wrongusage} {haspreferredissuer}
+    testdef 1.1.1 "Expired chain" expiredcert {time} {haspreferredissuer} -usageany server_auth
+    testdef 1.2 "Revoked chain" revokedcert {revoked wrongusage} {haspreferredissuer}
+    testdef 1.2.1 "Revoked chain" revokedcert {revoked} {haspreferredissuer} -usageall server_auth
+    testdef 1.2.2 "Revoked chain" revokedcert {} {haspreferredissuer} -usageall server_auth -revocationcheck none
+    testdef 1.3 "Partial chain" samplecert {revocationunknown revocationoffline partialchain} {} -usageany server_auth
+    test cert_chain-1.3.1 "Partial chain" -setup {
+        set c [samplecert]
+        set store [samplestore]
+    } -cleanup {
+        twapi::cert_chain_release $ch
+        twapi::cert_store_release $store
+        twapi::cert_release $c
+    } -body {
+        set ch [twapi::cert_chain_build $c -hstore $store -revocationcheck none -usageany server_auth]
+        list [twapi::cert_chain_trust_errors $ch] \
+            [twapi::cert_chain_trust_info $ch]
+    } -result [list {untrustedroot} {haspreferredissuer}]
+
+    testtbd cert_chain_build -engine
+    testtbd cert_chain_build -cacheendcert
+    testtbd cert_chain_build -disableauthrootautoupdate
+    testtbd cert_chain_build -revocationcheck all values
+    testtbd cert_chain_build -revocationcheckcacheonly
+    testtbd cert_chain_build -urlretrievalcacheonly
+    testtbd cert_chain_build -cacheendcert
+        
+    ################################################################
+
+    proc testdef {id desc getcertcmd errors info names args} {
+        test cert_chain_simple_chain-$id $desc -setup {
+            set c [{*}$getcertcmd]
+            set ch [twapi::cert_chain_build $c {*}$args]
+        } -cleanup {
+            twapi::cert_chain_release $ch
+            twapi::cert_release $c
+        } -body {
+            set simple [twapi::cert_chain_simple_chain $ch 0]
+            set cnames {}
+            foreach cert [dict get $simple chain] {
+                lappend cnames [twapi::cert_subject_name [dict get $cert hcert]]
+                twapi::cert_release [dict get $cert hcert]
+            }
+            list [dict get $simple trust_errors] [dict get $simple trust_info] $cnames
+        } -result [list $errors $info $names]
+    }
+    testdef 1.0 "Normal chain" googlecert {} {haspreferredissuer} \
+        {*.google.com {Google Internet Authority G2} {GeoTrust Global CA}} \
+        -usageany server_auth
+    testdef 1.1 "Expired chain" expiredcert {time} {haspreferredissuer} \
+        {*.google.com {Google Internet Authority G2} {GeoTrust Global CA}} \
+        -usageany server_auth
+    testdef 1.2 "Revoked chain" revokedcert {revoked} {haspreferredissuer} \
+        {revoked.grc.com {GlobalSign Domain Validation CA - G2} {GlobalSign Root CA}} \
+        -usageall server_auth
+    testdef 1.2.1 "Revoked chain" revokedcert {} {haspreferredissuer} \
+        {revoked.grc.com {GlobalSign Domain Validation CA - G2} {GlobalSign Root CA}} \
+        -usageall server_auth -revocationcheck none
+    
+    test cert_chain_simple_chain-2.0 {
+        Simple chain index out of range
+    } -setup {
+        set c [googlecert]
+        set ch [twapi::cert_chain_build $c]
+    } -cleanup {
+        twapi::cert_chain_release $ch
+        twapi::cert_release $c
+    } -body {
+        set simple [twapi::cert_chain_simple_chain $ch 1]
+    } -result {Chain index out of range.*} -returnCodes error -match glob
+    
+    test cert_chain_simple_chain-2.1 {
+        Simple chain index negative
+    } -setup {
+        set c [googlecert]
+        set ch [twapi::cert_chain_build $c]
+    } -cleanup {
+        twapi::cert_chain_release $ch
+        twapi::cert_release $c
+    } -body {
+        set simple [twapi::cert_chain_simple_chain $ch -1]
+    } -result {Chain index out of range.*} -returnCodes error -match glob
+    
+    ################################################################
+
+    test cert_chain_simple_chain_count-1.0 {
+        Simple chain count
+    } -setup {
+        set c [googlecert]
+        set ch [twapi::cert_chain_build $c]
+    } -cleanup {
+        twapi::cert_chain_release $ch
+        twapi::cert_release $c
+    } -body {
+        set simple [twapi::cert_chain_simple_chain_count $ch]
+    } -result 1
+    
+    ################################################################
+
+    test cert_chain_release-1.0 "Check chain double release" -setup {
+        set c [googlecert]
+        set ch [twapi::cert_chain_build $c -usageany server_auth]
+    } -cleanup {
+        twapi::cert_release $c
+    } -body {
+        list [catch {twapi::cert_chain_release $ch}] \
+            [catch {twapi::cert_chain_release $ch} msg] \
+            $msg
+    } -result [list 0 1 {Pointer is not registered. Probably invalid or already freed.}]
+
+    ################################################################
+
     test cert_fetch-1.0 {
         Fetch a server cert
     } -body {
@@ -5102,14 +5230,8 @@ namespace eval twapi::crypto::test {
     } -result www.yahoo.com
     
     ################################################################
-    
-    test crypt_derive_key-99 {
-        TBD - crypt_derive_key-99
-    } -constraints {
-        TBD
-    } -body {
-        TBD
-    } -result TBD
+
+    testtbd crypt_derive_key
 
     test crypt_export_key-99 {
         TBD - more crypt_export_key-99
@@ -5142,23 +5264,6 @@ namespace eval twapi::crypto::test {
     } -body {
         TBD
     } -result TBD
-
-    test cert_get_chain {
-        TBD cert_get_chain
-    } -constraints {
-        TBD
-    } -body {
-        TBD
-    } -result TBD
-
-    test cert_chain_free {
-        TBD cert_chain_free
-    } -constraints {
-        TBD
-    } -body {
-        TBD
-    } -result TBD
-    
 }
 
 patience "Cleaning test certs"

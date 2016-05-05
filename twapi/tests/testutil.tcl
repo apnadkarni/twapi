@@ -36,6 +36,9 @@ proc indomain {} {
     }
 }
 
+proc testtbd {id args} {
+    tcltest::test $id [concat $args] -constraints TBD -body {TBD} -result TBD
+}
 
 proc testconfig {item} {
     global testconfig

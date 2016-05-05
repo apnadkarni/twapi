@@ -39,8 +39,6 @@ foreach fn [glob *.test] {
     source $fn
 }
 
-
-
 # What we are skipping and why
 array set do_not_test {
     load_twapi                fundamental
@@ -93,6 +91,8 @@ array set do_not_test {
     tdh_logfile_header       internal
     eject_media              eject
     load_media               eject
+    cert_chain_trust_errors  cert_chain_build
+    cert_chain_trust_info    cert_chain_build
 }
 set missing {}
 foreach cmd [twapi::_get_public_commands] {
