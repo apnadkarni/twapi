@@ -749,22 +749,25 @@ proc twapi::cert_create {subject pubkey cissuer args} {
     }
 }
 
-# TBD - document
-proc twapi::cert_build_chain {hcert args} {
+# TBD - test
+proc twapi::cert_chain_build {hcert args} {
     # -timestamp not documented because not clear exactly how it behaves
+    # -disablepass1*, -returnlower* not documented because not clear how
+    # useful.
+    # TBD - what about CERT_CHAIN_REVOCATION_ACCUMULATIVE_TIMEOUT 
     parseargs args {
         {cacheendcert.bool 0 0x1}
-        {revocationcheckcacheonly.bool 0 0x80000000}
-        {urlretrievalcacheonly.bool 0 0x4}
-        {disablepass1qualityfiltering.bool 0 0x40}
-        {returnlowerqualitycontexts.bool 0 0x80}
         {disableauthrootautoupdate.bool 0 0x100}
+        {disablepass1qualityfiltering.bool 0 0x40}
+        {engine.arg user {user machine}}
+        {hstore.arg NULL}
+        {returnlowerqualitycontexts.bool 0 0x80}
         {revocationcheck.arg all {none all leaf excluderoot}}
+        {revocationcheckcacheonly.bool 0 0x80000000}
+        {timestamp.arg ""}
+        {urlretrievalcacheonly.bool 0 0x4}
         usageall.arg
         usageany.arg 
-        {engine.arg user {user machine}}
-        {timestamp.arg ""}
-        {hstore.arg NULL}
     } -setvars -maxleftover 0
 
     set flags [dict! {none 0 all 0x20000000 leaf 0x10000000 excluderoot 0x40000000} $revocationcheck]
@@ -791,7 +794,7 @@ proc twapi::cert_build_chain {hcert args} {
 
 # TBD - document
 proc twapi::cert_chain_simple_chain {hchain index} {
-    set simple_chain [twapi::Twapi_CertChainIndex $hchain $index]
+    set simple_chain [twapi::Twapi_CertChainSimpleChain $hchain $index]
     set errors [_map_trust_error [dict get $simple_chain trust_errors]]
     dict set simple_chain trust_errors $errors
     if {[llength $errors]} {
@@ -827,7 +830,7 @@ proc twapi::cert_chain_simple_chain {hchain index} {
     return $simple_chain
 }
 
-# TBD - document
+# TBD - test
 proc twapi::cert_chain_trust_info {hchain} {
     return [_map_trust_info [Twapi_CertChainInfo $hchain]]
 }
@@ -848,6 +851,7 @@ proc twapi::_map_trust_info {info} {
     }]
 }
 
+# TBD - test
 proc twapi::cert_chain_trust_errors {hchain} {
     return [_map_trust_error [Twapi_CertChainError $hchain]]
 }
@@ -883,6 +887,11 @@ proc twapi::_map_trust_error {errbits} {
                             
 # TBD - test
 proc twapi::cert_verify {hcert policy args} {
+    # TBD - should we explicitly look for nulls in the subject name?
+    # The Chrome source at
+    # https://src.chromium.org/svn/branches/455/src/net/base/x509_certificate_win.cc
+    # does this though it also uses the same calls as below. See
+    # CertSubjectCommonNameHasNull in that code.
     set policy_id [dict! {
         authenticode 2   authenticodets 3   base 1   basicconstraints 5
         extendedvalidation 8   microsoftroot 7   ntauth 6
@@ -992,7 +1001,7 @@ proc twapi::cert_verify {hcert policy args} {
         }
     }
     
-    set chainh [cert_build_chain $hcert {*}$args]
+    set chainh [cert_chain_build $hcert {*}$args]
     trap {
         set chain_errors [cert_chain_trust_errors $chainh]
         # In case of errors, keep going if we have not been told to ignore
@@ -1129,7 +1138,6 @@ proc twapi::cert_fetch {addr {port 443}} {
         close $so
     }
 }
-
                         
 proc twapi::cert_locate_private_key {hcert args} {
     parseargs args {
