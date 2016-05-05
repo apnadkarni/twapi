@@ -7,12 +7,21 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 4.2a2"]
+[section "Version 4.2a6"]
 
 [list_begin bullet]
 
 [bullet]
-Added [uri certs.html#cert_verify [cmd cert_verify]] for certificate validation.
+Added [uri certs.html#cert_verify [cmd cert_verify]],
+[uri certs.html#cert_chain_build [cmd cert_chain_build]],
+[uri certs.html#cert_chain_simple_chain [cmd cert_chain_simple_chain]],
+[uri certs.html#cert_chain_trust_errors [cmd cert_chain_trust_errors]],
+[uri certs.html#cert_chain_trust_info [cmd cert_chain_trust_info]]
+for certificate validation.
+
+[bullet]
+Added [uri certs.html#cert_fetch [cmd cert_fetch]] for retrieving a
+certificate from a SSL/TLS server.
 
 [bullet]
 Added [uri comserver.html#com_query_client_blanket [cmd com_query_client_blanket]].

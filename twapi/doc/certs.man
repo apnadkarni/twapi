@@ -324,9 +324,13 @@ a trusted root certificate authority,
 
 The command
 [uri #cert_verify [cmd cert_verify]] verifies certificates as above.
-As a special case,
-[uri #cert_tls_verify [cmd cert_tls_verify]] command can be used for
-validating certificates in connection with the SSL/TLS protocol.
+In addition, the commands
+[uri #cert_chain_build [cmd cert_chain_build]],
+[uri #cert_chain_simple_chain [cmd cert_chain_simple_chain]],
+[uri #cert_chain_trust_errors [cmd cert_chain_trust_errors]],
+[uri #cert_chain_trust_info [cmd cert_chain_trust_info]] provide
+more granular access to the certificate chain used to verify the
+certificate.
 
 [section "X.509 alternative names"]
 The X.509 certificate extensions allow for a list of alternative names to
@@ -379,6 +383,217 @@ or [const newline].
 
 See [uri #cert_name_to_blob [cmd cert_name_to_blob]] for the reverse
 operation.
+
+[call [cmd cert_chain_build] [arg HCERT] [opt [arg options]]]
+Builds a certificate chain for the specified certificate and returns
+a handle to it. The returned handle must be released with
+[uri #cert_chain_release [cmd cert_chain_release]].
+[nl]
+The following options may be specified with the command.
+
+[list_begin opt]
+[opt_def [cmd -cacheendcert] [arg BOOLEAN]]
+If [arg BOOLEAN] is [const true], the end (leaf) certificate is cached.
+Default is [const false].
+
+[opt_def [cmd -disableauthrootautoupdate] [arg BOOLEAN]]
+If [arg BOOLEAN] is [const true], auto-update of third party roots
+from the Windows update server is disabled.
+Default is [const false].
+
+[opt_def [cmd -engine] [arg ENGINE]]
+Specifies the chain engine to be used for verification. [arg ENGINE]
+must be [const user] (default) or [const machine]. The engine indicates
+the namespace and cache to be used for building the verification chain.
+
+[opt_def [cmd -hstore] [arg HSTORE]]
+Allows specification of another certificate store to be searched for
+supporting certificates. [arg HSTORE] is a handle to a certificate
+store as returned by commands like [cmd cert_system_store_open].
+
+[opt_def [cmd -ignoreerrors] [arg ERRORLIST]]
+Specifies that certain errors in verification are to be ignored.
+See description later.
+
+[opt_def [cmd -revocationcheck] [arg REVOCATIONSPEC]]
+Specifies which certificates in the chain are checked for revocation.
+[arg REVOCATIONSPEC] must be one of [const all] (default) indicating
+all certificates are to be checked, [const leaf] indicating only
+the leaf certificate is to be checked, [const none] which disables
+revocation checks, and [const excluderoot] which indicates all
+certificates other than the root are to be checked.
+
+[opt_def [cmd -revocationcheckcacheonly] [arg BOOLEAN]]
+If [arg BOOLEAN] is [const true], only cached revocation lists are
+checked when verifying revocation. Default is [const false].
+
+[opt_def [cmd -trustedroots] [arg HCERTLIST]]
+Windows requires the root of the certificate verification
+chain belong to one the Windows' trusted stores. Under some circumstances,
+such as use of a private certificate authority whose root certificate is
+not in the Windows trusted store list, the command will return
+a status of [const untrustedroot]. Instead of ignoring this error
+through the [cmd "-ignoreerrors unknownca"] option, the caller
+can provide a list of certificate contexts [arg HCERTLIST] 
+that are acceptable as trusted root certificates [emph "in addition"] to
+those in the Windows trusted store.
+
+[opt_def [cmd -urlretrievalcacheonly] [arg BOOLEAN]]
+If [arg BOOLEAN] is [const true], only cached URLs are used in building
+the certificate chain without searching the network.
+Default is [const false].
+
+[opt_def [cmd -usageall] [arg USAGELIST]]
+Specifies that the certificate enhanced key usage field must include
+[emph all] the values for [arg USAGELIST]. [arg USAGELIST]
+is a list containing OID's or the following values: 
+[const server_auth], [const client_auth], [const code_signing], 
+[const email_protection],
+[const ipsec_end_system], [const ipsec_tunnel], [const ipsec_user], 
+[const timestamp_signing] or [const ipsec_ike_intermediate].
+
+[opt_def [cmd -usageany] [arg USAGELIST]]
+Specifies that the certificate enhanced key usage field must include
+[emph any] of the values for [arg USAGELIST]. [arg USAGELIST]
+is as described for the [cmd -usageall] option above.
+
+[list_end]
+
+[call [cmd cert_chain_trust_errors] [arg HCHAIN]]
+Returns a list of verification failure codes associated with the
+specified certificate chain. An empty list indicates no errors were
+found in any of the chain components.
+[nl]
+The failure codes include
+[const time],
+[const revoked],
+[const signature],
+[const wrongusage],
+[const untrustedroot],
+[const revocationunknown],
+[const trustcycle],
+[const extension],
+[const policy],
+[const basiconstraints],
+[const nameconstraints],
+[const unsupportednameconstraint],
+[const undefinednameconstraint],
+[const unpermittednameconstraint],
+[const excludednameconstraint],
+[const revocationoffline],
+[const noissuancechainpolicy],
+[const distrust],
+[const criticalextension],
+[const weaksignature],
+[const partialchain],
+[const ctltime],
+[const ctlsignature],
+[const ctlusage].
+[nl]
+The returned list may include values not listed above. These should
+be also be treated as verification failures.
+[nl]
+Note that this command is not sufficient to check for certificate
+verification for all purposes. For example, it does not check if
+a server name on a TLS connection matches the certificate. Applications
+should therefore generally use the higher level
+[uri #cert_verify [cmd cert_verify]] for certificate verification.
+
+[call [cmd cert_chain_trust_info] [arg HCHAIN]]
+Returns a list of informational codes associated with the
+specified certificate chain. Note these are not verification errors.
+The returned list may include zero or more of the following codes:
+[const hasexactmatchissuer],
+[const haskeymatchissuer],
+[const hasnamematchissuer],
+[const isselfsigned],
+[const haspreferredissuer],
+[const hasissuancechainpolicy],
+[const hasvalidnameconstraints],
+[const ispeertrusted],
+[const hascrlvalidityextended],
+[const isfromexclusivetruststore],
+[const iscomplexchain].
+Codes other than those listed above may also be present.
+
+[call [cmd cert_chain_release] [arg HCHAIN]]
+Releases the handle to a certificate chain returned by
+[uri #cert_chain_build [cmd cert_chain_build]].
+
+[call [cmd cert_chain_simple_chain] [arg HCHAIN] [arg INDEX]]
+Returns a dictionary containing information about
+the simple chain at position [arg INDEX] in the list of simple chains
+within a certificate chain.
+*NOTE: the returned value may include handles to certificate contexts.
+These must be freed. See the description of the [const hcert] element
+later.*
+[nl]
+A certificate chain may consists of a list of one or more
+*simple chains*. Each simple chain is a list of certificates ending
+in a self signed certificate. If the self signed certificate is a
+trusted root certificate, the chain is complete. Otherwise, the
+simple chain is linked (if possible) to another simple chain
+through a certificate trust list (CTL) which connects the self signed
+certificate to the next simple chain in the list.
+In most cases, the certificate chain contains a single simple chain
+the last element of which is a trusted root certificate.
+
+[nl]
+The number of simple chains in a certificate chain is returned by
+[uri #cert_chain_simple_chain_count [cmd cert_chain_simple_chain_count]].
+The command will raise an exception if [arg INDEX] is not in this range.
+[nl]
+The returned dictionary has the following elements.
+[list_begin opt]
+[opt_def [const chain]]
+A list whose elements correspond to each certificate in the simple chain.
+This is detailed below.
+[opt_def [const status]]
+Contains [const ok] if no verification errors are present in this
+simple chain, else [const fail].
+[opt_def [const trust_errors]] A list containing the verification errors
+for the simple chain. The elements of the list are from
+the same set of values described in
+[uri #cert_chain_trust_errors [cmd cert_chain_trust_errors]] which
+covers the entire certificate chain.
+[opt_def [const trust_info]] A list containing informational codes
+for the simple chain. The elements of the list are from
+the same set of values described in
+[uri #cert_chain_trust_info [cmd cert_chain_trust_info]] which
+covers the entire certificate chain.
+[list_end]
+
+The [const chain] element of the returned dictionary is a list of
+dictionaries corresponding to each certificate in the simple chain.
+This dictionary has the following elements.
+[list_begin opt]
+[opt_def [const application_usage]]
+A list of enhanced key usage identifiers. This dictionary element
+may not be present if the corresponding certificate fields were not present.
+[opt_def [const issuance_usage]]
+A list of issuance policy identifiers. This dictionary element
+may not be present if the corresponding certificate fields were not present.
+[opt_def [const hcert]]
+Handle to the certificate context.
+*This must be freed by calling [uri #cert_release [cmd cert_release]].*
+[opt_def [const status]]
+Contains [const ok] if no verification errors are present in this
+certificate, else [const fail].
+[opt_def [const trust_errors]] A list containing the verification errors
+for the certificate. The elements of the list are from
+the same set of values described in
+[uri #cert_chain_trust_errors [cmd cert_chain_trust_errors]] which
+covers the entire certificate chain.
+[opt_def [const trust_info]] A list containing informational codes
+for this certificate. The elements of the list are from
+the same set of values described in
+[uri #cert_chain_trust_info [cmd cert_chain_trust_info]] which
+covers the entire certificate chain.
+[list_end]
+Any additional keys in the dictionary should be ignored.
+
+[call [cmd cert_chain_simple_chain] [arg HCHAIN]]
+Returns the number of simple chains in the passed certificate chain.
 
 [call [cmd cert_create] [arg SUBJECT] [arg PUBKEY] [arg ISSUERCERT] [opt [arg options]]]
 Creates a certificate and returns it in ASN.1 DER-encoded
@@ -1011,7 +1226,7 @@ Also decreases the reference count on the certificate context.
 Returns a certificate context for a remote server certificate by
 establishing a TLS connection to it. The connection is closed before
 the command returns. The returned handle to the certificate context
-must be released by calling [uri #cert_release [cmd cert_release].
+must be released by calling [uri #cert_release [cmd cert_release]].
 
 [call [cmd cert_store_enum_contents] [arg HSTORE] [opt [arg HCERT]]]
 The command returns a handle to a certificate context for 
@@ -1367,39 +1582,26 @@ The following options may be specified for all [arg POLICY] values:
 
 [list_begin opt]
 [opt_def [cmd -cacheendcert] [arg BOOLEAN]]
-If [arg BOOLEAN] is [const true], the end (leaf) certificate is cached.
-Default is [const false].
+See [uri #cert_chain_build [cmd cert_chain_build]].
 
 [opt_def [cmd -disableauthrootautoupdate] [arg BOOLEAN]]
-If [arg BOOLEAN] is [const true], auto-update of third party roots
-from the Windows update server is disabled.
-Default is [const false].
+See [uri #cert_chain_build [cmd cert_chain_build]].
 
 [opt_def [cmd -engine] [arg ENGINE]]
-Specifies the chain engine to be used for verification. [arg ENGINE]
-must be [const user] (default) or [const machine]. The engine indicates
-the namespace and cache to be used for building the verification chain.
+See [uri #cert_chain_build [cmd cert_chain_build]].
 
 [opt_def [cmd -hstore] [arg HSTORE]]
-Allows specification of another certificate store to be searched for
-supporting certificates. [arg HSTORE] is a handle to a certificate
-store as returned by commands like [cmd cert_system_store_open].
+See [uri #cert_chain_build [cmd cert_chain_build]].
 
 [opt_def [cmd -ignoreerrors] [arg ERRORLIST]]
 Specifies that certain errors in verification are to be ignored.
 See description later.
 
 [opt_def [cmd -revocationcheck] [arg REVOCATIONSPEC]]
-Specifies which certificates in the chain are checked for revocation.
-[arg REVOCATIONSPEC] must be one of [const all] (default) indicating
-all certificates are to be checked, [const leaf] indicating only
-the leaf certificate is to be checked, [const none] which disables
-revocation checks, and [const excluderoot] which indicates all
-certificates other than the root are to be checked.
+See [uri #cert_chain_build [cmd cert_chain_build]].
 
 [opt_def [cmd -revocationcheckcacheonly] [arg BOOLEAN]]
-If [arg BOOLEAN] is [const true], only cached revocation lists are
-checked when verifying revocation. Default is [const false].
+See [uri #cert_chain_build [cmd cert_chain_build]].
 
 [opt_def [cmd -trustedroots] [arg HCERTLIST]]
 Windows requires the root of the certificate verification
@@ -1413,23 +1615,13 @@ that are acceptable as trusted root certificates [emph "in addition"] to
 those in the Windows trusted store.
 
 [opt_def [cmd -urlretrievalcacheonly] [arg BOOLEAN]]
-If [arg BOOLEAN] is [const true], only cached URLs are used in building
-the certificate chain without searching the network.
-Default is [const false].
+See [uri #cert_chain_build [cmd cert_chain_build]].
 
 [opt_def [cmd -usageall] [arg USAGELIST]]
-Specifies that the certificate enhanced key usage field must include
-[emph all] the values for [arg USAGELIST]. [arg USAGELIST]
-is a list containing OID's or the following values: 
-[const server_auth], [const client_auth], [const code_signing], 
-[const email_protection],
-[const ipsec_end_system], [const ipsec_tunnel], [const ipsec_user], 
-[const timestamp_signing] or [const ipsec_ike_intermediate].
+See [uri #cert_chain_build [cmd cert_chain_build]].
 
 [opt_def [cmd -usageany] [arg USAGELIST]]
-Specifies that the certificate enhanced key usage field must include
-[emph any] of the values for [arg USAGELIST]. [arg USAGELIST]
-is as described for the [cmd -usageall] option above.
+See [uri #cert_chain_build [cmd cert_chain_build]].
 
 [list_end]
 
