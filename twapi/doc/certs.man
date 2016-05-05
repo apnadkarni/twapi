@@ -411,10 +411,6 @@ Allows specification of another certificate store to be searched for
 supporting certificates. [arg HSTORE] is a handle to a certificate
 store as returned by commands like [cmd cert_system_store_open].
 
-[opt_def [cmd -ignoreerrors] [arg ERRORLIST]]
-Specifies that certain errors in verification are to be ignored.
-See description later.
-
 [opt_def [cmd -revocationcheck] [arg REVOCATIONSPEC]]
 Specifies which certificates in the chain are checked for revocation.
 [arg REVOCATIONSPEC] must be one of [const all] (default) indicating
@@ -426,17 +422,6 @@ certificates other than the root are to be checked.
 [opt_def [cmd -revocationcheckcacheonly] [arg BOOLEAN]]
 If [arg BOOLEAN] is [const true], only cached revocation lists are
 checked when verifying revocation. Default is [const false].
-
-[opt_def [cmd -trustedroots] [arg HCERTLIST]]
-Windows requires the root of the certificate verification
-chain belong to one the Windows' trusted stores. Under some circumstances,
-such as use of a private certificate authority whose root certificate is
-not in the Windows trusted store list, the command will return
-a status of [const untrustedroot]. Instead of ignoring this error
-through the [cmd "-ignoreerrors unknownca"] option, the caller
-can provide a list of certificate contexts [arg HCERTLIST] 
-that are acceptable as trusted root certificates [emph "in addition"] to
-those in the Windows trusted store.
 
 [opt_def [cmd -urlretrievalcacheonly] [arg BOOLEAN]]
 If [arg BOOLEAN] is [const true], only cached URLs are used in building

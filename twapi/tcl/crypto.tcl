@@ -885,7 +885,6 @@ proc twapi::_map_trust_error {errbits} {
     }]
 }
                             
-# TBD - test
 proc twapi::cert_verify {hcert policy args} {
     # TBD - should we explicitly look for nulls in the subject name?
     # The Chrome source at
