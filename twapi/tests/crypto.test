@@ -5124,7 +5124,6 @@ namespace eval twapi::crypto::test {
     testtbd cert_chain_build -revocationcheck all values
     testtbd cert_chain_build -revocationcheckcacheonly
     testtbd cert_chain_build -urlretrievalcacheonly
-    testtbd cert_chain_build -cacheendcert
         
     ################################################################
 

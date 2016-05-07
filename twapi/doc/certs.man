@@ -1663,20 +1663,20 @@ process completed but the certificate did not successfully pass,
 the command does not raise an exception but returns a Win32 error
 code or one of the following values:
 [list_begin opt]
-[opt_def [const signature]] Signature verification failed
-[opt_def [const revoked]] Certificate has been revoked
-[opt_def [const untrustedroot]] The root certificate is not in
-the Windows trusted root list
-[opt_def [const chaining]] Invalid certificate chain
+[opt_def [const signature]] Signature verification failed.
+[opt_def [const revoked]] Certificate has been revoked.
+[opt_def [const untrustedroot]] The root certificate is not a trusted root.
+[opt_def [const partialchain]] The certificate chain does not end
+in a self-signed certificate.
 [opt_def [const wrongusage]] Certificate usage extension did not
 match specified usage.
 [opt_def [const time]] Certificate has expired or the validity time
 is in the future.
-[opt_def [const name]] Name does not match
-[opt_def [const policy]] Certificate did not match policy conditions
-[opt_def [const basicconstraints]] Basic constraints check failed
+[opt_def [const name]] Name does not match.
+[opt_def [const policy]] Certificate did not match policy conditions.
+[opt_def [const basicconstraints]] Basic constraints check failed.
 [opt_def [const criticalextension]] Certificate includes an unsupported
-extension marked as critical
+extension marked as critical.
 [opt_def [const validityperiodnesting]] Time periods for certificates
 in the chain are not nested.
 [opt_def [const norevocationcheck]] Revocation status of one of the
