@@ -1556,7 +1556,7 @@ proc cleanup_test_cert_files {} {
     }
 
     foreach store [twapi::cert_system_stores user] {
-        if {[string match -nocase TwapiTest-* $store]} {
+        if {[string match -nocase twapitest-* $store]} {
             twapi::cert_system_store_delete $store user
         }
     }

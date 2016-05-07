@@ -928,20 +928,26 @@ static TCL_RESULT ParseCRYPT_ALGORITHM_IDENTIFIER(
     if ((res = ObjGetElements(ticP->interp, algObj, &nobjs, &objs)) != TCL_OK)
         return res;
 
-    if (nobjs != 1 && nobjs != 2) {
+    if (nobjs > 2) {
         ObjSetStaticResult(ticP->interp, "Invalid algorithm identifier format or unsupported parameters");
         return TCL_ERROR;
     }
 
-    p = ObjToStringN(objs[0], &n);
-    algidP->pszObjId = MemLifoCopy(ticP->memlifoP, p, n+1);
-    if (nobjs == 1) {
+    if (nobjs == 0) {
+        algidP->pszObjId = NULL;
         algidP->Parameters.cbData = 0;
         algidP->Parameters.pbData = 0;
     } else {
-        p = ObjToByteArray(objs[1], &n);
-        algidP->Parameters.pbData = MemLifoCopy(ticP->memlifoP, p, n);
-        algidP->Parameters.cbData = n;
+        p = ObjToStringN(objs[0], &n);
+        algidP->pszObjId = MemLifoCopy(ticP->memlifoP, p, n+1);
+        if (nobjs == 1) {
+            algidP->Parameters.cbData = 0;
+            algidP->Parameters.pbData = 0;
+        } else {
+            p = ObjToByteArray(objs[1], &n);
+            algidP->Parameters.pbData = MemLifoCopy(ticP->memlifoP, p, n);
+            algidP->Parameters.cbData = n;
+        }
     }
     return TCL_OK;
 }
@@ -3663,6 +3669,7 @@ static TCL_RESULT Twapi_CryptVerifyMessageSignatureObjCmd(TwapiInterpContext *ti
     DWORD signer_index;
     PCCERT_CONTEXT certP = NULL, *certPP;
     MemLifoMarkHandle mark = NULL;
+    DWORD winerr;
 
     mark = MemLifoPushMark(ticP->memlifoP);
 
@@ -3719,7 +3726,8 @@ static TCL_RESULT Twapi_CryptVerifyMessageSignatureObjCmd(TwapiInterpContext *ti
             goto error_return;
         }
     }
-    res = TCL_OK;
+
+    res = ObjSetResult(interp, ObjFromInt(0));
 
 vamoose:
     if (mark)
@@ -3727,7 +3735,14 @@ vamoose:
     return res;
 
 system_error:
-    TwapiReturnSystemError(interp);
+    winerr = GetLastError();
+    if (winerr == NTE_BAD_SIGNATURE || winerr == NTE_BAD_ALGID) {
+        res = ObjSetResult(interp, ObjFromDWORD(winerr));
+        goto vamoose; /* Not an error return */
+    }
+    
+    Twapi_AppendSystemError(interp, winerr);
+
 error_return:
     res = TCL_ERROR;
     if (certPP && *certPP)
@@ -3888,8 +3903,7 @@ static TCL_RESULT Twapi_CryptSignMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
     mark = MemLifoPushMark(ticP->memlifoP);
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETOBJ(paramObj),
-                     GETBOOL(detached), GETOBJ(sigObj),
-                     GETOBJ(contentObj), ARGEND) != TCL_OK
+                     GETBOOL(detached), GETOBJ(contentObj), ARGEND) != TCL_OK
         || ParseCRYPT_SIGN_MESSAGE_PARA(ticP, paramObj, &param) != TCL_OK
         || ObjGetElements(interp, contentObj, &ndata, &dataObjs) != TCL_OK) {
          res = TCL_ERROR;
