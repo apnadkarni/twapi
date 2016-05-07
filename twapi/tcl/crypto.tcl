@@ -793,6 +793,22 @@ proc twapi::cert_chain_build {hcert args} {
 }
 
 # TBD - document
+proc twapi::cert_ancestors {hcert args} {
+    # Note - does not care if certs are valid or not
+    set certs {}
+    set hchain [cert_chain_build $hcert {*}$args]
+    trap {
+        set simple_chain [twapi::Twapi_CertChainSimpleChain $hchain 0]
+    } finally {
+        cert_chain_release $hchain
+    }
+    foreach elem [dict get $simple_chain chain] {
+        lappend certs [dict get $elem hcert]
+    }
+    return $certs
+}
+
+# TBD - document
 proc twapi::cert_chain_simple_chain {hchain index} {
     set simple_chain [twapi::Twapi_CertChainSimpleChain $hchain $index]
     set errors [_map_trust_error [dict get $simple_chain trust_errors]]
@@ -1076,7 +1092,7 @@ proc twapi::_map_cert_verify_error {err} {
         0x80092010 revoked
         0x800b0109 untrustedroot
         0x800b010d untrustedtestroot
-        0x800b010a chaining
+        0x800b010a partialchain
         0x800b0110 wrongusage
         0x800b0101 time
         0x800b0114 name
@@ -1594,6 +1610,135 @@ proc twapi::capi_decrypt_string {s hkey args} {
     return [encoding convertfrom utf-8 [capi_decrypt_bytes $s $hkey {*}$args]]
 }
 
+###
+# PKCS7 commands
+
+proc twapi::pkcs7_encrypt {bytes recipients encalg args} {
+    parseargs args {
+        {innertype.arg 0}
+    } -setvars -maxleftover 0
+
+    # TBD - add support for the following
+    set flags 0
+    set encauxinfo {}
+
+    set params [list \
+                    0x10001 \
+                    NULL \
+                    [_make_algorithm_identifier $encalg] \
+                    $encauxinfo \
+                    $flags \
+                    $innertype]
+    return [CryptEncryptMessage $params $recipients $bytes]
+}
+
+proc twapi::pkcs7_decrypt {bytes stores args} {
+    parseargs args {
+        {silent.bool 0 0x40}
+        {certvar.arg ""}
+    } -maxleftover 0 -setvars
+
+    set params [list \
+                    0x10001 \
+                    $stores \
+                    $silent]
+    if {$certvar ne ""} {
+        upvar 1 $certvar hcert
+        set certvar hcert
+    }
+    
+    return [CryptDecryptMessage $params $bytes $certvar]
+}
+ 
+proc twapi::pkcs7_sign {bytes hcert hashalg args} {
+    parseargs args {
+        {detached.bool 0}
+        {includecerts.arg all {none leaf all}}
+        {silent.bool 0 0x40}
+        {usesignerkeyid.bool 0 0x4}
+        {crls.arg {}}
+        {innercontenttype.arg 0}
+    } -setvars -maxleftover 0
+
+    set flags [expr {$usesignerkeyid | $silent}]
+
+    switch -exact -- $includecerts {
+        leaf { set certs [list [cert_duplicate $hcert]] }
+        none { set certs {} }
+        all { set certs [cert_ancestors $hcert] }
+    }
+    # TBD - add support for the following
+    set hashaux {}
+    set authattrs {}
+    set unauthattrs {}
+    set encalg ""
+    set hashencaux ""
+    # 0x10001 -> PKCS_7_ASN_ENCODING|X509_ASN_ENCODING
+    set params [list \
+                    0x10001 \
+                    $hcert \
+                    [_make_algorithm_identifier $hashalg] \
+                    $hashaux \
+                    $certs \
+                    $crls \
+                    $authattrs \
+                    $unauthattrs \
+                    $flags \
+                    $innercontenttype \
+                    $encalg \
+                    $hashencaux]
+    trap {
+        return [CryptSignMessage $params $detached [list $bytes]]
+    } finally {
+        foreach c $certs {
+            cert_release $c
+        }
+    }
+}
+
+proc twapi::pkcs7_verify {bytes args} {
+    parseargs args {
+        {contentvar.arg ""}
+        {certvar.arg ""}
+    } -maxleftover 0 -setvars -ignoreunknown
+
+    if {$contentvar ne ""} {
+        upvar 1 $contentvar content
+        set contentvar content
+    }
+    set status [CryptVerifyMessageSignature [list 0x10001 NULL] 0 $bytes $contentvar hcert]
+    if {$status == 0} {
+        trap {
+            set status [cert_verify $hcert base {*}$args]
+            if {$status eq "ok"} {
+                if {$certvar ne ""} {
+                    upvar 1 $certvar cert
+                    set cert $hcert
+                    unset hcert;    # So we do not release it below
+                }
+                if {$contentvar ne ""} {
+                    upvar 1 $contentvar con
+                    set con content
+                }
+            }
+        } finally {
+            if {[info exists hcert]} {
+                cert_release $hcert
+            }
+        }
+    } else {
+        # Note these codes are different from those in _map_cert_verify_error
+        if {$status == 0x80090006} {
+            set status "signature"
+        } elseif {$status == 0x80090008} {
+            set status "invalidalgorithm"
+        }
+    }
+        
+    return $status
+}
+
+
 # For backwards compat - deprecated
 interp alias {} twapi::crypt_key_free {} twapi::capi_key_free
 
@@ -1983,6 +2128,31 @@ proc twapi::capi_key_salt {hkey args} {
 proc twapi::_make_algorithm_identifier {oid {param {}}} {
     if {[string length $oid] == 0} {
         return ""
+    }
+    if {0} {
+        # TBD - what modes to default to ?
+        switch -exact -- $oid {
+#define szOID_NIST_AES128_CBC        "2.16.840.1.101.3.4.1.2"
+#define szOID_NIST_AES192_CBC        "2.16.840.1.101.3.4.1.22"
+#define szOID_NIST_AES256_CBC        "2.16.840.1.101.3.4.1.42"
+
+#// For the above Algorithms, the AlgorithmIdentifier parameters must be
+#// present and the parameters field MUST contain an AES-IV:
+#//
+#//  AES-IV ::= OCTET STRING (SIZE(16))
+
+#// NIST AES WRAP Algorithms
+#define szOID_NIST_AES128_WRAP       "2.16.840.1.101.3.4.1.5"
+#define szOID_NIST_AES192_WRAP       "2.16.840.1.101.3.4.1.25"
+#define szOID_NIST_AES256_WRAP       "2.16.840.1.101.3.4.1.45"
+            des { set oid "oid_rsa_des_ede3_cbc" }
+            des { set oid "oid_oiwsec_descbc" }
+            aes128 { TBD }
+            aes192 { TBD }
+            aes256 { TBD }
+            rc2 { set oid "oid_rsa_rc2cbc" }
+            rc4 { set oid "oid_rsa_rc4" }
+        }
     }
     set oid [oid $oid]
     if {[string length $param]} {
