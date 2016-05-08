@@ -378,6 +378,12 @@ proc twapi::cert_store_add_encoded_certificate {hstore enccert args} {
     return [CertAddEncodedCertificateToStore $hstore 0x10001 [_pem_decode $enccert $encoding] $opts(disposition)]
 }
 
+proc twapi::cert_store_export_pem {hstore} {
+    set pem {}
+    cert_store_iterate $hstore c {append pem [cert_export $c]\n}
+    return $pem
+}
+
 proc twapi::cert_store_export_pfx {hstore password args} {
     parseargs args {
         {exportprivatekeys.bool 0 0x4}

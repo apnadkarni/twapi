@@ -94,6 +94,7 @@ Commands
 [uri #cert_store_export_pfx [cmd cert_store_export_pfx]],
 [uri #cert_store_export_pkcs12 [cmd cert_store_export_pkcs12]],
 [uri #cert_store_export_pkcs7 [cmd cert_store_export_pkcs7]],
+[uri #cert_store_export_pem [cmd cert_store_export_pem]],
 and
 [uri #cert_store_serialize [cmd cert_store_serialize]] can be used
 to export certificate stores in various formats. 
@@ -1235,6 +1236,10 @@ empty string when there are no more certificates in the store.
 The command 
 [uri #cert_store_find_certificate [cmd cert_store_find_certificate]]
 offers another means for retrieving certificates from a store.
+
+[call [cmd cert_store_export_pem] [arg HSTORE]]
+Returns all certificates in a store in PEM encoded format. This format is
+commonly used with the [cmd openssl] program's [cmd -CAfile] option.
 
 [call [cmd cert_store_export_pfx] [arg HSTORE] [arg PASSWORD] [opt [arg options]]]
 Returns a binary containing all the certificates in a certificate store
