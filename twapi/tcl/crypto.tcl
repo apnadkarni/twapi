@@ -1621,6 +1621,7 @@ proc twapi::capi_decrypt_string {s hkey args} {
 
 proc twapi::pkcs7_encrypt {bytes recipients encalg args} {
     parseargs args {
+        {encoding.arg pem {pem der}}
         {innertype.arg 0}
     } -setvars -maxleftover 0
 
@@ -1635,11 +1636,12 @@ proc twapi::pkcs7_encrypt {bytes recipients encalg args} {
                     $encauxinfo \
                     $flags \
                     $innertype]
-    return [CryptEncryptMessage $params $recipients $bytes]
+    return [_as_pem_or_der [CryptEncryptMessage $params $recipients $bytes] PKCS7 $encoding]
 }
 
 proc twapi::pkcs7_decrypt {bytes stores args} {
     parseargs args {
+        {encoding.arg {} {der pem {}}}
         {silent.bool 0 0x40}
         {certvar.arg ""}
     } -maxleftover 0 -setvars
@@ -1653,12 +1655,14 @@ proc twapi::pkcs7_decrypt {bytes stores args} {
         set certvar hcert
     }
     
-    return [CryptDecryptMessage $params $bytes $certvar]
+    return [CryptDecryptMessage $params [_pem_decode $bytes $encoding] $certvar]
 }
  
 proc twapi::pkcs7_sign {bytes hcert hashalg args} {
+    # TBD - document crls?
     parseargs args {
         {detached.bool 0}
+        {encoding.arg pem {pem der}}
         {includecerts.arg all {none leaf all}}
         {silent.bool 0 0x40}
         {usesignerkeyid.bool 0 0x4}
@@ -1694,7 +1698,7 @@ proc twapi::pkcs7_sign {bytes hcert hashalg args} {
                     $encalg \
                     $hashencaux]
     trap {
-        return [CryptSignMessage $params $detached [list $bytes]]
+        return [_as_pem_or_der [CryptSignMessage $params $detached [list $bytes]] PKCS7 $encoding]
     } finally {
         foreach c $certs {
             cert_release $c
@@ -1704,6 +1708,7 @@ proc twapi::pkcs7_sign {bytes hcert hashalg args} {
 
 proc twapi::pkcs7_verify {bytes args} {
     parseargs args {
+        {encoding.arg {} {der pem {}}}
         {contentvar.arg ""}
         {certvar.arg ""}
     } -maxleftover 0 -setvars -ignoreunknown
@@ -1712,7 +1717,7 @@ proc twapi::pkcs7_verify {bytes args} {
         upvar 1 $contentvar content
         set contentvar content
     }
-    set status [CryptVerifyMessageSignature [list 0x10001 NULL] 0 $bytes $contentvar hcert]
+    set status [CryptVerifyMessageSignature [list 0x10001 NULL] 0 [_pem_decode $bytes $encoding] $contentvar hcert]
     if {$status == 0} {
         trap {
             set status [cert_verify $hcert base {*}$args]
@@ -3018,7 +3023,7 @@ proc twapi::_as_pem_or_der {bin tag encoding} {
 # 0 -> CRYPT_STRING_BASE64HEADER for certificates
 # 1 -> CRYPT_STRING_BASE64 (no header)
 # 3 -> CRYPT_STRING_BASE64REQUESTHEADER
-# 6 -> CRYPT_STIRNG_BASE64_ANY (actually same as 0 or 1)
+# 6 -> CRYPT_STRING_BASE64_ANY (actually same as 0 or 1)
 proc twapi::_pem_decode {pem_or_der enc {pemtype 6}} {
     if {$enc eq "der"} {
         return $pem_or_der

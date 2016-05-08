@@ -870,6 +870,8 @@ Creates and returns a certificate context from encoded data in
 [arg ENCODING] may be [const der] or [const pem]
 depending on whether [arg ENCODEDCERT] uses DER- or PEM-encoding.
 If unspecified, the command attempts to determine the encoding itself.
+For performance reasons, the encoding should be explicitly specified
+when possible.
 
 [call [cmd cert_info] [arg HCERT]]
 Returns the following fields from a certificate context as a dictionary.
