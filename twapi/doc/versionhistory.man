@@ -20,8 +20,10 @@ Added [uri certs.html#cert_verify [cmd cert_verify]],
 for certificate validation.
 
 [bullet]
-Added [uri certs.html#cert_fetch [cmd cert_fetch]] for retrieving a
-certificate from a SSL/TLS server.
+Added [uri certs.html#cert_fetch [cmd cert_fetch]].
+
+[bullet]
+Added [uri certs.html#cert_store_export_pem [cmd cert_store_export_pem]].
 
 [bullet]
 Added [uri comserver.html#com_query_client_blanket [cmd com_query_client_blanket]].
@@ -31,8 +33,7 @@ Added [cmd -requestclientcert] option to
 [uri tls.html#tls_socket [cmd tls_socket]].
 
 [bullet]
-Added [const bstr] type to [uri base.html#tclcast [cmd tclcast]]
-for casting COM parameters as strings.
+Added [const bstr] type to [uri base.html#tclcast [cmd tclcast]].
 
 [bullet]
 Added
