@@ -1158,7 +1158,116 @@ either [const sha1] or [const sha_256].
 in the RFC.
 [nl]
 The returned key is in a [uri base.html#protectingdatainmemory concealed] form.
+
+
+[call [cmd pkcs7_decrypt] [arg PKCS7MSG] [arg STORES] [opt [arg options]]]
+Decrypts the PKCS7 message [arg PKCS7MSG] and returns the corresponding
+plaintext. [arg STORES] should be a list of one or more certificate store
+handles one of which must contain a certificate matching one of
+the recipients listed in the message and which has an associated private key.
+[nl]
+The following options may be specified.
+[list_begin opt]
+[opt_def [cmd -certvar] [arg CERTVAR]]
+If specified and [arg CERTVAR] is not the empty string, a handle
+to a certificate context for the certificate used for decryption is stored
+in the variable [arg CERTVAR] in the caller's context. This must
+be released later by calling [uri certs.html#cert_release [cmd cert_release]].
+[opt_def [cmd -encoding] [arg ENCODING]]
+If unspecified or the empty string,
+the command attempts to determine the encoding itself.
+Otherwise, [arg ENCODING] must be [const der] or [const pem]
+depending on whether [arg PKCS7MSG] uses DER- or PEM-encoding.
+For performance reasons, the encoding should be explicitly specified
+when possible.
+[opt_def [cmd -silent] [arg BOOL]]
+If the decryption key is user protected, the user is notified when
+the key is used. If [arg -silent] is [const true],
+the user is not notified for such keys and the command returns an
+error instead. Default is [const false].
+[list_end]
+
+[call [cmd pkcs7_encrypt] [arg BINDATA] [arg RECIPIENTS] [arg ENCALGOID] [opt [arg options]]]
+Encrypts the binary string [arg BINDATA] using a generated session
+key for the symmetric encryption algorithm specified by the OID
+[arg ENCALGOID]. The session key is itself encrypted using each
+of the public keys corresponding to the list of certificate contexts
+[arg RECIPIENTS]. The return value is formatted as an enveloped PKCS7
+message as defined in [uri https://tools.ietf.org/html/rfc2315 "RFC 2315"].
+[nl]
+The following option may be specified with the command.
+[list_begin opt]
+[opt_def [cmd -encoding] [arg ENCODING]]
+Specifies the encoding in which the encoded message is returned.
+[arg ENCODING] may be [const der] or [const pem] (default)
+for DER- and PEM-encoding respectively.
+[list_end]
                     
+[call [cmd pkcs7_sign] [arg BINDATA] [arg HCERT] [arg HASHALGOID] [opt [arg options]]]
+Computes the hash of the binary string [arg BINDATA], signs it
+with the private key corresponding
+to the certificate [arg HCERT] and returns it as a PKCS7 formatted
+message as defined in [uri https://tools.ietf.org/html/rfc2315 "RFC 2315"].
+[arg HASHALGOID] is the OID of the hashing algorithm to be used.
+The following options may be specified.
+[list_begin opt]
+[opt_def [cmd -detached] [arg BOOL]]
+If [const false] (default), the content [arg BINDATA] is included in
+the message. If [const true], the PKCS7 packet is constructed as a
+detached packet without the content.
+[opt_def [cmd -encoding] [arg ENCODING]]
+Specifies the encoding in which the encoded message is returned.
+[arg ENCODING] may be [const der] or [const pem] (default)
+for DER- and PEM-encoding respectively.
+[opt_def [cmd -includecerts] [const none|leaf|all]]
+If unspecified or [const all], the signing certificate [arg HCERT]
+along with all certificates in its certificate chain are included
+in the PKCS7 message. If [const leaf], only the signing certificate is
+included and if [const none], no certificates are included in the message.
+[opt_def [cmd -silent] [arg BOOL]]
+If the signing key is user protected, the user is notified when
+the key is used for signing. If [arg -silent] is [const true],
+the user is not notified for such keys and the command returns an
+error instead. Default is [const false].
+[opt_def [cmd -usersignerkeyid] [arg BOOL]]
+By default or if [const false],
+the certificate issuer and serial number is used to identify
+the signer. If this option is [const true], the key identifier is
+used for this purpose instead.
+[list_end]
+
+[call [cmd pkcs7_verify] [arg PKCS7MSG] [opt [arg options]]]
+Verifies the signature of a PKCS7 signed message [arg PKCS7MSG]. If
+the signature verifies successfully, the command returns [const ok].
+Otherwise, it returns one of the error status values specified
+for [uri certs.html#cert_verify [cmd cert_verify]].
+[nl]
+In addition to verifying the signature on the message, the command
+also verifies that the signing certificate is valid by calling
+[uri certs.html#cert_verify [cmd cert_verify]]. All options for
+that command are therefore accepted by [cmd pkcs7_verify] as well.
+[nl]
+In addition to those options, the command accepts the following options:
+[list_begin opt]
+[opt_def [cmd -certvar] [arg CERTVAR]]
+If specified and [arg CERTVAR] is not the empty string, a handle
+to a certificate context for the signing certificate is stored
+in the variable [arg CERTVAR] in the caller's context. This must
+be released later by calling [uri certs.html#cert_release [cmd cert_release]].
+[opt_def [cmd -contentvar] [arg CONTENTVAR]]
+If specified and [arg CONTENTVAR] is not the empty string, the
+content of the message is stored in the variable [arg CONTENTVAR] in
+the caller's context.
+[opt_def [cmd -encoding] [arg ENCODING]]
+If unspecified or the empty string,
+the command attempts to determine the encoding itself.
+Otherwise, [arg ENCODING] must be [const der] or [const pem]
+depending on whether [arg PKCS7MSG] uses DER- or PEM-encoding.
+For performance reasons, the encoding should be explicitly specified
+when possible.
+
+[list_end]
+
 [call [cmd protect_data] [arg BINDATA] [opt [arg options]]]
 Encrypts and signs the binary data [arg BINDATA] so that it can only
 be recovered by a process running under the same user credentials
