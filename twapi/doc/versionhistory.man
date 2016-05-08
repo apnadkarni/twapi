@@ -20,6 +20,13 @@ Added [uri certs.html#cert_verify [cmd cert_verify]],
 for certificate validation.
 
 [bullet]
+Addec PKCS7 handling commands
+[uri crypto.html#pkcs7_decrypt [cmd pkcs7_decrypt]],
+[uri crypto.html#pkcs7_encrypt [cmd pkcs7_encrypt]],
+[uri crypto.html#pkcs7_sign [cmd pkcs7_sign]],
+[uri crypto.html#pkcs7_verify [cmd pkcs7_verify]].
+
+[bullet]
 Added [uri certs.html#cert_fetch [cmd cert_fetch]].
 
 [bullet]
