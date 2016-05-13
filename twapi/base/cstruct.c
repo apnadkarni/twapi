@@ -53,7 +53,7 @@ typedef struct TwapiCStructRep_s {
     TwapiCStructField fields[1];
 } TwapiCStructRep;
 
-static CStructRepDecrRefs(TwapiCStructRep *csP)
+static int CStructRepDecrRefs(TwapiCStructRep *csP)
 {
     csP->nrefs -= 1;
     if (csP->nrefs <= 0) {
@@ -99,7 +99,8 @@ enum cstruct_types_enum {
     CSTRUCT_BOOLEAN, CSTRUCT_CHAR, CSTRUCT_UCHAR, CSTRUCT_SHORT, CSTRUCT_USHORT, CSTRUCT_INT, CSTRUCT_UINT, CSTRUCT_INT64, CSTRUCT_UINT64,
     CSTRUCT_DOUBLE, CSTRUCT_STRING, CSTRUCT_WSTRING, CSTRUCT_CBSIZE, CSTRUCT_HANDLE, CSTRUCT_PSID, CSTRUCT_STRUCT
 };
-TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
+
+TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
 {
     Tcl_Obj **fieldObjs;
     int       i, nfields;

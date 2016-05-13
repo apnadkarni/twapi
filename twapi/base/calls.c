@@ -16,7 +16,7 @@ static TCL_RESULT Twapi_LsaQueryInformationPolicy (
     );
 static Tcl_Obj *TwapiRandomByteArrayObj(Tcl_Interp *interp, int nbytes);
 
-
+TWAPI_EXTERN_VA
 TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                  char fmtch, va_list ap)
 {
@@ -260,6 +260,7 @@ argerror:
     return TCL_ERROR;
 }
 
+TWAPI_EXTERN_VA
 TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                  char fmtch, ...)
 {
@@ -271,6 +272,7 @@ TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
     return ret;
 }
 
+TWAPI_EXTERN_VA
 TCL_RESULT TwapiGetArgsObj(Tcl_Interp *interp, Tcl_Obj *objP, char fmtch,...)
 {
     Tcl_Obj **objs;
@@ -287,6 +289,7 @@ TCL_RESULT TwapiGetArgsObj(Tcl_Interp *interp, Tcl_Obj *objP, char fmtch,...)
     return ret;
 }
 
+TWAPI_EXTERN_VA
 TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[],
                  char fmtch, va_list ap)
 {
@@ -559,6 +562,7 @@ argerror:
     return TCL_ERROR;
 }
 
+TWAPI_EXTERN_VA
 TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[],
                  char fmtch, ...)
 {
@@ -570,6 +574,7 @@ TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
     return ret;
 }
 
+TWAPI_EXTERN_VA
 TCL_RESULT TwapiGetArgsExObj(TwapiInterpContext *ticP, Tcl_Obj *objP, char fmtch,...)
 {
     Tcl_Obj **objs;
@@ -590,11 +595,11 @@ static TCL_RESULT Twapi_CallNoargsObjCmd(ClientData clientdata, Tcl_Interp *inte
 {
     TwapiResult result;
 
-   union {
+    union {
         WCHAR buf[MAX_PATH+1];
         SYSTEM_POWER_STATUS power_status;
     } u;
-   int func = PtrToInt(clientdata);
+    int func = PtrToInt(clientdata);
     
     if (objc != 1)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);

@@ -64,7 +64,7 @@ TwapiId volatile gIdGenerator;
  */
 static TwapiOneTimeInitState gTwapiInitialized;
 
-void TwapiBaseModuleCleanup(TwapiInterpContext *ticP);
+static void TwapiBaseModuleCleanup(TwapiInterpContext *ticP);
 static void Twapi_Cleanup(ClientData clientdata);
 static void Twapi_InterpCleanup(ClientData clientdata, Tcl_Interp *interp);
 static void Twapi_InterpContextCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp);
