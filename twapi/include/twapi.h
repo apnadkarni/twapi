@@ -14,7 +14,9 @@
         
 
 /* Enable prototype-less extern functions warnings even at warning level 1 */
+#ifdef _MSC_VER
 #pragma warning (1 : 13)
+#endif
 
 /*
  * The following is along the lines of the Tcl model for exporting
@@ -59,8 +61,18 @@
 
 #ifdef __cplusplus
 #   define TWAPI_EXTERN extern "C" TWAPI_STORAGE_CLASS
+#   ifdef __GNUC__
+#       define TWAPI_EXTERN_VA extern "C" __cdecl
+#   else
+#       define TWAPI_EXTERN_VA extern "C" TWAPI_STORAGE_CLASS
+#   endif
 #else
 #   define TWAPI_EXTERN extern TWAPI_STORAGE_CLASS
+#   ifdef __GNUC__
+#       define TWAPI_EXTERN_VA extern __cdecl
+#   else
+#       define TWAPI_EXTERN_VA extern TWAPI_STORAGE_CLASS
+#   endif
 #endif
 
 #ifndef TWAPI_INLINE
@@ -326,7 +338,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 
 /*************************
  * Error code definitions
- *************************
+ *************************/
 
 /*
  * String to use as first element of a errorCode
@@ -967,7 +979,7 @@ typedef void TwapiInterpContextCleanup(TwapiInterpContext *);
 typedef TCL_RESULT TwapiModuleCallInitializer(Tcl_Interp *interp, TwapiInterpContext *ticP);
 typedef struct _TwapiModuleDef {
     /* The name of the module */
-    char *name;
+    CONST char *name;
 
     /*
      * Function to call to initialize the module commands. The second
@@ -1254,12 +1266,12 @@ TWAPI_EXTERN void TwapiFreeRegisteredPointer(Tcl_Interp *, void *, void *tag);
 TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
 TWAPI_EXTERN void TwapiClearResult(TwapiResult *resultP);
 /* TBD - TwapiGetArgs* could also obe used to parse lists into C structs */
-TWAPI_EXTERN TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, va_list ap);
-TWAPI_EXTERN TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
-TWAPI_EXTERN TCL_RESULT TwapiGetArgsObj(Tcl_Interp *interp, Tcl_Obj *, char fmt, ...);
-TWAPI_EXTERN TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], char fmt, va_list ap);
-TWAPI_EXTERN TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
-TWAPI_EXTERN TCL_RESULT TwapiGetArgsExObj(TwapiInterpContext *ticP, Tcl_Obj *, char fmt, ...);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, va_list ap);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsObj(Tcl_Interp *interp, Tcl_Obj *, char fmt, ...);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], char fmt, va_list ap);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsExObj(TwapiInterpContext *ticP, Tcl_Obj *, char fmt, ...);
 TWAPI_EXTERN void ObjSetStaticResult(Tcl_Interp *interp, CONST char s[]);
 #define TwapiSetStaticResult ObjSetStaticResult
 TWAPI_EXTERN TCL_RESULT ObjSetResult(Tcl_Interp *interp, Tcl_Obj *objP);

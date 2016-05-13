@@ -21,7 +21,7 @@ static int Twapi_TclEventProc(Tcl_Event *tclevP, int flags);
  * Returns 0 on success, or a Windows error code.
  * ERROR_INSUFFICIENT_BUFFER means buf[] not big enough for return value.
  */
-int TwapiEnqueueCallback(
+TWAPI_EXTERN int TwapiEnqueueCallback(
     TwapiInterpContext *ticP,   /* Caller has to ensure this does not
                                    go away until this function returns */
     TwapiCallback *cbP, /* Must be NEWLY Initialized. Ref count
@@ -164,7 +164,7 @@ static int Twapi_TclEventProc(Tcl_Event *tclevP, int flags)
 
 /* This routine is called the notification thread. Which may or may not
    be a Tcl interpreter thread */
-TwapiCallback *TwapiCallbackNew(
+TWAPI_EXTERN TwapiCallback *TwapiCallbackNew(
     TwapiInterpContext *ticP,   /* May be NULL if not a interp thread */
     TwapiCallbackFn *callback,  /* Callback function */
     size_t sz                   /* Including TwapiCallback header */
@@ -190,7 +190,7 @@ TwapiCallback *TwapiCallbackNew(
     return cbP;
 }
 
-void TwapiCallbackDelete(TwapiCallback *cbP)
+TWAPI_EXTERN void TwapiCallbackDelete(TwapiCallback *cbP)
 {
     if (cbP) {
         if (cbP->completion_event)
@@ -199,7 +199,7 @@ void TwapiCallbackDelete(TwapiCallback *cbP)
     TwapiClearResult(&cbP->response);
 }
 
-void TwapiCallbackUnref(TwapiCallback *cbP, int decr)
+TWAPI_EXTERN void TwapiCallbackUnref(TwapiCallback *cbP, int decr)
 {
     /* Note the ref count may be < 0 if this function is called
        on newly initialized cbP */
