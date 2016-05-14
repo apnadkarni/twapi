@@ -1396,6 +1396,29 @@ proc inrange {range value} {
 }
 tcltest::customMatch inrange inrange
 
+# Following similarity code is from the wiki http://wiki.tcl.tk/3070
+proc stringDistance {a b} {
+    set n [string length $a]
+    set m [string length $b]
+    for {set i 0} {$i<=$n} {incr i} {set c($i,0) $i}
+    for {set j 0} {$j<=$m} {incr j} {set c(0,$j) $j}
+    for {set i 1} {$i<=$n} {incr i} {
+        for {set j 1} {$j<=$m} {incr j} {
+            set x [expr {$c([tcl::mathop::- $i 1],$j)+1}]
+            set y [expr {$c($i,[tcl::mathop::- $j 1])+1}]
+            set z $c([tcl::mathop::- $i 1],[tcl::mathop::- $j 1])
+            if {[string index $a [tcl::mathop::- $i 1]]!=[string index $b [tcl::mathop::- $j 1]]} {
+                incr z
+            }
+            set c($i,$j) [tcl::mathfunc::min $x $y $z]
+        }
+    }
+    set c($n,$m)
+}
+proc stringSimilarity {a b} {
+    set totalLength [string length $a$b]
+    tcl::mathfunc::max [expr {double($totalLength-2*[stringDistance $a $b])/$totalLength}] 0.0
+ }
 
 # Log a test debug message
 proc testlog {msg} {
