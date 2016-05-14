@@ -157,9 +157,9 @@ TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             if (lenP)
                 *lenP = len;
             break;
-        case ARGWSTR: // Unicode string
+        case ARGWSTR: // WCHAR string
             if (p) {
-                *(WCHAR **)p = objP ? ObjToUnicode(objP) : L"" ;
+                *(WCHAR **)p = objP ? ObjToWinChars(objP) : L"" ;
             }
             break;
         case ARGNULLIFEMPTY:
@@ -176,7 +176,7 @@ TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             uval = L""; // Defaults
             len = 0;
             if (objP)
-                uval = ObjToUnicodeN(objP, &len);
+                uval = ObjToWinCharsN(objP, &len);
             if (p)
                 *(WCHAR **)p = uval;
             if (lenP)
@@ -436,16 +436,16 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
             if (lenP)
                 *lenP = len;
             break;
-        case ARGWSTR: // Unicode string
+        case ARGWSTR: // WCHAR string
         case ARGEMPTYASNULL:
         case ARGTOKENNULL:
             /* TBD - optimization. May be if !Tcl_IsShared(objP), we can
-               directly return ObjToUnicode() without copying into memlifo */
+               directly return ObjToWinChars() without copying into memlifo */
             if (p) {
                 uval = L"";
                 len = 0;
                 if (objP)
-                    uval = ObjToUnicodeN(objP, &len);
+                    uval = ObjToWinCharsN(objP, &len);
                 if ((fmtch == ARGEMPTYASNULL && len == 0) ||
                     (fmtch == ARGTOKENNULL && lstrcmpW(uval, NULL_TOKEN_L) == 0)) {
                     *(WCHAR **)p = NULL;
@@ -460,7 +460,7 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
             uval = L""; // Defaults
             len = 0;
             if (objP)
-                uval = ObjToUnicodeN(objP, &len);
+                uval = ObjToWinCharsN(objP, &len);
             if (p)
                 *(WCHAR **)p = MemLifoCopy(ticP->memlifoP, uval, sizeof(WCHAR)*(len+1));
             if (lenP)
@@ -521,7 +521,7 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
                         for (j = 0; j < nargvobjs; ++j) {
                             WCHAR *s;
                             int slen;
-                            s = ObjToUnicodeN(argvobjs[j], &slen);
+                            s = ObjToWinCharsN(argvobjs[j], &slen);
                             argv[j] = MemLifoCopy(ticP->memlifoP, s, sizeof(WCHAR)*(slen+1));
                         }
                         argv[j] = NULL;
@@ -831,7 +831,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     switch (func) {
     case 1001: // concealed?
         mark = SWSPushMark();
-        s = ObjDecryptUnicodeSWS(interp, objv[0], &i);
+        s = ObjDecryptWinCharsSWS(interp, objv[0], &i);
         if (s)
             SecureZeroMemory(s, sizeof(WCHAR) * i);
         result.value.bval = (s != NULL);
@@ -885,20 +885,20 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         
     case 1006: // reveal
         mark = SWSPushMark();
-        s = ObjDecryptUnicodeSWS(interp, objv[0], &dw);
+        s = ObjDecryptWinCharsSWS(interp, objv[0], &dw);
         if (s == NULL) {
             res = TCL_ERROR;
             goto vamoose;
         }
-        result.value.obj = ObjFromUnicodeN(s, dw);
+        result.value.obj = ObjFromWinCharsN(s, dw);
         result.type = TRT_OBJ;
         SecureZeroMemory(s, sizeof(WCHAR) * dw);
         break;
 
     case 1007: // conceal
         /* TBD - if objv[0] is unshared, zero it out to erase from memory? */
-        s = ObjToUnicodeN(objv[0], &dw);
-        result.value.obj = ObjEncryptUnicode(interp, s, dw);
+        s = ObjToWinCharsN(objv[0], &dw);
+        result.value.obj = ObjEncryptWinChars(interp, s, dw);
         result.type = TRT_OBJ;
         break;
 
@@ -934,13 +934,13 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 1013:
         return Twapi_AppendObjLog(interp, objv[0]);
     case 1014: // GlobalAddAtom
-        result.value.ival = GlobalAddAtomW(ObjToUnicode(objv[0]));
+        result.value.ival = GlobalAddAtomW(ObjToWinChars(objv[0]));
         result.type = result.value.ival ? TRT_LONG : TRT_GETLASTERROR;
         break;
     case 1015:
         u.sidP = NULL;
         result.type = TRT_BOOL;
-        result.value.bval = ConvertStringSidToSidW(ObjToUnicode(objv[0]),
+        result.value.bval = ConvertStringSidToSidW(ObjToWinChars(objv[0]),
                                                    &u.sidP);
         if (u.sidP)
             LocalFree(u.sidP);
@@ -981,7 +981,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
     case 1020:
         result.type = TRT_OBJ;
-        result.value.obj = ObjFromEXPAND_SZW(ObjToUnicode(objv[0]));
+        result.value.obj = ObjFromEXPAND_SZW(ObjToWinChars(objv[0]));
         break;
     case 1021: // free
         if (ObjToLPVOID(interp, objv[0], &pv) != TCL_OK ||
@@ -1099,7 +1099,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         mark = SWSPushMark();
         result.value.ival = ObjToPSIDSWS(interp, objv[1], &u.sidP);
         if (result.value.ival == TCL_OK) {
-            result.value.ival = Twapi_LookupAccountSid(interp, ObjToUnicode(objv[0]), u.sidP);
+            result.value.ival = Twapi_LookupAccountSid(interp, ObjToWinChars(objv[0]), u.sidP);
         }
         SWSPopMark(mark);
         result.type = TRT_TCL_RESULT;
@@ -1108,7 +1108,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     case 10004:
         CHECK_NARGS(interp, objc, 2);
         s = ObjToLPWSTR_NULL_IF_EMPTY(objv[0]);
-        s2 = ObjToUnicode(objv[1]);
+        s2 = ObjToWinChars(objv[1]);
         if (func == 10003)
             return Twapi_LookupAccountName(interp, s, s2);
         else {
@@ -1136,7 +1136,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         CHECK_NARGS(interp, objc, 2);
         CHECK_INTEGER_OBJ(interp, dw, objv[0]);
         result.type = TRT_DWORD;
-        result.value.uval = LHashValOfName(dw, ObjToUnicode(objv[1]));
+        result.value.uval = LHashValOfName(dw, ObjToWinChars(objv[1]));
         break;
     case 10008:
         if (TwapiGetArgs(interp, objc, objv,
@@ -1164,7 +1164,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         CHECK_NARGS(interp, objc, 2);
         CHECK_INTEGER_OBJ(interp, dw, objv[1]);
         result.type = TRT_HANDLE;
-        result.value.hval = LoadLibraryExW(ObjToUnicode(objv[0]), NULL, dw);
+        result.value.hval = LoadLibraryExW(ObjToWinChars(objv[0]), NULL, dw);
         break;
     case 10012: // CreateFile
         secattrP = NULL;
@@ -1176,7 +1176,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                          ARGEND) == TCL_OK) {
             result.type = TRT_VALID_HANDLE;
             result.value.hval = CreateFileW(
-                ObjToUnicode(objv[0]), dw, dw2, secattrP, dw3, dw4, h);
+                ObjToWinChars(objv[0]), dw, dw2, secattrP, dw3, dw4, h);
         } else {
             result.type = TRT_TCL_RESULT;
             result.value.ival = TCL_ERROR;
@@ -1375,7 +1375,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             return TCL_ERROR;
         result.type = TRT_HANDLE;
         result.value.hval = (func == 10027 ? OpenMutexW : OpenSemaphoreW)
-            (dw, dw2, ObjToUnicode(objv[2]));
+            (dw, dw2, ObjToWinChars(objv[2]));
         if (result.value.hval) {
             if (dw3 & 1) {
                 /* Caller also wants indicator of whether object
@@ -1479,7 +1479,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         result.type = TRT_HANDLE;
         result.value.hval = (func == 10036 ?
                              OpenEventLogW : RegisterEventSourceW)
-            (ObjToLPWSTR_NULL_IF_EMPTY(objv[0]), ObjToUnicode(objv[1]));
+            (ObjToLPWSTR_NULL_IF_EMPTY(objv[0]), ObjToWinChars(objv[1]));
         break;
     case 10038: // pointer_from_address
         if (objc == 1)
@@ -1499,7 +1499,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         /* Note we do not treat any value as an error since it can happen
            in normal operation that some cred is no longer cached */
         result.type = TRT_DWORD;
-        result.value.ival = CredUIConfirmCredentialsW(ObjToUnicode(objv[0]), dw);
+        result.value.ival = CredUIConfirmCredentialsW(ObjToWinChars(objv[0]), dw);
         break;
     case 10040: // enum
         CHECK_NARGS(interp, objc, 2);
@@ -1844,7 +1844,7 @@ static int Twapi_TranslateNameObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inter
     if (res == TCL_OK) {
         /* Since other args parsed, we can hold on to nameP without fear
            of shimmering */
-        nameP = ObjToUnicode(nameObj);
+        nameP = ObjToWinChars(nameObj);
         if (! TranslateNameW(nameP, fmt, desired_fmt, bufP, &sz)) {
             if (GetLastError() == ERROR_INSUFFICIENT_BUFFER) {
                 bufP = MemLifoAlloc(ticP->memlifoP, sizeof(WCHAR)*sz, NULL);
@@ -1855,7 +1855,7 @@ static int Twapi_TranslateNameObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inter
             }
         }
         if (res == TCL_OK)
-            ObjSetResult(interp, ObjFromUnicodeN(bufP, sz-1));
+            ObjSetResult(interp, ObjFromWinCharsN(bufP, sz-1));
     }
     MemLifoPopFrame(ticP->memlifoP);
     return res;
@@ -1880,7 +1880,7 @@ static int Twapi_FormatMessageFromStringObjCmd(TwapiInterpContext *ticP, Tcl_Int
         flags |=  FORMAT_MESSAGE_ARGUMENT_ARRAY;
         /* Other objs extracted so do not have to worry about fmtObj shimmer*/
         res = TwapiFormatMessageHelper(ticP->interp, flags,
-                                       ObjToUnicode(fmtObj), 0, 0, argc, argv);
+                                       ObjToWinChars(fmtObj), 0, 0, argc, argv);
     }
     MemLifoPopMark(mark);
     return res;
@@ -1995,7 +1995,7 @@ static TCL_RESULT Twapi_ReadMemoryObjCmd(ClientData clientdata, Tcl_Interp *inte
                 ;
             len = modifier;
         }
-        objP = ObjFromUnicodeN(wp, len);
+        objP = ObjFromWinCharsN(wp, len);
         break;
         
     case 4:                     /* pointer */
@@ -2058,8 +2058,8 @@ static TCL_RESULT Twapi_WriteMemoryObjCmd(ClientData clientdata, Tcl_Interp *int
             goto overrun;
         CopyMemory(offset + bufP, cp, sz+1);
         break;
-    case 3: // Unicode
-        wp = ObjToUnicodeN(dataObj, &sz);
+    case 3: // WCHAR
+        wp = ObjToWinCharsN(dataObj, &sz);
         /* Note we also include the terminating null */
         if ((offset + (sizeof(WCHAR)*(sz + 1))) > buf_size)
             goto overrun;
@@ -2153,7 +2153,7 @@ static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int
     } else {
         WCHAR *decryptP;
         TWAPI_ASSERT(ticP->memlifoP == SWS());
-        decryptP = ObjDecryptUnicodeSWS(interp, passwordObj, &password_len);
+        decryptP = ObjDecryptWinCharsSWS(interp, passwordObj, &password_len);
         if (decryptP == NULL)
             goto vamoose;
         if (password_len > CREDUI_MAX_PASSWORD_LENGTH) {
@@ -2188,10 +2188,10 @@ static TCL_RESULT Twapi_CredPrompt(TwapiInterpContext *ticP, Tcl_Obj *uiObj, int
 
     switch (status) {
     case NO_ERROR:
-        resultObjs[1] = ObjEncryptUnicode(interp, password_buf, -1);
+        resultObjs[1] = ObjEncryptWinChars(interp, password_buf, -1);
         if (resultObjs[1] == NULL)
             break;
-        resultObjs[0] = ObjFromUnicode(user_buf);
+        resultObjs[0] = ObjFromWinChars(user_buf);
         resultObjs[2] = ObjFromBoolean(bsave);
         ObjSetResult(interp, ObjNewList(3, resultObjs));
         res = TCL_OK;
@@ -2585,8 +2585,8 @@ int Twapi_LookupAccountSid (
      * Got everything we need, now format it
      * {NAME DOMAIN ACCOUNT}
      */
-    objs[0] = ObjFromUnicode(nameP);   /* Will exit on alloc fail */
-    objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
+    objs[0] = ObjFromWinChars(nameP);   /* Will exit on alloc fail */
+    objs[1] = ObjFromWinChars(domainP); /* Will exit on alloc fail */
     objs[2] = ObjFromInt(account_type);
     result = ObjSetResult(interp, ObjNewList(3, objs));
 
@@ -2697,7 +2697,7 @@ int Twapi_LookupAccountName (
     result = ObjFromSID(interp, sidP, &objs[0]);
     if (result != TCL_OK)
         goto done;
-    objs[1] = ObjFromUnicode(domainP); /* Will exit on alloc fail */
+    objs[1] = ObjFromWinChars(domainP); /* Will exit on alloc fail */
     objs[2] = ObjFromInt(account_type);
 
     result = ObjSetResult(interp, ObjNewList(3, objs));
@@ -2717,7 +2717,7 @@ int Twapi_NetGetDCName(Tcl_Interp *interp, LPCWSTR servername, LPCWSTR domainnam
     if (status != NERR_Success) {
         return Twapi_AppendSystemError(interp, status);
     }
-    ObjSetResult(interp, ObjFromUnicode((wchar_t *)bufP));
+    ObjSetResult(interp, ObjFromWinChars((wchar_t *)bufP));
     NetApiBufferFree(bufP);
     return TCL_OK;
 }

@@ -33,7 +33,7 @@ TCL_RESULT Twapi_FfiLoadObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
         if (ObjDictGet(interp, tlsP->ffiObj, dll_and_func[0], &dllObj) != TCL_OK)
             return TCL_ERROR;
         if (dllObj == NULL) {
-            hdll = LoadLibraryW(ObjToUnicode(dll_and_func[0]));
+            hdll = LoadLibraryW(ObjToWinChars(dll_and_func[0]));
             ObjDictPut(interp, tlsP->ffiObj, dll_and_func[0], ObjFromHMODULE(hdll)); /* May be NULL */
         } else {
             if (ObjToHMODULE(interp, dllObj, &hdll) != TCL_OK)

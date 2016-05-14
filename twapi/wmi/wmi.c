@@ -62,7 +62,7 @@ static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int
                                          &wcsi);
         break;
     case 1:
-        hr = ifc->lpVtbl->CompileFile(ifc, ObjToUnicode(objv[1]),
+        hr = ifc->lpVtbl->CompileFile(ifc, ObjToWinChars(objv[1]),
                                        server_namespace,
                                        user, authority, password,
                                        optflags, classflags, instflags,
@@ -70,8 +70,8 @@ static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int
         break;
 
     case 2:
-        hr = ifc->lpVtbl->CreateBMOF(ifc, ObjToUnicode(objv[1]),
-                                     ObjToUnicode(objv[2]),
+        hr = ifc->lpVtbl->CreateBMOF(ifc, ObjToWinChars(objv[1]),
+                                     ObjToWinChars(objv[2]),
                                      server_namespace,
                                      optflags, classflags, instflags,
                                      &wcsi);

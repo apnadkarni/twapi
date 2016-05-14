@@ -632,13 +632,13 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     }
     
     if (session_name_i >= 0) {
-        session_name = ObjToUnicodeN(objv[session_name_i+1], &session_name_i);
+        session_name = ObjToWinCharsN(objv[session_name_i+1], &session_name_i);
     } else {
         session_name_i = 0;
     }
 
     if (logfile_name_i >= 0) {
-        logfile_name = ObjToUnicodeN(objv[logfile_name_i+1], &logfile_name_i);
+        logfile_name = ObjToWinCharsN(objv[logfile_name_i+1], &logfile_name_i);
     } else {
         logfile_name_i = 0;
     }
@@ -790,12 +790,12 @@ static Tcl_Obj *ObjFromEVENT_TRACE_PROPERTIES(EVENT_TRACE_PROPERTIES *etP)
     Tcl_Obj *objs[19];
 
     if (etP->LogFileNameOffset)
-        objs[0] = ObjFromUnicode((WCHAR *)(etP->LogFileNameOffset + (char *) etP));
+        objs[0] = ObjFromWinChars((WCHAR *)(etP->LogFileNameOffset + (char *) etP));
     else
         objs[0] = ObjFromEmptyString();
 
     if (etP->LoggerNameOffset)
-        objs[1] = ObjFromUnicode((WCHAR *)(etP->LoggerNameOffset + (char *) etP));
+        objs[1] = ObjFromWinChars((WCHAR *)(etP->LoggerNameOffset + (char *) etP));
     else
         objs[1] = ObjFromEmptyString();
 
@@ -1046,7 +1046,7 @@ TCL_RESULT Twapi_StartTrace(ClientData clientdata, Tcl_Interp *interp, int objc,
         etP->LogFileNameOffset = 0;
 
     if (StartTraceW(&htrace,
-                    ObjToUnicode(objv[1]),
+                    ObjToWinChars(objv[1]),
                     etP) == ERROR_SUCCESS) {
         ObjSetResult(interp, ObjFromTRACEHANDLE(htrace));
         res = TCL_OK;
@@ -1168,12 +1168,12 @@ void WINAPI TwapiETWEventCallback(
 
 /* Used in constructing a Tcl_Obj for TRACE_EVENT_INFO when a name is 
    missing */
-static Tcl_Obj *TwapiTEIUnicodeObj(TRACE_EVENT_INFO *teiP, int offset, ULONG numeric_val)
+static Tcl_Obj *TwapiTEIWinCharsObj(TRACE_EVENT_INFO *teiP, int offset, ULONG numeric_val)
 {
     if (offset == 0)
         return ObjFromULONG(numeric_val); /* Name missing, return the numeric */
     else
-        return ObjFromUnicodeNoTrailingSpace((WCHAR*) (offset + (char*)teiP));
+        return ObjFromWinCharsNoTrailingSpace((WCHAR*) (offset + (char*)teiP));
 }
 
 static Tcl_Obj *ObjFromEVENT_DESCRIPTOR(EVENT_DESCRIPTOR *evdP)
@@ -1316,19 +1316,19 @@ static Tcl_Obj *TwapiMapTDHProperty(EVENT_MAP_INFO *emiP, ULONG val)
     case EVENTMAP_INFO_FLAG_WBEM_VALUEMAP:
         for (i = 0; i < emiP->EntryCount; ++i) {
             if (emiP->MapEntryArray[i].Value == val)
-                return ObjFromUnicode((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP));
+                return ObjFromWinChars((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP));
         }
         break;
     case EVENTMAP_INFO_FLAG_WBEM_VALUEMAP | EVENTMAP_INFO_FLAG_WBEM_NO_MAP:
         if (val < emiP->EntryCount)
-            return ObjFromUnicode((WCHAR *) (emiP->MapEntryArray[val].OutputOffset + (char*)emiP));
+            return ObjFromWinChars((WCHAR *) (emiP->MapEntryArray[val].OutputOffset + (char*)emiP));
         break;
     case EVENTMAP_INFO_FLAG_WBEM_VALUEMAP | EVENTMAP_INFO_FLAG_WBEM_FLAG:
         objP = ObjNewList(0, NULL);
         /* We ignore bits in val that are set but don't have a matching entry */
         for (i = 0; i < emiP->EntryCount; ++i) {
             if ((emiP->MapEntryArray[i].Value & val) == emiP->MapEntryArray[i].Value)
-                ObjAppendElement(NULL, objP, ObjFromUnicode((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP)));
+                ObjAppendElement(NULL, objP, ObjFromWinChars((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP)));
         }
         return objP;
 
@@ -1339,7 +1339,7 @@ static Tcl_Obj *TwapiMapTDHProperty(EVENT_MAP_INFO *emiP, ULONG val)
             /* Value field is the bit mask. Match with any bit means match */
             bitmask = emiP->MapEntryArray[i].Value;
             if (bitmask & val) {
-                ObjAppendElement(NULL, objP, ObjFromUnicode((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP)));
+                ObjAppendElement(NULL, objP, ObjFromWinChars((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP)));
                 val &= ~ bitmask;
             }
         }
@@ -1353,7 +1353,7 @@ static Tcl_Obj *TwapiMapTDHProperty(EVENT_MAP_INFO *emiP, ULONG val)
             /* Value field is the bit position to check */
             bitmask = (1 << emiP->MapEntryArray[i].Value);
             if (bitmask & val) {
-                ObjAppendElement(NULL, objP, ObjFromUnicode((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP)));
+                ObjAppendElement(NULL, objP, ObjFromWinChars((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP)));
                 /* Reset the bit both for efficiency as well as so we only
                    include one element even in the MapEntryArray[] contains
                    duplicate values */
@@ -1367,7 +1367,7 @@ static Tcl_Obj *TwapiMapTDHProperty(EVENT_MAP_INFO *emiP, ULONG val)
         for (i = 0; val != 0 && i < emiP->EntryCount && i < 32; ++i) {
             bitmask = (1 << i);
             if (val & bitmask) {
-                ObjAppendElement(NULL, objP, ObjFromUnicode((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP)));
+                ObjAppendElement(NULL, objP, ObjFromWinChars((WCHAR *) (emiP->MapEntryArray[i].OutputOffset + (char*)emiP)));
                 val &= ~bitmask;
             }
         }
@@ -1566,13 +1566,13 @@ static TCL_RESULT TwapiTdhPropertyValue(
     case TDH_INTYPE_NONNULLTERMINATEDSTRING:
     case TDH_INTYPE_UNICODECHAR:
         if (u.string.len == -1) {
-            *valueObjP = ObjFromUnicodeLimited((WCHAR*)u.string.s,
+            *valueObjP = ObjFromWinCharsLimited((WCHAR*)u.string.s,
                                                remain/sizeof(WCHAR), NULL);
         } else {
             remain /= sizeof(WCHAR);
             if (remain < u.string.len)
                 u.string.len = remain;
-            *valueObjP = ObjFromUnicodeN((WCHAR*)u.string.s, u.string.len);
+            *valueObjP = ObjFromWinCharsN((WCHAR*)u.string.s, u.string.len);
         }
         break;
 
@@ -1723,10 +1723,10 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
             winerr = TdhGetProperty(evrP, 1, &tdhctx, 1, pdd, prop_size, pv);
             if (winerr == ERROR_SUCCESS) {
                 *propvalObjP  = ObjNewList(1, NULL);
-                *propnameObjP = ObjFromUnicode((WCHAR *)(epiP->NameOffset + (char*)teiP));
+                *propnameObjP = ObjFromWinChars((WCHAR *)(epiP->NameOffset + (char*)teiP));
                 if (epiP->nonStructType.InType == TDH_INTYPE_UNICODECHAR)
                     ObjAppendElement(NULL, *propvalObjP,
-                                     ObjFromUnicodeLimited(pv, prop_size/sizeof(WCHAR), NULL));
+                                     ObjFromWinCharsLimited(pv, prop_size/sizeof(WCHAR), NULL));
                 else
                     ObjAppendElement(NULL, *propvalObjP,
                                      ObjFromStringLimited(pv, prop_size, NULL));
@@ -1830,7 +1830,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
     }
 
     *propvalObjP  = ObjNewList(nvalues, valueObjs);
-    *propnameObjP = ObjFromUnicode((WCHAR *)(epiP->NameOffset + (char*)teiP));
+    *propnameObjP = ObjFromWinChars((WCHAR *)(epiP->NameOffset + (char*)teiP));
     return TCL_OK;
 }
 
@@ -1892,7 +1892,7 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
     }
 
 
-#define OFFSET_TO_OBJ(field_) (teiP->field_ ? ObjFromUnicodeNoTrailingSpace((LPWSTR)(teiP->field_ + (char*)teiP)) : emptyObj)
+#define OFFSET_TO_OBJ(field_) (teiP->field_ ? ObjFromWinCharsNoTrailingSpace((LPWSTR)(teiP->field_ + (char*)teiP)) : emptyObj)
 
     /* Provider GUID and EventDescriptor are already returned as part
        of EVENT_HEADER. We prefer to do it there so that we can return
@@ -1905,14 +1905,14 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
     //objs[] = ObjFromEVENT_DESCRIPTOR(&teiP->EventDescriptor);
     objs[1] = ObjFromLong(teiP->DecodingSource);
     objs[2] = OFFSET_TO_OBJ(ProviderNameOffset);
-    objs[3] = TwapiTEIUnicodeObj(teiP, teiP->LevelNameOffset, edP->Level);
-    objs[4] = TwapiTEIUnicodeObj(teiP, teiP->ChannelNameOffset, edP->Channel);
+    objs[3] = TwapiTEIWinCharsObj(teiP, teiP->LevelNameOffset, edP->Level);
+    objs[4] = TwapiTEIWinCharsObj(teiP, teiP->ChannelNameOffset, edP->Channel);
     if (teiP->KeywordsNameOffset)
         objs[5] = ObjFromMultiSz((LPWSTR) (teiP->KeywordsNameOffset + (char*)teiP), -1);
     else
         objs[5] = emptyObj;
-    objs[6] = TwapiTEIUnicodeObj(teiP, teiP->TaskNameOffset, edP->Task);
-    objs[7] = TwapiTEIUnicodeObj(teiP, teiP->OpcodeNameOffset, edP->Opcode);
+    objs[6] = TwapiTEIWinCharsObj(teiP, teiP->TaskNameOffset, edP->Task);
+    objs[7] = TwapiTEIWinCharsObj(teiP, teiP->OpcodeNameOffset, edP->Opcode);
     objs[8] = OFFSET_TO_OBJ(EventMessageOffset);
     objs[9] = OFFSET_TO_OBJ(ProviderMessageOffset);
     if (classic) {
@@ -1927,7 +1927,7 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
     if (evrP->EventHeader.Flags & EVENT_HEADER_FLAG_STRING_ONLY) {
         ObjAppendElement(NULL, objs[12], STRING_LITERAL_OBJ("_stringdata"));
         ObjAppendElement(NULL, objs[12],
-                         ObjFromUnicodeLimited(evrP->UserData,
+                         ObjFromWinCharsLimited(evrP->UserData,
                                                evrP->UserDataLength/sizeof(WCHAR), NULL));
     } else {
         USHORT i;
@@ -2085,8 +2085,8 @@ ULONG WINAPI TwapiETWBufferCallback(
             evalObj = gETWContext.buffer.cmdObj;
     }
 
-    objs[0] = etlP->LogFileName ? ObjFromUnicode(etlP->LogFileName) : ObjFromEmptyString();
-    objs[1] = etlP->LoggerName ? ObjFromUnicode(etlP->LoggerName) : ObjFromEmptyString();
+    objs[0] = etlP->LogFileName ? ObjFromWinChars(etlP->LogFileName) : ObjFromEmptyString();
+    objs[1] = etlP->LoggerName ? ObjFromWinChars(etlP->LoggerName) : ObjFromEmptyString();
     objs[2] = ObjFromULONGLONG(etlP->CurrentTime);
     objs[3] = ObjFromLong(etlP->BuffersRead);
     //  ObjFromLong(etlP->LogFileMode) - docs say do not use
@@ -2172,20 +2172,20 @@ TCL_RESULT Twapi_TdhEnumerateProvidersObjCmd(ClientData clientdata, Tcl_Interp *
                 TRACE_PROVIDER_INFO *tpiP = &peiP->TraceProviderInfoArray[i];
                 objs[0] = ObjFromGUID(&tpiP->ProviderGuid);
                 objs[1] = ObjFromLong(tpiP->SchemaSource);
-                objs[2] = ObjFromUnicode(ADDPTR(peiP, tpiP->ProviderNameOffset, WCHAR *));
+                objs[2] = ObjFromWinChars(ADDPTR(peiP, tpiP->ProviderNameOffset, WCHAR *));
                 objPP[i] = ObjNewList(3, objs);
             }
             ObjSetResult(interp, ObjNewList(peiP->NumberOfProviders, objPP));
         } else {
             /* Return matching one. Empty string if not found */
-            WCHAR *s = ObjToUnicode(objv[1]);
+            WCHAR *s = ObjToWinChars(objv[1]);
             while (i--) {
                 TRACE_PROVIDER_INFO *tpiP = &peiP->TraceProviderInfoArray[i];
                 WCHAR *s2 = ADDPTR(peiP, tpiP->ProviderNameOffset, WCHAR *);
                 if (lstrcmpiW(s, s2) == 0) {
                     objs[0] = ObjFromGUID(&tpiP->ProviderGuid);
                     objs[1] = ObjFromLong(tpiP->SchemaSource);
-                    objs[2] = ObjFromUnicode(s2);
+                    objs[2] = ObjFromWinChars(s2);
                     ObjSetResult(interp, ObjNewList(3, objs));
                     break;
                 }
@@ -2212,7 +2212,7 @@ TCL_RESULT Twapi_OpenTrace(ClientData clientdata, Tcl_Interp *interp, int objc, 
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    s = ObjToUnicode(objv[1]);
+    s = ObjToWinChars(objv[1]);
     ZeroMemory(&etl, sizeof(etl));
     etl.BufferCallback = TwapiETWBufferCallback;
     /*
@@ -2482,7 +2482,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
             /* Data may not be aligned ! Copy to align if necessary? TBD */
             /* We cannot rely on event being formatted correctly with a \0
                do not directly call Tcl_NewStringObj */
-            objP = ObjFromUnicodeLimited((WCHAR *)bytesP, remain/sizeof(WCHAR), &eaten);
+            objP = ObjFromWinCharsLimited((WCHAR *)bytesP, remain/sizeof(WCHAR), &eaten);
             /* eaten is num WCHARS remaining. Prime for loop iteration to
                be num used */
             eaten = remain - (sizeof(WCHAR)*eaten);
@@ -2523,10 +2523,10 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
 
             if ((remain-2) < (sizeof(WCHAR)*eaten)) {
                 /* truncated */
-                objP = ObjFromUnicodeN((WCHAR *)(bytesP+2), (remain-2)/sizeof(WCHAR));
+                objP = ObjFromWinCharsN((WCHAR *)(bytesP+2), (remain-2)/sizeof(WCHAR));
                 eaten = remain; /* We used up all */
             } else {
-                objP = ObjFromUnicodeN((WCHAR *)(bytesP+2), eaten);
+                objP = ObjFromWinCharsN((WCHAR *)(bytesP+2), eaten);
                 eaten = (sizeof(WCHAR)*eaten) + 2; /* include length field */
             }
             break;
@@ -2636,7 +2636,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
             if (remain < sizeof(WCHAR))
                 goto done;      /* Data truncation */
             wc = *(WCHAR UNALIGNED *) bytesP;
-            objP = ObjFromUnicodeN(&wc, 1);
+            objP = ObjFromWinCharsN(&wc, 1);
             eaten = sizeof(WCHAR);
             break;
 
@@ -2748,7 +2748,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
             break;
 
         case 42: // wstringnotcounted
-            objP = ObjFromUnicodeN((WCHAR *)bytesP, remain/sizeof(WCHAR));
+            objP = ObjFromWinCharsN((WCHAR *)bytesP, remain/sizeof(WCHAR));
             eaten = remain;
             break;
 

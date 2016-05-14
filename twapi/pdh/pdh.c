@@ -63,7 +63,7 @@ int Twapi_PdhLookupPerfNameByIndex(
     bufsz=ARRAYSIZE(buf);
     status = PdhLookupPerfNameByIndexW(szMachineName, ctr_index, buf, &bufsz);
     if (status == ERROR_SUCCESS) {
-        ObjSetResult(interp, ObjFromUnicode(buf));
+        ObjSetResult(interp, ObjFromWinChars(buf));
         return TCL_OK;
     }
     else {
@@ -182,7 +182,7 @@ int Twapi_PdhEnumObjectItems(TwapiInterpContext *ticP,
             if (instance_buf_size)
                 objP = ObjFromMultiSz(instance_buf, instance_buf_size);
             else {
-                objP = ObjFromUnicode(szObjectName);
+                objP = ObjFromWinChars(szObjectName);
                 Tcl_AppendPrintfToObj(objP, " performance object does not support instances");
                 res = TCL_ERROR;
             }                
@@ -243,7 +243,7 @@ int Twapi_PdhMakeCounterPath (TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
             if (pdh_status != ERROR_SUCCESS)
                 result = Twapi_AppendSystemError(ticP->interp, pdh_status);
             else
-                ObjSetResult(ticP->interp, ObjFromUnicode(path_buf));
+                ObjSetResult(ticP->interp, ObjFromWinChars(path_buf));
         }
     }
 
@@ -280,12 +280,12 @@ int Twapi_PdhParseCounterPath(
             result = TCL_ERROR;
         } else {
             Tcl_Obj *objs[6];
-            objs[0] = ObjFromUnicode(pdh_elems->szMachineName);
-            objs[1] = ObjFromUnicode(pdh_elems->szObjectName);
-            objs[2] = ObjFromUnicode(pdh_elems->szInstanceName);
-            objs[3] = ObjFromUnicode(pdh_elems->szParentInstance);
+            objs[0] = ObjFromWinChars(pdh_elems->szMachineName);
+            objs[1] = ObjFromWinChars(pdh_elems->szObjectName);
+            objs[2] = ObjFromWinChars(pdh_elems->szInstanceName);
+            objs[3] = ObjFromWinChars(pdh_elems->szParentInstance);
             objs[4] = ObjFromLong(pdh_elems->dwInstanceIndex);
-            objs[5] = ObjFromUnicode(pdh_elems->szCounterName);
+            objs[5] = ObjFromWinChars(pdh_elems->szCounterName);
             ObjSetResult(ticP->interp, ObjNewList(ARRAYSIZE(objs), objs));
             result = TCL_OK;
         }
@@ -321,7 +321,7 @@ static TCL_RESULT ObjFromPDH_COUNTER_VALUE_ITEM(Tcl_Interp *interp, PDH_FMT_COUN
     if (valObj == NULL)
         return TCL_ERROR;            /* interp already holds error */
         
-    *nameObjP = ObjFromUnicode(itemP->szName);
+    *nameObjP = ObjFromWinChars(itemP->szName);
     *valObjP = valObj;
     return TCL_OK;
 }
@@ -566,7 +566,7 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
             break;
         case 103:
             result.type = TRT_EXCEPTION_ON_ERROR;
-            result.value.ival = PdhValidatePathW(ObjToUnicode(objv[2]));
+            result.value.ival = PdhValidatePathW(ObjToWinChars(objv[2]));
             break;
         }
     } else if (func < 300) {
@@ -574,7 +574,7 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         CHECK_NARGS(interp, objc, 4);
         /* To prevent shimmering issues, get int arg first */
         CHECK_INTEGER_OBJ(interp, dw, objv[3]);
-        s = ObjToUnicode(objv[2]);
+        s = ObjToWinChars(objv[2]);
         switch (func) {
         case 201: 
             return Twapi_PdhParseCounterPath(ticP, s, dw);
@@ -627,7 +627,7 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                              GETHANDLE(h), ARGSKIP, GETINT(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            dw = PdhAddCounterW(h, ObjToUnicode(objv[3]), dw, &result.value.hval);
+            dw = PdhAddCounterW(h, ObjToWinChars(objv[3]), dw, &result.value.hval);
             if (dw == 0)
                 result.type = TRT_HANDLE;
             else {
@@ -647,7 +647,7 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
                 ticP,
                 ObjToLPWSTR_NULL_IF_EMPTY(objv[2]),
                 ObjToLPWSTR_NULL_IF_EMPTY(objv[3]),
-                ObjToUnicode(objv[4]),
+                ObjToWinChars(objv[4]),
                 dw, dw2);
         case 1005:
             if (TwapiGetArgs(interp, objc-2, objv+2,

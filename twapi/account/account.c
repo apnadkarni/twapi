@@ -57,10 +57,10 @@ Tcl_Obj *ObjFromLOCALGROUP_INFO(
     switch (info_level) {
     case 1:
         ++nobjs;
-        objs[1] = ObjFromUnicode(groupinfoP->lgrpi1_comment);
+        objs[1] = ObjFromWinChars(groupinfoP->lgrpi1_comment);
         /* FALL THRU */
     case 0:
-        objs[0] = ObjFromUnicode(groupinfoP->lgrpi1_name);
+        objs[0] = ObjFromWinChars(groupinfoP->lgrpi1_name);
         break;
     default:
         Twapi_WrongLevelError(interp, info_level);
@@ -87,7 +87,7 @@ Tcl_Obj *ObjFromGROUP_USERS_INFO(
         objv[1] = ObjFromLong(groupinfoP->grui1_attributes);
         /* FALLTHRU */
     case 0:
-        objv[0] = ObjFromUnicode(groupinfoP->grui1_name);
+        objv[0] = ObjFromWinChars(groupinfoP->grui1_name);
         break;
     default:
         Twapi_WrongLevelError(interp, info_level);
@@ -131,8 +131,8 @@ Tcl_Obj *ObjFromUSER_INFO(
         if (! usri24P->usri24_internet_identity)
             return ObjFromEmptyString();
         objs[0] = ObjFromDWORD(usri24P->usri24_flags);
-        objs[1] = ObjFromUnicode(usri24P->usri24_internet_provider_name);
-        objs[2] = ObjFromUnicode(usri24P->usri24_internet_principal_name);
+        objs[1] = ObjFromWinChars(usri24P->usri24_internet_provider_name);
+        objs[2] = ObjFromWinChars(usri24P->usri24_internet_principal_name);
         objs[3] = ObjFromSIDNoFail(usri24P->usri24_user_sid);
         nobjs = 4;
         break;
@@ -145,24 +145,24 @@ Tcl_Obj *ObjFromUSER_INFO(
         if (info_level == 3) {
             objs[24] = ObjFromDWORD(((USER_INFO_3*)infoP)->usri3_user_id);
             objs[25] = ObjFromDWORD(((USER_INFO_3*)infoP)->usri3_primary_group_id);
-            objs[26] = ObjFromUnicode(((USER_INFO_3*)infoP)->usri3_profile);
-            objs[27] = ObjFromUnicode(((USER_INFO_3*)infoP)->usri3_home_dir_drive);
+            objs[26] = ObjFromWinChars(((USER_INFO_3*)infoP)->usri3_profile);
+            objs[27] = ObjFromWinChars(((USER_INFO_3*)infoP)->usri3_home_dir_drive);
             objs[28] = ObjFromDWORD(((USER_INFO_3*)infoP)->usri3_password_expired);
         } else {
             objs[24] = ObjFromSIDNoFail(((USER_INFO_4*)infoP)->usri4_user_sid);
             objs[25] = ObjFromDWORD(((USER_INFO_4*)infoP)->usri4_primary_group_id);
-            objs[26] = ObjFromUnicode(((USER_INFO_4*)infoP)->usri4_profile);
-            objs[27] = ObjFromUnicode(((USER_INFO_4*)infoP)->usri4_home_dir_drive);
+            objs[26] = ObjFromWinChars(((USER_INFO_4*)infoP)->usri4_profile);
+            objs[27] = ObjFromWinChars(((USER_INFO_4*)infoP)->usri4_home_dir_drive);
             objs[28] = ObjFromDWORD(((USER_INFO_4*)infoP)->usri4_password_expired);
         }
         /* FALL THROUGH */
     case 2:
         nobjs += 16;
         objs[8] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_auth_flags);
-        objs[9] = ObjFromUnicode(((USER_INFO_2*)infoP)->usri2_full_name);
-        objs[10] = ObjFromUnicode(((USER_INFO_2*)infoP)->usri2_usr_comment);
-        objs[11] = ObjFromUnicode(((USER_INFO_2*)infoP)->usri2_parms);
-        objs[12] = ObjFromUnicode(((USER_INFO_2*)infoP)->usri2_workstations);
+        objs[9] = ObjFromWinChars(((USER_INFO_2*)infoP)->usri2_full_name);
+        objs[10] = ObjFromWinChars(((USER_INFO_2*)infoP)->usri2_usr_comment);
+        objs[11] = ObjFromWinChars(((USER_INFO_2*)infoP)->usri2_parms);
+        objs[12] = ObjFromWinChars(((USER_INFO_2*)infoP)->usri2_workstations);
         objs[13] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_last_logon);
         objs[14] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_last_logoff);
         objs[15] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_acct_expires);
@@ -174,22 +174,22 @@ Tcl_Obj *ObjFromUSER_INFO(
         objs[18] = ObjFromByteArray(((USER_INFO_2*)infoP)->usri2_logon_hours,21);
         objs[19] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_bad_pw_count);
         objs[20] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_num_logons);
-        objs[21] = ObjFromUnicode(((USER_INFO_2*)infoP)->usri2_logon_server);
+        objs[21] = ObjFromWinChars(((USER_INFO_2*)infoP)->usri2_logon_server);
         objs[22] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_country_code);
         objs[23] = ObjFromDWORD(((USER_INFO_2*)infoP)->usri2_code_page);
         /* FALL THROUGH */
     case 1:
         nobjs += 7;
-        objs[1] = ObjFromUnicode(((USER_INFO_1*)infoP)->usri1_password ? ((USER_INFO_1*)infoP)->usri1_password : L"");
+        objs[1] = ObjFromWinChars(((USER_INFO_1*)infoP)->usri1_password ? ((USER_INFO_1*)infoP)->usri1_password : L"");
         objs[2] = ObjFromDWORD(((USER_INFO_1*)infoP)->usri1_password_age);
         objs[3] = ObjFromDWORD(((USER_INFO_1*)infoP)->usri1_priv);
-        objs[4] = ObjFromUnicode(((USER_INFO_1*)infoP)->usri1_home_dir);
-        objs[5] = ObjFromUnicode(((USER_INFO_1*)infoP)->usri1_comment);
+        objs[4] = ObjFromWinChars(((USER_INFO_1*)infoP)->usri1_home_dir);
+        objs[5] = ObjFromWinChars(((USER_INFO_1*)infoP)->usri1_comment);
         objs[6] = ObjFromDWORD(((USER_INFO_1*)infoP)->usri1_flags);
-        objs[7] = ObjFromUnicode(((USER_INFO_1*)infoP)->usri1_script_path);
+        objs[7] = ObjFromWinChars(((USER_INFO_1*)infoP)->usri1_script_path);
         /* FALL THROUGH */
     case 0:
-        objs[0] = ObjFromUnicode(((USER_INFO_0*)infoP)->usri0_name);
+        objs[0] = ObjFromWinChars(((USER_INFO_0*)infoP)->usri0_name);
         break;
     default:
         Twapi_WrongLevelError(interp, info_level);
@@ -235,10 +235,10 @@ Tcl_Obj *ObjFromGROUP_INFO(
         /* FALL THROUGH */
     case 1:
         nobjs += 1;
-        objs[1] = ObjFromUnicode(((GROUP_INFO_1*)infoP)->grpi1_comment);
+        objs[1] = ObjFromWinChars(((GROUP_INFO_1*)infoP)->grpi1_comment);
         /* FALL THROUGH */
     case 0:
-        objs[0] = ObjFromUnicode(((GROUP_INFO_0*)infoP)->grpi0_name);
+        objs[0] = ObjFromWinChars(((GROUP_INFO_0*)infoP)->grpi0_name);
         break;
     default:
         Twapi_WrongLevelError(interp, info_level);
@@ -262,7 +262,7 @@ Tcl_Obj *ObjFromLOCALGROUP_USERS_INFO(
 
     switch (info_level) {
     case 0:
-        objs[0] = ObjFromUnicode(((LOCALGROUP_USERS_INFO_0 *)infoP)->lgrui0_name);
+        objs[0] = ObjFromWinChars(((LOCALGROUP_USERS_INFO_0 *)infoP)->lgrui0_name);
         break;
     default:
         Twapi_WrongLevelError(interp, info_level);
@@ -291,13 +291,13 @@ Tcl_Obj *ObjFromLOCALGROUP_MEMBERS_INFO(
         objv[objc++] = ObjFromSIDNoFail(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_sid);
         objv[objc++] = ObjFromLong(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_sidusage);
         if (info_level == 1) {
-            objv[objc++] = ObjFromUnicode(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_name);
+            objv[objc++] = ObjFromWinChars(((LOCALGROUP_MEMBERS_INFO_1 *)infoP)->lgrmi1_name);
         } else {
-            objv[objc++] = ObjFromUnicode(((LOCALGROUP_MEMBERS_INFO_2 *)infoP)->lgrmi2_domainandname);
+            objv[objc++] = ObjFromWinChars(((LOCALGROUP_MEMBERS_INFO_2 *)infoP)->lgrmi2_domainandname);
         }
         break;
     case 3:
-        objv[objc++] = ObjFromUnicode(((LOCALGROUP_MEMBERS_INFO_3 *)infoP)->lgrmi3_domainandname);
+        objv[objc++] = ObjFromWinChars(((LOCALGROUP_MEMBERS_INFO_3 *)infoP)->lgrmi3_domainandname);
         break;
         
     default:
@@ -419,7 +419,7 @@ static int Twapi_NetUserAddObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
     CHECK_INTEGER_OBJ(interp, priv, objv[4]);
     CHECK_INTEGER_OBJ(interp, flags, objv[7]);
 
-    userinfo.usri1_name        = ObjToUnicode(objv[2]);
+    userinfo.usri1_name        = ObjToWinChars(objv[2]);
 
     /* Now get the decrypted password object */
     mark = SWSPushMark();
@@ -570,11 +570,11 @@ int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     case 1017: // compatibility.
     case 1024: 
         CHECK_INTEGER_OBJ(interp, dw, objv[4]);
-        s1 = ObjToUnicode(s1Obj);
+        s1 = ObjToWinChars(s1Obj);
         if (*s1 == 0)
             s1 = NULL;
         result.type = TRT_EXCEPTION_ON_ERROR;
-        result.value.ival = Twapi_NetUserSetInfoDWORD(func, s1, ObjToUnicode(s2Obj), dw);
+        result.value.ival = Twapi_NetUserSetInfoDWORD(func, s1, ObjToWinChars(s2Obj), dw);
         break;
         
     case 0:    // See note above except that this maps to 
@@ -589,11 +589,11 @@ int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
             mark = SWSPushMark();
             s3 = ObjDecryptPasswordSWS(objv[4], &password_len);
         } else
-            s3 = ObjToUnicode(objv[4]);
+            s3 = ObjToWinChars(objv[4]);
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
         result.type = TRT_EXCEPTION_ON_ERROR;
         result.value.ival = Twapi_NetUserSetInfoLPWSTR(func, s1,
-                                                       ObjToUnicode(s2Obj),
+                                                       ObjToWinChars(s2Obj),
                                                        s3);
         if (func == 1003) {
             SecureZeroMemory(s3, password_len);
@@ -798,7 +798,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
         objfn = ObjFromGROUP_USERS_INFO;
         netenum.hresume = 0; /* Not used for these calls */
         netenum.status = NetUserGetGroups(
-            s1, ObjToUnicode(s2Obj), netenum.level, &netenum.netbufP,
+            s1, ObjToWinChars(s2Obj), netenum.level, &netenum.netbufP,
             g_netenum_buf_size, &netenum.entriesread, &netenum.totalentries);
         break;
 
@@ -815,7 +815,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
         objfn = ObjFromLOCALGROUP_USERS_INFO;
         netenum.hresume = 0; /* Not used for these calls */
         netenum.status = NetUserGetLocalGroups (
-            s1, ObjToUnicode(s2Obj),
+            s1, ObjToWinChars(s2Obj),
             netenum.level, dw, &netenum.netbufP, g_netenum_buf_size,
             &netenum.entriesread, &netenum.totalentries);
         break;
@@ -828,7 +828,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
             return TCL_ERROR;
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
         netenum.status = (func == 8 ? NetLocalGroupGetMembers : NetGroupGetUsers) (
-            s1, ObjToUnicode(s2Obj),
+            s1, ObjToWinChars(s2Obj),
             netenum.level, &netenum.netbufP, g_netenum_buf_size,
             &netenum.entriesread, &netenum.totalentries, &netenum.hresume);
         if (func == 8) {
@@ -929,7 +929,7 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
         u.lgmi0P = MemLifoAlloc(ticP->memlifoP, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_0), NULL);
         for (i = 0; i < naccts; ++i) {
             /* For efficiency reasons we do not use ObjToPSID */
-            if (ConvertStringSidToSidW(ObjToUnicode(accts[i]), &u.lgmi0P[0].lgrmi0_sid) == 0) {
+            if (ConvertStringSidToSidW(ObjToWinChars(accts[i]), &u.lgmi0P[0].lgrmi0_sid) == 0) {
                 res = TwapiReturnSystemError(interp);
                 naccts = i;     /* So right num buffers get freed */
                 goto vamoose;
@@ -938,7 +938,7 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
     } else if (level == 3) {
         u.lgmi3P = MemLifoAlloc(ticP->memlifoP, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_3), NULL);
         for (i = 0; i < naccts; ++i) {
-            u.lgmi3P[i].lgrmi3_domainandname = ObjToUnicode(accts[i]);
+            u.lgmi3P[i].lgrmi3_domainandname = ObjToWinChars(accts[i]);
         }
     } else {
         res = TwapiReturnError(interp, TWAPI_INVALID_ARGS);
@@ -1000,7 +1000,7 @@ static int Twapi_AcctCallSSObjCmd(ClientData clientdata, Tcl_Interp *interp, int
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         CHECK_INTEGER_OBJ(interp, dw, objv[0]);
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
-        s2 = ObjToUnicode(s2Obj);
+        s2 = ObjToWinChars(s2Obj);
         switch (func) {
         case 10:
             return Twapi_NetUserGetInfo(interp, s1, s2, dw);
@@ -1016,7 +1016,7 @@ static int Twapi_AcctCallSSObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         if (objc)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
-        s2 = ObjToUnicode(s2Obj);
+        s2 = ObjToWinChars(s2Obj);
         switch (func) {
         case 13:
             result.type = TRT_EXCEPTION_ON_ERROR;
@@ -1036,8 +1036,8 @@ static int Twapi_AcctCallSSObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
-        s2 = ObjToUnicode(s2Obj);
-        s3 = ObjToUnicode(objv[0]);
+        s2 = ObjToWinChars(s2Obj);
+        s3 = ObjToWinChars(objv[0]);
         switch (func) {
         case 16:
             u.lgi1.lgrpi1_name = s2;

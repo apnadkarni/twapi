@@ -22,7 +22,7 @@ BOOL CALLBACK Twapi_EnumWindowStationsOrDesktopsCallback(LPCWSTR p_winsta, LPARA
 
     ObjAppendElement(p_enum_ctx->interp,
                              p_enum_ctx->objP,
-                             ObjFromUnicode(p_winsta));
+                             ObjFromWinChars(p_winsta));
     return 1;
 }
 
@@ -106,7 +106,7 @@ static int Twapi_GetUserObjectInformation(TwapiInterpContext *ticP, Tcl_Interp *
             break;
         case UOI_NAME:
         case UOI_TYPE:
-            objP = ObjFromUnicode(pv);
+            objP = ObjFromWinChars(pv);
             break;
         case UOI_USER_SID:
             /* If len is 0, no SID is associated and we just return empty result */
@@ -155,7 +155,7 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         if (res != TCL_OK)
             goto vamoose;
         result.type = TRT_HWINSTA;
-        result.value.hval = CreateWindowStationW(ObjToUnicode(objv[0]), dw, dw2, secattrP);
+        result.value.hval = CreateWindowStationW(ObjToWinChars(objv[0]), dw, dw2, secattrP);
         break;
     case 4:
         if (TwapiGetArgs(interp, objc, objv,
@@ -163,7 +163,7 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HDESK;
-        result.value.hval = OpenDesktopW(ObjToUnicode(objv[0]), dw, dw2, dw3);
+        result.value.hval = OpenDesktopW(ObjToWinChars(objv[0]), dw, dw2, dw3);
         break;
     case 5:
         if (TwapiGetArgs(interp, objc, objv, GETINT(dw), ARGEND) != TCL_OK)
@@ -184,7 +184,7 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                          ARGSKIP, GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HWINSTA;
-        result.value.hval = OpenWindowStationW(ObjToUnicode(objv[0]), dw, dw2);
+        result.value.hval = OpenWindowStationW(ObjToWinChars(objv[0]), dw, dw2);
         break;
     case 8: // CreateDesktopW
         /* Note second, third args are ignored and are reserved as NULL */
@@ -197,7 +197,7 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         if (res != TCL_OK)
             goto vamoose;
         result.type = TRT_HDESK;
-        result.value.hval = CreateDesktopW(ObjToUnicode(objv[0]), NULL, NULL, dw, dw2, secattrP);
+        result.value.hval = CreateDesktopW(ObjToWinChars(objv[0]), NULL, NULL, dw, dw2, secattrP);
         break;
     default:
         if (TwapiGetArgs(interp, objc, objv,

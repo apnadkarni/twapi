@@ -22,7 +22,8 @@ OBJS  = \
 	$(OBJDIR)\twapi.obj \
 	$(OBJDIR)\twine.obj \
 	$(OBJDIR)\util.obj \
-	$(OBJDIR)\win.obj
+	$(OBJDIR)\win.obj \
+	$(OBJDIR)\winchars.obj
 
 TCLFILES=..\tcl\twapi.tcl \
 	..\tcl\base.tcl \

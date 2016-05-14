@@ -64,7 +64,7 @@ Tcl_Obj *ObjFromLOGFONTW(LOGFONTW *lfP)
     objv[24] = STRING_LITERAL_OBJ("lfPitchAndFamily");
     objv[25] = ObjFromLong(lfP->lfPitchAndFamily);
     objv[26] = STRING_LITERAL_OBJ("lfFaceName");
-    objv[27] = ObjFromUnicode(lfP->lfFaceName);
+    objv[27] = ObjFromWinChars(lfP->lfFaceName);
 
     return ObjNewList(28, objv);
 }
@@ -240,9 +240,9 @@ int Twapi_GetCurrentThemeName(Tcl_Interp *interp)
         return Twapi_AppendSystemError(interp, status);
     }
 
-    objv[0] = ObjFromUnicode(filename);
-    objv[1] = ObjFromUnicode(color);
-    objv[2] = ObjFromUnicode(size);
+    objv[0] = ObjFromWinChars(filename);
+    objv[1] = ObjFromWinChars(color);
+    objv[2] = ObjFromWinChars(size);
     ObjSetResult(interp, ObjNewList(3, objv));
     return TCL_OK;
 }
@@ -535,7 +535,7 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
                              ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.value.ival =
-                (func == 10008 ? AddFontResourceExW : RemoveFontResourceExW) (ObjToUnicode(objv[0]), dw, NULL);
+                (func == 10008 ? AddFontResourceExW : RemoveFontResourceExW) (ObjToWinChars(objv[0]), dw, NULL);
             result.type = TRT_LONG;
             break;
         }
@@ -709,7 +709,7 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
 
         switch (func) {
         case 1001: // SetWindowText
-            result.value.ival = SetWindowTextW(hwnd, ObjToUnicode(objv[0]));
+            result.value.ival = SetWindowTextW(hwnd, ObjToWinChars(objv[0]));
             result.type = TRT_EXCEPTION_ON_FALSE;
             break;
         case 1002: // IsChild
@@ -764,7 +764,7 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             break;
         case 1008:
             result.type = TRT_HANDLE;
-            result.value.hval = OpenThemeData(hwnd, ObjToUnicode(objv[0]));
+            result.value.hval = OpenThemeData(hwnd, ObjToWinChars(objv[0]));
             break;
         case 1009: // SetWindowRgn
             if (TwapiGetArgs(interp, objc, objv,

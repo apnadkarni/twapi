@@ -981,11 +981,11 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             != TCL_OK)
             return TCL_ERROR;
         dw = 2048;
-        s =  ObjToUnicode(objv[1]);
+        s =  ObjToWinChars(objv[1]);
         while (1) {
             bufP = SWSPushFrame(dw, &dw);
             if (ExpandEnvironmentStringsForUserW(h, s, bufP, dw/sizeof(WCHAR))) {
-                result.value.obj = ObjFromUnicode(bufP);
+                result.value.obj = ObjFromWinChars(bufP);
                 result.type = TRT_OBJ;
                 SWSPopFrame();
                 break;

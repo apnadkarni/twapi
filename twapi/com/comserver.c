@@ -170,7 +170,7 @@ static HRESULT TwapiComServerNameToMemId(Twapi_ComServer *me, LPCWSTR name, DISP
 
     for (i = 1; i < nobjs; i += 2) {
         int memid;
-        if (lstrcmpiW(name, ObjToUnicode(objs[i])) == 0) {
+        if (lstrcmpiW(name, ObjToWinChars(objs[i])) == 0) {
             if (ObjToInt(NULL, objs[i-1], &memid) != TCL_OK)
                 return E_NOTIMPL;        /* Should not happen */
             *idP = memid;
@@ -475,7 +475,7 @@ int Twapi_ComServerObjCmd(
         return TCL_ERROR;
     }
     
-    hr = IIDFromString(ObjToUnicode(objv[1]), &iid);
+    hr = IIDFromString(ObjToWinChars(objv[1]), &iid);
     if (FAILED(hr))
         return Twapi_AppendSystemError(interp, hr);
 
@@ -700,7 +700,7 @@ int Twapi_ClassFactoryObjCmd(
         return TCL_ERROR;
     }
     
-    hr = CLSIDFromString(ObjToUnicode(objv[1]), &clsid);
+    hr = CLSIDFromString(ObjToWinChars(objv[1]), &clsid);
     if (FAILED(hr))
         return Twapi_AppendSystemError(interp, hr);
 

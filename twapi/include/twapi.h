@@ -492,7 +492,7 @@ enum {
 #define Twapi_APPEND_LPCWSTR_FIELD_TO_LIST(interp_, listp_, structp_, field_) \
   do { \
     ObjAppendElement((interp_), (listp_), STRING_LITERAL_OBJ( # field_)); \
-    ObjAppendElement((interp_),(listp_), ObjFromUnicodeN(((structp_)->field_ ? (structp_)->field_ : L""), -1)); \
+    ObjAppendElement((interp_),(listp_), ObjFromWinCharsN(((structp_)->field_ ? (structp_)->field_ : L""), -1)); \
   } while (0)
 
 /* Appends a struct char string field name and string pair to a Tcl list object */
@@ -1418,21 +1418,31 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUSHORTHex(USHORT);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGHex(ULONG ull);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONGHex(ULONGLONG ull);
 
+TWAPI_EXTERN int TwapiWinCharsToUtf8(CONST WCHAR *wsP, int nchars, char *buf, int buf_sz);
+TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromWinChars(CONST WCHAR *p, int len);
+
+TWAPI_EXTERN Tcl_Obj *ObjFromEmptyString();
+TWAPI_EXTERN int ObjCharLength(Tcl_Obj *);
+
 TWAPI_EXTERN char *ObjToString(Tcl_Obj *objP);
 TWAPI_EXTERN char *ObjToStringN(Tcl_Obj *objP, int *lenP);
-TWAPI_EXTERN Tcl_UniChar *ObjToUnicode(Tcl_Obj *objP);
-TWAPI_EXTERN Tcl_UniChar *ObjToUnicodeN(Tcl_Obj *objP, int *lenP);
-TWAPI_EXTERN int TwapiUnicharToUtf8(CONST WCHAR *wsP, int nchars, char *buf, int buf_sz);
-TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *p, int len);
-TWAPI_EXTERN Tcl_Obj *ObjFromEmptyString();
-TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeN(const Tcl_UniChar *ws, int len);
-TWAPI_EXTERN Tcl_Obj *ObjFromUnicode(const Tcl_UniChar *ws);
 TWAPI_EXTERN Tcl_Obj *ObjFromStringN(const char *s, int len);
 TWAPI_EXTERN Tcl_Obj *ObjFromString(const char *s);
-TWAPI_EXTERN int ObjCharLength(Tcl_Obj *);
 TWAPI_EXTERN Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remain);
-TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *wstrP, int max, int *remain);
-TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeNoTrailingSpace(const WCHAR *strP);
+
+#ifdef OBSOLETE
+TWAPI_EXTERN Tcl_UniChar *ObjToUnicode(Tcl_Obj *objP);
+TWAPI_EXTERN Tcl_UniChar *ObjToUnicodeN(Tcl_Obj *objP, int *lenP);
+TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeN(const Tcl_UniChar *ws, int len);
+TWAPI_EXTERN Tcl_Obj *ObjFromUnicode(const Tcl_UniChar *ws);
+#endif
+
+TWAPI_EXTERN WCHAR *ObjToWinChars(Tcl_Obj *objP);
+TWAPI_EXTERN WCHAR *ObjToWinCharsN(Tcl_Obj *objP, int *lenP);
+TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsN(const WCHAR *ws, int len);
+TWAPI_EXTERN Tcl_Obj *ObjFromWinChars(const WCHAR *ws);
+TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsLimited(const WCHAR *wstrP, int max, int *remain);
+TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsNoTrailingSpace(const WCHAR *strP);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len);
 TWAPI_EXTERN Tcl_Obj *ObjAllocateByteArray(int len, void **);
@@ -1444,8 +1454,8 @@ TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *, BYTE *, int , BYTE *, int
 TWAPI_EXTERN BYTE *TwapiDecryptDataSWS(Tcl_Interp *, BYTE *, int , int *);
 TWAPI_EXTERN Tcl_Obj *ObjEncryptBytes(Tcl_Interp *, void *, int);
 TWAPI_EXTERN void *ObjDecryptBytesExSWS(Tcl_Interp *, Tcl_Obj *, int, int *);
-TWAPI_EXTERN Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *, WCHAR *, int);
-TWAPI_EXTERN WCHAR * ObjDecryptUnicodeSWS(Tcl_Interp *, Tcl_Obj *, int *);
+TWAPI_EXTERN Tcl_Obj *ObjEncryptWinChars(Tcl_Interp *, WCHAR *, int);
+TWAPI_EXTERN WCHAR * ObjDecryptWinCharsSWS(Tcl_Interp *, Tcl_Obj *, int *);
 TWAPI_EXTERN char * ObjDecryptUtf8SWS(Tcl_Interp *, Tcl_Obj *, int *);
 TWAPI_EXTERN WCHAR * ObjDecryptPasswordSWS(Tcl_Obj *objP, int *ncharsP);
 

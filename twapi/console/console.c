@@ -26,7 +26,7 @@ static int ObjToCHAR_INFO(Tcl_Interp *interp, Tcl_Obj *obj, CHAR_INFO *ciP)
         return TCL_ERROR;
     }
 
-    ciP->Char.UnicodeChar = * ObjToUnicode(objv[0]);
+    ciP->Char.UnicodeChar = * ObjToWinChars(objv[0]);
     ciP->Attributes = (WORD) i;
     return TCL_OK;
 }
@@ -134,7 +134,7 @@ static Tcl_Obj *ObjFromINPUT_RECORD(const INPUT_RECORD *recP)
         objs[2] = ObjFromInt(recP->Event.KeyEvent.wVirtualKeyCode);
         objs[3] = ObjFromInt(recP->Event.KeyEvent.wVirtualScanCode);
         if (recP->Event.KeyEvent.uChar.UnicodeChar)
-            objs[4] = ObjFromUnicodeN(&recP->Event.KeyEvent.uChar.UnicodeChar, 1);
+            objs[4] = ObjFromWinCharsN(&recP->Event.KeyEvent.uChar.UnicodeChar, 1);
         else
             objs[4] = ObjFromEmptyString();
         objs[5] = ObjFromDWORD(recP->Event.KeyEvent.dwControlKeyState);
@@ -187,7 +187,7 @@ static int Twapi_ReadConsole(Tcl_Interp *interp, HANDLE conh, unsigned int numch
         bufP = buf;
 
     if (ReadConsoleW(conh, bufP, numchars, &len, NULL)) {
-        ObjSetResult(interp, ObjFromUnicodeN(bufP, len));
+        ObjSetResult(interp, ObjFromWinCharsN(bufP, len));
         status = TCL_OK;
     } else {
         TwapiReturnSystemError(interp);
@@ -501,7 +501,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                              GETVAR(coord, ObjToCOORD),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            s = ObjToUnicodeN(sObj, &dw);
+            s = ObjToWinCharsN(sObj, &dw);
             if (WriteConsoleOutputCharacterW(h, s,
                                              dw, coord, &result.value.uval))
                 result.type = TRT_DWORD;
@@ -533,7 +533,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             break;
         case 1008:
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetConsoleTitleW(ObjToUnicode(objv[0]));
+            result.value.ival = SetConsoleTitleW(ObjToWinChars(objv[0]));
             break;
         case 1009:
         case 1010:
@@ -552,7 +552,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                              GETHANDLE(h), GETOBJ(sObj),
                              ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (WriteConsoleW(h, ObjToUnicode(sObj),
+            if (WriteConsoleW(h, ObjToWinChars(sObj),
                               dw, &result.value.uval, NULL))
                 result.type = TRT_DWORD;
             else
@@ -565,7 +565,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                 return TCL_ERROR;
             if (ObjToCOORD(interp, objv[3], &coord) != TCL_OK)
                 return TCL_ERROR;
-            if (FillConsoleOutputCharacterW(h, *ObjToUnicode(sObj), dw, coord, &result.value.uval))
+            if (FillConsoleOutputCharacterW(h, *ObjToWinChars(sObj), dw, coord, &result.value.uval))
                 result.type = TRT_DWORD;
             else
                 result.type = TRT_GETLASTERROR;

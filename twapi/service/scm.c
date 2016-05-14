@@ -139,13 +139,13 @@ int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
     objv[8] = STRING_LITERAL_OBJ("-tagid");
     objv[9] = ObjFromDWORD(qbuf->dwTagId);
     objv[10] = STRING_LITERAL_OBJ("-command");
-    objv[11] = ObjFromUnicode(qbuf->lpBinaryPathName);
+    objv[11] = ObjFromWinChars(qbuf->lpBinaryPathName);
     objv[12] = STRING_LITERAL_OBJ("-loadordergroup");
-    objv[13] = ObjFromUnicode(qbuf->lpLoadOrderGroup);
+    objv[13] = ObjFromWinChars(qbuf->lpLoadOrderGroup);
     objv[14] = STRING_LITERAL_OBJ("-account");
-    objv[15] = ObjFromUnicode(qbuf->lpServiceStartName);
+    objv[15] = ObjFromWinChars(qbuf->lpServiceStartName);
     objv[16] = STRING_LITERAL_OBJ("-displayname");
-    objv[17] = ObjFromUnicode(qbuf->lpDisplayName);
+    objv[17] = ObjFromWinChars(qbuf->lpDisplayName);
     objv[18] = STRING_LITERAL_OBJ("-interactive");
     objv[19] = ObjFromBoolean(qbuf->dwServiceType & SERVICE_INTERACTIVE_PROCESS);
     ObjSetResult(ticP->interp, ObjNewList(20,objv));
@@ -166,8 +166,8 @@ Tcl_Obj *ObjFromSERVICE_FAILURE_ACTIONS(SERVICE_FAILURE_ACTIONSW *sfaP)
     DWORD i;
 
     objs[0] = ObjFromLong(sfaP->dwResetPeriod);
-    objs[1] = ObjFromUnicode(sfaP->lpRebootMsg);
-    objs[2] = ObjFromUnicode(sfaP->lpCommand);
+    objs[1] = ObjFromWinChars(sfaP->lpRebootMsg);
+    objs[2] = ObjFromWinChars(sfaP->lpCommand);
     objs[3] = ObjNewList(sfaP->cActions, NULL);
     if (sfaP->lpsaActions) {
         for (i = 0; i < sfaP->cActions; ++i) {
@@ -198,7 +198,7 @@ int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWOR
             /* If NULL, we keep result as empty string. Not an error */
             res = TCL_OK;
             if (((SERVICE_DESCRIPTIONW *)bufP)->lpDescription)
-                ObjSetResult(ticP->interp, ObjFromUnicode(((SERVICE_DESCRIPTIONW *)bufP)->lpDescription));
+                ObjSetResult(ticP->interp, ObjFromWinChars(((SERVICE_DESCRIPTIONW *)bufP)->lpDescription));
             break;
 
         case SERVICE_CONFIG_FAILURE_ACTIONS:
@@ -372,8 +372,8 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
             rec[6] = ObjFromDWORD(sbuf[i].ServiceStatusProcess.dwWaitHint);
             rec[7] = ObjFromDWORD(sbuf[i].ServiceStatusProcess.dwProcessId);
             rec[8] = ObjFromDWORD(sbuf[i].ServiceStatusProcess.dwServiceFlags);
-            rec[9] = ObjFromUnicode(sbuf[i].lpServiceName); /* KEY for record array */
-            rec[10] = ObjFromUnicode(sbuf[i].lpDisplayName);
+            rec[9] = ObjFromWinChars(sbuf[i].lpServiceName); /* KEY for record array */
+            rec[10] = ObjFromWinChars(sbuf[i].lpDisplayName);
             rec[11] = Tcl_NewBooleanObj(sbuf[i].ServiceStatusProcess.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
 
             ObjAppendElement(NULL, resultObj, ObjNewList(ARRAYSIZE(rec), rec));
@@ -473,8 +473,8 @@ int Twapi_EnumDependentServices(
         rec[4] = ObjFromDWORD(sbuf[i].ServiceStatus.dwServiceSpecificExitCode);
         rec[5] = ObjFromDWORD(sbuf[i].ServiceStatus.dwCheckPoint);
         rec[6] = ObjFromDWORD(sbuf[i].ServiceStatus.dwWaitHint);
-        rec[7] = ObjFromUnicode(sbuf[i].lpServiceName); /* KEY for record array */
-        rec[8] = ObjFromUnicode(sbuf[i].lpDisplayName);
+        rec[7] = ObjFromWinChars(sbuf[i].lpServiceName); /* KEY for record array */
+        rec[8] = ObjFromWinChars(sbuf[i].lpDisplayName);
         rec[9] = ObjFromDWORD(sbuf[i].ServiceStatus.dwServiceType & SERVICE_INTERACTIVE_PROCESS);
 
         ObjAppendElement(NULL, resultObj, ObjNewList(ARRAYSIZE(rec), rec));
@@ -582,7 +582,7 @@ static TCL_RESULT Twapi_ChangeServiceConfig2(TwapiInterpContext *ticP, int objc,
     switch (info_level) {
     case SERVICE_CONFIG_DESCRIPTION:
         pv = &u.desc;
-        u.desc.lpDescription = ObjToUnicode(infoObj);
+        u.desc.lpDescription = ObjToWinChars(infoObj);
         break;
     case SERVICE_CONFIG_FAILURE_ACTIONS:
         pv = &u.failure_actions;
@@ -644,7 +644,7 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
         tag_idP = NULL;         /* Tag is not to be changed */
     }
 
-    dependencies = ObjToUnicode(depObj);
+    dependencies = ObjToWinChars(depObj);
     if (lstrcmpW(dependencies, NULL_TOKEN_L) == 0) {
         dependencies = NULL;
     } else {
@@ -719,7 +719,7 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
         tag_idP = NULL;         /* Tag is not to be changed */
     }
 
-    dependencies = ObjToUnicode(depObj);
+    dependencies = ObjToWinChars(depObj);
     if (lstrcmpW(dependencies, NULL_TOKEN_L) == 0) {
         dependencies = NULL;
     } else {
@@ -774,7 +774,7 @@ int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     }
 
     for (i = 0; i < nargs; i++) {
-        args[i] = ObjToUnicode(argObjs[i]);
+        args[i] = ObjToWinChars(argObjs[i]);
     }
     if (StartServiceW(svcH, nargs, args))
         return TCL_OK;
@@ -872,7 +872,7 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
                          GETHANDLE(h), GETOBJ(sObj), ARGUSEDEFAULT,
                          GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        s = ObjToUnicode(sObj);
+        s = ObjToWinChars(sObj);
         switch (func) {
         case 201:
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);

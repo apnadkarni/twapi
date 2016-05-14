@@ -366,7 +366,7 @@ Tcl_Obj *TwapiGetInstallDir(Tcl_Interp *interp, HANDLE dllH)
         }
     }
     path[sz] = 0;
-    return ObjFromUnicodeN(path, sz);
+    return ObjFromWinCharsN(path, sz);
 }
 
 int Twapi_GetTwapiBuildInfo(
@@ -831,7 +831,7 @@ int Twapi_WTSEnumerateProcesses(Tcl_Interp *interp, HANDLE wtsH)
         /* Create a list corresponding to the fields for the process entry */
         objv[0] = ObjFromLong(processP[i].SessionId);
         objv[1] = ObjFromLong(processP[i].ProcessId);
-        objv[2] = ObjFromUnicode(processP[i].pProcessName);
+        objv[2] = ObjFromWinChars(processP[i].pProcessName);
         if (processP[i].pUserSid) {
             if (ObjFromSID(interp, processP[i].pUserSid, &sidObj) != TCL_OK) {
                 Twapi_WTSFreeMemory(processP);

@@ -558,7 +558,7 @@ TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_UNICODE_DYNAMIC:
     case TRT_UNICODE:
         if (resultP->value.unicode.str) {
-            resultObj = ObjFromUnicodeN(resultP->value.unicode.str,
+            resultObj = ObjFromWinCharsN(resultP->value.unicode.str,
                                         resultP->value.unicode.len);
         }
         break;
@@ -721,7 +721,7 @@ TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
 
     case TRT_LPOLESTR:
         if (resultP->value.lpolestr) {
-            resultObj = ObjFromUnicode(resultP->value.lpolestr);
+            resultObj = ObjFromWinChars(resultP->value.lpolestr);
         } else
             Tcl_ResetResult(interp);
         break;
@@ -852,7 +852,7 @@ TWAPI_EXTERN LPWSTR ObjToLPWSTR_NULL_IF_EMPTY(Tcl_Obj *objP)
 {
     if (objP) {
         int len;
-        LPWSTR p = ObjToUnicodeN(objP, &len);
+        LPWSTR p = ObjToWinCharsN(objP, &len);
         if (len > 0)
             return p;
     }
@@ -862,7 +862,7 @@ TWAPI_EXTERN LPWSTR ObjToLPWSTR_NULL_IF_EMPTY(Tcl_Obj *objP)
 TWAPI_EXTERN LPWSTR ObjToLPWSTR_WITH_NULL(Tcl_Obj *objP)
 {
     if (objP) {
-        LPWSTR s = ObjToUnicode(objP);
+        LPWSTR s = ObjToWinChars(objP);
         if (lstrcmpW(s, NULL_TOKEN_L) == 0) {
             s = NULL;
         }
@@ -881,7 +881,7 @@ TWAPI_EXTERN int ObjToBSTR(Tcl_Interp *interp, Tcl_Obj *objP, BSTR *bstrP)
         wcharP = L"";
         len = 0;
     } else {
-        wcharP = ObjToUnicodeN(objP, &len);
+        wcharP = ObjToWinCharsN(objP, &len);
     }
     if (bstrP) {
         *bstrP = SysAllocStringLen(wcharP, len);
@@ -894,7 +894,7 @@ TWAPI_EXTERN int ObjToBSTR(Tcl_Interp *interp, Tcl_Obj *objP, BSTR *bstrP)
 TWAPI_EXTERN Tcl_Obj *ObjFromBSTR (BSTR bstr)
 {
     return bstr ?
-        ObjFromUnicodeN(bstr, SysStringLen(bstr))
+        ObjFromWinCharsN(bstr, SysStringLen(bstr))
         : ObjFromEmptyString();
 }
 
@@ -923,14 +923,14 @@ TWAPI_EXTERN Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remai
     return ObjFromStringN(strP, (int) (p-strP));
 }
 
-TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *strP, int max, int *remainP)
+TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsLimited(const WCHAR *strP, int max, int *remainP)
 {
     const WCHAR *p, *endP;
 
     if (max < 0) {
         if (remainP)
             *remainP = 0;
-        return ObjFromUnicode(strP);
+        return ObjFromWinChars(strP);
     }        
 
     p = strP;
@@ -945,19 +945,19 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeLimited(const WCHAR *strP, int max, int *rem
             *remainP = (int) (endP-p)-1; /* -1 to skip over \0 */
     }
 
-    return ObjFromUnicodeN(strP, (int) (p-strP));
+    return ObjFromWinCharsN(strP, (int) (p-strP));
 }
 
 /* Some Win32 APIs, ETW in particular return strings with a trailing space.
    Return a Tcl_Obj without this single trailing space if present */
-TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeNoTrailingSpace(const WCHAR *strP)
+TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsNoTrailingSpace(const WCHAR *strP)
 {
     int len;
 
     len = lstrlenW(strP);
     if (len && strP[len-1] == L' ')
         --len;
-    return ObjFromUnicodeN(strP, len);
+    return ObjFromWinCharsN(strP, len);
 }
 
 /*
@@ -1127,7 +1127,7 @@ TWAPI_EXTERN int ObjToDECIMAL(Tcl_Interp *interp, Tcl_Obj *obj, DECIMAL *decP)
 
     if (decP == NULL)
         decP = &dec;
-    hr = VarDecFromStr(ObjToUnicode(obj), 0, 0, decP);
+    hr = VarDecFromStr(ObjToWinChars(obj), 0, 0, decP);
     if (FAILED(hr)) {
         if (interp)
             Twapi_AppendSystemError(interp, hr);
@@ -1222,7 +1222,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromGUID(const GUID *guidP)
     if (guidP == NULL || StringFromGUID2(guidP, str, sizeof(str)/sizeof(str[0])) == 0)
         return ObjFromEmptyString("", 0);
 
-    obj = ObjFromUnicode(str);
+    obj = ObjFromWinChars(str);
     return obj;
 }
 
@@ -1231,7 +1231,7 @@ TWAPI_EXTERN int ObjToGUID(Tcl_Interp *interp, Tcl_Obj *objP, GUID *guidP)
     HRESULT hr;
     WCHAR *wsP;
     if (objP) {
-        wsP = ObjToUnicode(objP);
+        wsP = ObjToWinChars(objP);
 
         /* Accept both GUID and UUID forms */
         if (*wsP == L'{') {
@@ -1309,13 +1309,13 @@ TWAPI_EXTERN int ObjToUUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, UUID **uuidPP
 TWAPI_EXTERN Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP)
 {
     /* Note LSA_UNICODE_STRING Length field is in *bytes* NOT characters */
-    return ObjFromUnicodeN(lsauniP->Buffer, lsauniP->Length / sizeof(WCHAR));
+    return ObjFromWinCharsN(lsauniP->Buffer, lsauniP->Length / sizeof(WCHAR));
 }
 
 TWAPI_EXTERN void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP)
 {
     int nchars;
-    lsauniP->Buffer = ObjToUnicodeN(objP, &nchars);
+    lsauniP->Buffer = ObjToWinCharsN(objP, &nchars);
     lsauniP->Length = (USHORT) (sizeof(WCHAR)*nchars); /* in bytes */
     lsauniP->MaximumLength = lsauniP->Length;
 }
@@ -1349,7 +1349,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSIDNoFail(SID *sidP)
 
 
 /*
- * Convert a Tcl list to a "MULTI_SZ" list of Unicode strings, terminated
+ * Convert a Tcl list to a "MULTI_SZ" list of LPWSTR strings, terminated
  * with two nulls.  Pointer to memlifo alloced multi_sz is stored
  * in *multiszPtrPtr on success. Note that
  * memory may or may not have been allocated from pool even when error
@@ -1388,7 +1388,7 @@ TWAPI_EXTERN TCL_RESULT ObjToMultiSzEx (
             return TCL_ERROR;
         if (objPtr == NULL)
             break;              /* No more items */
-        src = ObjToUnicodeN(objPtr, &len);
+        src = ObjToWinCharsN(objPtr, &len);
         if (src) {
             ++len;               /* Include the terminating null */
             CopyMemory(dst, src, len*sizeof(*src));
@@ -1404,7 +1404,7 @@ TWAPI_EXTERN TCL_RESULT ObjToMultiSzEx (
 }
 
 /*
- * Convert a "MULTI_SZ" list of Unicode strings, terminated with two nulls to
+ * Convert a "MULTI_SZ" list of WCHAR strings, terminated with two nulls to
  * a Tcl list. For example, a list of three strings - "abc", "def" and
  * "hij" would look like 'abc\0def\0hij\0\0'. This function will create
  * a list Tcl_Obj and return it. Will return NULL on error.
@@ -1436,7 +1436,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromMultiSz(LPCWSTR lpcw, int maxlen)
             break;
         }
 
-        ObjAppendElement(NULL, listPtr, ObjFromUnicodeN(s, (int) (lpcw-s)));
+        ObjAppendElement(NULL, listPtr, ObjFromWinCharsN(s, (int) (lpcw-s)));
         ++lpcw;            /* Point beyond this string, possibly beyond end */
     }
 
@@ -1638,10 +1638,10 @@ TWAPI_EXTERN Tcl_Obj *ObjFromEXPAND_SZW(WCHAR *ws)
         required = ExpandEnvironmentStringsW(ws, bufP, sz);
     }
     if (required <= 0 || required > sz)
-        objP = ObjFromUnicode(ws); /* Something went wrong, return as is */
+        objP = ObjFromWinChars(ws); /* Something went wrong, return as is */
     else {
         --required;         /* Terminating null */
-        objP = ObjFromUnicodeN(bufP, required);
+        objP = ObjFromWinCharsN(bufP, required);
     }
 
     if (bufP != buf)
@@ -1672,10 +1672,10 @@ TWAPI_EXTERN Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
          * If it is, we need to strip off the null.
          */
         ws = (WCHAR *)bufP;
-        count /= 2;             /*  Assumed to be Unicode. */
+        count /= 2;             /*  Assumed to be WCHAR. */
         if (count && ws[count-1] == 0)
             --count;        /* Do not include \0 */
-        objv[1] = ObjFromUnicodeN(ws, count);
+        objv[1] = ObjFromWinCharsN(ws, count);
         break;
             
     case REG_DWORD_BIG_ENDIAN:
@@ -1734,13 +1734,13 @@ TWAPI_EXTERN Tcl_Obj *ObjFromRegValueCooked(Tcl_Interp *interp, int regtype,
          * If it is, we need to strip off the null.
          */
         ws = (WCHAR *)bufP;
-        count /= 2;             /*  Assumed to be Unicode. */
+        count /= 2;             /*  Assumed to be WCHAR. */
         if (count && ws[count-1] == 0) {
             terminated = 1;
             --count;        /* Do not include \0 */
         }
         if (regtype != REG_EXPAND_SZ || count == 0)
-            return ObjFromUnicodeN(ws, count);
+            return ObjFromWinCharsN(ws, count);
         else {
             /* Expand expects null terminated */
             if (terminated)
@@ -1833,7 +1833,7 @@ TWAPI_EXTERN int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, in
     }
 
     for (i = 0; i < objc; ++i)
-        argv[i] = ObjToUnicode(objv[i]);
+        argv[i] = ObjToWinChars(objv[i]);
     argv[i] = NULL;
     *argcP = objc;
     return TCL_OK;
@@ -1852,7 +1852,7 @@ TWAPI_EXTERN LPWSTR *ObjToMemLifoArgvW(TwapiInterpContext *ticP, Tcl_Obj *objP, 
     for (j = 0; j < objc; ++j) {
         WCHAR *s;
         int slen;
-        s = ObjToUnicodeN(objv[j], &slen);
+        s = ObjToWinCharsN(objv[j], &slen);
         argv[j] = MemLifoCopy(ticP->memlifoP, s, sizeof(WCHAR)*(slen+1));
     }
     argv[j] = NULL;
@@ -2014,7 +2014,7 @@ Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP)
    On error returns -1. Detail about error should be retrieved with
    GetLastError()
 */
-TWAPI_EXTERN int TwapiUnicharToUtf8(CONST WCHAR *wsP, int nchars, char *buf, int buf_sz)
+TWAPI_EXTERN int TwapiWinCharsToUtf8(CONST WCHAR *wsP, int nchars, char *buf, int buf_sz)
 {
     int nbytes;
     
@@ -2047,19 +2047,22 @@ TWAPI_EXTERN int TwapiUnicharToUtf8(CONST WCHAR *wsP, int nchars, char *buf, int
     return nbytes;
 }
 
-/* The Unicode string should not contain embedded nulls */
-TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
+/* The WCHAR string should not contain embedded nulls */
+/* TBD - where is this called from? Can it have embedded nulls? Maybe
+   if TwapiUnicharToUtf8 returns error, use Tcl for conversion instead
+   of panicing ? */
+TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromWinChars(CONST WCHAR *wsP, int nchars)
 {
     int nbytes;
     char *p;
     Tcl_Obj *objP;
     
-    nbytes = TwapiUnicharToUtf8(wsP, nchars, NULL, 0);
+    nbytes = TwapiWinCharsToUtf8(wsP, nchars, NULL, 0);
     if (nbytes == -1)
         goto do_panic;
     
     p = ckalloc(nbytes+1); /* +1 for case where WCTMB doesn't terminate \0 */ 
-    nbytes = TwapiUnicharToUtf8(wsP, nchars, p, nbytes);
+    nbytes = TwapiWinCharsToUtf8(wsP, nchars, p, nbytes);
     if (nbytes == -1)
         goto do_panic;
 
@@ -2079,7 +2082,7 @@ TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromUnicode(CONST WCHAR *wsP, int nchars)
     return objP;
 
 do_panic:
-    Tcl_Panic("TwapiUnicharToUtf8 returned -1, with error code %d", GetLastError());
+    Tcl_Panic("TwapiWinCharsToUtf8 returned -1, with error code %d", GetLastError());
     return NULL; /* To keep compiler happy. Never reaches here */
 }
 
@@ -2088,10 +2091,10 @@ TWAPI_EXTERN Tcl_Obj *ObjFromTIME_ZONE_INFORMATION(const TIME_ZONE_INFORMATION *
     Tcl_Obj *objs[7];
 
     objs[0] = ObjFromLong(tzP->Bias);
-    objs[1] = ObjFromUnicodeLimited(tzP->StandardName, ARRAYSIZE(tzP->StandardName), NULL);
+    objs[1] = ObjFromWinCharsLimited(tzP->StandardName, ARRAYSIZE(tzP->StandardName), NULL);
     objs[2] = ObjFromSYSTEMTIME(&tzP->StandardDate);
     objs[3] = ObjFromLong(tzP->StandardBias);
-    objs[4] = ObjFromUnicodeLimited(tzP->DaylightName, ARRAYSIZE(tzP->DaylightName), NULL);
+    objs[4] = ObjFromWinCharsLimited(tzP->DaylightName, ARRAYSIZE(tzP->DaylightName), NULL);
     objs[5] = ObjFromSYSTEMTIME(&tzP->DaylightDate);
     objs[6] = ObjFromLong(tzP->DaylightBias);
     return ObjNewList(7, objs);
@@ -2113,8 +2116,8 @@ TWAPI_EXTERN TCL_RESULT ObjToTIME_ZONE_INFORMATION(Tcl_Interp *interp,
                      ARGEND) == TCL_OK) {
         WCHAR *std_name, *daylight_name;
         int std_len, daylight_len;
-        std_name = ObjToUnicodeN(stdObj, &std_len);
-        daylight_name = ObjToUnicodeN(daylightObj, &daylight_len);
+        std_name = ObjToWinCharsN(stdObj, &std_len);
+        daylight_name = ObjToWinCharsN(daylightObj, &daylight_len);
         /* Remember we need a terminating \0 */
         if (std_len < ARRAYSIZE(tzP->StandardName) &&
             daylight_len < ARRAYSIZE(tzP->DaylightName)) {
@@ -2792,7 +2795,7 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
             case VT_CY: objP = ObjFromCY((CY *) valP); break;
             case VT_DATE: objP = Tcl_NewDoubleObj(*(double *)valP); break;
             case VT_BSTR:
-                objP = ObjFromUnicodeN(*(BSTR *)valP, SysStringLen(*(BSTR *)valP));
+                objP = ObjFromWinCharsN(*(BSTR *)valP, SysStringLen(*(BSTR *)valP));
                 break;
             case VT_DISPATCH:
                 /* AddRef as it will be Release'd when safearray is freed */
@@ -3273,10 +3276,10 @@ TWAPI_EXTERN Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only)
     case VT_BSTR|VT_BYREF:
     case VT_BSTR:
         if (V_VT(varP) == VT_BSTR)
-            objv[1] = ObjFromUnicodeN(V_BSTR(varP),
+            objv[1] = ObjFromWinCharsN(V_BSTR(varP),
                                         SysStringLen(V_BSTR(varP)));
         else
-            objv[1] = ObjFromUnicodeN(* V_BSTRREF(varP),
+            objv[1] = ObjFromWinCharsN(* V_BSTRREF(varP),
                                         SysStringLen(* V_BSTRREF(varP)));
         break;
 
@@ -3448,7 +3451,7 @@ TWAPI_EXTERN int ObjToLSASTRINGARRAYSWS(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UN
     for (i = 0; i < nitems; ++i) {
         WCHAR *srcP;
         int    slen;
-        srcP = ObjToUnicodeN(listobjv[i], &slen);
+        srcP = ObjToWinCharsN(listobjv[i], &slen);
         if (slen >= (USHRT_MAX/sizeof(WCHAR))) {
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "LSA_UNICODE_STRING length must be less than 32767.");
         }
@@ -4186,7 +4189,7 @@ TWAPI_EXTERN void ObjDecrArrayRefs(int objc, Tcl_Obj *objv[])
         ObjDecrRefs(objv[i]);
 }
 
-
+#ifdef OBSOLETE
 TWAPI_EXTERN WCHAR *ObjToUnicode(Tcl_Obj *objP)
 {
     return Tcl_GetUnicode(objP);
@@ -4218,6 +4221,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUnicode(const WCHAR *ws)
     else
         return TwapiUtf8ObjFromUnicode(ws, -1);
 }
+#endif /* OBSOLETE */
 
 TWAPI_EXTERN char *ObjToString(Tcl_Obj *objP)
 {
@@ -4471,7 +4475,7 @@ TWAPI_EXTERN Tcl_Obj *ObjEncryptBytes(Tcl_Interp *interp, void *pv, int nbytes)
     unsigned char *bytes = pv;
     WCHAR *wsP;
 
-    /* Note data is always encrypted in Unicode form */
+    /* Note data is always encrypted in WCHAR form */
     
     nalloc = nbytes*sizeof(WCHAR);
     if (nalloc == 0)
@@ -4481,7 +4485,7 @@ TWAPI_EXTERN Tcl_Obj *ObjEncryptBytes(Tcl_Interp *interp, void *pv, int nbytes)
     
     for (nenc = 0; nenc < nbytes; ++nenc)
         wsP[nenc] = bytes[nenc];
-    objP = ObjEncryptUnicode(interp, wsP, nbytes);
+    objP = ObjEncryptWinChars(interp, wsP, nbytes);
 
     SWSPopFrame();
     return objP;
@@ -4556,11 +4560,11 @@ TWAPI_EXTERN BYTE *TwapiDecryptDataSWS(Tcl_Interp *interp, BYTE *encP, int nenc,
     return NULL;
 }
 
-/* Encrypts the Unicode string rep to a byte array. We choose Unicode
-   as the base format for strings because most API's need Unicode and makes it
+/* Encrypts the  rep to a byte array. We choose WCHAR strings
+   as the base format for strings because most API's need WCHAR and makes it
    easier to SecureZeroMemory the buffer. 
 */
-TWAPI_EXTERN Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nchars)
+TWAPI_EXTERN Tcl_Obj *ObjEncryptWinChars(Tcl_Interp *interp, WCHAR *uniP, int nchars)
 {
     int nenc;
     Tcl_Obj *objP = NULL;
@@ -4585,13 +4589,13 @@ TWAPI_EXTERN Tcl_Obj *ObjEncryptUnicode(Tcl_Interp *interp, WCHAR *uniP, int nch
 }
 
 /*
- * Decrypts Unicode string in objP to SWS. Caller responsible for
+ * Decrypts encrypted WCHAR string in objP to SWS. Caller responsible for
  * SWS storage management and should also zero out the password
  * after use.
- * Returns length of string (in unichars, not bytes) NOT including terminating
+ * Returns length of string (in chars, not bytes) NOT including terminating
  * char in *ncharsP
  */
-TWAPI_EXTERN WCHAR * ObjDecryptUnicodeSWS(Tcl_Interp *interp,
+TWAPI_EXTERN WCHAR * ObjDecryptWinCharsSWS(Tcl_Interp *interp,
                           Tcl_Obj *objP,
                           int *ncharsP /* May be NULL */
     )
@@ -4614,7 +4618,7 @@ TWAPI_EXTERN WCHAR * ObjDecryptUnicodeSWS(Tcl_Interp *interp,
         return NULL;
 
     ndec /= sizeof(WCHAR);
-    *(ndec + (WCHAR*) dec) = 0;             /* Terminate the Unicode string */
+    *(ndec + (WCHAR*) dec) = 0;             /* Terminate the string */
     if (ncharsP)
         *ncharsP = ndec;
 
@@ -4634,19 +4638,19 @@ TWAPI_EXTERN char *ObjDecryptUtf8SWS(Tcl_Interp *interp, Tcl_Obj *objP, int *nby
     char *utfP;
     int nuni, nutf;
 
-    uniP = ObjDecryptUnicodeSWS(interp, objP, &nuni);
+    uniP = ObjDecryptWinCharsSWS(interp, objP, &nuni);
     if (uniP == NULL)
         return NULL;
     TWAPI_ASSERT(uniP[nuni] == 0); /* Should be terminated */
 
     /* REMEMBER we have to zero out uniP beyond this point */
     
-    nutf = TwapiUnicharToUtf8(uniP, nuni, NULL, 0);
+    nutf = TwapiWinCharsToUtf8(uniP, nuni, NULL, 0);
     if (nutf == -1)
         utfP = NULL;
     else {
         utfP = SWSAlloc(nutf+1, NULL); /* Additional byte for \0 */
-        nutf = TwapiUnicharToUtf8(uniP, nuni, utfP, nutf);
+        nutf = TwapiWinCharsToUtf8(uniP, nuni, utfP, nutf);
         if (nutf == -1)
             utfP = NULL;
          else {
@@ -4677,7 +4681,7 @@ TWAPI_EXTERN void *ObjDecryptBytesExSWS(Tcl_Interp *interp, Tcl_Obj *objP, int n
     unsigned char *p, *to;
     int nuni, nalloc;
 
-    uniP = ObjDecryptUnicodeSWS(interp, objP, &nuni);
+    uniP = ObjDecryptWinCharsSWS(interp, objP, &nuni);
     if (uniP == NULL)
         return NULL;
 
@@ -4702,10 +4706,10 @@ TWAPI_EXTERN void *ObjDecryptBytesExSWS(Tcl_Interp *interp, Tcl_Obj *objP, int n
 }
 
 /*
- * Like ObjDecryptUnicodeSWS but
+ * Like ObjDecryptWinCharsSWS but
  * if decryption fails, assumes password in unencrypted form and returns it.
  * Return data is on the SWS.
- * See ObjDecryptUnicodeSWS comments regarding SWS memory management.
+ * See ObjDecryptWinCharsSWS comments regarding SWS memory management.
  * ncharsP may be NULL
  */
 TWAPI_EXTERN WCHAR * ObjDecryptPasswordSWS(Tcl_Obj *objP, int *ncharsP)
@@ -4713,11 +4717,11 @@ TWAPI_EXTERN WCHAR * ObjDecryptPasswordSWS(Tcl_Obj *objP, int *ncharsP)
     WCHAR *uniP, *toP;
     int nchars;
 
-    toP =  ObjDecryptUnicodeSWS(NULL, objP, ncharsP);
+    toP =  ObjDecryptWinCharsSWS(NULL, objP, ncharsP);
     if (toP)
         return toP;
     /* Not encrypted, assume plaintext password */
-    uniP = ObjToUnicodeN(objP, &nchars);
+    uniP = ObjToWinCharsN(objP, &nchars);
     toP = MemLifoCopy(SWS(), uniP, sizeof(WCHAR)*(nchars+1));
     if (ncharsP)
         *ncharsP = nchars;

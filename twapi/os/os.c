@@ -474,7 +474,7 @@ static BOOL WINAPI TwapiEnumPageFilesProc(
     objs[0] = ObjFromSIZE_T(pfiP->TotalSize);
     objs[1] = ObjFromSIZE_T(pfiP->TotalInUse);
     objs[2] = ObjFromSIZE_T(pfiP->PeakUsage);
-    objs[3] = ObjFromUnicode(fnP);
+    objs[3] = ObjFromWinChars(fnP);
     ObjAppendElement(NULL, objP, ObjNewList(4, objs));
 
     return TRUE;
@@ -526,7 +526,7 @@ int Twapi_GetSystemWow64Directory(Tcl_Interp *interp)
         return Twapi_AppendSystemError(interp, ERROR_INSUFFICIENT_BUFFER);
     }
 
-    ObjSetResult(interp, ObjFromUnicodeN(path, len));
+    ObjSetResult(interp, ObjFromWinCharsN(path, len));
     return TCL_OK;
 }
 

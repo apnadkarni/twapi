@@ -262,7 +262,7 @@ int Twapi_IEnumWorkItems_Next(Tcl_Interp *interp,
     if (jobsP) {
         for (i = 0; i < ret_count; ++i) {
             ObjAppendElement(interp, objv[1],
-                                     ObjFromUnicode(jobsP[i]));
+                                     ObjFromWinChars(jobsP[i]));
             /* Free the string */
             CoTaskMemFree(jobsP[i]);
         }
@@ -407,7 +407,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IUnknown";
             hr = ifc.taskscheduler->lpVtbl->Activate(
-                ifc.taskscheduler,   ObjToUnicode(sObj),   &guid,
+                ifc.taskscheduler,   ObjToWinChars(sObj),   &guid,
                 (IUnknown **) &result.value.ifc.p);
             break;
         case 5002: // AddWorkItem
@@ -418,7 +418,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
             result.type = TRT_EMPTY;
             hr = ifc.taskscheduler->lpVtbl->AddWorkItem(
                 ifc.taskscheduler,
-                ObjToUnicode(objv[1]),
+                ObjToWinChars(objv[1]),
                 (IScheduledWorkItem *) pv );
             break;
         case 5003: // Delete
@@ -426,7 +426,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
                 goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.taskscheduler->lpVtbl->Delete(ifc.taskscheduler,
-                                                   ObjToUnicode(objv[1]));
+                                                   ObjToWinChars(objv[1]));
             break;
         case 5004: // Enum
             result.type = TRT_INTERFACE;
@@ -442,7 +442,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
                 return TCL_ERROR;
             result.type = TRT_BOOL;
             result.value.bval = ifc.taskscheduler->lpVtbl->IsOfType(
-                ifc.taskscheduler, ObjToUnicode(sObj), &guid) == S_OK;
+                ifc.taskscheduler, ObjToWinChars(sObj), &guid) == S_OK;
             break;
         case 5006: // NewWorkItem
             if (TwapiGetArgs(interp, objc-1, objv+1,
@@ -453,7 +453,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IUnknown";
             hr = ifc.taskscheduler->lpVtbl->NewWorkItem(
-                ifc.taskscheduler, ObjToUnicode(sObj), &guid, &guid2,
+                ifc.taskscheduler, ObjToWinChars(sObj), &guid, &guid2,
                 (IUnknown **) &result.value.ifc.p);
             break;
         case 5007: // SetTargetComputer
@@ -666,7 +666,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
             break;
         case 5219: // SetAccountInformation
             CHECK_NARGS_RANGE(interp, objc, 2, 3);
-            s = ObjToUnicode(objv[1]);
+            s = ObjToWinChars(objv[1]);
             if (objc == 2 || s[0] == 0)
                 passwordP = NULL;
             else {
@@ -686,14 +686,14 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
                 goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetComment(
-                ifc.scheduledworkitem, ObjToUnicode(objv[1]));
+                ifc.scheduledworkitem, ObjToWinChars(objv[1]));
             break;
         case 5221: // SetCreator
             if (objc != 2)
                 goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetCreator(
-                ifc.scheduledworkitem, ObjToUnicode(objv[1]));
+                ifc.scheduledworkitem, ObjToWinChars(objv[1]));
             break;
         case 5222: // SetErrorRetryCount
             if (objc != 2)
@@ -811,21 +811,21 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
                 goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.task->lpVtbl->SetApplicationName(
-                ifc.task, ObjToUnicode(objv[1]));
+                ifc.task, ObjToWinChars(objv[1]));
             break;
         case 5308: // SetParameters
             if (objc != 2)
                 goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.task->lpVtbl->SetParameters(
-                ifc.task, ObjToUnicode(objv[1]));
+                ifc.task, ObjToWinChars(objv[1]));
             break;
         case 5309: // SetWorkingDirectory
             if (objc != 2)
                 goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.task->lpVtbl->SetWorkingDirectory(
-                ifc.task, ObjToUnicode(objv[1]));
+                ifc.task, ObjToWinChars(objv[1]));
             break;
         case 5310: // SetMaxRunTime
             if (objc != 2)

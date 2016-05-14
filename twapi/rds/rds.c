@@ -28,7 +28,7 @@ int Twapi_WTSEnumerateSessions(Tcl_Interp *interp, HANDLE wtsH)
     records = SWSPushFrame(count * sizeof(Tcl_Obj*), NULL);
     for (i = 0; i < count; ++i) {
         objv[0] = ObjFromLong(sessP[i].SessionId);
-        objv[1] = ObjFromUnicode(sessP[i].pWinStationName);
+        objv[1] = ObjFromWinChars(sessP[i].pWinStationName);
         objv[2] = ObjFromLong(sessP[i].State);
 
         records[i] = ObjNewList(3, objv);
@@ -77,7 +77,7 @@ int Twapi_WTSQuerySessionInformation(
         }
         /* Note bufP can be NULL even on success! */
         if (bufP)
-            ObjSetResult(interp, ObjFromUnicode(bufP));
+            ObjSetResult(interp, ObjFromWinChars(bufP));
         break;
 
     case WTSClientBuildNumber:
@@ -145,7 +145,7 @@ static int Twapi_RDSCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     switch (func) {
     case 1:
         result.type = TRT_HANDLE;
-        result.value.hval = WTSOpenServerW(ObjToUnicode(objv[0]));
+        result.value.hval = WTSOpenServerW(ObjToWinChars(objv[0]));
         break;
     case 2:
         if (TwapiGetArgs(interp, objc, objv,
@@ -154,8 +154,8 @@ static int Twapi_RDSCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          GETINT(dw2), GETINT(dw3), GETBOOL(dw4),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        s = ObjToUnicodeN(objv[2], &i);
-        s2 = ObjToUnicodeN(objv[3], &i2);
+        s = ObjToWinCharsN(objv[2], &i);
+        s2 = ObjToWinCharsN(objv[3], &i2);
         if (WTSSendMessageW(h, dw, s, sizeof(WCHAR)*i,
                             s2, sizeof(WCHAR)*i2, dw2,
                             dw3, &result.value.uval, dw4))
