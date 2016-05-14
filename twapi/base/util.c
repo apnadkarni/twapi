@@ -130,7 +130,7 @@ WCHAR *TwapiAllocWStringFromObj(Tcl_Obj *objP, int *lenP) {
     int len;
     if (lenP == NULL)
         lenP = &len;
-    wP = ObjToUnicodeN(objP, lenP);
+    wP = ObjToWinCharsN(objP, lenP);
     return TwapiAllocWString(wP, *lenP);
 }
 
@@ -438,7 +438,7 @@ vamoose:
 
 int Twapi_AppendLog(Tcl_Interp *interp, WCHAR *msg)
 {
-    return Twapi_AppendObjLog(interp, ObjFromUnicode(msg));
+    return Twapi_AppendObjLog(interp, ObjFromWinChars(msg));
 }
 
 /* Sets interp result as handle if not null else GetLastError value */

@@ -119,7 +119,7 @@ int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP)
 
     resultObj = ObjNewList(0, NULL);
     for (i= 0; i < argc; ++i) {
-        ObjAppendElement(interp, resultObj, ObjFromUnicode(argv[i]));
+        ObjAppendElement(interp, resultObj, ObjFromWinChars(argv[i]));
     }
 
     ObjSetResult(interp, resultObj);
@@ -164,8 +164,8 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         CHECK_NARGS(interp, objc, 4);
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = WritePrivateProfileStringW(
-            ObjToUnicode(objv[0]), ObjToLPWSTR_WITH_NULL(objv[1]),
-            ObjToLPWSTR_WITH_NULL(objv[2]), ObjToUnicode(objv[3]));
+            ObjToWinChars(objv[0]), ObjToLPWSTR_WITH_NULL(objv[1]),
+            ObjToLPWSTR_WITH_NULL(objv[2]), ObjToWinChars(objv[3]));
         break;
     case 6:
         CHECK_NARGS(interp, objc, 3);
@@ -182,8 +182,8 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         result.type = TRT_LONG;
         result.value.ival = GetPrivateProfileIntW(
             ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
-            ObjToUnicode(objv[1]), dw,
-            ObjToUnicode(objv[3]));
+            ObjToWinChars(objv[1]), dw,
+            ObjToWinChars(objv[3]));
         break;
     case 8:
         CHECK_NARGS(interp, objc, 3);
@@ -191,7 +191,7 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         CHECK_INTEGER_OBJ(interp, dw, objv[2]);
         result.type = TRT_LONG;
         result.value.ival = GetProfileIntW(
-            ObjToUnicode(objv[0]), ObjToUnicode(objv[1]), dw);
+            ObjToWinChars(objv[0]), ObjToWinChars(objv[1]), dw);
         break;
     case 9:
         CHECK_NARGS(interp, objc, 1);
@@ -201,17 +201,17 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         break;
     case 10:
         CHECK_NARGS(interp, objc, 1);
-        return Twapi_CommandLineToArgv(interp, ObjToUnicode(objv[0]));
+        return Twapi_CommandLineToArgv(interp, ObjToWinChars(objv[0]));
     case 11:
         CHECK_NARGS(interp, objc, 1);
-        s = ObjToUnicode(objv[0]);
+        s = ObjToWinChars(objv[0]);
         NULLIFY_EMPTY(s);
         return TwapiGetProfileSectionHelper(interp, NULL, s);
     case 12: // GetPrivateProfileSection
         CHECK_NARGS(interp, objc, 2);
         return TwapiGetProfileSectionHelper(
             interp,
-            ObjToUnicode(objv[0]),
+            ObjToWinChars(objv[0]),
             ObjToLPWSTR_NULL_IF_EMPTY(objv[1]));
     }
 

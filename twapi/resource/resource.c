@@ -39,7 +39,7 @@ TCL_RESULT ObjToResourceIntOrString(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *
         IS_INTRESOURCE(i))
         *wsP = MAKEINTRESOURCEW(i);
     else
-        *wsP = ObjToUnicode(objP);
+        *wsP = ObjToWinChars(objP);
 
     return TCL_OK;
 }
@@ -49,7 +49,7 @@ Tcl_Obj *ObjFromResourceIntOrString(LPCWSTR s)
     if (IS_INTRESOURCE(s))
         return Tcl_NewLongObj((long) (LONG_PTR) s); /* Double cast to avoid warning */
     else
-        return ObjFromUnicode(s);
+        return ObjFromWinChars(s);
 }
 
 
@@ -132,7 +132,7 @@ int Twapi_VerQueryValue_STRING(
         return TCL_ERROR;
 
     objP = Tcl_ObjPrintf("\\StringFileInfo\\%s\\%s", lang_and_cp, name);
-    if ((! VerQueryValueW(verP, ObjToUnicode(objP), (LPVOID) &valueP, &len)) ||
+    if ((! VerQueryValueW(verP, ObjToWinChars(objP), (LPVOID) &valueP, &len)) ||
         len == 0) {
         /* Return empty string, not error */
         ObjDecrRefs(objP);
@@ -141,7 +141,7 @@ int Twapi_VerQueryValue_STRING(
     ObjDecrRefs(objP);
 
     /* Note valueP does not have to be freed, points into verP */
-    ObjSetResult(interp, ObjFromUnicode(valueP));
+    ObjSetResult(interp, ObjFromWinChars(valueP));
     return TCL_OK;
 }
 
@@ -446,7 +446,7 @@ TCL_RESULT Twapi_SplitStringResource(
             break;
         }
         ObjAppendElement(interp, objP,
-                                 ObjFromUnicodeN(wP, slen));
+                                 ObjFromWinCharsN(wP, slen));
         wP += slen;
         len -= sizeof(WCHAR)*(1+slen);
     }
@@ -549,7 +549,7 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
     case 13: // LoadImage
         return Twapi_LoadImage(interp, objc, objv);
     case 14:
-        pv = Twapi_GetFileVersionInfo(ObjToUnicode(objv[0]));
+        pv = Twapi_GetFileVersionInfo(ObjToWinChars(objv[0]));
         if (pv) {
             if (TwapiRegisterPointer(interp, pv, Twapi_FreeFileVersionInfo) != TCL_OK)
                 return TCL_ERROR;
@@ -561,7 +561,7 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
     case 16: // BeginUpdateResource
         if (TwapiGetArgs(interp, objc, objv, ARGSKIP, GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        s = ObjToUnicode(objv[0]);
+        s = ObjToWinChars(objv[0]);
         if (func == 15) {
             result.type = TRT_LONG;
             result.value.ival = AddFontResourceExW(s, dw, NULL);
@@ -586,15 +586,15 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival =
             CreateScalableFontResourceW(dw,
-                                        ObjToUnicode(objv[1]),
-                                        ObjToUnicode(objv[2]),
-                                        ObjToUnicode(objv[3]));
+                                        ObjToWinChars(objv[1]),
+                                        ObjToWinChars(objv[2]),
+                                        ObjToWinChars(objv[3]));
         break;
     case 20:
         CHECK_NARGS(interp, objc, 2);
         CHECK_INTEGER_OBJ(interp, dw, objv[1]);
         result.type = TRT_BOOL;
-        result.value.bval = RemoveFontResourceExW(ObjToUnicode(objv[0]), dw, NULL);
+        result.value.bval = RemoveFontResourceExW(ObjToWinChars(objv[0]), dw, NULL);
         break;
     }
 

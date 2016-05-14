@@ -265,7 +265,7 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tc
     }
 
     if (success) {
-        objs[0] = ObjFromUnicode(sdiddP->DevicePath);
+        objs[0] = ObjFromWinChars(sdiddP->DevicePath);
         objs[1] = ObjFromSP_DEVINFO_DATA(&sdd);
         ObjSetResult(ticP->interp, ObjNewList(2, objs));
     } else
@@ -413,7 +413,7 @@ static int TwapiDeviceNotificationCallbackFn(TwapiCallback *p)
         case DBT_DEVTYP_DEVICEINTERFACE:
             /* First tack on the GUID, then the name */
             objs[nobjs++] = ObjFromGUID(&((PDEV_BROADCAST_DEVICEINTERFACE_W)dbhP)->dbcc_classguid);
-            objs[nobjs++] = ObjFromUnicode(((PDEV_BROADCAST_DEVICEINTERFACE_W)dbhP)->dbcc_name);
+            objs[nobjs++] = ObjFromWinChars(((PDEV_BROADCAST_DEVICEINTERFACE_W)dbhP)->dbcc_name);
             break;
 
         case DBT_DEVTYP_HANDLE:
@@ -433,7 +433,7 @@ static int TwapiDeviceNotificationCallbackFn(TwapiCallback *p)
             break;
 
         case DBT_DEVTYP_PORT:
-            objs[nobjs++] = ObjFromUnicode(((PDEV_BROADCAST_PORT_W)dbhP)->dbcp_name);
+            objs[nobjs++] = ObjFromWinChars(((PDEV_BROADCAST_PORT_W)dbhP)->dbcp_name);
             break;
 
         case DBT_DEVTYP_VOLUME:
@@ -1160,7 +1160,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         cret = CM_Locate_DevNode_ExW(&result.value.ival,
-                                        ObjToUnicode(objv[2]), dw, h);
+                                        ObjToWinChars(objv[2]), dw, h);
         if (cret == CR_SUCCESS)
             result.type = TRT_DWORD;
         else {
@@ -1299,7 +1299,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
                          GETHWND(hwnd), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         u.dev.sp_devinfo_data.cbSize = sizeof(u.dev.sp_devinfo_data);
-        if (SetupDiOpenDeviceInfoW(h, ObjToUnicode(sObj), hwnd, dw,
+        if (SetupDiOpenDeviceInfoW(h, ObjToWinChars(sObj), hwnd, dw,
                                    &u.dev.sp_devinfo_data)) {
             result.type = TRT_OBJ;
             result.value.obj = ObjFromSP_DEVINFO_DATA(&u.dev.sp_devinfo_data);

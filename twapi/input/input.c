@@ -214,7 +214,12 @@ int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
     for (i = 0, j = 0; i < num_chars; ++i) {
         WCHAR wch;
             
+#if TCL_UTF_MAX <= 4
         wch = Tcl_GetUniChar(input_obj, i);
+#else
+        wch = (WCHAR) Tcl_GetUniChar(input_obj, i);
+#endif
+
 #ifndef KEYEVENTF_UNICODE
 #define KEYEVENTF_UNICODE     0x0004
 #endif

@@ -225,7 +225,7 @@ Tcl_Obj *ObjFromCERT_NAME_BLOB(CERT_NAME_BLOB *blobP, DWORD flags)
     else
         wP = buf;
     len = CertNameToStrW(X509_ASN_ENCODING, blobP, flags, wP, len) - 1;
-    objP = ObjFromUnicodeN(wP, len);
+    objP = ObjFromWinCharsN(wP, len);
     if (wP != buf)
         SWSPopFrame();
     return objP;
@@ -239,11 +239,11 @@ static Tcl_Obj *ObjFromCERT_NAME_VALUE(CERT_NAME_VALUE *valP)
     return ObjNewList(2, objs);
 }
 
-static Tcl_Obj *ObjFromCERT_NAME_VALUE_Unicode(CERT_NAME_VALUE *valP)
+static Tcl_Obj *ObjFromCERT_NAME_VALUE_WinChars(CERT_NAME_VALUE *valP)
 {
     Tcl_Obj *objs[2];
     objs[0] = ObjFromDWORD(valP->dwValueType);
-    objs[1] = ObjFromUnicodeN((WCHAR *)valP->Value.pbData, valP->Value.cbData/sizeof(WCHAR));
+    objs[1] = ObjFromWinCharsN((WCHAR *)valP->Value.pbData, valP->Value.cbData/sizeof(WCHAR));
     return ObjNewList(2, objs);
 }
 
@@ -257,7 +257,7 @@ static Tcl_Obj *ObjFromCERT_ALT_NAME_ENTRY(CERT_ALT_NAME_ENTRY *caneP)
     case CERT_ALT_NAME_RFC822_NAME: /* FALLTHRU */
     case CERT_ALT_NAME_DNS_NAME:    /* FALLTHRU */
     case CERT_ALT_NAME_URL:
-        objs[1] = ObjFromUnicode(caneP->pwszURL);
+        objs[1] = ObjFromWinChars(caneP->pwszURL);
         break;
     case CERT_ALT_NAME_OTHER_NAME:
         objs[0] = ObjFromString(caneP->pOtherName->pszObjId);
@@ -299,8 +299,8 @@ static Tcl_Obj *ObjFromCRYPT_KEY_PROV_INFO(CRYPT_KEY_PROV_INFO *infP)
     Tcl_Obj *objs[6];
     DWORD i;
     
-    objs[0] = ObjFromUnicode(infP->pwszContainerName);
-    objs[1] = ObjFromUnicode(infP->pwszProvName);
+    objs[0] = ObjFromWinChars(infP->pwszContainerName);
+    objs[1] = ObjFromWinChars(infP->pwszProvName);
     objs[2] = ObjFromDWORD(infP->dwProvType);
     objs[3] = ObjFromDWORD(infP->dwFlags);
     objs[4] = ObjNewList(infP->cProvParam, NULL);
@@ -352,7 +352,7 @@ static Tcl_Obj *ObjFromCRYPT_OID_INFO(PCCRYPT_OID_INFO coiP)
     Tcl_Obj *objs[5];
 
     objs[0] = ObjFromString(coiP->pszOID);
-    objs[1] = ObjFromUnicode(coiP->pwszName);
+    objs[1] = ObjFromWinChars(coiP->pwszName);
     objs[2] = ObjFromDWORD(coiP->dwGroupId);
     objs[3] = ObjFromDWORD(coiP->dwValue);
     objs[4] = ObjFromCRYPT_BLOB(&coiP->ExtraInfo);
@@ -434,7 +434,7 @@ static Tcl_Obj *ObjFromCERT_CHAIN_ELEMENT(Tcl_Interp *interp, CERT_CHAIN_ELEMENT
     }
     if (cceP->pwszExtendedErrorInfo) {
         objs[nobjs++] = STRING_LITERAL_OBJ("extended_error");
-        objs[nobjs++] = ObjFromUnicode(cceP->pwszExtendedErrorInfo);
+        objs[nobjs++] = ObjFromWinChars(cceP->pwszExtendedErrorInfo);
     }
     TWAPI_ASSERT(nobjs <= ARRAYSIZE(objs));
     return ObjNewList(nobjs, objs);
@@ -658,7 +658,7 @@ static TCL_RESULT ParseCERT_ALT_NAME_ENTRY(
     case CERT_ALT_NAME_RFC822_NAME: /* FALLTHROUGH */
     case CERT_ALT_NAME_DNS_NAME: /* FALLTHROUGH */
     case CERT_ALT_NAME_URL:
-        pv = ObjToUnicodeN(objs[1], &n);
+        pv = ObjToWinCharsN(objs[1], &n);
         caneP->pwszRfc822Name = MemLifoCopy(ticP->memlifoP, pv, sizeof(WCHAR) * (n+1));
         break;
     case CERT_ALT_NAME_REGISTERED_ID:
@@ -714,7 +714,7 @@ static TCL_RESULT ParseCERT_NAME_VALUE(
         return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid CERT_NAME_VALUE");
 }
 
-static TCL_RESULT ParseCERT_NAME_VALUE_Unicode(
+static TCL_RESULT ParseCERT_NAME_VALUE_WinChars(
     TwapiInterpContext *ticP,
     Tcl_Obj *namevalObj,
     CERT_NAME_VALUE *cnvP
@@ -1437,7 +1437,7 @@ static TCL_RESULT TwapiCryptDecodeObject(
         fnP = ObjFromCERT_AUTHORITY_INFO_ACCESS;
         break;
     case X509_UNICODE_ANY_STRING:
-        fnP = ObjFromCERT_NAME_VALUE_Unicode;
+        fnP = ObjFromCERT_NAME_VALUE_WinChars;
         break;
     case X509_PUBLIC_KEY_INFO:
         /* SubjectPublicKeyInfo decoded to CERT_PUBLIC_KEY_INFO */
@@ -1581,7 +1581,7 @@ static TCL_RESULT TwapiCryptEncodeObject(
         res = ParseCERT_EXTENSIONS(ticP, valObj, &u.cexts.cExtension, &u.cexts.rgExtension);
         break;
     case (DWORD_PTR) X509_UNICODE_ANY_STRING:
-        if ((res = ParseCERT_NAME_VALUE_Unicode(ticP, valObj, &u.cnv)) != TCL_OK)
+        if ((res = ParseCERT_NAME_VALUE_WinChars(ticP, valObj, &u.cnv)) != TCL_OK)
             return res;
         break;
     case X509_PUBLIC_KEY_INFO:
@@ -2032,7 +2032,7 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
                 return TwapiReturnSystemError(interp);
             pv = SWSPushFrame(n, NULL);
             if (CertGetCertificateContextProperty(certP, prop_id, pv, &n)) {
-                result.value.obj = ObjFromUnicode(pv);
+                result.value.obj = ObjFromWinChars(pv);
                 result.type = TRT_OBJ;
             } else {
                 result.value.ival = TwapiReturnSystemError(interp);
@@ -2127,14 +2127,14 @@ static TCL_RESULT TwapiCertGetNameString(
     /* Note nchars includes terminating NULL */
     if (nchars > 1) {
         if (nchars < ARRAYSIZE(buf)) {
-            ObjSetResult(interp, ObjFromUnicodeN(buf, nchars-1));
+            ObjSetResult(interp, ObjFromWinCharsN(buf, nchars-1));
         } else {
             /* Buffer might have been truncated. Explicitly get buffer size */
             WCHAR *bufP;
             nchars = CertGetNameStringW(certP, type, flags, pv, NULL, 0);
             bufP = SWSPushFrame(nchars*sizeof(WCHAR), NULL);
             nchars = CertGetNameStringW(certP, type, flags, pv, bufP, nchars);
-            ObjSetResult(interp, ObjFromUnicodeN(bufP, nchars-1));
+            ObjSetResult(interp, ObjFromWinCharsN(bufP, nchars-1));
             SWSPopFrame();
         }
     }
@@ -2187,7 +2187,7 @@ static TCL_RESULT Twapi_CryptSetProvParam(Tcl_Interp *interp,
 #endif
         /* FALLTHRU */
     case PP_UI_PROMPT:
-        pv = ObjToUnicode(objP);
+        pv = ObjToWinChars(objP);
         break;
     default:
         return TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS, Tcl_ObjPrintf("Provider parameter %d not implemented", param));
@@ -2394,7 +2394,7 @@ static TCL_RESULT Twapi_CertOpenStore(Tcl_Interp *interp, int objc, Tcl_Obj *CON
     case 14: // CERT_STORE_PROV_PHYSICAL_W
     case 10: // CERT_STORE_PROV_SYSTEM_W
     case 13: // CERT_STORE_PROV_SYSTEM_REGISTRY_W
-        pv = ObjToUnicode(objv[4]);
+        pv = ObjToWinChars(objv[4]);
         break;
 
     case 5: // CERT_STORE_PROV_PKCS7
@@ -2446,7 +2446,7 @@ static TCL_RESULT Twapi_PFXExportCertStoreExObjCmd(TwapiInterpContext *ticP, Tcl
         return TCL_ERROR;
     
     mark = SWSPushMark();
-    password = ObjDecryptUnicodeSWS(interp, passObj, &password_len);
+    password = ObjDecryptWinCharsSWS(interp, passObj, &password_len);
     if (password == NULL) {
         res = TCL_ERROR;
         goto vamoose;
@@ -2503,7 +2503,7 @@ static TCL_RESULT Twapi_PFXImportCertStoreObjCmd(TwapiInterpContext *ticP, Tcl_I
         goto vamoose;
     
     TWAPI_ASSERT(ticP->memlifoP == SWS());
-    password = ObjDecryptUnicodeSWS(interp, passObj, &password_len);
+    password = ObjDecryptWinCharsSWS(interp, passObj, &password_len);
     if (password == NULL) {
         res = TCL_ERROR;
         goto vamoose;
@@ -2580,7 +2580,7 @@ static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
         break;
     case CERT_FIND_ISSUER_STR_W: /* FALLTHRU */
     case CERT_FIND_SUBJECT_STR_W:
-        pv = ObjToUnicode(findObj);
+        pv = ObjToWinChars(findObj);
         break;
     case CERT_FIND_PROPERTY: /* FALLTHRU */
     case CERT_FIND_KEY_SPEC:
@@ -2714,7 +2714,7 @@ BOOL WINAPI TwapiCertEnumSystemStoreCallback(
     if (flags & CERT_SYSTEM_STORE_RELOCATE_FLAG)
         return FALSE;     /* We do not know how to handle this currently */
 
-    objs[0] = ObjFromUnicode(storeP);
+    objs[0] = ObjFromWinChars(storeP);
     objs[1] = ObjFromDWORD(flags);
     ObjAppendElement(NULL, listObj, ObjNewList(2, objs));
     return TRUE;          /* Continue iteration */
@@ -2732,7 +2732,7 @@ BOOL WINAPI TwapiCertEnumSystemStoreLocationCallback(
     if (flags & CERT_SYSTEM_STORE_RELOCATE_FLAG)
         return FALSE;     /* We do not know how to handle this currently */
 
-    objs[0] = ObjFromUnicode(locationP);
+    objs[0] = ObjFromWinChars(locationP);
     objs[1] = ObjFromDWORD(flags);
     ObjAppendElement(NULL, listObj, ObjNewList(2, objs));
     return TRUE;          /* Continue iteration */
@@ -2753,9 +2753,9 @@ BOOL WINAPI TwapiCertEnumPhysicalStoreCallback(
     if (flags & CERT_SYSTEM_STORE_RELOCATE_FLAG)
         return FALSE;     /* We do not know how to handle this currently */
     
-    objs[0] = ObjFromUnicode(system_storeP);
+    objs[0] = ObjFromWinChars(system_storeP);
     objs[1] = ObjFromDWORD(flags);
-    objs[2] = ObjFromUnicode(store_nameP);
+    objs[2] = ObjFromWinChars(store_nameP);
 
     infoObjs[0] = ObjFromString(storeinfoP->pszOpenStoreProvider);
     infoObjs[1] = ObjFromDWORD(storeinfoP->dwOpenEncodingType);
@@ -2868,7 +2868,7 @@ static TCL_RESULT Twapi_CryptFormatObjectObjCmd(TwapiInterpContext *ticP, Tcl_In
         bufP = MemLifoAlloc(ticP->memlifoP, enclen, &buflen);
         if (CryptFormatObject(encoding, 0, flags, NULL, oid, encP, enclen,
                               bufP, &buflen))
-            ObjSetResult(interp, ObjFromUnicodeN(bufP, buflen/sizeof(WCHAR)));
+            ObjSetResult(interp, ObjFromWinCharsN(bufP, buflen/sizeof(WCHAR)));
         else
             res = TwapiReturnSystemError(interp);
     }
@@ -3005,7 +3005,7 @@ static int Twapi_CryptFindOIDInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
         pv = ObjToString(keyObj);
         break;
     case CRYPT_OID_INFO_NAME_KEY:
-        pv = ObjToUnicode(keyObj);
+        pv = ObjToWinChars(keyObj);
         break;
     case CRYPT_OID_INFO_ALGID_KEY:
         if (ObjToDWORD(interp, keyObj, &algids[0]) != TCL_OK)
@@ -3120,7 +3120,7 @@ static TCL_RESULT Twapi_CryptQueryObjectObjCmd(TwapiInterpContext *ticP, Tcl_Int
     }
     res = TCL_OK;
     if (operand_type == CERT_QUERY_OBJECT_FILE) {
-        operand = ObjToUnicode(objP);
+        operand = ObjToWinChars(objP);
     } else {
         mark = MemLifoPushMark(ticP->memlifoP);
         operand = &blob;
@@ -4220,7 +4220,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 10003: // CertOpenSystemStore
         if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        pv = CertOpenSystemStoreW(0, ObjToUnicode(objv[0]));
+        pv = CertOpenSystemStoreW(0, ObjToWinChars(objv[0]));
         if (pv) {
             /* CertCloseStore does not check ponter validity! So do ourselves*/
             TwapiRegisterHCERTSTORE(interp, pv);
@@ -4379,7 +4379,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             return TCL_ERROR;
         result.type = TRT_GETLASTERROR;
         dw2 = 0;
-        s1 = ObjToUnicode(s1Obj); /* Do AFTER extracting other args above */
+        s1 = ObjToWinChars(s1Obj); /* Do AFTER extracting other args above */
         if (CertStrToNameW(X509_ASN_ENCODING, s1,
                            dw, NULL, NULL, &dw2, NULL)) {
             result.value.obj = ObjFromByteArray(NULL, dw2);
@@ -4418,7 +4418,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
                          GETOBJ(s1Obj), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = CertUnregisterSystemStore(ObjToUnicode(s1Obj), dw);
+        result.value.ival = CertUnregisterSystemStore(ObjToWinChars(s1Obj), dw);
         break;
     case 10017: // CertCloseStore
         if (TwapiGetArgs(interp, objc, objv,
@@ -4538,7 +4538,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         if (dw & CERT_SYSTEM_STORE_RELOCATE_FLAG)
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "RELOCATE flag not supported.");
         result.value.obj = ObjNewList(0, NULL);
-        if (CertEnumPhysicalStore(ObjToUnicode(objv[0]), dw,
+        if (CertEnumPhysicalStore(ObjToWinChars(objv[0]), dw,
                                 result.value.obj,
                                 TwapiCertEnumPhysicalStoreCallback)) {
             result.type = TRT_OBJ;
@@ -4781,7 +4781,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 10044: // PFXVerifyPassword
         CHECK_NARGS(interp, objc, 2);
         mark = SWSPushMark();
-        pv = ObjDecryptUnicodeSWS(interp, objv[1], &dw);
+        pv = ObjDecryptWinCharsSWS(interp, objv[1], &dw);
         if (pv == NULL) {
             /* Can't just return because have to clean up SWS at bottom */
             result.type = TRT_TCL_RESULT;
@@ -4819,7 +4819,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         if (TwapiGetArgs(interp, objc, objv, GETOBJ(s1Obj),
                          GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        s1 = ObjToUnicodeN(s1Obj, &dw2);
+        s1 = ObjToWinCharsN(s1Obj, &dw2);
         if (!CryptStringToBinaryW(s1, dw2, dw, NULL, &dw3, NULL, NULL))
             return TwapiReturnSystemError(interp);
         result.value.obj = ObjAllocateByteArray(dw3, &pv);
@@ -4841,7 +4841,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         pv2 = SWSPushFrame(sizeof(WCHAR)*dw3, NULL);
         if (CryptBinaryToStringW(pv, dw2, dw, pv2, &dw3)) {
             /* dw3 does NOT include terminating \0 */
-            result.value.obj = ObjFromUnicodeN(pv2, dw3);
+            result.value.obj = ObjFromWinCharsN(pv2, dw3);
             result.type = TRT_OBJ;
         } else {
             result.value.ival = TwapiReturnSystemError(interp);
@@ -4851,7 +4851,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         break;
     case 10048: // CryptFindLocalizedName
         CHECK_NARGS(interp, objc, 1);
-        result.value.unicode.str = (WCHAR *)CryptFindLocalizedName(ObjToUnicode(objv[0]));
+        result.value.unicode.str = (WCHAR *)CryptFindLocalizedName(ObjToWinChars(objv[0]));
         /* Note returned string is STATIC RESOURCE and must NOT be dealloced*/
         if (result.value.unicode.str) {
             result.value.unicode.len = -1;
@@ -4875,7 +4875,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         CHECK_NARGS(interp, objc, 1);
         CHECK_INTEGER_OBJ(interp, dw, objv[0]);
 
-        /* XP SP3 has a bug where the Unicode version of the
+        /* XP SP3 has a bug where the WCHAR version of the
            CryptEnumProviderTypes always returns ERROR_MORE_DATA - see
            http://support.microsoft.com/kb/959160
            We special case this to use the ANSI version.
@@ -4894,7 +4894,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             dw2 = sizeof(buf.uni);   /* sizeof, NOT ARRAYSIZE in all cases */
             if ((func == 10050 ? CryptEnumProviderTypesW : CryptEnumProvidersW)(dw, NULL, 0, &dw3, buf.uni, &dw2)) {
                 objs[0] = ObjFromDWORD(dw3);
-                objs[1] = ObjFromUnicodeLimited(buf.uni, dw2/sizeof(WCHAR), NULL);
+                objs[1] = ObjFromWinCharsLimited(buf.uni, dw2/sizeof(WCHAR), NULL);
                 result.type= TRT_OBJV;
                 result.value.objv.objPP = objs;
                 result.value.objv.nobj = 2;
@@ -5331,7 +5331,7 @@ static int Twapi_CryptUnprotectObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
             &outblob)) {
         Tcl_Obj *objs[2];
         objs[0] = ObjFromByteArray(outblob.pbData, outblob.cbData);
-        objs[1] = description ? ObjFromUnicode(description) : ObjFromEmptyString();
+        objs[1] = description ? ObjFromWinChars(description) : ObjFromEmptyString();
         ObjSetResult(interp, ObjNewList(2, objs));
         if (description)
             LocalFree(description);

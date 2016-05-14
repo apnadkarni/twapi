@@ -218,7 +218,7 @@ static TCL_RESULT Twapi_ClipboardCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp
         if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         result.type = TRT_NONZERO_RESULT;
-        result.value.ival = RegisterClipboardFormatW(Tcl_GetUnicode(objv[0]));
+        result.value.ival = RegisterClipboardFormatW(ObjToWinChars(objv[0]));
         break;
     case 13:
         if (TwapiGetArgs(interp, objc, objv, GETHWND(hwnd), ARGEND) != TCL_OK)

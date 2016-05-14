@@ -297,7 +297,7 @@ static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP,
     case EvtVarTypeString:
     case EvtVarTypeEvtXml:
         if (varP->StringVal)
-            objP = ObjFromUnicode(varP->StringVal);
+            objP = ObjFromWinChars(varP->StringVal);
         break;
     case EvtVarTypeAnsiString:
         if (varP->AnsiStringVal)
@@ -379,7 +379,7 @@ static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP,
         case EvtVarTypeEvtXml:
             for (i = 0; i < count; ++i) {
                 objPP[i] = varP->StringArr[i] ?
-                    ObjFromUnicode(varP->StringArr[i])
+                    ObjFromWinChars(varP->StringArr[i])
                     : ObjFromEmptyString();
             }
             break;
@@ -712,7 +712,7 @@ static TCL_RESULT Twapi_EvtRenderUnicodeObjCmd(TwapiInterpContext *ticP, Tcl_Int
     }
 
     /* Unicode string. Should we use sz/2 instead of -1 ? TBD */
-    objP = ObjFromUnicode(bufP);
+    objP = ObjFromWinChars(bufP);
     MemLifoPopFrame(ticP->memlifoP);
     ObjSetResult(ticP->interp, objP);
     return TCL_OK;
@@ -925,7 +925,7 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
                TBD - for performance reasons, verify this and may be
                make exception for xml only
             */
-            objP = ObjFromUnicode(bufP);
+            objP = ObjFromWinChars(bufP);
         }
     } else {
         if (objc == 7) {
@@ -1053,7 +1053,7 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Inter
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid EVT_RPC_LOGIN structure");
 
     }
-    erl.Server = ObjToUnicode(loginObjs[0]);
+    erl.Server = ObjToWinChars(loginObjs[0]);
     erl.User = ObjToLPWSTR_NULL_IF_EMPTY(loginObjs[1]);
     erl.Domain = ObjToLPWSTR_NULL_IF_EMPTY(loginObjs[2]);
     mark = SWSPushMark();
@@ -1102,7 +1102,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     case 2:
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt), GETOBJ(sObj), GETOBJ(s2Obj), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        s = ObjToUnicode(sObj);
+        s = ObjToWinChars(sObj);
         s2 = ObjToLPWSTR_NULL_IF_EMPTY(s2Obj);
         if (func == 1) {
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -1123,7 +1123,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
                          GETOBJ(sObj), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        hevt2 = (func == 4 ? EvtOpenLog : EvtOpenChannelConfig) (hevt, ObjToUnicode(sObj), dw);
+        hevt2 = (func == 4 ? EvtOpenLog : EvtOpenChannelConfig) (hevt, ObjToWinChars(sObj), dw);
         TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, hevt2);
         break;
     case 6: // EvtArchiveExportedLog
@@ -1132,14 +1132,14 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = EvtArchiveExportedLog(hevt, ObjToUnicode(sObj), dw, dw2);
+        result.value.ival = EvtArchiveExportedLog(hevt, ObjToWinChars(sObj), dw, dw2);
         break;
     case 7: // EvtSubscribe
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
                          GETHANDLE(h), GETOBJ(sObj), GETOBJ(s2Obj),
                          GETEVTH(hevt2), GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtSubscribe(hevt, h, ObjToUnicode(sObj), ObjToUnicode(s2Obj), hevt2, NULL, NULL, dw));
+        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtSubscribe(hevt, h, ObjToWinChars(sObj), ObjToWinChars(s2Obj), hevt2, NULL, NULL, dw));
         break;
     case 8: // EvtExportLog
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
@@ -1147,7 +1147,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = EvtExportLog(hevt, ObjToUnicode(sObj), ObjToUnicode(s2Obj), ObjToUnicode(s3Obj), dw);
+        result.value.ival = EvtExportLog(hevt, ObjToWinChars(sObj), ObjToWinChars(s2Obj), ObjToWinChars(s3Obj), dw);
         break;
 
     case 9: // EvtSetChannelConfigProperty
@@ -1180,7 +1180,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         case EvtChannelConfigAccess:
         case EvtChannelLoggingConfigLogFilePath:
         case EvtChannelPublisherList:
-            var.StringVal = ObjToUnicode(objv[3]);
+            var.StringVal = ObjToWinChars(objv[3]);
             var.Type = EvtVarTypeString;
             break;
 
@@ -1214,9 +1214,9 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
                          GETOBJ(sObj), GETOBJ(s2Obj), GETINT(dw),
                          GETINT(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        s2 = ObjToUnicode(s2Obj);
+        s2 = ObjToWinChars(s2Obj);
         NULLIFY_EMPTY(s2);
-        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtOpenPublisherMetadata(hevt, ObjToUnicode(sObj), s2, dw, dw2));
+        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtOpenPublisherMetadata(hevt, ObjToWinChars(sObj), s2, dw, dw2));
         break;
 
     case 11: // evt_create_bookmark
@@ -1286,7 +1286,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             /* Note channel/publisher is max 255 chars so no need to check
                for ERROR_INSUFFICIENT_BUFFER */
             if ((func == 104 ? EvtNextChannelPath : EvtNextPublisherId)(hevt, ARRAYSIZE(u.buf), u.buf, &dw) != FALSE) {
-                ObjSetResult(interp, ObjFromUnicodeN(u.buf, dw-1));
+                ObjSetResult(interp, ObjFromWinCharsN(u.buf, dw-1));
                 return TCL_OK;
             }
             result.type = TRT_EXCEPTION_ON_ERROR;

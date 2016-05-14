@@ -920,8 +920,8 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             res = TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
             goto vamoose;
         }
-        s = ObjToUnicode(objv[0]);
-        s2 = ObjToUnicode(objv[1]);
+        s = ObjToWinChars(objv[0]);
+        s2 = ObjToWinChars(objv[1]);
         switch (func) {
         case 401:
             result.value.unicode.len = ARRAYSIZE(u.buf);
@@ -945,7 +945,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                            GETINT(dw2), ARGEND);
         if (res != TCL_OK)
             goto vamoose;
-        s = ObjToUnicode(objv[0]);
+        s = ObjToWinChars(objv[0]);
         switch (func) {
         case 501:
             if (ConvertStringSecurityDescriptorToSecurityDescriptorW(
@@ -975,15 +975,15 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                     Tcl_Obj *objs[10];
                     objs[0] = ObjFromDWORD(u.credsPP[dw]->Flags);
                     objs[1] = ObjFromDWORD(u.credsPP[dw]->Type);
-                    objs[2] = ObjFromUnicode(u.credsPP[dw]->TargetName);
-                    objs[3] = ObjFromUnicode(u.credsPP[dw]->Comment);
+                    objs[2] = ObjFromWinChars(u.credsPP[dw]->TargetName);
+                    objs[3] = ObjFromWinChars(u.credsPP[dw]->Comment);
                     objs[4] = ObjFromFILETIME(&u.credsPP[dw]->LastWritten);
                     objs[5] = ObjFromByteArray(u.credsPP[dw]->CredentialBlob,
                                                u.credsPP[dw]->CredentialBlobSize);
                     objs[6] = ObjFromDWORD(u.credsPP[dw]->Persist);
                     objs[7] = ObjEmptyList(); /* Place holder for attributes */
-                    objs[8] = ObjFromUnicode(u.credsPP[dw]->TargetAlias);
-                    objs[9] = ObjFromUnicode(u.credsPP[dw]->UserName);
+                    objs[8] = ObjFromWinChars(u.credsPP[dw]->TargetAlias);
+                    objs[9] = ObjFromWinChars(u.credsPP[dw]->UserName);
                     ObjAppendElement(interp, result.value.obj, ObjNewList(ARRAYSIZE(objs), objs));
                 }
                 CredFree(u.credsPP);
@@ -1199,7 +1199,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 goto vamoose;
             passwordP = ObjDecryptPasswordSWS(objv[2], &dw3);
             if (LogonUserW(
-                    ObjToUnicode(objv[0]),
+                    ObjToWinChars(objv[0]),
                     ObjToLPWSTR_NULL_IF_EMPTY(objv[1]),
                     passwordP, dw, dw2, &result.value.hval))
                 result.type = TRT_HANDLE;
@@ -1252,7 +1252,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 result.type = TRT_OBJ;
                 /* Do not use dw3 as length because it seems to be size
                    of buffer, not string length as it includes padded nulls */
-                result.value.obj = ObjFromUnicode(s);
+                result.value.obj = ObjFromWinChars(s);
                 LocalFree(s);
             } else
                 result.type = TRT_GETLASTERROR;
@@ -1276,7 +1276,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
 
             result.type = TRT_EXCEPTION_ON_ERROR;
             result.value.ival = SetNamedSecurityInfoW(
-                ObjToUnicode(objv[0]),
+                ObjToWinChars(objv[0]),
                 dw, dw2, osidP, gsidP, daclP, saclP);
             break;
         case 10021: // LookupPrivilegeName
@@ -1286,7 +1286,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             if (res != TCL_OK)
                 goto vamoose;
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
-            if (LookupPrivilegeNameW(ObjToUnicode(objv[0]), &luid,
+            if (LookupPrivilegeNameW(ObjToWinChars(objv[0]), &luid,
                                      u.buf, &result.value.unicode.len)) {
                 result.type = TRT_UNICODE;
                 result.value.unicode.str = u.buf;

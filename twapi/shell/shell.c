@@ -294,7 +294,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (FAILED(hres))
         goto fail;
     
-    hres = ppf->lpVtbl->Load(ppf, ObjToUnicode(linkObj), STGM_READ);
+    hres = ppf->lpVtbl->Load(ppf, ObjToWinChars(linkObj), STGM_READ);
     if (FAILED(hres))
         goto fail;
 
@@ -315,14 +315,14 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (SUCCEEDED(hres)) {
         ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-args"));
-        ObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
+        ObjAppendElement(interp, resultObj, ObjFromWinChars(buf));
     }
 
     hres = psl->lpVtbl->GetDescription(psl, buf, sizeof(buf)/sizeof(buf[0]));
     if (SUCCEEDED(hres)) {
         ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-desc"));
-        ObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
+        ObjAppendElement(interp, resultObj, ObjFromWinChars(buf));
     }
 
     hres = psl->lpVtbl->GetHotkey(psl, &wordval);
@@ -343,7 +343,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
                                  ObjFromLong(intval));
         ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-iconpath"));
-        ObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
+        ObjAppendElement(interp, resultObj, ObjFromWinChars(buf));
     }
 
     hres = psl->lpVtbl->GetIDList(psl, &pidl);
@@ -359,7 +359,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (SUCCEEDED(hres)) {
         ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-path"));
-        ObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
+        ObjAppendElement(interp, resultObj, ObjFromWinChars(buf));
     }
 
     hres = psl->lpVtbl->GetShowCmd(psl, &intval);
@@ -374,7 +374,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (SUCCEEDED(hres)) {
         ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-workdir"));
-        ObjAppendElement(interp, resultObj, ObjFromUnicode(buf));
+        ObjAppendElement(interp, resultObj, ObjFromWinChars(buf));
     }
     
     hres = psl->lpVtbl->QueryInterface(psl, &IID_IShellLinkDataList,
@@ -485,7 +485,7 @@ int Twapi_ReadUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath)
     if (FAILED(hres))
         goto fail;
 
-    ObjSetResult(interp, ObjFromUnicode(url));
+    ObjSetResult(interp, ObjFromWinChars(url));
     CoTaskMemFree(url);
 
     retval = TCL_OK;
@@ -534,14 +534,14 @@ int Twapi_InvokeUrlShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
            use TWAPI_STORE_COM_ERROR */
         Twapi_AppendSystemError(interp, hres);
     } else {
-        hres = ppf->lpVtbl->Load(ppf, ObjToUnicode(linkObj), STGM_READ);
+        hres = ppf->lpVtbl->Load(ppf, ObjToWinChars(linkObj), STGM_READ);
         if (FAILED(hres)) {
             TWAPI_STORE_COM_ERROR(interp, hres, ppf, &IID_IPersistFile);
         } else {
             urlcmd.dwcbSize = sizeof(urlcmd);
             urlcmd.dwFlags = flags;
             urlcmd.hwndParent = hwnd;
-            urlcmd.pcszVerb = ObjToUnicode(verbObj);
+            urlcmd.pcszVerb = ObjToWinChars(verbObj);
 
             hres = psl->lpVtbl->InvokeCommand(psl, &urlcmd);
             if (FAILED(hres)) {
@@ -584,7 +584,7 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         )
         goto vamoose;
      
-    sfop.lpszProgressTitle = ObjToUnicode(titleObj);
+    sfop.lpszProgressTitle = ObjToWinChars(titleObj);
     sfop.hNameMappings = NULL;
 
     if (SHFileOperationW(&sfop) != 0) {
@@ -601,11 +601,11 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         SHNAMEMAPPINGW *mapP = *(SHNAMEMAPPINGW **)(((char *)sfop.hNameMappings) + 4);
         for (i = 0; i < *(int *) (sfop.hNameMappings); ++i) {
             ObjAppendElement(interp, objs[1],
-                                     ObjFromUnicodeN(
+                                     ObjFromWinCharsN(
                                          mapP[i].pszOldPath,
                                          mapP[i].cchOldPath));
             ObjAppendElement(interp, objs[1],
-                                     ObjFromUnicodeN(
+                                     ObjFromWinCharsN(
                                          mapP[i].pszNewPath,
                                          mapP[i].cchNewPath));
         }
@@ -710,11 +710,11 @@ int Twapi_SHChangeNotify(
         /* Valid but no special treatment */
         break;
     case SHCNF_PATHA:
-        /* Always pass as Unicode */
+        /* Always pass as WCHAR */
         flags = (flags & ~SHCNF_TYPE) | SHCNF_PATHW;
         break;
     case SHCNF_PRINTERA:
-        /* Always pass as Unicode */
+        /* Always pass as WCHAR */
         flags = (flags & ~SHCNF_TYPE) | SHCNF_PRINTERW;
         break;
         
@@ -760,7 +760,7 @@ int Twapi_SHChangeNotify(
             dwItem1 = idl1P;
             break;
         case SHCNF_PATHW:
-            dwItem1 = ObjToUnicode(objv[2]);
+            dwItem1 = ObjToWinChars(objv[2]);
             break;
         default:
             goto invalid_flags_error;
@@ -783,8 +783,8 @@ int Twapi_SHChangeNotify(
             dwItem2 = idl2P;
             break;
         case SHCNF_PATHW:
-            dwItem1 = ObjToUnicode(objv[2]);
-            dwItem2 = ObjToUnicode(objv[3]);
+            dwItem1 = ObjToWinChars(objv[2]);
+            dwItem2 = ObjToWinChars(objv[3]);
             break;
         default:
             goto invalid_flags_error;
@@ -832,9 +832,9 @@ int Twapi_SHChangeNotify(
                 }
                 break;
             case SHCNF_PATHW:
-                dwItem1 = ObjToUnicode(objv[2]);
+                dwItem1 = ObjToWinChars(objv[2]);
                 if (objc > 3)
-                    dwItem2 = ObjToUnicode(objv[3]);
+                    dwItem2 = ObjToWinChars(objv[3]);
                 break;
             default:
                 goto invalid_flags_error;
@@ -900,7 +900,7 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = SHInvokePrinterCommandW(
-            hwnd, dw, ObjToUnicode(sObj), ObjToUnicode(s2Obj), dw2);
+            hwnd, dw, ObjToWinChars(sObj), ObjToWinChars(s2Obj), dw2);
         break;
     case 5:
         return Twapi_GetShellVersion(interp);
@@ -978,7 +978,7 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     case 11:
         if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        return Twapi_ReadUrlShortcut(interp, ObjToUnicode(objv[0]));
+        return Twapi_ReadUrlShortcut(interp, ObjToWinChars(objv[0]));
     case 12:
         return Twapi_SHFileOperation(interp, objc, objv);
     case 13:
@@ -992,7 +992,7 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival =
             Twapi_SHObjectProperties(hwnd, dw,
-                                     ObjToUnicode(sObj),
+                                     ObjToWinChars(sObj),
                                      ObjToLPWSTR_NULL_IF_EMPTY(s2Obj));
         break;
     case 15:
@@ -1001,8 +1001,8 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         return Twapi_WriteUrlShortcut(interp,
-                                      ObjToUnicode(sObj),
-                                      ObjToUnicode(s2Obj), dw);
+                                      ObjToWinChars(sObj),
+                                      ObjToWinChars(s2Obj), dw);
     }
 
     return TwapiSetResult(interp, &result);

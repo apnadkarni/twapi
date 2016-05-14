@@ -666,7 +666,7 @@ int Twapi_QueryContextAttributes(
             case SECPKG_ATTR_AUTHORITY:
                 buf = param.authority.sAuthorityName; /* Freed later */
                 if (buf)
-                    obj = ObjFromUnicode(buf);
+                    obj = ObjFromWinChars(buf);
                 break;
             case SECPKG_ATTR_FLAGS:
                 obj = ObjFromLong(param.flags.Flags);
@@ -694,11 +694,11 @@ int Twapi_QueryContextAttributes(
             case SECPKG_ATTR_NAMES:
                 buf = param.names.sUserName; /* Freed later */
                 if (buf)
-                    obj = ObjFromUnicode(buf);
+                    obj = ObjFromWinChars(buf);
                 break;
             case SECPKG_ATTR_NATIVE_NAMES:
-                objs[0] = ObjFromUnicode(param.nativenames.sClientName ? param.nativenames.sClientName : L"");
-                objs[1] = ObjFromUnicode(param.nativenames.sServerName ? param.nativenames.sServerName : L"");
+                objs[0] = ObjFromWinChars(param.nativenames.sClientName ? param.nativenames.sClientName : L"");
+                objs[1] = ObjFromWinChars(param.nativenames.sServerName ? param.nativenames.sServerName : L"");
                 obj = ObjNewList(2, objs);
                 if (param.nativenames.sClientName)
                     FreeContextBuffer(param.nativenames.sClientName);
@@ -715,8 +715,8 @@ int Twapi_QueryContextAttributes(
                     objs[1] = ObjFromInt(param.pkginfo.PackageInfo->wVersion);
                     objs[2] = ObjFromInt(param.pkginfo.PackageInfo->wRPCID);
                     objs[3] = ObjFromULONG(param.pkginfo.PackageInfo->cbMaxToken);
-                    objs[4] = ObjFromUnicode(param.pkginfo.PackageInfo->Name);
-                    objs[5] = ObjFromUnicode(param.pkginfo.PackageInfo->Comment);
+                    objs[4] = ObjFromWinChars(param.pkginfo.PackageInfo->Name);
+                    objs[5] = ObjFromWinChars(param.pkginfo.PackageInfo->Comment);
                     obj = ObjNewList(6, objs);
                 }
                 break;

@@ -1259,7 +1259,7 @@ int Twapi_NPipeServerObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
         return res;
     }
 
-    pcP->hpipe = CreateNamedPipeW(ObjToUnicode(nameObj), open_mode,
+    pcP->hpipe = CreateNamedPipeW(ObjToWinChars(nameObj), open_mode,
                                   pipe_mode, max_instances,
                                   outbuf_sz, inbuf_sz, timeout, secattrP);
     SWSPopMark(mark);
@@ -1378,7 +1378,7 @@ int Twapi_NPipeClientObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
         SWSPopMark(mark);
         return TCL_ERROR;
     }
-    hpipe = CreateFileW(ObjToUnicode(nameObj), desired_access,
+    hpipe = CreateFileW(ObjToWinChars(nameObj), desired_access,
                         share_mode, secattrP,
                         creation_disposition,
                         flags_attr, NULL);

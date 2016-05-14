@@ -89,8 +89,8 @@ Tcl_Obj *ObjFromCONNECTION_INFO(
     switch (level) {
     case 1:
         objc += 6;
-        objv[6] = ObjFromUnicode(ciP->coni1_netname);
-        objv[5] = ObjFromUnicode(ciP->coni1_username);
+        objv[6] = ObjFromWinChars(ciP->coni1_netname);
+        objv[5] = ObjFromWinChars(ciP->coni1_username);
         objv[4] = ObjFromLong(ciP->coni1_time);
         objv[3] = ObjFromLong(ciP->coni1_num_users);
         objv[2] = ObjFromLong(ciP->coni1_num_opens);
@@ -124,8 +124,8 @@ Tcl_Obj *ObjFromUSE_INFO(
     switch (level) {
     case 2:
         objc += 2;
-        objv[8] = ObjFromUnicode(uiP->ui2_domainname);
-        objv[7] = ObjFromUnicode(uiP->ui2_username);
+        objv[8] = ObjFromWinChars(uiP->ui2_domainname);
+        objv[7] = ObjFromWinChars(uiP->ui2_username);
         // FALLTHRU
     case 1:
         objc += 5;
@@ -134,11 +134,11 @@ Tcl_Obj *ObjFromUSE_INFO(
         objv[5] = ObjFromDWORD(uiP->ui2_refcount);
         objv[4] = ObjFromDWORD(uiP->ui2_asg_type);
         objv[3] = ObjFromDWORD(uiP->ui2_status);
-        objv[2] = ObjFromUnicode(uiP->ui2_password);
+        objv[2] = ObjFromWinChars(uiP->ui2_password);
         //FALLTHRU
     case 0:
-        objv[1] = ObjFromUnicode(uiP->ui2_remote);
-        objv[0] = ObjFromUnicode(uiP->ui2_local);
+        objv[1] = ObjFromWinChars(uiP->ui2_remote);
+        objv[0] = ObjFromWinChars(uiP->ui2_local);
         break;
 
     default:
@@ -171,19 +171,19 @@ Tcl_Obj *ObjFromSHARE_INFO(
         // FALLTHRU
     case 2:
         objc += 5;
-        objv[7] = ObjFromUnicode(siP->shi502_passwd ? siP->shi502_passwd : L"");
-        objv[6] = ObjFromUnicode(siP->shi502_path);
+        objv[7] = ObjFromWinChars(siP->shi502_passwd ? siP->shi502_passwd : L"");
+        objv[6] = ObjFromWinChars(siP->shi502_path);
         objv[5] = ObjFromLong(siP->shi502_current_uses);
         objv[4] = ObjFromLong(siP->shi502_max_uses);
         objv[3] = ObjFromDWORD(siP->shi502_permissions);
         // FALLTHRU
     case 1:
         objc += 2;
-        objv[2] = ObjFromUnicode(siP->shi502_remark);
+        objv[2] = ObjFromWinChars(siP->shi502_remark);
         objv[1] = ObjFromDWORD(siP->shi502_type);
         // FALLTHRU
     case 0:
-        objv[0] = ObjFromUnicode(siP->shi502_netname);
+        objv[0] = ObjFromWinChars(siP->shi502_netname);
         break;
 
     default:
@@ -211,8 +211,8 @@ Tcl_Obj *ObjFromFILE_INFO(
     switch (level) {
     case 3:
         objc += 4;
-        objv[4] = ObjFromUnicode(fiP->fi3_username);
-        objv[3] = ObjFromUnicode(fiP->fi3_pathname);
+        objv[4] = ObjFromWinChars(fiP->fi3_username);
+        objv[3] = ObjFromWinChars(fiP->fi3_pathname);
         objv[2] = ObjFromLong(fiP->fi3_num_locks);
         objv[1] = ObjFromLong(fiP->fi3_permissions);
         /* FALLTHRU */
@@ -245,11 +245,11 @@ Tcl_Obj *ObjFromSESSION_INFO(
     switch (level) {
     case 502:
         objc += 1;
-        objv[7] = ObjFromUnicode(((SESSION_INFO_502 *)infoP)->sesi502_transport);
+        objv[7] = ObjFromWinChars(((SESSION_INFO_502 *)infoP)->sesi502_transport);
         /* FALLTHRU */
     case 2:
         objc += 1;
-        objv[6] = ObjFromUnicode(((SESSION_INFO_2 *)infoP)->sesi2_cltype_name);
+        objv[6] = ObjFromWinChars(((SESSION_INFO_2 *)infoP)->sesi2_cltype_name);
         /* FALLTHRU */
     case 1:
         objc += 5;
@@ -257,17 +257,17 @@ Tcl_Obj *ObjFromSESSION_INFO(
         objv[4] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_idle_time);
         objv[3] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_time);
         objv[2] = ObjFromLong(((SESSION_INFO_1 *)infoP)->sesi1_num_opens);
-        objv[1] = ObjFromUnicode(((SESSION_INFO_1 *)infoP)->sesi1_username);
+        objv[1] = ObjFromWinChars(((SESSION_INFO_1 *)infoP)->sesi1_username);
         /* FALLTHRU */
     case 0:
         objc += 1;
-        objv[0] = ObjFromUnicode(((SESSION_INFO_0 *)infoP)->sesi0_cname);
+        objv[0] = ObjFromWinChars(((SESSION_INFO_0 *)infoP)->sesi0_cname);
         break;
 
     case 10:
         objc = 4;
-        objv[0] = ObjFromUnicode(((SESSION_INFO_10 *)infoP)->sesi10_cname);
-        objv[1] = ObjFromUnicode(((SESSION_INFO_10 *)infoP)->sesi10_username);
+        objv[0] = ObjFromWinChars(((SESSION_INFO_10 *)infoP)->sesi10_cname);
+        objv[1] = ObjFromWinChars(((SESSION_INFO_10 *)infoP)->sesi10_username);
         objv[2] = ObjFromLong(((SESSION_INFO_10 *)infoP)->sesi10_time);
         objv[3] = ObjFromLong(((SESSION_INFO_10 *)infoP)->sesi10_idle_time);
         break;
@@ -296,10 +296,10 @@ static Tcl_Obj *ListObjFromNETRESOURCEW(
     objs[1] = ObjFromDWORD(nrP->dwType);
     objs[2] = ObjFromDWORD(nrP->dwDisplayType);
     objs[3] = ObjFromDWORD(nrP->dwUsage);
-    objs[4] = ObjFromUnicode(nrP->lpLocalName);
-    objs[5] = ObjFromUnicode(nrP->lpRemoteName);
-    objs[6] = ObjFromUnicode(nrP->lpComment);
-    objs[7] = ObjFromUnicode(nrP->lpProvider);
+    objs[4] = ObjFromWinChars(nrP->lpLocalName);
+    objs[5] = ObjFromWinChars(nrP->lpRemoteName);
+    objs[6] = ObjFromWinChars(nrP->lpComment);
+    objs[7] = ObjFromWinChars(nrP->lpProvider);
 
     return ObjNewList(8, objs);
 }    
@@ -315,9 +315,9 @@ static Tcl_Obj *ListObjFromREMOTE_NAME_INFOW(
 {
     Tcl_Obj *objv[3];
 
-    objv[0] = ObjFromUnicode(rniP->lpUniversalName);
-    objv[1] = ObjFromUnicode(rniP->lpConnectionName);
-    objv[2] = ObjFromUnicode(rniP->lpRemainingPath);
+    objv[0] = ObjFromWinChars(rniP->lpUniversalName);
+    objv[1] = ObjFromWinChars(rniP->lpConnectionName);
+    objv[2] = ObjFromWinChars(rniP->lpRemainingPath);
 
     return ObjNewList(3, objv);
 }
@@ -343,9 +343,9 @@ int Twapi_NetShareAdd(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         return TCL_ERROR;
     }
     server_name = ObjToLPWSTR_NULL_IF_EMPTY(objv[0]);
-    share_info.shi502_netname = ObjToUnicode(objv[1]);
-    share_info.shi502_remark  = ObjToUnicode(objv[3]);
-    share_info.shi502_path    = ObjToUnicode(objv[5]);
+    share_info.shi502_netname = ObjToWinChars(objv[1]);
+    share_info.shi502_remark  = ObjToWinChars(objv[3]);
+    share_info.shi502_path    = ObjToWinChars(objv[5]);
     share_info.shi502_permissions = 0;
     share_info.shi502_current_uses = 0;
     share_info.shi502_passwd       = NULL;
@@ -493,7 +493,7 @@ int Twapi_WNetUseConnection(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     CHECK_INTEGER_OBJ(interp, ignore_password, objv[6]);
     CHECK_INTEGER_OBJ(interp, flags, objv[8]);
     netresource.lpLocalName = ObjToLPWSTR_NULL_IF_EMPTY(objv[2]);
-    netresource.lpRemoteName = ObjToUnicode(objv[3]);
+    netresource.lpRemoteName = ObjToWinChars(objv[3]);
     netresource.lpProvider = ObjToLPWSTR_NULL_IF_EMPTY(objv[4]);
     usernameP = ObjToLPWSTR_NULL_IF_EMPTY(objv[5]);
 
@@ -515,7 +515,7 @@ int Twapi_WNetUseConnection(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     SWSPopMark(mark);
 
     if (error == NO_ERROR) {
-        ObjSetResult(interp, ObjFromUnicode(accessname));
+        ObjSetResult(interp, ObjFromWinChars(accessname));
         return TCL_OK;
     }
     else {
@@ -534,7 +534,7 @@ static TCL_RESULT Twapi_WNetGetUniversalNameObjCmd(TwapiInterpContext *ticP, Tcl
     if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    localpathP = ObjToUnicode(objv[1]);
+    localpathP = ObjToWinChars(objv[1]);
 
     buf = MemLifoPushFrame(ticP->memlifoP, MAX_PATH+1, &buf_sz);
     error = WNetGetUniversalNameW(localpathP, REMOTE_NAME_INFO_LEVEL,
@@ -591,7 +591,7 @@ static TCL_RESULT Twapi_WNetGetResourceInformationObjCmd(TwapiInterpContext *tic
         if (error == ERROR_SUCCESS) {
             /* TBD - replace with ObjFromCStruct */
             objs[0] = ListObjFromNETRESOURCEW(ticP->interp, outP);
-            objs[1] = ObjFromUnicode(systempart);
+            objs[1] = ObjFromWinChars(systempart);
             ObjSetResult(ticP->interp, ObjNewList(2, objs));
             res = TCL_OK;
         } else
@@ -684,7 +684,7 @@ int Twapi_WNetGetUser(
     if (error != NO_ERROR)
         return Twapi_AppendWNetError(interp, error);
 
-    ObjSetResult(interp, ObjFromUnicode(buf));
+    ObjSetResult(interp, ObjFromWinChars(buf));
     return TCL_OK;
 }
 
@@ -785,7 +785,7 @@ static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *inter
         }
         objfn = ObjFromUSE_INFO;
         netenum.status = NetUseEnum (
-            ObjToUnicode(sObj), netenum.level,
+            ObjToWinChars(sObj), netenum.level,
             &netenum.netbufP,
             MAX_PREFERRED_LENGTH,
             &netenum.entriesread,
@@ -810,7 +810,7 @@ static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *inter
         default: goto invalid_level_error;
         }
         objfn = ObjFromSHARE_INFO;
-        netenum.status = NetShareEnum(ObjToUnicode(sObj), netenum.level,
+        netenum.status = NetShareEnum(ObjToWinChars(sObj), netenum.level,
                                       &netenum.netbufP,
                                       MAX_PREFERRED_LENGTH,
                                       &netenum.entriesread,
@@ -834,8 +834,8 @@ static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *inter
         }
         objfn = ObjFromCONNECTION_INFO;
         netenum.status = NetConnectionEnum (
-            ObjToUnicode(sObj),
-            ObjToUnicode(objv[0]),
+            ObjToWinChars(sObj),
+            ObjToWinChars(objv[0]),
             netenum.level,
             &netenum.netbufP,
             MAX_PREFERRED_LENGTH,
@@ -857,7 +857,7 @@ static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *inter
         }
         objfn = ObjFromFILE_INFO;
         netenum.status = NetFileEnum (
-            ObjToUnicode(sObj),
+            ObjToWinChars(sObj),
             ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
             ObjToLPWSTR_NULL_IF_EMPTY(objv[1]),
             netenum.level, 
@@ -884,7 +884,7 @@ static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *inter
         }
         objfn = ObjFromSESSION_INFO;
         netenum.status = NetSessionEnum (
-            ObjToUnicode(sObj),
+            ObjToWinChars(sObj),
             ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
             ObjToLPWSTR_NULL_IF_EMPTY(objv[1]),
             netenum.level, 
@@ -964,7 +964,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         return Twapi_NetShareAdd(interp, objc, objv);
     case 3:
         CHECK_NARGS(interp, objc, 1);
-        return Twapi_WNetGetUser(interp, ObjToUnicode(objv[0]));
+        return Twapi_WNetGetUser(interp, ObjToWinChars(objv[0]));
     case 4: // NetFileClose
         CHECK_NARGS(interp, objc, 2);
         CHECK_INTEGER_OBJ(interp, dw, objv[1]);
@@ -976,7 +976,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(dw), GETINT(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        s = ObjToUnicode(objv[0]);
+        s = ObjToWinChars(objv[0]);
         if (func == 5) {
             result.type = TRT_EXCEPTION_ON_WNET_ERROR;
             result.value.ival = WNetCancelConnection2W(s, dw, dw2);
@@ -993,9 +993,9 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         /* Note secdP may be NULL even on success */
         if (res == TCL_OK) {
             res = Twapi_NetShareSetInfo(interp,
-                                        ObjToUnicode(objv[0]),
-                                        ObjToUnicode(objv[1]),
-                                        ObjToUnicode(objv[2]),
+                                        ObjToWinChars(objv[0]),
+                                        ObjToWinChars(objv[1]),
+                                        ObjToWinChars(objv[2]),
                                         dw, secdP);
         }
         SWSPopMark(mark);
@@ -1012,7 +1012,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
             CHECK_INTEGER_OBJ(interp, dw, objv[2]);
         }
         s = ObjToLPWSTR_NULL_IF_EMPTY(objv[0]);
-        s2 = ObjToUnicode(objv[1]);
+        s2 = ObjToWinChars(objv[1]);
         switch (func) {
         case 8:
             return Twapi_NetUseGetInfo(interp, s, s2, dw);
@@ -1039,8 +1039,8 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         CHECK_INTEGER_OBJ(interp, dw, objv[3]);
         return Twapi_NetSessionGetInfo(interp,
                                        ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
-                                       ObjToUnicode(objv[1]),
-                                       ObjToUnicode(objv[2]),
+                                       ObjToWinChars(objv[1]),
+                                       ObjToWinChars(objv[2]),
                                        dw);
     case 14: // WNetOpenEnum
         if (TwapiGetArgs(interp, objc, objv,
@@ -1118,10 +1118,10 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         mark = SWSPushMark();
         s = SWSAlloc(sizeof(WCHAR)*MAX_PATH, &dw2);
         dw2 /= sizeof(WCHAR);
-        result.value.ival = WNetGetConnectionW(ObjToUnicode(objv[0]), s, &dw2);
+        result.value.ival = WNetGetConnectionW(ObjToWinChars(objv[0]), s, &dw2);
         if (result.value.ival == NO_ERROR) {
             result.type = TRT_OBJ;
-            result.value.obj = ObjFromUnicode(s);
+            result.value.obj = ObjFromWinChars(s);
         } else
             result.type = TRT_EXCEPTION_ON_WNET_ERROR;
 
@@ -1145,7 +1145,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     case 19: // WnetGetNetworkInformation
         CHECK_NARGS(interp, objc, 2);
         netinfo.cbStructure = sizeof(netinfo);
-        result.value.ival = WNetGetNetworkInformationW(ObjToUnicode(objv[0]),
+        result.value.ival = WNetGetNetworkInformationW(ObjToWinChars(objv[0]),
                                                        &netinfo);
         if (result.value.ival != NO_ERROR)
             result.type = TRT_EXCEPTION_ON_WNET_ERROR;

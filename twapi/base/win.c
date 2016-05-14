@@ -69,7 +69,7 @@ int Twapi_CreateHiddenWindow(
 
     /*
      * Register the class for receiving messages. Note we are using
-     * Unicode versions of the call so all received windows text
+     * WCHAR versions of the call so all received windows text
      * message will be unicode
      */
     if (hidden_win_class == 0) {

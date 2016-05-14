@@ -53,7 +53,7 @@ typedef struct TwapiCStructRep_s {
     TwapiCStructField fields[1];
 } TwapiCStructRep;
 
-static int CStructRepDecrRefs(TwapiCStructRep *csP)
+static void CStructRepDecrRefs(TwapiCStructRep *csP)
 {
     csP->nrefs -= 1;
     if (csP->nrefs <= 0) {
@@ -337,11 +337,11 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
         case CSTRUCT_WSTRING:
             if (count) {
                 for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
-                    s = ObjToUnicodeN(arrayObj[j], &len);
+                    s = ObjToWinCharsN(arrayObj[j], &len);
                     *(char **)pv2 = MemLifoCopy(memlifoP, s, sizeof(WCHAR)*(len+1));
                 }
             } else {
-                s = ObjToUnicodeN(objPP[i], &len);
+                s = ObjToWinCharsN(objPP[i], &len);
                 *(char **)pv2 = MemLifoCopy(memlifoP, s, sizeof(WCHAR)*(len+1));
             }
             continue;
@@ -516,7 +516,7 @@ static TCL_RESULT ObjFromCStructHelper(Tcl_Interp *interp, void *pv, unsigned in
         case CSTRUCT_DOUBLE: EXTRACT(double, ObjFromDouble); break;
         case CSTRUCT_HANDLE: EXTRACT(HANDLE, ObjFromHANDLE); break;
         case CSTRUCT_STRING: EXTRACT(char*, ObjFromString); break;
-        case CSTRUCT_WSTRING: EXTRACT(WCHAR*, ObjFromUnicode); break;
+        case CSTRUCT_WSTRING: EXTRACT(WCHAR*, ObjFromWinChars); break;
         case CSTRUCT_CBSIZE: EXTRACT(DWORD, ObjFromDWORD); break;
         case CSTRUCT_PSID:
             if (include_key) objs[objindex++] = csP->fields[i].name;
