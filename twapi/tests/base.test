@@ -45,7 +45,7 @@ namespace eval twapi::base::test {
         Get TWAPI version patchlevel
     } -body {
         twapi::get_version -patchlevel
-    } -result 4.2a4
+    } -result 4.2a5
 
     ################################################################
 
@@ -1547,13 +1547,13 @@ namespace eval twapi::base::test {
         # Note casting a 32 bit int to a wide int will not result
         # in a wide int - Tcl optimizes it back to an int
         twapi::tcltype [twapi::tclcast wideInt "0x123456789abcd"]
-    } -result {Bad cast to "wideInt". Must be one of: "" empty null int boolean double string list dict} -returnCodes error
+    } -result {Bad cast to "wideInt". Must be one of: "" empty null bstr int boolean double string list dict} -returnCodes error
 
     test tclcast-6.1 {
         Test for wide integer type from integer
     } -body {
         twapi::tcltype [twapi::tclcast wideInt 1]
-    } -result {Bad cast to "wideInt". Must be one of: "" empty null int boolean double string list dict} -returnCodes error
+    } -result {Bad cast to "wideInt". Must be one of: "" empty null bstr int boolean double string list dict} -returnCodes error
 
     test tclcast-7.0 {
         Test for double type
@@ -3801,6 +3801,18 @@ namespace eval twapi::base::test {
 
     ################################################################
 
+    proc conceal_check {a b} {
+        set m [stringSimilarity $a $b]
+        # stringSimilarity considers ab and ba to be completely different
+        # so check for reversed sequences
+        set n [stringSimilarity $a [string reverse $b]]
+        if {[tcl::mathfunc::max $m $n] == 0} {
+            return 1
+        } else {
+            return 0
+        }
+    }
+    # Following similarity code is from the wiki http://wiki.tcl.tk/3070
     test conceal-1.0 {
         Conceal text
     } -body {
@@ -3824,17 +3836,21 @@ namespace eval twapi::base::test {
 
     test conceal-1.3 {
         Conceal string
+    } -setup {
+        set s "\x00\xff\x80"
     } -body {
-        set c [twapi::conceal "\x00\xff\x80"]
-        list [string length $c] [string first \x00 $c] [twapi::reveal $c]
-    } -result [list 8 -1 "\x00\xff\x80"]
+        set c [twapi::conceal $s]
+        list [string length $c] [conceal_check $s $c]  [twapi::reveal $c]
+    } -result [list 8 1 "\x00\xff\x80"]
 
     test conceal-1.4 {
         Conceal string, block size (8)
+    } -setup {
+        set s "\x00\x01\x02\x03\xff\xfe\xfd\xfc"
     } -body {
-        set c [twapi::conceal "\x00\x01\x02\x03\xff\xfe\xfd\xfc"]
-        list [string length $c] [string first \x00 $c] [twapi::reveal $c]
-    } -result [list 24 -1 "\x00\x01\x02\x03\xff\xfe\xfd\xfc"]
+        set c [twapi::conceal $s]
+        list [string length $c] [conceal_check $s $c] [twapi::reveal $c]
+    } -result [list 24 1 "\x00\x01\x02\x03\xff\xfe\xfd\xfc"]
 
     test conceal-1.5 {
         Conceal binary
@@ -3847,8 +3863,8 @@ namespace eval twapi::base::test {
     } -body {
         set c [twapi::conceal $binstr]
         # binary will be encoded as unicode (256*2) plus 8 byte pad = 520
-        list [string length $c] [string equal $binstr [twapi::reveal $c]]
-    } -result [list 520 1]
+        list [string length $c] [conceal_check $binstr $c] [string equal $binstr [twapi::reveal $c]]
+    } -result [list 520 1 1]
 
     ################################################################
 
