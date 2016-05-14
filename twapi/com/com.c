@@ -86,14 +86,14 @@ Tcl_Obj *ObjFromTwapiBlanket(struct TwapiBlanket *blanketP)
 
     objs[0] = ObjFromLong(blanketP->authn);
     objs[1] = ObjFromLong(blanketP->authz);
-    objs[2] = ObjFromUnicode(blanketP->server);
+    objs[2] = ObjFromWinChars(blanketP->server);
     objs[3] = ObjFromLong(blanketP->authn_level);
     objs[4] = ObjFromLong(blanketP->imp_level);
     if (blanketP->auth_info) {
         switch (blanketP->authn) {
         case RPC_C_AUTHN_WINNT:
         case RPC_C_AUTHN_GSS_KERBEROS:
-            objs[5] = ObjFromUnicode(blanketP->auth_info);
+            objs[5] = ObjFromWinChars(blanketP->auth_info);
             break;
         case RPC_C_AUTHN_GSS_SCHANNEL:
             // TBD - certificate
@@ -174,7 +174,7 @@ static Tcl_Obj *ObjFromTYPEDESC(Tcl_Interp *interp, TYPEDESC *tdP, ITypeInfo *ti
         if (tiP->lpVtbl->GetRefTypeInfo(tiP, tdP->hreftype, &utiP) == S_OK) {
             BSTR bstr;
             if (utiP->lpVtbl->GetDocumentation(utiP, MEMBERID_NIL, &bstr, NULL, NULL, NULL) == S_OK) {
-                objv[1] = ObjFromUnicodeN(bstr, SysStringLen(bstr));
+                objv[1] = ObjFromWinCharsN(bstr, SysStringLen(bstr));
                 SysFreeString(bstr);
             }
             utiP->lpVtbl->Release(utiP);
@@ -596,6 +596,7 @@ int Twapi_IDispatch_InvokeObjCmd(
 
             Twapi_AppendSystemErrorEx(interp, hr, ObjNewList(ARRAYSIZE(errorcode_extra), errorcode_extra));
 
+#if TCL_UTF_MAX <= 4
             if (einfo.bstrDescription) {
                 errorResultObj = ObjDuplicate(ObjGetResult(interp));
                 Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
@@ -623,7 +624,12 @@ int Twapi_IDispatch_InvokeObjCmd(
                     }
                 }
             }
-            
+#else
+            /* TBD - Tcl Unicode is 4 bytes if TCL_UTF_MAX > 4 so we cannot
+               just pass UTF16/UCS strings provider and errorbuf
+               to Tcl_AppendUnicodeToObj
+            */
+#endif
             SysFreeString(einfo.bstrSource);
             SysFreeString(einfo.bstrDescription);
             SysFreeString(einfo.bstrHelpFile);
@@ -697,7 +703,7 @@ static int TwapiGetIDsOfNamesHelper(
     names = MemLifoPushFrame(ticP->memlifoP, nitems*sizeof(*names), NULL);
 
     for (i = 0; i < nitems; i++)
-        names[i] = ObjToUnicode(items[i]);
+        names[i] = ObjToWinChars(items[i]);
 
     /* Allocate an array to hold returned ids */
     ids = MemLifoAlloc(ticP->memlifoP, nitems * sizeof(*ids), NULL);
@@ -722,7 +728,7 @@ static int TwapiGetIDsOfNamesHelper(
 
         resultObj = ObjNewList(0, NULL);
         for (i = 0; i < nitems; ++i) {
-            ObjAppendElement(interp, resultObj, ObjFromUnicode(names[i]));
+            ObjAppendElement(interp, resultObj, ObjFromWinChars(names[i]));
             ObjAppendElement(interp, resultObj, ObjFromLong(ids[i]));
         }
         ObjSetResult(interp, resultObj);
@@ -760,7 +766,7 @@ int Twapi_ITypeInfo_GetTypeAttr(Tcl_Interp *interp, ITypeInfo *tiP)
     objv[8] = STRING_LITERAL_OBJ("memidDestructor");
     objv[9] = ObjFromLong(taP->memidDestructor);
     objv[10] = STRING_LITERAL_OBJ("lpstrSchema");
-    objv[11] = ObjFromUnicode(taP->lpstrSchema ? taP->lpstrSchema : L"");
+    objv[11] = ObjFromWinChars(taP->lpstrSchema ? taP->lpstrSchema : L"");
     objv[12] = STRING_LITERAL_OBJ("cbSizeInstance");
     objv[13] = ObjFromLong(taP->cbSizeInstance);
     objv[14] = STRING_LITERAL_OBJ("typekind");
@@ -819,7 +825,7 @@ int Twapi_ITypeInfo_GetNames(
             ObjAppendElement(
                 interp,
                 resultObj,
-                ObjFromUnicodeN(names[i], SysStringLen(names[i])));
+                ObjFromWinCharsN(names[i], SysStringLen(names[i])));
             SysFreeString(names[i]);
             names[i] = NULL;
         }
@@ -1904,7 +1910,7 @@ static TCL_RESULT Twapi_CallCOMNoArgsObjCmd(ClientData clientdata, Tcl_Interp *i
             Tcl_Obj *objs[3];
             objs[0] = ObjFromInt(authsvcP[dw].dwAuthnSvc);
             objs[1] = ObjFromInt(authsvcP[dw].dwAuthzSvc);
-            objs[2] = ObjFromUnicode(authsvcP[dw].pPrincipalName);
+            objs[2] = ObjFromWinChars(authsvcP[dw].pPrincipalName);
             ObjAppendElement(NULL, result.value.obj, ObjNewList(3, objs));
         }
         CoTaskMemFree(authsvcP);
@@ -2014,7 +2020,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case 3:
             if (objc < 3)
                 goto badargs;
-            hr = CLSIDFromString(ObjToUnicode(objv[1]), &guid);
+            hr = CLSIDFromString(ObjToWinChars(objv[1]), &guid);
             if (hr != S_OK)
                 break;
             result.type = TRT_INTERFACE;
@@ -2280,7 +2286,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case 405: // GetTypeInfoOfGuid
             if (objc != 2)
                 goto badargs;
-            hr = CLSIDFromString(ObjToUnicode(objv[1]), &guid);
+            hr = CLSIDFromString(ObjToWinChars(objv[1]), &guid);
             if (hr == S_OK) {
                 result.type = TRT_INTERFACE;
                 result.value.ifc.name = "ITypeInfo";
@@ -2295,10 +2301,10 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case 407: // RegisterTypeLib
             if (objc != 3)
                 goto badargs;
-            s = ObjToUnicode(objv[2]);
+            s = ObjToWinChars(objv[2]);
             NULLIFY_EMPTY(s);
             result.type = TRT_EMPTY;
-            hr = RegisterTypeLib(ifc.typelib, ObjToUnicode(objv[1]), s);
+            hr = RegisterTypeLib(ifc.typelib, ObjToWinChars(objv[1]), s);
             break;
         }
     } else if (func < 600) {
@@ -2319,7 +2325,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             VariantInit(&result.value.var);
             result.type = TRT_VARIANT;
             hr = ifc.recordinfo->lpVtbl->GetField(
-                ifc.recordinfo, pv, ObjToUnicode(sObj), &result.value.var);
+                ifc.recordinfo, pv, ObjToWinChars(sObj), &result.value.var);
             break;
         case 502: // GetGuid
             if (objc != 1)
@@ -2531,7 +2537,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case 902: // FindConnectionPoint
             if (objc != 2)
                 goto badargs;
-            hr = CLSIDFromString(ObjToUnicode(objv[1]), &guid);
+            hr = CLSIDFromString(ObjToWinChars(objv[1]), &guid);
             if (hr == S_OK) {
                 result.type = TRT_INTERFACE;
                 result.value.ifc.name = "IConnectionPoint";
@@ -2641,7 +2647,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
                              ARGEND) != TCL_OK)
                 goto ret_error;
             return Twapi_ITypeComp_Bind(interp, ifc.typecomp,
-                                        ObjToUnicode(sObj), dw1, w);
+                                        ObjToWinChars(sObj), dw1, w);
         }
     } else if (func < 5600) {
         /* IPersistFile */
@@ -2660,7 +2666,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             /* Note S_FALSE also is a success return */
             result.type = TRT_OBJV;
             objs[0] = ObjFromLong(hr);
-            objs[1] = ObjFromUnicode(result.value.lpolestr);
+            objs[1] = ObjFromWinChars(result.value.lpolestr);
             result.value.objv.nobj = 2;
             result.value.objv.objPP = objs;
             break;
@@ -2677,7 +2683,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 return TCL_ERROR;
             result.type = TRT_EMPTY;
             hr = ifc.persistfile->lpVtbl->Load(ifc.persistfile,
-                                               ObjToUnicode(sObj), dw1);
+                                               ObjToWinChars(sObj), dw1);
             break;
         case 5504: // Save
             if (TwapiGetArgs(interp, objc-1, objv+1,
@@ -2692,7 +2698,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 goto badargs;
             result.type = TRT_EMPTY;
             hr = ifc.persistfile->lpVtbl->SaveCompleted(
-                ifc.persistfile, ObjToUnicode(objv[1]));
+                ifc.persistfile, ObjToWinChars(objv[1]));
             break;
         }
     } else if (func < 5700) {
@@ -2740,7 +2746,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case 10001: // CreateFileMoniker
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "IMoniker";
-            hr = CreateFileMoniker(ObjToUnicode(objv[0]),
+            hr = CreateFileMoniker(ObjToWinChars(objv[0]),
                                    (IMoniker **)&result.value.ifc.p);
             break;
         case 10002: // CreateBindCtx
@@ -2799,7 +2805,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
             result.type = TRT_INTERFACE;
             result.value.ifc.name = "ITypeLib";
-            hr = LoadTypeLibEx(ObjToUnicode(objv[0]), dw1,
+            hr = LoadTypeLibEx(ObjToWinChars(objv[0]), dw1,
                                               (ITypeLib **)&result.value.ifc.p);
             break;
         case 10008: // CoGetObject
@@ -2814,7 +2820,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             }
             result.type = TRT_INTERFACE;
             result.value.ifc.name = cP;
-            hr = CoGetObject(ObjToUnicode(sObj),
+            hr = CoGetObject(ObjToWinChars(sObj),
                              NULL, &guid, &result.value.ifc.p);
             break;
         case 10009: // GetActiveObject
@@ -2838,7 +2844,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             if (objc != 1)
                 goto badargs;
             result.type = TRT_GUID;
-            hr = CLSIDFromProgID(ObjToUnicode(objv[0]), &result.value.guid);
+            hr = CLSIDFromProgID(ObjToWinChars(objv[0]), &result.value.guid);
             break;
         case 10012: // UNUSED
         case 10013: // MkParseDisplayName
@@ -2846,7 +2852,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 goto badargs;
             if (ObjToOpaque(interp, objv[0], &pv, "IBindCtx") != TCL_OK)
                 goto ret_error;
-            hr = MkParseDisplayName(pv, ObjToUnicode(objv[1]),
+            hr = MkParseDisplayName(pv, ObjToWinChars(objv[1]),
                                     &dw1, &ifc.moniker);
             if (hr == S_OK || hr == MK_E_SYNTAX) {
                 if (hr == MK_E_SYNTAX) {

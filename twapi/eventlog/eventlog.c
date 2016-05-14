@@ -95,9 +95,9 @@ static int Twapi_ReadEventLogObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
 
         strP = (WCHAR *) (1 + &(evlP->DataOffset));
         len = lstrlenW(strP);
-        objv[0] = ObjFromUnicodeN(strP, len); /* Source name */
+        objv[0] = ObjFromWinCharsN(strP, len); /* Source name */
         strP += len + 1;
-        objv[1] = ObjFromUnicode(strP); /* Computer name */
+        objv[1] = ObjFromWinChars(strP); /* Computer name */
         objv[2] = ObjFromDWORD(evlP->Reserved);
         objv[3] = ObjFromDWORD(evlP->RecordNumber);
         objv[4] = ObjFromDWORD(evlP->TimeGenerated);
@@ -115,7 +115,7 @@ static int Twapi_ReadEventLogObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
              ++strindex) {
             len = lstrlenW(strP);
             ObjAppendElement(interp, objv[11],
-                                     ObjFromUnicodeN(strP, len));
+                                     ObjFromWinCharsN(strP, len));
             strP += len + 1;
         }
 
@@ -202,7 +202,7 @@ static int Twapi_EventlogCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
             if (ObjToLPVOID(interp, objv[0], &h) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = BackupEventLogW(h, ObjToUnicode(objv[1]));
+            result.value.ival = BackupEventLogW(h, ObjToWinChars(objv[1]));
             break;
         case 1003:
             if (ObjToLPVOID(interp, objv[0], &h) != TCL_OK)
@@ -214,7 +214,7 @@ static int Twapi_EventlogCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
             result.type = TRT_HANDLE;
             result.value.hval = OpenBackupEventLogW(
                 ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
-                ObjToUnicode(objv[1]));
+                ObjToWinChars(objv[1]));
             break;
         }
     }

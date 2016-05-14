@@ -144,10 +144,6 @@ static void UpdateWinCharsTypeString(Tcl_Obj *objP)
 
 #endif // #if 0
     
-    if (sizeof(TCHAR) != sizeof(WCHAR)) {
-        Tcl_Panic("Bad compilation. sizeof(TCHAR) != sizeof(WCHAR).");
-    }
-
     Tcl_WinTCharToUtf(rep->chars, rep->nchars * sizeof(WCHAR), &ds);
     nbytes = Tcl_DStringLength(&ds);
     utf8 = ckalloc(nbytes+1);
@@ -168,10 +164,6 @@ TWAPI_EXTERN WCHAR *ObjToWinChars(Tcl_Obj *objP)
     
     if (objP->typePtr == &gWinCharsType)
         return WinCharsGet(objP)->chars;
-
-    if (sizeof(TCHAR) != sizeof(WCHAR)) {
-        Tcl_Panic("Bad compilation. sizeof(TCHAR) != sizeof(WCHAR).");
-    }
 
     utf8 = ObjToStringN(objP, &nbytes);
     Tcl_WinUtfToTChar(utf8, nbytes, &ds);
@@ -204,7 +196,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsN(const WCHAR *wsP, int nchars)
         return ObjFromEmptyString();
     
     if (! gBaseSettings.use_unicode_obj)
-        return TwapiUtf8ObjFromUnicode(wsP, -1);
+        return TwapiUtf8ObjFromWinChars(wsP, -1);
     
     rep = WinCharsNew(wsP, nchars);
     objP = Tcl_NewObj();

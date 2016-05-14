@@ -38,7 +38,7 @@ int Twapi_GetNumberFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    number_string = ObjToUnicode(number_stringObj);
+    number_string = ObjToWinChars(number_stringObj);
 
 #define TWAPI_GETNUMBERFORMAT_USELOCALE 1 // Defined in newer SDK's
 
@@ -48,8 +48,8 @@ int Twapi_GetNumberFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
         numfmt.NumDigits = ndigits;
         numfmt.LeadingZero = leading_zero;
         numfmt.Grouping = grouping;
-        numfmt.lpDecimalSep = ObjToUnicode(decimal_sepObj);
-        numfmt.lpThousandSep = ObjToUnicode(thousand_sepObj);
+        numfmt.lpDecimalSep = ObjToWinChars(decimal_sepObj);
+        numfmt.lpThousandSep = ObjToWinChars(thousand_sepObj);
         numfmt.NegativeOrder = negative_order;
         fmtP = &numfmt;
     }
@@ -65,7 +65,7 @@ int Twapi_GetNumberFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
     if (numchars == 0)
         TwapiReturnSystemError(ticP->interp);
     else
-        ObjSetResult(ticP->interp, ObjFromUnicodeN(buf, numchars-1));
+        ObjSetResult(ticP->interp, ObjFromWinCharsN(buf, numchars-1));
 
     MemLifoPopFrame(ticP->memlifoP);
 
@@ -101,7 +101,7 @@ int Twapi_GetCurrencyFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    number_string = ObjToUnicode(number_stringObj);
+    number_string = ObjToWinChars(number_stringObj);
 
 #define TWAPI_GETCURRENCYFORMAT_USELOCALE 1
 
@@ -111,11 +111,11 @@ int Twapi_GetCurrencyFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
         fmt.NumDigits = ndigits;
         fmt.LeadingZero = leading_zero;
         fmt.Grouping = grouping;
-        fmt.lpDecimalSep = ObjToUnicode(decimal_sepObj);
-        fmt.lpThousandSep = ObjToUnicode(thousand_sepObj);
+        fmt.lpDecimalSep = ObjToWinChars(decimal_sepObj);
+        fmt.lpThousandSep = ObjToWinChars(thousand_sepObj);
         fmt.NegativeOrder = negative_order;
         fmt.PositiveOrder = positive_order;
-        fmt.lpCurrencySymbol = ObjToUnicode(currency_symObj);
+        fmt.lpCurrencySymbol = ObjToWinChars(currency_symObj);
         fmtP = &fmt;
     }
 
@@ -129,7 +129,7 @@ int Twapi_GetCurrencyFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     if (numchars == 0)
         TwapiReturnSystemError(ticP->interp);
     else
-        ObjSetResult(ticP->interp, ObjFromUnicodeN(buf, numchars-1));
+        ObjSetResult(ticP->interp, ObjFromWinCharsN(buf, numchars-1));
 
     MemLifoPopFrame(ticP->memlifoP);
 

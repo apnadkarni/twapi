@@ -86,7 +86,7 @@ int Twapi_SetServiceStatus(
         != TCL_OK)
         return TCL_ERROR;
 
-    service_index = TwapiFindServiceIndex(ObjToUnicode(objv[0]));
+    service_index = TwapiFindServiceIndex(ObjToWinChars(objv[0]));
     if (service_index < 0)
         return Twapi_AppendSystemError(ticP->interp, ERROR_INVALID_NAME);
 
@@ -138,7 +138,7 @@ int Twapi_BecomeAService(
             goto error_handler;
         }
         /* Allocate a single block for the context and name */
-        nameP = ObjToUnicodeN(objs[0], &n);
+        nameP = ObjToWinCharsN(objs[0], &n);
         gServiceContexts[i] = TwapiAlloc(SIZE_TwapiServiceContext(n));
         CopyMemory(gServiceContexts[i]->name, nameP, sizeof(WCHAR)*(n+1));
         gServiceContexts[i]->controls_accepted = ctrls;
@@ -342,7 +342,7 @@ static int TwapiServiceControlCallbackFn(TwapiCallback *p)
         Tcl_Obj *objs[6];
         int nobjs = 0;
         objs[0] = STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_service_handler");
-        objs[1] = ObjFromUnicode(gServiceContexts[cbP->service_index]->name);
+        objs[1] = ObjFromWinChars(gServiceContexts[cbP->service_index]->name);
         objs[2] = ObjFromOpaque(gServiceContexts[cbP->service_index]->service_status_handle, "SERVICE_STATUS_HANDLE");
         objs[3] = Tcl_NewStringObj(ctrl_str, -1);
         objs[4] = Tcl_NewLongObj(cbP->ctrl);

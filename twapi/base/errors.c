@@ -71,7 +71,7 @@ int TwapiFormatMessageHelper(
 
     dwFlags |= FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS;
     if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId, (LPWSTR) &msgP, argc, (va_list *)argv)) {
-        ObjSetResult(interp, ObjFromUnicode(msgP));
+        ObjSetResult(interp, ObjFromWinChars(msgP));
         LocalFree(msgP);
         return TCL_OK;
     } else {
@@ -111,7 +111,7 @@ static Tcl_Obj *Twapi_FormatMsgFromModule(DWORD error, HANDLE hModule)
             if (wMsgPtr[length-1] == L'\r')
                 --length;
         }
-        objP = ObjFromUnicodeN(wMsgPtr, length);
+        objP = ObjFromWinCharsN(wMsgPtr, length);
         LocalFree(wMsgPtr);
         return objP;
     }
@@ -351,7 +351,13 @@ int Twapi_AppendSystemErrorEx(
         msgObj != NULL) {
         Tcl_Obj *resultObj = ObjDuplicate(ObjGetResult(interp));
         if (ObjCharLength(resultObj)) {
+#if TCL_UTF_MAX <= 4
             Tcl_AppendUnicodeToObj(resultObj, L" ", 1);
+#else
+            /* Tcl_UniChar is int. So cannot use AppendUnicode. Have 
+               to force a shimmer to string */
+            Tcl_AppendStringToObj(resultObj, " ", 1);
+#endif
         }
         Tcl_AppendObjToObj(resultObj, msgObj);
         (void) ObjSetResult(interp, resultObj);
@@ -401,12 +407,19 @@ int Twapi_AppendWNetError(
      * append the WNet message 
      */
     if (error == ERROR_EXTENDED_ERROR && wneterror == NO_ERROR) {
+#if TCL_UTF_MAX <= 4
         Tcl_Obj *resultObj = ObjDuplicate(ObjGetResult(interp));
         Tcl_AppendUnicodeToObj(resultObj, L" ", 1);
         Tcl_AppendUnicodeToObj(resultObj, provider, -1);
         Tcl_AppendUnicodeToObj(resultObj, L": ", 2);
         Tcl_AppendUnicodeToObj(resultObj, errorbuf, -1);
         (void) ObjSetResult(interp, resultObj);
+#else
+        /* TBD - Tcl Unicode is 4 bytes if TCL_UTF_MAX > 4 so we cannot
+           just pass UTF16/UCS strings provider and errorbuf
+           to Tcl_AppendUnicodeToObj
+        */
+#endif
     }
 
     return TCL_ERROR;
@@ -456,7 +469,7 @@ int Twapi_AppendCOMError(Tcl_Interp *interp, HRESULT hr, ISupportErrorInfo *sei,
         BSTR msg;
         ei->lpVtbl->GetDescription(ei, &msg);
         Twapi_AppendSystemErrorEx(interp, hr,
-                                 ObjFromUnicodeN(msg,SysStringLen(msg)));
+                                 ObjFromWinCharsN(msg,SysStringLen(msg)));
 
         SysFreeString(msg);
         ei->lpVtbl->Release(ei);

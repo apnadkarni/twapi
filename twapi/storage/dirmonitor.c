@@ -506,11 +506,9 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
              * overwrite the next char with \0 but that would not work for
              * the last filename.
              */
-            if (fnObj[1]) {
-                /* Left over from last iteration so use it */
-                Tcl_SetUnicodeObj(fnObj[1], fniP->FileName, fniP->FileNameLength/2);
-            } else 
-                fnObj[1] = ObjFromUnicodeN(fniP->FileName, fniP->FileNameLength/2);
+            if (fnObj[1])
+                ObjDecrRefs(fnObj[1]);
+            fnObj[1] = ObjFromWinCharsN(fniP->FileName, fniP->FileNameLength/2);
             if (dmcP->npatterns == 0)
                 pattern_matched = 1; /* No pattern so match everything */
             else {
@@ -518,7 +516,7 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
                 int i;
                 for (i = 0; i < dmcP->npatterns; ++i) {
                     int matched = TwapiDirectoryMonitorPatternMatch(
-                        ObjToUnicode(fnObj[1]),
+                        ObjToWinChars(fnObj[1]),
                         dmcP->patterns[i]);
                     if (matched) {
                         /* Matches can be inclusive or exclusive */
@@ -721,5 +719,21 @@ static int TwapiDirectoryMonitorPatternMatch(WCHAR *path, WCHAR *pattern)
     } else
         include = 1;            /* Default is inclusive pattern */
 
+#if TCL_UTF_MAX <= 4
     return Tcl_UniCharCaseMatch(path, pattern, 1) ? include : 0;
+#else
+    {
+        Tcl_Obj *patObj, *pathObj;
+        Tcl_UniChar *pathuni, *patuni;
+        int match_result;
+        patObj = ObjFromWinChars(pattern);
+        patuni = Tcl_GetUnicode(patObj);
+        pathObj = ObjFromWinChars(path);
+        pathuni = Tcl_GetUnicode(pathObj);
+        match_result = Tcl_UniCharCaseMatch(pathuni, patuni, 1) ? include : 0;
+        ObjDecrRefs(patObj);
+        ObjDecrRefs(pathObj);
+        return match_result;
+    }
+#endif
 }

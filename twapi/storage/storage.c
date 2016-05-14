@@ -47,7 +47,7 @@ int TwapiFirstVolume(
         return TwapiReturnSystemError(interp);
 
     objv[0] = ObjFromHANDLE(h);
-    objv[1] = ObjFromUnicode(buf);
+    objv[1] = ObjFromWinChars(buf);
 
     ObjSetResult(interp, ObjNewList(2, objv));
     return TCL_OK;
@@ -65,7 +65,7 @@ int TwapiNextVolume(Tcl_Interp *interp, int treat_as_mountpoint, HANDLE hFindVol
     if (found) {
         Tcl_Obj *objv[2];
         objv[0] = ObjFromLong(1);
-        objv[1] = ObjFromUnicode(buf);
+        objv[1] = ObjFromWinChars(buf);
         ObjSetResult(interp, ObjNewList(2, objv));
         return TCL_OK;
     } else {
@@ -97,11 +97,11 @@ int Twapi_GetVolumeInformation(Tcl_Interp *interp, LPCWSTR path)
         return TwapiReturnSystemError(interp);
     }
 
-    objv[0] = ObjFromUnicode(volname);
+    objv[0] = ObjFromWinChars(volname);
     objv[1] = ObjFromLong(serial_no);
     objv[2] = ObjFromLong(max_component_len);
     objv[3] = ObjFromLong(sysflags);
-    objv[4] = ObjFromUnicode(fsname);
+    objv[4] = ObjFromWinChars(fsname);
     ObjSetResult(interp, ObjNewList(5, objv));
 
     return TCL_OK;
@@ -208,7 +208,7 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     case 10:
     case 11:
         CHECK_NARGS(interp, objc, 1);
-        s = ObjToUnicode(objv[0]);
+        s = ObjToWinChars(objv[0]);
         switch (func) {
         case 3:
             return Twapi_QueryDosDevice(interp, s);
@@ -308,8 +308,8 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         else {
             CHECK_INTEGER_OBJ(interp, dw, objv[2]);
         }
-        s = ObjToUnicode(objv[0]);
-        s2 = ObjToUnicode(objv[1]);
+        s = ObjToWinChars(objv[0]);
+        s2 = ObjToWinChars(objv[1]);
         switch (func) {
         case 19:
             NULLIFY_EMPTY(s2);
@@ -352,7 +352,7 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival =
-            DefineDosDeviceW(dw, ObjToUnicode(objv[1]),
+            DefineDosDeviceW(dw, ObjToWinChars(objv[1]),
                              ObjToLPWSTR_NULL_IF_EMPTY(objv[2]));
         break;
 

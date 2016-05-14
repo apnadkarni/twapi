@@ -27,23 +27,23 @@ int Twapi_DsGetDcName(
     if (dcP) {
         Tcl_Obj *objv[18];
         objv[0] = STRING_LITERAL_OBJ("DomainControllerName");
-        objv[1] = ObjFromUnicode(dcP->DomainControllerName);
+        objv[1] = ObjFromWinChars(dcP->DomainControllerName);
         objv[2] = STRING_LITERAL_OBJ("DomainControllerAddress");
-        objv[3] = ObjFromUnicode(dcP->DomainControllerAddress);
+        objv[3] = ObjFromWinChars(dcP->DomainControllerAddress);
         objv[4] = STRING_LITERAL_OBJ("DomainControllerAddressType");
         objv[5] = ObjFromLong(dcP->DomainControllerAddressType);
         objv[6] = STRING_LITERAL_OBJ("DomainGuid");
         objv[7] = ObjFromUUID(&dcP->DomainGuid);
         objv[8] = STRING_LITERAL_OBJ("DomainName");
-        objv[9] = ObjFromUnicode(dcP->DomainName);
+        objv[9] = ObjFromWinChars(dcP->DomainName);
         objv[10] = STRING_LITERAL_OBJ("DnsForestName");
-        objv[11] = ObjFromUnicode(dcP->DnsForestName);
+        objv[11] = ObjFromWinChars(dcP->DnsForestName);
         objv[12] = STRING_LITERAL_OBJ("Flags");
         objv[13] = ObjFromLong(dcP->Flags);
         objv[14] = STRING_LITERAL_OBJ("DcSiteName");
-        objv[15] = ObjFromUnicode(dcP->DcSiteName);
+        objv[15] = ObjFromWinChars(dcP->DcSiteName);
         objv[16] = STRING_LITERAL_OBJ("ClientSiteName");
-        objv[17] = ObjFromUnicode(dcP->ClientSiteName);
+        objv[17] = ObjFromWinChars(dcP->ClientSiteName);
 
         ObjSetResult(interp, ObjNewList(18, objv));
 
