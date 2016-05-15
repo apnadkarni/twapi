@@ -34,14 +34,11 @@
 #       [e] Since Tcl does not explicitly call module initialization
 #           functions (except for the twapi_base DLL which is explicitly
 #           loaded), each module needs to provide a way for its
-#           initialization function to be called. To accomplish this,
-#           a *.initfn file is generated in the twapi_base build directory
-#           when a module is built. Each file contains a C code fragment
-#           to register the module as a static Tcl package. These files 
-#           are combined when the twapi_base is built and included via
-#           a C #include statement in the twapi_base initialization code.
-#           A similar mechanism is used to generate the prototypes for
-#           the module initialization functions and include them as well.
+#           initialization function to be called. These initialization
+#           fragments and associated prototypes are contained in the
+#           files twapi_module_static_{init,proto}.h. These files
+#           used to be automatically generated but that is no longer
+#           true, partly to support MinGW builds.
 #
 # Embedding of scripts:
 #
@@ -151,7 +148,7 @@ distribution: build "$(PACKAGEDIR)"
 #  See [3] - Single combined DLL or static lib build
 !  if  "$(MODULENAME)" == "twapi_base"
 #    See [3a,c,e] - build twapi_base DLL with included other modules
-"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\$(MODULENAME).res" $(OBJS) "$(OBJDIR)\*.link" "$(OBJDIR)\*.initfn"
+"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\$(MODULENAME).res" $(OBJS) "$(OBJDIR)\*.link"
 	$(COPY) "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
 !    if defined(TWAPI_STATIC_BUILD)
         $(LIBTOOL) -nologo -out:$@ "@$(OBJDIR)\linkmodules" $(OBJS)
@@ -165,13 +162,7 @@ distribution: build "$(PACKAGEDIR)"
 !    endif  TWAPI_STATIC_BUILD
 !  else
 #    See [3b] - building a module other than twapi_base in single DLL mode
-"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn" $(TWAPI_SCRIPT_RESOURCE_PATH) $(RCFRAG)
-
-#    See [3e] - write module initialization fragments
-"$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn": $(OBJS)
-	-@if not exist $(@D) mkdir $(@D)
-	echo puts "Tcl_PackageInitProc [string totitle $(MODULENAME)]_Init;" | $(TCLSH) > $@.proto
-	echo puts "TWAPI_INIT_STATIC_PACKAGE([string totitle $(MODULENAME)], [string totitle $(MODULENAME)]_Init, NULL);" | $(TCLSH) > $@
+"$(OBJDIR)\$(MODULE)": "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" $(TWAPI_SCRIPT_RESOURCE_PATH) $(RCFRAG)
 
 #    See [3b] - create link inputs for modules other than twapi_base
 "$(OBJDIR)\..\twapi_base\$(MODULENAME).link" : $(OBJS)
@@ -250,10 +241,8 @@ $(OBJDIR)\$(MODULELIB): $(OBJDIR) $(OBJS) $(TWAPI_SCRIPT_RESOURCE_PATH) $(RCFRAG
 	$(COPY) "$(OBJDIR)\*.link" "$(OBJDIR)\linkmodules"
         $(LIBTOOL) -nologo -out:$@ "@$(OBJDIR)\linkmodules" $(OBJS)
 !else
-$(OBJDIR)\$(MODULELIB): "$(OBJDIR)\..\twapi_base\$(MODULENAME).initfn" "$(OBJDIR)\..\twapi_base\$(MODULENAME).link"
+$(OBJDIR)\$(MODULELIB): "$(OBJDIR)\..\twapi_base\$(MODULENAME).link"
 !endif
-
-
 
 
 makefile: $(SRCROOT)\include\common.inc $(SRCROOT)\include\rules.inc
@@ -266,8 +255,4 @@ clean:
 # Inference rules
 # Compile a file
 .c{$(OBJDIR)}.obj::
-!if defined(TWAPI_SINGLE_MODULE) && "$(MODULENAME)" == "twapi_base"
-	$(COPY) "$(OBJDIR)\*.initfn.proto" "$(OBJDIR)\twapi_module_static_proto.h"
-	$(COPY) "$(OBJDIR)\*.initfn" "$(OBJDIR)\twapi_module_static_init.h"
-!endif
 	$(CC) $(CFLAGS) -Fo$(OBJDIR)\ $<

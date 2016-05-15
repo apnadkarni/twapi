@@ -391,6 +391,13 @@ typedef volatile LONG TwapiOneTimeInitState;
             return TCL_ERROR;                                           \
     } while (0)
 
+#define CHECK_DWORD_OBJ(interp_, dwvar_, objp_)       \
+    do {                                                                \
+        if (ObjToDWORD((interp_), (objp_), &(dwvar_)) != TCL_OK) \
+            return TCL_ERROR;                                           \
+    } while (0)
+
+
 /* Check number of arguments */
 #define CHECK_NARGS(interp_, n_, m_)                        \
     do {                                                                \
@@ -581,9 +588,9 @@ extern struct TwapiTcl85IntPlatStubs *tclIntPlatStubsPtr;
  * messages, make them the same size as DWORD_PTR though we would have
  * liked them to be 64 bit even on 32-bit platforms.
  */
-typedef DWORD_PTR TwapiId;
-#define ObjFromTwapiId ObjFromDWORD_PTR
-#define ObjToTwapiId ObjToDWORD_PTR
+typedef LONG_PTR TwapiId;
+#define ObjFromTwapiId ObjFromLONG_PTR
+#define ObjToTwapiId ObjToLONG_PTR
 #define INVALID_TwapiId    0
 #define TWAPI_NEWID Twapi_NewId
 
@@ -662,7 +669,7 @@ typedef enum {
                                         field as status */
     TRT_NTSTATUS = 42,
     TRT_LSA_HANDLE = 43,
-    TRT_LONG = 44,              /* Signed long */
+    TRT_INT = 44,
     TRT_HDEVINFO = 45,
     TRT_PIDL = 46,              /* Freed using CoTaskMemFree */
     TRT_WIDE = 47,              /* Tcl_WideInt */
@@ -672,14 +679,15 @@ typedef enum {
     TRT_HMODULE = 51,
     TRT_HMACHINE = 52,
     TRT_CONFIGRET = 53,         /* PnP Manager status (CM_* calls) */
-    TRT_GETLASTERROR_SETUPAPI = 54 /* Setup* calls */
+    TRT_GETLASTERROR_SETUPAPI = 54, /* Setup* calls */
+    TRT_LONG = 55, /* Really same as TRT_INT */
 } TwapiResultType;
 
 typedef struct {
     TwapiResultType type;
     union {
-        long ival;
-        unsigned long uval;
+        int ival;
+        DWORD uval;
         double dval;
         BOOL bval;
         DWORD_PTR dwp;
@@ -698,7 +706,7 @@ typedef struct {
             int    len;         /* len == -1 if str is null terminated */
         } chars;
         struct {
-            char  *p;
+            unsigned char  *p;
             int    len;
         } binary;
         Tcl_Obj *obj;
@@ -1266,12 +1274,12 @@ TWAPI_EXTERN void TwapiFreeRegisteredPointer(Tcl_Interp *, void *, void *tag);
 TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
 TWAPI_EXTERN void TwapiClearResult(TwapiResult *resultP);
 /* TBD - TwapiGetArgs* could also obe used to parse lists into C structs */
-TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, va_list ap);
-TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
-TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsObj(Tcl_Interp *interp, Tcl_Obj *, char fmt, ...);
-TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], char fmt, va_list ap);
-TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], char fmt, ...);
-TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsExObj(TwapiInterpContext *ticP, Tcl_Obj *, char fmt, ...);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], int fmt, va_list ap);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], int fmt, ...);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsObj(Tcl_Interp *interp, Tcl_Obj *, int fmt, ...);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], int fmt, va_list ap);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], int fmt, ...);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsExObj(TwapiInterpContext *ticP, Tcl_Obj *, int fmt, ...);
 TWAPI_EXTERN void ObjSetStaticResult(Tcl_Interp *interp, CONST char s[]);
 #define TwapiSetStaticResult ObjSetStaticResult
 TWAPI_EXTERN TCL_RESULT ObjSetResult(Tcl_Interp *interp, Tcl_Obj *objP);
@@ -1305,7 +1313,7 @@ TWAPI_EXTERN void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP)
 TWAPI_EXTERN void TwapiCallbackUnref(TwapiCallback *pcbP, int);
 TWAPI_EXTERN void TwapiCallbackDelete(TwapiCallback *pcbP);
 TWAPI_EXTERN TwapiCallback *TwapiCallbackNew(
-    TwapiInterpContext *ticP, TwapiCallbackFn *callback, size_t sz);
+    TwapiInterpContext *ticP, TwapiCallbackFn *callback, int sz);
 TWAPI_EXTERN int TwapiEnqueueCallback(
     TwapiInterpContext *ticP, TwapiCallback *pcbP,
     int enqueue_method,
@@ -1353,7 +1361,9 @@ TWAPI_INLINE Tcl_Obj *ObjFromFARPROC(FARPROC fn) {
 
 /* The following macros assume objP_ typePtr points to Twapi's gOpaqueType */
 #define OPAQUE_REP_VALUE(objP_) ((objP_)->internalRep.twoPtrValue.ptr1)
+#define OPAQUE_REP_VALUE_SET(objP_) (objP_)->internalRep.twoPtrValue.ptr1
 #define OPAQUE_REP_CTYPE(objP_)  ((Tcl_Obj *) (objP_)->internalRep.twoPtrValue.ptr2)
+#define OPAQUE_REP_CTYPE_SET(objP_)  ((Tcl_Obj *) (objP_))->internalRep.twoPtrValue.ptr2
 
 TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP);
 TWAPI_EXTERN TCL_RESULT ObjToOpaque(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, const char *name);
@@ -1365,37 +1375,67 @@ TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointerOrNullTic(TwapiInterpContext *, Tcl_
 
 TWAPI_EXTERN TCL_RESULT ObjToLPVOID(Tcl_Interp *interp, Tcl_Obj *objP, HANDLE *pvP);
 #define ObjToHANDLE ObjToLPVOID
-#define ObjToHWND(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HWND")
-#define ObjToHMODULE(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (p_), "HMODULE")
-#define ObjToFARPROC(ip_, obj_, p_) ObjToOpaque((ip_), (obj_), (void **)(p_), "FARPROC")
 
-#define ObjFromULONG      ObjFromDWORD
-#define ObjToDWORD        ObjToLong
+TWAPI_INLINE TCL_RESULT ObjToHWND(Tcl_Interp *ip, Tcl_Obj *objP, HWND *pvP) {
+    return ObjToOpaque(ip, objP, (void **)pvP, "HWND");
+}        
+
+TWAPI_INLINE TCL_RESULT ObjToHMODULE(Tcl_Interp *ip, Tcl_Obj *objP, HMODULE *pvP) {
+    return ObjToOpaque(ip, objP, (void **)pvP, "HMODULE");
+}        
+
+TWAPI_INLINE TCL_RESULT ObjToFARPROC(Tcl_Interp *ip, Tcl_Obj *objP, FARPROC *pvP) {
+    return ObjToOpaque(ip, objP, (void **)pvP, "FARPROC");
+}        
 
 TWAPI_EXTERN Tcl_Obj *ObjFromBoolean(int bval);
 TWAPI_EXTERN TCL_RESULT ObjToBoolean(Tcl_Interp *, Tcl_Obj *, int *);
 TWAPI_EXTERN Tcl_Obj *ObjFromLong(long val);
-#define ObjFromInt ObjFromLong
-TWAPI_EXTERN TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *lvalP);
-#define ObjToInt ObjToLong
+TWAPI_EXTERN TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *);
+TWAPI_EXTERN Tcl_Obj *ObjFromInt(int val);
+TWAPI_EXTERN TCL_RESULT ObjToInt(Tcl_Interp *interp, Tcl_Obj *objP, int *);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromWideInt(Tcl_WideInt val);
 /* Unsigneds need to be promoted to wide ints when converting to Tcl_Obj*/
 TWAPI_INLINE Tcl_Obj *ObjFromDWORD(DWORD dw) {
     return ObjFromWideInt(dw);
 }
+TWAPI_INLINE TCL_RESULT ObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *dwP) {
+    long l;
+    /* TBD - should we convert to Tcl_WideInt and check the range?
+       How much code depends on silent long<->unsigned long conversions? */
+    TCL_RESULT res = ObjToLong(interp, objP, &l);
+    if (res == TCL_OK)
+        *dwP = (DWORD) l;
+    return res;
+}
+#define ObjFromULONG      ObjFromDWORD
 
 TWAPI_EXTERN TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP);
 TWAPI_EXTERN Tcl_Obj *ObjFromDouble(double val);
 TWAPI_EXTERN TCL_RESULT ObjToDouble(Tcl_Interp *interp, Tcl_Obj *objP, double *);
 
 #ifdef _WIN64
-#define ObjToDWORD_PTR        ObjToWideInt
+/* Define as a function to avoid gcc squawking about signed pointers */
+TWAPI_INLINE TCL_RESULT ObjToDWORD_PTR(Tcl_Interp *interp, Tcl_Obj *objP, DWORD_PTR *dwP) {
+    Tcl_WideInt wide;
+    TCL_RESULT res = ObjToWideInt(interp, objP, &wide);
+    if (res == TCL_OK)
+        *dwP = (DWORD_PTR) wide;
+    return res;
+}
 #define ObjFromDWORD_PTR(p_)  ObjFromULONGLONG((ULONGLONG)(p_))
 #define ObjToLONG_PTR         ObjToWideInt
 #define ObjFromLONG_PTR       ObjFromWideInt
 #else  // ! _WIN64
-#define ObjToDWORD_PTR        ObjToLong
+/* Define as a function to avoid gcc squawking about signed pointers */
+TWAPI_INLINE TCL_RESULT ObjToDWORD_PTR(Tcl_Interp *interp, Tcl_Obj *objP, DWORD_PTR *dwP) {
+    DWORD dw;
+    TCL_RESULT res = ObjToDWORD(interp, objP, &dw);
+    if (res == TCL_OK)
+        *dwP = (DWORD_PTR) dw;
+    return res;
+}
 #define ObjFromDWORD_PTR(p_)  ObjFromDWORD((DWORD_PTR)(p_))
 #define ObjToLONG_PTR         ObjToLong
 #define ObjFromLONG_PTR       ObjFromLong
