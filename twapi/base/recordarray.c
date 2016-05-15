@@ -9,11 +9,12 @@
 #include "twapi_base.h"
 
 int Twapi_RecordArrayHelperObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientData,
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext *) clientData;
     int i, j;
     Tcl_Obj **raObj;
     static const char *opts[] = {
@@ -59,7 +60,7 @@ int Twapi_RecordArrayHelperObjCmd(
         int filter_op;
         int nocase;
         int negate;
-    } *filters;
+    } *filters = NULL;
     int nfilters;
     TCL_RESULT res;
 
@@ -591,7 +592,7 @@ TCL_RESULT Twapi_RecordObjCmd(
     nsP = Tcl_GetCurrentNamespace(interp);
     sep = nsP->parentPtr == NULL ? "" : "::";
     if (objc < 3) 
-        nameObj = Tcl_ObjPrintf("%s%srecord%d", nsP->fullName, sep, Twapi_NewId());
+        nameObj = Tcl_ObjPrintf("%s%srecord%u", nsP->fullName, sep, Twapi_NewId());
     else {
         char *nameP = ObjToString(objv[1]);
         if (nameP[0] == ':' && nameP[1] == ':')

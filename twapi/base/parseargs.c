@@ -320,11 +320,12 @@ static void TwapiParseargsUnknownOption(Tcl_Interp *interp, char *badopt, struct
  * Argument parsing command
  */
 int Twapi_ParseargsObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientData,
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext *) clientData;
     Tcl_Obj    *argvObj;
     int         argc, iarg;
     Tcl_Obj   **argv;

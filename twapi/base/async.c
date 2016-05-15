@@ -167,7 +167,7 @@ static int Twapi_TclEventProc(Tcl_Event *tclevP, int flags)
 TWAPI_EXTERN TwapiCallback *TwapiCallbackNew(
     TwapiInterpContext *ticP,   /* May be NULL if not a interp thread */
     TwapiCallbackFn *callback,  /* Callback function */
-    size_t sz                   /* Including TwapiCallback header */
+    int sz                   /* Including TwapiCallback header */
 )
 {
     TwapiCallback *cbP;

@@ -160,7 +160,7 @@ void *TwapiAlloc(size_t sz)
     /* TBD - why not use malloc or ckalloc? */
     void *p = HeapAlloc(GetProcessHeap(), 0, sz);
     if (p == NULL)
-        Tcl_Panic("Could not allocate %d bytes.", sz);
+        Tcl_Panic("Could not allocate %lu bytes.", (ULONG) sz);
     return p;
 }
 
@@ -186,7 +186,7 @@ void *TwapiAllocZero(size_t sz)
 {
     void *p = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sz); /* TBD */
     if (p == NULL)
-        Tcl_Panic("Could not allocate %d bytes.", sz);
+        Tcl_Panic("Could not allocate %lu bytes.", (ULONG)  sz);
     return p;
 }
 
@@ -342,9 +342,18 @@ int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], Tw
                 objP, &responseP->value.unicode.len);
         break;
     case TRT_LONG:
-    case TRT_DWORD:
         tcl_status = ObjToLong(cbP->ticP->interp, objP,
-                                        &responseP->value.ival);
+                               (long *) &responseP->value.ival);
+        /* Errors will be handled below */
+        break;
+    case TRT_INT:
+        tcl_status = ObjToInt(cbP->ticP->interp, objP,
+                               &responseP->value.ival);
+        /* Errors will be handled below */
+        break;
+    case TRT_DWORD:
+        tcl_status = ObjToDWORD(cbP->ticP->interp, objP,
+                                &responseP->value.uval);
         /* Errors will be handled below */
         break;
     case TRT_BOOL:

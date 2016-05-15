@@ -13,6 +13,14 @@
 #define TWAPI_TCL_MAJOR 8
 #define TWAPI_MIN_TCL_MINOR 5
 
+/* Following two definitions required for MinGW builds */
+#ifndef MODULENAME
+#define MODULENAME "twapi_base"
+#endif
+
+#ifndef MODULEVERSION
+#define MODULEVERSION PACKAGE_VERSION
+#endif
 
 /*
  * Struct to keep track of registered pointers.
@@ -46,7 +54,7 @@ GUID gTwapiNullGuid;             /* Initialized to all zeroes */
 struct TwapiTclVersion gTclVersion;
 static int gTclIsThreaded;
 static DWORD gTlsIndex = TLS_OUT_OF_INDEXES; /* As returned by TlsAlloc */
-static ULONG volatile gTlsNextSlot;  /* Index into private slots in Tls area. */
+static LONG volatile gTlsNextSlot;  /* Index into private slots in Tls area. */
 
 /* List of allocated interpreter - used primarily for unnotified cleanup */
 CRITICAL_SECTION gTwapiInterpContextsCS; /* To protect the same */
@@ -67,11 +75,11 @@ static TwapiOneTimeInitState gTwapiInitialized;
 static void TwapiBaseModuleCleanup(TwapiInterpContext *ticP);
 static void Twapi_Cleanup(ClientData clientdata);
 static void Twapi_InterpCleanup(ClientData clientdata, Tcl_Interp *interp);
-static void Twapi_InterpContextCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp);
+static void Twapi_InterpContextCleanup(void*, Tcl_Interp *interp);
 static TwapiInterpContext *TwapiInterpContextNew(Tcl_Interp *, HMODULE, TwapiModuleDef * );
 static void TwapiInterpContextDelete(TwapiInterpContext *ticP);
 static TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmodule, TwapiModuleDef *);
-static int TwapiOneTimeInit(Tcl_Interp *interp);
+static int TwapiOneTimeInit(void *);
 
 HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
 static TwapiModuleDef gBaseModule = {
@@ -311,7 +319,7 @@ TCL_RESULT Twapi_SourceResource(Tcl_Interp *interp, HANDLE dllH, const char *nam
                 
                 /* The resource is expected to be UTF-8 (actually strict ASCII) */
                 /* TBD - double check use of GLOBAL and DIRECT */
-                result = Tcl_EvalEx(interp, dataP, sz, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
+                result = Tcl_EvalEx(interp, (char *)dataP, sz, TCL_EVAL_GLOBAL | TCL_EVAL_DIRECT);
                 if (compressed)
                     TwapiLzmaFreeBuffer(dataP);
                 if (result == TCL_OK)
@@ -558,7 +566,7 @@ TwapiInterpContext *Twapi_AllocateInterpContext(Tcl_Interp *interp, HMODULE hmod
     }
     LeaveCriticalSection(&gTwapiInterpContextsCS);
 
-    Tcl_CallWhenDeleted(interp, Twapi_InterpContextCleanup, ticP);
+    Tcl_CallWhenDeleted(interp, Twapi_InterpContextCleanup, (void *) ticP);
 
     return ticP;
 }
@@ -592,8 +600,9 @@ void TwapiInterpContextUnref(TwapiInterpContext *ticP, int decr)
 
 /* Note this cleans up only one TwapiInterpContext for interp, not the whole
    interp */
-static void Twapi_InterpContextCleanup(TwapiInterpContext *ticP, Tcl_Interp *interp)
+static void Twapi_InterpContextCleanup(void *pv, Tcl_Interp *interp)
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext *)pv;
     TwapiInterpContext *tic2P;
     TwapiThreadPoolRegistration *tprP;
 
@@ -652,8 +661,9 @@ TwapiInterpContext *TwapiGetBaseContext(Tcl_Interp *interp)
 
 
 /* One time (per process) initialization for base module */
-static int TwapiOneTimeInit(Tcl_Interp *interp)
+static int TwapiOneTimeInit(void *pv)
 {
+    Tcl_Interp *interp = (Tcl_Interp *) pv;
     WSADATA ws_data;
     WORD    ws_ver = MAKEWORD(1,1);
 
@@ -761,7 +771,7 @@ TwapiInterpContext *TwapiRegisterModule(
     TWAPI_ASSERT(ticP);
 
     /* TBD - may be the last param to SourceResource should be 0? */
-    if (modP->initializer && modP->initializer(interp, ticP) != TCL_OK ||
+    if ((modP->initializer && modP->initializer(interp, ticP) != TCL_OK) ||
         Twapi_SourceResource(interp, hmod, modP->name, 1) != TCL_OK ||
         Tcl_PkgProvide(interp, modP->name, MODULEVERSION) != TCL_OK
         ) {
@@ -778,7 +788,7 @@ TwapiInterpContext *TwapiRegisterModule(
          * Variable already exists, copy its value to trace flags.
          * Errors are ignored as flags will remain 0
          */
-        ObjToLong(NULL, objP, &modP->log_flags);
+        ObjToDWORD(NULL, objP, &modP->log_flags);
     }
     Tcl_LinkVar(interp, buf, (char *) &modP->log_flags, TCL_LINK_ULONG);
     return ticP;
