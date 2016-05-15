@@ -1,9 +1,11 @@
 # -*- tcl -*-
 namespace eval twapi {
-    variable version       @PACKAGE_VERSION@
+    variable version
+    set version(twapi)     @PACKAGE_VERSION@
     variable patchlevel    @PACKAGE_VERSION@
     variable package_name  twapi
     variable dll_base_name twapi[string map {. {}} @PACKAGE_VERSION@]
+    variable scriptdir     [file dirname [info script]]
 }
 
-source [file join [file dirname [info script]] twapi.tcl]
+source [file join $twapi::scriptdir twapi.tcl]

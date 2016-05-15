@@ -47,6 +47,12 @@ PKG_TCL_SOURCES = @PKG_TCL_SOURCES@
 PKG_HEADERS	= @PKG_HEADERS@
 
 #========================================================================
+# This is a list of generated header files.
+#========================================================================
+
+GEN_HEADERS	= twapi_module_static_proto.h twapi_module_static_init.h
+
+#========================================================================
 # "PKG_LIB_FILE" refers to the library (dynamic or static as per
 # configuration options) composed of the named objects.
 #========================================================================
@@ -147,10 +153,10 @@ PKG_CFLAGS	= @PKG_CFLAGS@
 # you do not compile with a similar machine setup as the Tcl core was
 # compiled with.
 #DEFS		= $(TCL_DEFS) @DEFS@ $(PKG_CFLAGS)
-DEFS		= @DEFS@ $(PKG_CFLAGS)
+DEFS		= @DEFS@ $(PKG_CFLAGS) -DTWAPI_SINGLE_MODULE=1
 
 # Move pkgIndex.tcl to 'BINARIES' var if it is generated in the Makefile
-CONFIG_CLEAN_FILES = Makefile pkgIndex.tcl
+CONFIG_CLEAN_FILES = Makefile pkgIndex.tcl $(GEN_HEADERS)
 CLEANFILES	= @CLEANFILES@
 
 CPPFLAGS	= @CPPFLAGS@
@@ -195,8 +201,6 @@ doc:
 #	@echo "build the docs in the 'doc:' target.  For example:"
 #	@echo "        xml2nroff sample.xml > sample.n"
 #	@echo "        xml2html sample.xml > sample.html"
-#	TODO = Documentation is doctools based.
-#            = See how the tools/twapi-dtp.kit is used.
 
 install: all install-binaries install-libraries install-doc
 
@@ -274,7 +278,36 @@ $(PKG_STUB_LIB_FILE): $(PKG_STUB_OBJECTS)
 # As necessary, add $(srcdir):$(srcdir)/compat:....
 #========================================================================
 
-VPATH = $(srcdir)/twapi/base
+VPATH = $(srcdir):$(srcdir)/twapi/base
+VPATH += :$(srcdir)/twapi/account
+VPATH += :$(srcdir)/twapi/apputil
+VPATH += :$(srcdir)/twapi/clipboard
+VPATH += :$(srcdir)/twapi/com
+VPATH += :$(srcdir)/twapi/console
+VPATH += :$(srcdir)/twapi/crypto
+VPATH += :$(srcdir)/twapi/device
+VPATH += :$(srcdir)/twapi/etw
+VPATH += :$(srcdir)/twapi/eventlog
+VPATH += :$(srcdir)/twapi/input
+VPATH += :$(srcdir)/twapi/eventlog
+VPATH += :$(srcdir)/twapi/mstask
+VPATH += :$(srcdir)/twapi/multimedia
+VPATH += :$(srcdir)/twapi/namedpipe
+VPATH += :$(srcdir)/twapi/network
+VPATH += :$(srcdir)/twapi/nls
+VPATH += :$(srcdir)/twapi/os
+VPATH += :$(srcdir)/twapi/pdh
+VPATH += :$(srcdir)/twapi/process
+VPATH += :$(srcdir)/twapi/rds
+VPATH += :$(srcdir)/twapi/resource
+VPATH += :$(srcdir)/twapi/security
+VPATH += :$(srcdir)/twapi/service
+VPATH += :$(srcdir)/twapi/share
+VPATH += :$(srcdir)/twapi/shell
+VPATH += :$(srcdir)/twapi/storage
+VPATH += :$(srcdir)/twapi/ui
+VPATH += :$(srcdir)/twapi/winsta
+VPATH += :$(srcdir)/twapi/wmi
 
 .c.@OBJEXT@:
 	$(COMPILE) -c `@CYGPATH@ $<` -o $@

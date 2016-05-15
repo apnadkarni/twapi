@@ -20,7 +20,7 @@ proc twapi::itaskscheduler_new {args} {
     } -maxleftover 0]
 
     # Get ITaskScheduler interface
-    set its [com_create_instance $twapi::CLSID_ITaskScheduler -model inprocserver -interface ITaskScheduler -raw]
+    set its [com_create_instance $::twapi::CLSID_ITaskScheduler -model inprocserver -interface ITaskScheduler -raw]
     if {![info exists opts(system)]} {
         return $its
     }
@@ -38,7 +38,7 @@ interp alias {} ::twapi::itaskscheduler_release {} ::twapi::IUnknown_Release
 # Return a new task interface
 proc twapi::itaskscheduler_new_itask {its taskname} {
     set iid_itask [name_to_iid ITask]
-    set iunk [ITaskScheduler_NewWorkItem $its $taskname $twapi::CLSID_ITask $iid_itask]
+    set iunk [ITaskScheduler_NewWorkItem $its $taskname $::twapi::CLSID_ITask $iid_itask]
     trap {
         set itask [Twapi_IUnknown_QueryInterface $iunk $iid_itask ITask]
     } finally {

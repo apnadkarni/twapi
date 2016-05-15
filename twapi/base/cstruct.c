@@ -43,6 +43,7 @@ typedef struct TwapiCStructField_s {
     char type;                  /* The type of the field */
 } TwapiCStructField;
 #define CSTRUCT_REP(o_)    ((TwapiCStructRep *)((o_)->internalRep.twoPtrValue.ptr1))
+#define CSTRUCT_REP_SET(o_)    (o_)->internalRep.twoPtrValue.ptr1
 
 typedef struct TwapiCStructRep_s {
     int nrefs;                  /* Reference count for this structure */
@@ -189,6 +190,8 @@ TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
             elem_size = child->size;
             field_alignment = child->alignment;
             break;
+        default:
+            goto invalid_def;   /* Should not happen... */
         }
 
         if (field_alignment == 0)
@@ -221,7 +224,7 @@ TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
         csObj->typePtr->freeIntRepProc(csObj);
     }
     csObj->typePtr = &gCStructType;
-    CSTRUCT_REP(csObj) = csP;
+    CSTRUCT_REP_SET(csObj) = csP;
     csObj->internalRep.twoPtrValue.ptr2 = NULL;
 
     return TCL_OK;
@@ -243,7 +246,7 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
                                       DWORD size, void *pv)
 {
     Tcl_Obj **objPP;
-    unsigned int i, nobjs;
+    int i, nobjs;
     TCL_RESULT res;
 
     csP->nrefs += 1;            /* So it is not shimmered away underneath us */
@@ -264,8 +267,11 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
         int       nelems;        /* # elements in array */
         void *s;
         int j, elem_size, len;
+#if 0
         TCL_RESULT (*fn)(Tcl_Interp *, Tcl_Obj *, void *);
-
+#else
+        TCL_RESULT (*fn)();
+#endif
         /* count > 0 => array and source obj is a list (even if count == 1) */
         if (count) {
             if (ObjGetElements(interp, objPP[i], &nelems, &arrayObj) != TCL_OK)

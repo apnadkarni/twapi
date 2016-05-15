@@ -171,7 +171,8 @@ static LRESULT TwapiNotificationWindowHandler(
         cbP->clientdata = wParam;
         cbP->clientdata2 = lParam;
         pos = GetMessagePos();
-        cbP->wm_state.message_pos = MAKEPOINTS(pos);
+        cbP->wm_state.message_pos.x = LOWORD(pos);
+        cbP->wm_state.message_pos.y = HIWORD(pos);
         cbP->wm_state.ticks = GetTickCount();
         TwapiEnqueueCallback(ticP, cbP, TWAPI_ENQUEUE_DIRECT, 0, NULL);
         return (LRESULT) NULL;
@@ -251,7 +252,8 @@ LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, L
     }
 
     pos = GetMessagePos();
-    pts = MAKEPOINTS(pos);
+    pts.x = LOWORD(pos);
+    pts.y = HIWORD(pos);
     objs[0] = ObjFromString(TWAPI_TCL_NAMESPACE "::_script_wm_handler");
     objs[1] = ObjFromDWORD(msg);
     objs[2] = ObjFromDWORD_PTR(wParam); /* wParam is unsigned */
@@ -276,7 +278,7 @@ LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, L
     if (Tcl_EvalObjv(interp, ARRAYSIZE(objs), objs, 
                      TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL) == TCL_OK) {
         /* Note if not integer result, lresult stays 0 */
-        ObjToDWORD_PTR(interp, ObjGetResult(interp), &lresult);
+        ObjToLONG_PTR(interp, ObjGetResult(interp), &lresult);
     }
 
     /* Restore Interp state */

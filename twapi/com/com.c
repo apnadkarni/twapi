@@ -2051,7 +2051,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
     } else if (func < 200) {
         /* IDispatch */
         /* We accept both IDispatch and IDispatchEx interfaces here */
-        if (ObjToIDispatch(interp, objv[0], (void **)&ifc.dispatch) != TCL_OK)
+        if (ObjToIDispatch(interp, objv[0], (void **) &ifc.dispatch) != TCL_OK)
             return TCL_ERROR;
 
         switch (func) {

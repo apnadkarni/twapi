@@ -15,6 +15,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_apputil"
+#endif
+
 BOOLEAN Twapi_Wow64DisableWow64FsRedirection(LPVOID *oldvalueP);
 BOOLEAN Twapi_Wow64RevertWow64FsRedirection(LPVOID addr);
 BOOLEAN Twapi_Wow64EnableWow64FsRedirection(BOOLEAN enable_redirection);
@@ -178,7 +182,7 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     case 7:
         CHECK_NARGS(interp, objc, 4);
         /* As always, extract the int first to avoid shimmering issues */
-        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+        CHECK_DWORD_OBJ(interp, dw, objv[2]);
         result.type = TRT_LONG;
         result.value.ival = GetPrivateProfileIntW(
             ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
@@ -188,14 +192,14 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     case 8:
         CHECK_NARGS(interp, objc, 3);
         /* As always, extract the int first to avoid shimmering issues */
-        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+        CHECK_DWORD_OBJ(interp, dw, objv[2]);
         result.type = TRT_LONG;
         result.value.ival = GetProfileIntW(
             ObjToWinChars(objv[0]), ObjToWinChars(objv[1]), dw);
         break;
     case 9:
         CHECK_NARGS(interp, objc, 1);
-        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        CHECK_DWORD_OBJ(interp, dw, objv[0]);
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = Twapi_Wow64EnableWow64FsRedirection((BOOLEAN)dw);
         break;

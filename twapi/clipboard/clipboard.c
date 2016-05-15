@@ -12,10 +12,14 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_clipboard"
+#endif
+
 int Twapi_EnumClipboardFormats(Tcl_Interp *interp);
 int Twapi_ClipboardMonitorStart(TwapiInterpContext *ticP);
 int Twapi_ClipboardMonitorStop(TwapiInterpContext *ticP);
-static DWORD TwapiClipboardCallbackFn(TwapiCallback *pcbP);
+static int TwapiClipboardCallbackFn(TwapiCallback *pcbP);
 
 int Twapi_EnumClipboardFormats(Tcl_Interp *interp)
 {
@@ -139,14 +143,15 @@ TCL_RESULT Twapi_ClipboardMonitorStop(TwapiInterpContext *ticP)
 /* Called (indirectly) from the Tcl notifier loop with a new clipboard event.
  * Follows behaviour specified by TwapiCallbackFn typedef.
  */
-static DWORD TwapiClipboardCallbackFn(TwapiCallback *cbP)
+static int TwapiClipboardCallbackFn(TwapiCallback *cbP)
 {
     Tcl_Obj *objP = ObjFromString(TWAPI_TCL_NAMESPACE "::_clipboard_handler");
     return TwapiEvalAndUpdateCallback(cbP, 1, &objP, TRT_EMPTY);
 }
 
-static TCL_RESULT Twapi_ClipboardCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_ClipboardCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     int func;
     HWND   hwnd;
     DWORD dw;
@@ -191,7 +196,7 @@ static TCL_RESULT Twapi_ClipboardCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     case 10:
         if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        CHECK_DWORD_OBJ(interp, dw, objv[0]);
         switch (func) {
         case 8:
             result.type = TRT_BOOL;
