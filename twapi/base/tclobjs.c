@@ -63,8 +63,8 @@ static struct vt_token_pair vt_base_tokens[] = {
  * any or all of these may be NULL.
  */
 static struct TwapiTclTypeMap {
-    char *typename;
-    Tcl_ObjType *typeptr;
+    const char *typename;
+    const Tcl_ObjType *typeptr;
 } gTclTypes[TWAPI_TCLTYPE_BOUND];
 
 /*
@@ -179,16 +179,16 @@ static void FreeOpaqueType(Tcl_Obj *objP)
 {
     if (OPAQUE_REP_CTYPE(objP))
         ObjDecrRefs(OPAQUE_REP_CTYPE(objP));
-    OPAQUE_REP_VALUE(objP) = NULL;
-    OPAQUE_REP_CTYPE(objP) = NULL;
+    OPAQUE_REP_VALUE_SET(objP) = NULL;
+    OPAQUE_REP_CTYPE_SET(objP) = NULL;
     objP->typePtr = NULL;
 }
 
 static void DupOpaqueType(Tcl_Obj *srcP, Tcl_Obj *dstP)
 {
     dstP->typePtr = &gOpaqueType;
-    OPAQUE_REP_VALUE(dstP) = OPAQUE_REP_VALUE(srcP);
-    OPAQUE_REP_CTYPE(dstP) = OPAQUE_REP_CTYPE(srcP);
+    OPAQUE_REP_VALUE_SET(dstP) = OPAQUE_REP_VALUE(srcP);
+    OPAQUE_REP_CTYPE_SET(dstP) = OPAQUE_REP_CTYPE(srcP);
     if (OPAQUE_REP_CTYPE(dstP))
         ObjIncrRefs(OPAQUE_REP_CTYPE(dstP));
 }
@@ -196,7 +196,8 @@ static void DupOpaqueType(Tcl_Obj *srcP, Tcl_Obj *dstP)
 TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
 {
     Tcl_Obj **objs;
-    int       nobjs, val;
+    int nobjs;
+    long lval;
     void *pv;
     Tcl_Obj *ctype;
     char *s;
@@ -208,7 +209,7 @@ TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
        as a valid pointer of any type and for convenience 0 as well */
     s = ObjToString(objP);
     if (STREQ(s, "NULL") ||
-        (ObjToInt(NULL, objP, &val) == TCL_OK && val == 0)) {
+        (ObjToLong(NULL, objP, &lval) == TCL_OK && lval == 0)) {
         pv = NULL;
         ctype = NULL;
     } else {        
@@ -237,8 +238,8 @@ TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
         objP->typePtr->freeIntRepProc(objP);
     }
     objP->typePtr = &gOpaqueType;
-    OPAQUE_REP_VALUE(objP) = pv;
-    OPAQUE_REP_CTYPE(objP) = ctype;
+    OPAQUE_REP_VALUE_SET(objP) = pv;
+    OPAQUE_REP_CTYPE_SET(objP) = ctype;
     return TCL_OK;
 
 invalid_value: /* s must point to value */
@@ -264,7 +265,7 @@ static void UpdateVariantTypeString(Tcl_Obj *objP)
     case VT_TWAPI_VARNAME: /* Fall through */
     default:
         /* String rep should already be there. This function should not have been called. */
-        Tcl_Panic("Unexpected VT type (%d) in Tcl_Obj VARIANT", VARIANT_REP_VT(objP));
+        Tcl_Panic("Unexpected VT type (%ld) in Tcl_Obj VARIANT", VARIANT_REP_VT(objP));
     }
 }
 
@@ -364,7 +365,7 @@ int Twapi_InternalCastObjCmd(
 )
 {
     Tcl_Obj *objP = NULL;
-    Tcl_ObjType *typeP;
+    const Tcl_ObjType *typeP;
     const char *typename;
     int i;
     VARTYPE vt;
@@ -439,7 +440,8 @@ int Twapi_InternalCastObjCmd(
         if (objP->typePtr != typeP) {
             if (typeP->setFromAnyProc == NULL)
                 goto convert_error;
-            if (Tcl_ConvertToType(interp, objP, typeP) == TCL_ERROR) {
+            /* Cast needed as incomplete const qualifiers in Tcl 8.5 headers*/
+            if (Tcl_ConvertToType(interp, objP, (Tcl_ObjType *) typeP) == TCL_ERROR) {
                 goto error_handler;
             }
         }
@@ -1139,7 +1141,7 @@ TWAPI_EXTERN int ObjToDECIMAL(Tcl_Interp *interp, Tcl_Obj *obj, DECIMAL *decP)
 TWAPI_EXTERN Tcl_Obj *ObjFromPIDL(LPCITEMIDLIST pidl)
 {
     /* Scan until we find an item with length 0 */
-    unsigned char *p = (char *) pidl;
+    unsigned char *p = (unsigned char *) pidl;
     do {
         /* p[1,0] is length of this item */
         int len = 256*p[1] + p[0];
@@ -1275,7 +1277,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUUID (UUID *uuidP)
 
     /* NOTE UUID and GUID have same binary format but are formatted
        differently based on the component. */
-    objP = ObjFromString(uuidStr);
+    objP = ObjFromString((char *)uuidStr);
     RpcStringFree(&uuidStr);
     return objP;
 }
@@ -1286,7 +1288,7 @@ TWAPI_EXTERN int ObjToUUID(Tcl_Interp *interp, Tcl_Obj *objP, UUID *uuidP)
        differently based on the component.  We accept both forms here */
 
     if (objP) {
-        RPC_STATUS status = UuidFromStringA(ObjToString(objP), uuidP);
+        RPC_STATUS status = UuidFromStringA((unsigned char *)ObjToString(objP), uuidP);
         if (status != RPC_S_OK) {
             /* Try as GUID form */
             return ObjToGUID(interp, objP, uuidP);
@@ -1581,7 +1583,9 @@ Tcl_Obj *ObjFromPOINTS(POINTS *ptP)
 
 TWAPI_EXTERN Tcl_Obj *ObjFromLUID (const LUID *luidP)
 {
-    return Tcl_ObjPrintf("%.8x-%.8x", luidP->HighPart, luidP->LowPart);
+    /* (unsigned int) casts to keep gcc happy. Else whines about signed LONG
+       being associated with %x */
+    return Tcl_ObjPrintf("%.8x-%.8x", (unsigned int) luidP->HighPart, (unsigned int) luidP->LowPart);
 }
 
 /*
@@ -1866,12 +1870,12 @@ TWAPI_EXTERN Tcl_Obj *ObjFromOpaque(void *pv, char *name)
 
     objP = Tcl_NewObj();
     Tcl_InvalidateStringRep(objP);
-    OPAQUE_REP_VALUE(objP) = pv;
+    OPAQUE_REP_VALUE_SET(objP) = pv;
     if (name) {
-        OPAQUE_REP_CTYPE(objP) = ObjFromString(name);
+        OPAQUE_REP_CTYPE_SET(objP) = ObjFromString(name);
         ObjIncrRefs(OPAQUE_REP_CTYPE(objP));
     } else {
-        OPAQUE_REP_CTYPE(objP) = NULL;
+        OPAQUE_REP_CTYPE_SET(objP) = NULL;
     }        
     objP->typePtr = &gOpaqueType;
     return objP;
@@ -1978,7 +1982,7 @@ TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointerOrNull(Tcl_Interp *interp, Tcl_Obj *
     return ObjToVerifiedPointerOrNullTic(ticP, objP, pvP, name, verifier);
 }
 
-TWAPI_EXTERN int ObjToIDispatch(Tcl_Interp *interp, Tcl_Obj *obj, IDispatch **dispP) 
+TWAPI_EXTERN int ObjToIDispatch(Tcl_Interp *interp, Tcl_Obj *obj, void **dispP)
 {
     /*
      * Either IDispatchEx or IDispatch is acceptable. We try in that
@@ -2082,7 +2086,7 @@ TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromWinChars(CONST WCHAR *wsP, int nchars)
     return objP;
 
 do_panic:
-    Tcl_Panic("TwapiWinCharsToUtf8 returned -1, with error code %d", GetLastError());
+    Tcl_Panic("TwapiWinCharsToUtf8 returned -1, with error code %lu", GetLastError());
     return NULL; /* To keep compiler happy. Never reaches here */
 }
 
@@ -2417,7 +2421,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
     void *valP;
     SAFEARRAY *saP = NULL;
     SAFEARRAYBOUND bounds[TWAPI_MAX_SAFEARRAY_DIMS];
-    unsigned long indices[TWAPI_MAX_SAFEARRAY_DIMS];
+    LONG indices[TWAPI_MAX_SAFEARRAY_DIMS];
     Tcl_Obj *objs[TWAPI_MAX_SAFEARRAY_DIMS];
     HRESULT hr;
     int tcltype;
@@ -2682,7 +2686,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
          * carry over and increment the previous dimension.
          */
         for (cur_dim = ndim-1; cur_dim >= 0; --cur_dim) {
-            if (++indices[cur_dim] < bounds[cur_dim].cElements)
+            if (++indices[cur_dim] < (LONG) bounds[cur_dim].cElements)
                 break;          /* No overflow for this dimension */
             indices[cur_dim] = 0;
         }
@@ -2737,11 +2741,11 @@ error_handler:
 static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
                                           long indices[], int indices_size)
 {
-    unsigned long i;
+    LONG i;
     Tcl_Obj *objP;
     Tcl_Obj *resultObj = NULL;
     VARIANT *variantP;
-    unsigned long upper, lower;
+    LONG upper, lower;
     VARTYPE vt;
     
     if (indices_size < saP-> cDims)
@@ -2974,7 +2978,7 @@ TWAPI_EXTERN VARTYPE ObjTypeToVT(Tcl_Obj *objP)
                 vt = VT_I4;
                 for (i = 1; i < nobjs; ++ i) {
                     int ival;
-                    if (ObjToLong(NULL, objs[i], &ival) != TCL_OK) {
+                    if (ObjToInt(NULL, objs[i], &ival) != TCL_OK) {
                         vt = VT_VARIANT;
                         break;
                     }
@@ -3073,7 +3077,7 @@ TWAPI_EXTERN TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT 
     case VT_INT:
     case VT_UINT:
     case VT_HRESULT:
-        res = ObjToInt(interp, objP, &lval);
+        res = ObjToLong(interp, objP, &lval);
         if (res == TCL_OK) {
             switch (vt) {
             case VT_I4:
@@ -3131,9 +3135,9 @@ TWAPI_EXTERN TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT 
             vt = VT_I4;
         } else if (ObjToDouble(NULL, objP, &varP->dblVal) == TCL_OK) {
             vt = VT_R8;
-        } else if (ObjToIDispatch(NULL, objP, &varP->pdispVal) == TCL_OK) {
+        } else if (ObjToIDispatch(NULL, objP, (void **)&varP->pdispVal) == TCL_OK) {
             vt = VT_DISPATCH;
-        } else if (ObjToIUnknown(NULL, objP, &varP->punkVal) == TCL_OK) {
+        } else if (ObjToIUnknown(NULL, objP, (void **)&varP->punkVal) == TCL_OK) {
             vt = VT_UNKNOWN;
 #if 0
         } else if (ObjCharLength(objP) == 0) {
@@ -3519,7 +3523,7 @@ TWAPI_EXTERN PSID TwapiSidFromStringSWS(char *strP)
 */
 TWAPI_EXTERN TCL_RESULT ObjToPSIDNonNullSWS(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
 {
-    DWORD   len;
+    int   len;
     SID  *sidP;
     DWORD winerror;
 
@@ -3533,7 +3537,7 @@ TWAPI_EXTERN TCL_RESULT ObjToPSIDNonNullSWS(Tcl_Interp *interp, Tcl_Obj *obj, PS
     sidP = (SID *) ObjToByteArray(obj, &len);
     if (len >= sizeof(*sidP)) {
         /* Seems big enough, validate revision and size */
-        if (IsValidSid(sidP) && GetLengthSid(sidP) == len) {
+        if (IsValidSid(sidP) && GetLengthSid(sidP) == (DWORD) len) {
             *sidPP = SWSAlloc(len, NULL);
             /* Note SID is a variable length struct so we cannot do this
                     *(SID *) (*sidPP) = *sidP;
@@ -3554,10 +3558,9 @@ TWAPI_EXTERN TCL_RESULT ObjToPSIDNonNullSWS(Tcl_Interp *interp, Tcl_Obj *obj, PS
 */
 TWAPI_EXTERN TCL_RESULT ObjToPSIDSWS(Tcl_Interp *interp, Tcl_Obj *obj, PSID *sidPP)
 {
-    char *s;
-    DWORD   len;
+    int   len;
 
-    s = ObjToStringN(obj, &len);
+    (void) ObjToStringN(obj, &len);
     if (len == 0) {
         *sidPP = NULL;
         return TCL_OK;
@@ -3708,7 +3711,7 @@ TWAPI_EXTERN TCL_RESULT ObjToACESWS (Tcl_Interp *interp, Tcl_Obj *aceobj, void *
         aceP->Header.AceFlags = aceflags;
         aceP->Header.AceSize  = acesz; /* TBD - this is a upper bound since we
                                           allocated max SID size. Is that OK?*/
-        if (ObjToInt(interp, objv[2], &aceP->Mask) != TCL_OK)
+        if (ObjToDWORD(interp, objv[2], &aceP->Mask) != TCL_OK)
             goto format_error;
 
         sidP = TwapiSidFromStringSWS(ObjToString(objv[3]));
@@ -3931,7 +3934,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
     objv[0] = ObjFromInt(secd_control);
 
     /* Owner SID */
-    if (! GetSecurityDescriptorOwner(secdP, &sidP, &defaulted))
+    if (! GetSecurityDescriptorOwner(secdP, (void **)&sidP, &defaulted))
         goto system_error;
     if (sidP == NULL)
         objv[1] = ObjFromEmptyString();
@@ -3941,7 +3944,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSECURITY_DESCRIPTOR(
     }
 
     /* Group SID */
-    if (! GetSecurityDescriptorGroup(secdP, &sidP, &defaulted))
+    if (! GetSecurityDescriptorGroup(secdP, (void **)&sidP, &defaulted))
         goto system_error;
     if (sidP == NULL)
         objv[2] = ObjFromEmptyString();
@@ -4160,7 +4163,7 @@ TWAPI_EXTERN int ObjToPSECURITY_ATTRIBUTESSWS(
     (*secattrPP)->bInheritHandle = (inherit != 0);
 
     if (ObjToPSECURITY_DESCRIPTORSWS(interp, objv[0],
-                                     &(SECURITY_DESCRIPTOR *)((*secattrPP)->lpSecurityDescriptor))
+                                     (SECURITY_DESCRIPTOR **)&(*secattrPP)->lpSecurityDescriptor)
         == TCL_ERROR) {
         goto error_return;
     }
@@ -4252,9 +4255,14 @@ TWAPI_EXTERN int ObjCharLength(Tcl_Obj *objP)
     return Tcl_GetCharLength(objP);
 }
 
-TWAPI_EXTERN TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *lvalP)
+TWAPI_EXTERN TCL_RESULT ObjToInt(Tcl_Interp *interp, Tcl_Obj *objP, int *valP)
 {
-    return Tcl_GetLongFromObj(interp, objP, lvalP);
+    return Tcl_GetIntFromObj(interp, objP, valP);
+}
+
+TWAPI_EXTERN TCL_RESULT ObjToLong(Tcl_Interp *interp, Tcl_Obj *objP, long *valP)
+{
+    return Tcl_GetLongFromObj(interp, objP, valP);
 }
 
 TWAPI_EXTERN TCL_RESULT ObjToBoolean(Tcl_Interp *interp, Tcl_Obj *objP, int *valP)
@@ -4322,6 +4330,11 @@ TWAPI_EXTERN TCL_RESULT ObjDictPut(Tcl_Interp *interp, Tcl_Obj *dictObj, Tcl_Obj
     return Tcl_DictObjPut(interp, dictObj, keyObj, valueObj);
 }
 
+TWAPI_EXTERN Tcl_Obj *ObjFromInt(int val)
+{
+    return Tcl_NewIntObj(val);
+}
+
 TWAPI_EXTERN Tcl_Obj *ObjFromLong(long val)
 {
     return Tcl_NewLongObj(val);
@@ -4358,7 +4371,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len)
         return Tcl_NewByteArrayObj(bytes, len);
     } else {
         Tcl_Obj *o;
-        o =  Tcl_NewByteArrayObj("", 0);
+        o =  Tcl_NewByteArrayObj((unsigned char *)"", 0);
         Tcl_SetByteArrayLength(o, len);
         return o;
     }
@@ -4491,11 +4504,13 @@ TWAPI_EXTERN Tcl_Obj *ObjEncryptBytes(Tcl_Interp *interp, void *pv, int nbytes)
     return objP;
 }
 
+#ifdef OBSOLETE
 static TCL_RESULT TwapiDecryptBlockLengthError(Tcl_Interp *interp, int len)
 {
     return TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
                               Tcl_ObjPrintf("Invalid length (%d) of encrypted object. Must be non-zero multiple of block size (%d).", len, RTL_ENCRYPT_MEMORY_SIZE));
 }
+#endif
 
 static TCL_RESULT TwapiDecryptPadLengthError(Tcl_Interp *interp, int pad_len)
 {
@@ -4576,7 +4591,7 @@ TWAPI_EXTERN Tcl_Obj *ObjEncryptWinChars(Tcl_Interp *interp, WCHAR *uniP, int nc
     res = TwapiEncryptData(interp, (BYTE *) uniP, nchars*sizeof(WCHAR), NULL, &nenc);
     if (res == TCL_OK) {
         unsigned char *encP;
-        objP = ObjAllocateByteArray(nenc, &encP);
+        objP = ObjAllocateByteArray(nenc, (void **)&encP);
         res = TwapiEncryptData(interp, (BYTE *) uniP, nchars*sizeof(WCHAR), encP, &nenc);
         if (res == TCL_OK)
             Tcl_SetByteArrayLength(objP, nenc);
@@ -4601,7 +4616,7 @@ TWAPI_EXTERN WCHAR * ObjDecryptWinCharsSWS(Tcl_Interp *interp,
     )
 {
     int nenc, ndec;
-    char *enc, *dec;
+    BYTE *enc, *dec;
     TCL_RESULT res;
     
     enc = ObjToByteArray(objP, &nenc);
@@ -4849,6 +4864,7 @@ TWAPI_EXTERN TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (
     int objc;
     TCL_RESULT res;
     SEC_WINNT_AUTH_IDENTITY_W *swaiP;
+    int i;
     
     if ((res = ObjGetElements(ticP->interp, authObj, &objc, &objv)) != TCL_OK)
         return res;
@@ -4872,7 +4888,8 @@ TWAPI_EXTERN TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (
        as ticP->memlifoP
     */
     TWAPI_ASSERT(SWS() == ticP->memlifoP);
-    swaiP->Password = ObjDecryptPasswordSWS(passwordObj, &swaiP->PasswordLength);
+    swaiP->Password = ObjDecryptPasswordSWS(passwordObj, &i);
+    swaiP->PasswordLength = i; /* Using temp i to keep gcc happy */
 
     *swaiPP = swaiP;
     return TCL_OK;

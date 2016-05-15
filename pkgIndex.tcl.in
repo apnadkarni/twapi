@@ -1,5 +1,119 @@
 #
 # Tcl package index file
 #
-package ifneeded @PACKAGE_NAME@ @PACKAGE_VERSION@ \
-    [list source [file join $dir twapi_entry.tcl]]
+
+namespace eval twapi {
+    variable scriptdir
+    proc set_scriptdir dir {variable scriptdir ; set scriptdir $dir}
+}
+
+package ifneeded @PACKAGE_NAME@_base @PACKAGE_VERSION@ \
+  [list load [file join $dir @PKG_LIB_FILE@] @PACKAGE_NAME@_base]
+package ifneeded @PACKAGE_NAME@_com @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_com}
+package ifneeded metoo @PACKAGE_VERSION@ \
+  [list source [file join $dir metoo.tcl]]
+package ifneeded @PACKAGE_NAME@_com @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_com}
+package ifneeded @PACKAGE_NAME@_msi @PACKAGE_VERSION@ \
+  [list source [file join $dir msi.tcl]]
+package ifneeded @PACKAGE_NAME@_power @PACKAGE_VERSION@ \
+  [list source [file join $dir power.tcl]]
+package ifneeded @PACKAGE_NAME@_printer @PACKAGE_VERSION@ \
+  [list source [file join $dir printer.tcl]]
+package ifneeded @PACKAGE_NAME@_synch @PACKAGE_VERSION@ \
+  [list source [file join $dir synch.tcl]]
+package ifneeded @PACKAGE_NAME@_security @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_security}
+package ifneeded @PACKAGE_NAME@_account @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_account}
+package ifneeded @PACKAGE_NAME@_apputil @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_apputil}
+package ifneeded @PACKAGE_NAME@_clipboard @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_clipboard}
+package ifneeded @PACKAGE_NAME@_console @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_console}
+package ifneeded @PACKAGE_NAME@_crypto @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_crypto}
+package ifneeded @PACKAGE_NAME@_device @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_device}
+package ifneeded @PACKAGE_NAME@_etw @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_etw}
+package ifneeded @PACKAGE_NAME@_eventlog @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_eventlog}
+package ifneeded @PACKAGE_NAME@_mstask @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_mstask}
+package ifneeded @PACKAGE_NAME@_multimedia @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_multimedia}
+package ifneeded @PACKAGE_NAME@_namedpipe @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_namedpipe}
+package ifneeded @PACKAGE_NAME@_network @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_network}
+package ifneeded @PACKAGE_NAME@_nls @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_nls}
+package ifneeded @PACKAGE_NAME@_os @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_os}
+package ifneeded @PACKAGE_NAME@_pdh @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_pdh}
+package ifneeded @PACKAGE_NAME@_process @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_process}
+package ifneeded @PACKAGE_NAME@_rds @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_rds}
+package ifneeded @PACKAGE_NAME@_resource @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_resource}
+package ifneeded @PACKAGE_NAME@_service @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_service}
+package ifneeded @PACKAGE_NAME@_share @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_share}
+package ifneeded @PACKAGE_NAME@_shell @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_shell}
+package ifneeded @PACKAGE_NAME@_storage @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_storage}
+package ifneeded @PACKAGE_NAME@_ui @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_ui}
+package ifneeded @PACKAGE_NAME@_input @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_input}
+package ifneeded @PACKAGE_NAME@_winsta @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_winsta}
+package ifneeded @PACKAGE_NAME@_wmi @PACKAGE_VERSION@ \
+  {load {} @PACKAGE_NAME@_wmi}
+
+package ifneeded @PACKAGE_NAME@ @PACKAGE_VERSION@ [subst {
+  twapi::set_scriptdir $dir
+  package require @PACKAGE_NAME@_base @PACKAGE_VERSION@
+  source [file join $dir twapi_entry.tcl]
+  package require metoo @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_com @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_msi @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_power @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_printer @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_synch @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_security @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_account @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_apputil @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_clipboard @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_console @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_crypto @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_device @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_etw @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_eventlog @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_mstask @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_multimedia @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_namedpipe @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_network @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_nls @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_os @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_pdh @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_process @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_rds @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_resource @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_service @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_share @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_shell @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_storage @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_ui @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_input @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_winsta @PACKAGE_VERSION@
+  package require @PACKAGE_NAME@_wmi @PACKAGE_VERSION@
+  package provide @PACKAGE_NAME@ @PACKAGE_VERSION@
+}]

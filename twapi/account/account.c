@@ -13,6 +13,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_account"
+#endif
+
 int Twapi_NetUserEnum(Tcl_Interp *interp, LPWSTR server_name, DWORD filter);
 int Twapi_NetGroupEnum(Tcl_Interp *interp, LPWSTR server_name);
 int Twapi_NetLocalGroupEnum(Tcl_Interp *interp, LPWSTR server_name);
@@ -402,8 +406,9 @@ int Twapi_NetLocalGroupGetInfo(
     return TwapiNetUserOrGroupGetInfoHelper(interp, servername, groupname, level, 2);
 }
 
-static int Twapi_NetUserAddObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_NetUserAddObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     DWORD       priv, flags;
     NET_API_STATUS status;
     USER_INFO_1    userinfo;
@@ -411,18 +416,19 @@ static int Twapi_NetUserAddObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
     char          *error_field;
     WCHAR         *decryptedP;
     int            decrypted_len;
-    SWSMark mark;
+    MemLifoMarkHandle mark = NULL;
     
     CHECK_NARGS(interp, objc, 9);
 
     /* As always to avoid shimmering problems, extract integer object first */
-    CHECK_INTEGER_OBJ(interp, priv, objv[4]);
-    CHECK_INTEGER_OBJ(interp, flags, objv[7]);
+    CHECK_DWORD_OBJ(interp, priv, objv[4]);
+    CHECK_DWORD_OBJ(interp, flags, objv[7]);
 
     userinfo.usri1_name        = ObjToWinChars(objv[2]);
 
     /* Now get the decrypted password object */
-    mark = SWSPushMark();
+    TWAPI_ASSERT(SWS() == ticP->memlifoP);
+    mark = MemLifoPushMark(ticP->memlifoP);
     decryptedP = ObjDecryptPasswordSWS(objv[3], &decrypted_len);
     userinfo.usri1_password    = decryptedP;
     userinfo.usri1_password_age = 0;
@@ -435,7 +441,7 @@ static int Twapi_NetUserAddObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
     status = NetUserAdd(ObjToLPWSTR_NULL_IF_EMPTY(objv[1]), 1, (LPBYTE) &userinfo, &error_parm);
 
     SecureZeroMemory(decryptedP, decrypted_len);
-    SWSPopMark(mark);
+    MemLifoPopMark(mark);
 
     if (status == NERR_Success)
         return TCL_OK;
@@ -541,16 +547,16 @@ int Twapi_NetUserSetInfoLPWSTR(
     return NetUserSetInfo(servername, username, func, (LPBYTE) &userinfo, NULL);
 }
 
-int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_NetUserSetInfoObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     int func;
     LPWSTR s1, s3;
     DWORD   dw;
     TwapiResult result;
     Tcl_Obj *s1Obj, *s2Obj;
-    WCHAR *passwordP = NULL;
     int    password_len;
-    SWSMark mark = NULL;
+    MemLifoMarkHandle mark = NULL;
 
     /* Note: to prevent shimmering issues, we do not extract the internal
        string pointers s1 and s2 until integer args have been parsed */
@@ -569,7 +575,7 @@ int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     case 1010: // A bit klugy but the easiest way to keep backwards
     case 1017: // compatibility.
     case 1024: 
-        CHECK_INTEGER_OBJ(interp, dw, objv[4]);
+        CHECK_DWORD_OBJ(interp, dw, objv[4]);
         s1 = ObjToWinChars(s1Obj);
         if (*s1 == 0)
             s1 = NULL;
@@ -586,7 +592,7 @@ int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     case 1052:
     case 1053:
         if (func == 1003) {
-            mark = SWSPushMark();
+            mark = MemLifoPushMark(ticP->memlifoP);
             s3 = ObjDecryptPasswordSWS(objv[4], &password_len);
         } else
             s3 = ObjToWinChars(objv[4]);
@@ -597,7 +603,7 @@ int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
                                                        s3);
         if (func == 1003) {
             SecureZeroMemory(s3, password_len);
-            SWSPopMark(mark);
+            MemLifoPopMark(mark);
         }
         break;
     }
@@ -605,8 +611,9 @@ int Twapi_NetUserSetInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     return TwapiSetResult(interp, &result);
 }
 
-static int Twapi_NetUserModalsGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_NetUserModalsGetObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     TCL_RESULT res;
     MemLifo *memlifoP = ticP->memlifoP;
     MemLifoMarkHandle mark;
@@ -626,7 +633,9 @@ static int Twapi_NetUserModalsGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
         case 2: sz = sizeof(USER_MODALS_INFO_2); break;
         case 3: sz = sizeof(USER_MODALS_INFO_3); break;
         default:
+            sz = 0; /* To keep gcc happy */
             res = TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+            break;
         }
         if (res == TCL_OK) {
             status = NetUserModalsGet(server_name, level, &pv);
@@ -642,8 +651,9 @@ static int Twapi_NetUserModalsGetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
     return res;
 }
 
-static int Twapi_NetUserModalsSetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_NetUserModalsSetObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     TCL_RESULT res;
     MemLifo *memlifoP = ticP->memlifoP;
     MemLifoMarkHandle mark;
@@ -670,7 +680,9 @@ static int Twapi_NetUserModalsSetObjCmd(TwapiInterpContext *ticP, Tcl_Interp *in
         case 1006: sz = sizeof(USER_MODALS_INFO_1006); break;
         case 1007: sz = sizeof(USER_MODALS_INFO_1007); break;
         default:
+            sz = 0; /* To keep gcc happy */
             res = TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+            break;
         }
         if (res == TCL_OK) {
             res = TwapiCStructParse(interp, memlifoP, objP, 0, &actual_sz, &pv);
@@ -748,14 +760,14 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
             case 1: struct_size = sizeof(GROUP_INFO_1); break;
             case 2: struct_size = sizeof(GROUP_INFO_2); break;
             case 3: struct_size = sizeof(GROUP_INFO_3); break;
-            default: goto invalid_level_error;
+            default: goto invalid_return;
             }
         } else {
             objfn = ObjFromLOCALGROUP_INFO;
             switch (netenum.level) {
             case 0: struct_size = sizeof(LOCALGROUP_INFO_0); break;
             case 1: struct_size = sizeof(LOCALGROUP_INFO_1); break;
-            default: goto invalid_level_error;
+            default: goto invalid_return;
             }
         }
         break;
@@ -772,7 +784,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
         case 1: struct_size = sizeof(USER_INFO_1); break;
         case 2: struct_size = sizeof(USER_INFO_2); break;
         case 3: struct_size = sizeof(USER_INFO_3); break;
-        default: goto invalid_level_error;
+        default: goto invalid_return;
         }
         objfn = ObjFromUSER_INFO;
         netenum.status = NetUserEnum(s1, netenum.level, dw,
@@ -793,7 +805,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
         switch (netenum.level) {
         case 0: struct_size = sizeof(GROUP_USERS_INFO_0); break;
         case 1: struct_size = sizeof(GROUP_USERS_INFO_1); break;
-        default: goto invalid_level_error;
+        default: goto invalid_return;
         }
         objfn = ObjFromGROUP_USERS_INFO;
         netenum.hresume = 0; /* Not used for these calls */
@@ -810,7 +822,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
             return TCL_ERROR;
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
         if (netenum.level != 0)
-            goto invalid_level_error;
+            goto invalid_return;
         struct_size = sizeof(LOCALGROUP_USERS_INFO_0);
         objfn = ObjFromLOCALGROUP_USERS_INFO;
         netenum.hresume = 0; /* Not used for these calls */
@@ -838,17 +850,19 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
             case 1: struct_size = sizeof(LOCALGROUP_MEMBERS_INFO_1); break;
             case 2: struct_size = sizeof(LOCALGROUP_MEMBERS_INFO_2); break;
             case 3: struct_size = sizeof(LOCALGROUP_MEMBERS_INFO_3); break;
-            default: goto invalid_level_error;
+            default: goto invalid_return;
             }
         } else {            
             objfn = ObjFromGROUP_USERS_INFO;
             switch (netenum.level) {
             case 0: struct_size = sizeof(GROUP_USERS_INFO_0); break;
             case 1: struct_size = sizeof(GROUP_USERS_INFO_1); break;
-            default: goto invalid_level_error;
+            default: goto invalid_return;
             }
         }
         break;
+    default:
+        goto invalid_return;
     }
 
     if (netenum.status != NERR_Success && netenum.status != ERROR_MORE_DATA) {
@@ -885,18 +899,19 @@ error_return:
 
     return TCL_ERROR;
 
-invalid_level_error:
-    TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid info level.");
+invalid_return:
+    TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid function code or info level.");
     goto error_return;
 }
 
 
 static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientdata,
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     int i;
     int func;
     int level;
@@ -904,11 +919,8 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
     int naccts;
     LPCWSTR servername, groupname;
     DWORD winerr;
-    union {
-        LOCALGROUP_MEMBERS_INFO_0 *lgmi0P;
-        LOCALGROUP_MEMBERS_INFO_3 *lgmi3P;
-        void *bufP;
-    } u;
+    LOCALGROUP_MEMBERS_INFO_0 *lgmi0P = NULL;
+    LOCALGROUP_MEMBERS_INFO_3 *lgmi3P = NULL;
     Tcl_Obj *acctsObj;
     TCL_RESULT res;
     MemLifoMarkHandle mark;
@@ -926,19 +938,19 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
         goto vamoose;
 
     if (level == 0) {
-        u.lgmi0P = MemLifoAlloc(ticP->memlifoP, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_0), NULL);
+        lgmi0P = MemLifoAlloc(ticP->memlifoP, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_0), NULL);
         for (i = 0; i < naccts; ++i) {
             /* For efficiency reasons we do not use ObjToPSID */
-            if (ConvertStringSidToSidW(ObjToWinChars(accts[i]), &u.lgmi0P[0].lgrmi0_sid) == 0) {
+            if (ConvertStringSidToSidW(ObjToWinChars(accts[i]), &lgmi0P[0].lgrmi0_sid) == 0) {
                 res = TwapiReturnSystemError(interp);
                 naccts = i;     /* So right num buffers get freed */
                 goto vamoose;
             }
         }
     } else if (level == 3) {
-        u.lgmi3P = MemLifoAlloc(ticP->memlifoP, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_3), NULL);
+        lgmi3P = MemLifoAlloc(ticP->memlifoP, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_3), NULL);
         for (i = 0; i < naccts; ++i) {
-            u.lgmi3P[i].lgrmi3_domainandname = ObjToWinChars(accts[i]);
+            lgmi3P[i].lgrmi3_domainandname = ObjToWinChars(accts[i]);
         }
     } else {
         res = TwapiReturnError(interp, TWAPI_INVALID_ARGS);
@@ -946,28 +958,28 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
     }
     
     if (func == 0) {
-        winerr = NetLocalGroupAddMembers(servername, groupname, level, u.bufP, naccts);
+        winerr = NetLocalGroupAddMembers(servername, groupname, level, 
+                                         level == 0 ? (LPBYTE) lgmi0P : (LPBYTE) lgmi3P, naccts);
     } else {
-        winerr = NetLocalGroupDelMembers(servername, groupname, level, u.bufP, naccts);
+        winerr = NetLocalGroupDelMembers(servername, groupname, level,
+                                         level == 0 ? (LPBYTE) lgmi0P : (LPBYTE)lgmi3P, naccts);
     }
     res = winerr == ERROR_SUCCESS ? TCL_OK : Twapi_AppendSystemError(interp, winerr);
 
 vamoose:
     /* At this point
      * res is TCL_RESULT with interp holding result
-     * naccts should be number of valid pointers in u.lgmi0P
+     * naccts should be number of valid pointers in lgmi0P
      */
     if (level == 0) {
         for (i = 0; i < naccts; ++i) {
-            LocalFree(u.lgmi0P[i].lgrmi0_sid);
+            LocalFree(lgmi0P[i].lgrmi0_sid);
         }
     }
 
     MemLifoPopMark(mark);
     return res;
 }
-
-
 
 static int Twapi_AcctCallSSObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -998,7 +1010,7 @@ static int Twapi_AcctCallSSObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 12:
         if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        CHECK_DWORD_OBJ(interp, dw, objv[0]);
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
         s2 = ObjToWinChars(s2Obj);
         switch (func) {
@@ -1121,13 +1133,13 @@ static int Twapi_AcctCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
 
 /* Used for testing purposes */
 static TCL_RESULT Twapi_SetNetEnumBufSizeObjCmd(
-    Tcl_Interp *clientdata,
+    ClientData clientdata,
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
 {
     if (objc > 1) {
-        if (ObjToLong(interp, objv[1], &g_netenum_buf_size) != TCL_OK)
+        if (ObjToInt(interp, objv[1], &g_netenum_buf_size) != TCL_OK)
             return TCL_ERROR;
         if (g_netenum_buf_size < 0)
             g_netenum_buf_size = MAX_PREFERRED_LENGTH;

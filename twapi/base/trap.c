@@ -9,11 +9,12 @@
 #include "twapi_base.h"
 
 TCL_RESULT Twapi_TrapObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientData,
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext *) clientData;
     int       i, final;
     Tcl_Obj *errorCodeVar;
     Tcl_Obj **errorCodeObjv;
