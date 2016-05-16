@@ -1717,6 +1717,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
     tdhctx.ParameterType = TDH_CONTEXT_POINTERSIZE;
     tdhctx.ParameterSize = 0;   /* Reserved value */
 
+    nvalues = 0;
     res = TwapiTdhPropertyArraySize(ticP, evrP, teiP, prop_index, &nvalues);
     if (res != TCL_OK)
         return res;
@@ -1805,7 +1806,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
             winerr = TdhGetPropertySize(evrP, 1, &tdhctx, pdd_count, pdd, &prop_size);
             if (winerr == ERROR_SUCCESS) {
                 ULONG map_size;
-                EVENT_MAP_INFO *mapP;
+                EVENT_MAP_INFO *mapP = NULL;
 
                 /* Since we might be looping, alloc and release memory in 
                    every iteration.
@@ -2065,7 +2066,7 @@ ULONG WINAPI TwapiETWBufferCallback(
   PEVENT_TRACE_LOGFILEW etlP
 )
 {
-    Tcl_Obj *evalObj;
+    Tcl_Obj *evalObj = NULL;
     Tcl_Obj *bufObj;
     Tcl_Obj *args[2];
     Tcl_Interp *interp;
@@ -2426,11 +2427,10 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
 
 TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int       i;
-    ULONG eaten;
+    int       i, eaten;
     Tcl_Obj **types;            /* Field types */
     int       ntypes;           /* Number of fields/types */
-    char     *bytesP;
+    BYTE     *bytesP;
     int       nbytes;
     ULONG     remain;
     Tcl_Obj  *resultObj = NULL;
@@ -2491,7 +2491,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
         case 1: // string / stringnullterminated
             /* We cannot rely on event being formatted correctly with a \0
                do not directly call Tcl_NewStringObj */
-            objP = ObjFromStringLimited(bytesP, remain, &eaten);
+            objP = ObjFromStringLimited((char *)bytesP, remain, &eaten);
             /* eaten is num remaining. Prime for loop iteration to
                be num used */
             eaten = remain - eaten;
@@ -2518,7 +2518,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
                 /* truncated */
                 eaten = remain-2;
             }
-            objP = ObjFromStringN(bytesP+2, eaten);
+            objP = ObjFromStringN((char *)(bytesP+2), eaten);
             eaten += 2;         /* include the length field */
             break;
 
@@ -2566,7 +2566,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
         case 10: // csint8
         case 11: // cuint8
             /* Return as an ascii char */
-            objP = ObjFromStringN(bytesP, 1);
+            objP = ObjFromStringN((char *)bytesP, 1);
             eaten = sizeof(char);
             break;
 
@@ -2762,7 +2762,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
             break;
             
         case 41: // stringnotcounted
-            objP = ObjFromStringN(bytesP, remain);
+            objP = ObjFromStringN((char *) bytesP, remain);
             eaten = remain;
             break;
 
@@ -2914,8 +2914,9 @@ void TwapiInitTdhStubs(Tcl_Interp *interp)
     gTdhStatus = 1;
 }
 
-static int ETWModuleOneTimeInit(Tcl_Interp *interp)
+static int ETWModuleOneTimeInit(void *arg)
 {
+    Tcl_Interp *interp = arg;
     TwapiInitTdhStubs(interp);
 
     /* Depends on OS - see documentation of OpenTrace in SDK */

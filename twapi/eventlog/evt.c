@@ -609,7 +609,7 @@ void TwapiInitEvtStubs(Tcl_Interp *interp)
  * access it again irrespective of successful or error return unless
  * in the former case the same buffer is returned explicitly
  */
-static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_EvtRenderValuesObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HANDLE hevt, hevt2;
     DWORD status;
@@ -673,8 +673,9 @@ static TCL_RESULT Twapi_EvtRenderValuesObjCmd(TwapiInterpContext *ticP, Tcl_Inte
 }
 
 /* EvtRender for Unicode return types */
-static TCL_RESULT Twapi_EvtRenderUnicodeObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,  int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_EvtRenderUnicodeObjCmd(ClientData clientdata, Tcl_Interp *interp,  int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     HANDLE hevt, hevt2;
     DWORD flags, sz, count, status;
     void *bufP;
@@ -718,8 +719,9 @@ static TCL_RESULT Twapi_EvtRenderUnicodeObjCmd(TwapiInterpContext *ticP, Tcl_Int
     return TCL_OK;
 }
 
-static TCL_RESULT Twapi_ExtractEVT_VARIANT_ARRAYObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_ExtractEVT_VARIANT_ARRAYObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     EVT_VARIANT *varP;
     int dw;
 
@@ -731,10 +733,10 @@ static TCL_RESULT Twapi_ExtractEVT_VARIANT_ARRAYObjCmd(TwapiInterpContext *ticP,
     return TCL_OK;
 }
 
-static TCL_RESULT Twapi_ExtractEVT_RENDER_VALUESObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_ExtractEVT_RENDER_VALUESObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     TwapiEVT_RENDER_VALUES_HEADER *ervhP;
-
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(ervhP, TwapiEVT_RENDER_VALUES_HEADER*, Twapi_EvtRenderValuesObjCmd),
@@ -745,8 +747,9 @@ static TCL_RESULT Twapi_ExtractEVT_RENDER_VALUESObjCmd(TwapiInterpContext *ticP,
     return TCL_OK;
 }
 
-static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_EvtNextObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     EVT_HANDLE hevt;
     EVT_HANDLE *hevtP;
     DWORD i, count, timeout, dw;
@@ -808,8 +811,9 @@ static TCL_RESULT Twapi_EvtNextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *inte
     return result;
 }
 
-static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     EVT_HANDLE hevt;
     int count;
     LPCWSTR *xpathsP = NULL;
@@ -845,14 +849,14 @@ vamoose:
 }
 
 
-static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_EvtFormatMessageObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     EVT_HANDLE hpub, hev;
-    DWORD msgid, flags;
+    DWORD msgid, flags, used, buf_sz;
     EVT_VARIANT *valuesP;
     int nvalues;
     WCHAR buf[500];             /* TBD - instrument */
-    int buf_sz, used;
     WCHAR *bufP;
     DWORD winerr;
     TwapiEVT_RENDER_VALUES_HEADER *ervhP;
@@ -959,13 +963,13 @@ static TCL_RESULT Twapi_EvtFormatMessageObjCmd(TwapiInterpContext *ticP, Tcl_Int
 }
 
 
-static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     EVT_HANDLE hevt;
-    int sz;
     EVT_VARIANT *varP;
     int func;
-    DWORD dw, dw2, dw3;
+    DWORD sz, dw, dw2, dw3;
     DWORD status;
     BOOL (WINAPI *fn3args)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
     BOOL (WINAPI *fn2args)(HANDLE,int,DWORD,EVT_VARIANT *, PDWORD);
@@ -1024,8 +1028,9 @@ static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(TwapiInterpContext *ticP, Tcl_In
 }
 
 
-static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_EvtOpenSessionObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     int login_class;
     DWORD timeout, flags;
     Tcl_Obj **loginObjs;
@@ -1034,7 +1039,7 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Inter
     TCL_RESULT res;
     WCHAR *passwordP;
     int password_len;
-    SWSMark mark = NULL;
+    MemLifoHandleMark mark = NULL;
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(login_class),
                      ARGSKIP, ARGUSEDEFAULT, GETINT(timeout), GETINT(flags),
@@ -1049,14 +1054,14 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Inter
         return TCL_ERROR;
 
     if (nobjs != 5 ||
-        ObjToInt(interp, loginObjs[4], &erl.Flags) != TCL_OK) {
+        ObjToDWORD(interp, loginObjs[4], &erl.Flags) != TCL_OK) {
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid EVT_RPC_LOGIN structure");
 
     }
     erl.Server = ObjToWinChars(loginObjs[0]);
     erl.User = ObjToLPWSTR_NULL_IF_EMPTY(loginObjs[1]);
     erl.Domain = ObjToLPWSTR_NULL_IF_EMPTY(loginObjs[2]);
-    mark = SWSPushMark();
+    mark = MemLifoPushMark(ticP->memlifoP);
     passwordP = ObjDecryptPasswordSWS(loginObjs[3], &password_len);
     erl.Password = passwordP;
     NULLIFY_EMPTY(erl.Password);
@@ -1065,7 +1070,7 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(TwapiInterpContext *ticP, Tcl_Inter
                                                   timeout, flags),
                                    "EVT_HANDLE");
     SecureZeroMemory(passwordP, sizeof(WCHAR) * password_len);
-    SWSPopMark(mark);
+    MemLifoPopMark(mark);
     return res;
 }
 
@@ -1172,7 +1177,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         case EvtChannelPublishingConfigLevel:
         case EvtChannelPublishingConfigClockType:
         case EvtChannelPublishingConfigFileMax:
-            if (ObjToLong(interp, objv[3], &var.UInt32Val) != TCL_OK)
+            if (ObjToDWORD(interp, objv[3], &var.UInt32Val) != TCL_OK)
                 return TCL_ERROR;
             var.Type = EvtVarTypeUInt32;
             break;
@@ -1186,7 +1191,8 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
 
         case EvtChannelLoggingConfigMaxSize:
         case EvtChannelPublishingConfigKeywords:
-            if (ObjToWideInt(interp, objv[3], &var.UInt64Val) != TCL_OK)
+            TWAPI_ASSERT(sizeof(Tcl_WideInt) == sizeof(UINT64));
+            if (ObjToWideInt(interp, objv[3], (Tcl_WideInt *)&var.UInt64Val) != TCL_OK)
                 return TCL_ERROR;
             var.Type = EvtVarTypeUInt64;
             break;
@@ -1312,7 +1318,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             break;
         case 110:
             result.type =
-                EvtGetObjectArraySize(hevt, &result.value.ival) ?
+                EvtGetObjectArraySize(hevt, &result.value.uval) ?
                 TRT_DWORD : TRT_GETLASTERROR;
             break;
         }            

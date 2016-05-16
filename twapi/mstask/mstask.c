@@ -55,7 +55,6 @@ Tcl_Obj *ObjFromTASK_TRIGGER(TASK_TRIGGER *triggerP)
     Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, MinutesInterval);
     Twapi_APPEND_DWORD_FIELD_TO_LIST(NULL, resultObj, triggerP, rgFlags);
 
-    ntype = 1;
     typeObj[0] = ObjFromInt(triggerP->TriggerType);
 
     switch (triggerP->TriggerType) {
@@ -78,6 +77,9 @@ Tcl_Obj *ObjFromTASK_TRIGGER(TASK_TRIGGER *triggerP)
         typeObj[2] = ObjFromInt(triggerP->Type.MonthlyDOW.rgfDaysOfTheWeek);
         typeObj[3] = ObjFromInt(triggerP->Type.MonthlyDOW.rgfMonths);
         ntype = 4;
+        break;
+    default: /* TBD - TASK_EVENT_TRIGGER_ON_IDLE,AT_SYSTEMSTART,AT_LOGON etc. */
+        ntype = 1;
         break;
     }
     ObjAppendElement(NULL, resultObj, STRING_LITERAL_OBJ("type"));
@@ -147,15 +149,15 @@ int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP)
                 return TCL_ERROR;
         }
         else if (STREQ(name, "MinutesDuration")) {
-            if (ObjToLong(interp, objv[i+1], &triggerP->MinutesDuration) != TCL_OK)
+            if (ObjToDWORD(interp, objv[i+1], &triggerP->MinutesDuration) != TCL_OK)
                 return TCL_ERROR;
         }
         else if (STREQ(name, "MinutesInterval")) {
-            if (ObjToLong(interp, objv[i+1], &triggerP->MinutesInterval) != TCL_OK)
+            if (ObjToDWORD(interp, objv[i+1], &triggerP->MinutesInterval) != TCL_OK)
                 return TCL_ERROR;
         }
         else if (STREQ(name, "rgFlags")) {
-            if (ObjToLong(interp, objv[i+1], &triggerP->rgFlags) != TCL_OK)
+            if (ObjToDWORD(interp, objv[i+1], &triggerP->rgFlags) != TCL_OK)
                 return TCL_ERROR;
         }
         else if (STREQ(name, "Reserved2")) {
@@ -205,7 +207,7 @@ int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP)
             case 3:
                 if (ntype != 3)
                     goto trigger_type_count_error;
-                if (ObjToLong(interp, typeObj[1], &triggerP->Type.MonthlyDate.rgfDays) != TCL_OK)
+                if (ObjToDWORD(interp, typeObj[1], &triggerP->Type.MonthlyDate.rgfDays) != TCL_OK)
                     goto trigger_type_count_error;
                 if (ObjToWord(interp, typeObj[2], &triggerP->Type.MonthlyDate.rgfMonths) != TCL_OK)
                     goto trigger_type_count_error;
@@ -221,6 +223,9 @@ int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP)
                 if (ObjToWord(interp, typeObj[3], &triggerP->Type.MonthlyDOW.rgfMonths) != TCL_OK)
                     goto trigger_type_count_error;
                 break;
+            default: /* TBD - additional types TASK_TIME_TRIFFER_ONCE,ON_IDLE,AT_SYSTEMSTART etc.*/
+                ObjSetStaticResult(interp, "Unknown or unsupported trigger type.");
+                return TCL_ERROR;
             }
         }
         else {
@@ -377,6 +382,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
     TASK_TRIGGER tasktrigger;
     int func = PtrToInt(clientdata);
     WCHAR *s, *passwordP;
+    int i;
     SWSMark mark = NULL;
 
     hr = S_OK;
@@ -499,14 +505,14 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
         case 5103: // Skip
             if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
+            CHECK_DWORD_OBJ(interp, dw1, objv[1]);
             result.type = TRT_EMPTY;
             hr = ifc.enumworkitems->lpVtbl->Skip(ifc.enumworkitems, dw1);
             break;
         case 5104: // Next
             if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
+            CHECK_DWORD_OBJ(interp, dw1, objv[1]);
             return Twapi_IEnumWorkItems_Next(interp,ifc.enumworkitems,dw1);
         }
     } else if (func < 5300) {
@@ -633,7 +639,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
                 goto badargs;
             result.type = TRT_LONG;
             hr = ifc.scheduledworkitem->lpVtbl->GetStatus(
-                ifc.scheduledworkitem, &result.value.ival);
+                ifc.scheduledworkitem, &result.value.uval);
             break;
         case 5215: // GetTrigger
             if (objc != 2)
@@ -675,13 +681,13 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
                 passwordP = NULL;
             else {
                 mark = SWSPushMark();
-                passwordP = ObjDecryptPasswordSWS(objv[2], &dw1);
+                passwordP = ObjDecryptPasswordSWS(objv[2], &i);
             }
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetAccountInformation(
                 ifc.scheduledworkitem, s, passwordP);
             if (mark) {
-                SecureZeroMemory(passwordP, dw1);
+                SecureZeroMemory(passwordP, i);
                 SWSPopMark(mark);
             }
             break;
@@ -720,7 +726,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
         case 5224: // SetFlags
             if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
+            CHECK_DWORD_OBJ(interp, dw1, objv[1]);
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetFlags(
                 ifc.scheduledworkitem, dw1);
