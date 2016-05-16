@@ -235,6 +235,7 @@ Tcl_Obj *ObjFromCERT_NAME_BLOB(CERT_NAME_BLOB *blobP, DWORD flags)
     return objP;
 }
 
+#ifdef NOTUSED
 static Tcl_Obj *ObjFromCERT_NAME_VALUE(CERT_NAME_VALUE *valP)
 {
     Tcl_Obj *objs[2];
@@ -242,6 +243,7 @@ static Tcl_Obj *ObjFromCERT_NAME_VALUE(CERT_NAME_VALUE *valP)
     objs[1] = ObjFromCRYPT_BLOB(&valP->Value);
     return ObjNewList(2, objs);
 }
+#endif
 
 static Tcl_Obj *ObjFromCERT_NAME_VALUE_WinChars(CERT_NAME_VALUE *valP)
 {
@@ -400,7 +402,7 @@ static Tcl_Obj *ObjFromCERT_REQUEST_INFO(CERT_REQUEST_INFO *criP)
     return ObjNewList(4, objs);
 }
 
-
+#ifdef NOTUSED
 static Tcl_Obj *ObjFromCERT_TRUST_STATUS(const CERT_TRUST_STATUS *ctsP)
 {
     Tcl_Obj *objs[2];
@@ -408,6 +410,7 @@ static Tcl_Obj *ObjFromCERT_TRUST_STATUS(const CERT_TRUST_STATUS *ctsP)
     objs[1] = ObjFromDWORD(ctsP->dwInfoStatus);
     return ObjNewList(2, objs);
 }
+#endif
 
 static Tcl_Obj *ObjFromCERT_CHAIN_ELEMENT(Tcl_Interp *interp, CERT_CHAIN_ELEMENT *cceP)
 {
@@ -700,6 +703,7 @@ format_error:
     return TCL_ERROR;
 }
 
+#ifdef NOTUSED
 static TCL_RESULT ParseCERT_NAME_VALUE(
     TwapiInterpContext *ticP,
     Tcl_Obj *namevalObj,
@@ -717,6 +721,7 @@ static TCL_RESULT ParseCERT_NAME_VALUE(
     } else
         return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid CERT_NAME_VALUE");
 }
+#endif
 
 static TCL_RESULT ParseCERT_NAME_VALUE_WinChars(
     TwapiInterpContext *ticP,
@@ -1091,6 +1096,7 @@ static TCL_RESULT ParseCRYPT_SIGN_MESSAGE_PARA(
 }
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
+#ifdef NOTUSED
 static TCL_RESULT ParseCRYPT_KEY_SIGN_MESSAGE_PARA(
     TwapiInterpContext *ticP,
     Tcl_Obj *objP,
@@ -1121,6 +1127,7 @@ static TCL_RESULT ParseCRYPT_KEY_SIGN_MESSAGE_PARA(
     
     return TCL_OK;
 }
+#endif
 
 /* Note caller has to clean up ticP->memlifo irrespective of success/error */
 static TCL_RESULT ParseCERT_PUBLIC_KEY_INFO(
@@ -1329,7 +1336,7 @@ static TCL_RESULT TwapiCryptDecodeObject(
     DWORD n;
     LPCSTR oid;
     DWORD_PTR dwoid;
-    Tcl_Obj * (*fnP)();
+    Tcl_Obj * (*fnP)() = NULL;
 
     /* TBD - add other unimplemented types */
 
@@ -2443,7 +2450,7 @@ static TCL_RESULT Twapi_PFXExportCertStoreExObjCmd(ClientData clientdata, Tcl_In
     BOOL status;
     int flags;
     TCL_RESULT res;
-    SWSMark mark = NULL;
+    MemLifoMarkHandle mark = NULL;
     
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(hstore, HCERTSTORE, CertCloseStore),
@@ -2451,7 +2458,7 @@ static TCL_RESULT Twapi_PFXExportCertStoreExObjCmd(ClientData clientdata, Tcl_In
                      GETINT(flags), ARGEND) != TCL_OK)
         return TCL_ERROR;
     
-    mark = SWSPushMark();
+    mark = MemLifoPushMark(ticP->memlifoP);
     password = ObjDecryptWinCharsSWS(interp, passObj, &password_len);
     if (password == NULL) {
         res = TCL_ERROR;
@@ -2485,7 +2492,7 @@ vamoose:
     if (password)
         SecureZeroMemory(password, sizeof(WCHAR) * password_len);
     if (mark)
-        SWSPopMark(mark);
+        MemLifoPopMark(mark);
     return res;
 }
 
@@ -2542,7 +2549,7 @@ static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
     PCCERT_CONTEXT certP, cert2P;
     DWORD         enctype, flags, findtype, dw;
     Tcl_Obj      *findObj;
-    void         *pv;
+    void         *pv = NULL;
     CERT_BLOB     blob;
     CERT_INFO     cinfo;
     TCL_RESULT    res;
@@ -2564,7 +2571,6 @@ static TCL_RESULT Twapi_CertFindCertificateInStoreObjCmd(
 
     switch (findtype) {
     case CERT_FIND_ANY:
-        pv = NULL;
         break;
     case CERT_FIND_EXISTING:
         res = ObjToVerifiedPointerTic(ticP, findObj, (void **)&cert2P, "PCCERT_CONTEXT", CertFreeCertificateContext);
@@ -2939,7 +2945,7 @@ static TCL_RESULT Twapi_CryptDecodeObjectExObjCmd(ClientData clientdata, Tcl_Int
 static TCL_RESULT Twapi_CertVerifyChainPolicyObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
-    PCERT_CHAIN_POLICY_PARA policy_paramP;
+    PCERT_CHAIN_POLICY_PARA policy_paramP = NULL;
     CERT_CHAIN_POLICY_STATUS policy_status;
     PCCERT_CHAIN_CONTEXT chainP;
     Tcl_Obj *paramObj;
@@ -2984,7 +2990,6 @@ static TCL_RESULT Twapi_CertVerifyChainPolicyObjCmd(ClientData clientdata, Tcl_I
 
 static TCL_RESULT Twapi_CertChainSimpleChainObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     PCCERT_CHAIN_CONTEXT chainP;
     DWORD slot;
 
@@ -3000,7 +3005,6 @@ static TCL_RESULT Twapi_CertChainSimpleChainObjCmd(ClientData clientdata, Tcl_In
 
 static int Twapi_CryptFindOIDInfoObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     DWORD keytype, group;
     Tcl_Obj *keyObj;
     void *pv;
@@ -3091,6 +3095,7 @@ static int Twapi_CertSetCertificateContextPropertyObjCmd(ClientData clientdata, 
             res = ParseCRYPT_BLOB(ticP, valObj, &blob);
             break;
         default:
+            pv = NULL; /* Keep gcc happy */
             res = TwapiReturnError(interp, TWAPI_UNSUPPORTED_TYPE);
             break;
         }
@@ -3209,7 +3214,6 @@ static TCL_RESULT Twapi_CryptQueryObjectObjCmd(ClientData clientdata, Tcl_Interp
 
 static TCL_RESULT Twapi_CryptGetKeyParamObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     DWORD param, flags, nbytes;
     void *p;
     Tcl_Obj *objP = NULL;
@@ -3271,7 +3275,6 @@ static TCL_RESULT Twapi_CryptGetKeyParamObjCmd(ClientData clientdata, Tcl_Interp
 
 static TCL_RESULT Twapi_CryptSetKeyParamObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     DWORD param, flags;
     void *p;
     Tcl_Obj *paramObj = NULL;
@@ -3431,7 +3434,6 @@ static TCL_RESULT Twapi_CryptCATAdminEnumCatalogFromHashObjCmd(ClientData client
         
 static TCL_RESULT Twapi_CryptEncryptObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     Tcl_Obj *objP;
     void *pv, *pv2;
     HCRYPTKEY hkey;
@@ -3499,7 +3501,6 @@ static TCL_RESULT Twapi_CryptEncryptObjCmd(ClientData clientdata, Tcl_Interp *in
 
 static TCL_RESULT Twapi_CryptDecryptObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     Tcl_Obj *objP;
     void *pv, *pv2;
     HCRYPTKEY hkey;
@@ -4105,16 +4106,18 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(ClientData clientdata, Tcl_Interp *
 
     if (btype == 0) {
         /* 0 is not a valid CryptoAPI blob type so we use it to indicate
-         * the key blob is plaintext sealed with twapi. We have to build
+        * the key blob is plaintext sealed with twapi. We have to build
          * a PLAINTEXTBLOB header in front of it.
          */
         TWAPI_PLAINTEXTKEYBLOB *p;
         int keysize;
-        mark = SWSPushMark();
+        TWAPI_ASSERT(SWS() == ticP->memlifoP);
+        mark = MemLifoPushMark(ticP->memlifoP);
         p = ObjDecryptBytesExSWS(interp, blobObj, offsetof(TWAPI_PLAINTEXTKEYBLOB, rgbKeyData), &keysize);
-        if (p == NULL)
+        if (p == NULL) {
+            res = TCL_ERROR;
             goto vamoose;
-        
+        }
         p->dwKeySize = keysize;
         nbytes = TWAPI_PLAINTEXTKEYBLOB_SIZE(p->dwKeySize);
         nclear = nbytes; /* Number of bytes to clear out */
@@ -4148,7 +4151,7 @@ vamoose:
     if (nclear)
         SecureZeroMemory(blobP, nclear); /* Clear out plaintext key */
     if (mark)
-        SWSPopMark(mark);
+        MemLifoPopMark(mark);
 
     return res;
 }

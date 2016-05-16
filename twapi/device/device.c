@@ -80,7 +80,7 @@ typedef struct _TwapiDeviceNotificationCallback {
 } TwapiDeviceNotificationCallback;
 
 static TwapiOneTimeInitState TwapiDeviceModuleInitialized;
-static DWORD TwapiDeviceNotificationTid;
+static UINT TwapiDeviceNotificationTid;
 
 int ObjToSP_DEVINFO_DATA(Tcl_Interp *, Tcl_Obj *objP, SP_DEVINFO_DATA *sddP);
 int ObjToSP_DEVINFO_DATA_NULL(Tcl_Interp *interp, Tcl_Obj *objP,
@@ -800,17 +800,18 @@ static unsigned __stdcall TwapiDeviceNotificationThread(HANDLE sig)
 }
 
 
-static int TwapiDeviceModuleInit(Tcl_Interp *interp)
+static int TwapiDeviceModuleInit(void *arg)
 {
     /*
      * We have to create the device notification thread. Moreover, we
      * will have to wait for it to run and start processing the message loop 
      * else our first request might be lost.
      */
+    Tcl_Interp *interp = arg;
     HANDLE threadH;
     HANDLE sig;
     int status = TCL_ERROR;
-    DWORD winerr;
+    DWORD winerr = 0;
 
     
     sig = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -1070,8 +1071,9 @@ static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationByHwnd(HWND hw
     return dncP;
 }
 
-static int Twapi_DeviceIoControlObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_DeviceIoControlObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     HANDLE   hdev;
     Tcl_Obj *inputObj;
     DWORD    ctrl;
@@ -1121,8 +1123,9 @@ static int Twapi_DeviceIoControlObjCmd(TwapiInterpContext *ticP, Tcl_Interp *int
     return res;
 }
 
-static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_DeviceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     int func;
     GUID guid;
     GUID *guidP;
@@ -1163,7 +1166,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
                          GETHANDLET(h, HMACHINE),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        cret = CM_Locate_DevNode_ExW(&result.value.ival,
+        cret = CM_Locate_DevNode_ExW(&result.value.uval,
                                         ObjToWinChars(objv[2]), dw, h);
         if (cret == CR_SUCCESS)
             result.type = TRT_DWORD;
@@ -1323,7 +1326,7 @@ static int Twapi_DeviceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, 
     case 72:
         if (objc != 3)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+        CHECK_DWORD_OBJ(interp, dw, objv[2]);
         return Twapi_UnregisterDeviceNotification(ticP, dw);
     }
 

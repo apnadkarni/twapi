@@ -271,8 +271,9 @@ static void init_keyboard_input(INPUT *pin, WORD vkey, DWORD flags)
     pin->ki.dwExtraInfo = 0;
 }
 
-static int Twapi_InputCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_InputCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     int func;
     DWORD dw, dw2, dw3;
     LASTINPUTINFO lastin;

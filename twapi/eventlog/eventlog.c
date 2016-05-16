@@ -32,8 +32,9 @@ BOOL Twapi_IsEventLogFull(HANDLE hEventLog, int *fullP)
     return FALSE;
 }
 
-static int Twapi_ReadEventLogObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_ReadEventLogObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     HANDLE evlH;
     DWORD  flags;
     DWORD  offset;
@@ -42,7 +43,7 @@ static int Twapi_ReadEventLogObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
     DWORD  num_read;
     int    i;
     EVENTLOGRECORD *evlP;
-    Tcl_Obj *resultObj;
+    Tcl_Obj *resultObj = NULL;
     DWORD winerr = ERROR_SUCCESS;
     static const char *fieldnames[] = {
         "-source", "-system", "-reserved", "-recordnum", "-timegenerated",

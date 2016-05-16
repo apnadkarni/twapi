@@ -1073,6 +1073,7 @@ static int Twapi_AcquireCredentialsHandleObjCmd(ClientData clientdata, Tcl_Inter
     void *pv;
 
     pv = NULL;
+    is_unisp = 1;
     mark = MemLifoPushMark(ticP->memlifoP);
     luidP = &luid;
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
@@ -1084,9 +1085,7 @@ static int Twapi_AcquireCredentialsHandleObjCmd(ClientData clientdata, Tcl_Inter
     if (ObjListLength(interp, authObj, &n) != TCL_OK)
         goto vamoose;
 
-    if (n == 0)
-        pv = NULL;
-    else {
+    if (n != 0) {
         if (WSTREQ(packageP, UNISP_NAME_W) ||
             WSTREQ(packageP, SCHANNEL_NAME_W)) {
             if (ParseSCHANNEL_CRED(ticP, authObj, (SCHANNEL_CRED **)&pv) != TCL_OK)
