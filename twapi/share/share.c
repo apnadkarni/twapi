@@ -11,6 +11,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_share"
+#endif
+
 Tcl_Obj *ObjFromCONNECTION_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
 Tcl_Obj *ObjFromUSE_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);
 Tcl_Obj *ObjFromSHARE_INFO(Tcl_Interp *interp, LPBYTE infoP, DWORD level);

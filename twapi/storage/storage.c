@@ -12,6 +12,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_storage"
+#endif
+
 /* File and disk related */
 
 int Twapi_GetFileType(Tcl_Interp *interp, HANDLE h)

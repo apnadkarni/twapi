@@ -11,6 +11,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_resource"
+#endif
+
 /* Resource manipulation */
 void Twapi_FreeFileVersionInfo(TWAPI_FILEVERINFO * verP);
 int Twapi_LoadImage(Tcl_Interp *, int objc, Tcl_Obj *CONST objv[]);

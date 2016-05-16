@@ -26,7 +26,7 @@
 #pragma comment(lib, "tdh.lib")	 /* New TDH library for Vista and beyond */
 #endif
 
-#ifndef ETW_BUFFER_CONTEXT_DEF
+#if !defined(ETW_BUFFER_CONTEXT_DEF) && !defined(__GNUC__)
 /* TBD - note this struct has changed in the post-Win7 SDKs */
 typedef struct _ETW_BUFFER_CONTEXT {
     UCHAR ProcessorNumber;
@@ -405,8 +405,6 @@ HANDLE gTdhDllHandle;
 /* Max length of file and session name fields in a trace (documented in SDK) */
 #define MAX_TRACE_NAME_CHARS (1024+1)
 
-#define ObjFromTRACEHANDLE(val_) ObjFromWideInt(val_)
-#define ObjToTRACEHANDLE ObjToWideInt
 
 static TRACEHANDLE gInvalidTraceHandle;
 #define INVALID_SESSIONTRACE_HANDLE(ht_) ((ht_) == gInvalidTraceHandle)
@@ -487,6 +485,10 @@ static TwapiOneTimeInitState gETWInitialized;
 HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_etw"
+#endif
+
 static GUID gNullGuid;             /* Initialized to all zeroes */
 
 /* Prototypes */
@@ -504,6 +506,15 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
 /*
  * Functions
  */
+static Tcl_Obj *ObjFromTRACEHANDLE(TRACEHANDLE htrace)
+{
+    return ObjFromWideInt((Tcl_WideInt) htrace);
+}
+static TCL_RESULT ObjToTRACEHANDLE(Tcl_Interp *interp, Tcl_Obj *objP, TRACEHANDLE *traceP)
+{
+    TWAPI_ASSERT(sizeof(TRACEHANDLE) == sizeof(Tcl_WideInt));
+    return ObjToWideInt(interp, objP, (Tcl_WideInt *)traceP);
+}
 
 static int TwapiCalcPointerSize(EVENT_RECORD *evrP)
 {
@@ -738,7 +749,8 @@ st */
             ulP = &etP->Wnode.ClientContext;
             break;
         case 11: // -agelimit
-            ulP = &etP->AgeLimit;
+            if (ObjToLong(interp, objv[i+1], &etP->AgeLimit) != TCL_OK)
+                goto error_handler;
             break;
         case 12: // -numbuffers
             ulP = &etP->NumberOfBuffers;
@@ -771,7 +783,7 @@ st */
         if (ulP == NULL) {
             /* Nothing to do, value already set in the switch */
         } else {
-            if (ObjToLong(interp, objv[i+1], ulP) != TCL_OK)
+            if (ObjToDWORD(interp, objv[i+1], ulP) != TCL_OK)
                 goto error_handler;
         }
     }
@@ -1016,7 +1028,7 @@ TCL_RESULT Twapi_TraceEvent(ClientData clientdata, Tcl_Interp *interp, int objc,
     event.eth.Class.Level = level;
 
     for (i = 0; i < objc; ++i) {
-        event.mof[i].DataPtr = (ULONG64) ObjToByteArray(objv[i], &event.mof[i].Length);
+        event.mof[i].DataPtr = (ULONG64) ObjToByteArrayDW(objv[i], &event.mof[i].Length);
     }
 
     rc = TraceEvent(gETWProviderSessionHandle, &event.eth);
@@ -1267,7 +1279,7 @@ static TCL_RESULT TwapiTdhPropertyArraySize(TwapiInterpContext *ticP,
     else {
         if (ref_value.ulong_val > teiP->PropertyCount)
             return TwapiReturnErrorEx(ticP->interp, TWAPI_INVALID_DATA,
-                                      Tcl_ObjPrintf("Property index %d out of bounds.", ref_value.ulong_val));
+                                      Tcl_ObjPrintf("Property index %lu out of bounds.", ref_value.ulong_val));
 
         *countP = (USHORT) ref_value.ulong_val;
     }
@@ -1311,7 +1323,7 @@ static Tcl_Obj *TwapiMapTDHProperty(EVENT_MAP_INFO *emiP, ULONG val)
      *   - maps 0-based bit positions to list of string values (MOF based)
      */
      
-    switch (emiP->Flag) {
+    switch ((int) emiP->Flag) {
     case EVENTMAP_INFO_FLAG_MANIFEST_VALUEMAP:
     case EVENTMAP_INFO_FLAG_WBEM_VALUEMAP:
         for (i = 0; i < emiP->EntryCount; ++i) {
@@ -1374,10 +1386,13 @@ static Tcl_Obj *TwapiMapTDHProperty(EVENT_MAP_INFO *emiP, ULONG val)
         return objP;
 
     case EVENTMAP_INFO_FLAG_WBEM_VALUEMAP | EVENTMAP_INFO_FLAG_WBEM_FLAG | EVENTMAP_INFO_FLAG_WBEM_NO_MAP:
-        break;                  /* TBD */
+        break;
+
+    default:
+        break;
     }
 
-    /* No map value, return as integer */
+    /* No map value for whatever reason, return as integer */
     return ObjFromDWORD(val);
 }
 
@@ -1403,7 +1418,7 @@ static TCL_RESULT TwapiTdhPropertyValue(
         } string;
         GUID guid;
         SYSTEMTIME stime;
-        char *bin;
+        BYTE *bin;
     } u;
     FILETIME ftime;
     ULONG remain = prop_size;
@@ -1513,7 +1528,7 @@ static TCL_RESULT TwapiTdhPropertyValue(
     case TDH_INTYPE_HEXDUMP:
         EXTRACT(dw, DWORD);
         remain -= sizeof(DWORD);
-        *valueObjP = ObjFromByteArray(sizeof(DWORD)+(char*)bytesP,
+        *valueObjP = ObjFromByteArray(sizeof(DWORD)+(BYTE*)bytesP,
                                       remain < dw ? remain : dw);
         return TCL_OK;
 
@@ -1750,7 +1765,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
             if (member_index_bound > teiP->TopLevelPropertyCount) {
                 res = TwapiReturnErrorEx(interp,
                                          TWAPI_INVALID_DATA,
-                                         Tcl_ObjPrintf("Property index %d out of bounds.", member_index_bound));
+                                         Tcl_ObjPrintf("Property index %lu out of bounds.", member_index_bound));
             } else {
                 while (member_index < member_index_bound) {
                     Tcl_Obj *membernameObj, *membervalObj;
@@ -1990,7 +2005,10 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD evrP)
     /* Buffer Context */
     if (evrP->EventHeader.Flags & EVENT_HEADER_FLAG_PROCESSOR_INDEX) {
         /* Win 8 defines as a USHORT (field ProcessorIndex in new sdk) */
-        objs[0] = ObjFromLong(*(USHORT *)&evrP->BufferContext.ProcessorNumber);
+        USHORT u16;
+        u16 = evrP->BufferContext.ProcessorNumber +
+            (evrP->BufferContext.Alignment << 8);
+        objs[0] = ObjFromLong(u16);
     } else {
         objs[0] = ObjFromLong(evrP->BufferContext.ProcessorNumber);
     }
@@ -2306,8 +2324,9 @@ TCL_RESULT Twapi_CloseTrace(ClientData clientdata, Tcl_Interp *interp, int objc,
 }
 
 
-TCL_RESULT Twapi_ProcessTrace(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     int i;
     FILETIME start, end, *startP, *endP;
     struct TwapiETWContext etwc;

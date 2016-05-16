@@ -596,7 +596,7 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
 
         /* Clean up left over objects */
         if (fnObj[1])
-            Twapi_FreeNewTclObj(fnObj[1]); /* Allocated but not used */
+            ObjDecrRefs(fnObj[1]); /* Allocated but not used */
         /* Deref the action objs. Note if in use by lists this will not free them */
         for (i=0; i < ARRAYSIZE(actionObj); ++i) {
             if (actionObj[i])

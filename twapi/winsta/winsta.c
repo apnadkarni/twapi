@@ -15,6 +15,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_winsta"
+#endif
+
 /* Window station enumeration callback */
 BOOL CALLBACK Twapi_EnumWindowStationsOrDesktopsCallback(LPCWSTR p_winsta, LPARAM p_ctx) {
     TwapiEnumCtx *p_enum_ctx =

@@ -20,6 +20,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_device"
+#endif
+
 static GUID gNullGuid;                 /* Init'ed to 0 */
 
 typedef struct _TwapiDeviceNotificationContext TwapiDeviceNotificationContext;
@@ -1047,7 +1051,7 @@ static Tcl_Obj *ObjFromCustomDeviceNotification(PDEV_BROADCAST_HDR  dbhP)
 
 
 /* Find the window handle corresponding to a device notification id */
-static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationById(DWORD_PTR id)
+static TwapiDeviceNotificationContext *TwapiFindDeviceNotificationById(TwapiId id)
 {
     TwapiDeviceNotificationContext *dncP;
 

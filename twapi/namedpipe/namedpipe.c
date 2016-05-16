@@ -11,6 +11,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_namedpipe"
+#endif
+
 typedef struct _NPipeChannel NPipeChannel;
 ZLINK_CREATE_TYPEDEFS(NPipeChannel); 
 ZLIST_CREATE_TYPEDEFS(NPipeChannel);

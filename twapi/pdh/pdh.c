@@ -13,6 +13,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_pdh"
+#endif
+
 /* Define interfaces to the PDH performance monitoring library */
 
 /* PDH */

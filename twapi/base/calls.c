@@ -654,7 +654,7 @@ static TCL_RESULT Twapi_CallNoargsObjCmd(ClientData clientdata, Tcl_Interp *inte
         break;
     case 17:
         result.value.unicode.len = ARRAYSIZE(u.buf);
-        if (GetDefaultPrinterW(u.buf, &result.value.unicode.len)) {
+        if (GetDefaultPrinterW(u.buf, (DWORD  *)&result.value.unicode.len)) {
             result.value.unicode.len -= 1; /* Discard \0 */
             result.value.unicode.str = u.buf;
             result.type = TRT_UNICODE;
@@ -717,7 +717,7 @@ static int Twapi_CallIntArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
     case 3:
         result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
-        if (GetUserNameExW(dw, u.buf, &result.value.unicode.len)) {
+        if (GetUserNameExW(dw, u.buf, (ULONG *) &result.value.unicode.len)) {
             result.value.unicode.str = u.buf;
             result.type = TRT_UNICODE;
         } else

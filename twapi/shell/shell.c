@@ -15,9 +15,13 @@ DEFINE_GUID(IID_IShellLinkDataList,     0x45e2b4ae, 0xb1c3, 0x11d0, 0xb9, 0x2f, 
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
-HRESULT Twapi_SHGetFolderPath(HWND hwndOwner, int nFolder, HANDLE hToken,
+#ifndef MODULENAME
+#define MODULENAME "twapi_shell"
+#endif
+
+static HRESULT Twapi_SHGetFolderPath(HWND hwndOwner, int nFolder, HANDLE hToken,
                           DWORD flags, WCHAR *pathbuf);
-BOOL Twapi_SHObjectProperties(HWND hwnd, DWORD dwType,
+static BOOL Twapi_SHObjectProperties(HWND hwnd, DWORD dwType,
                               LPCWSTR szObject, LPCWSTR szPage);
 
 int Twapi_GetShellVersion(Tcl_Interp *interp);

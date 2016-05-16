@@ -11,6 +11,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_os"
+#endif
+
 int Twapi_GetSystemWow64Directory(Tcl_Interp *interp);
 int Twapi_GetSystemInfo(Tcl_Interp *interp);
 TCL_RESULT Twapi_GlobalMemoryStatus(Tcl_Interp *interp);

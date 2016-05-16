@@ -669,8 +669,12 @@ TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
         resultObj = ObjFromOpaque(resultP->value.hval, typenameP);
         break;
 
-    case TRT_LONG:
+    case TRT_INT:
         resultObj = ObjFromLong(resultP->value.ival);
+        break;
+        
+    case TRT_LONG:
+        resultObj = ObjFromLong(resultP->value.lval);
         break;
 
     case TRT_DWORD:
@@ -2353,7 +2357,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP)
 
 
 /* Can return NULL */
-TWAPI_EXTERN Tcl_Obj *ObjFromIPv6Addr(const char *addrP, DWORD scope_id)
+TWAPI_EXTERN Tcl_Obj *ObjFromIPv6Addr(const BYTE *addrP, DWORD scope_id)
 {
     SOCKADDR_IN6 si;
 
@@ -4413,6 +4417,14 @@ TWAPI_EXTERN unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP)
     return Tcl_GetByteArrayFromObj(objP, lenP);
 }
 
+TWAPI_EXTERN unsigned char *ObjToByteArrayDW(Tcl_Obj *objP, DWORD *lenP)
+{
+    /* This stupid duplication of ObjToByteArray is to avoid
+       gcc warning of mixing DWORD* and int* */
+    TWAPI_ASSERT(sizeof(DWORD) == sizeof(int));
+    return Tcl_GetByteArrayFromObj(objP, (int *)lenP);
+}
+
 /*
  * RtlEncryptMemory (aka SystemFunction040) and
  * RtlDecryptMemory (aka SystemFunction041)
@@ -4606,7 +4618,7 @@ TWAPI_EXTERN Tcl_Obj *ObjEncryptWinChars(Tcl_Interp *interp, WCHAR *uniP, int nc
 /*
  * Decrypts encrypted WCHAR string in objP to SWS. Caller responsible for
  * SWS storage management and should also zero out the password
- * after use.
+ * after use. Decrypted string is appended with a terminating \0.
  * Returns length of string (in chars, not bytes) NOT including terminating
  * char in *ncharsP
  */

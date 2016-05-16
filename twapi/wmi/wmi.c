@@ -12,6 +12,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_wmi"
+#endif
+
 static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int type, int objc, Tcl_Obj *CONST objv[])
 {
     IMofCompiler *ifc;

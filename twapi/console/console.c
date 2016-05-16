@@ -11,6 +11,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_console"
+#endif
+
 static TwapiInterpContext * volatile console_control_ticP;
 
 static int ObjToCHAR_INFO(Tcl_Interp *interp, Tcl_Obj *obj, CHAR_INFO *ciP)
@@ -164,7 +168,7 @@ static Tcl_Obj *ObjFromINPUT_RECORD(const INPUT_RECORD *recP)
         break;
         
     default:
-        recObj = ObjFromByteArray((const char *)recP, sizeof(*recP));
+        recObj = ObjFromByteArray((BYTE *)recP, sizeof(*recP));
         break;
     }
 
@@ -273,7 +277,7 @@ static int Twapi_StartConsoleEventNotifier(TwapiInterpContext *ticP)
     void *pv;
 
     ERROR_IF_UNTHREADED(ticP->interp);
-    pv = InterlockedCompareExchangePointer(&console_control_ticP,
+    pv = InterlockedCompareExchangePointer((void * volatile *) &console_control_ticP,
                                            ticP, NULL);
     if (pv) {
         ObjSetStaticResult(ticP->interp, "Console control handler is already set.");
@@ -286,7 +290,7 @@ static int Twapi_StartConsoleEventNotifier(TwapiInterpContext *ticP)
         return TCL_OK;
     }
     else {
-        InterlockedExchangePointer(&console_control_ticP, NULL);
+        InterlockedExchangePointer((void * volatile *)&console_control_ticP, NULL);
         return TwapiReturnSystemError(ticP->interp);
     }
 }
@@ -295,7 +299,7 @@ static int Twapi_StartConsoleEventNotifier(TwapiInterpContext *ticP)
 static int Twapi_StopConsoleEventNotifier(TwapiInterpContext *ticP)
 {
     void *pv;
-    pv = InterlockedCompareExchangePointer(&console_control_ticP,
+    pv = InterlockedCompareExchangePointer((void * volatile *) &console_control_ticP,
                                            NULL, ticP);
     if (pv != (void*) ticP) {
         ObjSetStaticResult(ticP->interp, "Console control handler not set by this interpreter.");
@@ -308,8 +312,9 @@ static int Twapi_StopConsoleEventNotifier(TwapiInterpContext *ticP)
     return TCL_OK;
 }
 
-static int Twapi_ConsoleEventNotifierObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_ConsoleEventNotifierObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     int func;
 
     if (objc != 2)
@@ -347,6 +352,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     Tcl_Obj *sObj;
     LPWSTR s;
     SWSMark mark = NULL;
+    int i;
     
     --objc;
     ++objv;
@@ -395,7 +401,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         /* First arg integer, maybe two more */
         if (objc == 0)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        CHECK_DWORD_OBJ(interp, dw, objv[0]);
         switch (func) {
         case 100:
             result.value.ival = AttachConsole(dw);
@@ -412,7 +418,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         case 103:
             if (objc != 2)
                 return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-            CHECK_INTEGER_OBJ(interp, dw2, objv[1]);
+            CHECK_DWORD_OBJ(interp, dw2, objv[1]);
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = GenerateConsoleCtrlEvent(dw, dw2);
             break;
@@ -501,9 +507,9 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                              GETVAR(coord, ObjToCOORD),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            s = ObjToWinCharsN(sObj, &dw);
+            s = ObjToWinCharsN(sObj, &i);
             if (WriteConsoleOutputCharacterW(h, s,
-                                             dw, coord, &result.value.uval))
+                                             i, coord, &result.value.uval))
                 result.type = TRT_DWORD;
             else
                 result.type = TRT_GETLASTERROR;    

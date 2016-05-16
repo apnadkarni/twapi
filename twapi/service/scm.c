@@ -13,6 +13,10 @@
 static HMODULE gModuleHandle;
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_service"
+#endif
+
 /* Map service state int to string */
 static char *ServiceStateString(DWORD state)
 {
