@@ -11,6 +11,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_rds"
+#endif
+
 int Twapi_WTSEnumerateSessions(Tcl_Interp *interp, HANDLE wtsH)
 {
     WTS_SESSION_INFOW *sessP = NULL;

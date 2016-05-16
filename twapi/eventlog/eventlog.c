@@ -12,6 +12,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_eventlog"
+#endif
+
 static TwapiOneTimeInitState TwapiEventlogOneTimeInitialized;
 
     

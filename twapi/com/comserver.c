@@ -13,28 +13,28 @@
 /*
  * IDispatch server implementation
  */
-HRESULT STDMETHODCALLTYPE Twapi_ComServer_QueryInterface(
+static HRESULT STDMETHODCALLTYPE Twapi_ComServer_QueryInterface(
     IDispatch *this,
     REFIID riid,
     void **ifcPP);
-ULONG STDMETHODCALLTYPE Twapi_ComServer_AddRef(IDispatch *this);
-ULONG STDMETHODCALLTYPE Twapi_ComServer_Release(IDispatch *this);
-HRESULT STDMETHODCALLTYPE Twapi_ComServer_GetTypeInfoCount(
+static ULONG STDMETHODCALLTYPE Twapi_ComServer_AddRef(IDispatch *this);
+static ULONG STDMETHODCALLTYPE Twapi_ComServer_Release(IDispatch *this);
+static HRESULT STDMETHODCALLTYPE Twapi_ComServer_GetTypeInfoCount(
     IDispatch *this,
     UINT *pctP);
-HRESULT STDMETHODCALLTYPE Twapi_ComServer_GetTypeInfo(
+static HRESULT STDMETHODCALLTYPE Twapi_ComServer_GetTypeInfo(
     IDispatch *this,
     UINT tinfo,
     LCID lcid,
     ITypeInfo **tiPP);
-HRESULT STDMETHODCALLTYPE Twapi_ComServer_GetIDsOfNames(
+static HRESULT STDMETHODCALLTYPE Twapi_ComServer_GetIDsOfNames(
     IDispatch *this,
     REFIID   riid,
     LPOLESTR *namesP,
     UINT namesc,
     LCID lcid,
     DISPID *rgDispId);
-HRESULT STDMETHODCALLTYPE Twapi_ComServer_Invoke(
+static HRESULT STDMETHODCALLTYPE Twapi_ComServer_Invoke(
     IDispatch *this,
     DISPID dispIdMember,
     REFIID riid,
@@ -70,13 +70,13 @@ typedef struct Twapi_ComServer {
 } Twapi_ComServer;
 
 
-HRESULT STDMETHODCALLTYPE Twapi_ClassFactory_QueryInterface(
+static HRESULT STDMETHODCALLTYPE Twapi_ClassFactory_QueryInterface(
     IClassFactory *this, REFIID riid, void **ifcPP);
-ULONG STDMETHODCALLTYPE Twapi_ClassFactory_AddRef(IClassFactory *this);
-ULONG STDMETHODCALLTYPE Twapi_ClassFactory_Release(IClassFactory *this);
-HRESULT STDMETHODCALLTYPE Twapi_ClassFactory_CreateInstance (
+static ULONG STDMETHODCALLTYPE Twapi_ClassFactory_AddRef(IClassFactory *this);
+static ULONG STDMETHODCALLTYPE Twapi_ClassFactory_Release(IClassFactory *this);
+static HRESULT STDMETHODCALLTYPE Twapi_ClassFactory_CreateInstance (
     IClassFactory* , LPUNKNOWN pUnkOuter, REFIID riid, LPVOID* ppvObject);
-HRESULT STDMETHODCALLTYPE Twapi_ClassFactory_LockServer (
+static HRESULT STDMETHODCALLTYPE Twapi_ClassFactory_LockServer (
  IClassFactory *, BOOL fLock);
 
 /* Vtbl for Twapi_ClassFactory */
@@ -457,11 +457,12 @@ vamoose:
  * Returns the IDispatch interface.
  */
 int Twapi_ComServerObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientdata,
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     Twapi_ComServer *comserverP;
     IID iid;
     HRESULT hr;
@@ -684,11 +685,12 @@ static HRESULT STDMETHODCALLTYPE Twapi_ClassFactory_LockServer (
  * Returns the IClassFactory interface.
  */
 int Twapi_ClassFactoryObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientdata,
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     Twapi_ClassFactory *cfP;
     CLSID clsid;
     HRESULT hr;
