@@ -13,6 +13,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_input"
+#endif
+
 static void init_keyboard_input(INPUT *pin, WORD vkey, DWORD flags);
 
 int Twapi_UnregisterHotKey(TwapiInterpContext *ticP, int id);

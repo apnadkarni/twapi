@@ -6,8 +6,8 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 #ifndef UNISP_NAME_W
 #include <schannel.h>            /* For VC6 */
 #endif
-#ifndef WDIGEST_SP_NAME_W
-#include <wdigest.h>            /* For VC6 */
+#ifndef WDIGEST_SP_NAME_W  /* Needed for MingW and VC6 */
+#define WDIGEST_SP_NAME_W             L"WDigest"
 #endif
 #include <softpub.h>            /* WinVerifyTrust */
 

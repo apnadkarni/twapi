@@ -14,6 +14,10 @@
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_security"
+#endif
+
 /*
 TBD - the SID data type handling needs to be cleaned up
  */
@@ -23,7 +27,7 @@ Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (Tcl_Interp *, const SID_AND_ATTRIBUTES *);
 Tcl_Obj *ObjFromLUID_AND_ATTRIBUTES (Tcl_Interp *, const LUID_AND_ATTRIBUTES *);
 int ObjToLUID_AND_ATTRIBUTES (Tcl_Interp *interp, Tcl_Obj *listobj,
                               LUID_AND_ATTRIBUTES *luidattrP);
-TOKEN_PRIVILEGES * ParseTOKEN_PRIVILEGES(Tcl_Interp *interp, Tcl_Obj *);
+static TOKEN_PRIVILEGES * ParseTOKEN_PRIVILEGES(Tcl_Interp *interp, Tcl_Obj *);
 Tcl_Obj *ObjFromTOKEN_PRIVILEGES(Tcl_Interp *interp,
                                  const TOKEN_PRIVILEGES *tokprivP);
 void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP);

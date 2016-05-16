@@ -680,13 +680,14 @@ typedef enum {
     TRT_HMACHINE = 52,
     TRT_CONFIGRET = 53,         /* PnP Manager status (CM_* calls) */
     TRT_GETLASTERROR_SETUPAPI = 54, /* Setup* calls */
-    TRT_LONG = 55, /* Really same as TRT_INT */
+    TRT_LONG = 55, 
 } TwapiResultType;
 
 typedef struct {
     TwapiResultType type;
     union {
         int ival;
+        LONG lval;
         DWORD uval;
         double dval;
         BOOL bval;
@@ -1479,6 +1480,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUnicode(const Tcl_UniChar *ws);
 
 TWAPI_EXTERN WCHAR *ObjToWinChars(Tcl_Obj *objP);
 TWAPI_EXTERN WCHAR *ObjToWinCharsN(Tcl_Obj *objP, int *lenP);
+TWAPI_EXTERN WCHAR *ObjToWinCharsNDW(Tcl_Obj *objP, DWORD *lenP);
 TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsN(const WCHAR *ws, int len);
 TWAPI_EXTERN Tcl_Obj *ObjFromWinChars(const WCHAR *ws);
 TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsLimited(const WCHAR *wstrP, int max, int *remain);
@@ -1488,6 +1490,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len);
 TWAPI_EXTERN Tcl_Obj *ObjAllocateByteArray(int len, void **);
 TWAPI_EXTERN Tcl_Obj *ObjFromByteArrayHex(const unsigned char *bytes, int len);
 TWAPI_EXTERN unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP);
+TWAPI_EXTERN unsigned char *ObjToByteArrayDW(Tcl_Obj *objP, DWORD *lenP);
 
 TWAPI_EXTERN TCL_RESULT TwapiEncryptData(Tcl_Interp *, BYTE *, int, BYTE *, int *);
 TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *, BYTE *, int , BYTE *, int *);
@@ -1576,7 +1579,7 @@ TWAPI_EXTERN int ObjToLUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, LUID **luidPP
 /* Network stuff */
 TWAPI_EXTERN Tcl_Obj *IPAddrObjFromDWORD(DWORD addr);
 TWAPI_EXTERN int IPAddrObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *addrP);
-TWAPI_EXTERN Tcl_Obj *ObjFromIPv6Addr(const char *addrP, DWORD scope_id);
+TWAPI_EXTERN Tcl_Obj *ObjFromIPv6Addr(const BYTE *addrP, DWORD scope_id);
 TWAPI_EXTERN Tcl_Obj *ObjFromIP_ADDR_STRING (Tcl_Interp *, const IP_ADDR_STRING *ipaddrstrP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR_address(SOCKADDR *saP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP);

@@ -88,7 +88,7 @@ static Tcl_Obj *ObjFromSECBUFFER_EXTRA(SecBufferDesc *sbdP)
                so neither do we, just to be safe. */
             if (sbP->BufferType == SECBUFFER_EXTRA && sbP->cbBuffer) {
                 TWAPI_ASSERT(sb0P->cbBuffer > sbP->cbBuffer);
-                return ObjFromByteArray(((char*) sb0P->pvBuffer) + (sb0P->cbBuffer - sbP->cbBuffer),
+                return ObjFromByteArray(((BYTE*) sb0P->pvBuffer) + (sb0P->cbBuffer - sbP->cbBuffer),
                                         sbP->cbBuffer);
             }
         }
@@ -187,7 +187,7 @@ int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, in
         int       bufobjc;
         int       buftype;
         int       datalen;
-        char     *dataP;
+        BYTE     *dataP;
         if (ObjGetElements(interp, objv[i], &bufobjc, &bufobjv) != TCL_OK)
             return TCL_ERROR;
         if ((bufobjc != 1 && bufobjc != 2) ||
@@ -273,10 +273,11 @@ int Twapi_EnumerateSecurityPackages(Tcl_Interp *interp)
 }
 
 static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientdata,
     Tcl_Interp *interp,
     int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     SecHandle credential, context, *contextP;
     LPWSTR     targetP;
     ULONG      contextreq, reserved1, targetdatarep, reserved2;
@@ -417,8 +418,9 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
     return TCL_OK;
 }
 
-static int Twapi_AcceptSecurityContextObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_AcceptSecurityContextObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     SecHandle credential, context, *contextP;
     SecBufferDesc sbd_in, *sbd_inP;
     ULONG      contextreq, targetdatarep;
@@ -753,7 +755,7 @@ int Twapi_QueryContextAttributes(
     return TCL_OK;
 }
 
-static TCL_RESULT Twapi_MakeSignatureObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_MakeSignatureObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     SecHandle sech;
     ULONG qop;
@@ -781,12 +783,12 @@ static TCL_RESULT Twapi_MakeSignatureObjCmd(TwapiInterpContext *ticP, Tcl_Interp
 
     objs[0] = ObjFromByteArray(NULL, spc_sizes.cbMaxSignature);
     sbufs[0].BufferType = SECBUFFER_TOKEN;
-    sbufs[0].pvBuffer   = ObjToByteArray(objs[0], &sbufs[0].cbBuffer);
+    sbufs[0].pvBuffer   = (BYTE*) ObjToByteArray(objs[0], (int *) &sbufs[0].cbBuffer);
 
     objs[1] = ObjDuplicate(dataObj);
     TWAPI_ASSERT(! Tcl_IsShared(objs[1]));
     sbufs[1].BufferType = SECBUFFER_DATA | SECBUFFER_READONLY;
-    sbufs[1].pvBuffer   = ObjToByteArray(objs[1], &sbufs[1].cbBuffer);
+    sbufs[1].pvBuffer   = (BYTE*) ObjToByteArray(objs[1], (int *) &sbufs[1].cbBuffer);
     
     sbd.cBuffers = 2;
     sbd.pBuffers = sbufs;
@@ -809,8 +811,9 @@ static TCL_RESULT Twapi_MakeSignatureObjCmd(TwapiInterpContext *ticP, Tcl_Interp
 }
 
 
-static TCL_RESULT Twapi_EncryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_EncryptMessageObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     SecHandle sech;
     ULONG qop;
     ULONG seqnum;
@@ -835,16 +838,16 @@ static TCL_RESULT Twapi_EncryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_Inter
 
     objs[0] = ObjFromByteArray(NULL, spc_sizes.cbSecurityTrailer);
     sbufs[0].BufferType = SECBUFFER_TOKEN;
-    sbufs[0].pvBuffer   = ObjToByteArray(objs[0], &sbufs[0].cbBuffer);
+    sbufs[0].pvBuffer   = (BYTE *) ObjToByteArray(objs[0], (int *) &sbufs[0].cbBuffer);
 
     objs[1] = ObjDuplicate(dataObj);
     TWAPI_ASSERT(! Tcl_IsShared(objs[1]));
     sbufs[1].BufferType = SECBUFFER_DATA;
-    sbufs[1].pvBuffer   = ObjToByteArray(objs[1], &sbufs[1].cbBuffer);
+    sbufs[1].pvBuffer   = (BYTE *) ObjToByteArray(objs[1], (int *) &sbufs[1].cbBuffer);
     
     objs[2] = ObjFromByteArray(NULL, spc_sizes.cbBlockSize);
     sbufs[2].BufferType = SECBUFFER_PADDING;
-    sbufs[2].pvBuffer   = ObjToByteArray(objs[2], &sbufs[2].cbBuffer);
+    sbufs[2].pvBuffer   = (BYTE *) ObjToByteArray(objs[2], (int *) &sbufs[2].cbBuffer);
 
     sbd.cBuffers = 3;
     sbd.pBuffers = sbufs;
@@ -867,7 +870,7 @@ static TCL_RESULT Twapi_EncryptMessageObjCmd(TwapiInterpContext *ticP, Tcl_Inter
 }
 
 
-static TCL_RESULT Twapi_EncryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_EncryptStreamObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     SecHandle sech;
     ULONG qop;
@@ -877,7 +880,7 @@ static TCL_RESULT Twapi_EncryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     SecBufferDesc sbd;
     Tcl_Obj *dataObj;
     Tcl_Obj *objs[2];           /* 0 encrypted data, 1 leftover data */
-    char *dataP, *encP;
+    BYTE  *dataP, *encP;
     DWORD   datalen;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
@@ -891,7 +894,7 @@ static TCL_RESULT Twapi_EncryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     if (ss != SEC_E_OK)
         return Twapi_AppendSystemError(interp, ss);
 
-    dataP = ObjToByteArray(dataObj, &datalen);
+    dataP = ObjToByteArray(dataObj, (int *) &datalen);
     if (datalen > sizes.cbMaximumMessage) {
         objs[1] = ObjFromByteArray(dataP+sizes.cbMaximumMessage,
                                        datalen-sizes.cbMaximumMessage);
@@ -940,14 +943,15 @@ static TCL_RESULT Twapi_EncryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
 }
 
 
-static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_DecryptStreamObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     SecHandle sech;
     SECURITY_STATUS ss;
     SecBuffer sbufs[4];
     SecBufferDesc sbd;
     Tcl_Obj *objs[3];           /* 0 status, 1 decrypted data, 2 extra data */
-    char *encP, *p;
+    BYTE *encP, *p;
     int  i, enclen;
     TCL_RESULT res;
 
@@ -1051,8 +1055,9 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(TwapiInterpContext *ticP, Tcl_Interp
     return res;
 }
 
-static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_AcquireCredentialsHandleObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     LUID luid, *luidP;
     LPWSTR principalP;
     LPWSTR packageP;
@@ -1084,7 +1089,7 @@ static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_In
     else {
         if (WSTREQ(packageP, UNISP_NAME_W) ||
             WSTREQ(packageP, SCHANNEL_NAME_W)) {
-            if (ParseSCHANNEL_CRED(ticP, authObj, &(SCHANNEL_CRED *)pv) != TCL_OK)
+            if (ParseSCHANNEL_CRED(ticP, authObj, (SCHANNEL_CRED **)&pv) != TCL_OK)
                 goto vamoose;
             is_unisp = 1;
         } else if (WSTREQ(packageP, WDIGEST_SP_NAME_W) ||
@@ -1094,7 +1099,7 @@ static int Twapi_AcquireCredentialsHandleObjCmd(TwapiInterpContext *ticP, Tcl_In
             /* TBD - SDK has the comment that for RPC this memory
                must be valid for the lifetime of the binding handle. Is
                that true for SSPI also. Test */
-            if (ParsePSEC_WINNT_AUTH_IDENTITY(ticP, authObj, &(SEC_WINNT_AUTH_IDENTITY_W *)pv) != TCL_OK)
+            if (ParsePSEC_WINNT_AUTH_IDENTITY(ticP, authObj, (SEC_WINNT_AUTH_IDENTITY_W **)&pv) != TCL_OK)
                 goto vamoose;
             is_unisp = 0;
         } else {
@@ -1223,7 +1228,7 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                              GETINT(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            dw2 = DecryptMessage(&sech, &sbd, dw, &result.value.ival);
+            dw2 = DecryptMessage(&sech, &sbd, dw, &result.value.uval);
             if (dw2 == 0) {
                 result.type = TRT_OBJ;
                 result.value.obj = ObjFromSecBufferDesc(&sbd);

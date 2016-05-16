@@ -8,7 +8,7 @@
 #include "twapi.h"
 #include <ntverp.h>
 
-#if VER_PRODUCTBUILD <= 3790
+#if (VER_PRODUCTBUILD <= 3790) && !defined(__GNUC__)
 typedef struct _TCPIP_OWNER_MODULE_BASIC_INFO {
     PWCHAR pModuleName;
     PWCHAR pModulePath;
@@ -170,6 +170,10 @@ MAKE_DYNLOAD_FUNC(GetBestInterfaceEx, iphlpapi, GetBestInterfaceEx_t)
 
 #ifndef TWAPI_SINGLE_MODULE
 HMODULE gModuleHandle;
+#endif
+
+#ifndef MODULENAME
+#define MODULENAME "twapi_network"
 #endif
 
 Tcl_Obj *ObjFromMIB_IPNETROW(Tcl_Interp *interp, const MIB_IPNETROW *netrP);

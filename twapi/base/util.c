@@ -343,7 +343,7 @@ int TwapiEvalAndUpdateCallback(TwapiCallback *cbP, int objc, Tcl_Obj *objv[], Tw
         break;
     case TRT_LONG:
         tcl_status = ObjToLong(cbP->ticP->interp, objP,
-                               (long *) &responseP->value.ival);
+                               (long *) &responseP->value.lval);
         /* Errors will be handled below */
         break;
     case TRT_INT:

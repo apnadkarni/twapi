@@ -32,6 +32,10 @@ VkKeyScan
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
+#ifndef MODULENAME
+#define MODULENAME "twapi_ui"
+#endif
+
 /* Return Tcl List for a LOGFONT structure */
 Tcl_Obj *ObjFromLOGFONTW(LOGFONTW *lfP)
 {

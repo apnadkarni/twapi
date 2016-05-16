@@ -187,6 +187,17 @@ TWAPI_EXTERN WCHAR *ObjToWinCharsN(Tcl_Obj *objP, int *lenP)
     return wsP;
 }
 
+/* Identical to ObjToWinCharsN except length pointer type.
+   Just to keep gcc happy without needing a cast */
+TWAPI_EXTERN WCHAR *ObjToWinCharsNDW(Tcl_Obj *objP, DWORD *lenP)
+{
+    WCHAR *wsP;
+    wsP = ObjToWinChars(objP); /* Will convert as needed */
+    if (lenP)
+        *lenP = WinCharsGet(objP)->nchars;
+    return wsP;
+}
+
 TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsN(const WCHAR *wsP, int nchars)
 {
     Tcl_Obj *objP;
