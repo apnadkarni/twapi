@@ -5363,6 +5363,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 	    twapi/base/twine.c
 	    twapi/base/util.c
 	    twapi/base/win.c
+	    twapi/base/winchars.c
 
 	    twapi/account/account.c
 

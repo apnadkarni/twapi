@@ -246,8 +246,9 @@ static int Twapi_EventlogInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     return Twapi_EvtInitCalls(interp, ticP);
 }
 
-static int TwapiEventlogOneTimeInit(Tcl_Interp *interp)
+static int TwapiEventlogOneTimeInit(void *arg)
 {
+    Tcl_Interp *interp = arg;
     TwapiInitEvtStubs(interp);
     return TCL_OK;
 }

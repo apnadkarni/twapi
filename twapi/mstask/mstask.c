@@ -639,7 +639,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
                 goto badargs;
             result.type = TRT_LONG;
             hr = ifc.scheduledworkitem->lpVtbl->GetStatus(
-                ifc.scheduledworkitem, &result.value.uval);
+                ifc.scheduledworkitem, &result.value.lval);
             break;
         case 5215: // GetTrigger
             if (objc != 2)
@@ -747,7 +747,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
         case 5227: // SetWorkItemData
             if (objc != 2)
                 goto badargs;
-            pv = ObjToByteArray(objv[1], &dw1);
+            pv = ObjToByteArrayDW(objv[1], &dw1);
             if (dw1 > MAXWORD) {
                 ObjSetStaticResult(interp, "Binary data exceeds MAXWORD");
                 return TCL_ERROR;
@@ -840,21 +840,21 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
         case 5310: // SetMaxRunTime
             if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
+            CHECK_DWORD_OBJ(interp, dw1, objv[1]);
             result.type = TRT_EMPTY;
             hr = ifc.task->lpVtbl->SetMaxRunTime(ifc.task, dw1);
             break;
         case 5311: // SetPriority
             if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
+            CHECK_DWORD_OBJ(interp, dw1, objv[1]);
             result.type = TRT_EMPTY;
             hr = ifc.task->lpVtbl->SetPriority(ifc.task, dw1);
             break;
         case 5312: // SetTaskFlags
             if (objc != 2)
                 goto badargs;
-            CHECK_INTEGER_OBJ(interp, dw1, objv[1]);
+            CHECK_DWORD_OBJ(interp, dw1, objv[1]);
             result.type = TRT_EMPTY;
             hr = ifc.task->lpVtbl->SetTaskFlags(ifc.task, dw1);
             break;

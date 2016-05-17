@@ -15,7 +15,11 @@
 #include "twapi_service.h"
 
 /* There can be only one....*/
-static TwapiInterpContext *gServiceInterpContextP;
+#if __GNUC__
+static void * volatile gServiceInterpContextP;
+#else
+static TwapiInterpContext * volatile gServiceInterpContextP;
+#endif
 
 /* Structure to keep track of a particular service state */
 typedef struct _TwapiServiceContext {
@@ -58,13 +62,19 @@ typedef struct _TwapiServiceControlCallback {
 static TwapiServiceContext **gServiceContexts;
 static int gNumServiceContexts;
 DWORD  gServiceType;        /* own process or shared and whether interactive */
+#if defined(TWAPI_REPLACE_CRT) || defined(TWAPI_MINIMIZE_CRT)
+/* Using CreateThread */
 DWORD  gServiceMasterThreadId;   /* Thread of service main program */
+#else
+/* Using _beginthreadex */
+unsigned int gServiceMasterThreadId;   /* Thread of service main program */
+#endif
 HANDLE gServiceMasterThreadHandle;
 
 
 static void TwapiFreeServiceContexts(void);
 static BOOL ConsoleCtrlHandler( DWORD ctrl);
-static DWORD WINAPI TwapiServiceMasterThread(LPVOID unused);
+static unsigned int WINAPI TwapiServiceMasterThread(LPVOID unused);
 static int TwapiFindServiceIndex(const WCHAR *nameP);
 
 int Twapi_SetServiceStatus(
@@ -113,7 +123,7 @@ int Twapi_BecomeAService(
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    if (ObjToLong(interp, objv[0], &service_type) != TCL_OK)
+    if (ObjToDWORD(interp, objv[0], &service_type) != TCL_OK)
         return TCL_ERROR;
 
     if (InterlockedCompareExchangePointer(&gServiceInterpContextP, ticP, NULL)
@@ -133,7 +143,7 @@ int Twapi_BecomeAService(
         WCHAR    *nameP;
         if (ObjGetElements(interp, objv[i+1], &n, &objs) != TCL_OK ||
             n != 2 ||
-            ObjToLong(interp, objs[1], &ctrls) != TCL_OK) {
+            ObjToInt(interp, objs[1], &ctrls) != TCL_OK) {
             ObjSetStaticResult(interp, "Invalid service specification.");
             goto error_handler;
         }
@@ -339,7 +349,7 @@ static int TwapiServiceControlCallbackFn(TwapiCallback *p)
     }
 
     if (ctrl_str) {
-        Tcl_Obj *objs[6];
+        Tcl_Obj *objs[7];
         int nobjs = 0;
         objs[0] = STRING_LITERAL_OBJ(TWAPI_TCL_NAMESPACE "::_service_handler");
         objs[1] = ObjFromWinChars(gServiceContexts[cbP->service_index]->name);
@@ -453,6 +463,10 @@ static DWORD WINAPI TwapiServiceControlHandler(DWORD ctrl, DWORD event, PVOID ev
                                 TwapiServiceControlCallbackFn,
                                 sizeof(*cbP));
 
+    /* Note unless the interp thread successfully responds with
+       an status code, we assume status is NO_ERROR so as to not block
+       notifications that need a response */
+    status = NO_ERROR;
     cbP->service_index = service_index;
     cbP->ctrl = ctrl;
     cbP->event = event;
@@ -468,20 +482,15 @@ static DWORD WINAPI TwapiServiceControlHandler(DWORD ctrl, DWORD event, PVOID ev
                 && (cbP->cb.response.type == TRT_DWORD ||
                     cbP->cb.response.type == TRT_LONG))
                 status = cbP->cb.response.value.ival;
-        } else {
-            status = NO_ERROR;          /* Do not want to block queries that ask
-                                           for permission */
         }
         if (cbP)
             TwapiCallbackUnref(&cbP->cb, 1);
     } else {
-
         /* TBD - in call below, on error, do we send an error notification ? */
         TwapiEnqueueCallback(gServiceInterpContextP, &cbP->cb,
                              TWAPI_ENQUEUE_DIRECT,
                              0, /* No response wanted */
                              NULL);
-        status = NO_ERROR;
     }
     return status;
 }
@@ -561,7 +570,7 @@ static void WINAPI TwapiServiceThread(DWORD argc, WCHAR **argv)
  * some interpreter thread. It calls the SCM which calls back into the
  * handlers.
  */
-static DWORD WINAPI TwapiServiceMasterThread(LPVOID unused)
+static unsigned int WINAPI TwapiServiceMasterThread(LPVOID unused)
 {
     SERVICE_TABLE_ENTRYW *steP;
     int i;

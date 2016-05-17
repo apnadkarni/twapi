@@ -4279,6 +4279,32 @@ TWAPI_EXTERN TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_Wide
     return Tcl_GetWideIntFromObj(interp, objP, wideP);
 }
 
+TWAPI_EXTERN TCL_RESULT ObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *dwP) {
+    long l;
+    /* TBD - should we convert to Tcl_WideInt and check the range?
+       How much code depends on silent long<->unsigned long conversions? */
+    /* TBD - Test that full 32 bit unsigned is returned correctly */
+    TCL_RESULT res = Tcl_GetLongFromObj(interp, objP, &l);
+    if (res == TCL_OK)
+        *dwP = (DWORD) l;
+    return res;
+}
+
+/* Define as a function to avoid gcc squawking about signed pointers */
+TWAPI_EXTERN TCL_RESULT ObjToDWORD_PTR(Tcl_Interp *interp, Tcl_Obj *objP, DWORD_PTR *dwP)
+{
+#if defined(_WIN64)
+    Tcl_WideInt val;
+    TCL_RESULT res = Tcl_GetWideIntFromObj(interp, objP, &val);
+#else
+    long val;
+    TCL_RESULT res = Tcl_GetLongFromObj(interp, objP, &val);
+#endif
+    if (res == TCL_OK)
+        *dwP = (DWORD_PTR) val;
+    return res;
+}
+
 TWAPI_EXTERN TCL_RESULT ObjToDouble(Tcl_Interp *interp, Tcl_Obj *objP, double *dblP)
 {
     return Tcl_GetDoubleFromObj(interp, objP, dblP);

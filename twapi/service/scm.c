@@ -17,6 +17,16 @@ static HMODULE gModuleHandle;
 #define MODULENAME "twapi_service"
 #endif
 
+TWAPI_STATIC_INLINE TCL_RESULT ObjToSC_HANDLE(Tcl_Interp *interp, Tcl_Obj *objP, SC_HANDLE *schP) {
+    HANDLE sch;
+    TCL_RESULT res;
+    /* Use of the intermediary is to keep gcc happy */
+    res = ObjToHANDLE(interp, objP, &sch);
+    if (res == TCL_OK)
+        *schP = sch;
+    return res;
+}
+
 /* Map service state int to string */
 static char *ServiceStateString(DWORD state)
 {
@@ -554,7 +564,7 @@ static TCL_RESULT ParseSERVICE_FAILURE_ACTIONS(
         if (nfields != 2)
             return TwapiReturnError(interp, TWAPI_INVALID_DATA);
         if (ObjToInt(interp, fields[0], &sc_type) != TCL_OK ||
-            ObjToInt(interp, fields[1], &sfaP->lpsaActions[i].Delay) != TCL_OK)
+            ObjToDWORD(interp, fields[1], &sfaP->lpsaActions[i].Delay) != TCL_OK)
             return TCL_ERROR;
         sfaP->lpsaActions[i].Type = (SC_ACTION_TYPE) sc_type;
     }        
@@ -636,7 +646,7 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     if (res != TCL_OK)
         goto vamoose;
 
-    if (ObjToLong(interp, tagObj, &tag_id) == TCL_OK)
+    if (ObjToDWORD(interp, tagObj, &tag_id) == TCL_OK)
         tag_idP = &tag_id;
     else {
         /* An empty string means value is not to be changed. Else error */
@@ -714,7 +724,7 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
     if (res != TCL_OK)
         goto vamoose;
 
-    if (ObjToLong(NULL, tagObj, &tag_id) == TCL_OK)
+    if (ObjToDWORD(NULL, tagObj, &tag_id) == TCL_OK)
         tag_idP = &tag_id;
     else {
         /* An empty string means value is not to be changed. Else error */
@@ -766,7 +776,7 @@ int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
     }
 
-    if (ObjToHANDLE(interp, objv[0], &svcH) != TCL_OK)
+    if (ObjToSC_HANDLE(interp, objv[0], &svcH) != TCL_OK)
         return TCL_ERROR;
 
     if (ObjGetElements(interp, objv[1], &nargs, &argObjs) == TCL_ERROR)
@@ -814,8 +824,9 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 #endif
 
 
-static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_ServiceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = clientdata;
     TwapiResult result;
     int func;
     union {
@@ -880,7 +891,7 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         switch (func) {
         case 201:
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
-            if (GetServiceKeyNameW(h, s, u.buf, &result.value.unicode.len)) {
+            if (GetServiceKeyNameW(h, s, u.buf, (DWORD *)&result.value.unicode.len)) {
                 result.value.unicode.str = u.buf;
                 result.type = TRT_UNICODE;
             } else
@@ -888,7 +899,7 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             break;
         case 202:
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
-            if (GetServiceDisplayNameW(h, s, u.buf, &result.value.unicode.len)) {
+            if (GetServiceDisplayNameW(h, s, u.buf, (DWORD *)&result.value.unicode.len)) {
                 result.value.unicode.str = u.buf;
                 result.type = TRT_UNICODE;
             } else
@@ -919,7 +930,7 @@ static int Twapi_ServiceCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             return Twapi_BecomeAService(ticP, objc-2, objv+2);
         case 10007:
             CHECK_NARGS(interp, objc, 5);
-            CHECK_INTEGER_OBJ(interp, dw, objv[4]);
+            CHECK_DWORD_OBJ(interp, dw, objv[4]);
             result.type = TRT_SC_HANDLE;
             result.value.hval = OpenSCManagerW(
                 ObjToLPWSTR_NULL_IF_EMPTY(objv[2]),
