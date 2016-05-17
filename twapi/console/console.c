@@ -15,8 +15,11 @@ static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #define MODULENAME "twapi_console"
 #endif
 
+#if __GNUC__
+static void * volatile console_control_ticP;
+#else
 static TwapiInterpContext * volatile console_control_ticP;
-
+#endif
 static int ObjToCHAR_INFO(Tcl_Interp *interp, Tcl_Obj *obj, CHAR_INFO *ciP)
 {
     Tcl_Obj **objv;
@@ -277,7 +280,7 @@ static int Twapi_StartConsoleEventNotifier(TwapiInterpContext *ticP)
     void *pv;
 
     ERROR_IF_UNTHREADED(ticP->interp);
-    pv = InterlockedCompareExchangePointer((void * volatile *) &console_control_ticP,
+    pv = InterlockedCompareExchangePointer(&console_control_ticP,
                                            ticP, NULL);
     if (pv) {
         ObjSetStaticResult(ticP->interp, "Console control handler is already set.");
@@ -290,7 +293,7 @@ static int Twapi_StartConsoleEventNotifier(TwapiInterpContext *ticP)
         return TCL_OK;
     }
     else {
-        InterlockedExchangePointer((void * volatile *)&console_control_ticP, NULL);
+        InterlockedExchangePointer(&console_control_ticP, NULL);
         return TwapiReturnSystemError(ticP->interp);
     }
 }
@@ -299,7 +302,7 @@ static int Twapi_StartConsoleEventNotifier(TwapiInterpContext *ticP)
 static int Twapi_StopConsoleEventNotifier(TwapiInterpContext *ticP)
 {
     void *pv;
-    pv = InterlockedCompareExchangePointer((void * volatile *) &console_control_ticP,
+    pv = InterlockedCompareExchangePointer(&console_control_ticP,
                                            NULL, ticP);
     if (pv != (void*) ticP) {
         ObjSetStaticResult(ticP->interp, "Console control handler not set by this interpreter.");

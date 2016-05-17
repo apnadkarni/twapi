@@ -140,8 +140,9 @@ int Twapi_GetCurrencyFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     return numchars ? TCL_OK : TCL_ERROR;
 }
 
-static int Twapi_NlsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_NlsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     int func;
     DWORD dw, dw2;
     TwapiResult result;
@@ -196,7 +197,7 @@ static int Twapi_NlsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     case 34:
         if (objc != 3)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+        CHECK_DWORD_OBJ(interp, dw, objv[2]);
         result.value.unicode.len = VerLanguageNameW(dw, buf, sizeof(buf)/sizeof(buf[0]));
         result.value.unicode.str = buf;
         result.type = result.value.unicode.len ? TRT_UNICODE : TRT_GETLASTERROR;
@@ -204,8 +205,8 @@ static int Twapi_NlsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
     case 35: //GetLocaleInfo
         if (objc != 4)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
-        CHECK_INTEGER_OBJ(interp, dw2, objv[3]);
+        CHECK_DWORD_OBJ(interp, dw, objv[2]);
+        CHECK_DWORD_OBJ(interp, dw2, objv[3]);
         result.value.unicode.len = GetLocaleInfoW(dw, dw2, buf,
                                                   ARRAYSIZE(buf));
         if (result.value.unicode.len == 0) {
@@ -213,7 +214,12 @@ static int Twapi_NlsCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int
         } else {
             if (dw2 & LOCALE_RETURN_NUMBER) {
                 // buf actually contains a number
-                result.value.ival = *(int *)buf;
+#if __GNUC__
+                /* gcc complains about type punning so we have to do this. */
+                memcpy(&result.value.lval, buf, sizeof(result.value.lval));
+#else
+                result.value.lval = *(long *)buf;
+#endif
                 result.type = TRT_LONG;
             } else {
                 result.value.unicode.len -= 1;

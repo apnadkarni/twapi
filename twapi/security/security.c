@@ -77,7 +77,7 @@ int ObjToSID_AND_ATTRIBUTESSWS(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBU
 
     if (ObjGetElements(interp, obj, &objc, &objv) == TCL_OK &&
         objc == 2 &&
-        ObjToLong(interp, objv[1], &sidattrP->Attributes) == TCL_OK &&
+        ObjToDWORD(interp, objv[1], &sidattrP->Attributes) == TCL_OK &&
         ObjToPSIDSWS(interp, objv[0], &sidattrP->Sid) == TCL_OK) {
 
         return TCL_OK;
@@ -110,7 +110,7 @@ int ObjToLUID_AND_ATTRIBUTES (
         return TCL_ERROR;
 
     if ((objc != 2) ||
-        (ObjToLong(interp,objv[1],&luidattrP->Attributes) != TCL_OK) ||
+        (ObjToDWORD(interp,objv[1],&luidattrP->Attributes) != TCL_OK) ||
         (ObjToLUID(interp, objv[0], &luidattrP->Luid) != TCL_OK)) {
         if (interp) {
             Tcl_AppendResult(interp,
@@ -195,7 +195,7 @@ static void *AllocateAndGetTokenInformation(HANDLE tokenH,
                                             TOKEN_INFORMATION_CLASS class)
 {
     void *infoP = NULL;
-    int   info_buf_sz = 0;
+    DWORD   info_buf_sz = 0;
     DWORD error = 0;
 
     /* Keep looping since required buffer size may keep changing */
@@ -326,6 +326,9 @@ int Twapi_GetTokenInformation(
                 result = TCL_OK;
                 break;
 
+            default:
+                UNREACHABLE;
+                break;
             }
 
             /*
@@ -803,7 +806,7 @@ int Twapi_LsaGetLogonSessionData(Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     LPWSTR s, s2;
-    DWORD dw, dw2, dw3;
+    DWORD dw, dw2, dw3, *dwP;
     SECURITY_ATTRIBUTES *secattrP;
     HANDLE h, h2;
     SECURITY_DESCRIPTOR *secdP;
@@ -829,8 +832,8 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     int func = PtrToInt(clientdata);
     WCHAR *passwordP;
     Tcl_Obj **objPP;
-    DWORD nobjs;
-    int *iP;
+    int nobjs;
+    int i, ival;
     Tcl_Obj *objP;
     SWSMark mark = NULL;
     TCL_RESULT res;
@@ -889,7 +892,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             result.value.bval = daclP ? IsValidAcl(daclP) : 0;
             break;
         case 103:
-            res = ObjToInt(interp, objv[0], &dw);
+            res = ObjToDWORD(interp, objv[0], &dw);
             if (res != TCL_OK)
                 goto vamoose;
             result.value.ival = ImpersonateSelf(dw);
@@ -929,7 +932,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
         switch (func) {
         case 401:
             result.value.unicode.len = ARRAYSIZE(u.buf);
-            if (LookupPrivilegeDisplayNameW(s,s2,u.buf,&result.value.unicode.len,&dw)) {
+            if (LookupPrivilegeDisplayNameW(s,s2,u.buf,(DWORD *) &result.value.unicode.len,&dw)) {
                 result.value.unicode.str = u.buf;
                 result.type = TRT_UNICODE;
             } else
@@ -953,7 +956,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
         switch (func) {
         case 501:
             if (ConvertStringSecurityDescriptorToSecurityDescriptorW(
-                    s, dw, &secdP, NULL)) {
+                    s, dw, (void **) &secdP, NULL)) {
                 result.value.obj = ObjFromSECURITY_DESCRIPTOR(interp, secdP);
                 if (secdP)
                     LocalFree(secdP);
@@ -1166,31 +1169,30 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             if (objc != 3)
                 goto badargcount;
             if (ObjToOpaque(interp, objv[0], (void **) &lsah, "LSA_HANDLE") != TCL_OK ||
-                ObjToBoolean(interp, objv[1], &dw2) != TCL_OK ||
+                ObjToBoolean(interp, objv[1], &ival) != TCL_OK ||
                 ObjGetElements(interp, objv[2], &nobjs, &objPP) != TCL_OK) {
                 res = TCL_ERROR;
                 goto vamoose;
             }
-            iP = SWSAlloc(sizeof(int) * nobjs, NULL);
-            for (dw = 0; dw < nobjs; ++dw) {
-                if (ObjToInt(interp, objPP[dw], &iP[dw]) != TCL_OK)
+            dwP = SWSAlloc(sizeof(DWORD) * nobjs, NULL);
+            for (i = 0; i < nobjs; ++i) {
+                if (ObjToDWORD(interp, objPP[i], &dwP[i]) != TCL_OK)
                     break;
             }
-            if (dw < nobjs) {
+            if (i < nobjs) {
                 /* Failed to convert to int */
                 res = TCL_ERROR;
                 goto vamoose;
             } else {
                 POLICY_AUDIT_EVENTS_INFO paei;
-                paei.AuditingMode = dw2 ? TRUE : FALSE;
-                paei.EventAuditingOptions = iP;
+                paei.AuditingMode = ival ? TRUE : FALSE;
+                paei.EventAuditingOptions = dwP;
                 paei.MaximumAuditEventCount = nobjs;
                 result.type = TRT_NTSTATUS;
                 result.value.ival = LsaSetInformationPolicy(lsah,
                                                             PolicyAuditEventsInformation,
                                                             &paei);
             }
-
             break;
 
         case 10013: // Unused
@@ -1201,7 +1203,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                                GETINT(dw), GETINT(dw2), ARGEND);
             if (res != TCL_OK)
                 goto vamoose;
-            passwordP = ObjDecryptPasswordSWS(objv[2], &dw3);
+            passwordP = ObjDecryptPasswordSWS(objv[2], &ival);
             if (LogonUserW(
                     ObjToWinChars(objv[0]),
                     ObjToLPWSTR_NULL_IF_EMPTY(objv[1]),
@@ -1209,7 +1211,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 result.type = TRT_HANDLE;
             else
                 result.type = TRT_GETLASTERROR;
-            SecureZeroMemory(passwordP, dw3);
+            SecureZeroMemory(passwordP, ival);
             break;
             
         case 10015:
@@ -1291,7 +1293,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 goto vamoose;
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
             if (LookupPrivilegeNameW(ObjToWinChars(objv[0]), &luid,
-                                     u.buf, &result.value.unicode.len)) {
+                                     u.buf, (DWORD *) &result.value.unicode.len)) {
                 result.type = TRT_UNICODE;
                 result.value.unicode.str = u.buf;
                 result.value.unicode.len = -1;

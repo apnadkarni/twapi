@@ -1039,7 +1039,7 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(ClientData clientdata, Tcl_Interp *
     TCL_RESULT res;
     WCHAR *passwordP;
     int password_len;
-    MemLifoHandleMark mark = NULL;
+    MemLifoMarkHandle mark = NULL;
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(login_class),
                      ARGSKIP, ARGUSEDEFAULT, GETINT(timeout), GETINT(flags),
@@ -1177,7 +1177,7 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         case EvtChannelPublishingConfigLevel:
         case EvtChannelPublishingConfigClockType:
         case EvtChannelPublishingConfigFileMax:
-            if (ObjToDWORD(interp, objv[3], &var.UInt32Val) != TCL_OK)
+            if (ObjToDWORD(interp, objv[3], (DWORD *)&var.UInt32Val) != TCL_OK)
                 return TCL_ERROR;
             var.Type = EvtVarTypeUInt32;
             break;

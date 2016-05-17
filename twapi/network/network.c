@@ -247,7 +247,6 @@ int ObjToSOCKADDR_STORAGE(Tcl_Interp *interp, Tcl_Obj *objP, SOCKADDR_STORAGE *s
     Tcl_Obj **addrv;
     int       addrc;
     int       family;
-    int       sz = sizeof(*ssP);
     WORD      port;
 
     if (ObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
@@ -741,11 +740,11 @@ int ObjToMIB_TCPROW(Tcl_Interp *interp, Tcl_Obj *listObj,
         return TCL_ERROR;
     }
 
-    if ((ObjToInt(interp, objv[0], &row->dwState) != TCL_OK) ||
+    if ((ObjToDWORD(interp, objv[0], &row->dwState) != TCL_OK) ||
         (IPAddrObjToDWORD(interp, objv[1], &row->dwLocalAddr) != TCL_OK) ||
-        (ObjToInt(interp, objv[2], &row->dwLocalPort) != TCL_OK) ||
+        (ObjToDWORD(interp, objv[2], &row->dwLocalPort) != TCL_OK) ||
         (IPAddrObjToDWORD(interp, objv[3], &row->dwRemoteAddr) != TCL_OK) ||
-        (ObjToInt(interp, objv[4], &row->dwRemotePort) != TCL_OK)) {
+        (ObjToDWORD(interp, objv[4], &row->dwRemotePort) != TCL_OK)) {
         /* interp already has error */
         return TCL_ERROR;
     }
@@ -1153,7 +1152,7 @@ Tcl_Obj *ObjFromIP_ADAPTER_INFO_table(Tcl_Interp *interp, IP_ADAPTER_INFO *ainfo
 
 
 /* Helper function - common to all table retrieval functions */
-static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI *fn)(), Tcl_Obj *(*objbuilder)(Tcl_Interp *, ...), BOOL sortable, BOOL sort)
+static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI *fn)(), Tcl_Obj *(*objbuilder)(), BOOL sortable, BOOL sort)
 {
     int error;
     void *bufP;
@@ -1237,18 +1236,6 @@ int Twapi_GetNetworkParams(TwapiInterpContext *ticP)
     return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }
 
-
-/* TBD - obsoleted by GetAdaptersAddresses ? */
-int Twapi_GetAdaptersInfo(TwapiInterpContext *ticP)
-{
-    return TwapiIpConfigTableHelper(
-        ticP,
-        GetAdaptersInfo,
-        ObjFromIP_ADAPTER_INFO_table,
-        0,
-        0
-        );
-}
 
 
 int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
@@ -1573,7 +1560,7 @@ int Twapi_AllocateAndGetUdpExTableFromStack(
 }
 
 
-static int Twapi_GetNameInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_GetNameInfoObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     int status;
     SOCKADDR_STORAGE ss;
@@ -1633,7 +1620,7 @@ Tcl_Obj *TwapiCollectAddrInfo(struct addrinfo *addrP, int family)
     return resultObj;
 }
 
-static int Twapi_GetAddrInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_GetAddrInfoObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     const char *hostname;
     const char *svcname;
@@ -1664,8 +1651,9 @@ static int Twapi_GetAddrInfoObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     return TCL_OK;
 }
 
-static int Twapi_GetBestRouteObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_GetBestRouteObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     MIB_IPFORWARDROW route;
     int error;
     DWORD dest, src;
@@ -1686,8 +1674,9 @@ static int Twapi_GetBestRouteObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp
     }
 }
 
-static int Twapi_GetBestInterfaceObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_GetBestInterfaceObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     GetBestInterfaceEx_t fn;
     int result;
     DWORD ifindex;
@@ -1771,8 +1760,9 @@ static int TwapiHostnameEventProc(Tcl_Event *tclevP, int flags)
 
 
 /* Called from the Win2000 thread pool */
-static DWORD WINAPI TwapiHostnameHandler(TwapiHostnameEvent *theP)
+static DWORD WINAPI TwapiHostnameHandler(void *arg)
 {
+    TwapiHostnameEvent *theP = arg;
     struct addrinfo hints;
 
     TwapiZeroMemory(&hints, sizeof(hints));
@@ -1785,8 +1775,9 @@ static DWORD WINAPI TwapiHostnameHandler(TwapiHostnameEvent *theP)
 }
 
 
-static int Twapi_ResolveHostnameAsyncObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_ResolveHostnameAsyncObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     TwapiId id;
     char *name;
     int   len;
@@ -1876,8 +1867,9 @@ static int TwapiAddressEventProc(Tcl_Event *tclevP, int flags)
 
 
 /* Called from the Win2000 thread pool */
-static DWORD WINAPI TwapiAddressHandler(TwapiHostnameEvent *theP)
+static DWORD WINAPI TwapiAddressHandler(void *arg)
 {
+    TwapiHostnameEvent *theP = arg;
     SOCKADDR_STORAGE ss;
     char hostname[NI_MAXHOST];
     char portname[NI_MAXSERV];
@@ -1909,8 +1901,9 @@ static DWORD WINAPI TwapiAddressHandler(TwapiHostnameEvent *theP)
     return 0;                   /* Return value ignored anyways */
 }
 
-static int Twapi_ResolveAddressAsyncObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_ResolveAddressAsyncObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     TwapiId id;
     char *addrstr;
     int   len;
@@ -1957,10 +1950,11 @@ static int Twapi_ResolveAddressAsyncObjCmd(TwapiInterpContext *ticP, Tcl_Interp 
 }
 
 
-static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_NetworkCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     TwapiResult result;
-    int func;
+    int i, j, func;
     union {
         MIB_TCPROW tcprow;
         SOCKADDR_STORAGE ss;
@@ -1983,8 +1977,6 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
         switch (func) {
         case 1:
             return Twapi_GetNetworkParams(ticP);
-        case 2:
-            return Twapi_GetAdaptersInfo(ticP);
         }
     } else if (func < 300) {
         if (objc != 3)
@@ -1995,7 +1987,7 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             result.type = TRT_EXCEPTION_ON_ERROR;
             result.value.ival = SetTcpEntry(&u.tcprow);
         } else if (func < 250) {
-            CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+            CHECK_DWORD_OBJ(interp, dw, objv[2]);
             switch (func) {
             case 201:
                 return Twapi_GetPerAdapterInfo(ticP, dw);
@@ -2028,19 +2020,19 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
             case 252: // Twapi_IPAddressFamily - TBD - optimizable?
                 result.value.ival = 0;
                 result.type = TRT_DWORD;
-                dw = sizeof(u.ss);
-                dw2 = sizeof(u.ss); /* Since first call might change dw */
-                if (WSAStringToAddressW(s, AF_INET, NULL, (struct sockaddr *)&u.ss, &dw) == 0 ||
-                    WSAStringToAddressW(s, AF_INET6, NULL, (struct sockaddr *)&u.ss, &dw2) == 0) {
+                i = sizeof(u.ss);
+                j = sizeof(u.ss); /* Since first call might change i */
+                if (WSAStringToAddressW(s, AF_INET, NULL, (struct sockaddr *)&u.ss, &i) == 0 ||
+                    WSAStringToAddressW(s, AF_INET6, NULL, (struct sockaddr *)&u.ss, &j) == 0) {
                     result.value.uval = u.ss.ss_family;
                 }
                 break;
 
             case 253: // Twapi_NormalizeIPAddress
-                dw = sizeof(u.ss);
-                dw2 = sizeof(u.ss); /* Since first call might change dw */
-                if (WSAStringToAddressW(s, AF_INET, NULL, (struct sockaddr *)&u.ss, &dw) == 0 ||
-                    WSAStringToAddressW(s, AF_INET6, NULL, (struct sockaddr *)&u.ss, &dw2) == 0) {
+                i = sizeof(u.ss);
+                j = sizeof(u.ss); /* Since first call might change i */
+                if (WSAStringToAddressW(s, AF_INET, NULL, (struct sockaddr *)&u.ss, &i) == 0 ||
+                    WSAStringToAddressW(s, AF_INET6, NULL, (struct sockaddr *)&u.ss, &j) == 0) {
                     result.type = TRT_OBJ;
                     if (u.ss.ss_family == AF_INET6) {
                         /* Do not want scope id in normalized form */
@@ -2056,8 +2048,8 @@ static int Twapi_NetworkCallObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp,
     } else if (func < 400) {
         if (objc != 4)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[2]);
-        CHECK_INTEGER_OBJ(interp, dw2, objv[3]);
+        CHECK_DWORD_OBJ(interp, dw, objv[2]);
+        CHECK_DWORD_OBJ(interp, dw2, objv[3]);
         switch (func) {
         case 301:
             return Twapi_GetAdaptersAddresses(ticP, dw, dw2, NULL);
@@ -2116,7 +2108,6 @@ static int TwapiNetworkInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     static struct alias_dispatch_s NetDispatch[] = {
         DEFINE_ALIAS_CMD(GetNetworkParams, 1),
-        DEFINE_ALIAS_CMD(GetAdaptersInfo,  2),
         DEFINE_ALIAS_CMD(SetTcpEntry,  101),
         DEFINE_ALIAS_CMD(GetPerAdapterInfo,  201),
         DEFINE_ALIAS_CMD(GetIfEntry,  202),

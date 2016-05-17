@@ -308,12 +308,12 @@ static Tcl_Obj *ObjFromPDH_FMT_COUNTERVALUE(Tcl_Interp *interp, PDH_FMT_COUNTERV
         case PDH_FMT_DOUBLE: return Tcl_NewDoubleObj(valP->doubleValue);
         default:
             ObjSetResult(interp,
-                         Tcl_ObjPrintf("Invalid PDH counter format value 0x%x",
+                         Tcl_ObjPrintf("Invalid PDH counter format value 0x%lx",
                                        dwFormat));
             return NULL;
         }
     }
-    Twapi_AppendSystemErrorEx(interp, valP->CStatus, Tcl_ObjPrintf("Counter value status failure %d", valP->CStatus));
+    Twapi_AppendSystemErrorEx(interp, valP->CStatus, Tcl_ObjPrintf("Counter value status failure %lu", valP->CStatus));
     return NULL;
 }
 
@@ -338,7 +338,7 @@ TCL_RESULT Twapi_PdhGetFormattedCounterArray(
 {
     PDH_STATUS pdh_status;
     DWORD sz, nitems;
-    PDH_FMT_COUNTERVALUE_ITEM_W *itemP;
+    PDH_FMT_COUNTERVALUE_ITEM_W *itemP = NULL;
     TCL_RESULT res;
     DWORD i;
     SWSMark mark = SWSPushMark();
@@ -392,7 +392,7 @@ int Twapi_PdhGetFormattedCounterValue(
     if ((pdh_status != ERROR_SUCCESS)
         || (counter_value.CStatus != ERROR_SUCCESS)) {
         ObjSetResult(interp,
-                         Tcl_ObjPrintf("Error (0x%x/0x%x) retrieving counter value: ", pdh_status, counter_value.CStatus));
+                         Tcl_ObjPrintf("Error (0x%lx/0x%lx) retrieving counter value: ", pdh_status, counter_value.CStatus));
         if (pdh_status == ERROR_SUCCESS)
             pdh_status = counter_value.CStatus;
         return Twapi_AppendSystemError(interp, pdh_status);
@@ -413,7 +413,7 @@ int Twapi_PdhGetFormattedCounterValue(
 
     default:
         ObjSetResult(interp,
-                         Tcl_ObjPrintf("Invalid PDH counter format value 0x%x",
+                         Tcl_ObjPrintf("Invalid PDH counter format value 0x%lx",
                                        dwFormat));
         return  TCL_ERROR;
     }
@@ -522,8 +522,9 @@ PdhExpandCounterPath has a bug on Win2K. So we do not wrap it; TBD
 
 /* Call PDH API. This is special-cased because we have to do a restore
    locale after every PDH call on some platforms */
-int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_CallPdhObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     int func;
     LPWSTR s;
     DWORD   dw, dw2;
@@ -559,7 +560,7 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
 
         switch (func) {
         case 101:
-            if (ObjToLong(interp, objv[2], &dw) != TCL_OK)
+            if (ObjToDWORD(interp, objv[2], &dw) != TCL_OK)
                 return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
             result.type = TRT_EXCEPTION_ON_ERROR;
             result.value.ival = PdhSetDefaultRealTimeDataSource(dw);
@@ -577,7 +578,7 @@ int Twapi_CallPdhObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, 
         /* Single string with integer arg. */
         CHECK_NARGS(interp, objc, 4);
         /* To prevent shimmering issues, get int arg first */
-        CHECK_INTEGER_OBJ(interp, dw, objv[3]);
+        CHECK_DWORD_OBJ(interp, dw, objv[3]);
         s = ObjToWinChars(objv[2]);
         switch (func) {
         case 201: 

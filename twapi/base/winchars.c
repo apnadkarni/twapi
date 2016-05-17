@@ -17,7 +17,7 @@ typedef struct WinChars {
 static void DupWinCharsType(Tcl_Obj *srcP, Tcl_Obj *dstP);
 static void FreeWinCharsType(Tcl_Obj *objP);
 static void UpdateWinCharsTypeString(Tcl_Obj *objP);
-static struct Tcl_ObjType gWinCharsType = {
+struct Tcl_ObjType gWinCharsType = {
     "TwapiWinChars",
     FreeWinCharsType,
     DupWinCharsType,

@@ -3046,6 +3046,8 @@ static int Twapi_CryptFindOIDInfoObjCmd(ClientData clientdata, Tcl_Interp *inter
         }
         pv = algids;
         break;
+    default:
+        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid OID info flags.");
     }
 
     /* NOTE: coiP must NOT be freed */

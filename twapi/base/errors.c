@@ -501,3 +501,8 @@ void TwapiWriteEventLogError(const char *msg)
         DeregisterEventSource(hevl);
     }
 }
+
+TWAPI_EXTERN void TwapiUnreachablePanic()
+{
+    Tcl_Panic("Unreachable code executed.");
+}

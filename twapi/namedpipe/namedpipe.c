@@ -66,13 +66,12 @@ typedef struct _NPipeChannel {
 #define NPIPE_F_EVENT_QUEUED   16 /* A TCL event has been queued */ 
 #define NPIPE_F_EOF_NOTIFIED   32 /* Have already notified EOF */
 
-    ULONG volatile nrefs;              /* Ref count */
+    long volatile nrefs;              /* Ref count */
     WIN32_ERROR winerr;
+} NPipeChannel;
 
 #define SET_NPIPE_ERROR(ctxP_, err_) \
     ((ctxP_)->winerr == ERROR_SUCCESS ? ((ctxP_)->winerr = (err_)) : (ctxP_)->winerr)
-};
-
 #define NPIPE_CONNECTED(pcP_) ((pcP_)->flags & NPIPE_F_CONNECTED)
 
 /*
@@ -191,8 +190,9 @@ static int NPipeSetTclErrnoFromWin32Error(WIN32_ERROR winerr)
     return Tcl_GetErrno();
 }
 
-static int NPipeModuleInit(Tcl_Interp *interp)
+static int NPipeModuleInit(void *arg)
 {
+    Tcl_Interp *interp = arg;
     gNPipeTlsSlot = Twapi_AssignTlsSubSlot();
     if (gNPipeTlsSlot < 0) {
         ObjSetStaticResult(interp, "Could not assign private TLS slot");
@@ -210,8 +210,8 @@ void NPipeThreadFinalize(void)
         /* Do not use GET_NPIPE_TLS directly here since TLS may be gone */
         tlsP = Twapi_GetTls();
         if (tlsP) {
-            NPipeTls *pipetlsP = GET_NPIPE_TLS();
-            //TBD - release all channels, events etc.
+            // NPipeTls *pipetlsP = GET_NPIPE_TLS();
+            // TBD - release all channels, events etc.
             // TBD - Tcl_DeleteEventSource(NPipeSetupProc, NPipeCheckProc, NULL);
         }
     }
@@ -815,7 +815,7 @@ static int NPipeInputProc(
 {
     NPipeChannel *pcP = (NPipeChannel *)clientdata;
     struct _NPipeIO *ioP;
-    int nread;
+    DWORD nread;
 
     TWAPI_ASSERT(pcP->thread == Tcl_GetCurrentThread());
 
@@ -1032,7 +1032,7 @@ static int NPipeOutputProc(
                 goto error_return;
             }
             /* Wait for I/O to complete */
-            if (!GetOverlappedResult(pcP->hpipe, &ovl, &count, TRUE)) {
+            if (!GetOverlappedResult(pcP->hpipe, &ovl, (DWORD *)&count, TRUE)) {
                 pcP->winerr = GetLastError();
                 goto error_return;
             }
@@ -1219,14 +1219,14 @@ static void NPipeConfigureChannelDefaults(Tcl_Interp *interp, NPipeChannel *pcP)
     Tcl_SetChannelOption(NULL, pcP->channel, "-eofchar", "");
 }
 
-int Twapi_NPipeServerObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_NPipeServerObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     DWORD open_mode, pipe_mode, max_instances;
     DWORD inbuf_sz, outbuf_sz, timeout;
     SECURITY_ATTRIBUTES *secattrP = NULL;
     NPipeChannel *pcP;
     DWORD winerr = ERROR_SUCCESS;
-    NPipeTls *tlsP;
     Tcl_Obj *nameObj, *secattrObj;
     SWSMark mark = NULL;
     TCL_RESULT res;
@@ -1245,7 +1245,7 @@ int Twapi_NPipeServerObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
      * as various callbacks when registering channels will call functions
      * which expect the tls to have been initialized.
      */
-    tlsP = GetNPipeTls();
+    (void) GetNPipeTls(); /* Just to init it */
 
     if (pipe_mode & 0x7) {
         /* Currently, must be byte mode pipe and must not have NOWAIT flag */
@@ -1345,14 +1345,14 @@ int Twapi_NPipeServerObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
 }
 
 
-int Twapi_NPipeClientObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_NPipeClientObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     DWORD desired_access, share_mode, creation_disposition;
     DWORD flags_attr;
     SECURITY_ATTRIBUTES *secattrP = NULL;
     NPipeChannel *pcP;
     DWORD winerr;
-    NPipeTls *tlsP;
     HANDLE hpipe;
     Tcl_Obj *nameObj, *secattrObj;
     SWSMark mark = NULL;
@@ -1374,7 +1374,7 @@ int Twapi_NPipeClientObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
      * as various callbacks when registering channels will call functions
      * which expect the tls to have been initialized.
      */
-    tlsP = GetNPipeTls();
+    (void) GetNPipeTls(); /* Just to initialize it */
     flags_attr |= FILE_FLAG_OVERLAPPED;
     
     mark = SWSPushMark();
@@ -1453,7 +1453,7 @@ int Twapi_NPipeClientObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
 }
 
 
-int Twapi_NPipeImpersonateObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int Twapi_NPipeImpersonateObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     HANDLE h;
 
