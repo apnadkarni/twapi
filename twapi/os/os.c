@@ -55,7 +55,6 @@ typedef enum _TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP {
     TwapiRelationCache,
     TwapiRelationProcessorPackage,
     TwapiRelationGroup,
-    TwapiRelationAll = 0xffff
 } TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP;
 
 #ifndef LTP_PC_SMT
@@ -142,7 +141,7 @@ typedef struct _TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX {
     } DUMMYUNIONNAME;
 } TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX;
 
-static TWAPI_INLINE Tcl_Obj *ObjFromKAFFINITY(KAFFINITY kaffinity) {
+TWAPI_INLINE Tcl_Obj *ObjFromKAFFINITY(KAFFINITY kaffinity) {
     return ObjFromULONG_PTR(kaffinity);
 }
 
@@ -198,6 +197,8 @@ static Tcl_Obj *ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX(
             ObjAppendElement(NULL, elems[1], ObjFromGROUP_AFFINITY(&slpiexP->Processor.GroupMask[i]));
         nelems = 2;
         break;
+    default:
+        return ObjNewList(0, NULL);
     }
 
     objs[1] = ObjNewList(nelems, elems);
@@ -230,7 +231,9 @@ static Tcl_Obj *ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION(
     case TwapiRelationProcessorCore:
         objs[2] = ObjFromLong(slpiP->ProcessorCore.Flags);
         break;
+    case TwapiRelationGroup: /* TBD - add support */
     case TwapiRelationProcessorPackage:
+    default:
         objs[2] = ObjFromEmptyString();
         break;
     }
@@ -409,8 +412,9 @@ int Twapi_GetPerformanceInformation(Tcl_Interp *interp)
         return TwapiReturnSystemError(interp);
 }
 
-static TCL_RESULT Twapi_SystemProcessorTimesObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_SystemProcessorTimesObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     SYSTEM_INFO sysinfo;
     void  *bufP;
     int    bufsz;
@@ -561,7 +565,7 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
             return Twapi_GetLogicalProcessorInformation(interp);
         case 33:
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
-            if (GetComputerNameW(u.buf, &result.value.unicode.len)) {
+            if (GetComputerNameW(u.buf, (DWORD *) &result.value.unicode.len)) {
                 result.value.unicode.str = u.buf;
                 result.type = TRT_UNICODE;
             } else
@@ -598,11 +602,11 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     } else if (func < 300) {
         if (objc != 1)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        CHECK_DWORD_OBJ(interp, dw, objv[0]);
         switch (func) {
         case 201:
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
-            if (GetComputerNameExW(dw, u.buf, &result.value.unicode.len)) {
+            if (GetComputerNameExW(dw, u.buf, (DWORD*)&result.value.unicode.len)) {
                 result.value.unicode.str = u.buf;
                 result.type = TRT_UNICODE;
             } else

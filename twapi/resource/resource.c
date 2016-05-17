@@ -39,7 +39,7 @@ TCL_RESULT ObjToResourceIntOrString(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *
      * Resource type and name can be integers or strings. If integer,
      * they must pass the IS_INTRESOURCE test as not all integers are valid.
      */
-    if (ObjToLong(NULL, objP, &i) == TCL_OK &&
+    if (ObjToInt(NULL, objP, &i) == TCL_OK &&
         IS_INTRESOURCE(i))
         *wsP = MAKEINTRESOURCEW(i);
     else
@@ -210,7 +210,7 @@ TCL_RESULT Twapi_UpdateResource(
 
     /* Note resP / reslen might be NULL/0 -> delete resource */
     if (resObj)
-        resP = ObjToByteArray(resObj, &reslen);
+        resP = ObjToByteArrayDW(resObj, &reslen);
     else {
         resP = NULL;
         reslen = 0;
@@ -345,7 +345,7 @@ TCL_RESULT Twapi_EnumResourceNames(
 
 static BOOL CALLBACK EnumResourceTypesProc(
     HMODULE hModule,
-    LPCWSTR lpszType,
+    LPWSTR lpszType,
     LONG_PTR lParam
 )
 {
@@ -586,7 +586,7 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
         break;
     case 19:
         CHECK_NARGS(interp, objc, 4);
-        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        CHECK_DWORD_OBJ(interp, dw, objv[0]);
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival =
             CreateScalableFontResourceW(dw,
@@ -596,7 +596,7 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
         break;
     case 20:
         CHECK_NARGS(interp, objc, 2);
-        CHECK_INTEGER_OBJ(interp, dw, objv[1]);
+        CHECK_DWORD_OBJ(interp, dw, objv[1]);
         result.type = TRT_BOOL;
         result.value.bval = RemoveFontResourceExW(ObjToWinChars(objv[0]), dw, NULL);
         break;

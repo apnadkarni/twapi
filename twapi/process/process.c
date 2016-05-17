@@ -314,11 +314,12 @@ static TCL_RESULT Twapi_GetProcessList(
  * type = 0 for process, 1 for modules, 2 for drivers
  */
 static int Twapi_EnumProcessesModulesObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientdata,
     Tcl_Interp *interp,
     int  objc,
     Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     void  *bufP;
     DWORD  buf_filled;
     DWORD  buf_size;
@@ -349,7 +350,7 @@ static int Twapi_EnumProcessesModulesObjCmd(
             /* Looking for processes */
             status = EnumProcesses(bufP, buf_size, &buf_filled);
             break;
-
+ 
         case 1:
             /* Looking for modules for a process */
             status = EnumProcessModules(phandle, bufP, buf_size, &buf_filled);
@@ -359,6 +360,10 @@ static int Twapi_EnumProcessesModulesObjCmd(
             /* Looking for drivers */
             status = EnumDeviceDrivers(bufP, buf_size, &buf_filled);
             break;
+
+        default:
+            MemLifoPopFrame(ticP->memlifoP);
+            return TwapiReturnError(ticP->interp, TWAPI_INVALID_ARGS);
         }
 
         if (! status) {
@@ -726,7 +731,7 @@ static int TwapiCreateProcessHelper(TwapiInterpContext *ticP, int asuser, int ob
 
     envP = ObjToLPWSTR_WITH_NULL(envObj);
     if (envP) {
-        if (ObjToMultiSzEx(interp, envObj, (LPWSTR*) &envP, ticP->memlifoP) == TCL_ERROR)
+        if (ObjToMultiSzEx(interp, envObj, (const WCHAR **) &envP, ticP->memlifoP) == TCL_ERROR)
             goto vamoose;
         /* Note envP is allocated from ticP->memlifo */
     }
@@ -813,7 +818,7 @@ static int TwapiCreateProcessHelper2(TwapiInterpContext *ticP, int have_token, i
 
     envP = ObjToLPWSTR_WITH_NULL(envObj);
     if (envP) {
-        if (ObjToMultiSzEx(interp, envObj, (LPWSTR*) &envP, ticP->memlifoP) == TCL_ERROR)
+        if (ObjToMultiSzEx(interp, envObj, (const WCHAR **) &envP, ticP->memlifoP) == TCL_ERROR)
             goto vamoose;
         /* Note envP is allocated from ticP->memlifo */
     }
@@ -867,48 +872,53 @@ vamoose:
 
 
 static TCL_RESULT Twapi_CreateProcessObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientdata,
     Tcl_Interp *interp,
     int  objc,
     Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     return TwapiCreateProcessHelper(ticP, 0, objc, objv);
 }
 
 static TCL_RESULT Twapi_CreateProcessAsUserObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientdata,
     Tcl_Interp *interp,
     int  objc,
     Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     return TwapiCreateProcessHelper(ticP, 1, objc, objv);
 }
 
 static TCL_RESULT Twapi_CreateProcessWithLogonWObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientdata,
     Tcl_Interp *interp,
     int  objc,
     Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     return TwapiCreateProcessHelper2(ticP, 0, objc, objv);
 }
 
 static TCL_RESULT Twapi_CreateProcessWithTokenWObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientdata,
     Tcl_Interp *interp,
     int  objc,
     Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     return TwapiCreateProcessHelper2(ticP, 1, objc, objv);
 }
 
 
 static TCL_RESULT Twapi_LoadUserProfileObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientdata,
     Tcl_Interp *interp,
     int  objc,
     Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     HANDLE  hToken;
     PROFILEINFOW profileinfo;
     int nobjs;

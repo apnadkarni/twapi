@@ -75,15 +75,24 @@
 #   endif
 #endif
 
+/*
+ * TWAPI_INLINE should be used for defining inline functions that are
+ * used across multiple files. TWAPI_STATIC_INLINE should be used for
+ * functions that are intended to be used within a single file.
+ */
 #ifndef TWAPI_INLINE
 # ifdef _MSC_VER
 #  define TWAPI_INLINE __inline  /* Because VC++ 6 only accepts "inline" in C++  */
+#  define TWAPI_STATIC_INLINE static __inline
 # elif __GNUC__ && !__GNUC_STDC_INLINE__
 #  define TWAPI_INLINE extern inline
+#  define TWAPI_STATIC_INLINE static inline
 # else
 #  define TWAPI_INLINE inline
+#  define TWAPI_STATIC_INLINE static inline
 # endif
 #endif
+
 
 /* Define macros that affect structure sizes before any includes */
 #define CRYPT_DECRYPT_MESSAGE_PARA_HAS_EXTRA_FIELDS
@@ -205,6 +214,11 @@ typedef int TCL_RESULT;
 #else
 #define TWAPI_ASSERT(bool_) ((void) 0)
 #endif
+
+TWAPI_EXTERN void TwapiUnreachablePanic(void);
+#define UNREACHABLE do { \
+        TwapiUnreachablePanic(); \
+    } while (0)
 
 #if TWAPI_ENABLE_LOG
 #define TWAPI_OBJ_LOG_IF(cond_, interp_, objp_) if (cond_) TWAPI_OBJ_LOG(interp_, objp_)
@@ -1401,42 +1415,18 @@ TWAPI_EXTERN Tcl_Obj *ObjFromWideInt(Tcl_WideInt val);
 TWAPI_INLINE Tcl_Obj *ObjFromDWORD(DWORD dw) {
     return ObjFromWideInt(dw);
 }
-TWAPI_INLINE TCL_RESULT ObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *dwP) {
-    long l;
-    /* TBD - should we convert to Tcl_WideInt and check the range?
-       How much code depends on silent long<->unsigned long conversions? */
-    TCL_RESULT res = ObjToLong(interp, objP, &l);
-    if (res == TCL_OK)
-        *dwP = (DWORD) l;
-    return res;
-}
+TWAPI_EXTERN TCL_RESULT ObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *dwP);
 #define ObjFromULONG      ObjFromDWORD
 
 TWAPI_EXTERN TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP);
 TWAPI_EXTERN Tcl_Obj *ObjFromDouble(double val);
 TWAPI_EXTERN TCL_RESULT ObjToDouble(Tcl_Interp *interp, Tcl_Obj *objP, double *);
-
+TWAPI_EXTERN TCL_RESULT ObjToDWORD_PTR(Tcl_Interp *interp, Tcl_Obj *objP, DWORD_PTR *dwP);
 #ifdef _WIN64
-/* Define as a function to avoid gcc squawking about signed pointers */
-TWAPI_INLINE TCL_RESULT ObjToDWORD_PTR(Tcl_Interp *interp, Tcl_Obj *objP, DWORD_PTR *dwP) {
-    Tcl_WideInt wide;
-    TCL_RESULT res = ObjToWideInt(interp, objP, &wide);
-    if (res == TCL_OK)
-        *dwP = (DWORD_PTR) wide;
-    return res;
-}
 #define ObjFromDWORD_PTR(p_)  ObjFromULONGLONG((ULONGLONG)(p_))
 #define ObjToLONG_PTR         ObjToWideInt
 #define ObjFromLONG_PTR       ObjFromWideInt
 #else  // ! _WIN64
-/* Define as a function to avoid gcc squawking about signed pointers */
-TWAPI_INLINE TCL_RESULT ObjToDWORD_PTR(Tcl_Interp *interp, Tcl_Obj *objP, DWORD_PTR *dwP) {
-    DWORD dw;
-    TCL_RESULT res = ObjToDWORD(interp, objP, &dw);
-    if (res == TCL_OK)
-        *dwP = (DWORD_PTR) dw;
-    return res;
-}
 #define ObjFromDWORD_PTR(p_)  ObjFromDWORD((DWORD_PTR)(p_))
 #define ObjToLONG_PTR         ObjToLong
 #define ObjFromLONG_PTR       ObjFromLong
