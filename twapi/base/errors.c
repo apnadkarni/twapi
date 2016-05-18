@@ -274,7 +274,7 @@ Tcl_Obj *Twapi_MapWindowsErrorToString(DWORD error)
 
     /* Try as NTSTATUS code */
     if (hNtdll == NULL)
-        hNtdll = GetModuleHandle("ntdll.dll");
+        hNtdll = GetModuleHandleW(L"ntdll.dll");
     if (hNtdll)
         objP = Twapi_FormatMsgFromModule(error, hNtdll);
     if (objP)

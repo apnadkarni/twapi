@@ -168,7 +168,7 @@ TWAPI_EXTERN WCHAR *ObjToWinChars(Tcl_Obj *objP)
     utf8 = ObjToStringN(objP, &nbytes);
     Tcl_WinUtfToTChar(utf8, nbytes, &ds);
     len = Tcl_DStringLength(&ds) / sizeof(WCHAR);
-    rep = WinCharsNew(Tcl_DStringValue(&ds), len);
+    rep = WinCharsNew((WCHAR *) Tcl_DStringValue(&ds), len);
     Tcl_DStringFree(&ds);
     
     /* Convert the passed object's internal rep */

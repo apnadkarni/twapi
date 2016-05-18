@@ -30,8 +30,8 @@ Tcl_Obj *ObjFromMONITORINFOEX(MONITORINFO *miP)
     objv[1] = ObjFromRECT(&miP->rcWork);
     objv[2] = Tcl_NewLongObj(miP->dwFlags);
     /* miP could be either a MONITORINFO or MONITORINFOEX or MONITORINFOEXW */
-    if (miP->cbSize == sizeof(MONITORINFOEX)) {
-        objv[3] = Tcl_NewStringObj(((MONITORINFOEX *)miP)->szDevice, -1);
+    if (miP->cbSize == sizeof(MONITORINFOEXA)) {
+        objv[3] = Tcl_NewStringObj(((MONITORINFOEXA *)miP)->szDevice, -1);
         objc = 4;
     }
     else if (miP->cbSize == sizeof(MONITORINFOEXW)) {
