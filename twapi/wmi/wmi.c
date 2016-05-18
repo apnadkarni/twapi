@@ -38,6 +38,9 @@ static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int
                          GETINT(optflags), GETINT(classflags),
                          GETINT(instflags), ARGEND) != TCL_OK)
             return TCL_ERROR;
+        password = NULL;   /* Keep gcc happy though unused below for type 2 */
+        authority = NULL;  /* Ditto */
+        user = NULL; /* Ditto again */
     } else {
         if (TwapiGetArgs(interp, objc, objv,
                          GETPTR(ifc, IMofCompiler), ARGSKIP, ARGUSEDEFAULT,
@@ -59,7 +62,7 @@ static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int
 
     switch (type) {
     case 0:
-        buf = ObjToStringN(objv[1], &buflen);
+        buf = (BYTE *) ObjToStringN(objv[1], &buflen);
         hr = ifc->lpVtbl->CompileBuffer(ifc, buflen, buf, server_namespace,
                                          user, authority, password,
                                          optflags, classflags, instflags,
@@ -95,7 +98,7 @@ static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int
     case WBEM_S_FALSE: /* Fall thru */
     default:
         ObjSetResult(interp,
-                         Tcl_ObjPrintf("IMofCompiler error: phase: %d, object number: %d, first line: %d, last line: %d.",
+                         Tcl_ObjPrintf("IMofCompiler error: phase: %ld, object number: %ld, first line: %ld, last line: %ld.",
                                        wcsi.lPhaseError,
                                        wcsi.ObjectNum,
                                        wcsi.FirstLine,

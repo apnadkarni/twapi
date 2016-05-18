@@ -37,7 +37,6 @@ int Twapi_EnumWindowStations(Tcl_Interp *interp)
 
     enum_ctx.interp = interp;
     enum_ctx.objP = ObjEmptyList();
-
     
     if (EnumWindowStationsW(Twapi_EnumWindowStationsOrDesktopsCallback, (LPARAM)&enum_ctx) == 0) {
         TwapiReturnSystemError(interp);
@@ -68,8 +67,9 @@ int Twapi_EnumDesktops(Tcl_Interp *interp, HWINSTA hwinsta)
     return TCL_OK;
 }
 
-static int Twapi_GetUserObjectInformation(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static int Twapi_GetUserObjectInformation(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = clientdata;
     HANDLE h;
     int idx;
     void *pv;
@@ -118,6 +118,9 @@ static int Twapi_GetUserObjectInformation(TwapiInterpContext *ticP, Tcl_Interp *
                 objP = NULL;
             else
                 objP = ObjFromSIDNoFail(pv);
+        default:
+            objP = ObjFromByteArray(pv, len);
+            break;
         }
         if (objP)
             ObjSetResult(interp, objP);

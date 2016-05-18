@@ -76,7 +76,7 @@ typedef struct _TwapiDirectoryMonitorContext {
     HANDLE  thread_pool_registry_handle; /* Handle returned by thread pool */
     HANDLE  completion_event;            /* Used for i/o signaling */
     ZLINK_DECL(TwapiDirectoryMonitorContext);
-    ULONG volatile nrefs;              /* Ref count */
+    long volatile nrefs;              /* Ref count */
     TwapiDirectoryMonitorBuffer *iobP; /* Used for actual reads. IMPORTANT -
                                           if not NULL, and iobP->ovl.hEvent
                                           is not NULL, READ is in progress
@@ -93,8 +93,8 @@ typedef struct _TwapiDirectoryMonitorContext {
 } TwapiDirectoryMonitorContext;
 
 
-TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
-TCL_RESULT Twapi_UnregisterDirectoryMonitorObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]);
+TwapiTclObjCmd Twapi_RegisterDirectoryMonitorObjCmd;
+TwapiTclObjCmd Twapi_UnregisterDirectoryMonitorObjCmd;
 int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *);
 
 #endif

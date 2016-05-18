@@ -87,9 +87,9 @@ int ObjToFLASHWINFO (Tcl_Interp *interp, Tcl_Obj *obj, FLASHWINFO *fwP)
     fwP->cbSize = sizeof(*fwP);
     if (objc == 4 &&
         (ObjToHWND(interp, objv[0], &hwnd) == TCL_OK) &&
-        (ObjToLong(interp, objv[1], &fwP->dwFlags) == TCL_OK) &&
-        (ObjToLong(interp, objv[2], &fwP->uCount) == TCL_OK) &&
-        (ObjToLong(interp, objv[3], &fwP->dwTimeout) == TCL_OK)) {
+        (ObjToDWORD(interp, objv[1], &fwP->dwFlags) == TCL_OK) &&
+        (ObjToUINT(interp, objv[2], &fwP->uCount) == TCL_OK) &&
+        (ObjToDWORD(interp, objv[3], &fwP->dwTimeout) == TCL_OK)) {
         fwP->hwnd = (HWND) hwnd;
         return TCL_OK;
     }
@@ -120,8 +120,8 @@ int ObjToWINDOWPLACEMENT(Tcl_Interp *interp, Tcl_Obj *objP, WINDOWPLACEMENT *wpP
     if (objc != 5)
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Incorrect format of WINDOWPLACEMENT argument.");
 
-    if (ObjToLong(interp, objv[0], &wpP->flags) != TCL_OK ||
-        ObjToLong(interp, objv[1], &wpP->showCmd) != TCL_OK ||
+    if (ObjToUINT(interp, objv[0], &wpP->flags) != TCL_OK ||
+        ObjToUINT(interp, objv[1], &wpP->showCmd) != TCL_OK ||
         ObjToPOINT(interp, objv[2], &wpP->ptMinPosition) != TCL_OK ||
         ObjToPOINT(interp, objv[3], &wpP->ptMaxPosition) != TCL_OK ||
         ObjToRECT(interp, objv[4], &wpP->rcNormalPosition) != TCL_OK) {
@@ -337,7 +337,8 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
         /* Functions taking no arguments */
 
         HWND (WINAPI *hfn)(void) = NULL;
-        DWORD (WINAPI *dfn)() = NULL;
+        BOOL (WINAPI *bfn)(void) = NULL;
+        UINT (WINAPI *ufn)(void) = NULL;
         if (objc != 0)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         switch (func) {
@@ -345,23 +346,26 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
         case 2:
             result.type = (func == 1 ? GetCursorPos : GetCaretPos) (&result.value.point) ? TRT_POINT : TRT_GETLASTERROR;
             break;
-        case 3: dfn = GetCaretBlinkTime; break;
+        case 3: ufn = GetCaretBlinkTime; break;
         case 4: hfn = GetFocus; break;
         case 5: hfn = GetDesktopWindow; break;
         case 6: hfn = GetShellWindow; break;
         case 7: hfn = GetForegroundWindow; break;
         case 8: hfn = GetActiveWindow; break;
-        case 9: dfn = IsThemeActive; break;
-        case 10: dfn = IsAppThemed; break;
+        case 9: bfn = IsThemeActive; break;
+        case 10: bfn = IsAppThemed; break;
         case 11:
             return Twapi_GetCurrentThemeName(interp);
         }
         if (hfn) {
             result.type = TRT_HWND;
             result.value.hwin = hfn();
-        } else if (dfn) {
+        } else if (ufn) {
             result.type = TRT_DWORD;
-            result.value.uval = dfn();
+            result.value.uval = ufn();
+        } else if (bfn) {
+            result.type = TRT_BOOL;
+            result.value.bval = bfn();
         }
     } else if (func < 2000) {
         /* Exactly one arg */
@@ -573,8 +577,7 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     result.type = TRT_BADFUNCTIONCODE;
     if (func < 500) {
         BOOL (WINAPI *bfn)(HWND) = NULL;
-        DWORD (WINAPI *dfn)(HWND) = NULL;
-
+        UINT (WINAPI *ufn)(HWND) = NULL;
         if (objc != 0)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
@@ -585,14 +588,14 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         case 4: bfn = IsWindow; break;
         case 5: bfn = IsWindowUnicode; break;
         case 6: bfn = IsWindowEnabled; break;
-        case 7: bfn = ArrangeIconicWindows; break;
+        case 7: ufn = ArrangeIconicWindows; break;
         case 8: bfn = SetForegroundWindow; break;
-        case 9: dfn = OpenIcon; break;
-        case 10: dfn = CloseWindow; break;
-        case 11: dfn = DestroyWindow; break;
-        case 12: dfn = UpdateWindow; break;
-        case 13: dfn = HideCaret; break;
-        case 14: dfn = ShowCaret; break;
+        case 9: bfn = OpenIcon; break;
+        case 10: bfn = CloseWindow; break;
+        case 11: bfn = DestroyWindow; break;
+        case 12: bfn = UpdateWindow; break;
+        case 13: bfn = HideCaret; break;
+        case 14: bfn = ShowCaret; break;
         case 15:
             result.type = TRT_HWND;
             result.value.hwin = GetParent(hwnd);
@@ -661,9 +664,9 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         if (bfn) {
             result.type = TRT_BOOL;
             result.value.bval = bfn(hwnd);
-        } else if (dfn) {
+        } else if (ufn) {
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = dfn(hwnd);
+            result.value.ival = ufn(hwnd);
         }
     } else if (func < 1000) {
         /* Exactly one additional int arg */

@@ -48,7 +48,7 @@ int Twapi_GetShellVersion(Tcl_Interp *interp)
 {
     DLLVERSIONINFO *ver = TwapiShellVersion();
     ObjSetResult(interp,
-                     Tcl_ObjPrintf("%u.%u.%u",
+                     Tcl_ObjPrintf("%lu.%lu.%lu",
                                    ver->dwMajorVersion,
                                    ver->dwMinorVersion,
                                    ver->dwBuildNumber));
@@ -120,11 +120,12 @@ static BOOL Twapi_SHObjectProperties(
 
 // Create a shell link
 static TCL_RESULT Twapi_WriteShortcutObjCmd(
-    TwapiInterpContext *ticP,
+    ClientData clientdata,
     Tcl_Interp *interp,
     int  objc,
     Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = clientdata;
     LPCWSTR linkPath;
     LPCWSTR objPath;
     LPITEMIDLIST itemIds;
@@ -627,8 +628,9 @@ vamoose:
     return res;
 }
 
-static TCL_RESULT Twapi_ShellExecuteExObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+static TCL_RESULT Twapi_ShellExecuteExObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = clientdata;
     LPCWSTR lpClass;
     HKEY hkeyClass;
     DWORD dwHotKey;
@@ -969,8 +971,8 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
 
     case 10: // Shell_NotifyIcon
         CHECK_NARGS(interp, objc, 2);
-        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
-        u.niP = (NOTIFYICONDATAW *) ObjToByteArray(objv[1], &dw2);
+        CHECK_DWORD_OBJ(interp, dw, objv[0]);
+        u.niP = (NOTIFYICONDATAW *) ObjToByteArrayDW(objv[1], &dw2);
         if (dw2 != sizeof(NOTIFYICONDATAW) || dw2 != u.niP->cbSize) {
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Inconsistent size of NOTIFYICONDATAW structure.");
         }
