@@ -246,7 +246,7 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         case 10:
             return Twapi_GetDiskFreeSpaceEx(interp, s);
         case 11: // GetCompressedFileSize
-            largeint.u.LowPart = GetCompressedFileSizeW(s, &largeint.u.HighPart);
+            largeint.u.LowPart = GetCompressedFileSizeW(s, (LPDWORD) &largeint.u.HighPart);
             if (largeint.u.LowPart == INVALID_FILE_SIZE) {
                 /* Does not mean failure, have to actually check */
                 dw = GetLastError();
@@ -310,7 +310,7 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         if (objc == 2)
             dw = 0;
         else {
-            CHECK_INTEGER_OBJ(interp, dw, objv[2]);
+            CHECK_DWORD_OBJ(interp, dw, objv[2]);
         }
         s = ObjToWinChars(objv[0]);
         s2 = ObjToWinChars(objv[1]);
@@ -350,7 +350,7 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         break;
     case 23:
         CHECK_NARGS(interp, objc, 3);
-        CHECK_INTEGER_OBJ(interp, dw, objv[0]);
+        CHECK_DWORD_OBJ(interp, dw, objv[0]);
         if (TwapiGetArgs(interp, objc, objv,
                          GETINT(dw), ARGSKIP, ARGSKIP, ARGEND) != TCL_OK)
             return TCL_ERROR;
