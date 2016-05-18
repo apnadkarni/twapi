@@ -1840,7 +1840,7 @@ static TCL_RESULT Twapi_CoInitializeSecurityObjCmd(ClientData clientdata, Tcl_In
 
         /* Zero out passwords in memory */
         if (sole_auth_listP && sole_auth_listP->aAuthInfo) {
-            int i;
+            DWORD i;
             SOLE_AUTHENTICATION_INFO *saiP = sole_auth_listP->aAuthInfo;
             for (i = 0; i < sole_auth_listP->cAuthInfo;  ++i) {
                 if (saiP[i].dwAuthnSvc == RPC_C_AUTHN_WINNT ||

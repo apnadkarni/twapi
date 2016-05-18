@@ -2427,12 +2427,11 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
 
 TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int       i, eaten;
+    int       i, eaten, remain;
     Tcl_Obj **types;            /* Field types */
     int       ntypes;           /* Number of fields/types */
     BYTE     *bytesP;
     int       nbytes;
-    ULONG     remain;
     Tcl_Obj  *resultObj = NULL;
     WCHAR     wc;
     GUID      guid;

@@ -1282,7 +1282,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUUID (UUID *uuidP)
     /* NOTE UUID and GUID have same binary format but are formatted
        differently based on the component. */
     objP = ObjFromString((char *)uuidStr);
-    RpcStringFree(&uuidStr);
+    RpcStringFreeA(&uuidStr);
     return objP;
 }
 
@@ -4821,16 +4821,26 @@ static void UpdateEnumTypeString(Tcl_Obj *objP)
     Tcl_Obj *obj2P;
     char *p;
     int len;
-    TCL_RESULT res;
 
+    /*
+     * Separate out the assert version because otherwise gcc squawks about
+     * unused variable res
+     */
+#if TWAPI_ENABLE_ASSERT
+    TCL_RESULT res;
     TWAPI_ASSERT(objP->bytes == NULL);
     TWAPI_ASSERT(objP->typePtr == &gEnumType);
     TWAPI_ASSERT(objP->internalRep.ptrAndLongRep.ptr);
-    
     res = ObjListIndex(NULL, objP->internalRep.ptrAndLongRep.ptr, objP->internalRep.ptrAndLongRep.value, &obj2P);
     TWAPI_ASSERT(res == TCL_OK);
     TWAPI_ASSERT(obj2P);
 
+#else
+    
+    (void) ObjListIndex(NULL, objP->internalRep.ptrAndLongRep.ptr, objP->internalRep.ptrAndLongRep.value, &obj2P);
+
+#endif
+    
     p = ObjToStringN(obj2P, &len);
     objP->bytes = ckalloc(len+1);
     objP->length = len;
