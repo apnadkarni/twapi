@@ -188,11 +188,24 @@ typedef int TCL_RESULT;
 /* Note:
  * when calling that pkg_ must be title-ized as documented in Tcl_StaticPackage
  */
-#define TWAPI_INIT_STATIC_PACKAGE(pkg_, init_, safe_init_)      \
-    do  {                                                       \
+/* TBD - in 8.6 Tcl_StaticPackage is no longer defined so we call it
+   through the stubs structure. Is this the right thing to do ?
+   TBD - if twapi gets loaded into multiple interps, is it ok to pass
+   NULL to the function the second time it is called?
+*/
+#ifdef USE_TCL_STUBS
+#define TWAPI_INIT_STATIC_PACKAGE(pkg_, init_, safe_init_)                   \
+    do  {                                                                    \
         /* Note first param NULL else init proc is assumed already called */ \
-        Tcl_StaticPackage(NULL, #pkg_, init_, safe_init_);              \
+        (tclStubsPtr->tcl_StaticPackage)(NULL, #pkg_, init_, safe_init_);    \
     } while (0)
+#else
+#define TWAPI_INIT_STATIC_PACKAGE(pkg_, init_, safe_init_)                   \
+    do  {                                                                    \
+        /* Note first param NULL else init proc is assumed already called */ \
+        Tcl_StaticPackage(NULL, #pkg_, init_, safe_init_);                   \
+    } while (0)
+#endif
 #endif
 
 #define MAKESTRINGLITERAL(s_) # s_
@@ -1122,7 +1135,7 @@ typedef struct _TwapiTclEvent {
  * Prototypes and globals
  *****************************************************************/
 
-typedef int TwapiTclObjCmd(
+typedef TCL_RESULT TwapiTclObjCmd(
     ClientData dummy,           /* Not used. */
     Tcl_Interp *interp,         /* Current interpreter. */
     int objc,                   /* Number of arguments. */
@@ -1417,6 +1430,9 @@ TWAPI_INLINE Tcl_Obj *ObjFromDWORD(DWORD dw) {
 }
 TWAPI_EXTERN TCL_RESULT ObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *dwP);
 #define ObjFromULONG      ObjFromDWORD
+TWAPI_INLINE TCL_RESULT ObjToUINT(Tcl_Interp *ip, Tcl_Obj *objP, UINT *uiP) {
+    return ObjToDWORD(ip, objP, (DWORD *)uiP);
+}
 
 TWAPI_EXTERN TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP);
 TWAPI_EXTERN Tcl_Obj *ObjFromDouble(double val);

@@ -591,9 +591,14 @@ TCL_RESULT Twapi_RecordObjCmd(
 
     nsP = Tcl_GetCurrentNamespace(interp);
     sep = nsP->parentPtr == NULL ? "" : "::";
-    if (objc < 3) 
-        nameObj = Tcl_ObjPrintf("%s%srecord%u", nsP->fullName, sep, Twapi_NewId());
-    else {
+    if (objc < 3)  {
+#ifdef _WIN64
+        /* Note: even MingW gcc needs %I64, NOT %llu, as it uses the MSVC runtime */
+        nameObj = Tcl_ObjPrintf("%s%srecord%I64u", nsP->fullName, sep, Twapi_NewId());
+#else
+        nameObj = Tcl_ObjPrintf("%s%srecord%lu", nsP->fullName, sep, Twapi_NewId());
+#endif
+    } else {
         char *nameP = ObjToString(objv[1]);
         if (nameP[0] == ':' && nameP[1] == ':')
             nameObj = objv[1];

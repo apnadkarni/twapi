@@ -30,8 +30,9 @@ static void CALLBACK TwapiDirectoryMonitorThreadPoolFn(
 static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *p);
 static int TwapiDirectoryMonitorPatternMatch(WCHAR *path, WCHAR *pattern);
 
-TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = clientdata;
     TwapiDirectoryMonitorContext *dmcP;
     LPWSTR pathP;
     int    path_len;
@@ -141,8 +142,9 @@ system_error:
 }
 
 
-TCL_RESULT Twapi_UnregisterDirectoryMonitorObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_UnregisterDirectoryMonitorObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    TwapiInterpContext *ticP = clientdata;
     HANDLE dirhandle;
     TwapiDirectoryMonitorContext *dmcP;
 
@@ -514,23 +516,27 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
             else {
                 /* Need to match on pattern */
                 int i;
+                pattern_matched = 0;
                 for (i = 0; i < dmcP->npatterns; ++i) {
                     int matched = TwapiDirectoryMonitorPatternMatch(
                         ObjToWinChars(fnObj[1]),
                         dmcP->patterns[i]);
                     if (matched) {
-                        /* Matches can be inclusive or exclusive */
+                        /* 
+                         * Matches can be inclusive or exclusive. If 
+                         * inclusive (matched > 0), the pattern matches
+                         * and no need to check additional patterns.
+                         * If exclusive, it does not match AND we should not
+                         * check additional patterns.
+                         */
                         pattern_matched = (matched > 0);
                         break;
                     }
                 }
-                if (i == dmcP->npatterns) {
-                    /*
-                     * No match. Try next name. Note fnObj will be released
-                     * later if necessary or reused in next iteration
-                     */
-                    pattern_matched = 0;
-                }
+                /*
+                 * Note if no match we will try next name. fnObj[1] will
+                 * be released later if necessary or reused in next iteration
+                 */
             }
 
             if (pattern_matched) {
