@@ -12,6 +12,9 @@
 #error _WIN32_WINNT too low
 #endif
         
+#ifndef _UNICODE
+#error -D_UNICODE is not defined on compile command.
+#endif
 
 /* Enable prototype-less extern functions warnings even at warning level 1 */
 #ifdef _MSC_VER

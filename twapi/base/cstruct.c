@@ -47,7 +47,7 @@ typedef struct TwapiCStructField_s {
 
 typedef struct TwapiCStructRep_s {
     int nrefs;                  /* Reference count for this structure */
-    unsigned int nfields;                /* Number of elements in fields[] */
+    int nfields;                /* Number of elements in fields[] */
     unsigned int size;                   /* Size of the defined structure */
     unsigned int alignment;              /* Alignment required (calculated based
                                    on contained fields) */
@@ -465,7 +465,8 @@ error_return:
 static TCL_RESULT ObjFromCStructHelper(Tcl_Interp *interp, void *pv, unsigned int nbytes, TwapiCStructRep *csP, DWORD flags, Tcl_Obj **objPP)
 {
     Tcl_Obj *objs[2*32]; /* Assume no more than 32 fields in a struct */
-    unsigned int i, objindex, max_fields, include_key;
+    unsigned int objindex, include_key;
+    int i, max_fields;
 
     TWAPI_ASSERT(csP->nrefs > 0);
     csP->nrefs += 1;            /* So it is not shimmered away underneath us */

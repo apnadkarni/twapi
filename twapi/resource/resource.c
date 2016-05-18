@@ -94,7 +94,7 @@ int Twapi_VerQueryValue_FIXEDFILEINFO(
     VS_FIXEDFILEINFO *ffiP;
     UINT              ffi_sz;
 
-    if (! VerQueryValue(verP, "\\", (LPVOID) &ffiP, &ffi_sz)) {
+    if (! VerQueryValueW(verP, L"\\", (LPVOID) &ffiP, &ffi_sz)) {
         /* Return empty list, not error */
         return TCL_OK;
     }
@@ -159,7 +159,7 @@ int Twapi_VerQueryValue_TRANSLATIONS(
     DWORD    *dwP;
     UINT      len;
 
-    if (! VerQueryValue(verP, "\\VarFileInfo\\Translation", (LPVOID) &bufP, &len)) {
+    if (! VerQueryValueW(verP, L"\\VarFileInfo\\Translation", (LPVOID) &bufP, &len)) {
         /* Return empty list, not error */
         return TCL_OK;
     }
