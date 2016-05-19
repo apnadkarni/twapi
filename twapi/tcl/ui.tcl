@@ -519,6 +519,7 @@ proc twapi::redraw_window {hwin {opt ""}} {
     }
 
     UpdateWindow $hwin
+    return
 }
 
 # Set the window position

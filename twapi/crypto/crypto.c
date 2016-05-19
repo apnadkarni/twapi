@@ -4878,7 +4878,7 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
         if (TwapiGetArgs(interp, objc, objv, GETOBJ(s1Obj),
                          GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        s1 = ObjToWinCharsNDW(s1Obj, &dw2);
+        s1 = ObjToWinCharsDW(s1Obj, &dw2);
         if (!CryptStringToBinaryW(s1, dw2, dw, NULL, &dw3, NULL, NULL))
             return TwapiReturnSystemError(interp);
         result.value.obj = ObjAllocateByteArray(dw3, &pv);
