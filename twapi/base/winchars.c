@@ -8,6 +8,19 @@
 #include "twapi.h"
 #include "twapi_base.h"
 
+/* 
+ * This implementation is only enabled when TCL_MAX_UTF > 4 resulting in
+ * sizeof(Tcl_UniChar) != sizeof(WCHAR). Otherwise the Obj{To,From}WinChars
+ * are inlined as Obj{To,From}TclUniChar in twapi.h
+ *
+ * TWAPI_FORCE_WINCHARS is used for testing purposes.
+ */
+#if (TCL_UTF_MAX > 4) || defined(TWAPI_FORCE_WINCHARS)
+
+/*
+ * Implements a new Tcl_Obj intrep to hold WCHARs.
+ */
+
 typedef struct WinChars {
     int nchars; /* Num of characters not counting terminating \0.
                    Always >=0 (i.e. -1 not used to indicate null termination)*/
@@ -157,6 +170,7 @@ static void UpdateWinCharsTypeString(Tcl_Obj *objP)
 
 TWAPI_EXTERN WCHAR *ObjToWinChars(Tcl_Obj *objP)
 {
+
     WinChars *rep;
     Tcl_DString ds;
     int nbytes, len;
@@ -189,7 +203,7 @@ TWAPI_EXTERN WCHAR *ObjToWinCharsN(Tcl_Obj *objP, int *lenP)
 
 /* Identical to ObjToWinCharsN except length pointer type.
    Just to keep gcc happy without needing a cast */
-TWAPI_EXTERN WCHAR *ObjToWinCharsNDW(Tcl_Obj *objP, DWORD *lenP)
+TWAPI_EXTERN WCHAR *ObjToWinCharsDW(Tcl_Obj *objP, DWORD *lenP)
 {
     WCHAR *wsP;
     wsP = ObjToWinChars(objP); /* Will convert as needed */
@@ -221,3 +235,4 @@ TWAPI_EXTERN Tcl_Obj *ObjFromWinChars(const WCHAR *wsP)
     return ObjFromWinCharsN(wsP, -1);
 }
 
+#endif /* TCL_UTF_MAX > 4 */

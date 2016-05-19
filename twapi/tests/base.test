@@ -45,7 +45,7 @@ namespace eval twapi::base::test {
         Get TWAPI version patchlevel
     } -body {
         twapi::get_version -patchlevel
-    } -result 4.2a5
+    } -result 4.2a6
 
     ################################################################
 
@@ -3817,8 +3817,8 @@ namespace eval twapi::base::test {
         Conceal text
     } -body {
         set c [twapi::conceal abc]
-        list [string length $c] [string first a $c] [twapi::reveal $c]
-    } -result {8 -1 abc}
+        list [string length $c] [conceal_check abc $c] [twapi::reveal $c]
+    } -result {8 1 abc}
 
     test conceal-1.1 {
         Conceal text exactly 8 chars (block size), unicode

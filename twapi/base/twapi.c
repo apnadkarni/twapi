@@ -355,7 +355,6 @@ Tcl_Obj *TwapiGetInstallDir(Tcl_Interp *interp, HANDLE dllH)
     if (dllH == NULL)
         dllH = gTwapiModuleHandle;
 
-    /* No resource found. Try loading external file from the DLL directory */
     sz = GetModuleFileNameW(dllH, path, ARRAYSIZE(path));
     if (sz == 0 || sz == ARRAYSIZE(path)) {
         sz = GetLastError();

@@ -4196,39 +4196,54 @@ TWAPI_EXTERN void ObjDecrArrayRefs(int objc, Tcl_Obj *objv[])
         ObjDecrRefs(objv[i]);
 }
 
-#ifdef OBSOLETE
-TWAPI_EXTERN WCHAR *ObjToUnicode(Tcl_Obj *objP)
+TWAPI_EXTERN Tcl_UniChar *ObjToTclUniChar(Tcl_Obj *objP)
 {
     return Tcl_GetUnicode(objP);
 }
 
-TWAPI_EXTERN WCHAR *ObjToUnicodeN(Tcl_Obj *objP, int *lenP)
+TWAPI_EXTERN Tcl_UniChar *ObjToTclUniCharN(Tcl_Obj *objP, int *lenP)
 {
     return Tcl_GetUnicodeFromObj(objP, lenP);
 }
 
-TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeN(const WCHAR *ws, int len)
+TWAPI_EXTERN Tcl_UniChar *ObjToTclUniCharDW(Tcl_Obj *objP, DWORD *lenP)
+{
+    TWAPI_ASSERT(sizeof(int) == sizeof(DWORD));
+    /* and assuming Tcl strings never overflow 31 bits ... */
+    return Tcl_GetUnicodeFromObj(objP, (int *) lenP);
+}
+
+TWAPI_EXTERN Tcl_Obj *ObjFromTclUniCharN(const Tcl_UniChar *ws, int len)
 {
     if (ws == NULL)
-        return ObjFromEmptyString(); /* TBD - log ? */
+        return ObjFromEmptyString();
 
+#if TCL_MAX_UTF <= 4
+    TWAPI_ASSERT(sizeof(Tcl_UniChar) == sizeof(WCHAR));
     if (gBaseSettings.use_unicode_obj)
         return Tcl_NewUnicodeObj(ws, len);
     else
-        return TwapiUtf8ObjFromUnicode(ws, len);
+        return TwapiUtf8ObjFromWinChars(ws, len);
+#else
+    return Tcl_NewUnicodeObj(ws, len);
+#endif
 }
 
-TWAPI_EXTERN Tcl_Obj *ObjFromUnicode(const WCHAR *ws)
+TWAPI_EXTERN Tcl_Obj *ObjFromTclUniChar(const Tcl_UniChar *ws)
 {
     if (ws == NULL)
         return ObjFromEmptyString(); /* TBD - log ? */
 
+#if TCL_MAX_UTF <= 4
+    TWAPI_ASSERT(sizeof(Tcl_UniChar) == sizeof(WCHAR));
     if (gBaseSettings.use_unicode_obj)
         return Tcl_NewUnicodeObj(ws, -1);
     else
-        return TwapiUtf8ObjFromUnicode(ws, -1);
+        return TwapiUtf8ObjFromWinChars(ws, -1);
+#else
+    return Tcl_NewUnicodeObj(ws, -1);
+#endif
 }
-#endif /* OBSOLETE */
 
 TWAPI_EXTERN char *ObjToString(Tcl_Obj *objP)
 {

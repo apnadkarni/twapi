@@ -593,8 +593,10 @@ TCL_RESULT Twapi_RecordObjCmd(
     sep = nsP->parentPtr == NULL ? "" : "::";
     if (objc < 3)  {
 #ifdef _WIN64
-        /* Note: even MingW gcc needs %I64, NOT %llu, as it uses the MSVC runtime */
-        nameObj = Tcl_ObjPrintf("%s%srecord%I64u", nsP->fullName, sep, Twapi_NewId());
+        /* Unfortunately, Tcl_Objprintf does not handle 64 bits currently */
+        char buf[40];
+        _snprintf(buf, sizeof(buf), "%I64u", Twapi_NewId());
+        nameObj = Tcl_ObjPrintf("%s%srecord%s", nsP->fullName, sep, buf);
 #else
         nameObj = Tcl_ObjPrintf("%s%srecord%lu", nsP->fullName, sep, Twapi_NewId());
 #endif
