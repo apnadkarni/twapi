@@ -345,3 +345,8 @@ twapi::proc* twapi::cast_msi_object {obj type} {
 }
 
 interp alias {} twapi::load_msi_prototypes {} twapi::cast_msi_object
+
+# Hack to work with the various build configuration.
+if {[info commands ::twapi::get_version] ne ""} {
+    package provide twapi_msi [::twapi::get_version -patchlevel]
+}
