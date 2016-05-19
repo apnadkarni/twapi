@@ -16,7 +16,7 @@ dnl	to configure the system for the local environment.
 # this case) so that we create the export library with the dll.
 #-----------------------------------------------------------------------
 
-AC_INIT([twapi], [4.2a5])
+AC_INIT([twapi], [4.2a6])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -199,7 +199,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 	    twapi/tcl/win.tcl
 	    twapi/tcl/adsi.tcl
 
-	    twapi/tcl/accounts.tcl
+	    twapi/tcl/account.tcl
 
 	    twapi/tcl/apputil.tcl
 
@@ -229,7 +229,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 
 	    twapi/tcl/mstask.tcl
 
-	    twapi/tcl/sound.tcl
+	    twapi/tcl/multimedia.tcl
 
 	    twapi/tcl/namedpipe.tcl
 
@@ -237,7 +237,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 
 	    twapi/tcl/nls.tcl
 
-	    twapi/tcl/osinfo.tcl
+	    twapi/tcl/os.tcl
 
 	    twapi/tcl/pdh.tcl
 
@@ -253,13 +253,13 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 
 	    twapi/tcl/security.tcl
 
-	    twapi/tcl/services.tcl
+	    twapi/tcl/service.tcl
 
 	    twapi/tcl/share.tcl
 
 	    twapi/tcl/shell.tcl
 
-	    twapi/tcl/disk.tcl
+	    twapi/tcl/storage.tcl
 
 	    twapi/tcl/synch.tcl
 
