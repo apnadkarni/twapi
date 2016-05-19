@@ -1480,18 +1480,25 @@ TWAPI_EXTERN Tcl_Obj *ObjFromStringN(const char *s, int len);
 TWAPI_EXTERN Tcl_Obj *ObjFromString(const char *s);
 TWAPI_EXTERN Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remain);
 
-#ifdef OBSOLETE
-TWAPI_EXTERN Tcl_UniChar *ObjToUnicode(Tcl_Obj *objP);
-TWAPI_EXTERN Tcl_UniChar *ObjToUnicodeN(Tcl_Obj *objP, int *lenP);
-TWAPI_EXTERN Tcl_Obj *ObjFromUnicodeN(const Tcl_UniChar *ws, int len);
-TWAPI_EXTERN Tcl_Obj *ObjFromUnicode(const Tcl_UniChar *ws);
-#endif
+TWAPI_EXTERN Tcl_UniChar *ObjToTclUniChar(Tcl_Obj *objP);
+TWAPI_EXTERN Tcl_UniChar *ObjToTclUniCharN(Tcl_Obj *objP, int *lenP);
+TWAPI_EXTERN Tcl_UniChar *ObjToTclUniCharDW(Tcl_Obj *objP, DWORD *lenP);
+TWAPI_EXTERN Tcl_Obj *ObjFromTclUniCharN(const Tcl_UniChar *ws, int len);
+TWAPI_EXTERN Tcl_Obj *ObjFromTclUniChar(const Tcl_UniChar *ws);
 
+#if (TCL_UTF_MAX > 4) || defined(TWAPI_FORCE_WINCHARS)
 TWAPI_EXTERN WCHAR *ObjToWinChars(Tcl_Obj *objP);
 TWAPI_EXTERN WCHAR *ObjToWinCharsN(Tcl_Obj *objP, int *lenP);
-TWAPI_EXTERN WCHAR *ObjToWinCharsNDW(Tcl_Obj *objP, DWORD *lenP);
+TWAPI_EXTERN WCHAR *ObjToWinCharsDW(Tcl_Obj *objP, DWORD *lenP);
 TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsN(const WCHAR *ws, int len);
 TWAPI_EXTERN Tcl_Obj *ObjFromWinChars(const WCHAR *ws);
+#else
+#define ObjToWinChars ObjToTclUniChar
+#define ObjToWinCharsN ObjToTclUniCharN
+#define ObjToWinCharsDW ObjToTclUniCharDW
+#define ObjFromWinChars ObjFromTclUniChar
+#define ObjFromWinCharsN ObjFromTclUniCharN
+#endif
 TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsLimited(const WCHAR *wstrP, int max, int *remain);
 TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsNoTrailingSpace(const WCHAR *strP);
 

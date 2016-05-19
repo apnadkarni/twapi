@@ -1019,7 +1019,7 @@ namespace eval twapi::ui::test {
         set np_pid [notepad_exec]
         set np_win [notepad_top $np_pid]
     } -body {
-        string is integer [twapi::get_window_application $np_win]
+        string is entier [twapi::get_window_application $np_win]
     } -cleanup {
         kill $np_pid -wait $end_process_timeout
     } -result 1
