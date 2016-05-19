@@ -44,3 +44,8 @@ proc twapi::_symbolize_printer_attributes {attr} {
         ts             0x00008000
     }]
 }
+
+# Hack to work with the various build configuration.
+if {[info commands ::twapi::get_version] ne ""} {
+    package provide twapi_printer [::twapi::get_version -patchlevel]
+}

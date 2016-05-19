@@ -129,3 +129,8 @@ proc twapi::stop_power_monitor {id} {
         _unregister_script_wm_handler 0x218 [list [namespace current]::_power_handler]
     }
 }
+
+# Hack to work with the various build configuration.
+if {[info commands ::twapi::get_version] ne ""} {
+    package provide twapi_power [::twapi::get_version -patchlevel]
+}

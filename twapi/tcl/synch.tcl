@@ -89,3 +89,7 @@ proc twapi::create_event {args} {
 interp alias {} twapi::set_event {} twapi::SetEvent
 interp alias {} twapi::reset_event {} twapi::ResetEvent
 
+# Hack to work with the various build configuration.
+if {[info commands ::twapi::get_version] ne ""} {
+    package provide twapi_synch [::twapi::get_version -patchlevel]
+}
