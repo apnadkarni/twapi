@@ -335,18 +335,45 @@ TCL_RESULT Twapi_SourceResource(Tcl_Interp *interp, HANDLE dllH, const char *nam
         return TCL_ERROR;
     }    
 
-    /* No resource found. Try loading external file from the DLL directory */
-    pathObj = TwapiGetInstallDir(interp, dllH);
+    /* 
+     * No resource found. Try loading from twapi script directory if defined
+     * or from the twapi dll install directory
+     */
+    pathObj = Tcl_GetVar2Ex(interp, "::" TWAPI_TCL_NAMESPACE "::scriptdir",
+                            NULL, 0);
+    if (pathObj != NULL) {
+        pathObj = Tcl_DuplicateObj(pathObj);
+        Tcl_AppendToObj(pathObj, "/", 1);
+    } else {
+        Tcl_ResetResult(interp); /* Since the GetVar may have store error */
+        pathObj = TwapiGetInstallDir(interp, dllH);
+    }
     if (pathObj == NULL)
         return TCL_ERROR;
-    Tcl_AppendToObj(pathObj, name, -1);
+
     ObjIncrRefs(pathObj);  /* Must before calling any Tcl_FS functions */
+
+    /* This bit of shenanigans is to allow MingW based builds to load
+     * twapi modules from files without requiring a resource */
+#if defined(__GNUC__)
+    if (lstrlenA(name) > 6 && _strnicmp(name, "twapi_", 6) == 0)
+        name += 6;
+#endif
+    Tcl_AppendStringsToObj(pathObj, name, ".tcl", NULL);
     result = Tcl_FSEvalFile(interp, pathObj);
     ObjDecrRefs(pathObj);
-
     return result;
+#if 0
+    /* Caller should be doing PkgProvide as appropriate. This function
+       is not only called for packages.
+    */
+    if (result != TCL_OK)
+       return result;
+    return Tcl_PkgProvide(interp, MODULENAME, MODULEVERSION);
+#endif
 }
 
+/* Return dir path includes trailing \ */
 Tcl_Obj *TwapiGetInstallDir(Tcl_Interp *interp, HANDLE dllH)
 {
     DWORD sz;
@@ -769,7 +796,8 @@ TwapiInterpContext *TwapiRegisterModule(
 
     TWAPI_ASSERT(ticP);
 
-    /* TBD - may be the last param to SourceResource should be 0? */
+    /* Call SourceResource to either read from a resource or from
+       a script file if the resource does not exist. */
     if ((modP->initializer && modP->initializer(interp, ticP) != TCL_OK) ||
         Twapi_SourceResource(interp, hmod, modP->name, 1) != TCL_OK ||
         Tcl_PkgProvide(interp, modP->name, MODULEVERSION) != TCL_OK
