@@ -3,6 +3,7 @@
 
 
 int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
+
 #ifndef UNISP_NAME_W
 #include <schannel.h>            /* For VC6 */
 #endif
@@ -27,6 +28,25 @@ int TwapiSspiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP);
 
 #ifndef CRYPT_OID_DISABLE_SEARCH_DS_FLAG
 # define CRYPT_OID_DISABLE_SEARCH_DS_FLAG            0x80000000
+#endif
+
+/* 
+ * The following set of defines needed for building with newer versions
+ * of VC++ because they define these symbols only if NTDDI_VERSION us
+ * defined as at least NTDDI_WINXPSP3 (0x05010300) while we build for XP
+ * TBD - Remove once we make XP SP3 min requirements and define NTDDI_VERSION.
+ */
+#ifndef ALG_SID_SHA_256
+# define ALG_SID_SHA_256                 12
+# define CALG_SHA_256            (ALG_CLASS_HASH | ALG_TYPE_ANY | ALG_SID_SHA_256)
+#endif
+#ifndef ALG_SID_SHA_384
+# define ALG_SID_SHA_384                 13
+# define CALG_SHA_384            (ALG_CLASS_HASH | ALG_TYPE_ANY | ALG_SID_SHA_384)
+#endif
+#ifndef ALG_SID_SHA_512
+# define ALG_SID_SHA_512                 14
+# define CALG_SHA_512            (ALG_CLASS_HASH | ALG_TYPE_ANY | ALG_SID_SHA_512)
 #endif
 
 /* VC6 Wintrust.h does not define the dwUIContext field so define our
