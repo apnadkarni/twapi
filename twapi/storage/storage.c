@@ -122,7 +122,8 @@ int Twapi_QueryDosDevice(Tcl_Interp *interp, LPCWSTR lpDeviceName)
     pathP = SWSPushFrame(sizeof(WCHAR)*path_cch, NULL); // TBD - instrument
     while (1) {
         // TBD - Tcl interface for when lpDeviceName is NULL ?
-
+        if (lpDeviceName && *lpDeviceName == 0)
+            lpDeviceName = NULL;
         result = QueryDosDeviceW(lpDeviceName, pathP, path_cch);
         if (result > 0) {
             /* On Win2K and NT 4, result is truncated without a terminating
