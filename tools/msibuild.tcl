@@ -10,12 +10,13 @@ if {0 && [llength [array names env TCL*]] || [llength [array names env tcl*]]} {
 package require fileutil
 
 namespace eval msibuild {
-    # Define included packages. A dictionary keyed by the MSI package
-    # (not Tcl package) name. The dictionary values are themselves
+    # Define included features. A dictionary keyed by the MSI feature Id
+    # The dictionary values are themselves
     # dictionaries with the keys below:
     #
     # TclPackages - list of Tcl packages to include in this MSI package (optional)
-    # Description - Description to be shown in the Installer
+    # Name - The Title to be shown in the MSI feature tree
+    # Description - Description to be shown in the Installer (optional)
     # Documentation - link to the documentation (optional)
     # Paths - List of glob paths for  files belonging to the package.
     #   Optional. If not specified, the script will try figuring it out.
@@ -88,10 +89,12 @@ namespace eval msibuild {
 # Generates a unique id
 proc msibuild::id {{path {}}} {
     variable id_counter
+    variable tcl_root
     if {$path eq ""} {
         return "ID[incr id_counter]"
     } else {
-        return "ID[incr id_counter]_[string map {/ _ : _ . _} $path]"
+        set path [fileutil::relative $tcl_root $path]
+        return "ID[incr id_counter]_[string map {/ _ : _ - _ + _} $path]"
     }
 }
 
@@ -147,7 +150,7 @@ proc msibuild::add_parent_directory {path} {
     }
     if {![dict exists $directories $parent]} {
         add_parent_directory $parent
-        dict set directories $parent [id [fileutil::relative $tcl_root $parent]]
+        dict set directories $parent [id $parent]
     }
 }
 
@@ -164,7 +167,7 @@ proc msibuild::build_file_paths {} {
     }                             
 }
 
-# Generate the DIRECTORY nodes
+# Generate the Directory nodes
 proc msibuild::generate_directory {dir} {
     variable directories
     variable tcl_root
@@ -197,9 +200,9 @@ proc msibuild::generate_directory {dir} {
         set id [dict get $directories $dir]
     }
     if {[llength $subdirs] == 0} {
-        return [tag/ DIRECTORY Name $name Id $id]
+        return [tag/ Directory Name $name Id $id]
     }
-    set xml [tag DIRECTORY Name $name Id $id]
+    set xml [tag Directory Name $name Id $id]
     foreach subdir $subdirs {
         append xml [generate_directory $subdir]
     }
@@ -207,6 +210,74 @@ proc msibuild::generate_directory {dir} {
     return $xml
 }
 
+proc msibuild::generate_file {path} {
+    variable directories
+
+    if {[file pathtype $path] ne "absolute"} {
+        error "generate_file passed a non-absolute path"
+    }
+    set dir [file dirname $path]
+    if {![dict exists $directories $dir]} {
+        error "Could not find directory \"$dir\" in directories dictionary"
+    }
+    set dir_id [dict get $directories $dir]
+    set file_id [id $path]
+
+    # Every FILE must be enclosed in a Component and a Component should
+    # have only one file.
+    set xml [tag Component \
+                 Id CMP_$file_id \
+                 Guid * \
+                 Directory $dir_id]
+    append xml [tag/ File \
+                    Id $file_id \
+                    Source $path \
+                    KeyPath yes]
+    
+    append xml [tag_close];                  # Component
+                
+}
+
+proc msibuild::generate_features {} {
+    variable selected_features
+
+    set xml ""
+    dict for {fid feature} $selected_features {
+        set absent allow
+        if {[dict exists $feature Mandatory]} {
+            set mandatory [dict get $feature Mandatory]
+            if {$mandatory == 2} {
+                set absent disallow
+            } elseif {$mandatory == 1} {
+            } else {
+            }
+        }
+        if {[dict exists $feature Version]} {
+            set version " Version [dict get $feature Version]"
+        } else {
+            set version ""
+        }
+        if {[dict exists $feature Description]} {
+            set description "[dict get $feature Description]$version"
+        } else {
+            set description $version
+        }
+
+        append xml [tag Feature \
+                        Id $fid \
+                        Level 1 \
+                        Title [dict get $feature Name] \
+                        Description $description \
+                        Absent $absent]
+        foreach path [dict get $feature Files] {
+            append xml [generate_file $path]
+        }
+
+        append xml [tag_close]; # Feature
+                        
+    }
+    return $xml
+}
 
 proc msibuild::generate {} {
     variable tcl_root
@@ -237,7 +308,7 @@ proc msibuild::generate {} {
     # InstallerVersion - version of Windows Installer required. Not sure
     #     the minimum required here but XP SP3 has 301 (I think)
     append xml [tag/ Package \
-                    Compressed       Yes \
+                    Compressed       yes \
                     Id               * \
                     InstallerVersion 301 \
                     Description      "Installer for Tcl/Tk"]
@@ -269,7 +340,7 @@ proc msibuild::main {args} {
     }
 
     build_file_paths 
-    generate
+    return [generate]
 }
 
 # Buggy XML generator (does not encode special chars)
@@ -323,3 +394,5 @@ proc msibuild::tag_close_all {} {
     }
     return $xml
 }
+
+puts [msibuild::main {*}$::argv]
