@@ -27,7 +27,7 @@ namespace eval msibuild {
     #
     # The following additional keys are computed from the above as we
     # go along
-    # Files - list of file paths relative to the Tcl root (no directories)
+    # Files - list of *normalized* file paths
     # Version - version of the package if available
     variable msi_packages
 
@@ -65,16 +65,27 @@ namespace eval msibuild {
     dict unset msi_packages "Development libraries"
     dict unset msi_packages "Tcl Windows API"
     
-    variable tcl_root [file dirname [file dirname [info nameofexecutable]]]
+    # Root of the Tcl installation.
+    # Must be normalized else fileutil::relative etc. will not work
+    # because they do not handle case differences correctly
+    variable tcl_root [file normalize [file dirname [file dirname [info nameofexecutable]]]]
 
     # Contains a dictionary of all directory paths mapping them to an id
+    # Again normalized for same reason as above.
     variable directories {}
+
+    # Used for keeping track of tags in xml generation
+    variable xml_tags {}
 }
 
 # Generates a unique id
-proc msibuild::id {{path Id}} {
+proc msibuild::id {{path {}}} {
     variable id_counter
-    return "[string map {/ _} $path]_[incr id_counter]"
+    if {$path eq ""} {
+        return "ID[incr id_counter]"
+    } else {
+        return "ID[incr id_counter]_[string map {/ _ : _ . _} $path]"
+    }
 }
 
 # Build a file path list for a MSI package. Returned value is a nested
@@ -86,13 +97,11 @@ proc msibuild::build_file_paths_for_one {msipack} {
     set files {}
     set dirs {}
     dict with msi_packages $msipack {
-        # If no Paths dictionary entry, build it based on the package name
-        # and version number.
         if {[info exists Paths]} {
             foreach glob $Paths {
                 foreach path [glob [file join $tcl_root $glob]] {
                     if {[file isfile $path]} {
-                        lappend files $path
+                        lappend files [file normalize $path]
                     } else {
                         lappend dirs $path
                     }
@@ -111,26 +120,27 @@ proc msibuild::build_file_paths_for_one {msipack} {
     }
 
     foreach dir $dirs {
-        lappend files {*}[fileutil::find $dir {file isfile}]
+        lappend files {*}[lmap path [fileutil::find $dir {file isfile}] {
+            file normalize $path
+        }]
     }
-    dict set msi_packages $msipack Files [lmap path [lsort -unique $files] {
-        fileutil::relative $tcl_root $path
-    }]
+    dict set msi_packages $msipack Files [lsort -unique $files]
 }
 
 proc msibuild::add_parent_directory {path} {
     variable directories
-
-    if {[file pathtype $path] ne "relative"} {
-        error "Internal error: $path is not a relative path"
+    variable tcl_root
+    
+    if {[file pathtype $path] ne "absolute"} {
+        error "Internal error: $path is not a absolute normalized path"
     }
-    set parent [file dirname $path]
-    if {$parent eq "."} {
+    set parent [file normalize [file dirname $path]]
+    if {$parent eq $tcl_root} {
         return; # Top level
     }
     if {![dict exists $directories $parent]} {
         add_parent_directory $parent
-        dict set directories $parent [id $parent]
+        dict set directories $parent [id [fileutil::relative $tcl_root $parent]]
     }
 }
 
@@ -148,12 +158,130 @@ proc msibuild::build_file_paths {} {
 }
 
 # Dumps the list of directories
-proc msibuild::dump_dirs {} {
+proc msibuild::dump_dir {dir} {
     variable directories
+    variable tcl_root
 
-    # First build a tree of directories.
-    dict for {dir meta} $directories {
-        set parent [file dirname $path]
-            
+    if {[file pathtype $dir] ne "absolute"} {
+        error "Path \"$dir\" is not an absolute path"
     }
+
+    set indent [string repeat {  } [info level]]
+    
+    # Note assumes no links
+
+    set dir [file normalize $dir]
+
+    set reldir [fileutil::relative $tcl_root $dir]
+    set subdirs [glob -nocomplain -types d -dir $dir -- *]
+
+    # To get indentation right, we have to generate the outer tags
+    # before inner tags
+    if {$reldir eq "."} {
+        set name ProgramFiles
+        set id TBD
+    } else {
+        if {![dict exists $directories $dir]} {
+            puts stderr "Directory \"$dir\" not in a package. Skipping..."
+            return
+        }
+        set name [file tail $dir]
+        set id [dict get $directories $dir]
+    }
+    if {[llength $subdirs] == 0} {
+        return [tag/ DIRECTORY Name $name Id $id]
+    }
+    set xml [tag DIRECTORY Name $name Id $id]
+    foreach subdir $subdirs {
+        append xml [dump_dir $subdir]
+    }
+    append xml [tag_close]
+    return $xml
+}
+
+# Buggy XML generator (does not encode special chars)
+proc msibuild::tag {tag args} {
+    variable xml_tags
+
+    set indent [string repeat {  } [llength $xml_tags]]
+    append xml "${indent}<$tag"
+    set prefix " "
+    dict for {attr val} $args {
+        append xml "$prefix$attr='$val'"
+        set prefix "\n${indent}[string repeat { }  [string length $tag]]  "
+    }
+    append xml ">\n"
+    lappend xml_tags $tag
+    
+    return $xml
+}
+
+# Like tag but closes it as well
+proc msibuild::tag/ {tag args} {
+    variable xml_tags
+
+    set indent [string repeat {  } [llength $xml_tags]]
+    append xml "${indent}<$tag"
+    set prefix " "
+    dict for {attr val} $args {
+        append xml "$prefix$attr='$val'"
+        set prefix "\n${indent}[string repeat { }  [string length $tag]]  "
+    }
+    append xml "/>\n"
+    return $xml
+}
+
+# Close last xml tag 
+proc msibuild::tag_close {} {
+    variable xml_tags
+    if {[llength $xml_tags] == 0} {
+        error "XML tag stack empty"
+    }
+    set tag [lindex $xml_tags end]
+    set xml_tags [lrange $xml_tags 0 end-1]
+    return "[string repeat {  } [llength $xml_tags]]</$tag>\n"
+}
+
+proc msibuild::tag_close_all {} {
+    variable xml_tags
+    set xml ""
+    while {[llength $xml_tags]} {
+        append xml [close_tag]
+    }
+    return $xml
+}
+
+proc msibuild::build {{chan stdout}} {
+    puts $chan {<?xml version="1.0" encoding="UTF-8"?>}
+
+    set xml [tag Wix xmlns http://schemas.microsoft.com/wix/2006/wi]
+
+    # Product - info about Tcl itself
+    # Name - Tcl/Tk for Windows
+    # Id - "*" -> always generate a new one on every run. Makes upgrades
+    #    much easier
+    # UpgradeCode - must never change between releases else upgrades won't work.
+    # Language, Codepage - Currently only English
+    # Version - picked up from Tcl
+    # Manufacturer - TCT? Tcl Community?
+    append xml [tag Product \
+                    Name        "Tcl/Tk for Windows" \
+                    Id          * \
+                    UpgradeCode "413F733E-BBB8-47C7-AD49-D9E4B039438C" \
+                    Language    1033 \
+                    Codepage    1252 \
+                    Version     [info patchlevel].0 \
+                    Manufacturer "Tcl Community"]
+
+    # Package - describes the MSI package itself
+    # Compressed - always set to "yes".
+    # InstallerVersion - version of Windows Installer required. Not sure
+    #     the minimum required here but XP SP3 has 301 (I think)
+    append xml [tag/ Package \
+                    Compressed       Yes \
+                    InstallerVersion 301 \
+                    Description      "Installer for Tcl/Tk"]
+
+    append xml [tag_close_all]
+    return $xml
 }
