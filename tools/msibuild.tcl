@@ -29,41 +29,48 @@ namespace eval msibuild {
     # go along
     # Files - list of *normalized* file paths
     # Version - version of the package if available
-    variable msi_packages
+    variable feature_definitions
 
     # This should be read from a config file. Oh well. Later ...
-    set msi_packages {
-        {Tcl/Tk Core} {
+    set feature_definitions {
+        core {
+            Name {Tcl/Tk Core}
             TclPackages { Tcl Tk }
-            Description {Base Tcl/Tk package}
+            Description {Includes Tcl and Tk core, Windows registry and DDE extensions.}
             Paths {bin include lib/tcl8 lib/tcl8.* lib/dde* lib/reg* lib/tk8.* lib/*.lib}
             Mandatory 2
         }
-        {Incr Tcl} {
+        itcl {
+            Name {Incr Tcl}
             TclPackages Itcl
-            Description {Incr Tcl}
+            Description {Incr Tcl object oriented extension}
         }
-        TDBC {
+        tdbc {
+            Name TDBC
             TclPackages tdbc
             Description {Tcl Database Connectivity extension}
             Paths {lib/tdbc* lib/sqlite*}
         }
-        {Tcl Windows API} {
+        twapi {
+            Name {Tcl Windows API}
             TclPackages twapi
             Description {Extension for accessing the Windows API}
         }
-        Threads {
+        threads {
+            Name Threads
             TclPackages Thread
             Description {Extension for script-level access to Tcl threads}
         }
-        {Development libraries} {
+        clibs {
+            {C libraries} 
             Description {C libraries for building your own binary extensions}
             Paths {lib/*.lib}
             Mandatory 0
         }
     }        
-    dict unset msi_packages "Development libraries"
-    dict unset msi_packages "Tcl Windows API"
+
+    # selected_features contains the actual selected features from the above.
+    variable selected_features
     
     # Root of the Tcl installation.
     # Must be normalized else fileutil::relative etc. will not work
@@ -90,13 +97,13 @@ proc msibuild::id {{path {}}} {
 
 # Build a file path list for a MSI package. Returned value is a nested
 # list consisting of file paths only (no directories)
-proc msibuild::build_file_paths_for_one {msipack} {
-    variable msi_packages
+proc msibuild::build_file_paths_for_feature {feature} {
+    variable selected_features
     variable tcl_root
 
     set files {}
     set dirs {}
-    dict with msi_packages $msipack {
+    dict with selected_features $feature {
         if {[info exists Paths]} {
             foreach glob $Paths {
                 foreach path [glob [file join $tcl_root $glob]] {
@@ -111,7 +118,7 @@ proc msibuild::build_file_paths_for_one {msipack} {
             # If no Paths dictionary entry, build it based on the package name
             # and version number.
             if {![info exists TclPackages] || [llength TclPackages] == 0} {
-                error "No TclPackages or Paths entry for \"$msipack\""
+                error "No TclPackages or Paths entry for \"$feature\""
             }
             foreach pack $TclPackages {
                 lappend dirs {*}[glob [file join $tcl_root lib ${pack}*]]
@@ -124,7 +131,7 @@ proc msibuild::build_file_paths_for_one {msipack} {
             file normalize $path
         }]
     }
-    dict set msi_packages $msipack Files [lsort -unique $files]
+    dict set selected_features $feature Files [lsort -unique $files]
 }
 
 proc msibuild::add_parent_directory {path} {
@@ -146,19 +153,19 @@ proc msibuild::add_parent_directory {path} {
 
 # Builds the file paths for all files contained in all MSI package
 proc msibuild::build_file_paths {} {
-    variable msi_packages
+    variable selected_features
 
     dict set directory_tree . Subdirs {}
-    foreach msipack [dict keys $msi_packages] {
-        build_file_paths_for_one $msipack
-        foreach path [dict get $msi_packages $msipack Files] {
+    foreach feature [dict keys $selected_features] {
+        build_file_paths_for_feature $feature
+        foreach path [dict get $selected_features $feature Files] {
             add_parent_directory $path
         }
     }                             
 }
 
-# Dumps the list of directories
-proc msibuild::dump_dir {dir} {
+# Generate the DIRECTORY nodes
+proc msibuild::generate_directory {dir} {
     variable directories
     variable tcl_root
 
@@ -178,8 +185,9 @@ proc msibuild::dump_dir {dir} {
     # To get indentation right, we have to generate the outer tags
     # before inner tags
     if {$reldir eq "."} {
-        set name ProgramFiles
-        set id TBD
+        # Top level must have this exact values
+        set name SourceDir
+        set id   TARGETDIR
     } else {
         if {![dict exists $directories $dir]} {
             puts stderr "Directory \"$dir\" not in a package. Skipping..."
@@ -193,10 +201,75 @@ proc msibuild::dump_dir {dir} {
     }
     set xml [tag DIRECTORY Name $name Id $id]
     foreach subdir $subdirs {
-        append xml [dump_dir $subdir]
+        append xml [generate_directory $subdir]
     }
     append xml [tag_close]
     return $xml
+}
+
+
+proc msibuild::generate {} {
+    variable tcl_root
+    
+    set xml "<?xml version='1.0' encoding='UTF-8'?>\n"
+
+    append xml [tag Wix xmlns http://schemas.microsoft.com/wix/2006/wi]
+
+    # Product - info about Tcl itself
+    # Name - Tcl/Tk for Windows
+    # Id - "*" -> always generate a new one on every run. Makes upgrades
+    #    much easier
+    # UpgradeCode - must never change between releases else upgrades won't work.
+    # Language, Codepage - Currently only English
+    # Version - picked up from Tcl
+    # Manufacturer - TCT? Tcl Community?
+    append xml [tag Product \
+                    Name        "Tcl/Tk for Windows" \
+                    Id          * \
+                    UpgradeCode "413F733E-BBB8-47C7-AD49-D9E4B039438C" \
+                    Language    1033 \
+                    Codepage    1252 \
+                    Version     [info patchlevel].0 \
+                    Manufacturer "Tcl Community"]
+
+    # Package - describes the MSI package itself
+    # Compressed - always set to "yes".
+    # InstallerVersion - version of Windows Installer required. Not sure
+    #     the minimum required here but XP SP3 has 301 (I think)
+    append xml [tag/ Package \
+                    Compressed       Yes \
+                    Id               * \
+                    InstallerVersion 301 \
+                    Description      "Installer for Tcl/Tk"]
+
+    # Media - does not really matter. We don't have multiple media.
+    # EmbedCab - yes because the files will be embedded inside the MSI,
+    #   and not stored separately
+    append xml [tag/ Media \
+                    Id       1 \
+                    Cabinet  media1.cab \
+                    EmbedCab yes]
+
+    append xml [generate_directory $tcl_root]
+    append xml [generate_features]
+    append xml [tag_close_all]
+
+    return $xml
+}
+
+proc msibuild::main {args} {
+    variable selected_features
+    variable feature_definitions
+    variable tcl_root
+
+    if {[llength $args] == 0} {
+        set selected_features $feature_definitions
+    } else {
+        set selected_features [dict filter $feature_definitions key {*}$args]
+    }
+
+    build_file_paths 
+    generate
 }
 
 # Buggy XML generator (does not encode special chars)
@@ -246,42 +319,7 @@ proc msibuild::tag_close_all {} {
     variable xml_tags
     set xml ""
     while {[llength $xml_tags]} {
-        append xml [close_tag]
+        append xml [tag_close]
     }
-    return $xml
-}
-
-proc msibuild::build {{chan stdout}} {
-    puts $chan {<?xml version="1.0" encoding="UTF-8"?>}
-
-    set xml [tag Wix xmlns http://schemas.microsoft.com/wix/2006/wi]
-
-    # Product - info about Tcl itself
-    # Name - Tcl/Tk for Windows
-    # Id - "*" -> always generate a new one on every run. Makes upgrades
-    #    much easier
-    # UpgradeCode - must never change between releases else upgrades won't work.
-    # Language, Codepage - Currently only English
-    # Version - picked up from Tcl
-    # Manufacturer - TCT? Tcl Community?
-    append xml [tag Product \
-                    Name        "Tcl/Tk for Windows" \
-                    Id          * \
-                    UpgradeCode "413F733E-BBB8-47C7-AD49-D9E4B039438C" \
-                    Language    1033 \
-                    Codepage    1252 \
-                    Version     [info patchlevel].0 \
-                    Manufacturer "Tcl Community"]
-
-    # Package - describes the MSI package itself
-    # Compressed - always set to "yes".
-    # InstallerVersion - version of Windows Installer required. Not sure
-    #     the minimum required here but XP SP3 has 301 (I think)
-    append xml [tag/ Package \
-                    Compressed       Yes \
-                    InstallerVersion 301 \
-                    Description      "Installer for Tcl/Tk"]
-
-    append xml [tag_close_all]
     return $xml
 }
