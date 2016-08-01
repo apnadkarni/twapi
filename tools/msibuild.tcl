@@ -10,6 +10,32 @@ if {0 && [llength [array names env TCL*]] || [llength [array names env tcl*]]} {
 package require fileutil
 
 namespace eval msibuild {
+    # Strings and values used in the MSI to identify the product.
+    # Dictionary keyed by platform x86 or x64
+    variable architecture [expr {$::tcl_platform(pointerSize) == 8 ? "x64" : "x86"}]
+    variable msi_strings
+    array set msi_strings {
+        ProductName        "Tcl/Tk for Windows"
+        ProgramMenuDir     ProgramMenuDir
+    }
+    if {$architecture eq "x86"} {
+        array set msi_strings {
+            UpgradeCode        9888EC4F-7EB8-40EF-8506-7230E811AFE9
+            ProgramFilesFolder ProgramFilesFolder
+            Win64              no
+            ArchString         {32-bit}
+        }
+    } else {
+        array set msi_strings {
+            UpgradeCode        1AE719B3-0895-4913-B8BF-1117944A7046
+            ProgramFilesFolder ProgramFiles64Folder
+            Win64              yes
+            ArchString         {64-bit}
+        }
+    }
+        
+
+    
     # Define included features. A dictionary keyed by the MSI feature Id
     # The dictionary values are themselves
     # dictionaries with the keys below:
@@ -168,7 +194,7 @@ proc msibuild::build_file_paths {} {
 }
 
 # Generate the Directory nodes
-proc msibuild::generate_directory {dir} {
+proc msibuild::generate_directory_tree {dir} {
     variable directories
     variable tcl_root
 
@@ -176,8 +202,6 @@ proc msibuild::generate_directory {dir} {
         error "Path \"$dir\" is not an absolute path"
     }
 
-    set indent [string repeat {  } [info level]]
-    
     # Note assumes no links
 
     set dir [file normalize $dir]
@@ -188,25 +212,42 @@ proc msibuild::generate_directory {dir} {
     # To get indentation right, we have to generate the outer tags
     # before inner tags
     if {$reldir eq "."} {
-        # Top level must have this exact values
-        set name SourceDir
-        set id   TARGETDIR
+        # These exact values to allow user to choose folder based
+        # on WixUI_Advanced dialog
+        set id   APPLICATIONFOLDER
+        set name Tcl
     } else {
         if {![dict exists $directories $dir]} {
             puts stderr "Directory \"$dir\" not in a package. Skipping..."
             return
         }
         set name [file tail $dir]
-        set id [dict get $directories $dir]
+        set id   [dict get $directories $dir]
     }
     if {[llength $subdirs] == 0} {
         return [tag/ Directory Name $name Id $id]
     }
     set xml [tag Directory Name $name Id $id]
     foreach subdir $subdirs {
-        append xml [generate_directory $subdir]
+        append xml [generate_directory_tree $subdir]
     }
     append xml [tag_close]
+    return $xml
+}
+
+# Generates the <Directory> entries for installation.
+proc msibuild::generate_directory {} {
+    variable tcl_root
+    variable msi_strings
+
+    # Use of the WixUI_Advanced dialogs requires the following
+    # Directory element structures.
+    append xml [tag Directory Id TARGETDIR Name SourceDir]
+    append xml [tag Directory Id $msi_strings(ProgramFilesFolder) Name PFiles]
+
+    append xml [generate_directory_tree $tcl_root]
+
+    append xml [tag_close 2]
     return $xml
 }
 
@@ -281,8 +322,9 @@ proc msibuild::generate_features {} {
 
 proc msibuild::generate {} {
     variable tcl_root
+    variable msi_strings
     
-    set xml "<?xml version='1.0' encoding='UTF-8'?>\n"
+    set xml "<?xml version='1.0' encoding='windows-1252'?>\n"
 
     append xml [tag Wix xmlns http://schemas.microsoft.com/wix/2006/wi]
 
@@ -295,7 +337,7 @@ proc msibuild::generate {} {
     # Version - picked up from Tcl
     # Manufacturer - TCT? Tcl Community?
     append xml [tag Product \
-                    Name        "Tcl/Tk for Windows" \
+                    Name        "Tcl/Tk for Windows ($msi_strings(ArchString))" \
                     Id          * \
                     UpgradeCode "413F733E-BBB8-47C7-AD49-D9E4B039438C" \
                     Language    1033 \
@@ -311,8 +353,12 @@ proc msibuild::generate {} {
                     Compressed       yes \
                     Id               * \
                     InstallerVersion 301 \
-                    Description      "Installer for Tcl/Tk"]
+                    Description      "Installer for Tcl/Tk ($msi_strings(ArchString))"]
 
+    # NOTE:Despite what the Wix reference says, UIRef can't be the first
+    # child of Product element so put it after Package.
+    append xml [tag/ UIRef Id WixUI_Minimal]
+    
     # Media - does not really matter. We don't have multiple media.
     # EmbedCab - yes because the files will be embedded inside the MSI,
     #   and not stored separately
@@ -321,7 +367,7 @@ proc msibuild::generate {} {
                     Cabinet  media1.cab \
                     EmbedCab yes]
 
-    append xml [generate_directory $tcl_root]
+    append xml [generate_directory]
     append xml [generate_features]
     append xml [tag_close_all]
 
@@ -376,23 +422,24 @@ proc msibuild::tag/ {tag args} {
 }
 
 # Close last xml tag 
-proc msibuild::tag_close {} {
+proc msibuild::tag_close {{n 1}} {
     variable xml_tags
-    if {[llength $xml_tags] == 0} {
+    if {[llength $xml_tags] < $n} {
         error "XML tag stack empty"
     }
-    set tag [lindex $xml_tags end]
-    set xml_tags [lrange $xml_tags 0 end-1]
-    return "[string repeat {  } [llength $xml_tags]]</$tag>\n"
+    set xml {}
+    while {$n > 0} {
+        set tag [lindex $xml_tags end]
+        set xml_tags [lrange $xml_tags 0 end-1]
+        append xml "[string repeat {  } [llength $xml_tags]]</$tag>\n"
+        incr n -1
+    }
+    return $xml
 }
 
 proc msibuild::tag_close_all {} {
     variable xml_tags
-    set xml ""
-    while {[llength $xml_tags]} {
-        append xml [tag_close]
-    }
-    return $xml
+    return [tag_close [llength $xml_tags]]
 }
 
 puts [msibuild::main {*}$::argv]
