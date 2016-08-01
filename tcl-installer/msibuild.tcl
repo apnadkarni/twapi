@@ -10,6 +10,9 @@ if {0 && [llength [array names env TCL*]] || [llength [array names env tcl*]]} {
 package require fileutil
 
 namespace eval msibuild {
+    variable script_dir
+    set script_dir [file attributes [file dirname [info script]] -shortname]
+
     # Strings and values used in the MSI to identify the product.
     # Dictionary keyed by platform x86 or x64
     variable architecture [expr {$::tcl_platform(pointerSize) == 8 ? "x64" : "x86"}]
@@ -130,6 +133,8 @@ proc msibuild::build_file_paths_for_feature {feature} {
     variable selected_features
     variable tcl_root
 
+    log Building file paths for $feature
+    
     set files {}
     set dirs {}
     dict with selected_features $feature {
@@ -322,6 +327,8 @@ proc msibuild::generate_features {} {
 
 # Generate the UI elements
 proc msibuild::generate_ui {} {
+    variable script_dir
+    
     append xml [tag/ UIRef Id WixUI_Advanced]
     # Following property provides the default dir name for install
     # when using WixUI_Advanced dialog.
@@ -333,21 +340,47 @@ proc msibuild::generate_ui {} {
     append xml [tag/ Property Id WixAppFolder Value WixPerUserFolder]
 
     # License file
-    append xml [tag/ WixVariable Id WixUILicenseRtf Value license.rtf]
+    append xml [tag/ WixVariable Id WixUILicenseRtf Value [file join $script_dir license.rtf]]
     
     # The background for Install dialogs
-    append xml [tag/ WixVariable Id WixUIDialogBmp Value msidialog.bmp]
+    append xml [tag/ WixVariable Id WixUIDialogBmp Value [file join $script_dir msidialog.bmp]]
     
     # The horizontal banner for Install dialogs
-    append xml [tag/ WixVariable Id WixUIBannerBmp Value msibanner.bmp]
+    append xml [tag/ WixVariable Id WixUIBannerBmp Value [file join $script_dir msibanner.bmp]]
     
     return $xml
 }
 
+# Generate pre-launch conditions in terms of platform requirements.
+proc msibuild::generate_launch_conditions {} {
+    append xml [tag Condition \
+                    Message "This program is only supported on Windows XP and later versions of Windows."]
+    append xml {<![CDATA[VersionNT >= 501]]>}
+    append xml [tag_close]
+
+    append xml [tag Condition \
+                    Message "This program is requires at least Service Pack 3 on Windows XP."]
+    append xml {<![CDATA[VersionNT > 501 OR ServicePackLevel >= 3]]>}
+    append xml [tag_close]
+
+    return $xml
+}
+
+# Generate the Add/Remove program properties
+proc msibuild::generate_arp {} {
+    variable script_dir
+    string cat \
+        [tag/ Property ARPURLINFOABOUT Value http://www.tcl.tk] \
+        [tag/ Property ARPHELPLINK Value http://www.tcl.tk/man/tcl[info version]] \
+        [tag/ Property ARPCOMMENTS Value "The Tcl programming language and Tk graphical toolkit"] \
+        [tag/ Property Id ARPPRODUCTICON Value [file join $script_dir tcl.ico]]
+}
 
 proc msibuild::generate {} {
     variable tcl_root
     variable msi_strings
+    
+    log Generating Wix XML
     
     set xml "<?xml version='1.0' encoding='windows-1252'?>\n"
 
@@ -380,7 +413,17 @@ proc msibuild::generate {} {
                     InstallerVersion 301 \
                     Description      "Installer for Tcl/Tk ($msi_strings(ArchString))"]
 
-        # Media - does not really matter. We don't have multiple media.
+    # Checks for platforms
+    append xml [generate_launch_conditions]
+    
+    # Upgrade behaviour. There is probably no reason to disallow downgrades
+    # but I don't want to do the additional testing...
+    append xml [tag/ MajorUpgrade \
+                    AllowDowngrades no \
+                    DowngradeErrorMessage "A later version of \[ProductName\] is already installed. Setup will now exit." \
+                    AllowSameVersionUpgrades yes]
+                
+    # Media - does not really matter. We don't have multiple media.
     # EmbedCab - yes because the files will be embedded inside the MSI,
     #   and not stored separately
     append xml [tag/ Media \
@@ -396,21 +439,6 @@ proc msibuild::generate {} {
     append xml [tag_close_all]
 
     return $xml
-}
-
-proc msibuild::main {args} {
-    variable selected_features
-    variable feature_definitions
-    variable tcl_root
-
-    if {[llength $args] == 0} {
-        set selected_features $feature_definitions
-    } else {
-        set selected_features [dict filter $feature_definitions key {*}$args]
-    }
-
-    build_file_paths 
-    return [generate]
 }
 
 # Buggy XML generator (does not encode special chars)
@@ -466,4 +494,111 @@ proc msibuild::tag_close_all {} {
     return [tag_close [llength $xml_tags]]
 }
 
-puts [msibuild::main {*}$::argv]
+# Gets the next arg from ::argv and raises error if no more arguments
+# argv is modified accordingly.
+proc msibuild::nextarg {} {
+    global argv
+    if {[llength $argv] == 0} {
+        error "Missing argument"
+    }
+    set argv [lassign $argv arg]
+    return $arg
+}
+
+proc msibuild::parse_command_line {} {
+    global argv
+    variable feature_definitions
+    variable selected_features
+    variable options
+    variable architecture
+
+    array set options {
+        silent 0
+    }
+    
+    while {[llength $argv]} {
+        set arg [nextarg]
+        if {$arg eq "--"} {
+            break;   # Rest are all passed to subcommand as component names
+        }
+        switch -glob -- $arg {
+            -silent { set options(silent) 1 }
+            -outdir {
+                set options([string range $arg 1 end]) [nextarg]
+            }
+            -* {
+                error "Unknown option \"$arg\""
+            }
+            default {
+                lappend options(features) $arg
+            }
+        }
+    }
+
+    if {![info exists options(features)] || [llength $options(features)] == 0} {
+        set selected_features $feature_definitions
+    } else {
+        set selected_features [dict filter $feature_definitions key {*}$options(features)]
+    }
+    if {![info exists options(outdir)]} {
+        set options(outdir) $architecture
+    }
+    set options(outdir) [file normalize $options(outdir)]
+}
+
+proc msibuild::log {args} {
+    variable options
+    if {!$options(silent)} {
+        puts [join $args { }]
+    }
+}
+
+proc msibuild::main {} {
+    variable selected_features
+    variable feature_definitions
+    variable tcl_root
+    variable options
+    variable architecture
+    variable msi_strings
+    
+    parse_command_line
+    log Building $architecture MSI for [join [dict keys $selected_features] {, }]
+    build_file_paths 
+    set xml [generate]
+
+    file mkdir $options(outdir)
+
+    set wxs [file join $options(outdir) tcl$architecture.wxs]
+    log Writing Wix XML file $wxs
+    set fd [open $wxs w]
+    fconfigure $fd -encoding utf-8
+    puts $fd $xml
+    close $fd
+
+    if {[info exists ::env(WIX)]} {
+        set candle [file join $::env(WIX) bin candle.exe]
+        set light  [file join $::env(WIX) bin light.exe]
+    } else {
+        # Assume on the path
+        set candle candle.exe
+        set light  light.exe
+    }
+
+    set outdir [file attributes $options(outdir) -shortname]
+    set wixobj [file join $outdir tcl$architecture.wixobj]
+    log Generating Wix object file $wixobj
+    if {$architecture eq "x86"} {
+        exec $candle -nologo -ext WixUIExtension.dll -out $wixobj $wxs
+    } else {
+        exec $candle -nologo -arch x64 -ext WixUIExtension.dll -out $wixobj $wxs
+    }
+    
+    set msi [file join $outdir "Tcl Installer ($msi_strings(ArchString)).msi"]
+    log Generating MSI file $msi
+    exec $light -out $msi -ext WixUIExtension.dll $wixobj
+
+    log MSI file $msi created.
+}
+
+msibuild::main
+
