@@ -320,6 +320,31 @@ proc msibuild::generate_features {} {
     return $xml
 }
 
+# Generate the UI elements
+proc msibuild::generate_ui {} {
+    append xml [tag/ UIRef Id WixUI_Advanced]
+    # Following property provides the default dir name for install
+    # when using WixUI_Advanced dialog.
+    append xml [tag/ Property Id ApplicationFolderName Value "Tcl"]
+    
+    # Set the default when showing the per-user/per-machine dialog
+    # Note that if per-user is chosen, the user cannot choose
+    # location of install
+    append xml [tag/ Property Id WixAppFolder Value WixPerUserFolder]
+
+    # License file
+    append xml [tag/ WixVariable Id WixUILicenseRtf Value license.rtf]
+    
+    # The background for Install dialogs
+    append xml [tag/ WixVariable Id WixUIDialogBmp Value msidialog.bmp]
+    
+    # The horizontal banner for Install dialogs
+    append xml [tag/ WixVariable Id WixUIBannerBmp Value msibanner.bmp]
+    
+    return $xml
+}
+
+
 proc msibuild::generate {} {
     variable tcl_root
     variable msi_strings
@@ -355,11 +380,7 @@ proc msibuild::generate {} {
                     InstallerVersion 301 \
                     Description      "Installer for Tcl/Tk ($msi_strings(ArchString))"]
 
-    # NOTE:Despite what the Wix reference says, UIRef can't be the first
-    # child of Product element so put it after Package.
-    append xml [tag/ UIRef Id WixUI_Minimal]
-    
-    # Media - does not really matter. We don't have multiple media.
+        # Media - does not really matter. We don't have multiple media.
     # EmbedCab - yes because the files will be embedded inside the MSI,
     #   and not stored separately
     append xml [tag/ Media \
@@ -367,6 +388,9 @@ proc msibuild::generate {} {
                     Cabinet  media1.cab \
                     EmbedCab yes]
 
+    # NOTE:Despite what the Wix reference says that it can be placed anywhere,
+    # UIRef can't be the first child of Product element. So dump it here.
+    append xml [generate_ui]
     append xml [generate_directory]
     append xml [generate_features]
     append xml [tag_close_all]
