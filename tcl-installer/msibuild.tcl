@@ -370,10 +370,40 @@ proc msibuild::generate_launch_conditions {} {
 proc msibuild::generate_arp {} {
     variable script_dir
     string cat \
-        [tag/ Property ARPURLINFOABOUT Value http://www.tcl.tk] \
-        [tag/ Property ARPHELPLINK Value http://www.tcl.tk/man/tcl[info version]] \
-        [tag/ Property ARPCOMMENTS Value "The Tcl programming language and Tk graphical toolkit"] \
+        [tag/ Property Id ARPURLINFOABOUT Value http://www.tcl.tk] \
+        [tag/ Property Id ARPHELPLINK Value http://www.tcl.tk/man/tcl[info tclversion]] \
+        [tag/ Property Id ARPCOMMENTS Value "The Tcl programming language and Tk graphical toolkit"] \
         [tag/ Property Id ARPPRODUCTICON Value [file join $script_dir tcl.ico]]
+}
+
+# Allow user to modify path.
+proc msibuild::generate_path_feature {} {
+    variable directories
+    variable tcl_root
+
+    append xml [tag Feature \
+                    Id [id] \
+                    Level 1 \
+                    Title {Modify Paths} \
+                    Description {Modify PATH environment variable to include the Tcl/Tk directory}]
+
+    # Get the Id of the bin directory.
+    set tclbinid [dict get $directories [file join $tcl_root bin]]
+    append xml [tag Component Id [id] Guid 5C4574A9-ECE5-4565-BA0D-38AC38755C4E KeyPath yes Directory $tclbinid]
+    # TBD - Should System be set to "yes" for machine installs?
+    append xml [tag/ Environment \
+                    Action set \
+                    Id [id] \
+                    Name Path \
+                    Value {[APPLICATIONFOLDER]bin} \
+                    System no \
+                    Permanent no \
+                    Part last \
+                    Separator ";"]
+                
+    append xml [tag_close 2];     # Component, Feature
+
+    return $xml
 }
 
 proc msibuild::generate {} {
@@ -431,11 +461,24 @@ proc msibuild::generate {} {
                     Cabinet  media1.cab \
                     EmbedCab yes]
 
+    append xml [generate_arp];  # Information that shows in Add/Remove Programs
+    
     # NOTE:Despite what the Wix reference says that it can be placed anywhere,
     # UIRef can't be the first child of Product element. So dump it here.
-    append xml [generate_ui]
-    append xml [generate_directory]
-    append xml [generate_features]
+    append xml [generate_ui];   # Installation dialogs
+
+    # The MSIINSTALLPERUSER only has effect on Win 7 and later using
+    # Windows Installer 5.0 and is only effective if ALLUSERS=2
+    # See https://msdn.microsoft.com/en-us/library/aa371865.aspx
+    # The ALLUSERS property will be set based on the WixUI_Advanced dialog
+    # user selection so I'm not quite sure if this is needed.
+    append xml [tag/ Property Id MSIINSTALLPERUSER Secure yes Value 1]
+    
+    append xml [generate_directory]; # Directory structure
+    append xml [generate_features];  # Feature tree
+
+    append xml [generate_path_feature]; # Optionally modify the path
+                
     append xml [tag_close_all]
 
     return $xml
