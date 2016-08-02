@@ -248,11 +248,18 @@ proc msibuild::generate_directory {} {
     # Use of the WixUI_Advanced dialogs requires the following
     # Directory element structures.
     append xml [tag Directory Id TARGETDIR Name SourceDir]
+    
     append xml [tag Directory Id $msi_strings(ProgramFilesFolder) Name PFiles]
-
     append xml [generate_directory_tree $tcl_root]
+    append xml [tag_close];     # ProgramFilesFolder
 
-    append xml [tag_close 2]
+    append xml [tag Directory Id ProgramMenuFolder]
+    append xml [tag Directory Id DesktopFolder]
+    append xml [tag/ Directory Id TclStartMenuFolder Name Tcl[info tclversion]]
+    append xml [tag_close 2];     # DesktopFolder ProgramMenuFolder
+
+    append xml [tag_close];     # TARGETDIR
+
     return $xml
 }
 
@@ -406,6 +413,75 @@ proc msibuild::generate_path_feature {} {
     return $xml
 }
 
+# Shortcuts and start menu
+proc msibuild::generate_shortcuts_feature {} {
+    append xml [tag Feature \
+                    Id [id] \
+                    Level 1 \
+                    Title {Shortcuts} \
+                    Description {Install Start menu and desktop shortcuts}]
+
+    # TBD - do we need a RegistryValue for a key path as noted in the
+    # Wix Tools book?
+
+    append xml [tag Component Id [id] Guid * Directory TclStartMenuFolder] 
+    append xml [tag/ Shortcut Id [id] \
+                    Name "tclsh" \
+                    Description "Tcl console shell" \
+                    Directory TclStartMenuFolder \
+                    Target {[APPLICATIONFOLDER]bin\tclsh.exe}]
+
+    # Arrange for the folder to be removed on an uninstall
+    # We only include this for one shortcut component
+    append xml [tag/ RemoveFolder Id RemoveTclStartMenuFolder \
+                    Directory TclStartMenuFolder \
+                    On uninstall]
+    append xml [tag/ RegistryValue Root HKCU \
+                    Key "Software\\Tcl\\[info tclversion]" \
+                    Name installed \
+                    Type integer \
+                    Value 1 \
+                    KeyPath yes]
+    append xml [tag_close];     # Component
+
+    if {0} {
+    append xml [tag Component Id [id] Guid *]
+    append xml [tag/ Shortcut Id [id] \
+                    Name "wish" \
+                    Description "Tcl/Tk graphical shell" \
+                    Directory TclStartMenuFolder \
+                    Target {[APPLICATIONFOLDER]bin\wish.exe}]
+    append xml [tag_close]
+
+    # TBD - should be tied to tkcon feature
+    append xml [tag Component Id [id] Guid *]
+    append xml [tag/ Shortcut Id [id] \
+                    Name "tkcon" \
+                    Description "TkCon enhanced graphical console" \
+                    Directory TclStartMenuFolder \
+                    Target {[APPLICATIONFOLDER]bin\wish.exe} \
+                    Arguments {[APPLICATIONFOLDER]bin\tkcon.tcl}]
+    append xml [tag_close]
+    }
+    
+    # TBD - icons on shortcuts? See Wix Tools book
+
+    # Comment out desktop shortcut for now. Not really warranted
+    if {0} {
+        append xml [tag Component Id [id] Guid *]
+        append xml [tag/ Shortcut Id [id] \
+                        Name "tkcon" \
+                        Description "TkCon enhanced graphical console" \
+                        Directory DesktopFolder \
+                        Target {[APPLICATIONFOLDER]bin\wish.exe} \
+                        Arguments {[APPLICATIONFOLDER]bin\tkcon.tcl}]
+        # TBD - need a registry keypath here too?
+        append xml [tag_close]
+    }
+    
+    append xml [tag_close];     # Feature
+}
+
 proc msibuild::generate {} {
     variable tcl_root
     variable msi_strings
@@ -437,10 +513,15 @@ proc msibuild::generate {} {
     # Compressed - always set to "yes".
     # InstallerVersion - version of Windows Installer required. Not sure
     #     the minimum required here but XP SP3 has 301 (I think)
+    # NOTE: we do not set the following because it does not then allow
+    #     per-machine installs
+    # InstallPrivileges - "limited" if no elevation required, "elevated"
+    #     if elevation required.
+    # TBD - change installer version to be xp compatible
     append xml [tag/ Package \
                     Compressed       yes \
                     Id               * \
-                    InstallerVersion 301 \
+                    InstallerVersion 500 \
                     Description      "Installer for Tcl/Tk ($msi_strings(ArchString))"]
 
     # Checks for platforms
@@ -478,6 +559,7 @@ proc msibuild::generate {} {
     append xml [generate_features];  # Feature tree
 
     append xml [generate_path_feature]; # Optionally modify the path
+    append xml [generate_shortcuts_feature]
                 
     append xml [tag_close_all]
 
