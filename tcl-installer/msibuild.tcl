@@ -55,7 +55,7 @@ namespace eval msibuild {
     #
     # The following additional keys are computed from the above as we
     # go along
-    # Files - list of *normalized* file paths
+    # Files - the list of files for that feature
     # Version - version of the package if available
     variable feature_definitions
 
@@ -105,10 +105,24 @@ namespace eval msibuild {
     # because they do not handle case differences correctly
     variable tcl_root [file normalize [file dirname [file dirname [info nameofexecutable]]]]
 
-    # Contains a dictionary of all directory paths mapping them to an id
-    # Again normalized for same reason as above.
-    variable directories {}
+    # Contains an array of all directory paths. We use an array instead
+    # of a nested dict structure so that we can make use of dict lappend
+    # on the contained dictionaries.
+    # Again keys are normalized for same reason as above.
+    # Elements are dictionaries with the following keys:
+    #  Id - the Wix Id for the directory
+    #  Files - list of normalized file paths contained in the directory
+    variable directories
+    array set directories {}
+    
+    # Directory tree structure. Maintained as a dictionary where nested
+    # keys are subdirectories. Tree is rooted relative to $tcl_root
+    variable directory_tree {}
 
+    # Array to track file ids
+    variable file_ids
+    array set file_ids {}
+    
     # Used for keeping track of tags in xml generation
     variable xml_tags {}
 }
@@ -129,14 +143,28 @@ proc msibuild::id {{path {}}} {
 proc msibuild::bin_dir_id {} {
     variable directories
     variable tcl_root
-    return [dict get $directories [file join $tcl_root bin]]
+    return [dict get $directories([file join $tcl_root bin]) Id]
 }
 
-# Build a file path list for a MSI package. Returned value is a nested
-# list consisting of file paths only (no directories)
+# Returns the id of the Tcl exe
+proc msibuild::tclsh_id {} {
+    variable file_ids
+    return $file_ids([file join $tcl_root bin tclsh.exe])
+}
+
+# Returns the id of the wish exe
+proc msibuild::wish_id {} {
+    variable file_ids
+    return $file_ids([file join $tcl_root bin wish.exe])
+}
+
+# Build a file path list for a MSI package.
+# The files are added to the corresponding directory
 proc msibuild::build_file_paths_for_feature {feature} {
     variable selected_features
     variable tcl_root
+    variable directories
+    variable file_ids
 
     log Building file paths for $feature
     
@@ -170,23 +198,45 @@ proc msibuild::build_file_paths_for_feature {feature} {
             file normalize $path
         }]
     }
-    dict set selected_features $feature Files [lsort -unique $files]
+
+    dict set selected_features $feature Files $files
+    foreach path $files {
+        set file_ids($path) [id $path]
+        add_parent_directory $path
+        dict lappend directories([file dirname $path]) Files $path
+    }
 }
 
+# Adds all ancestors of $path (must be normalized) to the directories array
 proc msibuild::add_parent_directory {path} {
     variable directories
+    variable directory_tree
     variable tcl_root
     
     if {[file pathtype $path] ne "absolute"} {
         error "Internal error: $path is not a absolute normalized path"
     }
-    set parent [file normalize [file dirname $path]]
-    if {$parent eq $tcl_root} {
-        return; # Top level
+    if {[file type $path] ne "file"} {
+        error "Internal error: $path is not an ordinary file"
     }
-    if {![dict exists $directories $parent]} {
-        add_parent_directory $parent
-        dict set directories $parent [id $parent]
+
+    set parent [file dirname $path]
+
+    # Add parent and ancestore (up to tcl root) to the directory tree
+    set relpath [fileutil::relative $tcl_root $parent]
+    if {$relpath eq "."} {
+        # No need to do anything with the root. It is always preserved.
+        return
+    }
+    dict set directory_tree {*}[split $relpath /] {}
+
+    # Generate ids for all ancestors
+    while {$parent ne $tcl_root} {
+        if {[info exists directories($parent)]} {
+            return;             # We have already seen this
+        }
+        dict set directories($parent) Id [id $parent]
+        set parent [file dirname $parent]
     }
 }
 
@@ -194,54 +244,42 @@ proc msibuild::add_parent_directory {path} {
 proc msibuild::build_file_paths {} {
     variable selected_features
 
-    dict set directory_tree . Subdirs {}
     foreach feature [dict keys $selected_features] {
         build_file_paths_for_feature $feature
-        foreach path [dict get $selected_features $feature Files] {
-            add_parent_directory $path
-        }
     }                             
 }
 
-# Generate the Directory nodes
-proc msibuild::generate_directory_tree {dir} {
+# Generate the Directory and child nodes for all directories other
+# than tcl_root itself which is special cased.
+# dirpath is a list that is a path through $directory_tree
+# Note assumes no links
+proc msibuild::generate_directory_tree {dirpath} {
     variable directories
     variable tcl_root
+    variable directory_tree
 
-    if {[file pathtype $dir] ne "absolute"} {
-        error "Path \"$dir\" is not an absolute path"
-    }
+    set dir [file join $tcl_root {*}$dirpath]
 
-    # Note assumes no links
+    set xml [tag Directory \
+                 Id [dict get $directories($dir) Id] \
+                 Name [lindex $dirpath end]]
 
-    set dir [file normalize $dir]
-
-    set reldir [fileutil::relative $tcl_root $dir]
-    set subdirs [glob -nocomplain -types d -dir $dir -- *]
-
-    # To get indentation right, we have to generate the outer tags
-    # before inner tags
-    if {$reldir eq "."} {
-        # These exact values to allow user to choose folder based
-        # on WixUI_Advanced dialog
-        set id   APPLICATIONFOLDER
-        set name Tcl
-    } else {
-        if {![dict exists $directories $dir]} {
-            puts stderr "Directory \"$dir\" not in a package. Skipping..."
-            return
+    # First write out all the files in this directory, if any
+    # Note the directory will always exist in $directories but may
+    # not have files
+    if {[dict exists $directories($dir) Files]} {
+        foreach path [dict get $directories($dir) Files] {
+            append xml [generate_file $path]
         }
-        set name [file tail $dir]
-        set id   [dict get $directories $dir]
     }
-    if {[llength $subdirs] == 0} {
-        return [tag/ Directory Name $name Id $id]
+
+    # Now write out all the subdirectories
+    foreach subdir [dict keys [dict get $directory_tree {*}$dirpath]] {
+        append xml [generate_directory_tree [linsert $dirpath end $subdir]]
     }
-    set xml [tag Directory Name $name Id $id]
-    foreach subdir $subdirs {
-        append xml [generate_directory_tree $subdir]
-    }
-    append xml [tag_close Directory]
+    
+    append xml [tag_close Directory]; # Top level for this dirpath
+
     return $xml
 }
 
@@ -249,13 +287,34 @@ proc msibuild::generate_directory_tree {dir} {
 proc msibuild::generate_directory {} {
     variable tcl_root
     variable msi_strings
+    variable directories
+    variable directory_tree
 
     # Use of the WixUI_Advanced dialogs requires the following
     # Directory element structures.
     append xml [tag Directory Id TARGETDIR Name SourceDir]
     
     append xml [tag Directory Id $msi_strings(ProgramFilesFolder) Name PFiles]
-    append xml [generate_directory_tree $tcl_root]
+
+    # Generate the top level ($tcl_root) which is not included in
+    # directory_tree and also needs special handling.
+    append xml [tag Directory Id APPLICATIONFOLDER Name Tcl[info tclversion]]
+
+    # Generate the file components for the top level
+    if {[info exists directories($tcl_root)] &&
+        [dict exists $directories($tcl_root) Files]} {
+        foreach path [dict get $directories($tcl_root) Files] {
+            append xml [generate_file $path]
+        }
+    }
+    
+    # Now generate each of the subdirectories of the top level
+    foreach subdir [dict keys $directory_tree] {
+        append xml [generate_directory_tree [list $subdir]]
+    }
+    
+    append xml [tag_close Directory]; # APPLICATIONFOLDER
+
     append xml [tag_close];     # ProgramFilesFolder
 
     # NOTE: We use ProgramMenuFolder because StartMenuFolder is not available
@@ -269,43 +328,30 @@ proc msibuild::generate_directory {} {
     return $xml
 }
 
-proc msibuild::generate_file {path {file_id {}} {name {}}} {
-    variable directories
+proc msibuild::generate_file {path} {
+    variable file_ids
 
     if {[file pathtype $path] ne "absolute"} {
         error "generate_file passed a non-absolute path"
     }
-    set dir [file dirname $path]
-    if {![dict exists $directories $dir]} {
-        error "Could not find directory \"$dir\" in directories dictionary"
-    }
-    set dir_id [dict get $directories $dir]
-    if {$file_id eq ""} {
-        set file_id [id $path]
-    }
-    if {$name ne ""} {
-        set name_attr [list Name $name]
-    } else {
-        set name_attr {}
-    }
+    set file_id $file_ids($path)
+    
     # Every FILE must be enclosed in a Component and a Component should
     # have only one file.
     set xml [tag Component \
                  Id CMP_$file_id \
-                 Guid * \
-                 Directory $dir_id]
+                 Guid *]
     append xml [tag/ File \
                     Id $file_id \
-                    {*}$name_attr \
                     Source $path \
                     KeyPath yes]
     append xml [tag_close Component]
-                
 }
 
 proc msibuild::generate_features {} {
     variable selected_features
     variable tcl_root
+    variable file_ids
 
     set xml ""
     dict for {fid feature} $selected_features {
@@ -341,18 +387,7 @@ proc msibuild::generate_features {} {
                         Description $description \
                         Absent $absent]
         foreach path [dict get $feature Files] {
-            append xml [generate_file $path]
-        }
-
-        # TBD - For the core feature, we want to create new exes with predefined
-        # ids for shortcuts etc. I hate this hardcoding but can't figure
-        # out the magic required to be able to define these outside of
-        # the Feature element. Using FeatureRef generates a multiple
-        # primary reference error. Using a Fragment is something to be tried.
-        # 
-        if {$fid eq "core"} {
-            append xml [generate_file [file join $tcl_root bin tclsh86t.exe] TCLSHEXE tclsh.exe]
-            append xml [generate_file [file join $tcl_root bin wish86t.exe] WISHEXE wish.exe]
+            append xml [tag/ ComponentRef Id CMP_$file_ids($path)]
         }
 
         append xml [tag_close Feature]
@@ -414,7 +449,6 @@ proc msibuild::generate_arp {} {
 
 # Allow user to modify path.
 proc msibuild::generate_path_feature {} {
-    variable directories
     variable tcl_root
 
     append xml [tag Feature \
@@ -780,6 +814,18 @@ proc msibuild::log {args} {
     if {!$options(silent)} {
         puts [join $args { }]
     }
+}
+
+# Some pre-build steps to fix up the pool.
+proc msibuild::main {} {
+    variable tcl_root
+
+    # We want tclsh and wish not, tclsh86t etc.
+    file copy -force [file join $tcl_root bin tclsh86t.exe] \
+        [file join $tcl_root bin tclsh.exe]
+    file copy -force [file join $tcl_root bin wish86t.exe] \
+        [file join $tcl_root bin wish.exe]
+    
 }
 
 proc msibuild::main {} {
