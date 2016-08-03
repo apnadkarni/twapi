@@ -26,18 +26,16 @@ namespace eval msibuild {
             UpgradeCode        9888EC4F-7EB8-40EF-8506-7230E811AFE9
             ProgramFilesFolder ProgramFilesFolder
             Win64              no
-            ArchString         {32-bit}
+            ArchString         32-bit
         }
     } else {
         array set msi_strings {
             UpgradeCode        1AE719B3-0895-4913-B8BF-1117944A7046
             ProgramFilesFolder ProgramFiles64Folder
             Win64              yes
-            ArchString         {64-bit}
+            ArchString         64-bit
         }
     }
-        
-
     
     # Define included features. A dictionary keyed by the MSI feature Id
     # The dictionary values are themselves
@@ -260,9 +258,11 @@ proc msibuild::generate_directory {} {
     append xml [generate_directory_tree $tcl_root]
     append xml [tag_close];     # ProgramFilesFolder
 
+    # NOTE: We use ProgramMenuFolder because StartMenuFolder is not available
+    # on XP Windows installer
     append xml [tag Directory Id ProgramMenuFolder]
-    append xml [tag/ Directory Id TclStartMenuFolder Name Tcl[info tclversion]]
-    append xml [tag_close];     # ProgramMenuFolder
+    append xml [tag Directory Id TclStartMenuFolder Name Tcl[info tclversion]]
+    append xml [tag_close Directory Directory]; # TclStartMenuFolder ProgramMenuFolder
 
     append xml [tag_close Directory];     # TARGETDIR
 
@@ -448,11 +448,10 @@ proc msibuild::generate_start_menu_feature {} {
                     Description {Install Start menu shortcuts}]
 
     append xml [tag Component Id [id] Guid * Directory TclStartMenuFolder] 
-    # TBD - can we change Target to TCLSHEXE?
+    # TBD - can we change Target to [#TCLSHEXE]?
     append xml [tag/ Shortcut Id [id] \
                     Name "tclsh" \
                     Description "Tcl console shell" \
-                    Directory TclStartMenuFolder \
                     Target {[APPLICATIONFOLDER]bin\tclsh.exe}]
 
     # Arrange for the folder to be removed on an uninstall
@@ -466,6 +465,27 @@ proc msibuild::generate_start_menu_feature {} {
                     Type integer \
                     Value 1 \
                     KeyPath yes]
+    # APN append xml [tag_close Component]
+
+    # APN append xml [tag Component Id [id] Guid 57009BF7-3E8D-49C8-A557-26F86943233F Directory TclStartMenuFolder]
+    append xml [tag/ util:InternetShortcut \
+                    Id TclManPage \
+                    Name Tcl \
+                    Target http://tcl.tk/man/tcl[info tclversion]/contents.htm \
+                    Type url]
+    if {0} {
+    append xml [tag/ RemoveFolder Id RemoveTclDocMenuFolder \
+                    Directory TclDocMenuFolder \
+                    On uninstall]
+    }
+    if {0} {
+    append xml [tag/ RegistryValue Root HKCU \
+                    Key "Software\\Tcl\\[info tclversion]\\Doc" \
+                    Name installed \
+                    Type integer \
+                    Value 1 \
+                    KeyPath yes]
+    }
     append xml [tag_close Component]
 
     if {0} {
@@ -551,7 +571,9 @@ proc msibuild::generate {} {
     
     set xml "<?xml version='1.0' encoding='windows-1252'?>\n"
 
-    append xml [tag Wix xmlns http://schemas.microsoft.com/wix/2006/wi]
+    append xml [tag Wix \
+                    xmlns http://schemas.microsoft.com/wix/2006/wi \
+                    xmlns:util "http://schemas.microsoft.com/wix/UtilExtension"]
 
     # Product - info about Tcl itself
     # Name - Tcl/Tk for Windows
@@ -791,14 +813,15 @@ proc msibuild::main {} {
     set wixobj [file join $outdir tcl$architecture.wixobj]
     log Generating Wix object file $wixobj
     if {$architecture eq "x86"} {
-        exec $candle -nologo -ext WixUIExtension.dll -out $wixobj $wxs
+        set arch {}
     } else {
-        exec $candle -nologo -arch x64 -ext WixUIExtension.dll -out $wixobj $wxs
+        set arch [list -arch x64]
     }
+    exec $candle -nologo {*}$arch -ext WixUIExtension.dll -ext WixUtilExtension.dll -out $wixobj $wxs
     
     set msi [file join $outdir "Tcl Installer ($msi_strings(ArchString)).msi"]
     log Generating MSI file $msi
-    exec $light -out $msi -ext WixUIExtension.dll $wixobj
+    exec $light -out $msi -ext WixUIExtension.dll -ext WixUtilExtension.dll $wixobj
 
     log MSI file $msi created.
 }
