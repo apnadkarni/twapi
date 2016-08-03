@@ -67,7 +67,7 @@ namespace eval msibuild {
             Name {Tcl/Tk Core}
             TclPackages { Tcl Tk }
             Description {Includes Tcl and Tk core, Windows registry and DDE extensions.}
-            Paths {bin include lib/tcl8 lib/tcl8.* lib/dde* lib/reg* lib/tk8.* lib/*.lib}
+            Paths {bin lib/tcl8 lib/tcl8.* lib/dde* lib/reg* lib/tk8.*}
             Mandatory 2
         }
         itcl {
@@ -94,7 +94,7 @@ namespace eval msibuild {
         clibs {
             {C libraries} 
             Description {C libraries for building your own binary extensions}
-            Paths {lib/*.lib}
+            Paths {include lib/*.lib}
             Mandatory 0
         }
     }        
@@ -125,6 +125,13 @@ proc msibuild::id {{path {}}} {
         set path [fileutil::relative $tcl_root $path]
         return "ID[incr id_counter]_[string map {/ _ : _ - _ + _} $path]"
     }
+}
+
+# Returns the id of the Tcl bin directory
+proc msibuild::bin_dir_id {} {
+    variable directories
+    variable tcl_root
+    return [dict get $directories [file join $tcl_root bin]]
 }
 
 # Build a file path list for a MSI package. Returned value is a nested
@@ -236,7 +243,7 @@ proc msibuild::generate_directory_tree {dir} {
     foreach subdir $subdirs {
         append xml [generate_directory_tree $subdir]
     }
-    append xml [tag_close]
+    append xml [tag_close Directory]
     return $xml
 }
 
@@ -254,16 +261,15 @@ proc msibuild::generate_directory {} {
     append xml [tag_close];     # ProgramFilesFolder
 
     append xml [tag Directory Id ProgramMenuFolder]
-    append xml [tag Directory Id DesktopFolder]
     append xml [tag/ Directory Id TclStartMenuFolder Name Tcl[info tclversion]]
-    append xml [tag_close 2];     # DesktopFolder ProgramMenuFolder
+    append xml [tag_close];     # ProgramMenuFolder
 
-    append xml [tag_close];     # TARGETDIR
+    append xml [tag_close Directory];     # TARGETDIR
 
     return $xml
 }
 
-proc msibuild::generate_file {path} {
+proc msibuild::generate_file {path {file_id {}} {name {}}} {
     variable directories
 
     if {[file pathtype $path] ne "absolute"} {
@@ -274,8 +280,14 @@ proc msibuild::generate_file {path} {
         error "Could not find directory \"$dir\" in directories dictionary"
     }
     set dir_id [dict get $directories $dir]
-    set file_id [id $path]
-
+    if {$file_id eq ""} {
+        set file_id [id $path]
+    }
+    if {$name ne ""} {
+        set name_attr [list Name $name]
+    } else {
+        set name_attr {}
+    }
     # Every FILE must be enclosed in a Component and a Component should
     # have only one file.
     set xml [tag Component \
@@ -284,25 +296,31 @@ proc msibuild::generate_file {path} {
                  Directory $dir_id]
     append xml [tag/ File \
                     Id $file_id \
+                    {*}$name_attr \
                     Source $path \
                     KeyPath yes]
-    
-    append xml [tag_close];                  # Component
+    append xml [tag_close Component]
                 
 }
 
 proc msibuild::generate_features {} {
     variable selected_features
+    variable tcl_root
 
     set xml ""
     dict for {fid feature} $selected_features {
         set absent allow
         if {[dict exists $feature Mandatory]} {
-            set mandatory [dict get $feature Mandatory]
-            if {$mandatory == 2} {
-                set absent disallow
-            } elseif {$mandatory == 1} {
-            } else {
+            switch -exact -- [dict get $feature Mandatory] {
+                2 { set absent disallow }
+                1 { set absent allow }
+                0 {
+                    # TBD - how to set the default state to NOT INSTALL ?
+                    set absent allow
+                }
+                default {
+                    error "Unknown value [dict get $feature Mandatory] for Mandatory feature definition key."
+                }
             }
         }
         if {[dict exists $feature Version]} {
@@ -326,7 +344,18 @@ proc msibuild::generate_features {} {
             append xml [generate_file $path]
         }
 
-        append xml [tag_close]; # Feature
+        # TBD - For the core feature, we want to create new exes with predefined
+        # ids for shortcuts etc. I hate this hardcoding but can't figure
+        # out the magic required to be able to define these outside of
+        # the Feature element. Using FeatureRef generates a multiple
+        # primary reference error. Using a Fragment is something to be tried.
+        # 
+        if {$fid eq "core"} {
+            append xml [generate_file [file join $tcl_root bin tclsh86t.exe] TCLSHEXE tclsh.exe]
+            append xml [generate_file [file join $tcl_root bin wish86t.exe] WISHEXE wish.exe]
+        }
+
+        append xml [tag_close Feature]
                         
     }
     return $xml
@@ -363,12 +392,12 @@ proc msibuild::generate_launch_conditions {} {
     append xml [tag Condition \
                     Message "This program is only supported on Windows XP and later versions of Windows."]
     append xml {<![CDATA[VersionNT >= 501]]>}
-    append xml [tag_close]
+    append xml [tag_close Condition]
 
     append xml [tag Condition \
                     Message "This program is requires at least Service Pack 3 on Windows XP."]
     append xml {<![CDATA[VersionNT > 501 OR ServicePackLevel >= 3]]>}
-    append xml [tag_close]
+    append xml [tag_close Condition]
 
     return $xml
 }
@@ -394,9 +423,7 @@ proc msibuild::generate_path_feature {} {
                     Title {Modify Paths} \
                     Description {Modify PATH environment variable to include the Tcl/Tk directory}]
 
-    # Get the Id of the bin directory.
-    set tclbinid [dict get $directories [file join $tcl_root bin]]
-    append xml [tag Component Id [id] Guid 5C4574A9-ECE5-4565-BA0D-38AC38755C4E KeyPath yes Directory $tclbinid]
+    append xml [tag Component Id [id] Guid 5C4574A9-ECE5-4565-BA0D-38AC38755C4E KeyPath yes Directory [bin_dir_id]]
     # TBD - Should System be set to "yes" for machine installs?
     append xml [tag/ Environment \
                     Action set \
@@ -408,23 +435,20 @@ proc msibuild::generate_path_feature {} {
                     Part last \
                     Separator ";"]
                 
-    append xml [tag_close 2];     # Component, Feature
+    append xml [tag_close Component Feature]
 
     return $xml
 }
 
-# Shortcuts and start menu
-proc msibuild::generate_shortcuts_feature {} {
+proc msibuild::generate_start_menu_feature {} {
     append xml [tag Feature \
                     Id [id] \
                     Level 1 \
-                    Title {Shortcuts} \
-                    Description {Install Start menu and desktop shortcuts}]
-
-    # TBD - do we need a RegistryValue for a key path as noted in the
-    # Wix Tools book?
+                    Title {Start menu} \
+                    Description {Install Start menu shortcuts}]
 
     append xml [tag Component Id [id] Guid * Directory TclStartMenuFolder] 
+    # TBD - can we change Target to TCLSHEXE?
     append xml [tag/ Shortcut Id [id] \
                     Name "tclsh" \
                     Description "Tcl console shell" \
@@ -442,16 +466,17 @@ proc msibuild::generate_shortcuts_feature {} {
                     Type integer \
                     Value 1 \
                     KeyPath yes]
-    append xml [tag_close];     # Component
+    append xml [tag_close Component]
 
     if {0} {
     append xml [tag Component Id [id] Guid *]
+    # TBD - can we change Target to WISHEXE?
     append xml [tag/ Shortcut Id [id] \
                     Name "wish" \
                     Description "Tcl/Tk graphical shell" \
                     Directory TclStartMenuFolder \
                     Target {[APPLICATIONFOLDER]bin\wish.exe}]
-    append xml [tag_close]
+    append xml [tag_close Component]
 
     # TBD - should be tied to tkcon feature
     append xml [tag Component Id [id] Guid *]
@@ -461,7 +486,7 @@ proc msibuild::generate_shortcuts_feature {} {
                     Directory TclStartMenuFolder \
                     Target {[APPLICATIONFOLDER]bin\wish.exe} \
                     Arguments {[APPLICATIONFOLDER]bin\tkcon.tcl}]
-    append xml [tag_close]
+    append xml [tag_close Component]
     }
     
     # TBD - icons on shortcuts? See Wix Tools book
@@ -476,10 +501,46 @@ proc msibuild::generate_shortcuts_feature {} {
                         Target {[APPLICATIONFOLDER]bin\wish.exe} \
                         Arguments {[APPLICATIONFOLDER]bin\tkcon.tcl}]
         # TBD - need a registry keypath here too?
-        append xml [tag_close]
+        append xml [tag_close Component]
     }
     
-    append xml [tag_close];     # Feature
+    append xml [tag_close Feature]
+}
+
+# Option to associate .tcl and .tk files with tclsh and tk
+proc msibuild::generate_file_assoc_feature {} {
+    append xml [tag Feature \
+                    Id [id] \
+                    Level 1 \
+                    Title {File associations} \
+                    Description {Associate .tcl and .tk files with tclsh and wish}]
+    append xml [tag ComponentRef Id TclshComponent]
+
+    # To associate a file, create a ProgId for Tcl. Then associate an
+    # extension with it. HKMU -> HKCU for per-user and HKLM for per-machine
+    set tcl_prog_id "Tcl.Application"
+    append xml [tag/ RegistryValue \
+                    Root HKMU \
+                    Key "SOFTWARE\\Classes\\$tcl_prog_id" \
+                    Name="FriendlyTypeName" \
+                    Value="Tcl application" \
+                    Type="string"]
+    # TBD - Icon attribute for ProgId
+    # TBD - Not sure of value for Advertise
+    append xml [tag ProgId \
+                    Id $tcl_prog_id \
+                    Description "Tcl application" \
+                    Advertise no]
+    append xml [tag Extension Id "tcl"]
+    append xml [tag/ Verb \
+                    Id open \
+                    TargetFile {[APPLICATIONFOLDER]bin\tclsh.exe} \
+                    Command "Run as a Tcl application" \
+                    Argument "&quot;%1&quot;"]
+    append xml [tag_close Extension ProgId]
+    append xml [tag_close ComponentRef Feature]
+
+    return $xml
 }
 
 proc msibuild::generate {} {
@@ -558,8 +619,8 @@ proc msibuild::generate {} {
     append xml [generate_directory]; # Directory structure
     append xml [generate_features];  # Feature tree
 
-    append xml [generate_path_feature]; # Optionally modify the path
-    append xml [generate_shortcuts_feature]
+    append xml [generate_start_menu_feature]; # Option to add to Start menu
+    append xml [generate_path_feature]; # Option to modify PATH
                 
     append xml [tag_close_all]
 
@@ -598,18 +659,35 @@ proc msibuild::tag/ {tag args} {
     return $xml
 }
 
-# Close last xml tag 
-proc msibuild::tag_close {{n 1}} {
+# Close xml tag(s). For each argument n,
+# if n is an integer, the last that many tags are popped
+# off the tag stack. Otherwise, n must be the name of the topmost tag
+# and that tag is popped (this is to catch tag matching errors early)
+proc msibuild::tag_close {args} {
     variable xml_tags
-    if {[llength $xml_tags] < $n} {
-        error "XML tag stack empty"
+    if {[llength $args] == 0} {
+        set args [list 1]
     }
     set xml {}
-    while {$n > 0} {
-        set tag [lindex $xml_tags end]
-        set xml_tags [lrange $xml_tags 0 end-1]
-        append xml "[string repeat {  } [llength $xml_tags]]</$tag>\n"
-        incr n -1
+    foreach n $args {
+        if {![string is integer -strict $n]} {
+            set n 1
+            set expected_tag [lindex $xml_tags end]
+        }
+
+        # Pop n tags
+        if {[llength $xml_tags] < $n} {
+            error "XML tag stack empty"
+        }
+        while {$n > 0} {
+            set tag [lindex $xml_tags end]
+            if {[info exists expected_tag] && $tag ne $expected_tag} {
+                error "Tag nesting error. Attempt to terminate $expected_tag but innermost tag is $tag"
+            }
+            set xml_tags [lrange $xml_tags 0 end-1]
+            append xml "[string repeat {  } [llength $xml_tags]]</$tag>\n"
+            incr n -1
+        }
     }
     return $xml
 }
@@ -725,5 +803,11 @@ proc msibuild::main {} {
     log MSI file $msi created.
 }
 
-msibuild::main
+
+# If we are the command line script run as main program.
+# The ... is to ensure last path component gets normalized if it is a link
+if {[info exists argv0] && 
+    [file dirname [file normalize [info script]/...]] eq [file dirname [file normalize $argv0/...]]} {
+    msibuild::main
+}
 
