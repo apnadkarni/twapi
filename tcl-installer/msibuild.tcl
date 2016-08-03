@@ -530,11 +530,11 @@ proc msibuild::generate_start_menu_feature {} {
 # Option to associate .tcl and .tk files with tclsh and tk
 proc msibuild::generate_file_assoc_feature {} {
     append xml [tag Feature \
-                    Id [id] \
+                    Id TclFileAssoc \
                     Level 1 \
                     Title {File associations} \
                     Description {Associate .tcl and .tk files with tclsh and wish}]
-    append xml [tag ComponentRef Id TclshComponent]
+    append xml [tag Component Id [id] Directory APPLICATIONFOLDER]
 
     # To associate a file, create a ProgId for Tcl. Then associate an
     # extension with it. HKMU -> HKCU for per-user and HKLM for per-machine
@@ -542,9 +542,9 @@ proc msibuild::generate_file_assoc_feature {} {
     append xml [tag/ RegistryValue \
                     Root HKMU \
                     Key "SOFTWARE\\Classes\\$tcl_prog_id" \
-                    Name="FriendlyTypeName" \
-                    Value="Tcl application" \
-                    Type="string"]
+                    Name "FriendlyTypeName" \
+                    Value "Tcl application" \
+                    Type "string"]
     # TBD - Icon attribute for ProgId
     # TBD - Not sure of value for Advertise
     append xml [tag ProgId \
@@ -558,7 +558,7 @@ proc msibuild::generate_file_assoc_feature {} {
                     Command "Run as a Tcl application" \
                     Argument "&quot;%1&quot;"]
     append xml [tag_close Extension ProgId]
-    append xml [tag_close ComponentRef Feature]
+    append xml [tag_close Component Feature]
 
     return $xml
 }
@@ -642,8 +642,12 @@ proc msibuild::generate {} {
     append xml [generate_features];  # Feature tree
 
     append xml [generate_start_menu_feature]; # Option to add to Start menu
-    append xml [generate_path_feature]; # Option to modify PATH
-                
+    append xml [generate_path_feature];       # Option to modify PATH
+    if {0} {
+        # Can't get file assoc to compile
+        append xml [generate_file_assoc_feature]; # Option to associate .tcl etc. with tclsh/wish
+    }
+    
     append xml [tag_close_all]
 
     return $xml
