@@ -72,6 +72,7 @@ namespace eval msibuild {
             Name {Incr Tcl}
             TclPackages Itcl
             Description {Incr Tcl object oriented extension}
+            Paths {lib/itcl4*}
         }
         tdbc {
             Name TDBC
@@ -90,7 +91,7 @@ namespace eval msibuild {
             Description {Extension for script-level access to Tcl threads}
         }
         clibs {
-            {C libraries} 
+            Name {C libraries} 
             Description {C libraries for building your own binary extensions}
             Paths {include lib/*.lib}
             Mandatory 0
@@ -233,7 +234,13 @@ proc msibuild::add_parent_directory {path} {
         # No need to do anything with the root. It is always preserved.
         return
     }
-    dict set directory_tree {*}[split $relpath /] {}
+    # If the entry is not there initialize it as empty. If it is already
+    # there, do NOT do this as it will overwrite any subdirectories
+    # that were there before!
+    set treepath [split $relpath /]
+    if {![dict exists $directory_tree {*}$treepath]} {
+        dict set directory_tree {*}$treepath {}
+    }
 
     # Generate ids for all ancestors
     while {$parent ne $tcl_root} {
@@ -887,7 +894,7 @@ proc msibuild::main {} {
     }
     exec $candle -nologo {*}$arch -ext WixUIExtension.dll -ext WixUtilExtension.dll -out $wixobj $wxs
     
-    set msi [file join $outdir "Tcl Installer ($msi_strings(ArchString)).msi"]
+    set msi [file join $outdir "Tcl [info tclversion] Installer ($msi_strings(ArchString)).msi"]
     log Generating MSI file $msi
     exec $light -out $msi -ext WixUIExtension.dll -ext WixUtilExtension.dll $wixobj
 
