@@ -859,6 +859,7 @@ proc msibuild::main {} {
     variable options
     variable architecture
     variable msi_strings
+    variable script_dir
     
     parse_command_line
     log Building $architecture MSI for [join [dict keys $selected_features] {, }]
@@ -886,6 +887,8 @@ proc msibuild::main {} {
 
     set outdir [file attributes $options(outdir) -shortname]
     set wixobj [file join $outdir tcl$architecture.wixobj]
+    set uisrc  [file join $script_dir wixui.wxs]
+    set uiobj  [file join $outdir wixui$architecture.wixobj]
     log Generating Wix object file $wixobj
     if {$architecture eq "x86"} {
         set arch {}
@@ -893,10 +896,11 @@ proc msibuild::main {} {
         set arch [list -arch x64]
     }
     log [exec $candle -nologo {*}$arch -ext WixUIExtension.dll -ext WixUtilExtension.dll -out $wixobj $wxs]
-    
+    log [exec $candle -nologo {*}$arch -ext WixUIExtension.dll -ext WixUtilExtension.dll -out $uiobj $uisrc]
+
     set msi [file join $outdir "Tcl [info tclversion] Installer ($msi_strings(ArchString)).msi"]
     log Generating MSI file $msi
-    log [exec $light -out $msi -ext WixUIExtension.dll -ext WixUtilExtension.dll $wixobj]
+    log [exec $light $wixobj $uiobj -out $msi -ext WixUIExtension.dll -ext WixUtilExtension.dll]
 
     log MSI file $msi created.
 }
