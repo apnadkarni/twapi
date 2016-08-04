@@ -317,6 +317,8 @@ proc msibuild::generate_directory {} {
     foreach subdir [dict keys $directory_tree] {
         append xml [generate_directory_tree [list $subdir]]
     }
+
+    append xml [generate_file_associations]
     
     append xml [tag_close Directory]; # APPLICATIONFOLDER
 
@@ -329,9 +331,42 @@ proc msibuild::generate_directory {} {
     append xml [tag/ Directory Id TclDocMenuFolder Name Documentation]
     append xml [tag_close Directory Directory]; # TclStartMenuFolder ProgramMenuFolder
 
+    
     append xml [tag_close Directory];     # TARGETDIR
 
     return $xml
+}
+
+proc msibuild::generate_file_associations {} {
+    # NOTE: This has to be under the directory structure and *indirectly*
+    # referenced from the file association feature. Definining it
+    # under that feature will result in errors as the fragment
+    # refers to tclsh_id which is in a different feature.
+
+    append xml [tag Component Id CMP_TclFileAssoc]
+
+    # To associate a file, create a ProgId for Tcl. Then associate an
+    # extension with it. HKMU -> HKCU for per-user and HKLM for per-machine
+    set tcl_prog_id "Tcl.Application"
+    append xml [tag/ RegistryValue \
+                    Root HKMU \
+                    Key "SOFTWARE\\Classes\\$tcl_prog_id" \
+                    Name "FriendlyTypeName" \
+                    Value "Tcl application" \
+                    Type "string"]
+    # TBD - Icon attribute for ProgId
+    # TBD - Not sure of value for Advertise
+    append xml [tag ProgId \
+                    Id $tcl_prog_id \
+                    Description "Tcl application" \
+                    Advertise no]
+    append xml [tag Extension Id "tcl"]
+    append xml [tag/ Verb \
+                    Id open \
+                    TargetFile [tclsh_id] \
+                    Command "Run as a Tcl application" \
+                    Argument "&quot;%1&quot;"]
+    append xml [tag_close Extension ProgId Component]
 }
 
 proc msibuild::generate_file {path} {
@@ -395,7 +430,9 @@ proc msibuild::generate_features {} {
         foreach path [dict get $feature Files] {
             append xml [tag/ ComponentRef Id [component_id $file_ids($path)]]
         }
-
+        if {$fid eq "core"} {
+            append xml [generate_file_assoc_feature]
+        }
         append xml [tag_close Feature]
                         
     }
@@ -489,20 +526,14 @@ proc msibuild::generate_start_menu_feature {} {
 
     append xml [tag Component Id [id] Guid * Directory TclStartMenuFolder] 
     append xml [tag/ Shortcut Id [id] \
-                    Name "tclsh" \
-                    Description "Tcl console shell" \
+                    Name "Tcl command shell" \
+                    Description "Console for interactive execution of commands in the Tcl language" \
                     Target {[APPLICATIONFOLDER]bin\tclsh.exe}]
     append xml [tag/ Shortcut Id [id] \
-                    Name "wish" \
-                    Description "Tcl/Tk graphical shell" \
+                    Name "Tk graphical shell" \
+                    Description "Graphical console for interactive execution of commands using the Tcl/Tk toolkit" \
                     Target {[APPLICATIONFOLDER]bin\wish.exe}]
     
-    # TBD - can we change Target to WISHEXE?
-    append xml [tag/ Shortcut Id [id] \
-                    Name "wish" \
-                    Description "Tcl/Tk graphical shell" \
-                    Target {[APPLICATIONFOLDER]bin\wish.exe}]
-
     # Arrange for the folder to be removed on an uninstall
     # We only include this for one shortcut component
     append xml [tag/ RemoveFolder Id RemoveTclStartMenuFolder \
@@ -572,12 +603,13 @@ proc msibuild::generate_start_menu_feature {} {
 
 # Option to associate .tcl and .tk files with tclsh and tk
 proc msibuild::generate_file_assoc_feature {} {
-    return ""
     append xml [tag Feature \
                     Id TclFileAssoc \
                     Level 1 \
                     Title {File associations} \
                     Description {Associate .tcl and .tk files with tclsh and wish}]
+    append xml [tag/ ComponentRef Id CMP_TclFileAssoc]
+    return $xml
     append xml [tag Component Id [id] Directory APPLICATIONFOLDER]
 
     # To associate a file, create a ProgId for Tcl. Then associate an
@@ -687,8 +719,8 @@ proc msibuild::generate {} {
 
     append xml [generate_start_menu_feature]; # Option to add to Start menu
     append xml [generate_path_feature];       # Option to modify PATH
-    if {1} {
-        # Can't get file assoc to compile
+    if {0} {
+        # TBD Can't get file assoc to compile
         append xml [generate_file_assoc_feature]; # Option to associate .tcl etc. with tclsh/wish
     }
     
