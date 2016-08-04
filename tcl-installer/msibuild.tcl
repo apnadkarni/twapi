@@ -84,8 +84,8 @@ namespace eval msibuild {
             TclPackages twapi
             Description {Extension for accessing the Windows API}
         }
-        threads {
-            Name Threads
+        thread {
+            Name {Thread package}
             TclPackages Thread
             Description {Extension for script-level access to Tcl threads}
         }
@@ -396,6 +396,7 @@ proc msibuild::generate_features {} {
 
     set xml ""
     dict for {fid feature} $selected_features {
+        log Generating feature $fid
         set absent allow
         if {[dict exists $feature Mandatory]} {
             switch -exact -- [dict get $feature Mandatory] {
@@ -608,34 +609,12 @@ proc msibuild::generate_file_assoc_feature {} {
                     Level 1 \
                     Title {File associations} \
                     Description {Associate .tcl and .tk files with tclsh and wish}]
+    # NOTE: the tclsh component must be referenced here as well otherwise
+    # there will be a error in the Verb element below which refers to it.
+    append xml [tag/ ComponentRef Id [component_id [tclsh_id]]]
     append xml [tag/ ComponentRef Id CMP_TclFileAssoc]
-    return $xml
-    append xml [tag Component Id [id] Directory APPLICATIONFOLDER]
 
-    # To associate a file, create a ProgId for Tcl. Then associate an
-    # extension with it. HKMU -> HKCU for per-user and HKLM for per-machine
-    set tcl_prog_id "Tcl.Application"
-    append xml [tag/ RegistryValue \
-                    Root HKMU \
-                    Key "SOFTWARE\\Classes\\$tcl_prog_id" \
-                    Name "FriendlyTypeName" \
-                    Value "Tcl application" \
-                    Type "string"]
-    # TBD - Icon attribute for ProgId
-    # TBD - Not sure of value for Advertise
-    append xml [tag ProgId \
-                    Id $tcl_prog_id \
-                    Description "Tcl application" \
-                    Advertise no]
-    append xml [tag Extension Id "tcl"]
-    append xml [tag/ Verb \
-                    Id open \
-                    TargetFile [tclsh_id] \
-                    Command "Run as a Tcl application" \
-                    Argument "&quot;%1&quot;"]
-    append xml [tag_close Extension ProgId]
-    append xml [tag_close Component Feature]
-
+    append xml [tag_close Feature]
     return $xml
 }
 
@@ -724,7 +703,7 @@ proc msibuild::generate {} {
         append xml [generate_file_assoc_feature]; # Option to associate .tcl etc. with tclsh/wish
     }
     
-    append xml [tag_close_all]
+    append xml [tag_close Product Wix]
 
     return $xml
 }
@@ -773,8 +752,10 @@ proc msibuild::tag_close {args} {
     set xml {}
     foreach n $args {
         if {![string is integer -strict $n]} {
+            set expected_tag $n
             set n 1
-            set expected_tag [lindex $xml_tags end]
+        } else {
+            unset -nocomplain expected_tag
         }
 
         # Pop n tags
@@ -845,6 +826,7 @@ proc msibuild::parse_command_line {} {
     } else {
         set selected_features [dict filter $feature_definitions key {*}$options(features)]
     }
+    
     if {![info exists options(outdir)]} {
         set options(outdir) $architecture
     }
