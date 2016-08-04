@@ -503,8 +503,14 @@ proc msibuild::generate_path_feature {} {
                     Title {Modify Paths} \
                     Description {Modify PATH environment variable to include the Tcl/Tk directory}]
 
+    # Create two entries with separate Conditions, one for per-user
+    # and one for per-machine installs.
+    # NOTE: WiX does not permit * for Guid here. Did not understand the error
+    # but easy enough to just use an explicit GUID
+
+    # First, the per user entry
     append xml [tag Component Id [id] Guid 5C4574A9-ECE5-4565-BA0D-38AC38755C4E KeyPath yes Directory [bin_dir_id]]
-    # TBD - Should System be set to "yes" for machine installs?
+    append xml [tag Condition] {<![CDATA[ALLUSERS <> 1]]>} [tag_close Condition]
     append xml [tag/ Environment \
                     Action set \
                     Id [id] \
@@ -514,8 +520,23 @@ proc msibuild::generate_path_feature {} {
                     Permanent no \
                     Part last \
                     Separator ";"]
-                
-    append xml [tag_close Component Feature]
+    append xml [tag_close Component]
+
+    # Now for the per-machine entry
+    append xml [tag Component Id [id] Guid CED4CDE6-9D3E-4800-8024-6377D03E5048 KeyPath yes Directory [bin_dir_id]]
+    append xml [tag Condition] {<![CDATA[ALLUSERS = 1]]>} [tag_close Condition]
+    append xml [tag/ Environment \
+                    Action set \
+                    Id [id] \
+                    Name Path \
+                    Value {[APPLICATIONFOLDER]bin} \
+                    System yes \
+                    Permanent no \
+                    Part last \
+                    Separator ";"]
+    append xml [tag_close Component]
+
+    append xml [tag_close Feature]
 
     return $xml
 }
@@ -701,11 +722,6 @@ proc msibuild::generate {} {
     append xml [generate_directory]; # Directory structure
     append xml [generate_features];  # Feature tree
 
-    if {0} {
-        # TBD Can't get file assoc to compile
-        append xml [generate_file_assoc_feature]; # Option to associate .tcl etc. with tclsh/wish
-    }
-    
     append xml [tag_close Product Wix]
 
     return $xml
