@@ -139,6 +139,10 @@ proc msibuild::id {{path {}}} {
     }
 }
 
+proc msibuild::component_id {file_id} {
+    return CMP_$file_id
+}
+
 # Returns the id of the Tcl bin directory
 proc msibuild::bin_dir_id {} {
     variable directories
@@ -149,6 +153,7 @@ proc msibuild::bin_dir_id {} {
 # Returns the id of the Tcl exe
 proc msibuild::tclsh_id {} {
     variable file_ids
+    variable tcl_root
     return $file_ids([file join $tcl_root bin tclsh.exe])
 }
 
@@ -321,6 +326,7 @@ proc msibuild::generate_directory {} {
     # on XP Windows installer
     append xml [tag Directory Id ProgramMenuFolder]
     append xml [tag Directory Id TclStartMenuFolder Name Tcl[info tclversion]]
+    append xml [tag/ Directory Id TclDocMenuFolder Name Documentation]
     append xml [tag_close Directory Directory]; # TclStartMenuFolder ProgramMenuFolder
 
     append xml [tag_close Directory];     # TARGETDIR
@@ -339,7 +345,7 @@ proc msibuild::generate_file {path} {
     # Every FILE must be enclosed in a Component and a Component should
     # have only one file.
     set xml [tag Component \
-                 Id CMP_$file_id \
+                 Id [component_id $file_id] \
                  Guid *]
     append xml [tag/ File \
                     Id $file_id \
@@ -387,7 +393,7 @@ proc msibuild::generate_features {} {
                         Description $description \
                         Absent $absent]
         foreach path [dict get $feature Files] {
-            append xml [tag/ ComponentRef Id CMP_$file_ids($path)]
+            append xml [tag/ ComponentRef Id [component_id $file_ids($path)]]
         }
 
         append xml [tag_close Feature]
@@ -482,11 +488,20 @@ proc msibuild::generate_start_menu_feature {} {
                     Description {Install Start menu shortcuts}]
 
     append xml [tag Component Id [id] Guid * Directory TclStartMenuFolder] 
-    # TBD - can we change Target to [#TCLSHEXE]?
     append xml [tag/ Shortcut Id [id] \
                     Name "tclsh" \
                     Description "Tcl console shell" \
                     Target {[APPLICATIONFOLDER]bin\tclsh.exe}]
+    append xml [tag/ Shortcut Id [id] \
+                    Name "wish" \
+                    Description "Tcl/Tk graphical shell" \
+                    Target {[APPLICATIONFOLDER]bin\wish.exe}]
+    
+    # TBD - can we change Target to WISHEXE?
+    append xml [tag/ Shortcut Id [id] \
+                    Name "wish" \
+                    Description "Tcl/Tk graphical shell" \
+                    Target {[APPLICATIONFOLDER]bin\wish.exe}]
 
     # Arrange for the folder to be removed on an uninstall
     # We only include this for one shortcut component
@@ -504,10 +519,11 @@ proc msibuild::generate_start_menu_feature {} {
     # APN append xml [tag Component Id [id] Guid 57009BF7-3E8D-49C8-A557-26F86943233F Directory TclStartMenuFolder]
     append xml [tag/ util:InternetShortcut \
                     Id TclManPage \
-                    Name Tcl \
+                    Name "Tcl documentation" \
+                    Directory TclDocMenuFolder \
                     Target http://tcl.tk/man/tcl[info tclversion]/contents.htm \
                     Type url]
-    if {0} {
+    if {1} {
     append xml [tag/ RemoveFolder Id RemoveTclDocMenuFolder \
                     Directory TclDocMenuFolder \
                     On uninstall]
@@ -523,13 +539,6 @@ proc msibuild::generate_start_menu_feature {} {
     append xml [tag_close Component]
 
     if {0} {
-    append xml [tag Component Id [id] Guid *]
-    # TBD - can we change Target to WISHEXE?
-    append xml [tag/ Shortcut Id [id] \
-                    Name "wish" \
-                    Description "Tcl/Tk graphical shell" \
-                    Directory TclStartMenuFolder \
-                    Target {[APPLICATIONFOLDER]bin\wish.exe}]
     append xml [tag_close Component]
 
     # TBD - should be tied to tkcon feature
@@ -563,6 +572,7 @@ proc msibuild::generate_start_menu_feature {} {
 
 # Option to associate .tcl and .tk files with tclsh and tk
 proc msibuild::generate_file_assoc_feature {} {
+    return ""
     append xml [tag Feature \
                     Id TclFileAssoc \
                     Level 1 \
@@ -588,7 +598,7 @@ proc msibuild::generate_file_assoc_feature {} {
     append xml [tag Extension Id "tcl"]
     append xml [tag/ Verb \
                     Id open \
-                    TargetFile {[APPLICATIONFOLDER]bin\tclsh.exe} \
+                    TargetFile [tclsh_id] \
                     Command "Run as a Tcl application" \
                     Argument "&quot;%1&quot;"]
     append xml [tag_close Extension ProgId]
@@ -677,7 +687,7 @@ proc msibuild::generate {} {
 
     append xml [generate_start_menu_feature]; # Option to add to Start menu
     append xml [generate_path_feature];       # Option to modify PATH
-    if {0} {
+    if {1} {
         # Can't get file assoc to compile
         append xml [generate_file_assoc_feature]; # Option to associate .tcl etc. with tclsh/wish
     }
@@ -817,7 +827,7 @@ proc msibuild::log {args} {
 }
 
 # Some pre-build steps to fix up the pool.
-proc msibuild::main {} {
+proc msibuild::prebuild {} {
     variable tcl_root
 
     # We want tclsh and wish not, tclsh86t etc.
@@ -838,6 +848,7 @@ proc msibuild::main {} {
     
     parse_command_line
     log Building $architecture MSI for [join [dict keys $selected_features] {, }]
+    prebuild
     build_file_paths 
     set xml [generate]
 
