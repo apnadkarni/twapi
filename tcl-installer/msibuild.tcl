@@ -677,7 +677,7 @@ proc msibuild::generate {} {
     append xml [tag/ MajorUpgrade \
                     AllowDowngrades no \
                     DowngradeErrorMessage "A later version of \[ProductName\] is already installed. Setup will now exit." \
-                    AllowSameVersionUpgrades yes]
+                    AllowSameVersionUpgrades no]
                 
     # Media - does not really matter. We don't have multiple media.
     # EmbedCab - yes because the files will be embedded inside the MSI,
@@ -892,11 +892,11 @@ proc msibuild::main {} {
     } else {
         set arch [list -arch x64]
     }
-    exec $candle -nologo {*}$arch -ext WixUIExtension.dll -ext WixUtilExtension.dll -out $wixobj $wxs
+    log [exec $candle -nologo {*}$arch -ext WixUIExtension.dll -ext WixUtilExtension.dll -out $wixobj $wxs]
     
     set msi [file join $outdir "Tcl [info tclversion] Installer ($msi_strings(ArchString)).msi"]
     log Generating MSI file $msi
-    exec $light -out $msi -ext WixUIExtension.dll -ext WixUtilExtension.dll $wixobj
+    log [exec $light -out $msi -ext WixUIExtension.dll -ext WixUtilExtension.dll $wixobj]
 
     log MSI file $msi created.
 }
