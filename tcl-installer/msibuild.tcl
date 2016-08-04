@@ -572,44 +572,18 @@ proc msibuild::generate_start_menu_feature {} {
                     Type integer \
                     Value 1 \
                     KeyPath yes]
-    # APN append xml [tag_close Component]
 
-    # APN append xml [tag Component Id [id] Guid 57009BF7-3E8D-49C8-A557-26F86943233F Directory TclStartMenuFolder]
     append xml [tag/ util:InternetShortcut \
                     Id TclManPage \
                     Name "Tcl documentation" \
                     Directory TclDocMenuFolder \
                     Target http://tcl.tk/man/tcl[info tclversion]/contents.htm \
                     Type url]
-    if {1} {
     append xml [tag/ RemoveFolder Id RemoveTclDocMenuFolder \
                     Directory TclDocMenuFolder \
                     On uninstall]
-    }
-    if {0} {
-    append xml [tag/ RegistryValue Root HKCU \
-                    Key "Software\\Tcl\\[info tclversion]\\Doc" \
-                    Name installed \
-                    Type integer \
-                    Value 1 \
-                    KeyPath yes]
-    }
     append xml [tag_close Component]
 
-    if {0} {
-    append xml [tag_close Component]
-
-    # TBD - should be tied to tkcon feature
-    append xml [tag Component Id [id] Guid *]
-    append xml [tag/ Shortcut Id [id] \
-                    Name "tkcon" \
-                    Description "TkCon enhanced graphical console" \
-                    Directory TclStartMenuFolder \
-                    Target {[APPLICATIONFOLDER]bin\wish.exe} \
-                    Arguments {[APPLICATIONFOLDER]bin\tkcon.tcl}]
-    append xml [tag_close Component]
-    }
-    
     # TBD - icons on shortcuts? See Wix Tools book
 
     # Comment out desktop shortcut for now. Not really warranted
