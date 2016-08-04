@@ -432,10 +432,12 @@ proc msibuild::generate_features {} {
             append xml [tag/ ComponentRef Id [component_id $file_ids($path)]]
         }
         if {$fid eq "core"} {
-            append xml [generate_file_assoc_feature]
+            # These features are subservient to the core feature
+            append xml [generate_start_menu_feature]; # Option to add to Start menu
+            append xml [generate_path_feature];       # Option to modify PATH
+            append xml [generate_file_assoc_feature]; # Associate .tcl etc.
         }
         append xml [tag_close Feature]
-                        
     }
     return $xml
 }
@@ -525,14 +527,17 @@ proc msibuild::generate_start_menu_feature {} {
                     Title {Start menu} \
                     Description {Install Start menu shortcuts}]
 
+    # TBD - should WorkingDirectory be set to PersonalFolder/
     append xml [tag Component Id [id] Guid * Directory TclStartMenuFolder] 
     append xml [tag/ Shortcut Id [id] \
                     Name "Tcl command shell" \
                     Description "Console for interactive execution of commands in the Tcl language" \
+                    WorkingDirectory [bin_dir_id] \
                     Target {[APPLICATIONFOLDER]bin\tclsh.exe}]
     append xml [tag/ Shortcut Id [id] \
                     Name "Tk graphical shell" \
                     Description "Graphical console for interactive execution of commands using the Tcl/Tk toolkit" \
+                    WorkingDirectory [bin_dir_id] \
                     Target {[APPLICATIONFOLDER]bin\wish.exe}]
     
     # Arrange for the folder to be removed on an uninstall
@@ -696,8 +701,6 @@ proc msibuild::generate {} {
     append xml [generate_directory]; # Directory structure
     append xml [generate_features];  # Feature tree
 
-    append xml [generate_start_menu_feature]; # Option to add to Start menu
-    append xml [generate_path_feature];       # Option to modify PATH
     if {0} {
         # TBD Can't get file assoc to compile
         append xml [generate_file_assoc_feature]; # Option to associate .tcl etc. with tclsh/wish
