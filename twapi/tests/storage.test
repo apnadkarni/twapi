@@ -69,17 +69,21 @@ namespace eval twapi::disk::test {
     }
 
     # Check if drive is ready
-    proc drive_ready {drive} {
+    proc check_if_ready {drive} {
         fill_drivecheck
         # If we have file system type, assume drive is ready
-        return [string length [get_drivecheck_field $drive 2]]
+        if {[string length [get_drivecheck_field $drive 2]]} {
+            return 1
+        } else {
+            return 0
+        }
     }
 
     # Verify disk information. Returns "" if valid, else error message
     proc verify_drvinfo {drive v_drvinfo {refresh 0}} {
         upvar $v_drvinfo drvinfo
 
-        if {![drive_ready $drive]} {
+        if {![check_if_ready $drive]} {
             return
         }
 
@@ -171,7 +175,7 @@ namespace eval twapi::disk::test {
     proc verify_drvinfo_option {option check_proc} {
         set result ""
         foreach drive [twapi::find_logical_drives] {
-            if {! [drive_ready $drive]} { continue }
+            if {! [check_if_ready $drive]} { continue }
             eval set [twapi::get_volume_info $drive $option]
             twapi::trap {
                 set optval [set $option]
@@ -198,7 +202,7 @@ namespace eval twapi::disk::test {
         fill_drivecheck 1
         set result ""
         foreach drive [twapi::find_logical_drives] {
-            if {! [drive_ready $drive]} { continue }
+            if {! [check_if_ready $drive]} { continue }
             twapi::trap {
                 set freespace [get_volume_freespace $drive]
                 if {$retval != [twapi::user_drive_space_available $drive [incr freespace $incr]]} {
@@ -277,7 +281,7 @@ namespace eval twapi::disk::test {
     } -body {
         set result ""
         foreach drive [twapi::find_logical_drives] {
-            if {! [drive_ready $drive]} { continue }
+            if {! [check_if_ready $drive]} { continue }
             twapi::trap {
                 array set drvinfo [twapi::get_volume_info [lindex $drive 0] -all]
                 lappend result [verify_drvinfo $drive drvinfo]
@@ -298,7 +302,7 @@ namespace eval twapi::disk::test {
     } -body {
         set result ""
         foreach drive [twapi::find_logical_drives] {
-            if {! [drive_ready $drive]} { continue }
+            if {! [check_if_ready $drive]} { continue }
             twapi::trap {
                 array set drvinfo [twapi::get_volume_info $drive -all]
                 lappend result [verify_drvinfo $drive drvinfo]
@@ -319,7 +323,7 @@ namespace eval twapi::disk::test {
     } -body {
         set result ""
         foreach drive [twapi::find_logical_drives] {
-            if {! [drive_ready $drive]} { continue }
+            if {! [check_if_ready $drive]} { continue }
             twapi::trap {
                 array set drvinfo [twapi::get_volume_info ${drive}/ -all]
                 lappend result [verify_drvinfo $drive drvinfo]
@@ -338,7 +342,7 @@ namespace eval twapi::disk::test {
     } -body {
         set result ""
         foreach drive [twapi::find_logical_drives] {
-            if {! [drive_ready $drive]} { continue }
+            if {! [check_if_ready $drive]} { continue }
             twapi::trap {
                 array set drvinfo [twapi::get_volume_info ${drive}\\ -all]
                 lappend result [verify_drvinfo $drive drvinfo]
@@ -1498,6 +1502,32 @@ namespace eval twapi::disk::test {
     } -body {
     } -result TBD
 
+    ################################################################
+
+    test drive_ready-1.0 {
+        Check if a drive is ready
+    } -setup {
+        set drive [string range [info nameofexecutable] 0 1]
+    } -body {
+        twapi::drive_ready $drive
+    } -result 1
+    
+    test drive_ready-1.1 {
+        Check drive ready for all drives
+    } -body {
+        set mismatches {}
+        foreach drive [twapi::find_logical_drives] {
+            if {[catch {
+                if {[twapi::drive_ready $drive] != [check_if_ready $drive]} {
+                    lappend mismatches $drive
+                }
+            } msg]} {
+                lappend mismatches "$drive error: $msg"
+            }
+        }
+        set mismatches
+    } -result {}
+        
     ################################################################
 
     ::tcltest::cleanupTests
