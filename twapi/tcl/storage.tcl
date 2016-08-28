@@ -164,6 +164,40 @@ proc twapi::find_logical_drives {args} {
     return $drives
 }
 
+twapi::proc* twapi::drive_ready {drive} {
+    uplevel #0 package require twapi_device
+} {
+    set drive [string trimright $drive "/\\"]
+    if {[string length $drive] != 2 || [string index $drive 1] ne ":"} {
+        error "Invalid drive specification"
+    }
+    set drive "\\\\.\\$drive"
+
+    # We will first try using IOCTL_STORAGE_CHECK_VERIFY2 as that is
+    # must faster and only needs FILE_READ_ATTRIBUTES access.
+    set h [create_file $drive -access file_read_attributes \
+               -createdisposition open_existing -share {read write}]
+    set error [catch {
+        device_ioctl $h 0x2d0800; # IOCTL_STORAGE_CHECK_VERIFY2
+    } msg]
+    close_handle $h
+    if {! $error} {
+        return 1;               # Device is ready
+    }
+
+    # On error, try the older slower method. Note we now need
+    # FILE_READ_DATA access
+    set h [create_file $drive -access file_read_data \
+               -createdisposition open_existing -share {read write}]
+    set error [catch {
+        device_ioctl $h 0x2d4800; # IOCTL_STORAGE_CHECK_VERIFY
+    }]
+    close_handle $h
+
+    return [expr {! $error}]
+}
+
+
 # Set the drive label
 proc twapi::set_drive_label {drive label} {
     SetVolumeLabel [_drive_rootpath $drive] $label
