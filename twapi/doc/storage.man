@@ -40,6 +40,8 @@ of the drive (eg. [const C:\\])
 The command [uri \#find_logical_drives [cmd find_logical_drives]]
 returns a list of drives in the system
 of a specified type.
+[uri \#drive_ready [cmd drive_ready]] checks if the specified drive
+is ready.
 [uri \#get_drive_type [cmd get_drive_type]]
 returns
 the type (fixed, remote, etc.) of the logical drive.
@@ -211,6 +213,11 @@ on non-threaded builds.
 Cancels monitoring of the file system corresponding to [arg MONITORID]
 which must be an identifier
 returned by [uri \#begin_filesystem_monitor [cmd begin_filesystem_monitor]].
+
+[call [cmd drive_ready] [arg DRIVE]]
+Returns 1 if the specified drive is ready and 0 otherwise
+(for example if the drive media is not inserted). The drive must
+exist else an error is raised.
 
 [call [cmd find_logical_drives] [opt "[cmd -type] [arg DRIVETYPELIST]"]]
 
