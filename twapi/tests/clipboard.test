@@ -74,14 +74,12 @@ namespace eval twapi::clipboard::test {
     ################################################################
 
     test read_clipboard-1.1 {
-        Read the clipboard as character format
+        Read the clipboard as character format without opening clipboard
     } -constraints {
         userInteraction
     } -body {
         copy2clip line1 line2
-        twapi::open_clipboard
         set clip_text [twapi::read_clipboard 1]; # ANSI format
-        twapi::close_clipboard
         # We should see clipboard results read as characters
         # "line1\r\nline2\0" followed potentially by junk
         string range $clip_text 0 [string first \0 $clip_text]-1
@@ -199,22 +197,37 @@ namespace eval twapi::clipboard::test {
     } -result 1
 
     test write_clipboard-1.1 {
-        Write Unicode data to the clipboard
+        Write Unicode data to the clipboard without opening clipboard
     } -body {
-        twapi::open_clipboard
-        twapi::empty_clipboard
         # We have to format the data with a trailing null char
         set data [encoding convertto unicode "unicode text\0"]
         twapi::write_clipboard 13 $data
-        twapi::close_clipboard
         # Now read it back
-        twapi::open_clipboard
         set clip_data [twapi::read_clipboard 13]
-        twapi::close_clipboard
 
         string equal $data $clip_data
     } -result 1
 
+    test write_clipboard-2.0 {
+        Write multiple formats to the clipboard
+    } -body {
+        twapi::open_clipboard
+        twapi::write_clipboard_text "This is plain text"
+        twapi::write_clipboard_paths [list {C:/temp/foo bar} {C:\xxx\yyy.zzz}]
+        twapi::close_clipboard
+        list [twapi::read_clipboard_text] [twapi::read_clipboard_paths]
+    } -result [list "This is plain text" [list "C:/temp/foo bar" "C:/xxx/yyy.zzz"]]
+        
+    test write_clipboard-2.1 {
+        Write multiple formats to the clipboard - fail
+    } -body {
+        twapi::write_clipboard_paths [list {C:/temp/foo bar} {C:\xxx\yyy.zzz}]
+        twapi::write_clipboard_text "This is plain text"
+        # If clipboard not already open, the write* calls clear it first
+        # so there will be no file paths stored in clipboard
+        list [twapi::read_clipboard_text] [catch {twapi::read_clipboard_paths}]
+    } -result [list "This is plain text" 1]
+        
     ################################################################
 
     test write_clipboard_text-1.0 {
@@ -233,18 +246,13 @@ namespace eval twapi::clipboard::test {
     } -result "write_clipboard_text-1.0\r\nSecond line"
 
     test write_clipboard_text-2.0 {
-        Write text to the clipboard -raw 0
+        Write text to the clipboard -raw 0, without opening clipboard
     } -body {
         set data "write_clipboard_text-1.0\nSecond line"
-        twapi::open_clipboard
-        twapi::empty_clipboard
         twapi::write_clipboard_text $data -raw 0
-        twapi::close_clipboard
         # Now read it back
-        twapi::open_clipboard
-        set clip_data [twapi::read_clipboard_text -raw 1]
-        twapi::close_clipboard
-        set clip_data;          # Note expect additional \r in result
+        twapi::read_clipboard_text -raw 1
+        # Note expect additional \r in result
     } -result "write_clipboard_text-1.0\r\nSecond line"
 
     test write_clipboard_text-2.1 {
@@ -262,6 +270,16 @@ namespace eval twapi::clipboard::test {
         set clip_data;          # Note no additional \r in result
     } -result "write_clipboard_text-1.0\nSecond line"
 
+    ################################################################
+    
+    test write_clipboard_paths-1.0 {
+        Write paths to the clipboard, without opening clipboard
+    } -body {
+        set paths [list foo [file nativename [info nameofexecutable]]]
+        twapi::write_clipboard_paths $paths
+        twapi::read_clipboard_paths 
+    } -result [list [file normalize foo] [file normalize [info nameofexecutable]]]
+    
 
     ################################################################
 

@@ -7,9 +7,18 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 4.2a7"]
+[section "Version 4.2a8"]
 
 [list_begin bullet]
+
+[bullet]
+Added [uri clipboard.html#read_clipboard_paths [cmd read_clipboard_paths]] and
+[uri clipboard.html#write_clipboard_paths [cmd write_clipboard_paths]]
+and modified clipboard commands to not require an explicit open.
+
+[bullet]
+Added command
+[uri storage.html#drive_ready [cmd drive_ready]].
 
 [bullet]
 Added [uri certs.html#cert_verify [cmd cert_verify]],
@@ -152,10 +161,6 @@ The commands
 [uri certs.html#cert_set_key_prov [cmd cert_set_key_prov]],
 [uri certs.html#cert_create_self_signed [cmd cert_create_self_signed]]
 now take the key container and key specifier as explicit arguments.
-
-[bullet]
-Added command
-[uri storage.html#drive_ready [cmd drive_ready]].
 
 [list_end]
 

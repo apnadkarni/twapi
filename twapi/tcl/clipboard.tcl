@@ -6,8 +6,7 @@
 
 # Clipboard related commands
 
-namespace eval twapi {
-}
+namespace eval twapi {}
 
 # Open the clipboard
 # TBD - why no mechanism to pass window handle to OpenClipboard?
@@ -26,8 +25,7 @@ proc twapi::empty_clipboard {} {
     EmptyClipboard
 }
 
-# Read data from the clipboard
-proc twapi::read_clipboard {fmt} {
+proc twapi::_read_clipboard {fmt} {
     # Always catch errors and close clipboard before passing exception on
     # Also ensure memory unlocked
     trap {
@@ -46,34 +44,38 @@ proc twapi::read_clipboard {fmt} {
     return $data
 }
 
+proc twapi::read_clipboard {fmt} {
+    trap {
+        set data [_read_clipboard $fmt]
+    } onerror {TWAPI_WIN32 1418} {
+        # Caller did not have clipboard open. Do it on its behalf
+        open_clipboard
+        trap {
+            set data [_read_clipboard $fmt]
+        } finally {
+            catch {close_clipboard}
+        }
+    }
+    return $data
+}
+
 # Read text data from the clipboard
 proc twapi::read_clipboard_text {args} {
     array set opts [parseargs args {
         {raw.bool 0}
     }]
 
-    trap {
-        set h [GetClipboardData 13];    # 13 -> Unicode
-        set p [GlobalLock $h]
-        # Read data discarding terminating null
-        set data [Twapi_ReadMemory 3 $p 0 [GlobalSize $h] 1]
-        if {! $opts(raw)} {
-            set data [string map {"\r\n" "\n"} $data]
-        }
-    } onerror {} {
-        catch {close_clipboard}
-        rethrow
-    } finally {
-        if {[info exists p]} {
-            GlobalUnlock $h
-        }
+    set bin [read_clipboard 13]; # 13 -> Unicode
+    # Decode Unicode and discard trailing nulls
+    set data [string trimright [encoding convertfrom unicode $bin] \0]
+    if {! $opts(raw)} {
+        set data [string map {"\r\n" "\n"} $data]
     }
 
     return $data
 }
 
-# Write data to the clipboard
-proc twapi::write_clipboard {fmt data} {
+proc twapi::_write_clipboard {fmt data} {
     # Always catch errors and close
     # clipboard before passing exception on
     trap {
@@ -94,7 +96,7 @@ proc twapi::write_clipboard {fmt data} {
         GlobalUnlock $h
         SetClipboardData $fmt $h
     } onerror {} {
-        catch {close_clipboard}
+        catch close_clipboard
         rethrow
     } finally {
         if {[info exists mem_p]} {
@@ -107,46 +109,34 @@ proc twapi::write_clipboard {fmt data} {
     return
 }
 
+proc twapi::write_clipboard {fmt data} {
+    trap {
+        _write_clipboard $fmt $data
+    } onerror {TWAPI_WIN32 1418} {
+        # Caller did not have clipboard open. Do it on its behalf
+        open_clipboard
+        empty_clipboard
+        trap {
+            _write_clipboard $fmt $data
+        } finally {
+            catch close_clipboard
+        }
+    }
+    return
+}
+
 # Write text to the clipboard
 proc twapi::write_clipboard_text {data args} {
     array set opts [parseargs args {
         {raw.bool 0}
     }]
 
-    # Always catch errors and close
-    # clipboard before passing exception on
-    trap {
-        # Convert \n to \r\n leaving existing \r\n alone
-        if {! $opts(raw)} {
-            set data [regsub -all {(^|[^\r])\n} $data[set data ""] \\1\r\n]
-        }
-                  
-        set mem_size [expr {2*(1+[string length $data])}]
-
-        # Allocate global memory
-        set mem_h [GlobalAlloc 2 $mem_size]
-        set mem_p [GlobalLock $mem_h]
-
-        # 3 -> write memory as Unicode
-        Twapi_WriteMemory 3 $mem_p 0 $mem_size $data
-
-        # The rest of this code just to ensure we do not free
-        # memory beyond this point irrespective of error/success
-        set h $mem_h
-        unset mem_h mem_p
-        GlobalUnlock $h
-        SetClipboardData 13 $h;         # 13 -> Unicode format
-    } onerror {} {
-        catch {close_clipboard}
-        rethrow
-    } finally {
-        if {[info exists mem_p]} {
-            GlobalUnlock $mem_h
-        }
-        if {[info exists mem_h]} {
-            GlobalFree $mem_h
-        }
+    # Convert \n to \r\n leaving existing \r\n alone
+    if {! $opts(raw)} {
+        set data [regsub -all {(^|[^\r])\n} $data[set data ""] \\1\r\n]
     }
+    append data \0
+    write_clipboard 13 [encoding convertto unicode $data]; # 13 -> Unicode
     return
 }
 
@@ -171,7 +161,39 @@ proc twapi::clipboard_format_available {fmt} {
     return [IsClipboardFormatAvailable $fmt]
 }
 
+proc twapi::read_clipboard_paths {} { 
+    set bin [read_clipboard 15]
+    # Extract the DROPFILES header 
+    if {[binary scan $bin iiiii offset - - - unicode] != 5} { 
+        error "Invalid or unsupported clipboard CF_DROP data." 
+    } 
+    # Sanity check 
+    if {$offset >= [string length $bin]} { 
+        error "Truncated clipboard data." 
+    } 
+    if {$unicode} { 
+        set paths [encoding convertfrom unicode [string range $bin $offset end]] 
+    } else { 
+        set paths [encoding convertfrom ascii [string range $bin $offset end]] 
+    } 
+    return [lmap path [split $paths \0] { 
+        if {[string length $path] == 0} break; # Empty string -> end of list 
+        file join $path
+    }] 
+} 
 
+proc twapi::write_clipboard_paths {paths} { 
+    # The header for a DROPFILES path list in hex 
+    set fheader "1400000000000000000000000000000001000000" 
+    set bin [binary format H* $fheader] 
+    foreach path $paths { 
+        # Note explicit \0 so the encoded binary includes the null terminator 
+        append bin [encoding convertto unicode "[file nativename [file normalize $path]]\0"] 
+    } 
+    # A Unicode null char to terminate the list of paths 
+    append bin [encoding convertto unicode \0] 
+    write_clipboard 15 $bin 
+}
 
 # Start monitoring of the clipboard
 proc twapi::_clipboard_handler {} {

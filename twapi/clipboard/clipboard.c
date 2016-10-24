@@ -4,6 +4,7 @@
  *
  * See the file LICENSE for license
  */
+/* TBD - GetClipboardSequenceNumber */
 
 #include "twapi.h"
 #include "twapi_wm.h"
@@ -243,8 +244,8 @@ static int TwapiClipboardInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(Twapi_EnumClipboardFormats, 1),
         DEFINE_ALIAS_CMD(CloseClipboard, 2),
         DEFINE_ALIAS_CMD(EmptyClipboard, 3),
-        DEFINE_ALIAS_CMD(GetOpenClipboardWindow, 4),
-        DEFINE_ALIAS_CMD(GetClipboardOwner, 5),
+        DEFINE_ALIAS_CMD(GetOpenClipboardWindow, 4), /* TBD - Tcl */
+        DEFINE_ALIAS_CMD(GetClipboardOwner, 5), /* TBD - Tcl */
         DEFINE_ALIAS_CMD(Twapi_ClipboardMonitorStart, 6),
         DEFINE_ALIAS_CMD(Twapi_ClipboardMonitorStop, 7),
         DEFINE_ALIAS_CMD(IsClipboardFormatAvailable, 8),
