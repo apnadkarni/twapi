@@ -27,6 +27,9 @@ namespace eval twapi {
     # Cache mapping SIDs to account names. Dict keyed by system and SID
     variable _sid_to_name_cache {}
 
+    # Dictionary of FFI libraries to handles and back
+    variable _ffi_paths {}
+    variable _ffi_handles {}
 }
 
 
@@ -1459,77 +1462,123 @@ namespace eval twapi::recordarray {
     namespace ensemble create
 }
 
+proc twapi::_parse_ctype {def} {
+    variable _struct_defs
+    
+    if {![regexp -expanded {
+        ^
+        \s*
+        (.+[^[:alnum:]_]) # type
+        ([[:alnum:]_]+)   # name
+        \s*
+        (\[.+\])?         # array size
+        \s*$
+    } $def ->  type name array]} {
+        error "Invalid C type definition $def"
+    }
+        
+    set child {}
+    switch -regexp -matchvar matchvar -- [string trim $type] {
+        {^char$} {set type i1}
+        {^BYTE$} -
+        {^unsigned char$} {set type ui1}
+        {^short$} {set type i2}
+        {^WORD$} -
+        {^unsigned\s+short$} {set type ui2}
+        {^BOOLEAN$} {set type bool}
+        {^LONG$} -
+        {^int$} {set type i4}
+        {^UINT$} -
+        {^ULONG$} -
+        {^DWORD$} -
+        {^unsigned\s+int$} {set type ui4}
+        {^__int64$} {set type i8}
+        {^unsigned\s+__int64$} {set type ui8}
+        {^double$} {set type r8}
+        {^LPCSTR$} -
+        {^LPSTR$} -
+        {^char\s*\*$} {set type lpstr}
+        {^LPCWSTR$} -
+        {^LPWSTR$} -
+        {^WCHAR\s*\*$} {set type lpwstr}
+        {^HANDLE$} {set type handle}
+        {^PSID$} {set type psid}
+        {^struct\s+([[:alnum:]_]+)$} {
+            # Embedded struct. It should be defined already. Calling
+            # it with no args returns its definition but doing that
+            # to retrieve the definition could be a security hole
+            # (could be passed any Tcl command!) if unwary apps
+            # pass in input from unknown sources. So we explicitly
+            # remember definitions instead.
+            set child_name [lindex $matchvar 1]
+            if {![info exists _struct_defs($child_name)]} {
+                error "Unknown struct $child_name"
+            }
+            set child $_struct_defs($child_name)
+            set type struct
+        }
+        default {error "Unknown type $type"}
+    }
+    set count 0
+    if {$array ne ""} {
+        set count [string trim [string range $array 1 end-1]]
+        if {![string is integer -strict $count]} {
+            error "Non-integer array size"
+        }
+    }
+
+    if {[string equal -nocase $name "cbSize"] &&
+        $type in {i4 ui4} && $count == 0} {
+        set type cbsize
+    }
+
+    return [list $name $type $count $child]
+}
+
+proc twapi::_parse_cproto {s} {
+    variable _struct_defs
+    
+    # Get rid of comments
+    regsub -all {(/\*.* \*/){1,1}?} $s {} s
+    regsub -line -all {//.*$} $s { } s
+
+    if {![regexp -expanded {
+        ^
+        \s*
+        (?:(_cdecl|_stdcall)\s+)?
+        ([[:alpha:]_][[:alnum:]_]*) # Function type
+        \s+
+        ([[:alpha:]_][[:alnum:]_]*) # Function name
+        \s*
+        \(              # Beginning of parameters
+        ([^\)]*)        # Parameter definition string
+        \)              # End of parameters
+        \s*$            # End of prototype
+    } $s -> callconv fntype fnname paramstr]} {
+        error "Invalid C prototype \"$s\""
+    }
+
+    lassign [_parse_ctype "$fntype $fnname"] fnname fntype
+    set params [lmap def [split $paramstr ","] {
+        _parse_ctype $def
+    }]
+
+    return [list $callconv $fntype $fnname $params]
+}
+
 # Return a suitable cstruct definition based on a C definition
 proc twapi::struct {struct_name s} {
     variable _struct_defs
 
+    set struct_name [callerns $struct_name]
+    
     regsub -all {(/\*.* \*/){1,1}?} $s {} s
     regsub -line -all {//.*$} $s { } s
-    set l {}
-    foreach def [split $s ";"] {
+    set l [lmap def [split $s ";"] {
         set def [string trim $def]
         if {$def eq ""} continue
-        if {![regexp {^(.+[^[:alnum:]_])([[:alnum:]_]+)\s*(\[.+\])?$} $def ->  type name array]} {
-            error "Invalid definition $def"
-        }
-        
-        set child {}
-        switch -regexp -matchvar matchvar -- [string trim $type] {
-            {^char$} {set type i1}
-            {^BYTE$} -
-            {^unsigned char$} {set type ui1}
-            {^short$} {set type i2}
-            {^WORD$} -
-            {^unsigned\s+short$} {set type ui2}
-            {^BOOLEAN$} {set type bool}
-            {^LONG$} -
-            {^int$} {set type i4}
-            {^UINT$} -
-            {^ULONG$} -
-            {^DWORD$} -
-            {^unsigned\s+int$} {set type ui4}
-            {^__int64$} {set type i8}
-            {^unsigned\s+__int64$} {set type ui8}
-            {^double$} {set type r8}
-            {^LPCSTR$} -
-            {^LPSTR$} -
-            {^char\s*\*$} {set type lpstr}
-            {^LPCWSTR$} -
-            {^LPWSTR$} -
-            {^WCHAR\s*\*$} {set type lpwstr}
-            {^HANDLE$} {set type handle}
-            {^PSID$} {set type psid}
-            {^struct\s+([[:alnum:]_]+)$} {
-                # Embedded struct. It should be defined already. Calling
-                # it with no args returns its definition but doing that
-                # to retrieve the definition could be a security hole
-                # (could be passed any Tcl command!) if unwary apps
-                # pass in input from unknown sources. So we explicitly
-                # remember definitions instead.
-                set child_name [lindex $matchvar 1]
-                if {![info exists _struct_defs($child_name)]} {
-                    error "Unknown struct $child_name"
-                }
-                set child $_struct_defs($child_name)
-                set type struct
-            }
-            default {error "Unknown type $type"}
-        }
-        set count 0
-        if {$array ne ""} {
-            set count [string trim [string range $array 1 end-1]]
-            if {![string is integer -strict $count]} {
-                error "Non-integer array size"
-            }
-        }
-
-        if {[string equal -nocase $name "cbSize"] &&
-            $type in {i4 ui4} && $count == 0} {
-            set type cbsize
-        }
-
-        lappend l [list $name $type $count $child]
-    }
+        _parse_ctype $def
+    }]
 
     set proc_body [format {
         set def %s
@@ -1544,3 +1593,99 @@ proc twapi::struct {struct_name s} {
     return
 }
 
+
+proc twapi::ffi_load {path} {
+    variable _ffi_paths
+    variable _ffi_handles
+
+    # Note we do NOT normalize path as we leave it to the OS to do so.
+    # We also do not canonicalize it (e.g. all lower case).
+    # This means there may be multiple handles for a single shared lib
+    # but that's ok.
+    
+    if {[dict exists $_ffi_paths $path]} {
+        set h [dict get $_ffi_paths $path]
+        if {![dict exists $_ffi_handles $h]} {
+            error "Internal error: Handle $h not found in FFI table."
+        }
+        dict with _ffi_handles $h {
+            if {$Path ne $path} {
+                error "Internal error: Handle $h not assigned to $path"
+            }
+            incr NRefs
+        }
+    } else {
+        set h [load_library $path]
+        dict set _ffi_paths $path $h
+        dict set _ffi_handles $h Path $path
+        dict set _ffi_handles $h NRefs 1
+    }
+    return $h
+}
+
+proc twapi::ffi_unload {h} {
+    variable _ffi_handles
+    variable _ffi_paths
+
+    if {![dict exists $_ffi_handles $h]} {
+        error "FFI handle $h does not exist."
+    }
+
+    dict with _ffi_handles $h {
+        if {[incr NRefs -1] <= 0} {
+            dict unset _ffi_paths $Path
+            dict unset _ffi_handles $h
+        }
+    }
+
+    return
+}
+
+proc twapi::ffi_cfuncs {dllh cprotos} {
+    variable _ffi_handles
+
+    if {![dict exists $_ffi_handles $dllh]} {
+    #    error "Unknown FFI handle \"$dllh\"."
+    }
+
+    set cprotos [lmap cproto [split $cprotos ";"] {
+        _parse_cproto $cproto
+    }]
+
+    set def {
+        proc %NAME% {%PARAMNAMES%} {
+            variable _ffi_handles
+            if {![dict exists $_ffi_handles(%DLLH%)]} {
+                error "Attempt to call function in unloaded library."
+            }
+            %TWAPINS%::ffi_call %FNADDR% %FNTYPE% %PARAMS% [list %PARAMREFS%]
+        }
+    }
+
+    foreach cproto $cprotos {
+        lassign $cproto callconv fntype fnname params
+        set fnaddr [GetProcAddress $dllh $fnname]
+        set paramnames {}
+        set paramrefs {}
+        foreach arg $params {
+            set name [lindex $arg 0]
+            lappend paramnames $name
+            lappend paramrefs \$$name
+        }
+        set paramnames [lmap arg $params {lindex $arg 0}]
+        set paramrefs [lmap arg $params {return -level 0 \$[lindex $arg 0]}]
+        append defs [string map [list \
+                                     %DLLH%   $dllh \
+                                     %NAME%    $fnname \
+                                     %PARAMNAMES% [join $paramnames { }] \
+                                     %PARAMREFS% [join $paramrefs { }] \
+                                     %TWAPINS% [namespace current] \
+                                     %FNADDR%  $fnaddr \
+                                     %FNTYPE%  $fntype \
+                                     %PARAMS%  [list $params]] \
+                         $def] \n
+    }
+    
+    return $defs
+    uplevel 1 $defs 
+}
