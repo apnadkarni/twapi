@@ -1462,9 +1462,11 @@ namespace eval twapi::recordarray {
     namespace ensemble create
 }
 
-proc twapi::_parse_ctype {def} {
+proc twapi::_parse_ctype {def parse_mode} {
     variable _struct_defs
     
+    # parse_mode is "struct", "param" or "return"
+
     if {![regexp -expanded {
         ^
         \s*
@@ -1479,6 +1481,12 @@ proc twapi::_parse_ctype {def} {
         
     set child {}
     switch -regexp -matchvar matchvar -- [string trim $type] {
+        {^void$} {
+            if {$parse_mode ne "return"} {
+                error "Type void cannot be used for structs and parameters."
+            }
+            set type void
+        }
         {^char$} {set type i1}
         {^BYTE$} -
         {^unsigned char$} {set type ui1}
@@ -1495,6 +1503,7 @@ proc twapi::_parse_ctype {def} {
         {^__int64$} {set type i8}
         {^unsigned\s+__int64$} {set type ui8}
         {^double$} {set type r8}
+        {^float$} {set type r4}
         {^LPCSTR$} -
         {^LPSTR$} -
         {^char\s*\*$} {set type lpstr}
@@ -1504,6 +1513,9 @@ proc twapi::_parse_ctype {def} {
         {^HANDLE$} {set type handle}
         {^PSID$} {set type psid}
         {^struct\s+([[:alnum:]_]+)$} {
+            if {$parse_mode ne "struct"} {
+                error "Structure types not allowed for parameters and return values."
+            }
             # Embedded struct. It should be defined already. Calling
             # it with no args returns its definition but doing that
             # to retrieve the definition could be a security hole
@@ -1524,6 +1536,9 @@ proc twapi::_parse_ctype {def} {
         set count [string trim [string range $array 1 end-1]]
         if {![string is integer -strict $count]} {
             error "Non-integer array size"
+        }
+        if {$parse_mode ne "struct"} {
+            error "Arrays not allowed for parameters and return values."
         }
     }
 
@@ -1558,9 +1573,9 @@ proc twapi::_parse_cproto {s} {
         error "Invalid C prototype \"$s\""
     }
 
-    lassign [_parse_ctype "$fntype $fnname"] fnname fntype
+    set fntype [_parse_ctype "$fntype $fnname" return]
     set params [lmap def [split $paramstr ","] {
-        _parse_ctype $def
+        _parse_ctype $def param
     }]
 
     return [list $callconv $fntype $fnname $params]
@@ -1570,14 +1585,19 @@ proc twapi::_parse_cproto {s} {
 proc twapi::struct {struct_name s} {
     variable _struct_defs
 
-    set struct_name [callerns $struct_name]
+    if {0} {
+        TBD - Commented out because nested structs do not currently
+        handle namespaces. However this means structs are effectively
+        global even if the corresponding command is not.
+        set struct_name [callerns $struct_name]
+    }
     
     regsub -all {(/\*.* \*/){1,1}?} $s {} s
     regsub -line -all {//.*$} $s { } s
     set l [lmap def [split $s ";"] {
         set def [string trim $def]
         if {$def eq ""} continue
-        _parse_ctype $def
+        _parse_ctype $def struct
     }]
 
     set proc_body [format {
@@ -1654,17 +1674,28 @@ proc twapi::ffi_cfuncs {dllh cprotos} {
 
     set def {
         proc %NAME% {%PARAMNAMES%} {
-            variable _ffi_handles
-            if {![dict exists $_ffi_handles(%DLLH%)]} {
+            if {![dict exists $%TWAPINS%::_ffi_handles %DLLH%]} {
                 error "Attempt to call function in unloaded library."
             }
-            %TWAPINS%::ffi_call %FNADDR% %FNTYPE% %PARAMS% [list %PARAMREFS%]
+            %TWAPINS%::%CALL% %FNADDR% %FNTYPE% %PARAMS% [list %PARAMREFS%]
         }
     }
 
+    if {$::tcl_platform(pointerSize) == 8} {
+        # Win64 has single calling convention
+        set callmap {"" ffi_call _cdecl ffi_call _stdcall ffi_call}
+    } else {
+        set callmap {"" ffi_call _cdecl ffi_call _stdcall ffi_stdcall}
+    } 
+
     foreach cproto $cprotos {
         lassign $cproto callconv fntype fnname params
+        set call [dict get $callmap $callconv]
+            
         set fnaddr [GetProcAddress $dllh $fnname]
+        if {[pointer_null? $fnaddr]} {
+            error "Entry point $fnname not found in shared library."
+        }
         set paramnames {}
         set paramrefs {}
         foreach arg $params {
@@ -1674,18 +1705,21 @@ proc twapi::ffi_cfuncs {dllh cprotos} {
         }
         set paramnames [lmap arg $params {lindex $arg 0}]
         set paramrefs [lmap arg $params {return -level 0 \$[lindex $arg 0]}]
+        # Note that fntype is doubly listified because the C ffi expects
+        # it in same format as params, ie. a list of type definitions
+        # _parse_cproto however returns it as a single type definition
         append defs [string map [list \
-                                     %DLLH%   $dllh \
+                                     %CALL%    $call \
+                                     %DLLH%    [list $dllh] \
                                      %NAME%    $fnname \
                                      %PARAMNAMES% [join $paramnames { }] \
                                      %PARAMREFS% [join $paramrefs { }] \
                                      %TWAPINS% [namespace current] \
-                                     %FNADDR%  $fnaddr \
-                                     %FNTYPE%  $fntype \
+                                     %FNADDR%  [list $fnaddr] \
+                                     %FNTYPE%  [list [list $fntype]] \
                                      %PARAMS%  [list $params]] \
                          $def] \n
     }
     
-    return $defs
     uplevel 1 $defs 
 }
