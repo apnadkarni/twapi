@@ -6,8 +6,8 @@ OBJS  = \
 	$(OBJDIR)\adsi.obj \
 	$(OBJDIR)\async.obj \
 	$(OBJDIR)\calls.obj \
-	$(OBJDIR)\cstruct.obj \
 	$(OBJDIR)\errors.obj \
+	$(OBJDIR)\ffi.obj \
 	$(OBJDIR)\keylist.obj \
 	$(OBJDIR)\lzmadec.obj \
 	$(OBJDIR)\lzmainterface.obj \

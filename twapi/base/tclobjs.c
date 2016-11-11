@@ -4325,6 +4325,14 @@ TWAPI_EXTERN TCL_RESULT ObjToDouble(Tcl_Interp *interp, Tcl_Obj *objP, double *d
     return Tcl_GetDoubleFromObj(interp, objP, dblP);
 }
 
+TWAPI_EXTERN TCL_RESULT ObjToFloat(Tcl_Interp *interp, Tcl_Obj *objP, float *fltP)
+{
+    double dval;
+    if (Tcl_GetDoubleFromObj(interp, objP, &dval) != TCL_OK)
+        return TCL_ERROR;
+    *fltP = (float) dval;
+}
+
 TWAPI_EXTERN Tcl_Obj *ObjNewList(int objc, Tcl_Obj * const objv[])
 {
     return Tcl_NewListObj(objc, objv);
@@ -4391,6 +4399,11 @@ TWAPI_EXTERN Tcl_Obj *ObjFromWideInt(Tcl_WideInt val)
 }
 
 TWAPI_EXTERN Tcl_Obj *ObjFromDouble(double val)
+{
+    return Tcl_NewDoubleObj(val);
+}
+
+TWAPI_EXTERN Tcl_Obj *ObjFromFloat(float val)
 {
     return Tcl_NewDoubleObj(val);
 }

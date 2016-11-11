@@ -42,6 +42,7 @@ int Twapi_GetVersionEx(Tcl_Interp *interp);
 Tcl_Obj *Twapi_GetAtomStats(TwapiInterpContext *ticP) ;
 Tcl_Obj *Twapi_GetAtoms(TwapiInterpContext *ticP) ;
 TCL_RESULT TwapiCStructDefDump(Tcl_Interp *interp, Tcl_Obj *csObj);
+void TwapiFfiInit(Tcl_Interp *interp);
 
 TwapiTclObjCmd Twapi_ParseargsObjCmd;
 TwapiTclObjCmd Twapi_TrapObjCmd;
@@ -53,9 +54,12 @@ TwapiTclObjCmd Twapi_GetTwapiBuildInfo;
 TwapiTclObjCmd Twapi_InternalCastObjCmd;
 TwapiTclObjCmd Twapi_GetTclTypeObjCmd;
 TwapiTclObjCmd Twapi_EnumPrintersLevel4ObjCmd;
+TwapiTclObjCmd Twapi_FfiCallObjCmd;
+#ifdef OBSOLETE
 TwapiTclObjCmd Twapi_FfiLoadObjCmd;
 TwapiTclObjCmd Twapi_Ffi0ObjCmd;
 TwapiTclObjCmd Twapi_FfiHObjCmd;
+#endif
 
 
 #endif
