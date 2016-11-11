@@ -106,6 +106,18 @@ namespace eval twapi {
         }
         return $ntwine
     }
+
+    # Qualifies a name in context of caller's caller
+    proc callerns {name} {
+        if {[string match "::*" $name]} {
+            return $name
+        }
+        if {[info level] > 2} {
+            return [uplevel 2 namespace current]::$name
+        } else {
+            return ::$name
+        }
+    }
 }
 
 # Make twapi versions the same as the base module versions

@@ -212,6 +212,10 @@ TCLDIR        = $(SRCROOT)\..\tcl-tk\$(TCLVER)
 !endif
 TCLLIB        = $(TCLDIR)\lib\Release_$(MACHINE)\tclstub$(TCLVER).lib
 
+# dyncall libraries
+DCDIR = $(SRCROOT)\..\dyncall\dyncall-0.9
+DCLIBS = $(DCDIR)\lib\release_$(MACHINE)\libdyncall_s.lib
+DCINC = $(DCDIR)\include
 
 # Compiler
 # --------
@@ -281,7 +285,7 @@ CDEBUG = $(CDEBUG) -DTWAPI_ENABLE_LOG=$(ENABLE_LOG)
 CDEBUG = $(CDEBUG) -DTWAPI_ENABLE_INSTRUMENTATION=$(ENABLE_INSTRUMENTATION)
 !endif
 
-INCFLAGS       =  -I"$(OBJDIR)" -I. -I..\include -I$(TCLDIR)\include
+INCFLAGS       =  -I"$(OBJDIR)" -I. -I..\include -I$(TCLDIR)\include -I$(DCINC)
 
 CINCLUDES     = $(SRCROOT)\include\twapi.h \
 		$(SRCROOT)\include\twapi_wm.h \
@@ -374,7 +378,7 @@ WINLIB = $(WINLIB) bufferoverflowU.lib
 EXTRALIBS = $(EXTRALIBS) $(SDKLIB)wevtapi.lib
 !endif
 
-LIBS          = $(TCLLIB) $(WINLIB) $(EXTRALIBS)
+LIBS          = $(TCLLIB) $(DCLIBS) $(WINLIB) $(EXTRALIBS)
 
 
 # Modules have to link with the twapi_base dll

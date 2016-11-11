@@ -1045,6 +1045,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             HKEY hkey2;
         };
         LSA_OBJECT_ATTRIBUTES lsa_oattr;
+        FARPROC fn;
     } u;
     DWORD dw, dw2, dw3, dw4;
     DWORD_PTR dwp, dwp2;
@@ -1511,8 +1512,8 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETASTR(cP),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.type = TRT_DWORD_PTR;
-        result.value.dwp = (DWORD_PTR) GetProcAddress(h, cP);
+        result.value.obj = ObjFromFARPROC( GetProcAddress(h, cP) );
+        result.type = TRT_OBJ;
         break;
     }
 
@@ -2467,7 +2468,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(FormatMessageFromString, Twapi_FormatMessageFromStringObjCmd),
         DEFINE_TCL_CMD(CredUIPromptForCredentials, Twapi_CredUIPromptObjCmd),
         DEFINE_TCL_CMD(CredUICmdLinePromptForCredentials, Twapi_CredUICmdLinePromptObjCmd),
-#ifdef NOTYET
+#ifdef OBSOLETE
         DEFINE_TCL_CMD(ffi_load, Twapi_FfiLoadObjCmd),
         DEFINE_TCL_CMD(ffi0, Twapi_Ffi0ObjCmd),
         DEFINE_TCL_CMD(ffiH, Twapi_FfiHObjCmd),
@@ -2482,6 +2483,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     TwapiDefineTclCmds(interp, ARRAYSIZE(TclDispatch), TclDispatch, ticP);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(AliasDispatch), AliasDispatch, "twapi::Call");
 
+    TwapiFfiInit(interp);
+    
     return TCL_OK;
 }
 

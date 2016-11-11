@@ -1440,6 +1440,8 @@ TWAPI_INLINE TCL_RESULT ObjToUINT(Tcl_Interp *ip, Tcl_Obj *objP, UINT *uiP) {
 TWAPI_EXTERN TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP);
 TWAPI_EXTERN Tcl_Obj *ObjFromDouble(double val);
 TWAPI_EXTERN TCL_RESULT ObjToDouble(Tcl_Interp *interp, Tcl_Obj *objP, double *);
+TWAPI_EXTERN Tcl_Obj *ObjFromFloat(float val);
+TWAPI_EXTERN TCL_RESULT ObjToFloat(Tcl_Interp *interp, Tcl_Obj *objP, float *);
 TWAPI_EXTERN TCL_RESULT ObjToDWORD_PTR(Tcl_Interp *interp, Tcl_Obj *objP, DWORD_PTR *dwP);
 #ifdef _WIN64
 #define ObjFromDWORD_PTR(p_)  ObjFromULONGLONG((ULONGLONG)(p_))
