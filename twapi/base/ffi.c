@@ -741,8 +741,9 @@ TCL_RESULT Twapi_FfiHObjCmd(TwapiInterpContext *ticP, Tcl_Interp *interp, int ob
 }
 #endif /* OBSOLETE */
 
-TCL_RESULT Twapi_FfiCallObjCmd(DCCallVM *vmP, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+TCL_RESULT Twapi_FfiCallObjCmd(void *clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+    DCCallVM *vmP = (DCCallVM *) clientdata;
     FARPROC fn;
     TCL_RESULT res;
     TwapiCStructRep *fntypeP = NULL;
@@ -834,6 +835,7 @@ TCL_RESULT Twapi_FfiCallObjCmd(DCCallVM *vmP, Tcl_Interp *interp, int objc, Tcl_
     switch (fntypeP->fields[0].type) {
     case CSTRUCT_VOID:
         dcCallVoid(vmP, fn);
+        objP = ObjFromEmptyString();
         break;
     case CSTRUCT_BOOLEAN: CALLFN(ObjFromBoolean, dcCallInt, u.i32);
     case CSTRUCT_INT: CALLFN(ObjFromInt, dcCallInt, u.i32);
@@ -849,6 +851,9 @@ TCL_RESULT Twapi_FfiCallObjCmd(DCCallVM *vmP, Tcl_Interp *interp, int objc, Tcl_
     case CSTRUCT_HANDLE: CALLFN(ObjFromHANDLE, dcCallPointer, u.pv);
     case CSTRUCT_STRING: CALLFN(ObjFromString, dcCallPointer, u.pv);
     case CSTRUCT_WSTRING: CALLFN(ObjFromWinChars, dcCallPointer, u.pv);
+    default:
+        res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Unsupported return type");
+        goto vamoose;
     }
 
     res = ObjSetResult(interp, objP);
