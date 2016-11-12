@@ -16,7 +16,7 @@ dnl	to configure the system for the local environment.
 # this case) so that we create the export library with the dll.
 #-----------------------------------------------------------------------
 
-AC_INIT([twapi], [4.2a6])
+AC_INIT([twapi], [4.2a8])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -84,7 +84,7 @@ TEA_ADD_STUB_SOURCES([])
 CLEANFILES="$CLEANFILES twapi_entry.tcl"
 if test "${TEA_PLATFORM}" = "windows" ; then
 
-    TEA_ADD_INCLUDES([-I. -I\"$(${CYGPATH} ${srcdir}/twapi/include)\"])
+    TEA_ADD_INCLUDES([-I. -I\"$(${CYGPATH} ${srcdir}/twapi/include)\" -I\"${srcdir}/dyncall/dyncall-0.9/include\"])
 
     TEA_ADD_CFLAGS([-DUNICODE -D_UNICODE -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -DPSAPI_VERSION=1])
 
@@ -92,8 +92,8 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 	    twapi/base/adsi.c
 	    twapi/base/async.c
 	    twapi/base/calls.c
-	    twapi/base/cstruct.c
 	    twapi/base/errors.c
+	    twapi/base/ffi.c
 	    twapi/base/keylist.c
 	    twapi/base/lzmadec.c
 	    twapi/base/lzmainterface.c
@@ -184,13 +184,20 @@ if test "${TEA_PLATFORM}" = "windows" ; then
     ])
 
     TEA_ADD_LIBS([
-	    kernel32.lib advapi32.lib user32.lib
-	    rpcrt4.lib gdi32.lib psapi.lib netapi32.lib pdh.lib winmm.lib
-	    mpr.lib ws2_32.lib uuid.lib ole32.lib oleaut32.lib shell32.lib
-	    winspool.lib version.lib iphlpapi.lib powrprof.lib secur32.lib
-	    userenv.lib wtsapi32.lib setupapi.lib uxtheme.lib credui.lib
-	    crypt32.lib wintrust.lib
-    ])
+		    kernel32.lib advapi32.lib user32.lib
+		    rpcrt4.lib gdi32.lib psapi.lib netapi32.lib
+		    pdh.lib winmm.lib mpr.lib ws2_32.lib uuid.lib
+		    ole32.lib oleaut32.lib shell32.lib
+		    winspool.lib version.lib iphlpapi.lib
+		    powrprof.lib secur32.lib userenv.lib
+		    wtsapi32.lib setupapi.lib uxtheme.lib
+		    credui.lib crypt32.lib wintrust.lib
+		])
+    if test "$do64bit" = "no" ; then
+	AC_SUBST(DYNCALL_LIBS, "${srcdir}/dyncall/dyncall-0.9/lib/release_x86/libdyncall_s.lib")
+    else
+	AC_SUBST(DYNCALL_LIBS, "${srcdir}/dyncall/dyncall-0.9/lib/release_amd64/libdyncall_s.lib")
+    fi
 
     TEA_ADD_TCL_SOURCES([
 	    twapi/tcl/twapi.tcl
