@@ -9,7 +9,14 @@
 
 #include "twapi.h"
 #include <initguid.h> /* GUIDs in all included files below this will be instantiated */
-DEFINE_GUID(IID_IShellLinkDataList,     0x45e2b4ae, 0xb1c3, 0x11d0, 0xb9, 0x2f, 0x0, 0xa0, 0xc9, 0x3, 0x12, 0xe1);
+
+/* Note: some versions of mingw define IID_IShellLinkDataList and some don't.
+   Unlike MS VC++ which does not complain if duplicate definitions match,
+   gcc is not happy and I cannot get gcc's selectany attribute for
+   ignoring duplicate definitions to work. So just we use our own variable
+   with content that is identical to the original.
+*/
+DEFINE_GUID(TWAPI_IID_IShellLinkDataList,     0x45e2b4ae, 0xb1c3, 0x11d0, 0xb9, 0x2f, 0x0, 0xa0, 0xc9, 0x3, 0x12, 0xe1);
 
 #ifndef TWAPI_SINGLE_MODULE
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
@@ -218,7 +225,7 @@ static TCL_RESULT Twapi_WriteShortcutObjCmd(
         goto hres_vamoose;
 
     if (runas) {
-        hres = psl->lpVtbl->QueryInterface(psl, &IID_IShellLinkDataList,
+        hres = psl->lpVtbl->QueryInterface(psl, &TWAPI_IID_IShellLinkDataList,
                                            (LPVOID*)&psldl); 
         if (FAILED(hres))
             goto hres_vamoose;
@@ -382,7 +389,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         ObjAppendElement(interp, resultObj, ObjFromWinChars(buf));
     }
     
-    hres = psl->lpVtbl->QueryInterface(psl, &IID_IShellLinkDataList,
+    hres = psl->lpVtbl->QueryInterface(psl, &TWAPI_IID_IShellLinkDataList,
                                        (LPVOID*)&psldl); 
     if (SUCCEEDED(hres)) {
         hres = psldl->lpVtbl->GetFlags(psldl, &runas);
