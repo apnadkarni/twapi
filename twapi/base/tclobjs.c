@@ -4331,6 +4331,7 @@ TWAPI_EXTERN TCL_RESULT ObjToFloat(Tcl_Interp *interp, Tcl_Obj *objP, float *flt
     if (Tcl_GetDoubleFromObj(interp, objP, &dval) != TCL_OK)
         return TCL_ERROR;
     *fltP = (float) dval;
+    return TCL_OK;
 }
 
 TWAPI_EXTERN Tcl_Obj *ObjNewList(int objc, Tcl_Obj * const objv[])
