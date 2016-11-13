@@ -631,6 +631,7 @@ MAKE_LIB
 TCL_DBGX
 LDFLAGS_DEFAULT
 CFLAGS_DEFAULT
+DYNCALL_LIBS
 LD_LIBRARY_PATH_VAR
 SHLIB_CFLAGS
 SHLIB_LD_LIBS
@@ -645,7 +646,6 @@ AR
 SHARED_BUILD
 TCL_THREADS
 TCL_INCLUDES
-DYNCALL_LIBS
 PKG_OBJECTS
 PKG_SOURCES
 MATH_LIBS
@@ -5501,13 +5501,6 @@ if test "${TEA_PLATFORM}" = "windows" ; then
     done
 
 
-    if test "$do64bit" = "no" ; then
-	DYNCALL_LIBS="${srcdir}/dyncall/dyncall-0.9/lib/release_x86/libdyncall_s.lib"
-
-    else
-	DYNCALL_LIBS="${srcdir}/dyncall/dyncall-0.9/lib/release_amd64/libdyncall_s.lib"
-
-    fi
 
 
     vars="
@@ -8566,6 +8559,18 @@ $as_echo "no" >&6; }
     fi
 
 
+
+if test "$do64bit" = "yes"; then :
+
+	  DYNCALL_LIBS="${srcdir}/dyncall/dyncall-0.9/lib/release_amd64/libdyncall_s.lib"
+
+
+else
+
+	  DYNCALL_LIBS="${srcdir}/dyncall/dyncall-0.9/lib/release_x86/libdyncall_s.lib"
+
+
+fi
 
 #--------------------------------------------------------------------
 # Set the default compiler switches based on the --enable-symbols option.
