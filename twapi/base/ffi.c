@@ -102,7 +102,7 @@ enum cstruct_types_enum {
     CSTRUCT_FLOAT, CSTRUCT_DOUBLE, CSTRUCT_STRING, CSTRUCT_WSTRING, CSTRUCT_CBSIZE, CSTRUCT_HANDLE, CSTRUCT_PSID, CSTRUCT_STRUCT
 };
 
-TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
+TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj, int allow_empty)
 {
     Tcl_Obj **fieldObjs;
     int       i, nfields;
@@ -120,7 +120,7 @@ TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
 
     if ((res = ObjGetElements(interp, csObj, &nfields, &fieldObjs)) != TCL_OK)
         return res;
-    if (nfields == 0)
+    if (nfields == 0 && ! allow_empty)
         goto invalid_def;
 
     csP = TwapiAlloc(sizeof(*csP) + (nfields-1)*sizeof(csP->fields[0]));
@@ -188,7 +188,7 @@ TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
         case CSTRUCT_STRUCT:
             if (ndefs < 4)
                 goto invalid_def; /* Struct descriptor missing */
-            if (ObjCastToCStruct(interp, defObjs[3]) != TCL_OK)
+            if (ObjCastToCStruct(interp, defObjs[3], 0) != TCL_OK)
                 goto error_return; /* Error message already in interp */
             TWAPI_ASSERT(defObjs[3]->typePtr == &gCStructType);
             child = CSTRUCT_REP(defObjs[3]);
@@ -224,6 +224,7 @@ TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj)
     /* Whole structure has to be aligned */
     csP->alignment = struct_alignment;
     csP->size = (offset + struct_alignment - 1) & ~(struct_alignment - 1);
+    TWAPI_ASSERT(csP->size == 0 || csP->nfields != 0);
 
     /* OK, valid opaque rep. Convert the passed object's internal rep */
     if (csObj->typePtr && csObj->typePtr->freeIntRepProc) {
@@ -444,7 +445,7 @@ TCL_RESULT TwapiCStructParse (Tcl_Interp *interp, MemLifo *memlifoP,
             goto invalid_def;
     }
 
-    if (ObjCastToCStruct(interp, objPP[0]) != TCL_OK)
+    if (ObjCastToCStruct(interp, objPP[0], 0) != TCL_OK)
         goto error_return;
 
     csP = CSTRUCT_REP(objPP[0]);
@@ -597,7 +598,7 @@ TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes, Tcl_Obj *csO
 {
     Tcl_Obj *objP;
 
-    if (ObjCastToCStruct(interp, csObj) == TCL_OK &&
+    if (ObjCastToCStruct(interp, csObj, 0) == TCL_OK &&
         ObjFromCStructHelper(interp, pv, nbytes, CSTRUCT_REP(csObj), flags, &objP) == TCL_OK) {
         if (objPP)
             *objPP = objP;
@@ -613,7 +614,7 @@ TCL_RESULT TwapiCStructSize(Tcl_Interp *interp, Tcl_Obj *csObj, int *szP)
 {
     TwapiCStructRep *csP;
     TCL_RESULT res;
-    res = ObjCastToCStruct(interp, csObj);
+    res = ObjCastToCStruct(interp, csObj, 0);
     if (res != TCL_OK)
         return res;
         
@@ -630,7 +631,7 @@ TCL_RESULT TwapiCStructDefDump(Tcl_Interp *interp, Tcl_Obj *csObj)
     Tcl_Obj *objP;
     int i;
 
-    if (ObjCastToCStruct(interp, csObj) != TCL_OK)
+    if (ObjCastToCStruct(interp, csObj, 0) != TCL_OK)
             return TCL_ERROR;
         
     csP = CSTRUCT_REP(csObj);
@@ -763,13 +764,17 @@ TCL_RESULT Twapi_FfiCallObjCmd(void *clientdata, Tcl_Interp *interp, int objc, T
     if (ObjToFARPROC(NULL, objv[1], &fn) != TCL_OK || fn == NULL)
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid or NULL function pointer.");
 
-    /* Convert return type and parameter type definitions */
-    if (ObjCastToCStruct(interp, objv[2]) != TCL_OK ||
-        ObjCastToCStruct(interp, objv[3]) != TCL_OK)
+    /* 
+     * Convert return type and parameter type definitions. The parameter
+     * list may be empty so last argument to ObjCastToCStruct in that
+     * case is 1
+     */
+    if (ObjCastToCStruct(interp, objv[2], 0) != TCL_OK ||
+        ObjCastToCStruct(interp, objv[3], 1) != TCL_OK)
         return TCL_ERROR;
 
     fntypeP = CSTRUCT_REP(objv[2]);
-    if (fntypeP->nfields != 1) {
+    if (fntypeP->nfields > 1) {
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Function return type has multiple elements.");
     }
     paramtypesP = CSTRUCT_REP(objv[3]);

@@ -1465,7 +1465,7 @@ namespace eval twapi::recordarray {
 proc twapi::_parse_ctype {def parse_mode} {
     variable _struct_defs
     
-    # parse_mode is "struct", "param" or "return"
+    # parse_mode is "struct", "param" or "function"
 
     if {![regexp -expanded {
         ^
@@ -1482,7 +1482,7 @@ proc twapi::_parse_ctype {def parse_mode} {
     set child {}
     switch -regexp -matchvar matchvar -- [string trim $type] {
         {^void$} {
-            if {$parse_mode ne "return"} {
+            if {$parse_mode ne "function"} {
                 error "Type void cannot be used for structs and parameters."
             }
             set type void
@@ -1561,24 +1561,23 @@ proc twapi::_parse_cproto {s} {
         ^
         \s*
         (?:(_cdecl|_stdcall)\s+)?
-        ([[:alpha:]_][[:alnum:]_]*) # Function type
-        \s+
-        ([[:alpha:]_][[:alnum:]_]*) # Function name
+        ([[:alnum:]_][[:space:][:alnum:]_]*) # Function type and name
         \s*
         \(              # Beginning of parameters
         ([^\)]*)        # Parameter definition string
         \)              # End of parameters
         \s*$            # End of prototype
-    } $s -> callconv fntype fnname paramstr]} {
+    } $s -> callconv fntypeandname paramstr]} {
         error "Invalid C prototype \"$s\""
     }
 
-    set fntype [_parse_ctype "$fntype $fnname" return]
+    regsub -all {\s+} $fntypeandname " "
+    set fntype [_parse_ctype $fntypeandname function]
     set params [lmap def [split $paramstr ","] {
         _parse_ctype $def param
     }]
 
-    return [list $callconv $fntype $fnname $params]
+    return [list $callconv $fntype [lindex $fntype 0] $params]
 }
 
 # Return a suitable cstruct definition based on a C definition
