@@ -1,6 +1,11 @@
 NOTE: Build instructions for TWAPI 4.0 have changed significantly from
 previous versions.
 
+NOTE: This file primarily describes building TWAPI with the Microsoft
+toolchain. A section at the end briefly discusses building with the
+GNU MinGW tools.
+
+
 What you need (or the official build environment):
 --------------------------------------------------
 
@@ -20,9 +25,6 @@ builds. Also ensure you include the Web Workshop component as some
 Windows Shell headers are included there.
 
 - Some version of Mercurial to check out code from the SourceForge repository.
-
-- Note a Tcl installation is no longer required. Appropriate headers and
-libraries are contained within the TWAPI directories.
 
 Here is the step-by-step procedure for compiling twapi on a PC:
 
@@ -138,3 +140,20 @@ Building for debugging
 For debugging, build a version with the NOOPTIMIZE option as follows:
 
     nmake twapi NOOPTIMIZE=1
+
+Building with MinGW-W64
+-----------------------
+
+To build with the MinGW toolchain, do something along the lines of
+
+    cd <BUILDDIR>
+    c:/src/twapi/configure --prefix=c:/tcl/mingw --enable-threads --enable-64bit --with-tcl=c:/tcl/mingw/lib
+    make clean
+    make 2> errors.log
+    make install
+
+That's for the 64-bit build within the mingw 64-bit build shell. For a
+32-bit build, do something similar from a 32-bit mingw shell.
+
+IMPORTANT: In this case, the Tcl binaries must also have been built
+with the MinGW-W64 toolchain.
