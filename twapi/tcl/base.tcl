@@ -1668,6 +1668,8 @@ proc twapi::ffi_cfuncs {dllh cprotos} {
     }
 
     set cprotos [lmap cproto [split $cprotos ";"] {
+        set cproto [string trim $cproto]
+        if {$cproto eq ""} continue
         _parse_cproto $cproto
     }]
 
