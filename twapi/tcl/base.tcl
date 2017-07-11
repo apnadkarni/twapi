@@ -1199,8 +1199,9 @@ proc twapi::credentials_dialog {args} {
     return [CredUIPromptForCredentials [list $opts(parent) $opts(message) $opts(caption) $opts(bitmap)] $opts(target) NULL $opts(winerror) $opts(username) $opts(password) $opts(persist) $flags]
 }
 
+# TBD - test
 proc twapi::confirm_credentials {target valid} {
-    return [CredUIConfirmCredential $target $valid]
+    return [CredUIConfirmCredentials $target $valid]
 }
 
 # Validate a handle for a mode. Always raises error if handle is invalid
