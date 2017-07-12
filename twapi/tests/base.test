@@ -293,7 +293,7 @@ namespace eval twapi::base::test {
         # twapi::new_restricted_dacl $::env(USERNAME) generic_all
         set dacl [list 2 [list [list 0 0 268435456 $sid]]]
         # twapi::new_security_descriptor -dacl $dacl
-        set secd [list 0 {} {} $dacl null]
+        set secd [list 4 {} {} $dacl null]
     } -body {
         twapi::close_handle [twapi::create_file $fn -secd $secd]
         string equal -nocase "[file nativename $fn] $::env(COMPUTERNAME)\\$::env(USERNAME):F" [string trim [exec [auto_execok cacls.exe] $fn]]
