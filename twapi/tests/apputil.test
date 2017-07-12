@@ -119,8 +119,13 @@ namespace eval twapi::apputil::test {
         set line [string trim [twapi::get_command_line]]
         regsub {\s+} $line { } line
         # Don't try to match more than first couple of args. QUoting etc.
-        # makes it difficult
-        lrange [split $line] 1 2
+        # makes it difficult. At the same time, depending on how the test
+        # is invoked, there may only be one argument so pad it just in case
+        set arguments [lrange [split $line] 1 2]
+        if {[llength $arguments] < 2} {
+            lappend arguments {}
+        }
+        set arguments
     } -result [list $argv0 [lindex $argv 0]] -match list
 
     ################################################################
