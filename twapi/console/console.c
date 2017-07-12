@@ -391,6 +391,13 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             /* Note : GetLastError == 0 means title is empty string */
             if ((result.value.unicode.len = GetConsoleTitleW(u.buf, sizeof(u.buf)/sizeof(u.buf[0]))) != 0 || GetLastError() == 0) {
                 result.type = TRT_UNICODE;
+                /* On some platforms, the returned value includes the 
+                 * terminating null, on others it does not.
+                 */
+                if (result.value.unicode.len > 0 &&
+                    u.buf[result.value.unicode.len-1] == 0)
+                    result.value.unicode.len -= 1;
+
                 result.value.unicode.str = u.buf;
             } else
                 result.type = TRT_GETLASTERROR;
