@@ -1026,9 +1026,15 @@ proc twapi::cert_verify {hcert policy args} {
     trap {
         set chain_errors [cert_chain_trust_errors $chainh]
         # In case of errors, keep going if we have not been told to ignore
-        # errors.
-        if {[llength $ignoreerrors] == 0 && [llength $chain_errors] != 0} {
-            return [lindex $chain_errors 0]
+        # error or if error is only with respect to root trust and we have
+        # been provided additional trusted roots
+        if {[llength $chain_errors] != 0} {
+            # Possible errors
+            if {[llength $chain_errors] > 1 ||
+                [lindex $chain_errors 0] ne "untrustedroot" ||
+                ![info exists trustedroots]} {
+                return [lindex $chain_errors 0]
+            }
         }
 
         set status [Twapi_CertVerifyChainPolicy $policy_id $chainh [list $verify_flags $policyparams]]
