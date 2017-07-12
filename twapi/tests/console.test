@@ -1108,10 +1108,21 @@ namespace eval twapi::console::test {
     } -body {
         set title "Testing TWAPI"
         twapi::set_console_title $title
-        string equal $title [twapi::get_window_text [twapi::get_console_window]]
+        string equal $title [twapi::get_console_title]
     } -cleanup {
         twapi::set_console_title $orig_title
     } -result 1
+
+    test set_console_title-1.1 {
+        Set title of console window to empty string
+    } -setup {
+        set orig_title [twapi::get_console_title]
+    } -body {
+        twapi::set_console_title ""
+        twapi::get_console_title
+    } -cleanup {
+        twapi::set_console_title $orig_title
+    } -result ""
 
     ################################################################
 
