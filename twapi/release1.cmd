@@ -6,6 +6,10 @@
 
 setlocal
 
+:: Make output directories if they do not exist
+mkdir build
+mkdir dist
+
 :: Generate the mercurial ID. Need to do this before resetting PATH below
 :: The first echo is a hack to write to a file without a terminating newline
 :: We do it this way and not through the makefile because the compiler
@@ -28,9 +32,6 @@ SET MSDEVDIR=
 set MSVCDIR=
 SET PATH=%WINDIR%\SYSTEM32
 
-:: Make output directories if they do not exist
-mkdir build
-mkdir dist
 
 :: Check if we are using our customized compiler setup
 IF NOT ".%TWAPI_COMPILER_DIR%" == "." goto check_arch
