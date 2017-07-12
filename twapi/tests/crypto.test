@@ -5151,10 +5151,10 @@ namespace eval twapi::crypto::test {
         {*.google.com {Google Internet Authority G2} {GeoTrust Global CA}} \
         -usageany server_auth
     testdef 1.2 "Revoked chain" revokedcert {revoked} {haspreferredissuer} \
-        {revoked.grc.com {GlobalSign Domain Validation CA - G2} {GlobalSign Root CA}} \
+        {revoked.grc.com {DigiCert SHA2 Secure Server CA} {DigiCert Global Root CA}} \
         -usageall server_auth
     testdef 1.2.1 "Revoked chain" revokedcert {} {haspreferredissuer} \
-        {revoked.grc.com {GlobalSign Domain Validation CA - G2} {GlobalSign Root CA}} \
+        {revoked.grc.com {DigiCert SHA2 Secure Server CA} {DigiCert Global Root CA}} \
         -usageall server_auth -revocationcheck none
     
     test cert_chain_simple_chain-2.0 {

@@ -244,7 +244,7 @@ namespace eval twapi::com::test {
         $ie -destroy
     } -body {
         $ie -default
-    } -result "* Internet Explorer" -match glob 
+    } -result "*Internet Explorer" -match glob 
 
     ###
 
@@ -1537,8 +1537,16 @@ namespace eval twapi::com::test {
 
     test generate_code_from_typelib-2.0 {
         Verify generate_code_from_typelib from imports module constants
+    } -setup {
+        set dll [file join $::env(SYSTEMROOT) system32 msvbvm60.dll]
+        if {![file exists $dll]} {
+            set dll [file join $::env(SYSTEMROOT) SysWOW64 msvbvm60.dll]
+            if {![file exists $dll]} {
+                error "Could not find msvbvm60.dll"
+            }
+        }
     } -body {
-        eval [ twapi::generate_code_from_typelib [file join $::env(SYSTEMROOT) system32/msvbvm60.dll] -namespace [namespace current]::tempns -type module]
+        eval [ twapi::generate_code_from_typelib $dll -namespace [namespace current]::tempns -type module]
         list $tempns::Constants(vbVerticalTab) $tempns::Constants(vbObjectError)
     } -cleanup {
         namespace delete [namespace current]::tempns
