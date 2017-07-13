@@ -945,7 +945,7 @@ proc twapi::cert_verify {hcert policy args} {
     }
 
     array set opts [parseargs args $optdefs -ignoreunknown -setvars]
-    
+
     if {![dict exists $args -usageall] && ![dict exists $args -usageany]} {
         switch -exact -- $policy {
             authenticodets -
@@ -1022,38 +1022,65 @@ proc twapi::cert_verify {hcert policy args} {
         }
     }
     
+    if {[info exists ignoreerrors] && "revocation" in $ignoreerrors} {
+        lappend args -revocationcheck none
+    }
     set chainh [cert_chain_build $hcert {*}$args]
+
     trap {
+        # Actually verification is a bit tricky because the caller might
+        # have asked for certain errors to be ignored. 
+        # Note that CertVerifyChainPolicy below does NOT check for revocation 
+        # of certificates in the certificate chain as per Microsoft docs.
+        # We therefore check for revocation errors here and abort if present.
         set chain_errors [cert_chain_trust_errors $chainh]
-        # In case of errors, keep going if we have not been told to ignore
-        # error or if error is only with respect to root trust and we have
-        # been provided additional trusted roots
-        if {[llength $chain_errors] != 0} {
-            # Possible errors
-            if {[llength $chain_errors] > 1 ||
-                [lindex $chain_errors 0] ne "untrustedroot" ||
-                ![info exists trustedroots]} {
-                return [lindex $chain_errors 0]
+        if {[llength $chain_errors]} {
+            if {"revoked" in $chain_errors} {
+                return revoked
+            }
+            if {"revocationunknown" in $chain_errors} {
+                return revocationunknown
+            }
+            if {"revocationoffline" in $chain_errors} {
+                return revocationoffline
+            }
+
+            if {0} {
+                # For other kind of errors, caller might have indicated
+                # some types are to be ignored. In that case we will proceed
+                # to use CertVerifyTrustPolicy since that will allow
+                # control of which errors are to be ignored. As a
+                # special case, if caller has specified additional trusted
+                # roots, we will proceed to call CertVerifyTrustPolicy
+                # even when caller is not ignoring errors but only if
+                # there are no errors indicated.
+                if {[llength $chain_errors] > 1 ||
+                    [lindex $chain_errors 0] ne "untrustedroot" ||
+                    ![info exists trustedroots]} {
+                    return $chain_errors
+                }
             }
         }
-
+        
         set status [Twapi_CertVerifyChainPolicy $policy_id $chainh [list $verify_flags $policyparams]]
 
         # If caller had provided additional trusted roots that are not
         # in the Windows trusted store, and the error is that the root is
         # untrusted, see if the root cert is one of the passed trusted ones
+        # We will only deal when there is a single possible chain else
+        # the recheck becomes very complicated as we are not sure if
+        # the recheck will employ the same chain or not.
         if {$status == 0x800B0109 &&
-            [info exists trustedroots] &&
-            [llength $trustedroots]} {
-            set chains [twapi::Twapi_CertChainContexts $chainh]
-            set simple_chains [lindex $chains 1]
-            # We will only deal when there is a single possible chain else
-            # the recheck becomes very complicated as we are not sure if
-            # the recheck will employ the same chain or not.
-            if {[llength $simple_chains] == 1} {
-                set certs_in_chain [lindex $simple_chains 0 1]
-                # Get thumbprint of root cert
-                set thumbprint [cert_thumbprint [lindex $certs_in_chain end 0]]
+            [info exists trustedroots] && [llength $trustedroots] &&
+            [cert_chain_simple_chain_count $chainh] == 1} {
+            set simple_chain [cert_chain_simple_chain $chainh 0]
+            # Double check no errors listed for this chain
+            set trust_errors [dict get $simple_chain trust_errors]
+            if {[llength $trust_errors] == 1 &&
+                [lindex $trust_errors 0] eq "untrustedroot"} {
+                set certs_in_chain [dict get $simple_chain chain]
+                set root_cert [dict get [lindex $certs_in_chain end] hcert]
+                set thumbprint [cert_thumbprint $root_cert]
                 # Match against each trusted root
                 set trusted 0
                 foreach trusted_cert $trustedroots {
@@ -1083,9 +1110,9 @@ proc twapi::cert_verify {hcert policy args} {
 
         return [_map_cert_verify_error $status]
     } finally {
-        if {[info exists certs_in_chain]} {
-            foreach cert_stat $certs_in_chain {
-                cert_release [lindex $cert_stat 0]
+        if {[info exists simple_chain]} {
+            foreach cert [dict get $simple_chain chain] {
+                cert_release [dict get $cert hcert]
             }
         }
         cert_chain_release $chainh
@@ -1112,6 +1139,7 @@ proc twapi::_map_cert_verify_error {err} {
         0x80096019 basicconstraints
         0x800b0105 criticalextension
         0x800b0102 validityperiodnesting
+        0x80092011 norevocationdll
         0x80092012 norevocationcheck
         0x80092013 revocationoffline
         0x800b010f cnmatch
