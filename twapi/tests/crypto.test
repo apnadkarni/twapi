@@ -2935,7 +2935,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [samplecert server]
     } -body {
-        twapi::cert_tls_verify $hcert
+        twapi::cert_tls_verify $hcert -revocationcheck none
     } -cleanup {
         twapi::cert_release $hcert
     } -result untrustedroot
@@ -2948,14 +2948,14 @@ namespace eval twapi::crypto::test {
         twapi::cert_tls_verify $hcert -ignoreerrors {}
     } -cleanup {
         twapi::cert_release $hcert
-    } -result untrustedroot
+    } -result revocationoffline
 
     test cert_tls_verify-6.2 {
         Verify TLS certificate with errors
     } -setup {
         set hcert [samplecert server]
     } -body {
-        twapi::cert_tls_verify $hcert -ignoreerrors {unknownca}
+        twapi::cert_tls_verify $hcert -ignoreerrors {unknownca} -revocationcheck none
     } -cleanup {
         twapi::cert_release $hcert
     } -result wrongusage
@@ -3146,7 +3146,7 @@ namespace eval twapi::crypto::test {
         set cert [expiredcert]
     } -body {
         twapi::cert_tls_verify $cert
-    } -result expired
+    } -result {time expired} -match oneof
 
     ################################################################
 
@@ -4703,7 +4703,7 @@ namespace eval twapi::crypto::test {
         set ca [samplecert ca]
         set server [samplecert server]
     } -body {
-        twapi::cert_verify tls $server -revocationcheck none -trustedroots [list $ca] -hstore [samplestore] -server twapitestserver
+        twapi::cert_verify $server tls -revocationcheck none -trustedroots [list $ca] -hstore [samplestore] -server twapitestserver
     } -cleanup {
         twapi::cert_release $ca
         twapi::cert_release $server
@@ -4718,8 +4718,8 @@ namespace eval twapi::crypto::test {
         # Note altserver has no CN in subject, otherwise that would 
         # have been used
         list \
-            [twapi::cert_verify tls $server -revocationcheck none -trustedroots [list $ca] -hstore [samplestore] -server altserver.twapitest.com] \
-            [twapi::cert_verify tls $server -revocationcheck none -trustedroots [list $ca] -hstore [samplestore] -server altserver2.twapitest.com]
+            [twapi::cert_verify $server tls -revocationcheck none -trustedroots [list $ca] -hstore [samplestore] -server altserver.twapitest.com] \
+            [twapi::cert_verify $server tls -revocationcheck none -trustedroots [list $ca] -hstore [samplestore] -server altserver2.twapitest.com]
     } -cleanup {
         twapi::cert_release $ca
         twapi::cert_release $server
@@ -4830,7 +4830,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [samplecert server]
     } -body {
-        twapi::cert_verify $hcert tls
+        twapi::cert_verify $hcert tls -revocationcheck none
     } -cleanup {
         twapi::cert_release $hcert
     } -result untrustedroot
@@ -4840,7 +4840,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [samplecert server]
     } -body {
-        twapi::cert_verify $hcert tls -ignoreerrors {}
+        twapi::cert_verify $hcert tls -ignoreerrors {} -revocationcheck none
     } -cleanup {
         twapi::cert_release $hcert
     } -result untrustedroot
@@ -4850,7 +4850,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [samplecert server]
     } -body {
-        twapi::cert_verify $hcert tls -ignoreerrors {unknownca}
+        twapi::cert_verify $hcert tls -ignoreerrors {unknownca revocation}
     } -cleanup {
         twapi::cert_release $hcert
     } -result wrongusage
@@ -4902,7 +4902,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set cert [expiredcert]
     } -body {
-        twapi::cert_verify tls $cert -ignoreerrors time
+        twapi::cert_verify $cert tls -ignoreerrors time
     } -result ok
 
     test cert_verify-tls-7.0 {
@@ -4977,13 +4977,13 @@ namespace eval twapi::crypto::test {
         set client [samplecert client]
     } -body {
         list \
-            [twapi::cert_verify tls $client -revocationcheck none] \
-            [twapi::cert_verify tls $client -revocationcheck none -trustedroots [list $ca]] \
-            [twapi::cert_verify tls $client -revocationcheck none -trustedroots [list $ca]] \
-            [twapi::cert_verify tls $client -revocationcheck none -trustedroots {} -hstore [samplestore]] \
-            [twapi::cert_verify tls $client -revocationcheck none -trustedroots [list $intermediate] -hstore [samplestore]] \
-            [twapi::cert_verify tls $client -trustedroots [list $ca] -hstore [samplestore]] \
-            [twapi::cert_verify tls $client -revocationcheck none -trustedroots [list $ca] -hstore [samplestore]]
+            [twapi::cert_verify $client tls -revocationcheck none] \
+            [twapi::cert_verify $client tls -revocationcheck none -trustedroots [list $ca]] \
+            [twapi::cert_verify $client tls -revocationcheck none -trustedroots [list $ca]] \
+            [twapi::cert_verify $client tls -revocationcheck none -trustedroots {} -hstore [samplestore]] \
+            [twapi::cert_verify $client tls -revocationcheck none -trustedroots [list $intermediate] -hstore [samplestore]] \
+            [twapi::cert_verify $client tls -trustedroots [list $ca] -hstore [samplestore]] \
+            [twapi::cert_verify $client tls -revocationcheck none -trustedroots [list $ca] -hstore [samplestore]]
     } -cleanup {
         twapi::cert_release $ca
         twapi::cert_release $intermediate
@@ -4996,11 +4996,11 @@ namespace eval twapi::crypto::test {
         set cert [revokedcert]
     } -body {
         list \
-            [twapi::cert_verify tls $cert] \
-            [twapi::cert_verify tls $cert -revocationcheck all] \
-            [twapi::cert_verify tls $cert -revocationcheck leaf] \
-            [twapi::cert_verify tls $cert -revocationcheck excluderoot] \
-            [twapi::cert_verify tls $cert -revocationcheck none] \
+            [twapi::cert_verify $cert tls] \
+            [twapi::cert_verify $cert tls -revocationcheck all] \
+            [twapi::cert_verify $cert tls -revocationcheck leaf] \
+            [twapi::cert_verify $cert tls -revocationcheck excluderoot] \
+            [twapi::cert_verify $cert tls -revocationcheck none] \
     } -result {revoked revoked revoked revoked ok}
 
     test cert_verify-tls-11.0 {
@@ -5040,15 +5040,15 @@ namespace eval twapi::crypto::test {
     } -setup {
         set cert [expiredcert]
     } -body {
-        twapi::cert_verify tls $cert
-    } -result expired
+        twapi::cert_verify $cert tls
+    } -result {time expired} -match oneof
 
     test cert_verify-basicconstraints-1.0 {
         Verify basicconstraints
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify basicconstraints $hcert
+        twapi::cert_verify $hcert basicconstraints
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -5058,7 +5058,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify basicconstraints $hcert -isa endentity
+        twapi::cert_verify $hcert basicconstraints -isa endentity
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -5068,7 +5068,7 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hcert [googlecert]
     } -body {
-        twapi::cert_verify basicconstraints $hcert -isa ca
+        twapi::cert_verify $hcert basicconstraints -isa ca
     } -cleanup {
         twapi::cert_release $hcert
     } -result basicconstraints

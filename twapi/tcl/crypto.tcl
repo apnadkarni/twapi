@@ -1038,11 +1038,11 @@ proc twapi::cert_verify {hcert policy args} {
             if {"revoked" in $chain_errors} {
                 return revoked
             }
-            if {"revocationunknown" in $chain_errors} {
-                return revocationunknown
-            }
             if {"revocationoffline" in $chain_errors} {
                 return revocationoffline
+            }
+            if {"revocationunknown" in $chain_errors} {
+                return revocationunknown
             }
 
             if {0} {
