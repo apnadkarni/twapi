@@ -1241,10 +1241,10 @@ namespace eval twapi::crypto::test {
         set matches 0
         set cert NULL
         while {1} {
-            set cert [twapi::cert_store_find_certificate $hstore subject_substring verisign $cert]
+            set cert [twapi::cert_store_find_certificate $hstore subject_substring microsoft $cert]
             if {$cert eq ""} break
             incr count
-            incr matches [string match -nocase *verisign* [twapi::cert_subject_name $cert -name rdn]]
+            incr matches [string match -nocase *microsoft* [twapi::cert_subject_name $cert -name rdn]]
         }
         list [expr {$count > 1}] [expr {$count == $matches}]
     } -cleanup {
@@ -4438,7 +4438,7 @@ namespace eval twapi::crypto::test {
     testdef 2.0.0 "single byte" "a"
     testdef 2.0.1 "multiple bytes" "\x00\x01\x20\x40\x50\x80\xff"
     testdef 2.0.2 "max size bytes" [string repeat \x80 86]
-    testdef 2.0.3 "over limit size bytes" [string repeat \x80 87] -returnCodes error -result "Bad Data."
+    testdef 2.0.3 "over limit size bytes" [string repeat \x80 87] -returnCodes error -result {{Bad Data.} {The parameter is incorrect.}} -match oneof
     
     # Define the test for rsa with OAEP
     proc testdef {id desc bytes args} {
@@ -4456,7 +4456,7 @@ namespace eval twapi::crypto::test {
     testdef 2.1.0 "single byte" "a"
     testdef 2.1.1 "multiple bytes" "\x00\x01\x20\x40\x50\x80\xff"
     testdef 2.1.2 "max size bytes" [string repeat \x80 86]
-    testdef 2.1.3 "over limit size bytes" [string repeat \x80 87] -returnCodes error -result "Bad Data."
+    testdef 2.1.3 "over limit size bytes" [string repeat \x80 87] -returnCodes error  -result {{Bad Data.} {The parameter is incorrect.}} -match oneof
 
     # Define the test for rsa with PKCS1
     proc testdef {id desc bytes args} {
