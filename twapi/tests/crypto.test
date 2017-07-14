@@ -4072,9 +4072,13 @@ namespace eval twapi::crypto::test {
     testdef 2.0 "single byte" "a" -nohashoid 1
     testdef 2.1 "multiple bytes" "\x00\x01\x20\x40\x50\x80\xff" -nohashoid 0
     testdef 2.2 "bytes more than sig size" [string repeat \x80 10000] -nohashoid 1
-    testdef 3.0 "single byte" "a" -pad x931
+    testdef 3.0 "single byte" "a" -pad pkcs1
     testdef 3.1 "multiple bytes" "\x00\x01\x20\x40\x50\x80\xff" -pad pkcs1
-    testdef 3.2 "bytes more than sig size" [string repeat \x80 10000] -pad x931
+    # No X.931 support from Win 8.1 onwards
+    if {! [twapi::min_os_version 8 1]} {
+        testdef 3.2 "bytes more than sig size" [string repeat \x80 10000] -pad x931
+        testdef 3.3 "single byte" "a" -pad x931
+    }
 
     proc testdef {id bytes nbits hash pad} {
         set openssl_hash [dict get {
@@ -4126,15 +4130,18 @@ namespace eval twapi::crypto::test {
     }
 
     # TBD - it appears as though x931 is only supported with sha1. The docs
-    # and tests below reflect that
+    # and tests below reflect that. Moreover Windows 8.1 and later do not
+    # seem to support x931
     # First some size based tests
     testdef 1.0 aa 1024 sha1 pkcs1
-    testdef 1.0.1 aa 1024 sha1 x931
-    testdef 1.0.2 [string repeat aa55 10000] 1024 sha1 pkcs1
-    testdef 1.0.3 [string repeat aa55 10000] 1024 sha1 x931
-    testdef 1.0.4 [string repeat aa55 10000] 2048 sha_256 pkcs1
-    testdef 1.0.5 [string repeat aa55 10000] 2048 sha_384 pkcs1
-    testdef 1.0.6 [string repeat aa55 10000] 2048 sha_512 pkcs1
+    testdef 1.0.1 [string repeat aa55 10000] 1024 sha1 pkcs1
+    testdef 1.0.2 [string repeat aa55 10000] 2048 sha_256 pkcs1
+    testdef 1.0.3 [string repeat aa55 10000] 2048 sha_384 pkcs1
+    testdef 1.0.4 [string repeat aa55 10000] 2048 sha_512 pkcs1
+    if {! [twapi::min_os_version 8 1]} {
+        testdef 1.0.5 aa 1024 sha1 x931
+        testdef 1.0.6 [string repeat aa55 10000] 1024 sha1 x931
+    }
     
     # Test vectors from
     # https://github.com/pyca/cryptography/blob/master/vectors/cryptography_vectors/asymmetric/RSA/pkcs1v15sign-vectors.txt
