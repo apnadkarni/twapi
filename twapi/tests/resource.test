@@ -1644,7 +1644,7 @@ namespace eval twapi::resource::test {
     } -body {
         array set ver [twapi::get_file_version_resource [get_filever_dll] -fileversion]
         set ver(-fileversion)
-    } -match regexp -result {^[[:digit:]](\.[[:digit:]]+){0,3}$}
+    } -match regexp -result {^[[:digit:]]+(\.[[:digit:]]+){0,3}$}
 
     ###
 
@@ -1789,7 +1789,7 @@ namespace eval twapi::resource::test {
     } -body {
         array set ver [twapi::get_file_version_resource [get_filever_dll] ProductVersion]
         set ver(ProductVersion)
-    } -match regexp -result {^[[:digit:]](\.[[:digit:]]+){0,3}$}
+    } -match regexp -result {^[[:digit:]]+(\.[[:digit:]]+){0,3}$}
 
     ################################################################
 
