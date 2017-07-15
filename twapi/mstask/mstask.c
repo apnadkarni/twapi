@@ -11,6 +11,17 @@
 
 #include "twapi.h"
 #include <mstask.h>
+/* Older sdks do not have these defines */
+#ifndef TASK_TIME_TRIGGER_ON_IDLE
+# define TASK_TIME_TRIGGER_ON_IDLE 5
+#endif
+#ifndef TASK_TIME_TRIGGER_AT_SYSTEMSTART
+# define TASK_TIME_TRIGGER_AT_SYSTEMSTART 6
+#endif
+#ifndef TASK_TIME_TRIGGER_AT_LOGON
+# define TASK_TIME_TRIGGER_AT_LOGON 7
+#endif
+
 #include <initguid.h> /* GUIDs in all included files below this will be instantiated */
 DEFINE_GUID(IID_IEnumWorkItems, 0x148BD528L, 0xA2AB, 0x11CE, 0xB1, 0x1F, 0x00, 0xAA, 0x00, 0x53, 0x05, 0x03);
 DEFINE_GUID(IID_IScheduledWorkItem, 0xa6b952f0L, 0xa4b1, 0x11d0, 0x99, 0x7d, 0x00, 0xaa, 0x00, 0x68, 0x87, 0xec);
@@ -58,27 +69,31 @@ Tcl_Obj *ObjFromTASK_TRIGGER(TASK_TRIGGER *triggerP)
     typeObj[0] = ObjFromInt(triggerP->TriggerType);
 
     switch (triggerP->TriggerType) {
-    case 1:
+    case TASK_TIME_TRIGGER_DAILY:
         typeObj[1] = ObjFromInt(triggerP->Type.Daily.DaysInterval);
         ntype = 2;
         break;
-    case 2:
+    case TASK_TIME_TRIGGER_WEEKLY:
         typeObj[1] = ObjFromInt(triggerP->Type.Weekly.WeeksInterval);
         typeObj[2] = ObjFromInt(triggerP->Type.Weekly.rgfDaysOfTheWeek);
         ntype = 3;
         break;
-    case 3:
+    case TASK_TIME_TRIGGER_MONTHLYDATE:
         typeObj[1] = ObjFromDWORD(triggerP->Type.MonthlyDate.rgfDays);
         typeObj[2] = ObjFromInt(triggerP->Type.MonthlyDate.rgfMonths);
         ntype = 3;
         break;
-    case 4:
+    case TASK_TIME_TRIGGER_MONTHLYDOW:
         typeObj[1] = ObjFromInt(triggerP->Type.MonthlyDOW.wWhichWeek);
         typeObj[2] = ObjFromInt(triggerP->Type.MonthlyDOW.rgfDaysOfTheWeek);
         typeObj[3] = ObjFromInt(triggerP->Type.MonthlyDOW.rgfMonths);
         ntype = 4;
         break;
-    default: /* TBD - TASK_EVENT_TRIGGER_ON_IDLE,AT_SYSTEMSTART,AT_LOGON etc. */
+    case TASK_TIME_TRIGGER_ONCE:
+    case TASK_TIME_TRIGGER_ON_IDLE:
+    case TASK_TIME_TRIGGER_AT_LOGON:
+    case TASK_TIME_TRIGGER_AT_SYSTEMSTART:
+    default:
         ntype = 1;
         break;
     }
@@ -188,14 +203,22 @@ int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP)
             }
             triggerP->TriggerType = dval;
             switch (triggerP->TriggerType) {
-            case 1:
+            case TASK_TIME_TRIGGER_ONCE:
+            case TASK_TIME_TRIGGER_ON_IDLE:
+            case TASK_TIME_TRIGGER_AT_SYSTEMSTART:
+            case TASK_TIME_TRIGGER_AT_LOGON:
+                if (ntype != 1)
+                    goto trigger_type_count_error;
+                break;
+                
+            case TASK_TIME_TRIGGER_DAILY:
                 if (ntype != 2)
                     goto trigger_type_count_error;
                 if (ObjToWord(interp, typeObj[1], &triggerP->Type.Daily.DaysInterval) != TCL_OK)
                     goto trigger_type_count_error;
                 break;
 
-            case 2:
+            case TASK_TIME_TRIGGER_WEEKLY:
                 if (ntype != 3)
                     goto trigger_type_count_error;
                 if (ObjToWord(interp, typeObj[1], &triggerP->Type.Weekly.WeeksInterval) != TCL_OK)
@@ -204,7 +227,7 @@ int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP)
                     goto trigger_type_count_error;
                 break;
 
-            case 3:
+            case TASK_TIME_TRIGGER_MONTHLYDATE:
                 if (ntype != 3)
                     goto trigger_type_count_error;
                 if (ObjToDWORD(interp, typeObj[1], &triggerP->Type.MonthlyDate.rgfDays) != TCL_OK)
@@ -213,7 +236,7 @@ int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP)
                     goto trigger_type_count_error;
                 break;
 
-            case 4:
+            case TASK_TIME_TRIGGER_MONTHLYDOW:
                 if (ntype != 4)
                     goto trigger_type_count_error;
                 if (ObjToWord(interp, typeObj[1], &triggerP->Type.MonthlyDOW.wWhichWeek) != TCL_OK)
@@ -223,6 +246,7 @@ int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP)
                 if (ObjToWord(interp, typeObj[3], &triggerP->Type.MonthlyDOW.rgfMonths) != TCL_OK)
                     goto trigger_type_count_error;
                 break;
+
             default: /* TBD - additional types TASK_TIME_TRIFFER_ONCE,ON_IDLE,AT_SYSTEMSTART etc.*/
                 ObjSetStaticResult(interp, "Unknown or unsupported trigger type.");
                 return TCL_ERROR;

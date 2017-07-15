@@ -179,7 +179,7 @@ namespace eval twapi::mstask::test {
         puts "This test may take up to a minute to run"
     } -body {
         set task_name TWAPITASK_[clock clicks]
-	# We do not use tclTests::makeFile because we won't file to
+	# We do not use tclTests::makeFile because we don't want file to
 	# be left behind if the test fails.
 	set path [file join [tcltest::temporaryDirectory] ${task_name}.tmp]
 	close [open $path w+]
