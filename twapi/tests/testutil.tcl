@@ -370,6 +370,18 @@ proc valid_account_sids {sids {system ""}} {
     return 1
 }
 
+proc valid_sids {sids} {
+    if {[llength $sids] == 0} {
+        error "List of accounts passed in is empty."
+    }
+    foreach sid $sids {
+        if {![twapi::is_valid_sid_syntax $sid]} {
+            return 0
+        }
+    }
+    return 1
+}
+
 proc system_drive_root {} {
     return [file dirname $::env(WINDIR)]
 }
