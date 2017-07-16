@@ -195,6 +195,10 @@ namespace eval ::twapi::process::test {
         # TBD - verify -groups, -groupattrs, -restrictedgroups
         # and -restrictedgroupattrs
 
+        if {! [valid_sids $threadinfo(-groupsids)]} {
+            lappend mismatches "Invalid groups SIDs"
+        }
+
         # Following fields are verified only if $verify_all is 1
         # since they are volatile and liable to change, particularly
         # if the process being checked is self
@@ -1478,15 +1482,15 @@ namespace eval ::twapi::process::test {
 
 
     test get_thread_info-5.0 {
-        Verify get_thread_info -groups and -groupattrs for a thread
+        Verify get_thread_info -groupsids and -groupattrs for a thread
     } -body {
         set tid [twapi::get_current_thread_id]
-        set grps [twapi::get_thread_info $tid -groups]
+        set grps [twapi::get_thread_info $tid -groupsids]
         set grpattrs [twapi::get_thread_info $tid -groupattrs]
         set grps2 {}
         set bad_attrs {}
         foreach {sid attrs} [lindex $grpattrs 1] {
-            lappend grps2 [twapi::map_account_to_name $sid]
+            lappend grps2 $sid
             foreach attr $attrs {
                 if {$attr ni {}} {
                     lappend bad_attrs $attr
@@ -1494,7 +1498,7 @@ namespace eval ::twapi::process::test {
             }
         }
         list [lindex $grps 0] [lindex $grpattrs 0] [equal_sets [lindex $grps 1] $grps2]
-    } -result {-groups -groupattrs 1}
+    } -result {-groupsids -groupattrs 1}
 
     test get_thread_info-6.0 {
         Verify get_thread_info -restrictedgroups and -restrictedgroupattrs for a thread
@@ -1515,6 +1519,23 @@ namespace eval ::twapi::process::test {
         list [lindex $grps 0] [lindex $grpattrs 0] [equal_sets [lindex $grps 1] $grps2]
     } -result {-restrictedgroups -restrictedgroupattrs 1}
 
+    test get_thread_info-7.0 {
+        Verify get_thread_info -groups
+    } -setup {
+        set tid [twapi::get_current_thread_id]
+    } -body {
+        lassign [twapi::get_thread_info $tid -groups] opt grps
+        set ninvalid 0
+        foreach grp $grps {
+            if {[catch {twapi::map_account_to_sid $grp}] &&
+                ![twapi::is_valid_sid_syntax $grp] &&
+                ![string match -nocase logonsessionid_* $grp]} {
+                puts $grp
+                incr ninvalid
+            }
+        }
+        list $opt [expr {[llength $grps] > 0}] $ninvalid
+    } -result {-groups 1 0}
 
     ################################################################
 
