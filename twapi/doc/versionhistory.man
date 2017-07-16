@@ -128,6 +128,10 @@ Added a new optional [arg DEFAULTED] parameter to
 [uri security.html#set_security_descriptor_group [cmd set_security_descriptor_group]].
 
 [bullet]
+Added new option [cmd -groupsids] to
+[uri security.html#get_token_info [cmd get_token_info]].
+
+[bullet]
 [emph "Deprecated"]
 Commands [cmd crypt_csps] and [cmd crypt_csptypes] are deprecated.
 Use [uri crypto.html#csps [cmd csps]] and

@@ -979,9 +979,13 @@ that are enabled in the token.
 [opt_def [cmd -groupattrs]]
 Returns a dictionary whose keys are group SID's contained in the token,
 with the corresponding value being a list of attributes for the group.
-[opt_def [cmd -groups]] Returns the list of groups included in the token.
+[opt_def [cmd -groups]] Returns the list of the names of
+groups included in the token.
 For domain accounts, an error is raised if the
-domain is unreachable. Use [cmd -groupattrs] to avoid this.
+domain is unreachable or if an SID has no corresponding name.
+Use [cmd -groupsids] to avoid this.
+[opt_def [cmd -groupsids]] Returns the list of SID's of the
+groups included in the token.
 [opt_def [cmd -integrity]] Returns the numeric integrity level associated
 with the token
 (see [uri process.html#get_process_integrity [cmd get_process_integrity]]).

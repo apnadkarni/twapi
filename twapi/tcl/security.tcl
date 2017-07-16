@@ -134,6 +134,7 @@ proc twapi::get_token_info {tok args} {
         enabledprivileges
         groupattrs
         groups
+        groupsids
         integrity
         integritylabel
         linkedtoken
@@ -205,16 +206,25 @@ proc twapi::get_token_info {tok args} {
                 lappend result -usersid [get_token_user $tok]
             }
         }
-        if {$opts(groups)} {
+        if {$opts(groups) || $opts(groupsids)} {
             if {[info exists gtigroups]} {
-                set items {}
+                set gsids {}
                 # First element of groups is user sid, skip it
                 foreach item [lrange $gtigroups 1 end] {
-                    lappend items [lookup_account_sid [lindex $item 0]]
+                    lappend gsids [lindex $item 0]
+                }
+            } else {
+                set gsids [get_token_groups $tok]
+            }
+            if {$opts(groupsids)} {
+                lappend result -groupsids $gsids
+            }
+            if {$opts(groups)} {
+                set items {}
+                foreach gsid $gsids {
+                    lappend items [lookup_account_sid $gsid]
                 }
                 lappend result -groups $items
-            } else {
-                lappend result -groups [get_token_groups $tok -name]
             }
         }
         if {[min_os_version 6] && $opts(logonsessionsid)} {
