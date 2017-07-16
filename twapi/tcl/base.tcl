@@ -841,8 +841,9 @@ proc twapi::lookup_account_sid {sid args} {
     if {! [dict exists $_sid_to_name_cache $opts(system) $sid]} {
         # Not in cache. Need to look up
 
-        # LookupAccountSid returns an error for this SID
-        if {[is_valid_sid_syntax $sid] &&
+        # LookupAccountSid returns an error for this SID but the check is
+        # now disabled because lots of SID's do not have corresponding names
+        if {0 && [is_valid_sid_syntax $sid] &&
             [string match -nocase "S-1-5-5-*" $sid]} {
             set name "Logon SID"
             set domain "NT AUTHORITY"

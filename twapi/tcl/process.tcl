@@ -792,7 +792,7 @@ proc twapi::get_multiple_process_info {args} {
     # Note -user is also a potential token opt but not listed below
     # because it can be gotten by other means
     set token_opts {
-        disabledprivileges elevation enabledprivileges groupattrs groups
+        disabledprivileges elevation enabledprivileges groupattrs groups groupsids
         integrity integritylabel logonsession  primarygroup primarygroupsid
         privileges restrictedgroupattrs restrictedgroups virtualized
     }
@@ -1104,6 +1104,7 @@ proc twapi::get_thread_info {tid args} {
         primarygroup
         primarygroupsid
         groups
+        groupsids
         restrictedgroups
         groupattrs
         restrictedgroupattrs
@@ -1832,7 +1833,6 @@ proc twapi::_token_info_helper {args} {
             Following options are passed on to get_token_info:
             elevation
             virtualized
-            groups
             restrictedgroups
             primarygroup
             primarygroupsid
@@ -1854,6 +1854,8 @@ proc twapi::_token_info_helper {args} {
             raw
             label
             user
+            groups
+            groupsids
         } -ignoreunknown]
 
         if {[expr {[info exists opts(pid)] + [info exists opts(hprocess)] +
@@ -1863,6 +1865,10 @@ proc twapi::_token_info_helper {args} {
 
         if {$opts(user)} {
             lappend args -usersid
+        }
+
+        if {$opts(groups) || $opts(groupsids)} {
+            lappend args -groupsids
         }
 
         if {[info exists opts(hprocess)]} {
@@ -1883,6 +1889,19 @@ proc twapi::_token_info_helper {args} {
             if {[info exists result(-usersid)]} {
                 set result(-user) [lookup_account_sid $result(-usersid)]
                 unset result(-usersid)
+            }
+            if {[info exists result(-groupsids)]} {
+                set result(-groups) {}
+                foreach sid $result(-groupsids) {
+                    if {[catch {lookup_account_sid $sid} gname]} {
+                        lappend result(-groups) $sid
+                    } else {
+                        lappend result(-groups) $gname
+                    }
+                }
+                if {!$opts(groupsids)} {
+                    unset result(-groupsids)
+                }
             }
             if {$opts(integrity)} {
                 if {$opts(raw)} {
