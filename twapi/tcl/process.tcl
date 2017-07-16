@@ -1891,12 +1891,14 @@ proc twapi::_token_info_helper {args} {
                 unset result(-usersid)
             }
             if {[info exists result(-groupsids)]} {
-                set result(-groups) {}
-                foreach sid $result(-groupsids) {
-                    if {[catch {lookup_account_sid $sid} gname]} {
-                        lappend result(-groups) $sid
-                    } else {
-                        lappend result(-groups) $gname
+                if {$opts(groups)} {
+                    set result(-groups) {}
+                    foreach sid $result(-groupsids) {
+                        if {[catch {lookup_account_sid $sid} gname]} {
+                            lappend result(-groups) $sid
+                        } else {
+                            lappend result(-groups) $gname
+                        }
                     }
                 }
                 if {!$opts(groupsids)} {
