@@ -1618,16 +1618,20 @@ namespace eval twapi::security::test {
         twapi::close_token $tok
     } -result 1
 
-    test get_token_info-6.0 {
-        get_token_info -groups
-    } -setup {
-        set tok [twapi::open_process_token]
-    } -body {
-        lassign [twapi::get_token_info $tok -groups] opt names
-        list $opt [expr {[llength $names] && [valid_account_names $names]}]
-    } -cleanup {
-        twapi::close_token $tok
-    } -result {-groups 1}
+    if {![twapi::min_os_version 8]} {
+        # Test disabled because Windows 8+ tokens include
+        # SIDs that cannot be mapped to names
+        test get_token_info-6.0 {
+            get_token_info -groups
+        } -setup {
+            set tok [twapi::open_process_token]
+        } -body {
+            lassign [twapi::get_token_info $tok -groups] opt names
+            list $opt [expr {[llength $names] && [valid_account_names $names]}]
+        } -cleanup {
+            twapi::close_token $tok
+        } -result {-groups 1}
+    }
 
     test get_token_info-7.0 {
         get_token_info -integrity
@@ -1798,6 +1802,17 @@ namespace eval twapi::security::test {
     } -cleanup {
         twapi::close_token $tok
     } -result [list -tssession [expr {[twapi::min_os_version 6] ? 1 : 0}]]
+
+    test get_token_info-20.0 {
+        get_token_info -groupsids
+    } -setup {
+        set tok [twapi::open_process_token]
+    } -body {
+        lassign [twapi::get_token_info $tok -groupsids] opt sids
+        list $opt [expr {[llength $sids] && [valid_sids $sids]}]
+    } -cleanup {
+        twapi::close_token $tok
+    } -result {-groupsids 1}
 
     ################################################################
 
