@@ -1,4 +1,3 @@
-#
 # Copyright (c) 2003-2014, Ashok P. Nadkarni
 # All rights reserved.
 #
@@ -73,6 +72,7 @@ namespace eval ::twapi::process::test {
             -iootherbytes
             -user
             -groups
+            -groupsids
             -groupattrs
             -restrictedgroups
             -restrictedgroupattrs
@@ -143,6 +143,10 @@ namespace eval ::twapi::process::test {
 
         # TBD - verify -groups, -groupattrs, -restrictedgroups
         # and -restrictedgroupattrs
+
+        if {! [valid_sids $procinfo(-groupsids)]} {
+            lappend mismatches "Invalid groups SIDs"
+        }
 
         # In some cases, like when we are checking ourselves, we do not
         # want to verify all fields since they rapidly change
@@ -1190,16 +1194,17 @@ namespace eval ::twapi::process::test {
     } -result {-privileges -enabledprivileges -disabledprivileges 1 1 0 1 1}
 
     test get_process_info-11.0 {
-        Verify get_process_info -groups and -groupattrs for another process
+        Verify get_process_info -groupsids and -groupattrs for another process
     } -setup {
         set np_pid [notepad_exec]
     } -body {
-        set grps [twapi::get_process_info $np_pid -groups]
+        set grps [twapi::get_process_info $np_pid -groupsids]
         set grpattrs [twapi::get_process_info $np_pid -groupattrs]
         set grps2 {}
         set bad_attrs {}
+
         foreach {sid attrs} [lindex $grpattrs 1] {
-            lappend grps2 [twapi::map_account_to_name $sid]
+            lappend grps2 $sid
             foreach attr $attrs {
                 if {$attr ni {}} {
                     lappend bad_attrs $attr
@@ -1209,7 +1214,7 @@ namespace eval ::twapi::process::test {
         list [lindex $grps 0] [lindex $grpattrs 0] [equal_sets [lindex $grps 1] $grps2]
     } -cleanup {
         twapi::end_process $np_pid -wait 500
-    } -result {-groups -groupattrs 1}
+    } -result {-groupsids -groupattrs 1}
 
     test get_process_info-12.0 {
         Verify get_process_info -restrictedgroups and -restrictedgroupattrs for another process
@@ -1234,7 +1239,27 @@ namespace eval ::twapi::process::test {
         twapi::end_process $np_pid -wait 500
     } -result {-restrictedgroups -restrictedgroupattrs 1}
 
-    set testnum 12
+    test get_process_info-13.0 {
+        Verify get_process_info -groups
+    } -setup {
+        set np_pid [notepad_exec]
+    } -body {
+        lassign [twapi::get_process_info $np_pid -groups] opt grps
+        set ninvalid 0
+        foreach grp $grps {
+            if {[catch {twapi::map_account_to_sid $grp}] &&
+                ![twapi::is_valid_sid_syntax $grp] &&
+                ![string match -nocase logonsessionid_* $grp]} {
+                puts $grp
+                incr ninvalid
+            }
+        }
+        list $opt [expr {[llength $grps] > 0}] $ninvalid
+    } -cleanup {
+        twapi::end_process $np_pid -wait 500
+    } -result {-groups 1 0}
+
+    set testnum 13
 
     ### Option tests - path type fields
     foreach field {-name -path} {

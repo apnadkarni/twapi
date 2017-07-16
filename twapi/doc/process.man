@@ -526,9 +526,12 @@ SIDs and attributes in
 the process security token. See
 [uri security.html#get_token_info [cmd get_token_info]] for a description
 of the return value.
-[opt_def [cmd -groups]] Returns the list of groups that the process belongs to.
-For domain accounts, an error is raised if the
-domain is unreachable. Use [cmd -groupattrs] to avoid this.
+[opt_def [cmd -groups]] Returns the list of the names of
+groups that the process belongs to.
+An error will be raised if any group SID's cannot be mapped to a name.
+Use [cmd -groupsids] to avoid this.
+[opt_def [cmd -groupsids]] Returns the list of SIDs of
+groups that the process belongs to.
 [opt_def [cmd -handlecount]]
 Returns the number of handles that the process currently has open.
 [opt_def [cmd -integrity]] Returns the numeric integrity level of the process
