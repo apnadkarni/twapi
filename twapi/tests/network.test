@@ -1107,7 +1107,8 @@ namespace eval twapi::network::test {
     test terminate_tcp_connections-3.0 {
         Terminate TCP connections for a remote address (-matchremoteaddress)
     } -setup {
-        foreach {addrA addrB} [twapi::get_system_ipaddrs] break
+        set addrA 127.0.0.1
+        set addrB [our_ipaddr]
         set nconns [twapi::recordarray size [twapi::get_tcp_connections -pid]]
         set server_socket [socket -server [list lappend ::connection_establised 1] -myaddr $addrA 9341]
         set server_socket2 [socket -server [list lappend ::connection_establised 1] -myaddr $addrB 9342]
@@ -1134,7 +1135,8 @@ namespace eval twapi::network::test {
     test terminate_tcp_connections-4.0 {
         Terminate TCP connections for a local address (-matchlocaladdress)
     } -setup {
-        foreach {addrA addrB} [twapi::get_system_ipaddrs] break
+        set addrA 127.0.0.1
+        set addrB [our_ipaddr]
         set nconns [twapi::recordarray size [twapi::get_tcp_connections -pid]]
         set server_socket [socket -server [list lappend ::connection_establised 1] -myaddr $addrA 9341]
         set server_socket2 [socket -server [list lappend ::connection_establised 1] -myaddr $addrB 9342]
