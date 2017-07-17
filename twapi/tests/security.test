@@ -1513,7 +1513,7 @@ namespace eval twapi::security::test {
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        set opts {-enabledprivileges -disabledprivileges -usersid -groups -restrictedgroups -groupattrs -restrictedgroupattrs -primarygroup -primarygroupsid -logonsession -logonsessionsid -tssession}
+        set opts {-enabledprivileges -disabledprivileges -usersid -groupsids -restrictedgroups -groupattrs -restrictedgroupattrs -primarygroup -primarygroupsid -logonsession -logonsessionsid -tssession}
         equal_sets $opts [dict keys [twapi::get_token_info $tok {*}$opts]]
     } -cleanup {
         twapi::close_token $tok
