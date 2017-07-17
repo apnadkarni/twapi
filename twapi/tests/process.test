@@ -2608,15 +2608,17 @@ namespace eval ::twapi::process::test {
     } -setup {
         set pid [notepad_exec]
         set tids [lindex [twapi::get_process_info $pid -tids] 1]
-        if {[llength $tids] != 1} {
-            error "Found [llength $tids] threads in notepad. Expected 1"
-        }
     } -body {
-        twapi::suspend_thread [lindex $tids 0]
+        foreach tid $tids {
+            twapi::suspend_thread $tid
+        }
         twapi::end_process $pid -wait 100
         twapi::process_exists $pid;    # SHould still exist (since suspended, cannot process WM_CLOSE)
     } -cleanup {
-        twapi::resume_thread [lindex $tids 0]
+        foreach tid $tids {
+            twapi::resume_thread $tid
+        }
+        after 100
         catch { twapi::end_process $pid -force }
     } -result 1
 
@@ -2627,16 +2629,17 @@ namespace eval ::twapi::process::test {
     } -setup {
         set pid [notepad_exec]
         set tids [lindex [twapi::get_process_info $pid -tids] 1]
-        if {[llength $tids] != 1} {
-            error "Found [llength $tids] threads in notepad. Expected 1"
-        }
     } -body {
-        twapi::suspend_thread [lindex $tids 0]
+        foreach tid $tids {
+            twapi::suspend_thread $tid
+        }
         if {[twapi::end_process $pid -wait 100]} {
             error "Could not suspend notepad."
         }
         # Now resume. It should exit since WM_QUIT will be picked up
-        twapi::resume_thread [lindex $tids 0]
+        foreach tid $tids {
+            twapi::resume_thread $tid
+        }
         after 50
         twapi::process_exists $pid
     } -result 0
