@@ -2329,7 +2329,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR_address(SOCKADDR *saP)
 TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP)
 {
     short save_port;
-    Tcl_Obj *objv[2];
+    Tcl_Obj *objv[3];
 
     /* Stash port as 0 so does not show in address string */
     if (((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6) {
@@ -2340,11 +2340,12 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP)
         ((SOCKADDR_IN *)saP)->sin_port = 0;
     }
     
-    objv[0] = ObjFromSOCKADDR_address(saP);
-    if (objv[0] == NULL)
+    objv[1] = ObjFromSOCKADDR_address(saP);
+    if (objv[1] == NULL)
         return NULL;
+    objv[0] = ObjFromInt((unsigned) ((SOCKADDR_IN6 *)saP)->sin6_family);
 
-    objv[1] = ObjFromInt((WORD)(ntohs(save_port)));
+    objv[2] = ObjFromInt((WORD)(ntohs(save_port)));
 
     if (((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6) {
         ((SOCKADDR_IN6 *)saP)->sin6_port = save_port;
@@ -2352,7 +2353,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP)
         ((SOCKADDR_IN *)saP)->sin_port = save_port;
     }
 
-    return ObjNewList(2, objv);
+    return ObjNewList(3, objv);
 }
 
 
