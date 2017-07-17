@@ -705,10 +705,18 @@ proc twapi::resolve_hostname {name args} {
         {ipversion.arg 0}
     } -maxleftover 0]
 
+    # NOTE: we do not pass the IP version to getaddrinfo but always
+    # give it 0 and then filter the results based on IP version ourselves
+    # if necessary. This is because of some confusion over behaviour
+    # with various combination of flags.
+    
     set opts(ipversion) [_ipversion_to_af $opts(ipversion)]
     set flags 0
-    if {[min_os_version 6] && $opts(ipversion) == 0} {
-        # IPv6 not returned if AF_UNSPEC specified unless AI_ALL is set
+    if {[min_os_version 6]} {
+        # 0x100 -> AI_ALL. By default, Windows enables the AI_ADDRCONFIG
+        # flat which will hide IPv6 addresses if the local system does
+        # not have an *global* IPv6 addr configured. We don't want that
+        # so set AI_ALL to override it and get back all addresses.
         set flags 0x100;        # AI_ALL
     }
 
@@ -716,16 +724,19 @@ proc twapi::resolve_hostname {name args} {
     # will update the cache and then invoke the caller's script
     if {[info exists opts(async)]} {
         variable _hostname_handler_scripts
-        set id [Twapi_ResolveHostnameAsync $name $opts(ipversion) $flags]
-        set _hostname_handler_scripts($id) [list $name $opts(async)]
+        set id [Twapi_ResolveHostnameAsync $name 0 $flags]
+        set _hostname_handler_scripts($id) [list $opts(ipversion) $name $opts(async)]
         return ""
     }
 
     # Resolve address synchronously
     set addrs [list ]
     trap {
-        foreach endpt [twapi::getaddrinfo $name 0 $opts(ipversion) 0 0 $flags] {
-            lappend addrs [lindex $endpt 0]
+        foreach endpt [twapi::getaddrinfo $name 0 0 0 0 $flags] {
+            # endpt is {family address port}
+            if {$opts(ipversion) == 0 || $opts(ipversion) == [lindex $endpt 0]} {
+                lappend addrs [lindex $endpt 1]
+            }
         }
     } onerror {TWAPI_WIN32 11001} {
         # Ignore - 11001 -> no such host, so just return empty list
@@ -794,7 +805,7 @@ proc twapi::service_to_port {name} {
 
     if {[catch {
         # Return the first port
-        set port [lindex [lindex [twapi::getaddrinfo "" $name $protocol] 0] 1]
+        set port [lindex [lindex [twapi::getaddrinfo "" $name $protocol] 0] 2]
     }]} {
         set port ""
     }
@@ -933,13 +944,16 @@ proc twapi::_hostname_resolve_handler {id status addrandports} {
         after 0 [list error "Error: No entry found for id $id in hostname request table"]
         return
     }
-    lassign  $_hostname_handler_scripts($id)  name script
+    lassign  $_hostname_handler_scripts($id) ipver name script
     unset _hostname_handler_scripts($id)
 
     set addrs {}
     if {$status eq "success"} {
         foreach addr $addrandports {
-            lappend addrs [lindex $addr 0]
+            lassign $addr ver addr
+            if {$ipver == 0 || $ipver == $ver} { 
+                lappend addrs $addr
+            }
         }
     } elseif {$addrandports == 11001 || $addrandports == 11004} {
         # For compatibility with the sync version and address resolution,
