@@ -44,23 +44,23 @@ namespace eval twapi::network::test {
 
     proc resolvable_hostname {} {
         # Has both IPv4 and IPv6
-        return ftp.netbsd.org
+        return www.iana.org
     }
     proc resolvable_address {} {
-        return 209.131.36.158;          # A yahoo address
+        return 192.0.32.8
     }
     proc resolvable_address_domain {} {
-        return yahoo.com
+        return iana.org
     }
     proc resolvable_address6 {} {
-        return 2001:4f8:3:7:14::25
+        return 2620:0:2d0:200::8
     }
     proc resolvable_address6_domain {} {
-        return netbsd.org
+        return iana.org
     }
     proc our_ipaddr {} {
         foreach ipaddr [twapi::get_system_ipaddrs -ipversion 4] {
-            if {$ipaddr ne "127.0.0.1"} {
+            if {[string match 192.168.1.* $ipaddr]} {
                 return $ipaddr
             }
         }
@@ -570,7 +570,7 @@ namespace eval twapi::network::test {
     test resolve_hostname-1.1 {
         Map host name to address (no addresses)
     } -body {
-        llength [twapi::resolve_hostname xadf.xtrt.xsfdg.com]
+        llength [twapi::resolve_hostname xadf.xtrt.xsfdg.comx]
     } -result 0
 
     ###
