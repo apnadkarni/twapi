@@ -295,9 +295,10 @@ the service runs in a system process that must alway be
 running.
 
 [opt_def [const servicetype]] Indicates the type of the service, and
-is one of [const win32_own_process], [const win32_share_process],
+is one of [const win32], [const win32_own_process], [const win32_share_process],
+[const user_own_process], [const user_share_process],
 [const kernel_driver], [const file_system_driver], [const adapter],
-[const recognizer_driver] or an integer denoting the type if not one
+[const recognizer_driver] or [const unknown] if not one
 of the above.
 
 [opt_def [const state]] Contains the latest reported status of the
@@ -321,7 +322,8 @@ type and in a given state.
 One or more from the following service type options may be specified to limit
 the types of services that are included in the returned list:
 [cmd -kernel_driver], [cmd -file_system_driver], [cmd -win32_own_process],
-[cmd -win32_share_process], [cmd -adapter] or [cmd -recognizer_driver]. See
+[cmd -win32_share_process], [cmd -user_own_process],
+[cmd -user_share_process], [cmd -adapter] or [cmd -recognizer_driver]. See
 the description of the
 [cmd -servicetype] option in the
 [uri \#create_service [cmd create_service]] command
@@ -375,9 +377,10 @@ field contains 1066, this field contains a service specific code
 stored by the service.
 
 [opt_def [const servicetype]] Indicates the type of the service, and
-is one of [const win32_own_process], [const win32_share_process],
+is one of [const win32], [const win32_own_process], [const win32_share_process],
+[const user_own_process], [const user_share_process],
 [const kernel_driver], [const file_system_driver], [const adapter],
-[const recognizer_driver] or an integer denoting the type if not one
+[const recognizer_driver] or [const unknown] if not one
 of the above.
 
 [opt_def [const state]] Contains the latest reported status of the
@@ -513,9 +516,10 @@ the service runs in a system process that must alway be
 running.
 
 [opt_def [const servicetype]] Indicates the type of the service, and
-is one of [const win32_own_process], [const win32_share_process],
+is one of [const win32], [const win32_own_process], [const win32_share_process],
+[const user_own_process], [const user_share_process],
 [const kernel_driver], [const file_system_driver], [const adapter],
-[const recognizer_driver] or an integer denoting the type if not one
+[const recognizer_driver] or [const unknown] if not one
 of the above.
 
 [opt_def [const state]] Contains the latest reported status of the

@@ -65,6 +65,7 @@ namespace eval twapi::services::test {
                 switch -exact -- $service(ServiceType) {
                     "Share Process" { set service(ServiceType) win32_share_process }
                     "Own Process" { set service(ServiceType) win32_own_process }
+                    default { set service(ServiceType) [string tolower $service(ServiceType)] }
                 }
                 # Set the fields. Note that for some fields we set
                 # with and without the preceding "-" as some commands
@@ -115,13 +116,20 @@ namespace eval twapi::services::test {
         fill_services $refresh
 
         set mismatches [list ]
-        foreach field {-errorcontrol -servicetype -interactive -starttype -account state} {
+        foreach field {-errorcontrol -interactive -starttype -account state} {
             if {[info exists svcinfo($field)]} {
                 if {[string compare -nocase [get_service_field $svcname $field] $svcinfo($field)]} {
                     lappend mismatches "Mismatch in field $field (was '[get_service_field $svcname $field]', expected '$svcinfo($field)')"
                 }
             }
         }
+        set svctype [get_service_field $svcname -servicetype]
+        if {$svcinfo(-servicetype) ne $svctype &&
+            ($svcinfo(-servicetype) ne "win32" ||
+             $svctype ni {win32_own_process win32_share_process})} {
+            lappend mismatches "Mismatch in field -servicetype (was '$svctype', expected '$svcinfo($field)')"
+        }
+        
         foreach field {-svcname -displayname -command} {
             if {[info exists svcinfo($field)]} {
                 if {[string compare -nocase [get_service_field $svcname $field] $svcinfo($field)]} {
@@ -281,8 +289,7 @@ namespace eval twapi::services::test {
     
     proc verify_service_status {svcname v_svcinfo {missing {}} {refresh 0}} {
         upvar $v_svcinfo svcinfo
-
-        if {$svcinfo(servicetype) eq "kernel_driver"} {
+        if {$svcinfo(servicetype) in {user_share_process user_own_process kernel_driver}} {
             # No way to verify via wmic
             return
         }
@@ -316,8 +323,11 @@ namespace eval twapi::services::test {
             }
         }
 
-        if {[string compare $svcinfo(servicetype) [get_service_field $svcname servicetype]]} {
-            lappend mismatches "Service type $svcinfo(servicetype) for $svcname does not match [get_service_field $svcname servicetype]"
+        set svctype [get_service_field $svcname -servicetype]
+        if {$svcinfo(servicetype) ne $svctype &&
+            ($svcinfo(servicetype) ne "win32" ||
+             $svctype ni {win32_own_process win32_share_process})} {
+            lappend mismatches "Service type $svcinfo(servicetype) for $svcname does not match $svctype"
         }
         
         if {[string compare $svcinfo(state) [get_service_field $svcname state]]} {
@@ -730,7 +740,7 @@ namespace eval twapi::services::test {
             array set svcinfo $svc
             set name [string tolower $svcinfo(name)]
             # Verify that the service is running
-            if {$svcinfo(servicetype) != "win32_own_process"} {
+            if {$svcinfo(servicetype) ni {unknown win32 win32_own_process}} {
                 lappend result "$svcinfo(name) is not a win32_own_process"
             }
         }
@@ -748,7 +758,7 @@ namespace eval twapi::services::test {
             array set svcinfo $svc
             set name [string tolower $svcinfo(name)]
             # Verify that the service is running
-            if {$svcinfo(servicetype) != "win32_share_process"} {
+            if {$svcinfo(servicetype) ni {unknown win32 win32_share_process}} {
                 lappend result "$svcinfo(name) is not a win32_share_process"
             }
         }
