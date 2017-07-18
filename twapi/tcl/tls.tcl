@@ -47,37 +47,43 @@ proc twapi::tls::_socket {args} {
     } -setvars
 
     set chan [chan create {read write} [list [namespace current]]]
-
-    set socket_args {}
-    foreach opt {myaddr myport} {
-        if {[info exists $opt]} {
-            lappend socket_args -$opt [set $opt]
+    # NOTE: We were originally using badargs! instead of error to raise
+    # exceptions. However that lands up bypassing the trap because of
+    # the way badargs! is implemented. So stick to error.
+    trap {
+        set socket_args {}
+        foreach opt {myaddr myport} {
+            if {[info exists $opt]} {
+                lappend socket_args -$opt [set $opt]
+            }
         }
+
+        if {[info exists server]} {
+            if {$server eq ""} {
+                error "Cannot specify an empty value for -server."
+            }
+            
+            if {[info exists peersubject]} {
+                error "Option -peersubject cannot be specified for with -server"
+            }
+            set peersubject ""
+            set type LISTENER
+            lappend socket_args -server [list [namespace current]::_accept $chan]
+            if {[llength $credentials] == 0} {
+                error "Option -credentials must be specified for server sockets"
+            }
+        } else {
+            if {![info exists peersubject]} {
+                set peersubject [lindex $args 0]
+            }
+            set requestclientcert 0; #  Not valid for client side
+            set server ""
+            set type CLIENT
+        }
+    } onerror {} {
+        catch {chan close $chan}
+        rethrow
     }
-
-    if {[info exists server]} {
-        if {$server eq ""} {
-            badargs! "Cannot specify an empty value for -server."
-        }
-
-        if {[info exists peersubject]} {
-            badargs! "Option -peersubject cannot be specified for with -server"
-        }
-        set peersubject ""
-        set type LISTENER
-        lappend socket_args -server [list [namespace current]::_accept $chan]
-        if {[llength $credentials] == 0} {
-            badargs! "Option -credentials must be specified for server sockets"
-        }
-    } else {
-        if {![info exists peersubject]} {
-            set peersubject [lindex $args 0]
-        }
-        set requestclientcert 0; #  Not valid for client side
-        set server ""
-        set type CLIENT
-    }
-
     trap {
         set so [socket {*}$socket_args {*}$args]
         _init $chan $type $so $credentials $peersubject $requestclientcert [lrange $verifier 0 end] $server
@@ -121,34 +127,37 @@ proc twapi::tls::_starttls {so args} {
 
     debuglog [info level 0]
 
-    parseargs args {
-        server
-        requestclientcert
-        peersubject.arg
-        {credentials.arg {}}
-        {verifier.arg {}}
-    } -setvars -maxleftover 0
+    trap {
+        parseargs args {
+            server
+            requestclientcert
+            peersubject.arg
+            {credentials.arg {}}
+            {verifier.arg {}}
+        } -setvars -maxleftover 0
 
-    set chan [chan create {read write} [list [namespace current]]]
-
-    if {$server} {
-        if {[info exists peersubject]} {
-            badargs! "Option -peersubject cannot be specified for with -server"
+        if {$server} {
+            if {[info exists peersubject]} {
+                badargs! "Option -peersubject cannot be specified for with -server"
+            }
+            if {[llength $credentials] == 0} {
+                error "Option -credentials must be specified for server sockets"
+            }
+            set peersubject ""
+            set type SERVER
+        } else {
+            set requestclientcert 0; # Ignored for client side
+            if {![info exists peersubject]} {
+                # TBD - even if verifier is specified ?
+                badargs! "Option -peersubject must be specified for client connections."
+            }
+            set type CLIENT
         }
-        if {[llength $credentials] == 0} {
-            error "Option -credentials must be specified for server sockets"
-        }
-        set peersubject ""
-        set type SERVER
-    } else {
-        set requestclientcert 0; # Ignored for client side
-        if {![info exists peersubject]} {
-            # TBD - even if verifier is specified ?
-            badargs! "Option -peersubject must be specified for client connections."
-        }
-        set type CLIENT
+        set chan [chan create {read write} [list [namespace current]]]
+    } onerror {} {
+        chan close $so
+        rethrow
     }
-
     trap {
         # Get config from the wrapped socket and reset its handlers
         # Do not get all options because that results in reverse name
