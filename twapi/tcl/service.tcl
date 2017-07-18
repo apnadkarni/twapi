@@ -616,6 +616,8 @@ proc twapi::get_multiple_service_status {args} {
                            file_system_driver \
                            adapter \
                            recognizer_driver \
+                           user_own_process \
+                           user_share_process \
                            win32_own_process \
                            win32_share_process]
     set switches [concat $service_types \
@@ -1045,15 +1047,21 @@ proc twapi::_map_servicetype_code {servicetype} {
     set interactive [expr {($servicetype & 0x100) != 0}]
     set servicetype [expr {$servicetype & (~ 0x100)}]
     set servicetype [kl_get [list \
-                                 16 win32_own_process 32 win32_share_process 1 kernel_driver \
-                                 2 file_system_driver 4 adapter 8 recognizer_driver \
+                                 16 win32_own_process \
+                                 32 win32_share_process \
+                                 80 user_own_process \
+                                 96 user_share_process \
+                                 1 kernel_driver \
+                                 2 file_system_driver \
+                                 4 adapter \
+                                 8 recognizer_driver \
                                  ] $servicetype $servicetype]
     return [list $servicetype $interactive]
 }
 
 # Map service type sym to int code
 proc twapi::_map_servicetype_sym {sym} {
-    return [dict get {kernel_driver 1 file_system_driver 2 adapter 4 recognizer_driver 8 win32_own_process 16 win32_share_process 32} $sym]
+    return [dict get {kernel_driver 1 file_system_driver 2 adapter 4 recognizer_driver 8 win32_own_process 16 win32_share_process 32 user_own_process 80 user_share_process 96} $sym]
 }
 
 # Map a start type code into a symbol. Returns the integer code if
