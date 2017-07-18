@@ -34,7 +34,8 @@ while the [cmd starttls] command wraps an existing plaintext channel.
 Returns a new TLS channel that wraps an existing channel [arg CHAN].
 [arg CHAN] must be in an open state.
 Caller should use the returned channel and must not access [arg CHAN] 
-directly after the command returns. By default, the returned
+directly after the command returns, [emph "even on errors"].
+By default, the returned
 channel is for the client end of the connection. 
 If the option [cmd -server] is specified the channel corresponds
 to the server end. This impacts how authentication and certificate
