@@ -456,100 +456,68 @@ namespace eval twapi::services::test {
 
     test get_service_configuration-3.0 {
         Verify -displayname option
-    } -constraints {
-        nt
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration rpcss -displayname]
-        list -displayname $svcinfo(-displayname)
+        twapi::get_service_configuration rpcss -displayname
     } -result {-displayname {Remote Procedure Call (RPC)}}
 
     ###
 
     test get_service_configuration-4.0 {
         Verify -errorcontrol option for normal error control
-    } -constraints {
-        nt
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration rpcss -errorcontrol]
-        list -errorcontrol $svcinfo(-errorcontrol)
+        twapi::get_service_configuration rpcss -errorcontrol
     } -result {-errorcontrol normal}
 
     ###
 
     test get_service_configuration-4.1 {
         Verify -errorcontrol option for ignore error control
-    } -constraints {
-        nt
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration winmgmt -errorcontrol]
-        list -errorcontrol $svcinfo(-errorcontrol)
+        twapi::get_service_configuration winmgmt -errorcontrol
     } -result {-errorcontrol ignore}
 
     ###
 
     test get_service_configuration-5.0 {
         Verify -servicetype option for win32 share process
-    } -constraints {
-        nt
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration eventlog -servicetype]
-        list -servicetype $svcinfo(-servicetype)
+        twapi::get_service_configuration eventlog -servicetype
     } -result {-servicetype win32_share_process}
 
     ###
 
     test get_service_configuration-5.1 {
         Verify -servicetype option for win32 own process
-    } -constraints {
-        nt
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration rpclocator -servicetype]
-        list -servicetype $svcinfo(-servicetype)
+        twapi::get_service_configuration rpclocator -servicetype
     } -result {-servicetype win32_own_process}
 
     ###
 
     test get_service_configuration-6.0 {
         Verify -interactive option for non-interactive services
-    } -constraints {
-        nt
     } -setup {
         fill_services
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration $::twapi::services::test::noninteractive_service -interactive]
-        list -interactive $svcinfo(-interactive)
+        twapi::get_service_configuration $::twapi::services::test::noninteractive_service -interactive
     } -result {-interactive 0}
 
     ###
 
     test get_service_configuration-6.1 {
         Verify -interactive option for interactive services
-    } -constraints {
-        nt
     } -setup {
         fill_services
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration $::twapi::services::test::interactive_service -interactive]
-        list -interactive $svcinfo(-interactive)
+        twapi::get_service_configuration $::twapi::services::test::interactive_service -interactive
     } -result {-interactive 1}
 
     ###
 
     test get_service_configuration-7.0 {
         Verify -loadordergroup option for service not in a load order group
-    } -constraints {
-        nt
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration winmgmt -loadordergroup]
-        list -loadordergroup $svcinfo(-loadordergroup)
+        twapi::get_service_configuration winmgmt -loadordergroup
     } -result {-loadordergroup {}}
 
     
@@ -557,24 +525,16 @@ namespace eval twapi::services::test {
 
     test get_service_configuration-7.1 {
         Verify -loadordergroup option for service in a load order group
-    } -constraints {
-        nt
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration LmHosts -loadordergroup]
-        list -loadordergroup $svcinfo(-loadordergroup)
+        twapi::get_service_configuration LmHosts -loadordergroup
     } -result {-loadordergroup TDI}
 
     ###
 
     test get_service_configuration-8.0 {
         Verify -dependencies option for service without dependencies
-    } -constraints {
-        nt
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration seclogon -dependencies]
-        list -dependencies $svcinfo(-dependencies)
+        twapi::get_service_configuration seclogon -dependencies
     } -result {-dependencies {}}
 
     
@@ -582,22 +542,18 @@ namespace eval twapi::services::test {
 
     test get_service_configuration-8.1 {
         Verify -dependencies option for service with dependencies
-    } -constraints {
-        nt
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration LmHosts -dependencies]
-        list -dependencies [setops::symdiff $svcinfo(-dependencies) [list "NetBT" "Afd"]]
-    } -result {-dependencies {}}
+        setops::symdiff $svcinfo(-dependencies) [list "NetBT" "Afd"]
+    } -result {}
 
     ###
 
     test get_service_configuration-9.0 {
         Verify -account option for service
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration seclogon -account]
-        list -account $svcinfo(-account)
+        twapi::get_service_configuration seclogon -account
     } -result {-account LocalSystem}
 
     
@@ -606,9 +562,7 @@ namespace eval twapi::services::test {
     test get_service_configuration-10.0 {
         Verify -starttype option for auto start services
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration lanmanworkstation -starttype]
-        list -starttype $svcinfo(-starttype)
+        twapi::get_service_configuration lanmanworkstation -starttype
     } -result {-starttype auto_start}
 
     ###
@@ -616,9 +570,7 @@ namespace eval twapi::services::test {
     test get_service_configuration-10.1 {
         Verify -starttype option for demand start services
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration MSIserver -starttype]
-        list -starttype $svcinfo(-starttype)
+        twapi::get_service_configuration MSIserver -starttype
     } -result {-starttype demand_start}
 
     ###
@@ -626,9 +578,7 @@ namespace eval twapi::services::test {
     test get_service_configuration-10.2 {
         Verify -starttype option for disabled services
     } -body {
-        catch {unset svcinfo}
-        array set svcinfo [twapi::get_service_configuration RemoteAccess -starttype]
-        list -starttype $svcinfo(-starttype)
+        twapi::get_service_configuration RemoteAccess -starttype
     } -result {-starttype disabled}
 
     ###
