@@ -43,6 +43,11 @@ static char *ServiceStateString(DWORD state)
     }
 }
 
+static Tcl_Obj *ServiceStateAtom(TwapiInterpContext *ticP, DWORD state)
+{
+    return TwapiGetAtom(ticP, ServiceStateString(state));
+}
+
 static char *ServiceTypeString(DWORD service_type)
 {
     service_type &=  ~SERVICE_INTERACTIVE_PROCESS;
@@ -53,8 +58,16 @@ static char *ServiceTypeString(DWORD service_type)
     case 0x8: return "recognizer_driver";
     case 0x10: return "win32_own_process";
     case 0x20: return "win32_share_process";
+    case 0x30: return "win32";
+    case 0x50: return "user_own_process";
+    case 0x60: return "user_share_process";
     default: return "unknown";
     }
+}
+
+static Tcl_Obj *ServiceTypeAtom(TwapiInterpContext *ticP, DWORD service_type)
+{
+    return TwapiGetAtom(ticP, ServiceTypeString(service_type));
 }
 
 static int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
@@ -80,8 +93,7 @@ static int Twapi_QueryServiceStatusEx(Tcl_Interp *interp, SC_HANDLE h,
        clutter the atom table
     */
     rec[0] = STRING_LITERAL_OBJ("servicetype");
-    cP = ServiceTypeString(ssp.dwServiceType);
-    rec[1] = cP ? ObjFromString(cP) : ObjFromDWORD(ssp.dwServiceType);
+    rec[1] = ObjFromString(ServiceTypeString(ssp.dwServiceType));
     rec[2] = STRING_LITERAL_OBJ("state");
     cP = ServiceStateString(ssp.dwCurrentState);
     rec[3] = cP ? ObjFromString(cP) : ObjFromDWORD(ssp.dwCurrentState);
@@ -114,7 +126,6 @@ int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
     Tcl_Obj *objv[20];
     DWORD winerr;
     int   tcl_result = TCL_ERROR;
-    const char *cP;
 
     /* Ask for 1000 bytes alloc, will get more if available */
     qbuf = (QUERY_SERVICE_CONFIGW *) MemLifoPushFrame(ticP->memlifoP,
@@ -144,8 +155,7 @@ int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
     objv[0] = STRING_LITERAL_OBJ("-dependencies");
     objv[1] = ObjFromMultiSz_MAX(qbuf->lpDependencies);
     objv[2] = STRING_LITERAL_OBJ("-servicetype");
-    cP = ServiceTypeString(qbuf->dwServiceType);
-    objv[3] = cP ? Tcl_NewStringObj(cP, -1) : ObjFromDWORD(qbuf->dwServiceType);
+    objv[3] = ServiceTypeAtom(ticP, qbuf->dwServiceType);
     objv[4] = STRING_LITERAL_OBJ("-starttype");
     objv[5] = ObjFromDWORD(qbuf->dwStartType);
     objv[6] = STRING_LITERAL_OBJ("-errorcontrol");
@@ -297,11 +307,9 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     BOOL  success;
     Tcl_Obj *resultObj, *groupnameObj;
     Tcl_Obj *rec[12];    /* Holds values for each status record */
-    Tcl_Obj *states[8]; /* Holds shared objects for states 1-7, 0 unused */
     DWORD winerr;
     DWORD i;
     TCL_RESULT status = TCL_ERROR;
-    Tcl_Obj *service_types[6];
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETPTR(hService, SC_HANDLE), GETINT(infolevel),
@@ -317,21 +325,6 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
 
     /* 32000 - Initial estimate based on my system - TBD */
     sbuf = MemLifoPushFrame(ticP->memlifoP, 32000, &buf_sz);
-
-    /* NOTE - the returned Tcl_Obj from TwapiGetAtom must not be freed */
-
-    /* Create the map of service types codes to strings */
-    service_types[0] = TwapiGetAtom(ticP, ServiceTypeString(0x1));
-    service_types[1] = TwapiGetAtom(ticP, ServiceTypeString(0x2));
-    service_types[2] = TwapiGetAtom(ticP, ServiceTypeString(0x4));
-    service_types[3] = TwapiGetAtom(ticP, ServiceTypeString(0x8));
-    service_types[4] = TwapiGetAtom(ticP, ServiceTypeString(0x10));
-    service_types[5] = TwapiGetAtom(ticP, ServiceTypeString(0x20));
-
-    /* And the state symbols ... */
-    for (i=0; i < ARRAYSIZE(states); ++i) {
-        states[i] = TwapiGetAtom(ticP, ServiceStateString(i));
-    }
 
     resultObj = ObjNewList(200, NULL);
     resume_handle = 0;
@@ -363,22 +356,9 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
 
             /* Note order should be same as order of field names above */
 
-            dw = sbuf[i].ServiceStatusProcess.dwServiceType  &  ~SERVICE_INTERACTIVE_PROCESS;
-            switch (dw) {
-            case 0x1:  rec[0] = service_types[0]; break;
-            case 0x2:  rec[0] = service_types[1]; break;
-            case 0x4:  rec[0] = service_types[2]; break;
-            case 0x8:  rec[0] = service_types[3]; break;
-            case 0x10:  rec[0] = service_types[4]; break;
-            case 0x20:  rec[0] = service_types[5]; break;
-            default: rec[0] = ObjFromDWORD(dw); break;
-            }
+            rec[0] = ServiceTypeAtom(ticP, sbuf[i].ServiceStatusProcess.dwServiceType);
 
-            dw = sbuf[i].ServiceStatusProcess.dwCurrentState;
-            if (dw < ARRAYSIZE(states))
-                rec[1] = states[dw];
-            else
-                rec[1] = ObjFromDWORD(dw);
+            rec[1] = ServiceStateAtom(ticP, sbuf[i].ServiceStatusProcess.dwCurrentState);
             rec[2] = ObjFromDWORD(sbuf[i].ServiceStatusProcess.dwControlsAccepted);
             rec[3] = ObjFromDWORD(sbuf[i].ServiceStatusProcess.dwWin32ExitCode);
             rec[4] = ObjFromDWORD(sbuf[i].ServiceStatusProcess.dwServiceSpecificExitCode);
@@ -416,30 +396,13 @@ int Twapi_EnumDependentServices(
     DWORD services_returned;
     BOOL  success;
     Tcl_Obj *rec[10];    /* Holds values for each status record */
-    Tcl_Obj *states[8];
     DWORD winerr;
     DWORD i;
     TCL_RESULT status = TCL_ERROR;
-    Tcl_Obj *service_types[6];
     Tcl_Obj *resultObj;
 
 
     sbuf = MemLifoPushFrame(ticP->memlifoP, 4000, &buf_sz);
-
-    /* NOTE - the returned Tcl_Obj from TwapiGetAtom must not be freed */
-
-    /* Create the map of service types codes to strings */
-    service_types[0] = TwapiGetAtom(ticP, ServiceTypeString(0x1));
-    service_types[1] = TwapiGetAtom(ticP, ServiceTypeString(0x2));
-    service_types[2] = TwapiGetAtom(ticP, ServiceTypeString(0x4));
-    service_types[3] = TwapiGetAtom(ticP, ServiceTypeString(0x8));
-    service_types[4] = TwapiGetAtom(ticP, ServiceTypeString(0x10));
-    service_types[5] = TwapiGetAtom(ticP, ServiceTypeString(0x20));
-
-    /* And the state symbols ... */
-    for (i=0; i < ARRAYSIZE(states); ++i) {
-        states[i] = TwapiGetAtom(ticP, ServiceStateString(i));
-    }
 
     do {
         success = EnumDependentServicesW(hService,
@@ -466,22 +429,9 @@ int Twapi_EnumDependentServices(
         DWORD dw;
 
         /* Note order should be same as order of field names below */
-        dw = sbuf[i].ServiceStatus.dwServiceType  &  ~SERVICE_INTERACTIVE_PROCESS;
-        switch (dw) {
-        case 0x1:  rec[0] = service_types[0]; break;
-        case 0x2:  rec[0] = service_types[1]; break;
-        case 0x4:  rec[0] = service_types[2]; break;
-        case 0x8:  rec[0] = service_types[3]; break;
-        case 0x10:  rec[0] = service_types[4]; break;
-        case 0x20:  rec[0] = service_types[5]; break;
-        default: rec[0] = ObjFromDWORD(dw); break;
-        }
 
-        dw = sbuf[i].ServiceStatus.dwCurrentState;
-        if (dw < ARRAYSIZE(states))
-            rec[1] = states[dw];
-        else
-            rec[1] = ObjFromDWORD(dw);
+        rec[0] = ServiceTypeAtom(ticP, sbuf[i].ServiceStatus.dwServiceType);
+        rec[1] = ServiceStateAtom(ticP, sbuf[i].ServiceStatus.dwCurrentState);
         rec[2] = ObjFromDWORD(sbuf[i].ServiceStatus.dwControlsAccepted);
         rec[3] = ObjFromDWORD(sbuf[i].ServiceStatus.dwWin32ExitCode);
         rec[4] = ObjFromDWORD(sbuf[i].ServiceStatus.dwServiceSpecificExitCode);
