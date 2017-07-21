@@ -180,12 +180,14 @@ twapi::proc* twapi::drive_ready {drive} {
 
         # We will first try using IOCTL_STORAGE_CHECK_VERIFY2 as that is
         # much faster and only needs FILE_READ_ATTRIBUTES access.
-        set h [create_file $drive -access file_read_attributes \
-                   -createdisposition open_existing -share {read write}]
         set error [catch {
+            set h [create_file $drive -access file_read_attributes \
+                   -createdisposition open_existing -share {read write}]
             device_ioctl $h 0x2d0800; # IOCTL_STORAGE_CHECK_VERIFY2
-        } msg]
-        close_handle $h
+        }]
+        if {[info exists h]} {
+            close_handle $h
+        }
         if {! $error} {
             return 1;               # Device is ready
         }
@@ -193,13 +195,15 @@ twapi::proc* twapi::drive_ready {drive} {
         # On error, try the older slower method. Note we now need
         # GENERIC_READ access. (NOTE: FILE_READ_DATA will not work with some
         # volume types)
-        set h [create_file $drive -access generic_read \
-                   -createdisposition open_existing -share {read write}]
+        unset -nocomplain h
         set error [catch {
+            set h [create_file $drive -access generic_read \
+                       -createdisposition open_existing -share {read write}]
             device_ioctl $h 0x2d4800; # IOCTL_STORAGE_CHECK_VERIFY
         }]
-        close_handle $h
-
+        if {[info exists h]} {
+            close_handle $h
+        }
         if {! $error} {
             return 1;           # Device is ready
         }
