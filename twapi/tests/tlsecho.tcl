@@ -71,9 +71,9 @@ proc tls_echo_syncserver_accept {echo_fd clientaddr clientport} {
 
 proc tls_echo_server {type {port 4433} {timeout 20000}} {
     set ::timer [after $timeout "set ::tls_echo_server_status timeout"]
-    set listen_fd [::twapi::tls_socket -credentials $::tls_server_creds -server tls_echo_${type}_accept 4433]
+    set listen_fd [::twapi::tls_socket -credentials $::tls_server_creds -server tls_echo_${type}_accept $port]
     # Following line is important as it is used by automated test scripts
-    puts "READY"
+    puts "READY"; flush stdout
     vwait ::tls_echo_server_status
     return $::tls_echo_server_status
 }
@@ -111,6 +111,7 @@ proc tls_echo_asyncserver_accept {echo_fd clientaddr clientport} {
     fconfigure $echo_fd -buffering line -translation crlf -eofchar {} -encoding utf-8 -blocking 0
     fileevent $echo_fd readable [list ::tls_echo_server_async_echoline $echo_fd]
     vwait ::tls_echo_server_status
+    fconfigure $echo_fd -blocking 1
     return $::tls_echo_server_status
 }
 
