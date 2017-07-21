@@ -173,29 +173,44 @@ twapi::proc* twapi::drive_ready {drive} {
     }
     set drive "\\\\.\\$drive"
 
-    # We will first try using IOCTL_STORAGE_CHECK_VERIFY2 as that is
-    # much faster and only needs FILE_READ_ATTRIBUTES access.
-    set h [create_file $drive -access file_read_attributes \
-               -createdisposition open_existing -share {read write}]
-    set error [catch {
-        device_ioctl $h 0x2d0800; # IOCTL_STORAGE_CHECK_VERIFY2
-    } msg]
-    close_handle $h
-    if {! $error} {
-        return 1;               # Device is ready
+    # Do our best to avoid the Windows "Drive not ready" dialog
+    # 1 -> SEM_FAILCRITICALERRORS
+    set old_mode [SetErrorMode 1]
+    trap {
+
+        # We will first try using IOCTL_STORAGE_CHECK_VERIFY2 as that is
+        # much faster and only needs FILE_READ_ATTRIBUTES access.
+        set h [create_file $drive -access file_read_attributes \
+                   -createdisposition open_existing -share {read write}]
+        set error [catch {
+            device_ioctl $h 0x2d0800; # IOCTL_STORAGE_CHECK_VERIFY2
+        } msg]
+        close_handle $h
+        if {! $error} {
+            return 1;               # Device is ready
+        }
+
+        # On error, try the older slower method. Note we now need
+        # GENERIC_READ access. (NOTE: FILE_READ_DATA will not work with some
+        # volume types)
+        set h [create_file $drive -access generic_read \
+                   -createdisposition open_existing -share {read write}]
+        set error [catch {
+            device_ioctl $h 0x2d4800; # IOCTL_STORAGE_CHECK_VERIFY
+        }]
+        close_handle $h
+
+        if {! $error} {
+            return 1;           # Device is ready
+        }
+
+        # Remote shares sometimes return access denied with the above
+        # even when actually available. Try with good old file exists
+        # on root directory
+        return [file exists "[string range $drive end-1 end]\\"]
+    } finally {
+        SetErrorMode $old_mode
     }
-
-    # On error, try the older slower method. Note we now need
-    # GENERIC_READ access. (NOTE: FILE_READ_DATA will not work with some
-    # volume types)
-    set h [create_file $drive -access generic_read \
-               -createdisposition open_existing -share {read write}]
-    set error [catch {
-        device_ioctl $h 0x2d4800; # IOCTL_STORAGE_CHECK_VERIFY
-    }]
-    close_handle $h
-
-    return [expr {! $error}]
 }
 
 

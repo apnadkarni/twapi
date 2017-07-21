@@ -1733,9 +1733,3 @@ twapi::ffi_cfuncs [twapi::ffi_load kernel32.dll] {
     UINT SetErrorMode(UINT mode);
 } ::twapi
 
-if {[twapi::min_os_version 7]} {
-    twapi::ffi_cfuncs [twapi::ffi_load kernel32.dll] {
-        UINT GetThreadErrorMode();
-        UINT SetThreadErrorMode(UINT mode);
-    } ::twapi
-}
