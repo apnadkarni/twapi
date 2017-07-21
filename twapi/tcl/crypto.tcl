@@ -32,6 +32,8 @@ proc twapi::capi_hash_value {hhash} {
 }
 
 proc twapi::capi_hash_sign {hhash keyspec args} {
+    # -pad not documented because new Windows version do not support X.931
+    # and there are some openssl incompatibilities I cannot figure out
     parseargs args {
         {nohashoid.bool 0 1}
         {pad.arg pkcs1 {pkcs1 x931}}
@@ -41,6 +43,8 @@ proc twapi::capi_hash_sign {hhash keyspec args} {
 }
 
 proc twapi::capi_hash_verify {hhash sig hkey args} {
+    # -pad not documented because new Windows version do not support X.931
+    # and there are some openssl incompatibilities I cannot figure out
     parseargs args {
         {nohashoid.bool 0 1}
         {pad.arg pkcs1 {pkcs1 x931}}
