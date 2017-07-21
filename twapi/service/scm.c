@@ -352,7 +352,6 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
 
         /* Tack on the services returned */
         for (i = 0; i < services_returned; ++i) {
-            DWORD dw;
 
             /* Note order should be same as order of field names above */
 
@@ -426,7 +425,6 @@ int Twapi_EnumDependentServices(
 
     resultObj = ObjNewList(10, NULL);
     for (i = 0; i < services_returned; ++i) {
-        DWORD dw;
 
         /* Note order should be same as order of field names below */
 
