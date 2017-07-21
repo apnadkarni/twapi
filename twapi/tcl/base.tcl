@@ -1662,7 +1662,7 @@ proc twapi::ffi_unload {h} {
     return
 }
 
-proc twapi::ffi_cfuncs {dllh cprotos} {
+proc twapi::ffi_cfuncs {dllh cprotos {ns ::}} {
     variable _ffi_handles
 
     if {![dict exists $_ffi_handles $dllh]} {
@@ -1714,7 +1714,7 @@ proc twapi::ffi_cfuncs {dllh cprotos} {
         append defs [string map [list \
                                      %CALL%    $call \
                                      %DLLH%    [list $dllh] \
-                                     %NAME%    $fnname \
+                                     %NAME%    ${ns}::$fnname \
                                      %PARAMNAMES% [join $paramnames { }] \
                                      %PARAMREFS% [join $paramrefs { }] \
                                      %TWAPINS% [namespace current] \
@@ -1725,4 +1725,17 @@ proc twapi::ffi_cfuncs {dllh cprotos} {
     }
     
     uplevel 1 $defs 
+}
+
+
+twapi::ffi_cfuncs [twapi::ffi_load kernel32.dll] {
+    UINT GetErrorMode();
+    UINT SetErrorMode(UINT mode);
+} ::twapi
+
+if {[twapi::min_os_version 7]} {
+    twapi::ffi_cfuncs [twapi::ffi_load kernel32.dll] {
+        UINT GetThreadErrorMode();
+        UINT SetThreadErrorMode(UINT mode);
+    } ::twapi
 }
