@@ -291,6 +291,123 @@ if {$doTestsWithRemoteServer == 1} {
     }
 }
 
+# Tests using tlsecho for some stress testing
+# TBD - For some reason, the echo tests fail with server not being able to bind
+# because of address in use errors if the tests are moved lower in the
+# test sequence. So for now place them at top
+proc start_tlsecho_server {name port} {
+    set control_channel [open "| [list [::tcltest::interpreter] tlsecho.tcl $name $port]" r+]
+    fconfigure $control_channel -blocking 0
+    expect $control_channel READY 5000
+    return $control_channel
+}
+
+test tls_echoserver-1.0 {
+    Basic test server using blocking I/O
+} -setup {
+    set control_channel [start_tlsecho_server syncserver [incr Port]]
+} -body {
+    foreach {msgs total last} [tls_echo_client -port $Port] break
+    foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
+    set result ""
+    if {$msgs != $msgs2} {
+        append result "Mismatch in number of messages: $msgs != $msgs2"
+    }
+    if {$total != $total2} {
+        append result "Mismatch in total chars: $total != $total2"
+    }
+    if {$last != $last2} {
+        append result "Mismatch in total chars: $last != $last2"
+    }
+    set result
+} -cleanup {
+    if {[info exists control_channel]} {
+        fconfigure $control_channel -blocking 1; # Wait for child to complete
+        close $control_channel
+        unset control_channel
+    }
+} -result ""
+
+test tls_echoserver-1.1 {
+    Stress test server using blocking I/O
+} -setup {
+    set control_channel [start_tlsecho_server syncserver [incr Port]]
+} -body {
+    foreach {msgs total last} [tls_echo_client -port $Port -density 10 -limit 1000000] break
+    foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
+    set result ""
+    if {$msgs != $msgs2} {
+        append result "Mismatch in number of messages: $msgs != $msgs2"
+    }
+    if {$total != $total2} {
+        append result "Mismatch in total chars: $total != $total2"
+    }
+    if {$last != $last2} {
+        append result "Mismatch in total chars: $last != $last2"
+    }
+    set result
+} -cleanup {
+    if {[info exists control_channel]} {
+        fconfigure $control_channel -blocking 1; # Wait for child to complete
+        close $control_channel
+        unset control_channel
+    }
+} -result ""
+
+test tls_echoserver-2.0 {
+    Test server using non-blocking I/O
+} -setup {
+    set control_channel [start_tlsecho_server asyncserver [incr Port]]
+} -body {
+    foreach {msgs total last} [tls_echo_client -port $Port] break
+    foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
+    set result ""
+    if {$msgs != $msgs2} {
+        lappend result "Mismatch in number of messages: $msgs != $msgs2"
+    }
+    if {$total != $total2} {
+        lappend result "Mismatch in total chars: $total != $total2"
+    }
+    if {$last != $last2} {
+        lappend result "Mismatch in last message size: $last != $last2"
+    }
+    join $result \n
+} -cleanup {
+    if {[info exists control_channel]} {
+        fconfigure $control_channel -blocking 1; # Wait for child to complete
+        close $control_channel
+        unset control_channel
+    }
+} -result ""
+
+test tls_echoserver-2.1 {
+    Stress test server using non-blocking I/O
+} -setup {
+    set control_channel [start_tlsecho_server asyncserver [incr Port]]
+} -body {
+    foreach {msgs total last} [tls_echo_client -port $Port -density 10 -limit 1000000] break
+    foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
+    set result ""
+    if {$msgs != $msgs2} {
+        lappend result "Mismatch in number of messages: $msgs != $msgs2"
+    }
+    if {$total != $total2} {
+        lappend result "Mismatch in total chars: $total != $total2"
+    }
+    if {$last != $last2} {
+        lappend result "Mismatch in last message size: $last != $last2"
+    }
+    join $result \n
+} -cleanup {
+    if {[info exists control_channel]} {
+        fconfigure $control_channel -blocking 1; # Wait for child to complete
+        close $control_channel
+        unset control_channel
+    }
+} -result ""
+
+################################################################
+
 test tlsIO-1.1 {arg parsing for socket command} {socket} {
     list [catch {twapi::tls_socket -server} msg] $msg
 } {1 {No value supplied for option '-server'}}
@@ -904,6 +1021,9 @@ test tlsIO-3.3 {Validate server -verifier: name mismatch} {socket stdio} {
 #
 # Tests against real servers
 #
+#################################################################
+
+
 test tls_socket-client-1.0 {
     Verify basic synchronous connection
 } -body {
@@ -1626,119 +1746,6 @@ test tls-server-openssl-1.1 {
     # Verify the accept socket is also closed. There should be no rc* channels
     list $::done [chan names rc*]
 } -result {{TWAPI_WIN32 -2146893042} {}}
-
-
-#################################################################
-
-# Tests using tlsecho for some stress testing
-proc start_tlsecho_server {name} {
-    set control_channel [open "| [list [::tcltest::interpreter] tlsecho.tcl $name 4433]" r+]
-    fconfigure $control_channel -blocking 0
-    expect $control_channel READY 5000
-    return $control_channel
-}
-
-test tls_echoserver-1.0 {
-    Basic test server using blocking I/O
-} -setup {
-    set control_channel [start_tlsecho_server syncserver]
-} -body {
-    foreach {msgs total last} [tls_echo_client -port 4433] break
-    foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
-    set result ""
-    if {$msgs != $msgs2} {
-        append result "Mismatch in number of messages: $msgs != $msgs2"
-    }
-    if {$total != $total2} {
-        append result "Mismatch in total chars: $total != $total2"
-    }
-    if {$last != $last2} {
-        append result "Mismatch in total chars: $last != $last2"
-    }
-    set result
-} -cleanup {
-    if {[info exists control_channel]} {
-        close $control_channel
-        unset control_channel
-    }
-} -result ""
-
-test tls_echoserver-1.1 {
-    Stress test server using blocking I/O
-} -setup {
-    set control_channel [start_tlsecho_server syncserver]
-} -body {
-    foreach {msgs total last} [tls_echo_client -port 4433 -density 10 -limit 1000000] break
-    foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
-    set result ""
-    if {$msgs != $msgs2} {
-        append result "Mismatch in number of messages: $msgs != $msgs2"
-    }
-    if {$total != $total2} {
-        append result "Mismatch in total chars: $total != $total2"
-    }
-    if {$last != $last2} {
-        append result "Mismatch in total chars: $last != $last2"
-    }
-    set result
-} -cleanup {
-    if {[info exists control_channel]} {
-        close $control_channel
-        unset control_channel
-    }
-} -result ""
-
-###
-
-test tls_echoserver-2.0 {
-    Test server using non-blocking I/O
-} -setup {
-    set control_channel [start_tlsecho_server asyncserver]
-} -body {
-    foreach {msgs total last} [tls_echo_client -port 4433] break
-    foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
-    set result ""
-    if {$msgs != $msgs2} {
-        lappend result "Mismatch in number of messages: $msgs != $msgs2"
-    }
-    if {$total != $total2} {
-        lappend result "Mismatch in total chars: $total != $total2"
-    }
-    if {$last != $last2} {
-        lappend result "Mismatch in last message size: $last != $last2"
-    }
-    join $result \n
-} -cleanup {
-    if {[info exists control_channel]} {
-        close $control_channel
-        unset control_channel
-    }
-} -result ""
-
-test tls_echoserver-2.1 {
-    Stress test server using non-blocking I/O
-} -setup {
-    set control_channel [start_tlsecho_server asyncserver]
-} -body {
-    foreach {msgs total last} [tls_echo_client -port 4433 -density 10 -limit 1000000] break
-    foreach {msgs2 total2 last2} [gets_timeout $control_channel 5000] break
-    set result ""
-    if {$msgs != $msgs2} {
-        lappend result "Mismatch in number of messages: $msgs != $msgs2"
-    }
-    if {$total != $total2} {
-        lappend result "Mismatch in total chars: $total != $total2"
-    }
-    if {$last != $last2} {
-        lappend result "Mismatch in last message size: $last != $last2"
-    }
-    join $result \n
-} -cleanup {
-    if {[info exists control_channel]} {
-        close $control_channel
-        unset control_channel
-    }
-} -result ""
 
 
 
