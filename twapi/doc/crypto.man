@@ -491,9 +491,6 @@ The following options may be specified with the command.
 If [const true], the hash object OID is not placed in the RSA public key
 encryption. If [const false] (default), the hash OID in the default
 signature is as specified in the definition of DigestInfo in PKCS #1.
-[opt_def [cmd -pad] [const pkcs1|x931]]
-If [const pkcs1] (default) PKCS1 padding is used. If [const x931],
-the ANSI X.931 standard is used.
 [list_end]
 Note the supported options depend on both the CSP and the hashing
 algorithm.
@@ -526,9 +523,6 @@ present and is not checked.
 If [const false] (default), the hash OID in the default
 signature is expected to be
 as specified in the definition of DigestInfo in PKCS #1.
-[opt_def [cmd -pad] [const pkcs1|x931]]
-If [const pkcs1] (default) PKCS1 padding is used. If [const x931],
-the ANSI X.931 standard is used.
 [list_end]
 Note the supported options depend on both the CSP and the hashing
 algorithm.
