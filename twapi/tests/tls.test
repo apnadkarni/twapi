@@ -8,69 +8,6 @@
 # Some of this is forked from the Tcl TLS extension tests tlsIO.test file
 # Therefore it does not follow the structure of the other TWAPI test files.
 
-
-# This file contains a collection of tests for one or more of the Tcl
-# built-in commands.  Sourcing this file into Tcl runs the tests and
-# generates output for errors.  No output means no errors were found.
-#
-# Copyright (c) 1994-1996 Sun Microsystems, Inc.
-# Copyright (c) 1998-2000 Ajuba Solutions. 
-#
-# See the file "license.terms" for information on usage and redistribution
-# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
-#
-# RCS: @(#) $Id: tlsIO.test,v 1.23 2008/03/19 22:06:13 hobbs2 Exp $
-
-# Running socket tests with a remote server:
-# ------------------------------------------
-# 
-# Some tests in socket.test depend on the existence of a remote server to
-# which they connect. The remote server must be an instance of tcltest and it
-# must run the script found in the file "remote.tcl" in this directory. You
-# can start the remote server on any machine reachable from the machine on
-# which you want to run the socket tests, by issuing:
-# 
-#     tcltest remote.tcl -port 8048	# Or choose another port number.
-# 
-# If the machine you are running the remote server on has several IP
-# interfaces, you can choose which interface the server listens on for
-# connections by specifying the -address command line flag, so:
-# 
-#     tcltest remote.tcl -address your.machine.com
-# 
-# These options can also be set by environment variables. On Unix, you can
-# type these commands to the shell from which the remote server is started:
-# 
-#     shell% setenv serverPort 8048
-#     shell% setenv serverAddress your.machine.com
-# 
-# and subsequently you can start the remote server with:
-# 
-#     tcltest remote.tcl
-# 
-# to have it listen on port 8048 on the interface your.machine.com.
-#     
-# When the server starts, it prints out a detailed message containing its
-# configuration information, and it will block until killed with a Ctrl-C.
-# Once the remote server exists, you can run the tests in socket.test with
-# the server by setting two Tcl variables:
-# 
-#     % set remoteServerIP <name or address of machine on which server runs>
-#     % set remoteServerPort 8048
-# 
-# These variables are also settable from the environment. On Unix, you can:
-# 
-#     shell% setenv remoteServerIP machine.where.server.runs
-#     shell% setenv remoteServerPort 8048
-# 
-# The preamble of the socket.test file checks to see if the variables are set
-# either in Tcl or in the environment; if they are, it attempts to connect to
-# the server. If the connection is successful, the tests using the remote
-# server will be performed; otherwise, it will attempt to start the remote
-# server (via exec) on platforms that support this, on the local host,
-# listening at port 8048. If all fails, a message is printed and the tests
-# using the remote server are not performed.
-
 if {[lsearch [namespace children] ::tcltest] == -1} {
     package require tcltest
     namespace import ::tcltest::*
@@ -86,7 +23,7 @@ source [file join [file dirname [info script]] tlsecho.tcl]
 
 proc dputs {msg} { return ; puts stderr $msg ; flush stderr }
 
-set tlsServerPort 8048
+set Port 8048
 
 # This sequence is used in spawned processes as well.
 # So store it in a var so it can be easily invoked in children
@@ -142,154 +79,6 @@ proc tls_client_credentials {} {
 
 # TBD - need to test separate creds for tls1, tls1.1, ssl3 etc.
 # TBD - need to test separate creds for -sessionlifespan
-
-#
-# Test configuration
-
-# Some tests require the testthread and exec commands
-
-set ::tcltest::testConstraints(testthread) \
-	[expr {[info commands testthread] != {}}]
-set ::tcltest::testConstraints(exec) [expr {[info commands exec] != {}}]
-
-#
-# If remoteServerIP or remoteServerPort are not set, check in the
-# environment variables for externally set values.
-#
-
-if {![info exists remoteServerIP]} {
-    if {[info exists env(remoteServerIP)]} {
-	set remoteServerIP $env(remoteServerIP)
-    }
-}
-if {![info exists remoteServerPort]} {
-    if {[info exists env(remoteServerPort)]} {
-	set remoteServerPort $env(remoteServerPort)
-    } else {
-        if {[info exists remoteServerIP]} {
-	    set remoteServerPort $tlsServerPort
-        }
-    }
-}
-
-#
-# Check if we're supposed to do tests against the remote server
-#
-
-set doTestsWithRemoteServer 0
-if {![info exists remoteServerIP] && ($tcl_platform(platform) != "macintosh")} {
-    set remoteServerIP 127.0.0.1
-}
-if {($doTestsWithRemoteServer == 1) && (![info exists remoteServerPort])} {
-    set remoteServerPort $tlsServerPort
-}
-
-# Attempt to connect to a remote server if one is already running. If it
-# is not running or for some other reason the connect fails, attempt to
-# start the remote server on the local host listening on port 8048. This
-# is only done on platforms that support exec (i.e. not on the Mac). On
-# platforms that do not support exec, the remote server must be started
-# by the user before running the tests.
-
-set remoteProcChan ""
-set commandSocket ""
-if {$doTestsWithRemoteServer == 0} {
-    set noRemoteTestReason "doTestsWithRemoteServer initialized to 0"
-} else {
-    catch {close $commandSocket}
-    if {[catch {set commandSocket [twapi::tls_socket -credentials $clientCreds \
-                                       $remoteServerIP $remoteServerPort]}] != 0} {
-	if {[info commands exec] == ""} {
-	    set noRemoteTestReason "can't exec"
-	    set doTestsWithRemoteServer 0
-	} else {
-	    set remoteServerIP 127.0.0.1
-	    set remoteFile [file join [pwd] remote.tcl]
-	    if {[catch {set remoteProcChan \
-		    [open "|[list $::tcltest::tcltest $remoteFile \
-		    -serverIsSilent -port $remoteServerPort \
-		    -address $remoteServerIP]" w+]} msg] == 0} {
-		after 1000
-		if {[catch {set commandSocket [twapi::tls_socket -credentials $clientCreds \
-                                                   $remoteServerIP $remoteServerPort]} msg] == 0} {
-		    fconfigure $commandSocket -translation crlf -buffering line
-		} else {
-		    set noRemoteTestReason $msg
-		    set doTestsWithRemoteServer 0
-		}
-	    } else {
-		set noRemoteTestReason "$msg $::tcltest::tcltest"
-		set doTestsWithRemoteServer 0
-	    }
-	}
-    } else {
-	fconfigure $commandSocket -translation crlf -buffering line
-    }
-}
-
-# Some tests are run only if we are doing testing against a remote server.
-set ::tcltest::testConstraints(doTestsWithRemoteServer) $doTestsWithRemoteServer
-if {$doTestsWithRemoteServer == 0} {
-    if {[string first s $::tcltest::verbose] != -1} {
-    	puts "Skipping tests with remote server. See [info script] for"
-	puts "information on how to run remote server."
-	puts "Reason for not doing remote tests: $noRemoteTestReason"
-    }
-}
-
-#
-# If we do the tests, define a command to send a command to the
-# remote server.
-#
-
-if {$doTestsWithRemoteServer == 1} {
-    proc sendCommand {c} {
-	global commandSocket
-
-	if {[eof $commandSocket]} {
-	    error "remote server disappeared"
-	}
-
-	if {[catch {puts $commandSocket $c} msg]} {
-	    error "remote server disappeared: $msg"
-	}
-	if {[catch {puts $commandSocket "--Marker--Marker--Marker--"} msg]} {
-	    error "remote server disappeared: $msg"
-	}
-
-	set resp ""
-	while {1} {
-	    set line [gets $commandSocket]
-	    if {[eof $commandSocket]} {
-		error "remote server disappeared"
-	    }
-	    if {[string compare $line "--Marker--Marker--Marker--"] == 0} {
-		if {[string compare [lindex $resp 0] error] == 0} {
-		    error [lindex $resp 1]
-		} else {
-		    return [lindex $resp 1]
-		}
-	    } else {
-		append resp $line "\n"
-	    }
-	}
-    }
-
-    sendCommand [list proc dputs [info args dputs] [info body dputs]]
-
-    proc TBDsendCertValues {} {
-	# We need to be able to send certificate values that normalize
-	# filenames across platforms
-	sendCommand {
-	    set certsDir	[file join [file dirname [info script]] certs]
-	    set serverCert	[file join $certsDir server.pem]
-	    set clientCert	[file join $certsDir client.pem]
-	    set caCert		[file join $certsDir cacert.pem]
-	    set serverKey	[file join $certsDir server.key]
-	    set clientKey	[file join $certsDir client.key]
-	}
-    }
-}
 
 # Tests using tlsecho for some stress testing
 # TBD - For some reason, the echo tests fail with server not being able to bind
@@ -786,11 +575,7 @@ test starttlsIO-2.1.3 {Validate server altname -verifier: name mismatch} {socket
     set x
 } {{SSL/TLS negotiation failed. Verifier callback returned false.} EOF}
 
-if [info exists Port] {
-    incr Port
-} else {
-    set Port [expr {$tlsServerPort + [pid]%1024}]
-}
+incr Port
 
 test tlsIO-2.2 {Validate option -myport -myaddr: success} {socket stdio vista} {
     removeFile script
