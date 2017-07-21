@@ -19,7 +19,7 @@ namespace eval twapi::pipe::test {
     proc start_npecho_server {name} {
         set control_channel [open "| [list [::tcltest::interpreter] npecho.tcl $name \\\\.\\pipe\\twapitest$name]" r+]
         fconfigure $control_channel -blocking 0
-        expect $control_channel READY 5000
+        expect $control_channel READY 15000
         return $control_channel
     }
 
