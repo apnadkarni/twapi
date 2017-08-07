@@ -870,7 +870,7 @@ proc twapi::get_system_parameters_info {uiaction} {
     # Format of an element is
     #  uiaction_indexvalue uiparam binaryscanstring malloc_size modifiers
     # uiparam may be an int or "sz" in which case the malloc size
-    # is substribnuted for it.
+    # is substituted for it.
     # If modifiers contains "cbsize" the first dword is initialized
     # with malloc_size
     # TBD - use dict instead
@@ -947,6 +947,14 @@ proc twapi::get_system_parameters_info {uiaction} {
             SPI_GETFOCUSBORDERWIDTH {0x200E 0 i 4}
             SPI_GETFOCUSBORDERHEIGHT {0x2010 0 i 4}
         }
+        if {$::tcl_platform(pointerSize) == 4} {
+            set hc_struct_size 12
+            set bfmt i3
+        } else {
+            set hc_struct_size 16
+            set bfmt i4
+        }
+        set SystemParametersInfo_uiactions_get(SPI_GETHIGHCONTRAST) [list 0x0042 sz $bfmt $hc_struct_size cbsize]
     }
 
     set key [string toupper $uiaction]

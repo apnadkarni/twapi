@@ -1122,6 +1122,12 @@ proc twapi::tkpath_to_hwnd {tkpath} {
     return [cast_handle [winfo id $tkpath] HWND]
 }
 
+# TBD - document
+proc twapi::high_contrast_on {} {
+    set hc [lindex [get_system_parameters_info SPI_GETHIGHCONTRAST] 1]
+    return [expr {$hc & 1}]
+}
+
 ################################################################
 # Utility routines
 
