@@ -389,13 +389,7 @@ int Twapi_RecordArrayHelperObjCmd(
 
     /* output[] contains output_count records to be returned */
     /* Figure out output format */
-    if (0 && first) {
-        TWAPI_ASSERT(output == &new_rec[0]);
-        TWAPI_ASSERT(output_count <= 2);
-        if (output_count)
-            ObjSetResult(interp, ObjNewList(output_count, new_rec));
-        /* else empty result */
-    } else {
+    {
         Tcl_Obj *resultObjs[2];
         Tcl_Obj *resultObj;
         switch (format) {
@@ -403,6 +397,15 @@ int Twapi_RecordArrayHelperObjCmd(
             resultObj = ObjNewList(output_count * (sliceObj ? nslice_fields : nfields), NULL);
             for (i = 0; i < output_count; ++i)
                 Tcl_ListObjAppendList(NULL, resultObj, output[i]);
+            /* When sliceObj is specified, output[] contains newly
+               allocated list objects. The Tcl_ListObjAppendList call will
+               only add the elements of those lists to resultObj. We
+               need to free the list objects themselves. Note this is
+               not necessary for RA_DICT and RA_LIST formats as
+               the list objects themselves are added via ObjNewList
+            */
+            if (sliceObj)
+                ObjDecrArrayRefs(output_count, output);
             break;
         case RA_DICT: /* FALLTHRU as output constructed for RA_DICT above */
         case RA_LIST:
