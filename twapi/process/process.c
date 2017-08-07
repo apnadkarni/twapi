@@ -40,6 +40,7 @@ static TCL_RESULT Twapi_GetProcessList(
     struct _SYSTEM_PROCESSES *processP;
     ULONG_PTR pid;
     int      first_iteration;
+    int      thread_first_iteration;
     void  *bufP;
     ULONG  bufsz;          /* Number of bytes allocated */
     ULONG  dummy;
@@ -48,7 +49,7 @@ static TCL_RESULT Twapi_GetProcessList(
     Tcl_Obj *resultObj;
     Tcl_Obj *process[30];       /* Actually need only 28 */
     Tcl_Obj *process_fields[30];
-    Tcl_Obj *thread[15];        /* Actually need 24 */
+    Tcl_Obj *thread[15];        /* Actually need only 12 */
     Tcl_Obj *thread_fields[15];
     int      pi;
     int      ti;
@@ -77,7 +78,7 @@ static TCL_RESULT Twapi_GetProcessList(
 
     /* We do not bother with MemLifo* because these are large allocations */
     /* TBD - should we use a separate heap for this to avoid fragmentation ? */
-    bufsz = 50000;              /* Initial guess based on my system */
+    bufsz = 400000;              /* Initial guess based on my system */
     bufP = NULL;
     do {
         if (bufP)
@@ -87,6 +88,8 @@ static TCL_RESULT Twapi_GetProcessList(
         /* Note for information class 5, the last parameter which
          * corresponds to number of bytes needed is not actually filled
          * in by the system so we ignore it and just double alloc size
+         * TBD - see https://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/ex/sysinfo/query.htm
+         * for newer Windows versions
          */
         status = (*NtQuerySystemInformationPtr)(5, bufP, bufsz, &dummy);
         bufsz = 2* bufsz;       /* For next iteration if needed */
@@ -98,12 +101,13 @@ static TCL_RESULT Twapi_GetProcessList(
     }    
 
     /* OK, now we got the info. Loop through to extract information
-     * from the process list. See Nebett's Window NT/2000 Native API
-     * Reference for details
+     * from the process list. See  Nebett's Window NT/2000 Native API Reference
+     * and (newer) https://www.geoffchappell.com/studies/windows/km/ntoskrnl/api/ex/sysinfo/query.htm
      */
     resultObj = ObjEmptyList();
     processP = bufP;
     first_iteration = 1;
+    thread_first_iteration = 1;
     while (1) {
         ULONG_PTR    this_pid;
 
@@ -219,11 +223,12 @@ static TCL_RESULT Twapi_GetProcessList(
                     DWORD           i;
                     Tcl_Obj        *threadlistObj;
 
+                    /* List of threads for *this* process */
                     threadlistObj = ObjEmptyList();
 
                     threadP = &processP->Threads[0];
-                    for (i=0; i < processP->ThreadCount; ++i, ++threadP) {
-                        if (first_iteration) {
+                    for (i=0; i < processP->ThreadCount; ++i, ++threadP, thread_first_iteration=0) {
+                        if (thread_first_iteration) {
                             thread_fields[0] = STRING_LITERAL_OBJ("-pid");
                             thread_fields[1] = STRING_LITERAL_OBJ("-tid");
                         }
@@ -232,7 +237,7 @@ static TCL_RESULT Twapi_GetProcessList(
                         
                         ti = 2;
                         if (flags & TWAPI_F_GETPROCESSLIST_THREAD_STATE) {
-                            if (first_iteration) {
+                            if (thread_first_iteration) {
                                 thread_fields[ti] = STRING_LITERAL_OBJ("-basepriority");
                                 thread_fields[ti+1] = STRING_LITERAL_OBJ("-priority");
                                 thread_fields[ti+2] = STRING_LITERAL_OBJ("-startaddress");
@@ -249,7 +254,7 @@ static TCL_RESULT Twapi_GetProcessList(
                             ti += 5;
                         }
                         if (flags & TWAPI_F_GETPROCESSLIST_THREAD_PERF) {
-                            if (first_iteration) {
+                            if (thread_first_iteration) {
                                 thread_fields[ti] = STRING_LITERAL_OBJ("-waittime");
                                 thread_fields[ti+1] = STRING_LITERAL_OBJ("-contextswitches");
                                 thread_fields[ti+2] = STRING_LITERAL_OBJ("-createtime");
@@ -271,7 +276,8 @@ static TCL_RESULT Twapi_GetProcessList(
                         ObjAppendElement(interp, threadlistObj, ObjNewList(ti, thread));
                     }
 
-                    process_fields[pi] = STRING_LITERAL_OBJ("Threads");
+                    if (first_iteration)
+                        process_fields[pi] = STRING_LITERAL_OBJ("Threads");
                     field_and_list[0] = thread_fieldObj;
                     field_and_list[1] = threadlistObj;
                     process[pi] = ObjNewList(2, field_and_list);
