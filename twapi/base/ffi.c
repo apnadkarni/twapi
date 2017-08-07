@@ -823,7 +823,11 @@ TCL_RESULT Twapi_FfiCallObjCmd(void *clientdata, Tcl_Interp *interp, int objc, T
         case CSTRUCT_FLOAT: STOREARG(ObjToDouble, dcArgFloat, u.d);
         case CSTRUCT_HANDLE: STOREARG(ObjToHANDLE, dcArgPointer, u.pv);
         case CSTRUCT_STRING: dcArgPointer(vmP, ObjToString(params[i])); break;
-        case CSTRUCT_WSTRING: dcArgPointer(vmP, ObjToWinChars(params[i])); break;
+            /*
+              Commented out because to be safe against shimmering we should
+              dup the params[i] Tcl_Obj
+              case CSTRUCT_WSTRING: dcArgPointer(vmP, ObjToWinChars(params[i])); break;
+            */
         default:
             res = TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Unsupported parameter type");
             goto vamoose;
