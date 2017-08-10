@@ -153,7 +153,7 @@ distribution: build "$(PACKAGEDIR)"
 !    if defined(TWAPI_STATIC_BUILD)
         $(LIBTOOL) -nologo -out:$@ "@$(OBJDIR)\linkmodules" $(OBJS)
 !    else
-        $(LINK) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\linkmodules" "$(OBJDIR)\$(MODULENAME).res" $(OBJS)
+        $(LD) $(LOPT) -out:$@ $(LIBS) "@$(OBJDIR)\linkmodules" "$(OBJDIR)\$(MODULENAME).res" $(OBJS)
 #      See http://kb.froglogic.com/display/KB/Manifests. VC 9 *requires*
 #      manifests for DLL's as well. Newer compilers do not seem to care
 !      if $(VCVER) == 9
@@ -182,7 +182,7 @@ distribution: build "$(PACKAGEDIR)"
 #  Note we do not use $** in this rule as we do not want to include the
 #  dependencies in other rules defined for $(OBJDIR)\$(MODULE)
 $(OBJDIR)\$(MODULE): $(OBJDIR)\$(MODULENAME).res $(OBJS)
-        $(LINK) $(LOPT) -out:$@ $(LIBS) "$(OBJDIR)\$(MODULENAME).res" $(OBJS)
+        $(LD) $(LOPT) -out:$@ $(LIBS) "$(OBJDIR)\$(MODULENAME).res" $(OBJS)
 #  See http://kb.froglogic.com/display/KB/Manifests. VC 9 *requires*
 #  manifests for DLL's as well. Newer compilers do not seem to care
 !  if $(VCVER) == 9
