@@ -2003,7 +2003,11 @@ Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP)
     objv[0] = ObjFromInt(spsP->ACLineStatus);
     objv[1] = ObjFromInt(spsP->BatteryFlag);
     objv[2] = ObjFromInt(spsP->BatteryLifePercent);
+#if _MSC_VER >= 1900
+    objv[3] = ObjFromInt(spsP->SystemStatusFlag);
+#else
     objv[3] = ObjFromInt(spsP->Reserved1);
+#endif
     objv[4] = ObjFromDWORD(spsP->BatteryLifeTime);
     objv[5] = ObjFromDWORD(spsP->BatteryFullLifeTime);
     return ObjNewList(6, objv);

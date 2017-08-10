@@ -46,7 +46,9 @@ SDK           = "c:\program files\microsoft platform sdk"
 !endif
 
 CC            = cl.exe
-LINK          = link.exe
+# LD used to be called LINK. That conflicts with link.exe's use of
+# the environment variable of the same name.
+LD          = link.exe
 LIBTOOL       = lib.exe
 MT            = mt.exe
 
