@@ -165,7 +165,28 @@ proc twapi::get_build_config {{key ""}} {
     if {$key eq ""} {
         return [array get config]
     } else {
+        if {![info exists config($key)]} {
+            error "key not known"; # Matches tcl::pkgconfig error message
+        }
         return $config($key)
+    }
+}
+
+# This matches the pkgconfig command as defined by Tcl_RegisterConfig
+# TBD - Doc and test
+proc twapi::pkgconfig {subcommand {arg {}}} {
+    if {$subcommand eq "list"} {
+        if {$arg ne ""} {
+            error {wrong # args: should be "twapi::pkgconfig list"}
+        }
+        return [dict keys [get_build_config]]
+    } elseif {$subcommand eq "get"} {
+        if {$arg eq ""} {
+            error {wrong # args: should be "twapi::pkgconfig get key"}
+        }
+        return [get_build_config $arg]
+    } else {
+        error {wrong # args: should be "tcl::pkgconfig subcommand ?arg?"}
     }
 }
 
