@@ -1575,9 +1575,10 @@ proc twapi::_parse_cproto {s} {
 
     regsub -all {\s+} $fntypeandname " "
     set fntype [_parse_ctype $fntypeandname function]
-    set params [lmap def [split $paramstr ","] {
-        _parse_ctype $def param
-    }]
+    set params {}
+    foreach def [split $paramstr ","] {
+        lappend params [_parse_ctype $def param]
+    }
 
     return [list $callconv $fntype [lindex $fntype 0] $params]
 }
@@ -1595,11 +1596,12 @@ proc twapi::struct {struct_name s} {
     
     regsub -all {(/\*.* \*/){1,1}?} $s {} s
     regsub -line -all {//.*$} $s { } s
-    set l [lmap def [split $s ";"] {
+    set l {}
+    foreach def [split $s ";"] {
         set def [string trim $def]
         if {$def eq ""} continue
-        _parse_ctype $def struct
-    }]
+        lappend l [_parse_ctype $def struct]
+    }
 
     set proc_body [format {
         set def %s
@@ -1669,11 +1671,12 @@ proc twapi::ffi_cfuncs {dllh cprotos {ns ::}} {
     #    error "Unknown FFI handle \"$dllh\"."
     }
 
-    set cprotos [lmap cproto [split $cprotos ";"] {
+    set cprotos {}
+    foreach cproto [split $cprotos ";"] {
         set cproto [string trim $cproto]
         if {$cproto eq ""} continue
-        _parse_cproto $cproto
-    }]
+        lappend cprotos [_parse_cproto $cproto]
+    }
 
     set def {
         proc %NAME% {%PARAMNAMES%} {
@@ -1706,8 +1709,13 @@ proc twapi::ffi_cfuncs {dllh cprotos {ns ::}} {
             lappend paramnames $name
             lappend paramrefs \$$name
         }
-        set paramnames [lmap arg $params {lindex $arg 0}]
-        set paramrefs [lmap arg $params {return -level 0 \$[lindex $arg 0]}]
+        set paramnames {}
+        set paramrefs {}
+        foreach arg $params {
+            lappend paramnames [lindex $arg 0]
+            lappend paramrefs \$[lindex $arg 0]
+        }
+
         # Note that fntype is doubly listified because the C ffi expects
         # it in same format as params, ie. a list of type definitions
         # _parse_cproto however returns it as a single type definition
