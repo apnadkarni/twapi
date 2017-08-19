@@ -1671,12 +1671,13 @@ proc twapi::ffi_cfuncs {dllh cprotos {ns ::}} {
     #    error "Unknown FFI handle \"$dllh\"."
     }
 
-    set cprotos {}
+    set l {}
     foreach cproto [split $cprotos ";"] {
         set cproto [string trim $cproto]
         if {$cproto eq ""} continue
-        lappend cprotos [_parse_cproto $cproto]
+        lappend l [_parse_cproto $cproto]
     }
+    set cprotos $l
 
     set def {
         proc %NAME% {%PARAMNAMES%} {
@@ -1708,12 +1709,6 @@ proc twapi::ffi_cfuncs {dllh cprotos {ns ::}} {
             set name [lindex $arg 0]
             lappend paramnames $name
             lappend paramrefs \$$name
-        }
-        set paramnames {}
-        set paramrefs {}
-        foreach arg $params {
-            lappend paramnames [lindex $arg 0]
-            lappend paramrefs \$[lindex $arg 0]
         }
 
         # Note that fntype is doubly listified because the C ffi expects
