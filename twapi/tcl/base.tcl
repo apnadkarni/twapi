@@ -1731,8 +1731,10 @@ proc twapi::ffi_cfuncs {dllh cprotos {ns ::}} {
 }
 
 
-twapi::ffi_cfuncs [twapi::ffi_load kernel32.dll] {
-    UINT GetErrorMode();
-    UINT SetErrorMode(UINT mode);
-} ::twapi
+if {[twapi::min_os_version 6]} {
+    twapi::ffi_cfuncs [twapi::ffi_load kernel32.dll] {
+        UINT GetErrorMode();
+        UINT SetErrorMode(UINT mode);
+    } ::twapi
+}
 

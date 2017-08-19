@@ -175,7 +175,9 @@ twapi::proc* twapi::drive_ready {drive} {
 
     # Do our best to avoid the Windows "Drive not ready" dialog
     # 1 -> SEM_FAILCRITICALERRORS
-    set old_mode [SetErrorMode 1]
+    if {[min_os_version 6]} {
+        set old_mode [SetErrorMode 1]
+    }
     trap {
 
         # We will first try using IOCTL_STORAGE_CHECK_VERIFY2 as that is
@@ -213,7 +215,9 @@ twapi::proc* twapi::drive_ready {drive} {
         # on root directory
         return [file exists "[string range $drive end-1 end]\\"]
     } finally {
-        SetErrorMode $old_mode
+        if {[min_os_version 6]} {
+            SetErrorMode $old_mode
+        }
     }
 }
 
