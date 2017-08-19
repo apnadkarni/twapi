@@ -1931,9 +1931,11 @@ proc twapi::crypt_find_oid_info {key args} {
 # TBD - document
 proc twapi::crypt_enumerate_oid_info {{oidgroup 0}} {
     # TBD - parse extra based on OID group
-    return [lmap info [CryptEnumOIDInfo [oidgroup $oidgroup]] {
-        twine {oid name oidgroup value extra} $info
-    }]
+    set ret {}
+    foreach info [CryptEnumOIDInfo [oidgroup $oidgroup]] {
+        lappend ret [twine {oid name oidgroup value extra} $info]
+    }
+    return $ret
 }
 
 # TBD - test

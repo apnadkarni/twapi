@@ -176,10 +176,12 @@ proc twapi::read_clipboard_paths {} {
     } else { 
         set paths [encoding convertfrom ascii [string range $bin $offset end]] 
     } 
-    return [lmap path [split $paths \0] { 
+    set ret {}
+    foreach path [split $paths \0] { 
         if {[string length $path] == 0} break; # Empty string -> end of list 
-        file join $path
-    }] 
+        lappend ret [file join $path]
+    }
+    return $ret
 } 
 
 proc twapi::write_clipboard_paths {paths} { 
