@@ -1,7 +1,9 @@
 SRCROOT=$(MAKEDIR)
+!ifndef DISTDIR
 DISTDIR=$(MAKEDIR)\dist
+!endif
 
-# Whether to zip everything into a distributable package
+# Whether to generate pkgindex and zip everything into a distributable package
 !ifndef MAKEDIST
 MAKEDIST=0
 !endif
