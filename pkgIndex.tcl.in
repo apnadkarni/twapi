@@ -79,9 +79,9 @@ package ifneeded @PACKAGE_NAME@_wmi @PACKAGE_VERSION@ \
   {load {} @PACKAGE_NAME@_wmi}
 
 package ifneeded @PACKAGE_NAME@ @PACKAGE_VERSION@ [subst {
-  twapi::set_scriptdir $dir
+  twapi::set_scriptdir [list $dir]
   package require @PACKAGE_NAME@_base @PACKAGE_VERSION@
-  source [file join $dir twapi_entry.tcl]
+  source [list [file join $dir twapi_entry.tcl]]
   package require metoo @PACKAGE_VERSION@
   package require @PACKAGE_NAME@_com @PACKAGE_VERSION@
   package require @PACKAGE_NAME@_msi @PACKAGE_VERSION@
