@@ -26,13 +26,17 @@ namespace eval twapi::com::test {
     proc testobj {} {
         variable testobj
         if {![info exists testobj]} {
-            if {$::tcl_platform(pointerSize) == 4} {
-                set testobj [twapi::comobj Twapi.Test -model inprocserver]
-            } else {
-                set testobj [twapi::comobj Twapi.Test -model localserver]
+            if {[catch {
+                if {$::tcl_platform(pointerSize) == 4} {
+                    set testobj [twapi::comobj Twapi.Test -model inprocserver]
+                } else {
+                    set testobj [twapi::comobj Twapi.Test -model localserver]
+                }
+            }]} {
+                error "Could create Twapi.Test object. See README in comtest directory about registering the object."
             }
+            return $testobj
         }
-        return $testobj
     }
 
     ################################################################
