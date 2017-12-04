@@ -601,13 +601,14 @@ int Twapi_IDispatch_InvokeObjCmd(
 
             Twapi_AppendSystemErrorEx(interp, hr, ObjNewList(ARRAYSIZE(errorcode_extra), errorcode_extra));
 
-#if TCL_UTF_MAX <= 4
             if (einfo.bstrDescription) {
+                Tcl_Obj *descObj;
                 errorResultObj = ObjDuplicate(ObjGetResult(interp));
-                Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
-                Tcl_AppendUnicodeToObj(errorResultObj,
-                                       einfo.bstrDescription,
-                                       SysStringLen(einfo.bstrDescription));
+                Tcl_AppendToObj(errorResultObj, " ", 1);
+                descObj = ObjFromWinCharsN(einfo.bstrDescription,
+                                 SysStringLen(einfo.bstrDescription));
+                Tcl_AppendObjToObj(errorResultObj, descObj);
+                ObjDecrRefs(descObj);
                 ObjSetResult(interp, errorResultObj);
             } else {
                 /* No error description. Perhaps the scode field
@@ -622,19 +623,14 @@ int Twapi_IDispatch_InvokeObjCmd(
                     if (scodeObj) {
                         ObjIncrRefs(scodeObj);
                         errorResultObj = ObjDuplicate(ObjGetResult(interp));
-                        Tcl_AppendUnicodeToObj(errorResultObj, L" ", 1);
+                        Tcl_AppendToObj(errorResultObj, " ", 1);
                         Tcl_AppendObjToObj(errorResultObj, scodeObj);
                         ObjSetResult(interp, errorResultObj);
                         ObjDecrRefs(scodeObj);
                     }
                 }
             }
-#else
-            /* TBD - Tcl Unicode is 4 bytes if TCL_UTF_MAX > 4 so we cannot
-               just pass UTF16/UCS strings provider and errorbuf
-               to Tcl_AppendUnicodeToObj
-            */
-#endif
+            
             SysFreeString(einfo.bstrSource);
             SysFreeString(einfo.bstrDescription);
             SysFreeString(einfo.bstrHelpFile);

@@ -409,6 +409,7 @@ int Twapi_AppendWNetError(
     if (error == ERROR_EXTENDED_ERROR && wneterror == NO_ERROR) {
         Tcl_Obj *resultObj = ObjDuplicate(ObjGetResult(interp));
         Tcl_DString ds;
+        Tcl_Obj *msgObj;
 
         Tcl_DStringInit(&ds);
         Tcl_DStringAppend(&ds, (char *) L" ", sizeof (WCHAR));
@@ -416,7 +417,9 @@ int Twapi_AppendWNetError(
         Tcl_DStringAppend(&ds, (char *) L": ", 2 * sizeof (WCHAR));
         Tcl_DStringAppend(&ds, (char *) errorbuf, lstrlenW(errorbuf) * sizeof (WCHAR));
         Tcl_DStringAppend(&ds, (char *) L"\0", sizeof (WCHAR));
-        Tcl_AppendObjToObj(resultObj, ObjFromWinChars((WCHAR *) Tcl_DStringValue(&ds)));
+        msgObj = ObjFromWinChars((WCHAR *) Tcl_DStringValue(&ds));
+        Tcl_AppendObjToObj(resultObj, msgObj);
+        ObjDecrRefs(msgObj);
         Tcl_DStringFree(&ds);
         (void) ObjSetResult(interp, resultObj);
     }
