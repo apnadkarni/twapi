@@ -356,7 +356,7 @@ int Twapi_AppendSystemErrorEx(
 #else
             /* Tcl_UniChar is int. So cannot use AppendUnicode. Have 
                to force a shimmer to string */
-            Tcl_AppendStringToObj(resultObj, " ", 1);
+            Tcl_AppendToObj(resultObj, " ", 1);
 #endif
         }
         Tcl_AppendObjToObj(resultObj, msgObj);
@@ -407,19 +407,18 @@ int Twapi_AppendWNetError(
      * append the WNet message 
      */
     if (error == ERROR_EXTENDED_ERROR && wneterror == NO_ERROR) {
-#if TCL_UTF_MAX <= 4
         Tcl_Obj *resultObj = ObjDuplicate(ObjGetResult(interp));
-        Tcl_AppendUnicodeToObj(resultObj, L" ", 1);
-        Tcl_AppendUnicodeToObj(resultObj, provider, -1);
-        Tcl_AppendUnicodeToObj(resultObj, L": ", 2);
-        Tcl_AppendUnicodeToObj(resultObj, errorbuf, -1);
+        Tcl_DString ds;
+
+        Tcl_DStringInit(&ds);
+        Tcl_DStringAppend(&ds, (char *) L" ", sizeof (WCHAR));
+        Tcl_DStringAppend(&ds, (char *) provider, lstrlenW(provider) * sizeof (WCHAR));
+        Tcl_DStringAppend(&ds, (char *) L": ", 2 * sizeof (WCHAR));
+        Tcl_DStringAppend(&ds, (char *) errorbuf, lstrlenW(errorbuf) * sizeof (WCHAR));
+        Tcl_DStringAppend(&ds, (char *) L"\0", sizeof (WCHAR));
+        Tcl_AppendObjToObj(resultObj, ObjFromWinChars((WCHAR *) Tcl_DStringValue(&ds)));
+        Tcl_DStringFree(&ds);
         (void) ObjSetResult(interp, resultObj);
-#else
-        /* TBD - Tcl Unicode is 4 bytes if TCL_UTF_MAX > 4 so we cannot
-           just pass UTF16/UCS strings provider and errorbuf
-           to Tcl_AppendUnicodeToObj
-        */
-#endif
     }
 
     return TCL_ERROR;
