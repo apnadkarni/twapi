@@ -213,19 +213,38 @@ int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
     /* Win2K and up, accepts unicode characters */
 
     /* NUmber of events is twice number of chars (keydown + keyup) */
+#if TCL_UTF_MAX < 4
     max_input_records = 2 * num_chars;
+#else
+    max_input_records = 4 * num_chars;
+#endif
     input = MemLifoAlloc(ticP->memlifoP, max_input_records * sizeof(*input), NULL);
     for (i = 0, j = 0; i < num_chars; ++i) {
         WCHAR wch;
-            
-#if TCL_UTF_MAX <= 4
-        wch = Tcl_GetUniChar(input_obj, i);
-#else
-        wch = (WCHAR) Tcl_GetUniChar(input_obj, i);
+#if TCL_UTF_MAX > 4
+	Tcl_UniChar uch;
 #endif
 
 #ifndef KEYEVENTF_UNICODE
 #define KEYEVENTF_UNICODE     0x0004
+#endif
+            
+#if TCL_UTF_MAX <= 4
+        wch = Tcl_GetUniChar(input_obj, i);
+#else
+        uch = Tcl_GetUniChar(input_obj, i);
+	if (uch > 0xFFFF) {
+            wch = (((uch - 0x10000) >> 10) & 0x3FF) | 0xD800;
+            init_keyboard_input(&input[j], 0, KEYEVENTF_UNICODE);
+            input[j].ki.wScan = wch;
+            ++j;
+            init_keyboard_input(&input[j], 0, KEYEVENTF_UNICODE|KEYEVENTF_KEYUP);
+            input[j].ki.wScan  = wch;
+            j++;
+            wch = ((uch - 0x10000) & 0x3FF) | 0xDC00;
+	} else {
+            wch = (WCHAR) uch;
+	}
 #endif
         init_keyboard_input(&input[j], 0, KEYEVENTF_UNICODE);
         input[j].ki.wScan = wch;
