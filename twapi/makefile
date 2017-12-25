@@ -112,5 +112,6 @@ and features are liable to be changed or removed.
 twapi-lib: twapi-lib-build tcl\kitgen_setup_twapi_vfs.tcl
 	$(COPY) tcl\kitgen_setup_twapi_vfs.tcl "$(DISTDIR)\$@"
 	$(COPY) "$(DISTDIR)\twapi\pkgIndex.tcl" "$(DISTDIR)\$@"
-
+	xcopy /i /e ..\dyncall\dyncall-0.9\lib\release_amd64 "$(DISTDIR)\$@\release_amd64
+	xcopy /i /e ..\dyncall\dyncall-0.9\lib\release_x86 "$(DISTDIR)\$@\release_x86
 !endif
