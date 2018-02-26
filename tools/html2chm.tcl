@@ -33,7 +33,7 @@
 package require Tcl 8.5
 package require cmdline
 package require fileutil
-catch {package require tdom}
+package require tdom
 
 namespace eval html2chm {
     # Program options
@@ -432,6 +432,10 @@ proc ::html2chm::write_toc_entry {fd path {title ""}} {
     variable tocroot
     variable meta
     variable opts
+
+    if {$opts(verbose)} {
+        app::progress "Writing ToC for $path..."
+    }
 
     # Find out if any children
     if {[dict exists $meta($path) children]} {
