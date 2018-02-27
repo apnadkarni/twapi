@@ -296,20 +296,29 @@ proc html2chm::process_content {path root} {
                 set nodes [$doc selectNodes [join [dict get $meta($parent) ${xref}_xpaths] "|"]]
                 set warned false
                 foreach node $nodes {
-                    # Add each link as a ToC/index item
-                    set text [$node asText]
+                    # Add each link as a ToC/index item.
+                    # Need to handle two cases currently:
+                    #  1. <h2><a name='LINKID'>Heading</a></h2>
+                    #  2. <h2>Heading<a name='LINKID'></a></h2>  (e.g. RBC)
+                    # In both cases, the xpath is expected to have
+                    # returned the <a> node.
+                    set link_id [$node getAttribute name ""]
+                    set text    [$node asText]
+                    if {$text eq ""} {
+                        # Case 2 - Try to get text from the parent node
+                        set text [[$node parentNode] asText]
+                    }
                     # We do not want to create entries for strings like
                     # (1), a) etc. as are present in Tcl man pages
                     # Also, some entries have empty text. Ignore these.
-                    # TBD - try to get next node text and use that.
                     if {[regexp {(^|\))\s*$} $text]} {
                         continue
                     }
                     set target $path
-                    if {[$node hasAttribute "name"]} {
-                        append target "#[$node getAttribute name]"
+                    
+                    if {$link_id ne ""} {
+                        append target "#$link_id"
                     } else {
-                        # TBD - try if parent or any child has a name attribute
                         if {! $warned} {
                             app::warn "$path: One or more xpath expressions for $xref do not have name attribute. Linking to page."
                             set warned true
@@ -812,6 +821,11 @@ proc html2chm::main {args} {
                 error "File ${output_path_base}.$ext exists. Use -overwrite option to overwrite."
             }
         }
+    }
+
+    # Delete the build files, else they get included in built CHM!
+    foreach ext {hhp hhc hhk chm} {
+        file delete "${output_path_base}.ext"
     }
 
     # glob treats \ specially, so convert all paths to use /
