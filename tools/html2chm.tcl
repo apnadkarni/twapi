@@ -296,8 +296,9 @@ proc html2chm::process_content {path root} {
                 set nodes [$doc selectNodes [join [dict get $meta($parent) ${xref}_xpaths] "|"]]
                 set warned false
                 foreach node $nodes {
-                    # Add each link as a ToC/index item.
-                    # Need to handle two cases currently:
+                    # Add each link as a ToC/index item. Node may be arbitrary
+                    # type but make note of special case of <a> nodes.
+                    # Need to handle two cases currently
                     #  1. <h2><a name='LINKID'>Heading</a></h2>
                     #  2. <h2>Heading<a name='LINKID'></a></h2>  (e.g. RBC)
                     # In both cases, the xpath is expected to have
