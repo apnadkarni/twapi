@@ -586,8 +586,8 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     int       objc;
     int       logfile_name_i;
     int       session_name_i;
-    WCHAR    *logfile_name;
-    WCHAR    *session_name;
+    WCHAR    *logfile_name = NULL;
+    WCHAR    *session_name = NULL;
     EVENT_TRACE_PROPERTIES *etP;
     Tcl_WideInt wide;
     int field;

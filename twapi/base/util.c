@@ -157,37 +157,59 @@ char *TwapiAllocAStringFromObj(Tcl_Obj *objP, int *lenP) {
 
 void *TwapiAlloc(size_t sz)
 {
-    /* TBD - why not use malloc or ckalloc? */
+#ifdef __GNUC__
+    return (void *) ckalloc(sz);
+#else
     void *p = HeapAlloc(GetProcessHeap(), 0, sz);
     if (p == NULL)
-        Tcl_Panic("Could not allocate %lu bytes.", (ULONG) sz);
+        Tcl_Panic("Could not allocate %d bytes.", sz);
     return p;
+#endif
 }
 
 void TwapiFree(void *p)
 {
+#ifdef __GNUC__
+    ckfree(p);
+#else
     HeapFree(GetProcessHeap(), 0, p);
+#endif
 }
 
 void *TwapiAllocSize(size_t sz, size_t *actual_sizeP)
 {
     void *p = TwapiAlloc(sz);
     if (actual_sizeP)
+#ifdef __GNUC__
+        *actual_sizeP = (1 + sz / sizeof (double)) * sizeof (double);
+#else
         *actual_sizeP = HeapSize(GetProcessHeap(), 0, p);
+#endif
     return p;
 }
 
 void *TwapiReallocTry(void *p, size_t sz)
 {
+#ifdef __GNUC_
+    return attemptckrealloc(p, sz);
+#else
     return HeapReAlloc(GetProcessHeap(), 0, p, sz);
+#endif
 }
 
 void *TwapiAllocZero(size_t sz)
 {
+#ifdef __GNUC__
+    char *p = ckalloc(sz);
+    if (p != NULL)
+        memset(p, 0, sz);
+    return (void *) p;
+#else
     void *p = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sz); /* TBD */
     if (p == NULL)
-        Tcl_Panic("Could not allocate %lu bytes.", (ULONG)  sz);
+        Tcl_Panic("Could not allocate %d bytes.", sz);
     return p;
+#endif
 }
 
 void *TwapiAllocRegisteredPointer(Tcl_Interp *interp, size_t sz, void *typetag)

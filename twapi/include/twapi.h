@@ -273,6 +273,8 @@ TWAPI_EXTERN void TwapiUnreachablePanic(void);
     { \
         static HINSTANCE dllname ## _H; \
         static fntype  fnname ## dllname ## _F;       \
+        static int load_attempted;                                     \
+        if (load_attempted) return fnname ## dllname ## _F;            \
         if ((fnname ## dllname ## _F) == NULL) { \
             if ((dllname ## _H) == NULL) { \
                 dllname ## _H = LoadLibraryA(#dllname ".dll"); \
@@ -280,9 +282,13 @@ TWAPI_EXTERN void TwapiUnreachablePanic(void);
             if (dllname ## _H) { \
                 fnname ## dllname ## _F = \
                     (fntype) GetProcAddress( dllname ## _H, #fnname); \
+                if ((fnname ## dllname ## _F) == NULL) {               \
+                    FreeLibrary(dllname ## _H);                        \
+                    dllname ## _H = NULL;                              \
             } \
         } \
- \
+        }                                                              \
+        load_attempted = 1;                                            \
         return fnname ## dllname ## _F; \
     }
 
@@ -303,6 +309,10 @@ TWAPI_EXTERN void TwapiUnreachablePanic(void);
             if (dllname ## _H) { \
                 fnname ## dllname ## _F = \
                     (FARPROC) GetProcAddress( dllname ## _H, #fnname); \
+                if ((fnname ## dllname ## _F) == NULL) {               \
+                    FreeLibrary(dllname ## _H);                        \
+                    dllname ## _H = NULL;                              \
+                }                                                      \
             } \
         } \
         load_attempted = 1; \
@@ -323,6 +333,10 @@ TWAPI_EXTERN void TwapiUnreachablePanic(void);
             if (dllname ## _H) { \
                 ord_ ## ord ## dllname ## _F = \
                     (FARPROC) GetProcAddress( dllname ## _H, (LPCSTR) ord); \
+                if ((ord_ ## ord ## dllname ## _F) == NULL) {          \
+                    FreeLibrary(dllname ## _H);                        \
+                    dllname ## _H = NULL;                              \
+                }                                                      \
             } \
         } \
         load_attempted = 1; \

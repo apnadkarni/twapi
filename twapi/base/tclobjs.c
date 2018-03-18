@@ -4223,7 +4223,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromTclUniCharN(const Tcl_UniChar *ws, int len)
     if (ws == NULL)
         return ObjFromEmptyString();
 
-#if TCL_MAX_UTF <= 4
+#if TCL_UTF_MAX <= 4
     TWAPI_ASSERT(sizeof(Tcl_UniChar) == sizeof(WCHAR));
     if (gBaseSettings.use_unicode_obj)
         return Tcl_NewUnicodeObj(ws, len);
@@ -4239,7 +4239,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromTclUniChar(const Tcl_UniChar *ws)
     if (ws == NULL)
         return ObjFromEmptyString(); /* TBD - log ? */
 
-#if TCL_MAX_UTF <= 4
+#if TCL_UTF_MAX <= 4
     TWAPI_ASSERT(sizeof(Tcl_UniChar) == sizeof(WCHAR));
     if (gBaseSettings.use_unicode_obj)
         return Tcl_NewUnicodeObj(ws, -1);
@@ -4862,9 +4862,11 @@ static void UpdateEnumTypeString(Tcl_Obj *objP)
      */
 #if TWAPI_ENABLE_ASSERT
     TCL_RESULT res;
+
     TWAPI_ASSERT(objP->bytes == NULL);
     TWAPI_ASSERT(objP->typePtr == &gEnumType);
     TWAPI_ASSERT(objP->internalRep.ptrAndLongRep.ptr);
+    
     res = ObjListIndex(NULL, objP->internalRep.ptrAndLongRep.ptr, objP->internalRep.ptrAndLongRep.value, &obj2P);
     TWAPI_ASSERT(res == TCL_OK);
     TWAPI_ASSERT(obj2P);
