@@ -1400,70 +1400,50 @@ static TCL_RESULT TwapiCryptDecodeObject(
         return TwapiReturnSystemError(interp);
     
     objP = NULL;
-    switch (dwoid) {
-    case (DWORD_PTR) X509_KEY_USAGE:
+    /* GCC does not like a switch statement over addresses. */
+    if (dwoid == (DWORD_PTR) X509_KEY_USAGE) {
         fnP = ObjFromCRYPT_BIT_BLOB;
-        break;
-    case (DWORD_PTR) X509_ENHANCED_KEY_USAGE:
+    } else if (dwoid == (DWORD_PTR) X509_ENHANCED_KEY_USAGE) {
         objP = ObjFromArgvA(u.enhkeyP->cUsageIdentifier,
                             u.enhkeyP->rgpszUsageIdentifier);
-        break;
-    case (DWORD_PTR) X509_ALTERNATE_NAME:
+    } else if (dwoid == (DWORD_PTR) X509_ALTERNATE_NAME) {
         fnP = ObjFromCERT_ALT_NAME_INFO;
-        break;
-    case (DWORD_PTR) X509_BASIC_CONSTRAINTS2:
+    } else if (dwoid == (DWORD_PTR) X509_BASIC_CONSTRAINTS2) {
         objs[0] = ObjFromBoolean(u.basicP->fCA);
         objs[1] = ObjFromBoolean(u.basicP->fPathLenConstraint);
         objs[2] = ObjFromDWORD(u.basicP->dwPathLenConstraint);
         objP = ObjNewList(3, objs);
-        break;
-    case (DWORD_PTR) X509_AUTHORITY_KEY_ID2:
+    } else if (dwoid == (DWORD_PTR) X509_AUTHORITY_KEY_ID2) {
         objs[0] = ObjFromCRYPT_BLOB(&u.akeyidP->KeyId);
         objs[1] = ObjFromCERT_ALT_NAME_INFO(&u.akeyidP->AuthorityCertIssuer);
         objs[2] = ObjFromCRYPT_BLOB(&u.akeyidP->AuthorityCertSerialNumber);
         objP = ObjNewList(3, objs);
-        break;
-    case (DWORD_PTR) X509_ALGORITHM_IDENTIFIER:
+    } else if (dwoid == (DWORD_PTR) X509_ALGORITHM_IDENTIFIER) {
         fnP = ObjFromCRYPT_ALGORITHM_IDENTIFIER;
-        break;
-    case (DWORD_PTR) X509_CERT_REQUEST_TO_BE_SIGNED:
+    } else if (dwoid == (DWORD_PTR) X509_CERT_REQUEST_TO_BE_SIGNED) {
         fnP = ObjFromCERT_REQUEST_INFO;
-        break;
-    case (DWORD_PTR) X509_CERT_POLICIES:
+    } else if (dwoid == (DWORD_PTR) X509_CERT_POLICIES) {
         fnP = ObjFromCERT_POLICIES_INFO;
-        break;
-    case (DWORD_PTR) X509_POLICY_CONSTRAINTS:
+    } else if (dwoid == (DWORD_PTR) X509_POLICY_CONSTRAINTS) {
         fnP = ObjFromCERT_POLICY_CONSTRAINTS_INFO;
-        break;
-    case (DWORD_PTR) X509_POLICY_MAPPINGS:
+    } else if (dwoid == (DWORD_PTR) X509_POLICY_MAPPINGS) {
         fnP = ObjFromCERT_POLICY_MAPPINGS_INFO;
-        break;
-    case (DWORD_PTR) X509_EXTENSIONS:
+    } else if (dwoid == (DWORD_PTR) X509_EXTENSIONS) {
         objP = ObjFromCERT_EXTENSIONS(u.cextsP->cExtension, u.cextsP->rgExtension);
-        break;
-    case (DWORD_PTR) X509_CRL_DIST_POINTS:
+    } else if (dwoid == (DWORD_PTR) X509_CRL_DIST_POINTS) {
         fnP = ObjFromCRL_DIST_POINTS_INFO;
-        break;
-    case (DWORD_PTR) X509_AUTHORITY_INFO_ACCESS:
+    } else if (dwoid == (DWORD_PTR) X509_AUTHORITY_INFO_ACCESS) {
         fnP = ObjFromCERT_AUTHORITY_INFO_ACCESS;
-        break;
-    case (DWORD_PTR) X509_UNICODE_ANY_STRING:
+    } else if (dwoid == (DWORD_PTR) X509_UNICODE_ANY_STRING) {
         fnP = ObjFromCERT_NAME_VALUE_WinChars;
-        break;
-    case (DWORD_PTR) X509_PUBLIC_KEY_INFO:
-        /* SubjectPublicKeyInfo decoded to CERT_PUBLIC_KEY_INFO */
+    } else if (dwoid == (DWORD_PTR) X509_PUBLIC_KEY_INFO) {
         fnP = ObjFromCERT_PUBLIC_KEY_INFO;
-        break;
-    case (DWORD_PTR) RSA_CSP_PUBLICKEYBLOB:
-        /* RSAPublicKey decoded to PUBLICKEYBLOB */
+    } else if (dwoid == (DWORD_PTR) RSA_CSP_PUBLICKEYBLOB) {
         objP = ObjFromBLOBHEADER(u.pv, n);
-        break;
-    case 65535-1: // szOID_SUBJECT_KEY_IDENTIFIER
+    } else if (dwoid == (DWORD_PTR) (65535-1)) { // szOID_SUBJECT_KEY_IDENTIFIER
         fnP = ObjFromCRYPT_BLOB;
-        break;
-    default:
+    } else {
         objP = ObjFromByteArray(u.pv, n);
-        break;
     }
 
     if (objP == NULL)
@@ -1552,20 +1532,17 @@ static TCL_RESULT TwapiCryptEncodeObject(
     }
 
     dataP = &u; /* Most types get parsed into &u */
-    switch (dwoid) {
-    case (DWORD_PTR) X509_KEY_USAGE:
+    /* GCC does not like a switch statement over addresses. */
+    if (dwoid == (DWORD_PTR) X509_KEY_USAGE) {
         if ((res = ParseCRYPT_BIT_BLOB(ticP, valObj, &u.bitblob)) != TCL_OK)
             return res;
-        break;
-    case (DWORD_PTR) X509_ENHANCED_KEY_USAGE:
+    } else if (dwoid == (DWORD_PTR) X509_ENHANCED_KEY_USAGE) {
         if ((res = ParseCERT_ENHKEY_USAGE(ticP, valObj, &u.ceku)) != TCL_OK)
             return res;
-        break;
-    case (DWORD_PTR) X509_ALTERNATE_NAME:
+    } else if (dwoid == (DWORD_PTR) X509_ALTERNATE_NAME) {
         if ((res = ParseCERT_ALT_NAME_INFO(ticP, valObj, &u.cani)) != TCL_OK)
             return res;
-        break;
-    case (DWORD_PTR) X509_BASIC_CONSTRAINTS2:
+    } else if (dwoid == (DWORD_PTR) X509_BASIC_CONSTRAINTS2) {
         if (ObjGetElements(NULL, valObj, &nobjs, &objs) != TCL_OK ||
             nobjs != 3 ||
             ObjToBoolean(NULL, objs[0], &u.basic.fCA) != TCL_OK ||
@@ -1573,8 +1550,7 @@ static TCL_RESULT TwapiCryptEncodeObject(
             ObjToDWORD(NULL, objs[2], &u.basic.dwPathLenConstraint) != TCL_OK) {
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid basic constraints.");
         }
-        break;
-    case (DWORD_PTR) X509_AUTHORITY_KEY_ID2:
+    } else if (dwoid == (DWORD_PTR) X509_AUTHORITY_KEY_ID2) {
         if (ObjGetElements(NULL, valObj, &nobjs, &objs) != TCL_OK ||
             nobjs != 3 ||
             ParseCRYPT_BLOB(ticP, objs[0], &u.auth_key_id.KeyId) != TCL_OK ||
@@ -1582,24 +1558,19 @@ static TCL_RESULT TwapiCryptEncodeObject(
             ParseCRYPT_BLOB(ticP, objs[2], &u.auth_key_id.AuthorityCertSerialNumber) != TCL_OK) {
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid authority key id.");
         }
-        break;
-    case (DWORD_PTR) X509_ALGORITHM_IDENTIFIER:
+    } else if (dwoid == (DWORD_PTR) X509_ALGORITHM_IDENTIFIER) {
         res = ParseCRYPT_ALGORITHM_IDENTIFIER(ticP, valObj, &u.algid);
         if (res != TCL_OK)
             return res;
-        break;
-    case (DWORD_PTR) X509_EXTENSIONS:
+    } else if (dwoid == (DWORD_PTR) X509_EXTENSIONS) {
         res = ParseCERT_EXTENSIONS(ticP, valObj, &u.cexts.cExtension, &u.cexts.rgExtension);
-        break;
-    case (DWORD_PTR) X509_UNICODE_ANY_STRING:
+    } else if (dwoid == (DWORD_PTR) X509_UNICODE_ANY_STRING) {
         if ((res = ParseCERT_NAME_VALUE_WinChars(ticP, valObj, &u.cnv)) != TCL_OK)
             return res;
-        break;
-    case (DWORD_PTR) X509_PUBLIC_KEY_INFO:
+    } else if (dwoid == (DWORD_PTR) X509_PUBLIC_KEY_INFO) {
         if ((res = ParseCERT_PUBLIC_KEY_INFO(ticP, valObj, &u.cpki)) != TCL_OK)
             return res;
-        break;
-    case (DWORD_PTR) RSA_CSP_PUBLICKEYBLOB:
+    } else if (dwoid == (DWORD_PTR) RSA_CSP_PUBLICKEYBLOB) {
         if (ObjGetElements(NULL, valObj, &nobjs, &objs) == TCL_OK &&
             nobjs == 5) {
             int n;
@@ -1612,19 +1583,18 @@ static TCL_RESULT TwapiCryptEncodeObject(
                     (rsaP->bitlen/8) == (n-sizeof(BLOBHEADER)-sizeof(RSAPUBKEY))) {
                     /* Sigh, seems ok. */
                     dataP = bhdrP;
-                    break; /* Break from switch, else we return error below */
+                    goto pkblobok;
                 }
             }
         }
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid RSA public key blob.");
-        
-    case 65535-1: // szOID_SUBJECT_KEY_IDENTIFIER
+pkblobok:
+        ;
+    } else if (dwoid == (DWORD_PTR) (65535-1)) { // szOID_SUBJECT_KEY_IDENTIFIER
         res = ParseCRYPT_BLOB(ticP, valObj, &u.blob);
         if (res != TCL_OK)
             return res;
-        break;
-        
-    default:
+    } else {
         return TwapiReturnErrorMsg(interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported OID.");
     }
 
