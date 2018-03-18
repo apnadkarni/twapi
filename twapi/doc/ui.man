@@ -970,7 +970,11 @@ which may be minimized, maximized or normal.
 
 [call [cmd tkpath_to_hwnd] [arg TKPATH]]
 Returns the window handle corresponding to a Tk window in a form
-that can be passed to other TWAPI commands.
+that can be passed to other TWAPI commands. Note that
+Tk toplevel windows may be wrapped by a parent window, in which case
+a Tk toplevel is not necessarily a Windows toplevel
+window. To obtain the Windows toplevel, you may need to call
+[cmd get_parent_window] on the returned window handle.
 
 [call [cmd window_exists] [arg HWIN]]
 Returns 1 if the specified window exists, else 0.
