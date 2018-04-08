@@ -3285,7 +3285,7 @@ static TCL_RESULT Twapi_CryptSetKeyParamObjCmd(ClientData clientdata, Tcl_Interp
         if (!CryptGetKeyParam(hkey, KP_BLOCKLEN, (BYTE*)&block_len, &dw, 0))
             return TwapiReturnSystemError(interp);
         p = ObjToByteArrayDW(paramObj, &dw);
-        if (dw != block_len)
+        if (dw != block_len/8)
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid IV size.");
         break;
         
