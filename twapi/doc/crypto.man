@@ -638,6 +638,9 @@ Random bytes of padding.
 Padding filled with zeroes.
 [list_end]
 
+Note that not all CSP's and algoritms every padding method.
+As of Windows 10, Microsoft CSP's only support PKCS5.
+
 [call [cmd capi_key_permissions] [arg HKEY] [opt [arg PERMS]]]
 If [arg PERMS] is not specified,
 returns the list of operations that are permitted for the key.
