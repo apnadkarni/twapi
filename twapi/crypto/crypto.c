@@ -3184,6 +3184,19 @@ static TCL_RESULT Twapi_CryptQueryObjectObjCmd(ClientData clientdata, Tcl_Interp
     return res;
 }
 
+static TCL_RESULT TwapiGetSaltLength(Tcl_Interp *ip, HCRYPTKEY hkey, DWORD *plen)
+{
+    DWORD salt_len = 0;
+    DWORD dw;
+
+    CryptGetKeyParam(hkey, KP_SALT, NULL, &salt_len, 0);
+    dw = GetLastError();
+    if (dw && dw != ERROR_MORE_DATA)
+        return Twapi_AppendSystemError(ip, dw);
+    *plen = salt_len;
+    return TCL_OK;
+}
+
 static TCL_RESULT Twapi_CryptGetKeyParamObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     DWORD param, flags, nbytes;
@@ -3290,6 +3303,17 @@ static TCL_RESULT Twapi_CryptSetKeyParamObjCmd(ClientData clientdata, Tcl_Interp
         break;
         
     case KP_SALT:
+        if (TwapiGetSaltLength(interp, hkey, &block_len) != TCL_OK)
+            return TCL_ERROR;
+        p = ObjToByteArrayDW(paramObj, &dw);
+        if (dw != block_len) {
+            ObjSetResult(interp, 
+                         Tcl_ObjPrintf("Invalid salt length %d. Should be %d.", dw, block_len));
+            return TCL_ERROR;
+        }
+        
+        break;
+               
     case KP_CERTIFICATE:
     default:
         /* Not supported because can't verify size of byte array is correct */
@@ -5213,6 +5237,15 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
             break;
         }
         break;
+    case 10073: // capi_key_salt_len
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETPTR(pv, HCRYPTKEY),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (TwapiGetSaltLength(interp, (HCRYPTKEY) pv, &result.value.uval) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_DWORD;
+        break;
         
 #ifdef TBD
     case TBD: // CertCreateContext
@@ -5622,6 +5655,7 @@ static int TwapiCryptoInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_CertChainError, 10070),
         DEFINE_FNCODE_CMD(Twapi_CertChainInfo, 10071),
         DEFINE_FNCODE_CMD(cert_chain_simple_chain_count, 10072), // TBD - doc
+        DEFINE_FNCODE_CMD(capi_key_salt_len, 10073), // TBD - doc
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {
