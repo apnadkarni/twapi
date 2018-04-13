@@ -82,13 +82,21 @@ typedef WINTRUST_DATA TWAPI_WINTRUST_DATA;
 typedef PWINTRUST_DATA PTWAPI_WINTRUST_DATA;
 #endif
 
-typedef struct _TWAPI_PLAINTEXTKEYBLOB {
+
+/*
+ * TWAPI-specific blob type
+ * Like PLAINTEXTKEYBLOB but the key is in concealed form 
+ */
+#define CONCEALEDKEYBLOB 0
+
+/* Note this has the same structure as that for PLAINTEXTKEYBLOB */
+typedef struct _TWAPI_CONCEALEDKEYBLOB {
     BLOBHEADER hdr;
     DWORD dwKeySize;
     BYTE  rgbKeyData[1]; /* Actually [dwKeySize] */
-} TWAPI_PLAINTEXTKEYBLOB;
-#define TWAPI_PLAINTEXTKEYBLOB_SIZE(klen_) \
-    ((klen_) + offsetof(struct _TWAPI_PLAINTEXTKEYBLOB, rgbKeyData))
+} TWAPI_CONCEALEDKEYBLOB;
+#define TWAPI_CONCEALEDKEYBLOB_SIZE(klen_) \
+    ((klen_) + offsetof(struct _TWAPI_CONCEALEDKEYBLOB, rgbKeyData))
 
 void TwapiRegisterPCCERT_CONTEXT(Tcl_Interp *, PCCERT_CONTEXT);
 void TwapiRegisterPCCERT_CONTEXTTic(TwapiInterpContext *, PCCERT_CONTEXT );
