@@ -5515,7 +5515,6 @@ static int Twapi_PBKDF2ObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     Tcl_Obj *passObj;
     BOOL pbkdf2_status;
     MemLifoMarkHandle mark;
-    TWAPI_CONCEALEDKEYBLOB *blobP;
     PRF *prf;
     ALG_ID alg_id;
     
@@ -5541,9 +5540,7 @@ static int Twapi_PBKDF2ObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     nkeybytes = nkeybits/8;
 
     /* We will bundle the plaintext key in sealed form as a CONCEALEDKEYBLOB */
-    blobP = MemLifoAlloc(ticP->memlifoP, 
-                         TWAPI_CONCEALEDKEYBLOB_SIZE(nkeybytes), NULL);
-    keyP = &blobP->rgbKeyData[0];
+    keyP = MemLifoAlloc(ticP->memlifoP, nkeybytes, NULL);
     
     TWAPI_ASSERT(ticP->memlifoP == SWS());
     utfpassP = (unsigned char *) ObjDecryptUtf8SWS(interp, passObj, &nutf);
