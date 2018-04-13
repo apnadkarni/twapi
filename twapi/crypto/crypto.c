@@ -1303,16 +1303,16 @@ static Tcl_Obj *ObjFromBLOBHEADER(BLOBHEADER *blobP, int nbytes)
     Tcl_Obj *objs[5];
 
     TWAPI_ASSERT(nbytes >= sizeof(*blobP));
+    objs[0] = ObjFromInt(blobP->bType);
     objs[1] = ObjFromInt(blobP->bVersion);
     objs[2] = ObjFromInt(blobP->reserved);
     objs[3] = ObjFromInt(blobP->aiKeyAlg);
-    if (blobP->bType != PLAINTEXTKEYBLOB) {
-        objs[0] = ObjFromInt(blobP->bType);
-        objs[4] = ObjFromByteArray((unsigned char *)blobP, nbytes);
-    } else {
-        TWAPI_PLAINTEXTKEYBLOB *ptblobP = (TWAPI_PLAINTEXTKEYBLOB *) blobP;
-        objs[0] = ObjFromInt(0); /* Special indicator for sealed PLAINTEXTKEYBLOB */
+    if (blobP->bType == CONCEALEDKEYBLOB) {
+        /* We want to return plaintext key in concealed form */
+        TWAPI_CONCEALEDKEYBLOB *ptblobP = (TWAPI_CONCEALEDKEYBLOB *) blobP;
         objs[4] = ObjEncryptBytes(NULL, (BYTE*) &ptblobP->rgbKeyData[0], ptblobP->dwKeySize);
+    } else {
+        objs[4] = ObjFromByteArray((unsigned char *)blobP, nbytes);
     }
     return ObjNewList(5, objs);
 }
@@ -4059,11 +4059,15 @@ static TCL_RESULT Twapi_CryptExportKeyObjCmd(ClientData clientdata, Tcl_Interp *
         hwrapper = NULL; /* As per SDK */
     
     nbytes = 0;
-    if (!CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hwrapper, blob_type, flags, NULL, &nbytes))
+    if (!CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hwrapper,
+                        blob_type == CONCEALEDKEYBLOB ? PLAINTEXTKEYBLOB : blob_type,
+                        flags, NULL, &nbytes))
         return TwapiReturnSystemError(interp);
 
     blobP = MemLifoPushFrame(ticP->memlifoP, nbytes, &nbytes);
-    if (CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hwrapper, blob_type, flags, (BYTE*) blobP, &nbytes)) {
+    if (CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hwrapper,
+                       blob_type == CONCEALEDKEYBLOB ? PLAINTEXTKEYBLOB : blob_type,
+                       flags, (BYTE*) blobP, &nbytes)) {
         res = ObjSetResult(interp, ObjFromBLOBHEADER(blobP, nbytes));
         SecureZeroMemory(blobP, nbytes); /* In case plaintext secret keys */
     } else
@@ -4100,22 +4104,22 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(ClientData clientdata, Tcl_Interp *
         return TCL_ERROR;
 
 
-    if (btype == 0) {
+    if (btype == CONCEALEDKEYBLOB) {
         /* 0 is not a valid CryptoAPI blob type so we use it to indicate
         * the key blob is plaintext sealed with twapi. We have to build
          * a PLAINTEXTBLOB header in front of it.
          */
-        TWAPI_PLAINTEXTKEYBLOB *p;
+        TWAPI_CONCEALEDKEYBLOB *p;
         int keysize;
         TWAPI_ASSERT(SWS() == ticP->memlifoP);
         mark = MemLifoPushMark(ticP->memlifoP);
-        p = ObjDecryptBytesExSWS(interp, blobObj, offsetof(TWAPI_PLAINTEXTKEYBLOB, rgbKeyData), &keysize);
+        p = ObjDecryptBytesExSWS(interp, blobObj, offsetof(TWAPI_CONCEALEDKEYBLOB, rgbKeyData), &keysize);
         if (p == NULL) {
             res = TCL_ERROR;
             goto vamoose;
         }
         p->dwKeySize = keysize;
-        nbytes = TWAPI_PLAINTEXTKEYBLOB_SIZE(p->dwKeySize);
+        nbytes = TWAPI_CONCEALEDKEYBLOB_SIZE(p->dwKeySize);
         nclear = nbytes; /* Number of bytes to clear out */
         btype = PLAINTEXTKEYBLOB;
         blobP = &p->hdr;
@@ -5511,7 +5515,7 @@ static int Twapi_PBKDF2ObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     Tcl_Obj *passObj;
     BOOL pbkdf2_status;
     MemLifoMarkHandle mark;
-    TWAPI_PLAINTEXTKEYBLOB *blobP;
+    TWAPI_CONCEALEDKEYBLOB *blobP;
     PRF *prf;
     ALG_ID alg_id;
     
@@ -5536,9 +5540,9 @@ static int Twapi_PBKDF2ObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     }
     nkeybytes = nkeybits/8;
 
-    /* We will bundle the plaintext key in sealed form as a PLAINTEXTKEYBLOB */
+    /* We will bundle the plaintext key in sealed form as a CONCEALEDKEYBLOB */
     blobP = MemLifoAlloc(ticP->memlifoP, 
-                         TWAPI_PLAINTEXTKEYBLOB_SIZE(nkeybytes), NULL);
+                         TWAPI_CONCEALEDKEYBLOB_SIZE(nkeybytes), NULL);
     keyP = &blobP->rgbKeyData[0];
     
     TWAPI_ASSERT(ticP->memlifoP == SWS());
