@@ -4068,6 +4068,8 @@ static TCL_RESULT Twapi_CryptExportKeyObjCmd(ClientData clientdata, Tcl_Interp *
     if (CryptExportKey((HCRYPTKEY)hkey, (HCRYPTKEY)hwrapper,
                        blob_type == CONCEALEDKEYBLOB ? PLAINTEXTKEYBLOB : blob_type,
                        flags, (BYTE*) blobP, &nbytes)) {
+        if (blob_type == CONCEALEDKEYBLOB)
+            blobP->bType = CONCEALEDKEYBLOB;
         res = ObjSetResult(interp, ObjFromBLOBHEADER(blobP, nbytes));
         SecureZeroMemory(blobP, nbytes); /* In case plaintext secret keys */
     } else
@@ -4105,8 +4107,8 @@ static TCL_RESULT Twapi_CryptImportKeyObjCmd(ClientData clientdata, Tcl_Interp *
 
 
     if (btype == CONCEALEDKEYBLOB) {
-        /* 0 is not a valid CryptoAPI blob type so we use it to indicate
-        * the key blob is plaintext sealed with twapi. We have to build
+        /* CONCEALEDKEYBLOB is not a valid CryptoAPI blob type - it is a
+         * key blob sealed with twapi. We have to build
          * a PLAINTEXTBLOB header in front of it.
          */
         TWAPI_CONCEALEDKEYBLOB *p;
