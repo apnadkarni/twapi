@@ -1629,46 +1629,6 @@ proc twapi::pbkdf2 {pass nbits alg_id salt niters} {
     return [PBKDF2 $pass $nbits [capi_algid $alg_id] $salt $niters]
 }
                     
-# TBD - test and doc
-proc twapi::aes_encrypt {plaintext keybytes args} {
-    parseargs args {
-        mode.arg
-        iv.arg
-        padding.arg
-        hex
-    } -setvars -maxleftover 0
-
-    switch -exact -- [string length $keybytes] {
-        16 { set algo aes_128 }
-        24 { set algo aes_192 }
-        32 { set algo aes_256 }
-    }
-
-    set hcrypt [crypt_acquire -csptype prov_rsa_aes]
-    try {
-        set hkey [crypt_import_key $hcrypt [_make_plaintextkeyblob $algo $keybytes]]
-        if {[info exists mode]} {
-            capi_key_mode $hkey $mode
-        }
-        if {[info exists iv]} {
-            capi_key_iv $hkey $iv
-        }
-        if {[info exists padding]} {
-            capi_key_padding $hkey $padding
-        }
-        set ciphertext [capi_encrypt_bytes $plaintext $hkey]
-    } finally {
-        if {[info exists hkey]} {
-            capi_key_free $hkey
-        }
-        crypt_free $hcrypt
-    }
-    if {$hex} {
-        return [binary encode hex $ciphertext]
-    } else {
-        return $ciphertext
-    }
-}
 
 proc twapi::capi_encrypt_bytes {bytes hkey args} {
     parseargs args {
@@ -1694,6 +1654,47 @@ proc twapi::capi_decrypt_bytes {bytes hkey args} {
 proc twapi::capi_decrypt_string {s hkey args} {
     return [encoding convertfrom utf-8 [capi_decrypt_bytes $s $hkey {*}$args]]
 }
+
+# TBD - test and doc
+proc twapi::_block_cipher {algo direction bytes keybytes args} {
+    parseargs args {
+        mode.arg
+        iv.arg
+        padding.arg
+    } -setvars -maxleftover 0
+
+    set hcrypt [crypt_acquire -csptype prov_rsa_aes]
+    try {
+        set hkey [crypt_import_key $hcrypt [_make_plaintextkeyblob $algo $keybytes]]
+        if {[info exists mode]} {
+            capi_key_mode $hkey $mode
+        }
+        if {[info exists iv]} {
+            capi_key_iv $hkey $iv
+        }
+        if {$direction eq "encrypt"} {
+            if {[info exists padding]} {
+                capi_key_padding $hkey $padding
+            }
+            set ciphertext [capi_encrypt_bytes $bytes $hkey]
+        } else {
+            set ciphertext [capi_decrypt_bytes $bytes $hkey]
+        }
+    } finally {
+        if {[info exists hkey]} {
+            capi_key_free $hkey
+        }
+        crypt_free $hcrypt
+    }
+    return $ciphertext
+}
+interp alias {} twapi::des {} twapi::_block_cipher des
+interp alias {} twapi::3des {} twapi::_block_cipher 3des
+interp alias {} twapi::3des_112 {} twapi::_block_cipher 3des_112
+interp alias {} twapi::aes_128 {} twapi::_block_cipher aes_128
+interp alias {} twapi::aes_192 {} twapi::_block_cipher aes_192
+interp alias {} twapi::aes_256 {} twapi::_block_cipher aes_256
+
 
 ###
 # PKCS7 commands
