@@ -343,6 +343,14 @@ The package implements the following commands related to encryption
 and signatures.
 
 [list_begin opt]
+[opt_def [uri #3des [cmd 3des]]]
+Encrypts, decrypts or generates an IV (3DES algorithm)
+[opt_def [uri #aes_128 [cmd aes_128]]]
+Encrypts, decrypts or generates an IV (AES 128-bits algorithm)
+[opt_def [uri #aes_192 [cmd aes_192]]]
+Encrypts, decrypts or generates an IV (AES 192-bits algorithm)
+[opt_def [uri #aes_256 [cmd aes_256]]]
+Encrypts, decrypts or generates an IV (AES 256-bits algorithm)
 [opt_def [uri #capi_encrypt_bytes [cmd capi_encrypt_bytes]]]
 Encrypts a binary string with optional hashing.
 [opt_def [uri #capi_encrypt_string [cmd capi_encrypt_string]]]
@@ -355,6 +363,8 @@ Decrypts a string with optional hashing.
 Signs a hash using a private key.
 [opt_def [uri #capi_hash_verify [cmd capi_hash_verify]]]
 Verifies the signature of a hash.
+[opt_def [uri #des [cmd des]]]
+Encrypts, decrypts or generates an IV (DES algorithm)
 [list_end]
 
 
@@ -382,6 +392,30 @@ is similar except it reads the serialized data directly from a file.
 [section Commands]
 
 [list_begin definitions]
+
+[call [cmd 3des] [const iv|encrypt|decrypt] [arg BYTES] [arg CONCEALEDKEY] [opt [arg options]]]
+Implements cryptographic operations using the 3DES algorithm.
+[nl]
+The [cmd iv] subcommand returns a randomly generated
+initialization vector suitable
+for 3DES. No additional arguments are allowed.
+[nl]
+For [cmd encrypt] and [cmd decrypt] commands,
+[arg BYTES] is the
+binary string to be encrypted or the ciphertext to be decrypted.
+[arg CONCEALEDKEY] is the 3DES key in
+[uri base.html#protectingdatainmemory concealed] form. The returned value is
+the encrypted ciphertext or decrypted plaintext respectively.
+
+The following options affect encryption or decryption operation.
+
+[list_begin opt]
+[opt_def [cmd -iv] [arg IV]]
+A binary string to be used as the initialization vector of the operation.
+[opt_def [cmd -mode] [arg MODE]]
+The cipher mode to be used for the operation. See
+[uri #capi_key_mode [cmd capi_key_mode]].
+[list_end]
 
 [call [cmd asn1_encode_string] [arg OID]]
 Returns the specified OID in ASN.1 binary encoded format.
