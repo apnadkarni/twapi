@@ -1657,12 +1657,15 @@ proc twapi::capi_decrypt_string {s hkey args} {
 
 # TBD - test and doc
 proc twapi::_block_cipher {algo direction bytes keybytes args} {
+
+    # Note: padding mode is not documented since MS providers only support
+    # one mode anyway
     parseargs args {
         mode.arg
         iv.arg
         padding.arg
     } -setvars -maxleftover 0
-
+    
     set hcrypt [crypt_acquire -csptype prov_rsa_aes]
     try {
         set hkey [crypt_import_key $hcrypt [_make_plaintextkeyblob $algo $keybytes]]
@@ -1688,13 +1691,20 @@ proc twapi::_block_cipher {algo direction bytes keybytes args} {
     }
     return $ciphertext
 }
-interp alias {} twapi::des {} twapi::_block_cipher des
-interp alias {} twapi::3des {} twapi::_block_cipher 3des
-interp alias {} twapi::3des_112 {} twapi::_block_cipher 3des_112
-interp alias {} twapi::aes_128 {} twapi::_block_cipher aes_128
-interp alias {} twapi::aes_192 {} twapi::_block_cipher aes_192
-interp alias {} twapi::aes_256 {} twapi::_block_cipher aes_256
 
+# apply to avoid global variable pollution
+apply {{} {
+    foreach {algo blocklen} {des 8 3des 24 aes_128 16 aes_192 24 aes_256 32} {
+        namespace eval twapi::$algo {}
+        interp alias {} twapi::${algo}::encrypt {} twapi::_block_cipher $algo encrypt
+        interp alias {} twapi::${algo}::decrypt {} twapi::_block_cipher $algo decrypt
+        interp alias {} twapi::${algo}::iv {} twapi::random_bytes $blocklen
+        namespace eval twapi::$algo {
+            namespace export encrypt decrypt iv
+            namespace ensemble create
+        }
+    }
+}}
 
 ###
 # PKCS7 commands

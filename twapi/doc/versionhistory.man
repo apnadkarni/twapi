@@ -7,6 +7,17 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
+[section "Version 4.3.0"]
+[list_begin bullet]
+[bullet]
+Added
+[uri crypto.html#des [cmd des]],
+[uri crypto.html#3des [cmd 3des]],
+[uri crypto.html#aes_128 [cmd aes_128]],
+[uri crypto.html#aes_192 [cmd aes_192]],
+[uri crypto.html#aes_256 [cmd aes_256]].
+[list_end]
+
 [section "Version 4.2.12"]
 
 [list_begin bullet]
