@@ -5270,6 +5270,41 @@ namespace eval twapi::crypto::test {
     } -body {
         TBD
     } -result TBD
+
+    foreach algo {des 3des aes_128 aes_192 aes_256} {
+        foreach mode {ecb cbc cfb} {
+            set plaintexts [lmap len {1 7 8 9 15 16 17 23 24 25 31 32 33} {
+                string repeat A $len
+            }]
+                            
+            foreach plaintext $plaintexts {
+                set len [string length $plaintext]
+                
+                test $algo-$mode-encrypt-len$len "$algo encrypt -mode $mode $len bytes" -body {
+                    set iv [twapi::$algo iv]
+                    set key [twapi::random_bytes [dict get {
+                        des 8 3des 24 aes_128 16 aes_192 24 aes_256 32
+                    } $algo]]
+                    set enc [twapi::$algo encrypt $plaintext [twapi::conceal $key] -mode $mode -iv $iv]
+                    openssl_decrypt $algo $mode $enc $key $iv
+                } -result $plaintext
+
+                if {$mode eq "cfb"} {
+                    # CFB on openssl does not pad, CryptoAPI expects pad
+                    # No way to fix this for decrypt tests so skip
+                    continue
+                }
+                test $algo-$mode-decrypt-len$len "$algo decrypt -mode $mode $len bytes" -body {
+                    set iv [twapi::$algo iv]
+                    set key [twapi::random_bytes [dict get {
+                        des 8 3des 24 aes_128 16 aes_192 24 aes_256 32
+                    } $algo]]
+                    set enc [openssl_encrypt $algo $mode $plaintext $key $iv]
+                    twapi::$algo decrypt $enc [twapi::conceal $key] -mode $mode -iv $iv
+                } -result $plaintext
+            }
+        }
+    }
 }
 
 patience "Cleaning test certs"

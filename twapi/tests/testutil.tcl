@@ -1678,6 +1678,50 @@ proc openssl_dgst {alg data args} {
     return [lindex [openssl dgst -$alg -r {*}$args [write_test_file $data]] 0 0]
 }
     
+proc openssl_encrypt {alg mode data key iv} {
+    switch -exact -- $alg {
+        3des { set alg des3 }
+        aes_128 { set alg aes-128 }
+        aes_192 { set alg aes-192 }
+        aes_256 { set alg aes-256 }
+    }
+
+    # Use -base64 to avoid char encoding issues with binary data
+    return [binary decode base64 \
+                [lindex \
+                     [openssl enc -e -base64 -${alg}-${mode} -K [binary encode hex $key] -iv [binary encode hex $iv] -in [write_test_file $data]] \
+                     0] \
+               ]
+}
+
+proc openssl_decrypt {alg mode ciphertext key iv} {
+    switch -exact -- $alg {
+        3des { set alg des-ede3 }
+        aes_128 { set alg aes-128 }
+        aes_192 { set alg aes-192 }
+        aes_256 { set alg aes-256 }
+    }
+    if {$mode eq "cfb"} {
+        set mode cfb8
+    }
+    set alg ${alg}-${mode}
+    if {$alg eq "des-ede3-ecb"} {
+        set alg des-ede3
+    }
+    set plaintext [lindex \
+                [openssl enc -d -${alg} -K [binary encode hex $key] -iv [binary encode hex $iv] -in [write_test_file $ciphertext]] \
+                0]
+
+    if {$mode eq "cfb8"} {
+        # For CFB there is an incompatibility in that openssl does not 
+        # assume padding and returns all decrypted bytes as plaintext
+        # so we need to remove padding that cryptoapi would have added
+        set npad [scan [string index $plaintext end] %c]
+        set plaintext [string range $plaintext 0 end-$npad]
+    }
+    return $plaintext
+}
+
 #####
 #
 # "SetOps, Code, 8.x v2"
