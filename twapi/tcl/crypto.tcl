@@ -1655,6 +1655,19 @@ proc twapi::capi_decrypt_string {s hkey args} {
     return [encoding convertfrom utf-8 [capi_decrypt_bytes $s $hkey {*}$args]]
 }
 
+# Returns the most capable CSP
+proc twapi::_crypt_acquire_default {} {
+    if {[catch {crypt_acquire -csptype prov_rsa_aes} hcrypt] &&
+        [catch {crypt_acquire -csptype prov_rsa_full -csp {Microsoft Enhanced Cryptographic Provider v1.0}} hcrypt]} {
+        set hcrypt [crypt_acquire]
+    }
+    set cspname [crypt_csp $hcrypt]
+    set csptype [crypt_csp_type $hcrypt]
+    # Redefine ourselves for next call
+    proc [namespace current]::_crypt_acquire_default {} "crypt_acquire -csp {$cspname} -csptype $csptype"
+    return $hcrypt
+}
+
 # TBD - test and doc
 proc twapi::_block_cipher {algo direction bytes keybytes args} {
 
@@ -1666,7 +1679,7 @@ proc twapi::_block_cipher {algo direction bytes keybytes args} {
         padding.arg
     } -setvars -maxleftover 0
     
-    set hcrypt [crypt_acquire -csptype prov_rsa_aes]
+    set hcrypt [_crypt_acquire_default]
     try {
         set hkey [crypt_import_key $hcrypt [_make_plaintextkeyblob $algo $keybytes]]
         if {[info exists mode]} {
@@ -2395,9 +2408,9 @@ twapi::proc* twapi::_system_store_id {name} {
 }
 
 twapi::proc* twapi::_csp_type_name_to_id prov {
-    variable _csp_name_id_map
+    variable _csp_type_name_id_map
 
-    array set _csp_name_id_map {
+    array set _csp_type_name_id_map {
         prov_rsa_full           1
         prov_rsa_sig            2
         prov_dss                3
@@ -2418,38 +2431,38 @@ twapi::proc* twapi::_csp_type_name_to_id prov {
         prov_rsa_aes            24
     }
 } {
-    variable _csp_name_id_map
+    variable _csp_type_name_id_map
 
     set key [string tolower $prov]
 
-    if {[info exists _csp_name_id_map($key)]} {
-        return $_csp_name_id_map($key)
+    if {[info exists _csp_type_name_id_map($key)]} {
+        return $_csp_type_name_id_map($key)
     }
 
     if {[string is integer -strict $prov]} {
         return $prov
     }
 
-    badargs! "Invalid or unknown provider name '$prov'" 3
+    badargs! "Invalid or unknown provider type '$prov'" 3
 }
 
 twapi::proc* twapi::_csp_type_id_to_name prov {
-    variable _csp_name_id_map
-    variable _csp_id_name_map
+    variable _csp_type_name_id_map
+    variable _csp_id_type_name_map
 
-    _csp_type_name_to_id prov_rsa_full; # Just to ensure _csp_name_id_map exists
-    array set _csp_id_name_map [swapl [array get _csp_name_id_map]]
+    _csp_type_name_to_id prov_rsa_full; # Just to ensure _csp_type_name_id_map exists
+    array set _csp_id_type_name_map [swapl [array get _csp_type_name_id_map]]
 } {
-    variable _csp_id_name_map
-    if {[info exists _csp_id_name_map($prov)]} {
-        return $_csp_id_name_map($prov)
+    variable _csp_id_type_name_map
+    if {[info exists _csp_id_type_name_map($prov)]} {
+        return $_csp_id_type_name_map($prov)
     }
 
     if {[string is integer -strict $prov]} {
         return $prov
     }
 
-    badargs! "Invalid or unknown provider id '$prov'" 3
+    badargs! "Invalid or unknown CSP type id '$prov'" 3
 }
 
 twapi::proc* twapi::oid {name} {
