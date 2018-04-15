@@ -674,7 +674,9 @@ If [arg MODE] is not specified,
 returns the cipher mode used with the key. The return value is one
 of [const cbc], [const ecb], [const ofb], [const cfb] and [const cts].
 If [arg MODE] is specified it must be one of the aforementioned values
-and the cipher mode is set accordingly.
+and the cipher mode is set accordingly. Note that not all CSP's support
+all modes for a given algorithm. In particular, the Microsoft provided CSP's
+only support the `ecb`, `cbc` and `cfb` modes.
 [arg HKEY] must be a handle to a block cipher session key.
 
 [call [cmd capi_key_mode_bits] [arg HKEY] [opt [arg MODEBITS]]]
