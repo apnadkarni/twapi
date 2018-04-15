@@ -1707,7 +1707,7 @@ proc twapi::_block_cipher {algo direction bytes keybytes args} {
 
 # apply to avoid global variable pollution
 apply {{} {
-    foreach {algo blocklen} {des 8 3des 24 aes_128 16 aes_192 24 aes_256 32} {
+    foreach {algo blocklen} {des 8 3des 8 aes_128 16 aes_192 16 aes_256 16} {
         namespace eval twapi::$algo {}
         interp alias {} twapi::${algo}::encrypt {} twapi::_block_cipher $algo encrypt
         interp alias {} twapi::${algo}::decrypt {} twapi::_block_cipher $algo decrypt
