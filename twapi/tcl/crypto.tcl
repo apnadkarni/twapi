@@ -1668,7 +1668,6 @@ proc twapi::_crypt_acquire_default {} {
     return $hcrypt
 }
 
-# TBD - test and doc
 proc twapi::_block_cipher {algo direction bytes keybytes args} {
 
     # Note: padding mode is not documented since MS providers only support
