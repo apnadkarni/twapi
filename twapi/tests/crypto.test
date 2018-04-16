@@ -3549,15 +3549,15 @@ namespace eval twapi::crypto::test {
 
     test capi_algid-2.0 {Alg Id for md5} -body {
         twapi::capi_algid md5
-    } -result 0x00008003
+    } -result 32771
 
     test capi_algid-2.1 {Alg Id for sha1} -body {
         twapi::capi_algid sha1
-    } -result 0x00008004
+    } -result 32772
 
     test capi_algid-2.2 {Alg Id for sha_256} -body {
         twapi::capi_algid sha_256
-    } -result 0x0000800c
+    } -result 32780
 
     test capi_algid-2.3 {Alg Id for keyexchange} -body {
         twapi::capi_algid keyexchange
@@ -3569,11 +3569,11 @@ namespace eval twapi::crypto::test {
 
     test capi_algid-3.0 {Alg Id for OID} -body {
         twapi::capi_algid oid_oiwsec_md5rsa
-    } -result 0x00008003
+    } -result 32771
 
     test capi_algid-3.1 {Alg Id for OID} -body {
         twapi::capi_algid 1.2.840.113549.1.1.4
-    } -result 0x00008003
+    } -result 32771
     
     test capi_algid-4.0 {Alg Id for bad token} -body {
         twapi::capi_algid xxx
@@ -3582,6 +3582,11 @@ namespace eval twapi::crypto::test {
     test capi_algid-4.1 {Alg Id for bad OID} -body {
         twapi::capi_algid 1.2.840.113549.1.1.40 
     } -result {Could not map "1.2.840.113549.1.1.40" to algorithm id} -returnCodes error
+
+    test capi_algid-5.0 {Alg Id for hex - should return decimal} -body {
+        twapi::capi_algid 0x10
+    } -result 16
+
     
     ################################################################
 
@@ -3788,6 +3793,87 @@ namespace eval twapi::crypto::test {
         TBD
     } -result TBD
 
+    ################################################################
+
+    test capi_keyblob_create-1.0 {
+        Create a keyblob
+    } -body {
+        twapi::capi_keyblob_create 2 des plaintext \0\1\2\3\4\5\6\7
+    } -result [list 8 2 0 [twapi::capi_algid des] \0\1\2\3\4\5\6\7]
+
+    test capi_keyblob_create-99 {
+        TBD - capi_keyblob_create-99 - tests for other blob types
+    } -constraints {
+        TBD
+    } -body {
+        TBD
+    } -result TBD
+               
+    test capi_keyblob_plaintext-1.0 {
+        Create and import a plaintext keyblob
+    } -setup {
+        set hcrypt [twapi::crypt_acquire]
+    } -body {
+        set blob [twapi::capi_keyblob_plaintext des [string repeat \1 8]]
+        set hkey [twapi::crypt_import_key $hcrypt $blob]
+        set exp [twapi::capi_key_export $hkey plaintext]
+        equal_lists $exp $blob
+    } -cleanup {
+        twapi::capi_key_free $hkey
+        twapi::crypt_free $hcrypt
+    } -result 1
+
+    test capi_keyblob_concealed-1.0 {
+        Create and import a concealed keyblob
+    } -setup {
+        set hcrypt [twapi::crypt_acquire -csptype prov_rsa_aes]
+        set concealed [twapi::conceal [string repeat \1 16]]
+    } -body {
+        set blob [twapi::capi_keyblob_concealed aes_128 $concealed]
+        set hkey [twapi::crypt_import_key $hcrypt $blob]
+        set exp [twapi::capi_key_export $hkey concealed]
+        # Concealed function can return different ciphertext for same plaintext
+        lset blob end [twapi::reveal [lindex $blob end]]
+        lset exp end [twapi::reveal [lindex $exp end]]
+        equal_lists $exp $blob
+    } -cleanup {
+        twapi::capi_key_free $hkey
+        twapi::crypt_free $hcrypt
+    } -result 1
+
+    test capi_keyblob_version-1.0 {
+        capi_keyblob_version
+    } -setup {
+        set blob [twapi::capi_keyblob_plaintext des abcd]
+    } -body {
+        twapi::capi_keyblob_version $blob
+    } -result 2
+
+    test capi_keyblob_blob-1.0 {
+        capi_keyblob_blob 
+    } -setup {
+        set blob [twapi::capi_keyblob_plaintext des abcdefgh]
+    } -body {
+        twapi::capi_keyblob_blob $blob
+    } -result [binary format ccsiia* 8 2 0 [twapi::capi_algid des] 8 abcdefgh]
+
+    test capi_keyblob_algid-1.0 {
+        capi_keyblob_algid 
+    } -setup {
+        set blob [twapi::capi_keyblob_plaintext des abcd]
+    } -body {
+        twapi::capi_keyblob_algid $blob
+    } -result 26113
+
+    test capi_keyblob_type-1.0 {
+        capi_keyblob_type
+    } -setup {
+        set blob [twapi::capi_keyblob_plaintext des abcd]
+    } -body {
+        twapi::capi_keyblob_type $blob
+    } -result plaintext
+
+    
     ################################################################
 
     test pbkdf2-sha1-1.0 {
