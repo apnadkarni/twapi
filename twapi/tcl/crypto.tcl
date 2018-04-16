@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2007-2016, Ashok P. Nadkarni
+# Copyright (c) 2007-2018, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -92,7 +92,7 @@ proc twapi::hmac {data key {prf sha1} {charset {}}} {
         # will accept any number. TBD - the pbkdf2 source code implies
         # on Win8.1 single byte keys will not be accepted by rc2 and
         # keys need to be padded with 0's. Need to check that.
-        set hkey [crypt_import_key $hcrypt [_make_plaintextkeyblob rc2 $key] -ipsechmac 1]
+        set hkey [crypt_import_key $hcrypt [capi_keyblob_concealed rc2 $key] -ipsechmac 1]
         set hhash [capi_hash_create $hcrypt hmac $hkey]
         # 5 -> HP_HMAC_INFO
         CryptSetHashParam $hhash 5 [list [capi_algid $prf] "" ""]
@@ -1535,17 +1535,6 @@ proc twapi::crypt_symmetric_key_size {hcrypt} {
 }
 
 proc twapi::capi_key_export {hkey blob_type args} {
-    set blob_type [dict! {
-        keystate   12
-        opaque     9
-        plaintext  8
-        privatekey 7
-        publickey  6
-        publickeyex 10
-        simple     1
-        rfc3217    11
-    } $blob_type]
-
     parseargs args {
         {wrapper.arg NULL}
         {v3.bool 0 0x80}
@@ -1553,7 +1542,7 @@ proc twapi::capi_key_export {hkey blob_type args} {
         {destroy.bool 0 0x04}
     } -setvars -maxleftover 0
 
-    return [CryptExportKey $hkey $wrapper $blob_type [expr {$v3|$oeap}]]
+    return [CryptExportKey $hkey $wrapper [_capi_keyblob_type_id $blob_type] [expr {$v3|$oeap}]]
 }
 interp alias {} twapi::crypt_export_key {} twapi::capi_key_export
 
@@ -1680,7 +1669,7 @@ proc twapi::_block_cipher {algo direction bytes keybytes args} {
     
     set hcrypt [_crypt_acquire_default]
     try {
-        set hkey [crypt_import_key $hcrypt [_make_plaintextkeyblob $algo $keybytes]]
+        set hkey [crypt_import_key $hcrypt [capi_keyblob_concealed $algo $keybytes]]
         if {[info exists mode]} {
             capi_key_mode $hkey $mode
         }
@@ -1873,7 +1862,7 @@ proc twapi::crypt_implementation_type {hcrypt} {
 
 proc twapi::capi_algid {s} {
     if {[string is integer -strict $s]} {
-        return $s
+        return [expr {$s}];     # Return in decimal form
     }
     set algid [dict* {
         3des 0x00006603
@@ -1923,15 +1912,16 @@ proc twapi::capi_algid {s} {
         tls1_master 0x00004c06
         tls1prf 0x0000800a
     } $s ""]
-    if {$algid ne ""} {
-        return $algid
+
+    if {$algid eq ""} {
+        set oid [oid $s]
+        set algid [CertOIDToAlgId $oid]
+        if {$algid == 0} {
+            error "Could not map \"$s\" to algorithm id"
+        }
     }
-    set oid [oid $s]
-    set algid [CertOIDToAlgId $oid]
-    if {$algid == 0} {
-        error "Could not map \"$s\" to algorithm id"
-    }
-    return $algid
+    # Return the decimal form
+    return [expr {$algid}]
 }
 
 # TBD - document
@@ -2235,6 +2225,79 @@ proc twapi::capi_key_salt {hkey args} {
         return [CryptSetKeyParam $hkey 10 [lindex $args 0]]
     } 
     badargs! "Invalid syntax. Should be [lindex [info level 0] 0] HKEY ?VALUE?"
+}
+
+proc twapi::capi_keyblob_create {ver algid blob_type key} {
+    # 0 -> reserved field
+    return [list [_capi_keyblob_type_id $blob_type] $ver 0 [capi_algid $algid] $key]
+}
+
+proc twapi::capi_keyblob_concealed {algid concealed_key} {
+    # 2 -> bVersion
+    # 0 -> concealed plaintextkeyblob
+    # Note: for our own home grown concealed type there is no
+    # BLOBHEADER
+    return [capi_keyblob_create 2 $algid concealed $concealed_key]
+}
+
+proc twapi::capi_keyblob_plaintext {algid binkey} {
+    # typedef struct _PUBLICKEYSTRUC {
+    #   BYTE   bType;
+    #   BYTE   bVersion;
+    #   WORD   reserved;
+    #   ALG_ID aiKeyAlg;
+    # } BLOBHEADER;
+    # 2 -> bVersion
+    set algnum [capi_algid $algid]
+    set blob_type [_capi_keyblob_type_id plaintext]
+    set len [string length $binkey]
+    set blob "[binary format ccsii $blob_type 2 0 $algnum $len]$binkey"
+    return [capi_keyblob_create 2 $algid plaintext $blob]
+}
+
+proc twapi::capi_keyblob_version {kblob} {
+    return [lindex $kblob 1]
+}
+
+proc twapi::capi_keyblob_algid {kblob} {
+    return [lindex $kblob 3]
+}
+
+proc twapi::capi_keyblob_type {kblob} {
+    return [_capi_keyblob_type_name [lindex $kblob 0]]
+}
+
+proc twapi::capi_keyblob_blob {kblob} {
+    return [lindex $kblob 4]
+}
+
+proc twapi::_capi_keyblob_type_id {name} {
+    set blob_type [dict* {
+        concealed    0
+        keystate    12
+        opaque       9
+        plaintext    8
+        privatekey   7
+        publickey    6
+        publickeyex 10
+        rfc3217     11
+        simple       1
+    } $name]
+}
+
+proc twapi::_capi_keyblob_type_name {id} {
+    set blob_type [dict* {
+        0  concealed
+        1  simple
+        6  publickey
+        7  privatekey
+        8  plaintext
+        9  opaque
+        10 publickeyex
+        11 rfc3217
+        12 keystate
+    } [incr id 0]];              # incr to convert hex etc. to decimal
+    
 }
 
 ###
@@ -3100,13 +3163,6 @@ proc twapi::_parse_store_open_opts {optvals} {
         incr flags $val
     }
     return $flags
-}
-
-proc twapi::_make_plaintextkeyblob {algid rawkey} {
-    # 0 -> concealed plaintextkeyblob
-    # 2 -> bVersion
-    # 0 -> reserved
-    return [list 0 2 0 [capi_algid $algid] $rawkey]
 }
 
 # Helper to return as der/pem based on encoding option

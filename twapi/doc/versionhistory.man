@@ -16,6 +16,17 @@ Added
 [uri crypto.html#aes_128 [cmd aes_128]],
 [uri crypto.html#aes_192 [cmd aes_192]],
 [uri crypto.html#aes_256 [cmd aes_256]].
+
+[bullet]
+Added
+[uri crypto.html#capi_keyblob_create [cmd capi_keyblob_create]],
+[uri crypto.html#capi_keyblob_concealed [cmd capi_keyblob_concealed]],
+[uri crypto.html#capi_keyblob_plaintext [cmd capi_keyblob_plaintext]],
+[uri crypto.html#capi_keyblob_version [cmd capi_keyblob_version]],
+[uri crypto.html#capi_keyblob_algid [cmd capi_keyblob_algid]],
+[uri crypto.html#capi_keyblob_type [cmd capi_keyblob_type]],
+[uri crypto.html#capi_keyblob_blob [cmd capi_keyblob_blob]].
+
 [list_end]
 
 [section "Version 4.2.12"]
