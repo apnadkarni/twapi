@@ -294,7 +294,7 @@ canceled (via [uri #cancel_wait_on_handle [cmd cancel_wait_on_handle]]).
 [call [cmd conceal] [arg PLAINTEXT]]
 Returns an encrypted binary string corresponding to [arg PLAINTEXT].
 [uri #reveal [cmd reveal]] can be used to decrypt the result within the
-same process.
+same process. [emph "The returned value should never be used for comparisons as the same [arg PLAINTEXT] may result in different encrypted values on each call."]
 
 [call [cmd confirm_credentials] [arg TARGET] [arg VALIDITY]]
 Informs the Windows Credentials Manager that the previously obtained
