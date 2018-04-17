@@ -1510,6 +1510,12 @@ proc revokedcert {} {
     return [twapi::cert_import $enc]
 }
 
+# Returns yahoo cert. Must be released by caller
+proc yahoocert {} {
+    set enc [read_file [file join [tcltest::testsDirectory] certs www.yahoo.com.pem] r]
+    return [twapi::cert_import $enc -encoding pem]
+}
+
 # Returns google cert. Must be released by caller
 proc googlecert {} {
     set enc [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem] r]
