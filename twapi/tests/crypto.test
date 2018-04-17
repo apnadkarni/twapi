@@ -2795,7 +2795,7 @@ namespace eval twapi::crypto::test {
     test cert_tls_verify-1.1 {
         Verify TLS certificate with trusted system root (client)
     } -setup {
-        set hcert [googlecert]
+        set hcert [yahoocert]
     } -body {
         twapi::cert_tls_verify $hcert
     } -cleanup {
@@ -2903,9 +2903,9 @@ namespace eval twapi::crypto::test {
     test cert_tls_verify-4.2 {
         Verify TLS certificate with trusted system root (usageall, all)
     } -setup {
-        set hcert [googlecert]
+        set hcert [yahoocert]
     } -body {
-        twapi::cert_tls_verify $hcert -server www.google.com -usageall {client_auth server_auth}
+        twapi::cert_tls_verify $hcert -server www.yahoo.com -usageall {client_auth server_auth}
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -4783,7 +4783,7 @@ namespace eval twapi::crypto::test {
     test cert_verify-tls-1.1 {
         Verify TLS certificate with trusted system root (client)
     } -setup {
-        set hcert [googlecert]
+        set hcert [yahoocert]
     } -body {
         twapi::cert_verify $hcert tls
     } -cleanup {
@@ -4891,9 +4891,9 @@ namespace eval twapi::crypto::test {
     test cert_verify-tls-4.2 {
         Verify TLS certificate with trusted system root (usageall, all)
     } -setup {
-        set hcert [googlecert]
+        set hcert [yahoocert]
     } -body {
-        twapi::cert_verify $hcert tls -server www.google.com -usageall {client_auth server_auth}
+        twapi::cert_verify $hcert tls -server www.yahoo.com -usageall {client_auth server_auth}
     } -cleanup {
         twapi::cert_release $hcert
     } -result ok
@@ -5319,7 +5319,7 @@ namespace eval twapi::crypto::test {
         twapi::cert_subject_name $c
     } -cleanup {
         twapi::cert_release $c
-    } -result www.yahoo.com
+    } -result *.www.yahoo.com
     
     ################################################################
 
