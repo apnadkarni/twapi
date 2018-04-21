@@ -2980,7 +2980,7 @@ twapi::class create ::twapi::ITypeLibProxy {
         return ""
     }
     # Marks the specified object to be of a specific coclass Idispatch
-    proc declare {comobj coclass_name} {
+    proc declare {coclass_name comobj} {
         set coclass_guid [coclass_guid $coclass_name]
         if {$coclass_guid ne ""} {
             if {[info exists ::twapi::_coclass_idispatch_guids($coclass_guid)]} {
@@ -3454,7 +3454,7 @@ twapi::class create ::twapi::Automation {
         if {$ns eq ""} {
             error "Coclass name must be qualified with name of containing namespace."
         }
-        tailcall ${ns}::declare [self] [namespace tail $coclass]
+        uplevel 1 [list ${ns}::declare [namespace tail $coclass] [self]]
     }
 
     # Return the disp id for a method/property
