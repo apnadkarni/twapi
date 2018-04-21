@@ -638,6 +638,18 @@ proc twapi::cert_info {hcert} {
         -version -serialnumber -signaturealgorithm -issuer
         -start -end -subject -publickey -issuerid -subjectid -extensions} \
                 [Twapi_CertGetInfo $hcert]]
+    dict set info -start \
+        [clock format \
+             [large_system_time_to_secs_since_1970 [dict get $info -start]] \
+             -timezone :UTC \
+             -format "%Y-%m-%d %H:%M:%S"]
+    dict set info -end \
+        [clock format \
+             [large_system_time_to_secs_since_1970 [dict get $info -end]] \
+             -timezone :UTC \
+             -format "%Y-%m-%d %H:%M:%S"]
+
+    return $info
 }
 
 proc twapi::cert_extension {hcert oid} {

@@ -138,10 +138,10 @@ proc twapi::tls::_starttls {so args} {
 
         if {$server} {
             if {[info exists peersubject]} {
-                badargs! "Option -peersubject cannot be specified for with -server"
+                badargs! "Option -peersubject cannot be specified with -server."
             }
             if {[llength $credentials] == 0} {
-                error "Option -credentials must be specified for server sockets"
+                error "Option -credentials must be specified for server sockets."
             }
             set peersubject ""
             set type SERVER
