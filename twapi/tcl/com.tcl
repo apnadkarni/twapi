@@ -801,7 +801,8 @@ proc twapi::_resolve_comtype {ti typedesc} {
         # VT_PTR - {26 INNER_TYPEDESC}
         # If pointing to a UDT, convert to appropriate base type if possible
         set inner [_resolve_comtype $ti [lindex $typedesc 1]]
-        if {[lindex $inner 0] == 29} {
+        set inner_type [lindex $inner 0]
+        if {$inner_type == 29} {
             # When the referenced type is a UDT (29) which is actually
             # a dispatch or other interface, replace the
             # "pointer to UDT" with VT_DISPATCH/VT_INTERFACE
@@ -820,12 +821,25 @@ proc twapi::_resolve_comtype {ti typedesc} {
         # VT_USERDEFINED - {29 HREFTYPE}
         set ti2 [$ti @GetRefTypeInfo [lindex $typedesc 1]]
         array set tattr [$ti2 @GetTypeAttr -guid -typekind]
-        if {$tattr(-typekind) eq "enum"} {
-            set typedesc [list 3]; # 3 -> i4
-        } else {
-            if {$tattr(-typekind) eq "alias"} {
+        switch -exact -- $tattr(-typekind) {
+            enum { 
+                set typedesc [list 3]; # 3 -> i4 
+            }
+            alias {
                 set typedesc [_resolve_comtype $ti2 [kl_get [$ti2 GetTypeAttr] tdescAlias]]
-            } else {
+            }
+            coclass {
+                set idispatch_guid [coclass_idispatch_guid $tattr(-guid)]
+                if {$idispatch_guid eq ""} {
+                    set typedesc [list 29 $tattr(-typekind) $tattr(-guid)]
+                } else {
+                    # TBD - can we store idispatch_guid in param def so
+                    # for return values we automatically convert to correct
+                    # comobj type?
+                    set typedesc [list 9]; # VT_DISPATCH
+                }
+            }
+            default {
                 set typedesc [list 29 $tattr(-typekind) $tattr(-guid)]
             }
         }
@@ -1305,6 +1319,14 @@ proc twapi::_dispatch_prototype_load {guid protolist} {
     foreach {name proto} $protolist {
         dispatch_prototype_set $guid $name [lindex $proto 1] [lindex $proto 2] $proto
     }
+}
+
+proc twapi::coclass_idispatch_guid {coclass_guid} {
+    variable _coclass_idispatch_guids
+    if {[info exists _coclass_idispatch_guids($coclass_guid)]} {
+        return $_coclass_idispatch_guids($coclass_guid)
+    }
+    return ""
 }
 
 proc twapi::_parse_dispatch_paramdef {paramdef} {
@@ -2939,26 +2961,6 @@ twapi::class create ::twapi::ITypeLibProxy {
         set data [my @Read {*}$args]
         
         set code {}
-        if {[dict exists $data dispatch]} {
-            dict for {guid guiddata} [dict get $data dispatch] {
-                set dispatch_name [dict get $guiddata -name]
-                append code "\n# Dispatch Interface $dispatch_name\n"
-                foreach type {methods properties} {
-                    if {[dict exists $guiddata -$type]} {
-                        append code "# $dispatch_name [string totitle $type]\n"
-                        dict for {name namedata} [dict get $guiddata -$type] {
-                            dict for {lcid lciddata} $namedata {
-                                dict for {invkind proto} $lciddata {
-                                    append code [list ::twapi::dispatch_prototype_set \
-                                                     $guid $name $lcid $invkind $proto]
-                                    append code \n
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         # If namespace specfied as empty string (as opposed to unspecified)
         # do not output a namespace
@@ -3066,6 +3068,26 @@ twapi::class create ::twapi::ITypeLibProxy {
             append code \n
         }
 
+        if {[dict exists $data dispatch]} {
+            dict for {guid guiddata} [dict get $data dispatch] {
+                set dispatch_name [dict get $guiddata -name]
+                append code "\n# Dispatch Interface $dispatch_name\n"
+                foreach type {methods properties} {
+                    if {[dict exists $guiddata -$type]} {
+                        append code "# $dispatch_name [string totitle $type]\n"
+                        dict for {name namedata} [dict get $guiddata -$type] {
+                            dict for {lcid lciddata} $namedata {
+                                dict for {invkind proto} $lciddata {
+                                    append code [list ::twapi::dispatch_prototype_set \
+                                                     $guid $name $lcid $invkind $proto]
+                                    append code \n
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         return $code
     }
@@ -3187,7 +3209,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                             set iguid [twapi::kl_get [$ti2 GetTypeAttr] guid]
                             set iname [$ti2 @GetName]
                             $ti2 Release
-                            unset ti2; # So finally clause does not relese again on error
+                            unset ti2; # So finally clause does not release again on error
 
                             dict set data "coclass" $attrs(-guid) -interfaces $iguid -name $iname
                             dict set data "coclass" $attrs(-guid) -interfaces $iguid -flags $iflags
