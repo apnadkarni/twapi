@@ -3024,20 +3024,11 @@ twapi::class create ::twapi::ITypeLibProxy {
                 # GUID is not available via a TypeInfo interface (e.g.
                 # a 64-bit COM component not registered with the 32-bit
                 # COM registry)
-                set default_dispatch_guid ""
-                if {[dict exists $def -interfaces]} {
-                    dict for {ifc_guid ifc_def} [dict get $def -interfaces] {
-                        if {[dict exists $data dispatch $ifc_guid]} {
-                            # Yes it is a dispatch interface
-                            # Make sure it is marked as default interface
-                            if {[dict exists $ifc_def -flags] &&
-                                [dict get $ifc_def -flags] == 1} {
-                                set default_dispatch_guid $ifc_guid
-                                append code "\nset ::twapi::_coclass_idispatch_guids($guid) \"$ifc_guid\"\n"
-                                break
-                            }
-                        }
-                    }
+                if {[dict exists $def -defaultdispatch]} {
+                    set default_dispatch_guid [dict get $def -defaultdispatch]
+                    append code "\nset ::twapi::_coclass_idispatch_guids($guid) \"$default_dispatch_guid\"\n"
+                } else {
+                    set default_dispatch_guid ""
                 }
                 
                 # We assume here that coclass has a default interface
@@ -3098,7 +3089,70 @@ twapi::class create ::twapi::ITypeLibProxy {
             name.arg
         } -maxleftover 0 -nulldefault]
 
+        # Dictionary to contain result
         set data [dict create]
+
+        # Entries for coclasses and dispatch interfaces have a mutual
+        # dependency. Generation of dispatch interface method
+        # prototypes need to (potentially) resolve coclass names
+        # that map to dispatch interfaces.
+        # Conversely, that resolution requires a list of dispatch
+        # interface guids so gather that first.
+
+        # List of dispatch guids
+        array set dispatch_guids {}
+        if {$opts(type) in {{} coclass dispatch}} {
+            # Collect dispatch guids. Note we do not collect other
+            # dispatch details since prototypes will need the coclass
+            # information which we do not have yet
+            my @Foreach -type dispatch ti {
+                ::twapi::trap {
+                    set dispatch_guids([dict get [$ti GetTypeAttr] guid]) ""
+                } finally {
+                    $ti Release
+                }
+            }
+            # Now that we have dispatch guids, collect coclass information
+            my @Foreach -type coclass ti {
+                ::twapi::trap {
+                    array set attrs [$ti @GetTypeAttr -guid -lcid -varcount -fncount -interfacecount -typekind]
+                    set name [lindex [$ti @GetDocumentation -1 -name] 1]
+                    dict set data "coclass" $attrs(-guid) -name $name
+                    for {set j 0} {$j < $attrs(-interfacecount)} {incr j} {
+                        set ti2 [$ti @GetRefTypeInfoFromIndex $j]
+                        set iflags [$ti GetImplTypeFlags $j]
+                        set iguid [twapi::kl_get [$ti2 GetTypeAttr] guid]
+                        set iname [$ti2 @GetName]
+                        $ti2 Release
+                        unset ti2; # So finally clause does not release again on error
+                        
+                        dict set data "coclass" $attrs(-guid) -interfaces $iguid -name $iname
+                        dict set data "coclass" $attrs(-guid) -interfaces $iguid -flags $iflags
+
+                        # If this is a dispatch interface and the default interface
+                        # for the coclass, add it to coclass default dispatch database.
+                        # This will be used to resolve dispatch prototypes
+                        if {$iflags == 1 && [info exists dispatch_guids($iguid)]} {
+                            # This is used by the parameter resolution code in
+                            # _resolve_comtype while building prototypes
+                            set ::twapi::_coclass_idispatch_guids($attrs(-guid)) $iguid
+                            dict set data "coclass" $attrs(-guid) -defaultdispatch $iguid
+                        }
+                    }
+                } finally {
+                    if {[info exists ti2]} {
+                        $i2 Release
+                    }
+                    $ti Release
+                }
+            }
+        }
+
+        # If we were only looking for coclass information, we already have it
+        if {$opts(type) eq "coclass"} {
+            return $data
+        }
+
         my @Foreach -type $opts(type) -name $opts(name) ti {
             ::twapi::trap {
                 array set attrs [$ti @GetTypeAttr -guid -lcid -varcount -fncount -interfacecount -typekind]
@@ -3186,7 +3240,6 @@ twapi::class create ::twapi::ITypeLibProxy {
                         }
                     }
 
-
                     module {
                         dict set data $attrs(-typekind) $attrs(-guid) -name $name
                         # TBD - Load up the functions
@@ -3201,19 +3254,10 @@ twapi::class create ::twapi::ITypeLibProxy {
                     interface {
                         # TBD
                     }
+                    
                     coclass {
-                        dict set data "coclass" $attrs(-guid) -name $name
-                        for {set j 0} {$j < $attrs(-interfacecount)} {incr j} {
-                            set ti2 [$ti @GetRefTypeInfoFromIndex $j]
-                            set iflags [$ti GetImplTypeFlags $j]
-                            set iguid [twapi::kl_get [$ti2 GetTypeAttr] guid]
-                            set iname [$ti2 @GetName]
-                            $ti2 Release
-                            unset ti2; # So finally clause does not release again on error
-
-                            dict set data "coclass" $attrs(-guid) -interfaces $iguid -name $iname
-                            dict set data "coclass" $attrs(-guid) -interfaces $iguid -flags $iflags
-                        }
+                        # We have already collected this information before this loop
+                        continue
                     }
                     default {
                         # TBD
@@ -3225,6 +3269,12 @@ twapi::class create ::twapi::ITypeLibProxy {
                     $ti2 Release
                 }
             }
+        }
+
+        # Unless we are collecting coclass info, remove any related info
+        # that we might have gathered for dispatch prototypes
+        if {$opts(type) ni {{} coclass}} {
+            dict unset data "coclass"
         }
         return $data
     }
