@@ -891,6 +891,8 @@ static void TwapiInitOutputParam(VARIANT *varP, VARTYPE vt)
     case VT_R8: V_R8(varP) = 0.0; break;
     case VT_BOOL: V_BOOL(varP) = 0; break;
     case VT_BSTR: V_BSTR(varP) = NULL; break;
+    case VT_DISPATCH: V_DISPATCH(varP) = NULL; break;
+    case VT_UNKNOWN: V_UNKNOWN(varP) = NULL; break;
     default:
         /* Not sure how to init other types. Set to VT_EMPTY */
         V_VT(varP) = VT_EMPTY;
