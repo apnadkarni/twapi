@@ -809,6 +809,21 @@ proc twapi::_resolve_comtype {ti typedesc} {
             switch -exact -- [lindex $inner 1] {
                 dispatch  {set typedesc [list 9]}
                 interface {set typedesc [list 13]}
+                coclass {
+                    # Replace pointers to a user defined type that is
+                    # a coclass having a default dispatch interface with
+                    # the type for a dispatch interface
+                    set idispatch_guid [coclass_idispatch_guid [lindex $inner 2]]
+                    if {$idispatch_guid eq ""} {
+                        # Coclass has no default dispatch interface
+                        set typedesc [list 26 $inner]
+                    } else {
+                        # TBD - can we store idispatch_guid in param def so
+                        # for return values we automatically convert to correct
+                        # comobj type?
+                        set typedesc [list 9]; # VT_DISPATCH
+                    }
+                }
                 default {
                     # TBD - need to decode all the other types (record etc.)
                     set typedesc [list 26 $inner]
@@ -827,17 +842,6 @@ proc twapi::_resolve_comtype {ti typedesc} {
             }
             alias {
                 set typedesc [_resolve_comtype $ti2 [kl_get [$ti2 GetTypeAttr] tdescAlias]]
-            }
-            coclass {
-                set idispatch_guid [coclass_idispatch_guid $tattr(-guid)]
-                if {$idispatch_guid eq ""} {
-                    set typedesc [list 29 $tattr(-typekind) $tattr(-guid)]
-                } else {
-                    # TBD - can we store idispatch_guid in param def so
-                    # for return values we automatically convert to correct
-                    # comobj type?
-                    set typedesc [list 9]; # VT_DISPATCH
-                }
             }
             default {
                 set typedesc [list 29 $tattr(-typekind) $tattr(-guid)]
@@ -3026,7 +3030,7 @@ twapi::class create ::twapi::ITypeLibProxy {
                 # COM registry)
                 if {[dict exists $def -defaultdispatch]} {
                     set default_dispatch_guid [dict get $def -defaultdispatch]
-                    append code "\nset ::twapi::_coclass_idispatch_guids($guid) \"$default_dispatch_guid\"\n"
+                    append code "\n    set ::twapi::_coclass_idispatch_guids($guid) \"$default_dispatch_guid\"\n"
                 } else {
                     set default_dispatch_guid ""
                 }
