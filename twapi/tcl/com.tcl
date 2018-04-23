@@ -2976,6 +2976,8 @@ twapi::class create ::twapi::ITypeLibProxy {
             append code "\nnamespace eval $opts(namespace) \{\n"
             append code "\n    # Array mapping coclass names to their guids\n"
             append code "    variable _coclass_guids\n"
+            append code "\n    # Array mapping dispatch interface names to their guids\n"
+            append code "    variable _dispatch_guids\n"
             append code {
     # Returns the GUID for a coclass or empty string if not found
     proc coclass_guid {coclass_name} {
@@ -2985,15 +2987,32 @@ twapi::class create ::twapi::ITypeLibProxy {
         }
         return ""
     }
-    # Marks the specified object to be of a specific coclass Idispatch
-    proc declare {coclass_name comobj} {
-        set coclass_guid [coclass_guid $coclass_name]
-        if {$coclass_guid ne ""} {
-            if {[info exists ::twapi::_coclass_idispatch_guids($coclass_guid)]} {
-                $comobj -interfaceguid $::twapi::_coclass_idispatch_guids($coclass_guid)
+    # Returns the GUID for a dispatch name or empty string if not found
+    proc dispatch_guid {dispatch_name} {
+        variable _dispatch_guids
+        if {[info exists _dispatch_guids($dispatch_name)]} {
+            return $_dispatch_guids($dispatch_name)
+        }
+        return ""
+    }
+    # Marks the specified object to be of a specific dispatch/coclass type
+    proc declare {typename comobj} {
+        # First check if it is the name of a dispatch interface
+        set guid [dispatch_guid $typename]
+        if {$guid ne ""} {
+            $comobj -interfaceguid $guid
+            return
+        }
+
+        # If not, check if it is the name of a coclass with a dispatch interface
+        set guid [coclass_guid $typename]
+        if {$guid ne ""} {
+            if {[info exists ::twapi::_coclass_idispatch_guids($guid)]} {
+                $comobj -interfaceguid $::twapi::_coclass_idispatch_guids($guid)
                 return
             }
         }
+
         error "Could not resolve interface for $coclass_name."
     }
             }
@@ -3067,6 +3086,7 @@ twapi::class create ::twapi::ITypeLibProxy {
             dict for {guid guiddata} [dict get $data dispatch] {
                 set dispatch_name [dict get $guiddata -name]
                 append code "\n# Dispatch Interface $dispatch_name\n"
+                append code "set [set opts(namespace)]::_dispatch_guids($dispatch_name) \"$guid\"\n"
                 foreach type {methods properties} {
                     if {[dict exists $guiddata -$type]} {
                         append code "# $dispatch_name [string totitle $type]\n"
@@ -3515,8 +3535,8 @@ twapi::class create ::twapi::Automation {
         return [$_proxy @SetGuid $guid]
     }
 
-    # Sets the coclass of the object
-    method -coclass {coclass} {
+    # Sets the idispatch or coclass of the object
+    method -instanceof {coclass} {
         # The coclass may be a GUID or the Tcl name
         if {[::twapi::Twapi_IsValidGUID $coclass]} {
             if {[info exists ::twapi::_coclass_idispatch_guids($coclass)]} {
