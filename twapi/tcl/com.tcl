@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2006-2014 Ashok P. Nadkarni
+# Copyright (c) 2006-2018 Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -616,7 +616,15 @@ proc twapi::generate_code_from_typelib {path args} {
         set tl [ITypeLibProxy_from_path $path -registration none]
         set code [$tl @GenerateCode {*}$args]
         if {[info exists outfd]} {
-            puts $outfd "package require twapi_com"
+            set libattr [$tl @GetLibAttr -all]
+            puts $outfd "# Automatically generated type library interface"
+            puts $outfd "# File:    [file tail $path]"
+            puts $outfd "# Name:    [$tl @GetName]"
+            puts $outfd "# GUID:    [dict get $libattr -guid]"
+            puts $outfd "# Version: [dict get $libattr -majorversion].[dict get $libattr -minorversion]"
+            puts $outfd "# LCID:    [dict get $libattr -lcid]"
+            
+            puts $outfd "\npackage require twapi_com"
             puts $outfd $code
             return
         } else {
