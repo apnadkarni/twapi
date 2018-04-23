@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003-2012, Ashok P. Nadkarni
+# Copyright (c) 2003-2018, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
