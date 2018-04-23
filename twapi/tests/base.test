@@ -39,13 +39,13 @@ namespace eval twapi::base::test {
         Get TWAPI version
     } -body {
         twapi::get_version
-    } -result 4.2
+    } -result 4.3
 
     test get_version-1.1 {
         Get TWAPI version patchlevel
     } -body {
         twapi::get_version -patchlevel
-    } -result 4.2.12
+    } -result 4.3.1
 
     ################################################################
 
