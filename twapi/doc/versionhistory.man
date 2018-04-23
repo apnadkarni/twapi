@@ -9,6 +9,11 @@ Summarizes the list of changes for each version of TWAPI.
 
 [section "Version 4.3.0"]
 [list_begin bullet]
+
+[bullet]
+COM enhancements. Added [uri com.html#x-instanceof [cmd -instanceof]] method and better support
+for UDT's.
+
 [bullet]
 Added
 [uri crypto.html#des [cmd des]],
