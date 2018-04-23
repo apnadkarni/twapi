@@ -3021,7 +3021,7 @@ twapi::class create ::twapi::ITypeLibProxy {
             }
         }
 
-        error "Could not resolve interface for $coclass_name."
+        error "Could not resolve interface for $typename."
     }
             }
         }; # append code...
