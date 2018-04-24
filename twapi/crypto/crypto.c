@@ -4611,8 +4611,10 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 10026:
         CHECK_NARGS(interp, objc, 1);
         CHECK_DWORD_OBJ(interp, dw, objv[0]);
-        if (dw & CERT_SYSTEM_STORE_RELOCATE_FLAG)
+        if (dw & CERT_SYSTEM_STORE_RELOCATE_FLAG) {
+            /* see https://msdn.microsoft.com/en-us/library/windows/desktop/aa382362(v=vs.85).aspx */
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "RELOCATE flag not supported.");
+        }
         result.value.obj = ObjNewList(0, NULL);
         if (CertEnumSystemStoreLocation(dw, result.value.obj,
                                         TwapiCertEnumSystemStoreLocationCallback)) {
