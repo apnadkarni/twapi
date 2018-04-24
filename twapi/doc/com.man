@@ -228,7 +228,9 @@ on the collection then loops through each item in the collection,
 assigning the item to [var drive]. In this case, each item is
 itself a COM automation object on which commands can be invoked.
 Note that the [var drive] object generated in each iteration
-has to be explicitly destroyed.
+has to be explicitly destroyed. Alternatively, the [cmd -cleanup]
+option can be specified which will automatically destroy the
+iteration object ([cmd \$drive] in above example) on each iteration.
 
 [section "Navigating Automation Objects"]
 
@@ -869,7 +871,7 @@ Returns [const true] if the object is a NULL COM object, false otherwise.
 This corresponds to a NULL IDispatch pointer that might be returned in
 some COM operations, for example, to indicate the end of a collection.
 
-[call "[arg COMOBJ] [cmd -iterate]" [arg VARNAME] [arg SCRIPT]]
+[call "[arg COMOBJ] [cmd -iterate]" [opt [cmd -cleanup]] [arg VARNAME] [arg SCRIPT]]
 Iterates over items in [arg COMOBJ] which must be a COM collection.
 In each iteration, [arg SCRIPT] is executed in the caller's context
 with [arg VARNAME] being set to the value of the current item.
@@ -877,7 +879,10 @@ with [arg VARNAME] being set to the value of the current item.
 Note that
 if the item is itself a COM object, [arg VARNAME] will contain the
 name of a TCL command corresponding to that object and must be destroyed
-when no longer needed (not necessarily within [arg SCRIPT]).
+when no longer needed (not necessarily within [arg SCRIPT]). Alternatively,
+the [cmd -cleanup] option may be specified in which case it is automatically
+destroyed on each iteration (even on [cmd break] and [cmd continue])
+and must not be explicitly destroyed.
 [nl]
 Like the Tcl iteration commands, [cmd -iterate] always returns the empty
 string.

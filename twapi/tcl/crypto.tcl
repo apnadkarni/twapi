@@ -830,7 +830,6 @@ proc twapi::cert_ancestors {hcert args} {
     return $certs
 }
 
-# TBD - document
 proc twapi::cert_chain_simple_chain {hchain index} {
     set simple_chain [twapi::Twapi_CertChainSimpleChain $hchain $index]
     set errors [_map_trust_error [dict get $simple_chain trust_errors]]
