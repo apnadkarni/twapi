@@ -11,8 +11,12 @@ Summarizes the list of changes for each version of TWAPI.
 [list_begin bullet]
 
 [bullet]
-COM enhancements. Added [uri com.html#x-instanceof [cmd -instanceof]] method and better support
+Added [uri com.html#x-instanceof [cmd -instanceof]] method and better support
 for UDT's.
+
+[bullet]
+Added [uri com.html#x-iterate [cmd -cleanup]] option to
+the [cmd "comobj -iterate"] method.
 
 [bullet]
 Added

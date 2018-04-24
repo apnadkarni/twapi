@@ -511,19 +511,22 @@ namespace eval twapi::com::test {
     test comobj-14.0 {
         Iterate over a comobj collection using -iterate
     } -setup {
+        set nobjs [llength [twapi::comobj_instances]]
         set fso [twapi::comobj Scripting.FileSystemObject]
         set drive_coll [$fso Drives]
-    } -cleanup {
-        $drive_coll -destroy
-        $fso -destroy
     } -body {
         set drives [list ]
         set result [$drive_coll -iterate drive_obj {
             lappend drives [$drive_obj DriveLetter]
+            $drive_obj -destroy
         }]
+        $drive_coll -destroy
+        $fso -destroy
+        puts after:[twapi::comobj_instances]
         # $result should be empty as -iterate returns ""
-        list $result [llength $drives]
-    } -result [list "" [llength [file volumes]]] -match list
+        # No objects should be left over
+        list $result [llength $drives] [expr {[llength [twapi::comobj_instances]] == $nobjs}]
+    } -result [list "" [llength [file volumes]] 1] -match list
 
     test comobj-14.1 {
         Iterate over a comobj collection using -iterate - Bug 3185933
@@ -543,6 +546,59 @@ namespace eval twapi::com::test {
         expr {[lsearch -exact $names "COM+ Utilities"] >= 0}
     } -result 1
 
+    test comobj-14.2.0 {
+        Iterate over a comobj collection using -iterate -cleanup
+    } -setup {
+        set nobjs [llength [twapi::comobj_instances]]
+        set fso [twapi::comobj Scripting.FileSystemObject]
+        set drive_coll [$fso Drives]
+    } -body {
+        set drives [list ]
+        set result [$drive_coll -iterate -cleanup drive_obj {
+            lappend drives [$drive_obj DriveLetter]
+        }]
+        $drive_coll -destroy
+        $fso -destroy
+        # $result should be empty as -iterate returns ""
+        # No objects should be left over
+        list $result [llength $drives] [expr {[llength [twapi::comobj_instances]] == $nobjs}]
+    } -result [list "" [llength [file volumes]] 1] -match list
+
+    test comobj-14.2.1 {
+        Ensure iteration object destroyed on a continue
+    } -setup {
+        set nobjs [llength [twapi::comobj_instances]]
+        set fso [twapi::comobj Scripting.FileSystemObject]
+        set drive_coll [$fso Drives]
+    } -body {
+        set result [$drive_coll -iterate -cleanup drive_obj {
+            continue
+        }]
+        $drive_coll -destroy
+        $fso -destroy
+        # $result should be empty as -iterate returns ""
+        # No objects should be left over
+        list $result [expr {[llength [twapi::comobj_instances]] == $nobjs}]
+    } -result [list "" 1] -match list
+
+    test comobj-14.2.2 {
+        Ensure iteration object destroyed on a break
+    } -setup {
+        set nobjs [llength [twapi::comobj_instances]]
+        set fso [twapi::comobj Scripting.FileSystemObject]
+        set drive_coll [$fso Drives]
+    } -body {
+        set drives {}
+        set result [$drive_coll -iterate -cleanup drive_obj {
+            lappend drives [$drive_obj DriveLetter]
+            break
+        }]
+        $drive_coll -destroy
+        $fso -destroy
+        # $result should be empty as -iterate returns ""
+        # No objects should be left over
+        list $result [llength $drives] [expr {[llength [twapi::comobj_instances]] == $nobjs}]
+    } -result [list "" 1 1] -match list
     ###
 
     test comobj-15.0 {
