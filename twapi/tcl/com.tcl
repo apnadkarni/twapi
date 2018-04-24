@@ -465,7 +465,6 @@ proc twapi::comobj_destroy args {
 }
 
 # Return an interface to a typelib
-# TBD - document
 proc twapi::ITypeLibProxy_from_path {path args} {
     array set opts [parseargs args {
         {registration.arg none {none register default}}
@@ -476,7 +475,6 @@ proc twapi::ITypeLibProxy_from_path {path args} {
 
 #
 # Return an interface to a typelib from the registry
-# TBD - document
 proc twapi::ITypeLibProxy_from_guid {uuid major minor args} {
     array set opts [parseargs args {
         lcid.int
