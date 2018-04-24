@@ -15,6 +15,10 @@
 # TBD - optimize by caching UDT's within a type library when the library
 # is read.
 
+# TBD - optimize comobj unknown by caching previously resolved names
+# 
+
+
 namespace eval twapi {
     # Maps TYPEKIND data values to symbols
     variable _typekind_map
@@ -3762,8 +3766,6 @@ twapi::class create ::twapi::Automation {
     }
 
     method unknown {name args} {
-        # Try to figure out whether it is a property or method
-
         # We have to figure out if it is a property get, property put
         # or a method. We make a guess based on number of parameters.
         # We specify an order to try based on this. The invoke will try
