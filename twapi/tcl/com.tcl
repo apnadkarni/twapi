@@ -1822,31 +1822,41 @@ twapi::class create ::twapi::IDispatchProxy {
             # Within these classes, the order of invkinds determines
             # priority
 
-            foreach invkind $invkinds {
-                set proto [my @Prototype $name $invkind $lcid]
-                if {[llength $proto]} {
-                    if {[llength $proto] < 5} {
-                        # No parameter information
-                        lappend class3 $proto
-                    } else {
-                        if {[llength [lindex $proto 4]] == $nparams} {
-                            lappend class1 $proto
-                            break; # Class 1 match, no need to try others
-                        } elseif {[llength [lindex $proto 4]] > $nparams} {
-                            lappend class2 $proto
+            if {$name eq "_NewEnum"} {
+                # Special case property to retrieve iterator. Some objects
+                # call it _NewEnum, others NewEnum. The disp id must always
+                # be -4 so we hard code that instead
+                # DISPID=-4 LCID=0 INVOKE=2(propget) RETTYPE=13(IUnknown) no parameters
+                set class1 [list {-4 0 2 13 {} {}}]
+            } else {
+                foreach invkind $invkinds {
+                    set proto [my @Prototype $name $invkind $lcid]
+                    if {[llength $proto]} {
+                        if {[llength $proto] < 5} {
+                            # No parameter information
+                            lappend class3 $proto
                         } else {
-                            # Ignore - proto has fewer than supplied params
-                            # Could not be a match
+                            if {[llength [lindex $proto 4]] == $nparams} {
+                                lappend class1 $proto
+                                break; # Class 1 match, no need to try others
+                            } elseif {[llength [lindex $proto 4]] > $nparams} {
+                                lappend class2 $proto
+                            } else {
+                                # Ignore - proto has fewer than supplied params
+                                # Could not be a match
+                            }
                         }
                     }
                 }
             }
 
-            # For exact match (class1), we do not need the named arguments as
-            # positional arguments take priority. When number of passed parameters
-            # is fewer than those in prototype, check named arguments and use those
-            # values. If no parameter information, we can't use named arguments
-            # anyways.
+            # For exact match (class1), we do not need the named
+            # arguments as positional arguments take priority. When
+            # number of passed parameters is fewer than those in
+            # prototype, check named arguments and use those
+            # values. If no parameter information, we can't use named
+            # arguments anyways.
+            
             if {[info exists class1]} {
                 set proto [lindex $class1 0]
             } elseif {[info exists class2]} {
@@ -1885,7 +1895,8 @@ twapi::class create ::twapi::IDispatchProxy {
             } elseif {[info exists class3]} {
                 set proto [lindex $class3 0]
             } else {
-                # No prototype via typecomp / typeinfo available. No lcid worked.
+                # No prototype via typecomp / typeinfo available.
+                # No lcid worked.
                 # We have to use the last resort of GetIDsOfNames
                 set dispid [my @GetIDOfOneName [list $name] 0]
                 # TBD - should we cache result ? Probably not.
@@ -3615,9 +3626,6 @@ twapi::class create ::twapi::Automation {
         }
         upvar 1 [lindex $args 0] var
         set script [lindex $args 1]
-
-        # TBD - need more comprehensive test cases when return/break/continue
-        # are used in the script
 
         # First get IEnumVariant iterator using the _NewEnum method
         # TBD - As per MS OLE Automation spec, it appears _NewEnum
