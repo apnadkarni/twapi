@@ -382,8 +382,10 @@ proc twapi::_eventlog_dump {source chan} {
 
 
 
-# If we are being sourced ourselves, then we need to source the remaining files.
-if {[file tail [info script]] eq "eventlog.tcl"} {
+# If we are not being sourced from a executable resource, need to
+# source the remaining support files. In the former case, they are
+# automatically combined into one so the sourcing is not needed.
+if {![info exists twapi::twapi_eventlog_rc_sourced]} {
     source [file join [file dirname [info script]] evt.tcl]
     source [file join [file dirname [info script]] winlog.tcl]
 }

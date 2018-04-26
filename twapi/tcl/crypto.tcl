@@ -3342,8 +3342,10 @@ proc twapi::crypt_test_container_cleanup {} {
 }
 
 
-# If we are being sourced ourselves, then we need to source the remaining files.
-if {[file tail [info script]] eq "crypto.tcl"} {
+# If we are not being sourced from a executable resource, need to
+# source the remaining support files. In the former case, they are
+# automatically combined into one so the sourcing is not needed.
+if {![info exists twapi::twapi_crypto_rc_sourced]} {
     source [file join [file dirname [info script]] sspi.tcl]
     source [file join [file dirname [info script]] tls.tcl]
 }
