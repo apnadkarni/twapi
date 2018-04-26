@@ -217,11 +217,12 @@ $(OBJS): $(CINCLUDES) makefile
 $(TWAPI_SCRIPT_RESOURCE_PATH): $(TCLFILES)
 	-@if not exist "$(OBJDIR)\tcl" mkdir "$(OBJDIR)\tcl"
 	-@if not exist "$(TWAPI_SCRIPT_RESOURCE_DIR)" mkdir "$(TWAPI_SCRIPT_RESOURCE_DIR)"
+	@echo namespace eval twapi { variable $(PACKAGE)_rc_sourced 1 } > "$(OBJDIR)\tcl\rc_hdr.tmp"
 	for %f in ($(TCLFILES)) do @xcopy /q/y/i %f "$(OBJDIR)\tcl" >NUL
 ! if "$(TWAPI_SCRIPT_RESOURCE_TYPE)" == "tclscript"
-	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE_PATH)" -compact $(PACKAGE) $(MODULEVERSION) $**
+	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE_PATH)" -compact $(PACKAGE) $(MODULEVERSION) rc_hdr.tmp $$**
 ! else
-	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" -compact $(PACKAGE) $(MODULEVERSION) $**
+	cd "$(OBJDIR)\tcl" && $(TCLSH) "$(TOOLDIR)\createtmfile.tcl" -force -outfile "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" -compact $(PACKAGE) $(MODULEVERSION) rc_hdr.tmp $**
 	"$(TOOLDIR)\lzma.exe" e "$(TWAPI_SCRIPT_RESOURCE_PATH).raw" "$(TWAPI_SCRIPT_RESOURCE_PATH)" 2> NUL:
 	del "$(TWAPI_SCRIPT_RESOURCE_PATH).raw"
 ! endif
