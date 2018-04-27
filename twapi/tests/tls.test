@@ -21,6 +21,8 @@ source [file join [file dirname [info script]] tlsecho.tcl]
 
 ::tcltest::testConstraint vista [expr {![string match 5.* $::tcl_platform(osVersion)]}]
 
+set http_response {(?i)HTTP.*<HTML.*</HTML>} 
+
 proc dputs {msg} { return ; puts stderr $msg ; flush stderr }
 
 set Port 8048
@@ -821,7 +823,7 @@ test tls_socket-client-1.0 {
     read $so
 } -cleanup {
     catch {close $so}
-} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+} -result $http_response -match regexp
 
 test starttls-client-1.0 {
     Verify basic synchronous connection
@@ -835,7 +837,7 @@ test starttls-client-1.0 {
     read $so
 } -cleanup {
     catch {close $so}
-} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+} -result $http_response -match regexp
 
 test tls_socket-client-1.1 {
     Verify basic synchronous connection with wrong name
@@ -880,7 +882,7 @@ test tls_socket-client-1.3 {
     read $so
 } -cleanup {
     catch {close $so}
-} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+} -result $http_response -match regexp
 
 test starttls-client-1.3 {
     Verify basic synchronous connection -verifier (ok)
@@ -894,7 +896,7 @@ test starttls-client-1.3 {
     read $so
 } -cleanup {
     catch {close $so}
-} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+} -result $http_response -match regexp
 
 test tls_socket-client-1.4 {
     Verify basic synchronous connection -verifier (fail)
@@ -932,7 +934,7 @@ test tls_socket-client-1.6 {
     read $so
 } -cleanup {
     catch {close $so}
-} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+} -result $http_response -match regexp
 
 test starttls-client-1.6 {
     Verify basic synchronous connection -verifier (ok)
@@ -946,7 +948,7 @@ test starttls-client-1.6 {
     read $so
 } -cleanup {
     catch {close $so}
-} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+} -result $http_response -match regexp
 
 test tls_socket-client-1.7 {
     Verify basic synchronous connection -verifier (fail)
@@ -972,7 +974,7 @@ test tls_socket-client-2.0 {
     read $so
 } -cleanup {
     catch {close $so}
-} -result {HTTP/1.0.*<HTML>.*</HTML>\s} -match regexp
+} -result $http_response -match regexp
 
 test tls_socket-client-2.1 {
     Verify basic asynchronous connection, wrong name (error on read)
@@ -1112,7 +1114,7 @@ test tls_socket-client-3.1 {
         fileevent $so readable "$reader $so"
         vwait ::done
     }
-    list $::done [regexp {HTTP/1.0.*<HTML>.*</HTML>\s} $response]
+    list $::done [regexp $http_response $response]
 } -result {eof 1}
 
 test tls_socket-client-3.2 {
@@ -1140,7 +1142,7 @@ test tls_socket-client-3.2 {
         fileevent $so readable "$reader $so"
         vwait ::done
     }
-    list $::done [regexp {HTTP/1.0.*<HTML>.*</HTML>\s} $response]
+    list $::done [regexp $http_response $response]
 } -result {eof 1}
 
 test starttls-client-3.2 {
@@ -1168,7 +1170,7 @@ test starttls-client-3.2 {
         fileevent $so readable "$reader $so"
         vwait ::done
     }
-    list $::done [regexp {HTTP/1.0.*<HTML>.*</HTML>\s} $response]
+    list $::done [regexp $http_response $response]
 } -result {eof 1}
 
 test tls_socket-client-4.0 {
@@ -1215,12 +1217,12 @@ test starttls-client-4.0 {
     set hdr_end [string first \r\n\r\n $data]
     set response [json::json2dict [string range $data $hdr_end+4 end]]
     dict get $response rating
-    # TBD - rating is currently returned as Bad because of insecure RC4
-    # cipher suites. THis happens even when using Chrome browser.
+    # Rating is currently returned as Bad (because of insecure RC4)
+    # or Probably Ok depending on platform. This happens even with Chrome.
     # See if cryptoapi allows selection of cipher suites
 } -cleanup {
     twapi::sspi_free_credentials $creds
-} -result "Bad"
+} -result "Bad|Probably Okay" -match regexp
 
 test tls_socket-client-4.1 {
     # TBD - write more tests with howsmyssl
@@ -1316,7 +1318,7 @@ test tls-http-geturl-1.0 {
     http::data $tok
 } -cleanup {
     http::cleanup $tok
-} -result {<HTML><HEAD>.*google.*</HTML>\s} -match regexp
+} -result {(?i)<HTML.*<HEAD.*google.*</HTML>} -match regexp
 
 test tls-http-geturl-1.1 {
     Verify tls works with http::geturl -command
@@ -1328,7 +1330,7 @@ test tls-http-geturl-1.1 {
     http::data $tok
 } -cleanup {
     http::cleanup $tok
-} -result {<HTML><HEAD>.*google.*</HTML>\s} -match regexp
+} -result {(?i)<HTML.*<HEAD.*google.*</HTML>} -match regexp
 
 #################################################################
 # Tests using openssl client and server
