@@ -57,6 +57,9 @@ proc twapi::tls::_socket {args} {
                 lappend socket_args -$opt [set $opt]
             }
         }
+        if {$async} {
+            lappend socket_args -async
+        }
 
         if {[info exists server]} {
             if {$server eq ""} {
