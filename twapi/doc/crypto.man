@@ -415,7 +415,7 @@ Encrypts, decrypts or generates an IV (DES algorithm)
 
 Windows provides facilities to encrypt and protect data based on the
 user credentials such that it can only be retrieved on the same
-system with the same credentials. The
+system with the same credentials.
 The [uri #protect_data [cmd protect_data]] and
 [uri #unprotect_data [cmd unprotect_data]] commands provide
 access to this facility.
