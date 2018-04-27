@@ -183,15 +183,19 @@ proc twapi::tls::_starttls {so args} {
         # Copy saved config to wrapper channel
         chan configure $chan {*}$so_opts
         if {$type eq "CLIENT"} {
-            _client_blocking_negotiate $chan
-            if {(![info exists _channels($chan)]) ||
-                [dict get $_channels($chan) State] ne "OPEN"} {
-                if {[info exists _channels($chan)] &&
-                    [dict exists $_channels($chan) ErrorResult]} {
-                    error [dict get $_channels($chan) ErrorResult]
-                } else {
-                    error "TLS negotiation aborted"
+            if {[dict get $_channels($chan) Blocking]} {
+                _client_blocking_negotiate $chan
+                if {(![info exists _channels($chan)]) ||
+                    [dict get $_channels($chan) State] ne "OPEN"} {
+                    if {[info exists _channels($chan)] &&
+                        [dict exists $_channels($chan) ErrorResult]} {
+                        error [dict get $_channels($chan) ErrorResult]
+                    } else {
+                        error "TLS negotiation aborted"
+                    }
                 }
+            } else {
+                _negotiate $chan
             }
         } else {
             # Note: unlike the tls_socket server case, here we
