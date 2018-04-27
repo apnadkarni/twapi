@@ -784,19 +784,17 @@ proc twapi::_net_enum_helper {function args} {
     }
 }
 
-# If we are being sourced ourselves, then we need to source the remaining files.
-# The apply is just to use vars without polluting global namespace
-apply {{filelist} {
-    if {[file tail [info script]] eq "twapi.tcl"} {
-        # We are being sourced so source the remaining twapi_base files
-
+# If we are not being sourced from a executable resource, need to
+# source the remaining support files. In the former case, they are
+# automatically combined into one so the sourcing is not needed.
+if {![info exists twapi::twapi_base_rc_sourced]} {
+    apply {{filelist} {
         set dir [file dirname [info script]]
         foreach f $filelist {
             uplevel #0 [list source [file join $dir $f]]
         }
-    }
-}} {base.tcl handle.tcl win.tcl adsi.tcl}
-
+    }} {base.tcl handle.tcl win.tcl adsi.tcl}
+}
 
 # Used in various matcher callbacks to signify always include etc.
 # TBD - document
