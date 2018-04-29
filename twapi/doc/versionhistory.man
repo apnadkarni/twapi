@@ -7,7 +7,7 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 4.3.0"]
+[section "Version 4.3.3"]
 [list_begin bullet]
 
 [bullet]
@@ -16,7 +16,7 @@ for UDT's.
 
 [bullet]
 Added [uri com.html#x-iterate [cmd -cleanup]] option to
-the [cmd "comobj -iterate"] method.
+the [cmd "comobj -iterate"] method and improved support for enumerators.
 
 [bullet]
 Added
@@ -37,10 +37,14 @@ Added
 [uri crypto.html#capi_keyblob_blob [cmd capi_keyblob_blob]].
 
 [bullet]
+Added [uri tls.html#tls_handshake [cmd tls_handshake]].
+
+[bullet]
 [emph "Incompatible change"]
 The experimental Windows Installer module [cmd twapi_msi] has
 been replaced by a [uri msi.html "new version"] based on the generic COM
 interfaces.
+
 
 [list_end]
 
