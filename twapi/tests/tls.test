@@ -1047,6 +1047,34 @@ test tls_socket-client-2.7 {
     catch {close $so}
 } -result {1 {Verification error} {TEST TLS VERIFYFAIL}}
 
+test tls_socket-client-2.8 {
+    Async connection, switching between blocking/non-blocking
+} -body {
+    set so [twapi::tls_socket -async www.example.com 443]
+    fconfigure $so -buffering line -translation crlf -blocking 0
+    puts $so "GET / HTTP/1.1"
+    fconfigure $so -blocking 1
+    puts $so "Host: www.example.com"
+    puts $so ""
+    set result [gets $so]
+    close $so
+    set result
+} -result "HTTP/1.1 200 OK"
+    
+test tls_socket-client-2.8.1 {
+    Async connection, switching between blocking/non-blocking
+} -body {
+    set so [twapi::tls_socket -async www.example.com 443]
+    fconfigure $so -buffering line -translation crlf -blocking 0
+    puts $so "GET / HTTP/1.1"
+    puts $so "Host: www.example.com"
+    puts $so ""
+    fconfigure $so -blocking 1
+    set result [gets $so]
+    close $so
+    set result
+} -result "HTTP/1.1 200 OK"
+    
 
 test tls_socket-client-3.0 {
     Verify event driven client i/o
