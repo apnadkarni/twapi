@@ -21,6 +21,7 @@ namespace eval twapi::tls {
     #    is already in progress and a second one should not be posted
     #  WriteEventPosted - if this key exists, a chan postevent for write
     #    is already in progress and a second one should not be posted
+    #  WriteDisabled - 0 normally. Set to 1 on a half-close
 
     variable _channels
     array set _channels {}
@@ -509,6 +510,9 @@ proc twapi::tls::write {chan data} {
                 # Simply throw away the data
             }
             OPEN {
+                if {$WriteDisabled} {
+                    error "Channel closed for output."
+                }
                 # There might be pending output if channel has just
                 # transitioned to OPEN state
                 _flush_pending_output $chan
@@ -579,6 +583,42 @@ proc twapi::tls::cgetall {chan} {
     return $config
 }
 
+# Implement a half-close command since Tcl does not support it for
+# reflected channels.
+interp alias {} twapi::tls_close {} twapi::tls::_close
+proc twapi::tls::_close {chan {direction ""}} {
+
+    if {$direction in {read r re rea}} {
+        error "Half close of input side not currently supported for TLS sockets."
+    }
+
+    # We handle write-side half-closes. Let Tcl close handle everything else.
+    if {$direction ni {write w wr wri writ}} {
+        return [close $chan]
+    }
+
+    # Closing the write side of the channel
+
+    variable _channels
+
+    dict with _channels($chan) {}
+    if {$State eq "CLOSED"} return
+    if {$State ne "OPEN"} {
+        error "Connection not in OPEN state."
+    }
+    flush $chan
+    # Note state may have changed
+    if {[dict get $_channels($chan) State] ne "OPEN"} {
+        return
+    }
+    # Flush internally buffered, if any. Can happen if we buffered
+    # data before TLS negotiation was complete.
+    _flush_pending_output $chan
+    close $Socket write
+    dict set _channels($chan) WriteDisabled 1
+    return
+}
+
 proc twapi::tls::_chansocket {chan} {
     debuglog [info level 0]
     variable _channels
@@ -600,6 +640,7 @@ proc twapi::tls::_init {chan type so creds peersubject requestclientcert verifie
                               Type $type \
                               Blocking [chan configure $so -blocking] \
                               WatchMask {} \
+                              WriteDisabled 0 \
                               RequestClientCert $requestclientcert \
                               Verifier $verifier \
                               SspiContext {} \
