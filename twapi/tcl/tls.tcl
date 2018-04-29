@@ -279,7 +279,17 @@ proc twapi::tls::blocking {chan mode} {
             return
         }
 
-        chan configure $Socket -blocking $mode
+        fconfigure $Socket -blocking $mode
+
+        # There is an issue with Tcl sockets created with -async switching
+        # from blocking->non-blocking->blocking and writing to the socket
+        # before connection is fully open. The internal buffers containing
+        # data that was written before the connection was open do not get
+        # flushed even if there was an explicit flush call by the application.
+        # Doing a flush after changing blocking mode seems to fix this
+        # problem.
+        flush $Socket
+        
         if {$mode == 0} {
             # Since we need to negotiate TLS we always have socket event
             # handlers irrespective of the state of the watch mask
@@ -425,26 +435,36 @@ proc twapi::tls::read {chan nbytes} {
 }
 
 proc twapi::tls::write {chan data} {
-    debuglog [info level 0]
     variable _channels
+
+    set datalen [string length $data]
+    debuglog "twapi::tls::write: $chan, $datalen bytes"
 
     # This is not inside the dict with because _negotiate will update the dict
     if {[dict get $_channels($chan) State] in {SERVERINIT CLIENTINIT NEGOTIATING}} {
         _negotiate $chan
         if {[dict get $_channels($chan) State] in {SERVERINIT CLIENTINIT NEGOTIATING}} {
-            # If a blocking channel, should have come back with negotiation
-            # complete. If non-blocking, return EAGAIN to indicate channel
-            # not open yet.
             if {[dict get $_channels($chan) Blocking]} {
+                # If a blocking channel, negotiation should have completed
                 error "TLS negotiation failed on blocking channel" 
             } else {
-                # TBD - should we just accept the data ?
-                return -code error EAGAIN
+                if {1} {
+                    # Store for later output once connection is open
+                    debuglog "twapi::tls::write conn not open, appending $datalen bytes to pending output"
+                    dict append _channels($chan) Output $data
+                    return $datalen
+                } else {
+                    # If non-blocking, return EAGAIN to indicate channel
+                    # not open yet.
+                    debuglog "twapi::tls::write returning EAGAIN"
+                    return -code error EAGAIN
+                }
             }
         }
     }
 
     dict with _channels($chan) {
+        debuglog "twapi::tls::write state $State"
         switch $State {
             CLOSED {
                 # Just like a Tcl socket, we do not raise an error.
@@ -453,11 +473,8 @@ proc twapi::tls::write {chan data} {
             OPEN {
                 # There might be pending output if channel has just
                 # transitioned to OPEN state
+                _flush_pending_output $chan
                 # TBD - use sspi_encrypt_and_write instead
-                if {[string length $Output]} {
-                    chan puts -nonewline $Socket [sspi_encrypt_stream $SspiContext $Output]
-                    set Output ""
-                }
                 chan puts -nonewline $Socket [sspi_encrypt_stream $SspiContext $data]
                 flush $Socket
             }
@@ -466,7 +483,8 @@ proc twapi::tls::write {chan data} {
             }
         }
     }
-    return [string length $data]
+    debuglog "twapi::tls::write returning $datalen"
+    return $datalen
 }
 
 proc twapi::tls::configure {chan opt val} {
@@ -704,7 +722,16 @@ proc twapi::tls::_negotiate2 {chan} {
     switch $State {
         NEGOTIATING {
             if {$Blocking && ![info exists AcceptCallback]} {
-                error "Internal error: NEGOTIATING state not expected on a blocking client socket"
+                if {1} {
+                    return [_blocking_negotiate_loop $chan]
+                } else {
+                    # Not true for the case:
+                    # tls_socket -async
+                    # fconfigure -blocking 0
+                    # puts...
+                    # fconfigure -blocking 1
+                    error "Internal error: NEGOTIATING state not expected on a blocking client socket"
+                }
             }
 
             set data [chan read $Socket]
@@ -920,6 +947,19 @@ proc twapi::tls::_blocking_read {so} {
     return $input
 }
 
+proc twapi::tls::_flush_pending_output {chan} {
+    variable _channels
+
+    dict with _channels($chan) {
+        if {[string length $Output]} {
+            debuglog "_flush_pending_output: flushing output"
+            puts -nonewline $Socket [sspi_encrypt_stream $SspiContext $Output]
+            set Output ""
+	}
+    }
+    return
+}
+
 # Transitions connection to OPEN or throws error if verifier returns false
 # or fails
 proc twapi::tls::_open {chan} {
@@ -943,6 +983,10 @@ proc twapi::tls::_open {chan} {
             chan event $Socket readable {}
             after 0 $AcceptCallback
         }
+        # If there is any pending output waiting for the connection to
+        # open, write it out
+        _flush_pending_output $chan
+
         return
     }
 
@@ -958,6 +1002,7 @@ proc twapi::tls::_open {chan} {
             chan event $Socket readable {}
             after 0 $AcceptCallback
         }
+        _flush_pending_output $chan
         return
     } else {
         error "SSL/TLS negotiation failed. Verifier callback returned false." "" [list TWAPI TLS VERIFYFAIL]
