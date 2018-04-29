@@ -17,15 +17,15 @@ of the Windows Security Service
 Provider Interface (SSPI) interface.
 
 [section "TLS channels"]
-[para]
-The module implements two commands
-[uri #tls_socket [cmd tls_socket]]
-and [uri #starttls [cmd starttls]] which implement TLS based
-channels
-which can be used with all Tcl channel based commands like
-[cmd puts], [cmd read], [cmd chan].
-The [cmd tls_socket] command creates a new TCP/IP based connection
-while the [cmd starttls] command wraps an existing plaintext channel.
+
+The [uri #tls_socket [cmd tls_socket]] command creates a new TCP/IP based
+client connection or a listening server socket.
+
+The [uri #starttls [cmd starttls]] command wraps an existing Tcl
+bidirectional channel into a TLS channel.
+
+The [uri #tls_handshake [cmd tls_handshake]] command completes
+negotiation on a TLS channel.
 
 [section Commands]
 
@@ -64,6 +64,19 @@ Specifies a callback to invoke to verify remote credentials.
 See [uri #tls_socket [cmd tls_socket]] for details.
 [list_end]
 
+[call [cmd tls_handshake] [arg CHAN]]
+
+If [arg CHAN] is a non-blocking TLS channel, the command returns [const 1]
+if the TLS negotiation on the channel is completed and [const 0] if it
+is still in progress.
+
+If [arg CHAN] is a blocking channel, for example a channel created
+with the `-async` option, the command will return only after
+completing TLS negotiation. The return value will always be [const 1] in
+this case.
+
+The command will raise an error if TLS negotiation fails or the channel
+has been closed.
 
 [call [cmd tls_socket] [opt [arg options]] [arg REMOTEADDR] [arg PORT]]
 [call [cmd tls_socket] [cmd -server] [arg SERVERCALLBACK] [opt [arg options]] [arg PORT]]

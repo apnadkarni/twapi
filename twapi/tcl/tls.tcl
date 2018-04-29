@@ -228,6 +228,44 @@ proc twapi::tls::_starttls {so args} {
     return $chan
 }
 
+interp alias {} twapi::tls_handshake {} twapi::tls::_handshake
+proc twapi::tls::_handshake {chan} {
+    variable _channels
+    if {![info exists _channels($chan)]} {
+       twapi::badargs "Not a valid TLS channel." 
+    }
+
+    dict with _channels($chan) {}
+
+    # For a blocking channel, complete the handshake before returning
+    if {$Blocking} {
+        switch -exact $State {
+            NEGOTIATING - CLIENTINIT - SERVERINIT {
+                _negotiate2 $chan
+            }
+            OPEN {}
+            LISTERNERINIT {
+                error "Cannot do a TLS handshake on a listening socket."
+            }
+            CLOSED -
+            default {
+                error "Channel has been closed or in error state."
+            }
+        }
+    } else {
+        # For non-blocking channels, simply return the state
+        switch -exact -- $State {
+            OPEN {}
+            CLIENTINIT - SERVERINIT - LISTENERINIT - NEGOTIATING {
+                return 0
+            }
+            CLOSED - default {
+                error "Channel has been closed or in error state."
+            }
+        }
+    }
+    return 1
+}
 
 proc twapi::tls::_accept {listener so raddr raport} {
     variable _channels
@@ -722,16 +760,7 @@ proc twapi::tls::_negotiate2 {chan} {
     switch $State {
         NEGOTIATING {
             if {$Blocking && ![info exists AcceptCallback]} {
-                if {1} {
-                    return [_blocking_negotiate_loop $chan]
-                } else {
-                    # Not true for the case:
-                    # tls_socket -async
-                    # fconfigure -blocking 0
-                    # puts...
-                    # fconfigure -blocking 1
-                    error "Internal error: NEGOTIATING state not expected on a blocking client socket"
-                }
+                return [_blocking_negotiate_loop $chan]
             }
 
             set data [chan read $Socket]
