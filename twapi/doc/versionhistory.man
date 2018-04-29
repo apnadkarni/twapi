@@ -37,7 +37,8 @@ Added
 [uri crypto.html#capi_keyblob_blob [cmd capi_keyblob_blob]].
 
 [bullet]
-Added [uri tls.html#tls_handshake [cmd tls_handshake]].
+Added [uri tls.html#tls_handshake [cmd tls_handshake]] and
+[uri tls.html#tls_close [cmd tls_close]].
 
 [bullet]
 [emph "Incompatible change"]

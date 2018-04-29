@@ -27,6 +27,12 @@ bidirectional channel into a TLS channel.
 The [uri #tls_handshake [cmd tls_handshake]] command completes
 negotiation on a TLS channel.
 
+Channels are closed using either
+the [uri #tls_close [cmd tls_close]] command 
+or the Tcl [cmd close] command. The former permits half-closing of the
+output side of the channel which the latter does not allow for reflected
+channels.
+
 [section Commands]
 
 [list_begin definitions]
@@ -63,6 +69,20 @@ must not be specified for server-side connections.
 Specifies a callback to invoke to verify remote credentials. 
 See [uri #tls_socket [cmd tls_socket]] for details.
 [list_end]
+
+[call [cmd tls_close] [arg CHAN] [opt [arg DIRECTION]]]
+Closes the specified TLS channel. This command is similar to the
+standard Tcl [cmd close] command except that the latter does not permit
+half-closing of TLS channels as they are implemented using Tcl's
+reflected channel framework.
+
+[nl]
+If [arg DIRECTION] is not specified, the command behaves identically to
+the Tcl [cmd close] command. If [arg DIRECTION] is specified, it must
+currently be the value [const write] or any abbreviation of it. The
+command will then close the output side of the channel while continuing
+to allow data to be read from the channel. Currently half-closing
+of the read side is not supported.
 
 [call [cmd tls_handshake] [arg CHAN]]
 
