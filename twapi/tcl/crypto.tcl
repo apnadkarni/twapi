@@ -1632,11 +1632,12 @@ proc twapi::pbkdf2 {pass nbits alg_id salt niters} {
 
 proc twapi::capi_encrypt_bytes {bytes hkey args} {
     parseargs args {
-        {pad.arg oaep {oaep pkcs1}}
         {hhash.arg NULL}
+        {final.bool 1}
+        {pad.arg oaep {oaep pkcs1}}
     } -setvars -maxleftover 0
         
-    return [CryptEncrypt $hkey $hhash 1 [dict! {pkcs1 0 oaep 0x40} $pad] $bytes]
+    return [CryptEncrypt $hkey $hhash $final [dict! {pkcs1 0 oaep 0x40} $pad] $bytes]
 }
 
 proc twapi::capi_encrypt_string {s hkey args} {
@@ -1646,9 +1647,10 @@ proc twapi::capi_encrypt_string {s hkey args} {
 proc twapi::capi_decrypt_bytes {bytes hkey args} {
     parseargs args {
         {pad.arg oaep {oaep pkcs1 nopadcheck}}
+        {final.bool 1}
         {hhash.arg NULL}
     } -setvars -maxleftover 0
-    return [CryptDecrypt $hkey $hhash 1 [dict! {pkcs1 0 oaep 0x40 nopadcheck 0x20} $pad] $bytes]
+    return [CryptDecrypt $hkey $hhash $final [dict! {pkcs1 0 oaep 0x40 nopadcheck 0x20} $pad] $bytes]
 }
 
 proc twapi::capi_decrypt_string {s hkey args} {
