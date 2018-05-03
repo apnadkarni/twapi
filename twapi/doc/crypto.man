@@ -500,7 +500,8 @@ which may be in any of the forms described in
 an error is raised if it cannot be mapped to a numeric id.
 
 [call [cmd capi_decrypt_bytes] [arg BINDATA] [arg HKEY] [opt "[cmd -hhash] [arg HHASH]"] [opt "[cmd -oaep] [arg BOOLEAN]"] [opt "[cmd -nopadcheck] [arg BOOL]"]]
-Decrypts the passed binary string [arg BINDATA] and returns the
+When the [cmd -final] option is not specified, the command
+decrypts the passed binary string [arg BINDATA] and returns the
 plaintext result.
 If the option [cmd -hhash] is specified [arg HHASH] should be the
 handle of a hash context. This will be updated with the decrypted
@@ -510,6 +511,19 @@ or [const oaep], OAEP padding
 is assumed. A value of [const pkcs1] implies PKCS #1
 format padding. The value
 [const nopadcheck] specifies no check for padding should be done.
+
+[nl]
+The [cmd -final] option may be used to decrypt a message in streaming
+mode where the message is decrypted in parts or segments. In this
+case, all except the last segment of the message should be passed to
+the command with the [cmd -final] option specified to be a boolean
+false value. Moreover, if a block cipher is in use, the length of each
+such segment must be a multiple of the block size which may be
+obtained with the [uri #capi_key_blocklen [cmd capi_key_blocklen]]
+command. The return value
+is the plaintext corresponding to the passed segment. For the last
+segment, which may be of any length, the caller must either leave out
+the [cmd -final] option or specify it as a boolean true value.
 
 [call [cmd capi_decrypt_string] [arg BINDATA] [arg HKEY] [opt "[cmd -hhash] [arg HHASH]"] [opt "[cmd -oaep] [arg BOOLEAN]"] [opt "[cmd -nopadcheck] [arg BOOL]"]]
 Decrypts the passed binary string [arg BINDATA] converts it from
@@ -524,8 +538,9 @@ is assumed. A value of [const pkcs1] implies PKCS #1
 format padding. The value
 [const nopadcheck] specifies no check for padding should be done.
 
-[call [cmd capi_encrypt_bytes] [arg BINDATA] [arg HKEY] [opt "[cmd -hhash] [arg HHASH]"] [opt "[cmd -pad] [arg PADTYPE]"]]
-Encrypts the passed binary string [arg BINDATA] and returns the result.
+[call [cmd capi_encrypt_bytes] [arg BINDATA] [arg HKEY] [opt "[cmd -hhash] [arg HHASH]"] [opt "[cmd -pad] [arg PADTYPE]"] [opt "[cmd -final] [arg BOOL]"]]
+When the [cmd -final] option is not specified, the command
+encrypts the passed binary string [arg BINDATA] and returns the result.
 [arg HKEY] should be the handle of the key to be used for the operation.
 If the option [cmd -hhash] is specified [arg HHASH] should be the
 handle of a hash context. This will be updated with [arg BINDATA].
@@ -533,6 +548,20 @@ The option [cmd -pad] can only be used with RSA. If unspecified
 or [const oaep], OAEP padding
 is used. The only other valid value is [const pkcs1] for PKCS #1
 format padding.
+
+[nl]
+The [cmd -final] option may be used to encrypt a message in streaming
+mode where the message is encrypted in parts or segments. In this
+case, all except the last segment of the message should be passed to
+the command with the [cmd -final] option specified to be a boolean
+false value. Moreover, if a block cipher is in use, the length of each
+such segment must be a multiple of the block size which may be
+obtained with the [uri #capi_key_blocklen [cmd capi_key_blocklen]]
+command. The return value
+is the ciphertext corresponding to the passed segment. For the last
+segment, which may be of any length, the caller must either leave out
+the [cmd -final] option or specify it as a boolean true value.
+
 [nl]
 Note that the maximum length of data that can be encrypted depends
 on the algorithm and parameters like key size.

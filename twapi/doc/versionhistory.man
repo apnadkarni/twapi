@@ -37,6 +37,11 @@ Added
 [uri crypto.html#capi_keyblob_blob [cmd capi_keyblob_blob]].
 
 [bullet]
+Added streaming capability to
+[uri crypto.html#capi_encrypt_bytes [cmd capi_encrypt_bytes]] and
+[uri crypto.html#capi_decrypt_bytes [cmd capi_decrypt_bytes]].
+
+[bullet]
 Added [uri tls.html#tls_handshake [cmd tls_handshake]] and
 [uri tls.html#tls_close [cmd tls_close]].
 
