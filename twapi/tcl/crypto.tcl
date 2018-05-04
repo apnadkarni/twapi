@@ -15,6 +15,14 @@ namespace eval twapi {
         httpsprov_action            573E31F8-AABA-11d0-8CCB-00C04FC295EE
         driver_action_verify        F750E6C3-38EE-11d1-85E5-00C04FC295EE
     }
+
+    # Dictionaries used by capi_encrypt|decrypt_bytes to store partial blocks of data
+    # First level key is Crypto key handle
+    # Second level keys are Blocklen (block size in bytes) and Data (data bytes left over)
+    variable _capi_encrypt_partials
+    variable _capi_decrypt_partials
+    set _capi_encrypt_partials {}
+    set _capi_decrypt_partials {}
 }
 
 ### Hash functions
@@ -1631,30 +1639,111 @@ proc twapi::pbkdf2 {pass nbits alg_id salt niters} {
                     
 
 proc twapi::capi_encrypt_bytes {bytes hkey args} {
+    variable _capi_encrypt_partials
     parseargs args {
         {hhash.arg NULL}
         {final.bool 1}
         {pad.arg oaep {oaep pkcs1}}
     } -setvars -maxleftover 0
         
-    return [CryptEncrypt $hkey $hhash $final [dict! {pkcs1 0 oaep 0x40} $pad] $bytes]
+    if {[dict exists $_capi_encrypt_partials $hkey Data]} {
+        append plaintext \
+            [dict get $_capi_encrypt_partials $hkey Data] \
+            $bytes
+    } else {
+        set plaintext $bytes
+    }
+
+    if {$final} {
+        dict unset _capi_encrypt_partials $hkey
+        return [CryptEncrypt $hkey $hhash $final [dict! {pkcs1 0 oaep 0x40} $pad] $plaintext]
+    }
+
+    # If not the final segment, we have to split it up into the block size multiple.
+    if {[dict exists $_capi_encrypt_partials $hkey Blocklen]} {
+        set blocklen [dict get $_capi_encrypt_partials $hkey Blocklen]
+    } else {
+        set blocklen [expr {[capi_key_blocklen $hkey] / 8}]; # Bits -> bytes
+    }
+    
+    # len is largest multiple of block size less than data length
+    set len [expr {([string length $plaintext] / $blocklen) * $blocklen}]
+    set enc [CryptEncrypt $hkey $hhash $final [dict! {pkcs1 0 oaep 0x40} $pad] [string range $plaintext 0 $len-1]]
+    # Note following will not happen if CryptEncrypt throws an error. As desired
+    set remain [string range $plaintext $len end]
+    if {[string length $remain]} {
+        # Remember additional data 
+        dict set _capi_encrypt_partials $hkey Data $remain
+        dict set _capi_encrypt_partials $hkey Blocklen $blocklen
+    } else {
+        dict unset _capi_encrypt_partials $hkey
+    }
+    
+    return $enc
 }
 
 proc twapi::capi_encrypt_string {s hkey args} {
-    return [capi_encrypt_bytes [encoding convertto utf-8 $s] $hkey {*}$args]
+    # Explicitly parse args, not just pass on because this command
+    # does not support -final for symmetry with capi_decrypt_string
+    parseargs args {
+        {hhash.arg NULL}
+        {pad.arg oaep {oaep pkcs1}}
+    } -setvars -maxleftover 0
+    return [capi_encrypt_bytes [encoding convertto utf-8 $s] $hkey -hhash $hhash -pad $pad]
 }
 
 proc twapi::capi_decrypt_bytes {bytes hkey args} {
+    variable _capi_decrypt_partials
     parseargs args {
         {pad.arg oaep {oaep pkcs1 nopadcheck}}
         {final.bool 1}
         {hhash.arg NULL}
     } -setvars -maxleftover 0
-    return [CryptDecrypt $hkey $hhash $final [dict! {pkcs1 0 oaep 0x40 nopadcheck 0x20} $pad] $bytes]
+
+    if {[dict exists $_capi_decrypt_partials $hkey Data]} {
+        append enc \
+            [dict get $_capi_decrypt_partials $hkey Data] \
+            $bytes
+    } else {
+        set enc $bytes
+    }
+
+    if {$final} {
+        dict unset _capi_decrypt_partials $hkey
+        return [CryptDecrypt $hkey $hhash $final [dict! {pkcs1 0 oaep 0x40 nopadcheck 0x20} $pad] $enc]
+    }
+
+    # If not the final segment, we have to split it up into the block size multiple.
+    if {[dict exists $_capi_decrypt_partials $hkey Blocklen]} {
+        set blocklen [dict get $_capi_decrypt_partials $hkey Blocklen]
+    } else {
+        set blocklen [expr {[capi_key_blocklen $hkey] / 8}]; # Bits -> bytes
+    }
+
+    # len is largest multiple of block size less than data length
+    set len [expr {([string length $enc] / $blocklen) * $blocklen}]
+    set plaintext [CryptDecrypt $hkey $hhash $final [dict! {pkcs1 0 oaep 0x40} $pad] [string range $enc 0 $len-1]]
+    # Note following will not happen if CryptDecrypt throws an error. As desired
+    set remain [string range $enc $len end]
+    if {[string length $remain]} {
+        # Remember additional data 
+        dict set _capi_decrypt_partials $hkey Data $remain
+        dict set _capi_decrypt_partials $hkey Blocklen $blocklen
+    } else {
+        dict unset _capi_decrypt_partials $hkey
+    }
+
+    return $plaintext
 }
 
 proc twapi::capi_decrypt_string {s hkey args} {
-    return [encoding convertfrom utf-8 [capi_decrypt_bytes $s $hkey {*}$args]]
+    # Explicitly parse args, not just pass on because this command
+    # does not support -final for symmetry with capi_decrypt_string
+    parseargs args {
+        {hhash.arg NULL}
+        {pad.arg oaep {oaep pkcs1}}
+    } -setvars -maxleftover 0
+    return [encoding convertfrom utf-8 [capi_decrypt_bytes $s $hkey -hhash $hhash -pad $pad]]
 }
 
 # Returns the most capable CSP
