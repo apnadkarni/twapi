@@ -4725,13 +4725,63 @@ namespace eval twapi::crypto::test {
         testdef 1.11 $alg [list [expr {$blocklen/2}] [expr {$blocklen/2}] 0]
         testdef 1.12 $alg [list [expr {$blocklen/2}] [expr {$blocklen/2}] 1]
     }
-        
+
+    test capi_encrypt_bytes-hash-1.0 {
+        capi_encrypt_bytes with hash
+    } -setup {
+        set s [bytes 1000]
+        set hcrypt [twapi::crypt_acquire -csptype prov_rsa_aes]
+        set hhash [twapi::capi_hash_create $hcrypt sha1]
+        set hhash2 [twapi::capi_hash_dup $hhash]
+        set hk [twapi::crypt_generate_key $hcrypt des]
+    } -cleanup {
+        twapi::capi_hash_free $hhash
+        twapi::capi_hash_free $hhash2
+        twapi::capi_key_free $hk
+        twapi::crypt_free $hcrypt
+    } -body {
+        set enc [twapi::capi_encrypt_bytes $s $hk -hhash $hhash]
+        set hash1 [twapi::capi_hash_value $hhash]
+        set plain [twapi::capi_decrypt_bytes $enc $hk -hhash $hhash2]
+        set hash2 [twapi::capi_hash_value $hhash2]
+        list \
+            [string equal $plain $s] \
+            [string equal $hash1 $hash2] \
+            [string equal $hash1 [twapi::sha1 $s]]
+    } -result {1 1 1}
+
+    test capi_encrypt_bytes-hash-2.0 {
+        capi_encrypt_bytes with hash - streaming
+    } -setup {
+        set s [bytes 100]
+        set hcrypt [twapi::crypt_acquire -csptype prov_rsa_aes]
+        set hhash [twapi::capi_hash_create $hcrypt sha1]
+        set hhash2 [twapi::capi_hash_dup $hhash]
+        set hk [twapi::crypt_generate_key $hcrypt aes_128]
+    } -cleanup {
+        twapi::capi_hash_free $hhash
+        twapi::capi_hash_free $hhash2
+        twapi::capi_key_free $hk
+        twapi::crypt_free $hcrypt
+    } -body {
+        set enc [twapi::capi_encrypt_bytes [string index $s 0] $hk -hhash $hhash -final 0]
+        append enc [twapi::capi_encrypt_bytes [string range $s 1 end] $hk -hhash $hhash -final 1]
+        set hash1 [twapi::capi_hash_value $hhash]
+        set plain [twapi::capi_decrypt_bytes [string index $enc 0] $hk -hhash $hhash2 -final 0]
+        append plain [twapi::capi_decrypt_bytes [string range $enc 1 end] $hk -hhash $hhash2 -final 1]
+        set hash2 [twapi::capi_hash_value $hhash2]
+        list \
+            [string equal $plain $s] \
+            [string equal $hash1 $hash2] \
+            [string equal $hash1 [twapi::sha1 $s]]
+    } -result {1 1 1}
+
     test capi_encrypt_bytes-99 {
         TBD - more capi_encrypt_bytes tests
     } -constraints {
         TBD
     } -body {
-        TBD - HHASH parameter, other encryptions DSS
+        TBD -  other encryptions DSS
     } -result TBD
     
     ################################################################
