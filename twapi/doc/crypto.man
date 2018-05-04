@@ -517,12 +517,10 @@ The [cmd -final] option may be used to decrypt a message in streaming
 mode where the message is decrypted in parts or segments. In this
 case, all except the last segment of the message should be passed to
 the command with the [cmd -final] option specified to be a boolean
-false value. Moreover, if a block cipher is in use, the length of each
-such segment must be a multiple of the block size which may be
-obtained with the [uri #capi_key_blocklen [cmd capi_key_blocklen]]
-command. The return value
+false value.
+The return value
 is the plaintext corresponding to the passed segment. For the last
-segment, which may be of any length, the caller must either leave out
+segment, the caller must either leave out
 the [cmd -final] option or specify it as a boolean true value.
 
 [call [cmd capi_decrypt_string] [arg BINDATA] [arg HKEY] [opt "[cmd -hhash] [arg HHASH]"] [opt "[cmd -oaep] [arg BOOLEAN]"] [opt "[cmd -nopadcheck] [arg BOOL]"]]
@@ -554,12 +552,10 @@ The [cmd -final] option may be used to encrypt a message in streaming
 mode where the message is encrypted in parts or segments. In this
 case, all except the last segment of the message should be passed to
 the command with the [cmd -final] option specified to be a boolean
-false value. Moreover, if a block cipher is in use, the length of each
-such segment must be a multiple of the block size which may be
-obtained with the [uri #capi_key_blocklen [cmd capi_key_blocklen]]
-command. The return value
+false value.
+The return value
 is the ciphertext corresponding to the passed segment. For the last
-segment, which may be of any length, the caller must either leave out
+segment, the caller must either leave out
 the [cmd -final] option or specify it as a boolean true value.
 
 [nl]
