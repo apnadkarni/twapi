@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013-2015, Ashok P. Nadkarni
+# Copyright (c) 2013-2018, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -22,6 +22,16 @@ source [file join [file dirname [info script]] tlsecho.tcl]
 ::tcltest::testConstraint vista [expr {![string match 5.* $::tcl_platform(osVersion)]}]
 
 set http_response {(?i)HTTP.*<HTML.*</HTML>} 
+
+# Note - caller has to do half-close on channel to force remove to 
+proc httpreq {so {host www.example.com}} {
+    fconfigure $so -translation crlf
+    puts $so "GET / HTTP/1.1"
+    puts $so "Host: $host"
+    puts $so "Connection: close"
+    puts $so ""
+    flush $so
+}
 
 proc dputs {msg} { return ; puts stderr $msg ; flush stderr }
 
@@ -815,11 +825,7 @@ test tls_socket-client-1.0 {
     Verify basic synchronous connection
 } -body {
     set so [twapi::tls_socket www.google.com 443]
-    # GET / HTTP/1.0 results in EOF (server does not like request)
-    # GET / HTTP/1.1 results in more complicated read as server does not close
-    # so use just GET /
-    puts $so "GET /"
-    flush $so
+    httpreq $so www.google.com
     read $so
 } -cleanup {
     catch {close $so}
@@ -829,11 +835,7 @@ test starttls-client-1.0 {
     Verify basic synchronous connection
 } -body {
     set so [twapi::starttls [socket www.google.com 443] -peersubject www.google.com]
-    # GET / HTTP/1.0 results in EOF (server does not like request)
-    # GET / HTTP/1.1 results in more complicated read as server does not close
-    # so use just GET /
-    puts $so "GET /"
-    flush $so
+    httpreq $so www.google.com
     read $so
 } -cleanup {
     catch {close $so}
@@ -874,11 +876,7 @@ test tls_socket-client-1.3 {
     Verify basic synchronous connection -verifier (ok)
 } -body {
     set so [twapi::tls_socket -verifier verifytrue www.google.com 443]
-    # GET / HTTP/1.0 results in EOF (server does not like request)
-    # GET / HTTP/1.1 results in more complicated read as server does not close
-    # so use just GET /
-    puts $so "GET /"
-    flush $so
+    httpreq $so www.google.com
     read $so
 } -cleanup {
     catch {close $so}
@@ -888,11 +886,7 @@ test starttls-client-1.3 {
     Verify basic synchronous connection -verifier (ok)
 } -body {
     set so [twapi::starttls [socket  www.google.com 443] -verifier verifytrue -peersubject www.google.com]
-    # GET / HTTP/1.0 results in EOF (server does not like request)
-    # GET / HTTP/1.1 results in more complicated read as server does not close
-    # so use just GET /
-    puts $so "GET /"
-    flush $so
+    httpreq $so www.google.com
     read $so
 } -cleanup {
     catch {close $so}
@@ -926,11 +920,7 @@ test tls_socket-client-1.6 {
     Verify basic synchronous connection -verifier (ok)
 } -body {
     set so [twapi::tls_socket -verifier [list verify www.google.com] www.google.com 443]
-    # GET / HTTP/1.0 results in EOF (server does not like request)
-    # GET / HTTP/1.1 results in more complicated read as server does not close
-    # so use just GET /
-    puts $so "GET /"
-    flush $so
+    httpreq $so www.google.com
     read $so
 } -cleanup {
     catch {close $so}
@@ -940,11 +930,7 @@ test starttls-client-1.6 {
     Verify basic synchronous connection -verifier (ok)
 } -body {
     set so [twapi::starttls [socket www.google.com 443] -verifier [list verify www.google.com] -peersubject www.google.com]
-    # GET / HTTP/1.0 results in EOF (server does not like request)
-    # GET / HTTP/1.1 results in more complicated read as server does not close
-    # so use just GET /
-    puts $so "GET /"
-    flush $so
+    httpreq $so www.google.com
     read $so
 } -cleanup {
     catch {close $so}
@@ -966,11 +952,7 @@ test tls_socket-client-2.0 {
     Verify basic asynchronous connection
 } -body {
     set so [twapi::tls_socket -async www.google.com 443]
-    # GET / HTTP/1.0 results in EOF (server does not like request)
-    # GET / HTTP/1.1 results in more complicated read as server does not close
-    # so use just GET /
-    puts $so "GET /"
-    flush $so
+    httpreq $so www.google.com
     read $so
 } -cleanup {
     catch {close $so}
@@ -1018,12 +1000,7 @@ test tls_socket-client-2.5 {
     Verify basic asynchronous connection -verify (ok)
 } -body {
     set so [twapi::tls_socket -async -verifier verifytrue www.example.com 443]
-    # so use just GET /
-    puts $so "GET / HTTP/1.1"
-    puts $so "Host: www.example.com"
-    puts $so "Connection: close";# No keep-alive else complicates read
-    puts $so ""
-    flush $so
+    httpreq $so
     read $so
 } -cleanup {
     catch {close $so}
@@ -1055,6 +1032,7 @@ test tls_socket-client-2.8 {
     puts $so "GET / HTTP/1.1"
     fconfigure $so -blocking 1
     puts $so "Host: www.example.com"
+    puts $so "Connection: close"
     puts $so ""
     set result [gets $so]
     close $so
@@ -1128,10 +1106,7 @@ test tls_socket-client-3.1 {
     set after_id [after 5000 set ::done timeout]
     vwait ::done
     if {$::done eq "open"} {
-        # GET / HTTP/1.0 results in EOF (server does not like request)
-        # GET / HTTP/1.1 results in more complicated read as server does not
-        # close so use just GET /
-        puts $so "GET /\r\n\r\n"
+        httpreq $so www.google.com
         set reader [twapi::lambda {so} {
             append ::response [read $so]
             if {[eof $so]} {
@@ -1155,10 +1130,7 @@ test tls_socket-client-3.2 {
     set after_id [after 5000 set ::done timeout]
     vwait ::done
     if {$::done eq "open"} {
-        # GET / HTTP/1.0 results in EOF (server does not like request)
-        # GET / HTTP/1.1 results in more complicated read as server does not
-        # close so use just GET /
-        puts $so "GET /\r\n\r\n"
+        httpreq $so www.google.com
         set reader [twapi::lambda {so} {
             set line [gets $so]
             append ::response ${line}\n
@@ -1183,10 +1155,7 @@ test starttls-client-3.2 {
     set after_id [after 5000 set ::done timeout]
     vwait ::done
     if {$::done eq "open"} {
-        # GET / HTTP/1.0 results in EOF (server does not like request)
-        # GET / HTTP/1.1 results in more complicated read as server does not
-        # close so use just GET /
-        puts $so "GET /\r\n\r\n"
+        httpreq $so www.google.com
         set reader [twapi::lambda {so} {
             set line [gets $so]
             append ::response ${line}\n
@@ -1562,8 +1531,49 @@ test tls-server-openssl-1.1 {
     list $::done [chan names rc*]
 } -result {{TWAPI_WIN32 -2146893042} {}}
 
+test tls_close-1.0 {
+    Test simple close
+} -body {
+    twapi::tls_close [twapi::tls_socket www.howsmyssl.com 443]
+    chan names rc*
+} -result {}
 
+test tls_close-2.0 {
+    Test half close
+} -body {
+    set so [twapi::tls_socket www.google.com 443]
+    # Do not use httpreq here because we do not want to send Connection header
+    fconfigure $so -translation crlf
+    puts $so "GET / HTTP/1.1"
+    puts $so "Host: www.google.com"
+    puts $so ""
+    flush $so
+    twapi::tls_close $so write
+    set html [read $so]
+    set m [llength [chan names rc*]]
+    twapi::tls_close $so
+    set n [llength [chan names rc*]]
+    list [regexp $http_response $html] $m $n
+} -result {1 1 0}
 
+test tls_close-3.0 {
+    Test half close - write fail
+} -body {
+    set so [twapi::tls_socket www.google.com 443]
+    # Do not use httpreq here because we do not want to send Connection header
+    fconfigure $so -translation crlf -buffering line
+    puts $so "GET / HTTP/1.1"
+    puts $so "Host: www.google.com"
+    puts $so ""
+    flush $so
+    twapi::tls_close $so write
+    set err [catch {puts $so foo}]; # Should fail but keep open for read
+    set html [read $so]
+    set m [llength [chan names rc*]]
+    twapi::tls_close $so
+    set n [llength [chan names rc*]]
+    list $err [regexp $http_response $html] $m $n
+} -result {1 1 1 0}
 
 
 #################################################################
