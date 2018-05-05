@@ -229,6 +229,15 @@ proc twapi::tls::_starttls {so args} {
     return $chan
 }
 
+interp alias {} twapi::tls_state {} twapi::tls::_state
+proc twapi::tls::_state {chan} {
+    variable _channels
+    if {![info exists _channels($chan)]} {
+       twapi::badargs! "Not a valid TLS channel." 
+    }
+    return [dict get $_channels($chan) State]
+}
+
 interp alias {} twapi::tls_handshake {} twapi::tls::_handshake
 proc twapi::tls::_handshake {chan} {
     variable _channels
