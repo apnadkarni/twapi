@@ -1531,6 +1531,8 @@ test tls-server-openssl-1.1 {
     list $::done [chan names rc*]
 } -result {{TWAPI_WIN32 -2146893042} {}}
 
+################################################################
+
 test tls_close-1.0 {
     Test simple close
 } -body {
@@ -1574,6 +1576,117 @@ test tls_close-3.0 {
     set n [llength [chan names rc*]]
     list $err [regexp $http_response $html] $m $n
 } -result {1 1 1 0}
+
+################################################################
+
+test tls_handshake-1.0 {
+    tls_socket -> handshake
+} -setup {
+    set so [twapi::tls_socket www.example.com 443]
+} -cleanup {
+    twapi::tls_close $so
+} -body {
+    list [twapi::tls_handshake $so] [twapi::tls_state $so]
+} -result {1 OPEN}
+
+test tls_handshake-1.1 {
+    tls_socket -async -> handshake
+} -setup {
+    set so [twapi::tls_socket -async www.example.com 443]
+} -cleanup {
+    twapi::tls_close $so
+} -body {
+    list [twapi::tls_state $so] [twapi::tls_handshake $so] [twapi::tls_state $so]
+} -result {CLIENTINIT 1 OPEN}
+
+test tls_handshake-1.2 {
+    tls_socket -> non-blocking -> handshake
+} -setup {
+    set so [twapi::tls_socket www.example.com 443]
+    fconfigure $so -blocking 0
+} -cleanup {
+    twapi::tls_close $so
+} -body {
+    list [twapi::tls_handshake $so] [twapi::tls_state $so]
+} -result {1 OPEN}
+
+test tls_handshake-1.3 {
+    tls_socket -async -> non-blocking -> handshake
+} -setup {
+    set so [twapi::tls_socket -async www.example.com 443]
+    fconfigure $so -blocking 0
+} -cleanup {
+    twapi::tls_close $so
+} -body {
+    list [twapi::tls_state $so] [twapi::tls_handshake $so] [twapi::tls_state $so]
+} -result {CLIENTINIT 0 CLIENTINIT}
+
+
+test tls_handshake-2.0 {
+    socket -> starttls -> handshake
+} -setup {
+    set so [socket www.example.com 443]
+    set so [twapi::starttls $so -peersubject www.example.com]
+} -cleanup {
+    twapi::tls_close $so
+} -body {
+    list [twapi::tls_handshake $so] [twapi::tls_state $so]
+} -result {1 OPEN}
+
+test tls_handshake-2.1 {
+    socket -async -> starttls -> handshake
+} -setup {
+    set so [socket -async www.example.com 443]
+    set so [twapi::starttls $so -peersubject www.example.com]
+} -cleanup {
+    twapi::tls_close $so
+} -body {
+    list [twapi::tls_state $so] [twapi::tls_handshake $so] [twapi::tls_state $so]
+} -result {OPEN 1 OPEN}
+
+test tls_handshake-2.2 {
+    socket -> non-blocking -> starttls -> handshake
+} -setup {
+    set so [socket www.example.com 443]
+    fconfigure $so -blocking 0
+    set so [twapi::starttls $so -peersubject www.example.com]
+} -cleanup {
+    twapi::tls_close $so
+} -body {
+    list [twapi::tls_handshake $so] [twapi::tls_state $so]
+} -result {0 NEGOTIATING}
+
+################################################################
+
+test tls_state-1.0 {
+    tls_socket state
+} -setup {
+    set so [twapi::tls_socket www.example.com 443]
+} -cleanup {
+    close $so
+} -body {
+    twapi::tls_state $so
+} -result OPEN
+
+test tls_state-1.1 {
+    tls_socket -async state
+} -setup {
+    set so [twapi::tls_socket -async www.example.com 443]
+} -cleanup {
+    close $so
+} -body {
+    twapi::tls_state $so
+} -result CLIENTINIT
+
+test tls_state-1.2 {
+    tls_socket -server state
+} -setup {
+    set so [twapi::tls_socket -credentials $::serverCreds -server accept 8080]
+} -cleanup {
+    close $so
+} -body {
+    twapi::tls_state $so
+} -result LISTENERINIT
 
 
 #################################################################
