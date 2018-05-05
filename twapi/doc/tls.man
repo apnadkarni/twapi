@@ -25,7 +25,8 @@ The [uri #starttls [cmd starttls]] command wraps an existing Tcl
 bidirectional channel into a TLS channel.
 
 The [uri #tls_handshake [cmd tls_handshake]] command completes
-negotiation on a TLS channel.
+negotiation on a TLS channel. The current channel state can be retrieved
+with [uri #tls_state [cmd tls_state]].
 
 Channels are closed using either
 the [uri #tls_close [cmd tls_close]] command 
@@ -174,6 +175,11 @@ Returns the handle to the security context for the channel.
 [opt_def [cmd -verifier]]
 Returns the verification callback for the channel.
 [list_end]
+
+[call [cmd tls_state] [arg CHAN]]
+Returns the current state of a TLS channel. This may be one of
+[const CLIENTINIT], [const SERVERINIT], [const LISTENER],
+[const NEGOTIATING], [const OPEN] or [const CLOSED].
 
 [list_end]
 

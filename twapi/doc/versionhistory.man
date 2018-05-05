@@ -42,7 +42,8 @@ Added streaming capability to
 [uri crypto.html#capi_decrypt_bytes [cmd capi_decrypt_bytes]].
 
 [bullet]
-Added [uri tls.html#tls_handshake [cmd tls_handshake]] and
+Added [uri tls.html#tls_handshake [cmd tls_handshake]],
+[uri tls.html#tls_state [cmd tls_state]] and
 [uri tls.html#tls_close [cmd tls_close]].
 
 [bullet]
