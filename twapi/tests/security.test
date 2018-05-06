@@ -6331,7 +6331,7 @@ namespace eval twapi::security::test {
         set sess [twapi::get_logon_session_info [current_logon_session] -authpackage]
         verify_kl_fields $sess [list -authpackage]
         lindex $sess 1
-    } -match oneof -result {NTLM Kerberos}
+    } -match oneof -result {NTLM Kerberos|CloudAP} -match regexp
 
     ###
 
