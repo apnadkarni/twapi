@@ -3,6 +3,7 @@
 
 if {[llength $argv] != 1} {
     puts stderr "Usage: [info nameofexecutable] [info script] TARGETPATH"
+    exit 1
 }
 
 set target [file normalize [lindex $argv 0]]
