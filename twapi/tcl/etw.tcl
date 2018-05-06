@@ -212,6 +212,10 @@ twapi::proc* twapi::etw_install_twapi_mof {} {
     # strings despite the embedded nulls drawback.
     # TBD - revisit this and see if counted can always be treated as
     # bytes and not characters.
+
+    # We do not want the pure binary builds think #pragma is a comment
+    # and remove the line! Bug 170
+    #createtmfile-disable-compaction
     set mof_template {
         #pragma namespace("\\\\.\\root\\wmi")
 
@@ -273,6 +277,8 @@ twapi::proc* twapi::etw_install_twapi_mof {} {
             [WmiDataId(4), Description("Context"): Amended, read, StringTermination("NullTerminated"), Format("w")] string Context;
         };
     }
+
+    #createtmfile-enable-compaction
 
     set mof [string map \
                  [list @provider_name $_etw_mof(provider_name) \

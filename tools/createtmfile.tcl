@@ -161,13 +161,23 @@ proc main {package version header files} {
                 set f [open $a]
                 if {$opts(-compact)} {
                     set outdata ""
+                    set enable_compaction 1
                     foreachLine line $a {
-                        # Skip pure comments
-                        if {[regexp {^\s*#} $line]} continue
-                        # SKip blank lines
-                        if {[regexp {^\s*$} $line]} continue
-                        # Compact leading spaces
-                        regsub {^(\s+)} $line "" line
+                        # The enable/disable compaction allows verbatim pass through
+                        # of embedded lines beginning with # that are not actually comments.
+                        # See Bug 170
+                        if {[regexp {^\s*#\s*createtmfile-disable-compaction\s*} $line]} {
+                            set enable_compaction 0
+                        } elseif {[regexp {^\s*#\s*createtmfile-enable-compaction\s*} $line]} {
+                            set enable_compaction 1
+                        } elseif {$enable_compaction} {
+                            # Skip pure comments.
+                            if {[regexp {^\s*#($|\s)} $line]} continue
+                            # SKip blank lines
+                            if {[regexp {^\s*$} $line]} continue
+                            # Compact leading spaces
+                            regsub {^(\s+)} $line "" line
+                        }
                         append outdata "${line}\n"
                     }
                     puts -nonewline $outf $outdata
