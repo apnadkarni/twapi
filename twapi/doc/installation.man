@@ -9,13 +9,13 @@
 The 32-bit builds of the [const TWAPI] extension require
 [list_begin bullet]
 [bullet] Windows XP or later,
-[bullet] Tcl version 8.5 or later.
+[bullet] Tcl version 8.6 or later.
 [list_end]
 [para]
 The 64-bit builds of [const TWAPI] require 
 [list_begin bullet]
 [bullet] Windows 2003 Server or later,
-[bullet] Tcl version 8.5 or later.
+[bullet] Tcl version 8.6 or later.
 [list_end]
 
 For Windows 2000, use TWAPI 3.0 or earlier.

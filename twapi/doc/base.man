@@ -651,7 +651,7 @@ account is to be looked up. If unspecified, the local system is used.
 of [const user], [const group] (domain group), [const domain],
 [const alias] (system local group),
 [const wellknowngroup], [const deletedaccount], [const invalid],
-[const unknown], or [const computer].
+[const unknown], [const logonsession] or [const computer].
 [list_end]
 
 [call [cmd make_logon_identity] [arg USERNAME] [arg PASSWORD] [arg DOMAIN]]

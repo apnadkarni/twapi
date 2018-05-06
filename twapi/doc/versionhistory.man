@@ -48,6 +48,10 @@ Added [uri tls.html#tls_handshake [cmd tls_handshake]],
 
 [bullet]
 [emph "Incompatible change"]
+Support for Tcl 8.5 has been dropped.
+
+[bullet]
+[emph "Incompatible change"]
 The experimental Windows Installer module [cmd twapi_msi] has
 been replaced by a [uri msi.html "new version"] based on the generic COM
 interfaces.
