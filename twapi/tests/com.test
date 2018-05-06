@@ -522,7 +522,6 @@ namespace eval twapi::com::test {
         }]
         $drive_coll -destroy
         $fso -destroy
-        puts after:[twapi::comobj_instances]
         # $result should be empty as -iterate returns ""
         # No objects should be left over
         list $result [llength $drives] [expr {[llength [twapi::comobj_instances]] == $nobjs}]
