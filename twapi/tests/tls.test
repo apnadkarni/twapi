@@ -33,6 +33,13 @@ proc httpreq {so {host www.example.com}} {
     flush $so
 }
 
+proc howsmyssl_rating {json_response} {
+    if {[regexp {,\s*"rating"\s*:\s*"(.*)"} $json_response -> rating]} {
+        return $rating
+    }
+    error "Could not determine rating from howsmyssl"
+}
+
 proc dputs {msg} { return ; puts stderr $msg ; flush stderr }
 
 set Port 8048
@@ -1172,8 +1179,6 @@ test starttls-client-3.2 {
 
 test tls_socket-client-4.0 {
     Test www.howsmyssl.com
-} -setup {
-    package require json
 } -body {
     # XP by default will pick sslv2 and remote will abort
     # so explicitly pick tls1 always. We will get a rating of
@@ -1186,9 +1191,7 @@ test tls_socket-client-4.0 {
     puts $so "GET https://www.howsmyssl.com/a/check HTTP/1.0\r\n\r\n"
     set data [read $so]
     chan close $so
-    set hdr_end [string first \r\n\r\n $data]
-    set response [json::json2dict [string range $data $hdr_end+4 end]]
-    dict get $response rating
+    howsmyssl_rating $data
 } -cleanup {
     twapi::sspi_free_credentials $creds
 } -result Bad
@@ -1196,7 +1199,6 @@ test tls_socket-client-4.0 {
 test starttls-client-4.0 {
     Test www.howsmyssl.com
 } -setup {
-    package require json
     if {$::tcl_platform(osVersion) eq "5.1"} {
         set protocol tls1
     } else {
@@ -1211,9 +1213,7 @@ test starttls-client-4.0 {
     puts $so "GET https://www.howsmyssl.com/a/check HTTP/1.0\r\n\r\n"
     set data [read $so]
     chan close $so
-    set hdr_end [string first \r\n\r\n $data]
-    set response [json::json2dict [string range $data $hdr_end+4 end]]
-    dict get $response rating
+    howsmyssl_rating $data
     # Rating is currently returned as Bad (because of insecure RC4)
     # or Probably Ok depending on platform. This happens even with Chrome.
     # See if cryptoapi allows selection of cipher suites
