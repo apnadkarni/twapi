@@ -1,29 +1,31 @@
-# Tcl Windows API (TWAPI) 4.2
+# Tcl Windows API (TWAPI) 4.3
 
-This is the release version of TWAPI 4.2.
+This is the release version of TWAPI 4.3.
 
   * Project home page is at http://twapi.sourceforge.net
-  * V4.2 documentation is at http://twapi.magicsplat.com/v4.2
+  * V4.3 documentation is at http://twapi.magicsplat.com/v4.3
 
 ## Supported platforms
 
 TWAPI 4.2 requires
 
   * Windows XP (32-bit only) or later (32- or 64- bit)
-  * Tcl 8.5 or 8.6 (32- or 64-bit)
+  * Tcl 8.6 (32- or 64-bit) (NOTE: Tcl 8.5 is no longer supported)
 
 ## Changes since 4.1
 
-Major changes in this release are enhancements related to CryptoAPI and 
-certificate support.
+Changes in this release are enhancements in the crypto, com and tls 
+modules.
+
+Tcl 8.5 support has been dropped.
 
 For a complete list, including INCOMPATIBLE CHANGES, see 
-http://twapi.sourceforge.net/v4.2/versionhistory.html
+http://twapi.sourceforge.net/v4.3/versionhistory.html
 
 ## Distributions
 
 TWAPI is distributed in multiple formats.
-See http://twapi.sourceforge.net/v4.2/installation.html for the details
+See http://twapi.sourceforge.net/v4.3/installation.html for the details
 and the pros and cons of each format.
 
 ## TWAPI Summary
