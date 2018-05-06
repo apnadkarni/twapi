@@ -18,6 +18,7 @@ The 64-bit builds of [const TWAPI] require
 [bullet] Tcl version 8.6 or later.
 [list_end]
 
+For Tcl 8.5, use TWAPI 4.2 or earlier.
 For Windows 2000, use TWAPI 3.0 or earlier.
 For Windows NT 4.0 (SP3 or later), use TWAPI 1.1.5 or earlier releases.
 
