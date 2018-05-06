@@ -19,6 +19,7 @@ namespace eval twapi {
         8 unknown
         9 computer
         10 label
+        11 logonsession
     }
 
     # Cache mapping account names to SIDs. Dict keyed by system and name
@@ -838,24 +839,26 @@ proc twapi::lookup_account_sid {sid args} {
                              [list system.arg ""]\
                             ]]
 
-    if {! [dict exists $_sid_to_name_cache $opts(system) $sid]} {
+    if {[dict exists $_sid_to_name_cache $opts(system) $sid]} {
+        lassign [dict get $_sid_to_name_cache $opts(system) $sid] name domain type
+    } else {
         # Not in cache. Need to look up
 
-        # LookupAccountSid returns an error for this SID but the check is
-        # now disabled because lots of SID's do not have corresponding names
-        if {0 && [is_valid_sid_syntax $sid] &&
-            [string match -nocase "S-1-5-5-*" $sid]} {
-            set name "Logon SID"
-            set domain "NT AUTHORITY"
-            set type "logonid"
-            dict set _sid_to_name_cache $opts(system) $sid [list $name $domain $type]
-        } else {
+        trap {
             set data [LookupAccountSid $opts(system) $sid]
             lassign $data name domain type
-            dict set _sid_to_name_cache $opts(system) $sid $data
+        } onerror {TWAPI_WIN32 1332} {
+            # Win10 resolves this, Win7 does not. Emulate Win10
+            if {![string match -nocase "S-1-5-5-*" $sid]} {
+                rethrow
+            }
+            # Name is formed similar to how Win10 does it
+            set name "LogonSessionId_[string map {- _} [string range $sid 8 end]]"
+            set domain "NT AUTHORITY"
+            set type 11
+            set data [list $name $domain $type]
         }
-    } else {
-        lassign [dict get $_sid_to_name_cache $opts(system) $sid] name domain type
+        dict set _sid_to_name_cache $opts(system) $sid $data
     }
 
 
@@ -867,7 +870,6 @@ proc twapi::lookup_account_sid {sid args} {
         if {[info exists twapi::sid_type_names($type)]} {
             lappend result -type $twapi::sid_type_names($type)
         } else {
-            # Could be the "logonid" dummy type we added above
             lappend result -type $type
         }
     }
