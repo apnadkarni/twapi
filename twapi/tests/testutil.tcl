@@ -350,7 +350,7 @@ proc valid_account_names {names {system ""}} {
     }
     foreach name $names {
         if {[catch {twapi::lookup_account_name $name -system $system}]} {
-            if {$name ne "Logon SID"} {
+            if {![string match LogonSessionId_* $name]} {
                 return 0
             }
         }
