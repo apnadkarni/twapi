@@ -18,31 +18,32 @@
   <a href="http://www.tcl.tk">Tcl</a>, TWAPI makes it possible
   to write a wide variety of Windows applications ranging from
   desktop applications to web servers running as Windows services.
-  See <a href="http://windowstoolset.magicsplat.com">Windows
+  See <a href="https://windowstoolset.magicsplat.com">Windows
   Inspection Tool Set</a> for an example of Tcl/TWAPI based application.
 </p>
 <p>
-  TWAPI is open source and hosted on <a href="http://www.sourceforge.net">Sourceforge</a>.
+  TWAPI is open source and hosted on <a href="https://www.sourceforge.net">Sourceforge</a>.
 </p>
 <ul>
   <li>Follow the links on the left for the <a href="overview.html">documentation</a></li>
-  <li>Go to the <a href="http://sourceforge.net/project/showfiles.php?group_id=90123">download page</a></li>
-  <li>Visit the <a href="http://sourceforge.net/projects/twapi">SourceFourge</a> project</li>
+  <li>Go to the <a href="https://sourceforge.net/project/showfiles.php?group_id=90123">download page</a></li>
+  <li>Visit the <a href="https://sourceforge.net/projects/twapi">SourceFourge</a> project</li>
   <li>Browse the <a href="https://sourceforge.net/p/twapi/code/">source repository</a></li>
   <li>Documentation for current release:
-    <a href="http://twapi.magicsplat.com/v4.2">4.2</a>
+    <a href="https://twapi.magicsplat.com/v4.3">4.3</a>
   </li>
   <li>Documentation for older versions: 
-    <a href="http://twapi.magicsplat.com/v4.1">4.1</a>
-    <a href="http://twapi.magicsplat.com/v4.0">4.0</a>
-    <a href="http://twapi.magicsplat.com/v3.1">3.1</a>
-    <a href="http://twapi.magicsplat.com/v3.0">3.0</a>
-    <a href="http://twapi.magicsplat.com/v2.2">2.2</a>
-    <a href="http://twapi.magicsplat.com/v2.1">2.1</a>
-    <a href="http://twapi.magicsplat.com/v2.0">2.0</a>
-    <a href="http://twapi.magicsplat.com/v1.1">1.1</a>
+    <a href="https://twapi.magicsplat.com/v4.2">4.2</a>
+    <a href="https://twapi.magicsplat.com/v4.1">4.1</a>
+    <a href="https://twapi.magicsplat.com/v4.0">4.0</a>
+    <a href="https://twapi.magicsplat.com/v3.1">3.1</a>
+    <a href="https://twapi.magicsplat.com/v3.0">3.0</a>
+    <a href="https://twapi.magicsplat.com/v2.2">2.2</a>
+    <a href="https://twapi.magicsplat.com/v2.1">2.1</a>
+    <a href="https://twapi.magicsplat.com/v2.0">2.0</a>
+    <a href="https://twapi.magicsplat.com/v1.1">1.1</a>
   </li>
-  <li>Online chapters from <a href="http://www.magicsplat.com/book">Tcl
+  <li>Online chapters from <a href="https://www.magicsplat.com/book">Tcl
       Programming for Windows</a>
   </li>
 </ul>
