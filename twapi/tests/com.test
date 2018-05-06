@@ -35,8 +35,8 @@ namespace eval twapi::com::test {
             }]} {
                 error "Could create Twapi.Test object. See README in comtest directory about registering the object."
             }
-            return $testobj
         }
+        return $testobj
     }
 
     ################################################################
