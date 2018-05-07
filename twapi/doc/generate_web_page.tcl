@@ -49,7 +49,7 @@ proc transform_file {infile {navfile ""} {adfile ""} {adfile2 ""} {outfile ""}} 
 
     puts $outfd {
         <div class='headingbar'>
-        <a href='http://www.magicsplat.com'><img style='float:right; padding-right: 5px;' src='magicsplat.png' alt='site logo'/></a>
+        <a href='https://www.magicsplat.com'><img style='float:right; padding-right: 5px;' src='magicsplat.png' alt='site logo'/></a>
         <p><a href='index.html'>Tcl Windows API extension</a></p>
         </div>
     }
