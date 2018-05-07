@@ -28,7 +28,7 @@ proc transform_file {infile {navfile ""} {adfile ""} {adfile2 ""} {outfile ""}} 
   <head>
     <title>Tcl Windows API extension</title>
     <link rel="shortcut icon" href="favicon.ico" />
-    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/2.5.1/build/reset-fonts-grids/reset-fonts-grids.css"/>
+    <link rel="stylesheet" type="text/css" href="reset-fonts-grids.css"/>
     <link rel="stylesheet" type="text/css" href="styles.css" />
   </head>
   <body>

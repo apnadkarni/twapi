@@ -24,7 +24,7 @@ in the [uri certs.html Certificates] and [uri sspi.html SSPI] pages.
 This documentation expects the reader is familiar with the use of cryptography.
 An overview of the concepts in CAPI is provided but the API itself
 is fairly complex and
-a series of [uri http://www.magicsplat.com/blog/tags/cryptography/ "blog posts"]
+a series of [uri https://www.magicsplat.com/blog/tags/cryptography/ "blog posts"]
 on the use of these commands may prove useful.
 The reader may also wish to
 refer to the

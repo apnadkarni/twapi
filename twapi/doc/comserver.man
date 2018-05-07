@@ -17,7 +17,7 @@ This documentation is reference material that assumes familiarity with
 COM programming concepts such as COM interfaces, automation, PROGID
 and CLSID identifier types and so on. For more introductory material
 and a guide with examples, see the COM chapter in the
-[uri http://www.magicsplat.com/book "Tcl on Windows"] online book.
+[uri https://www.magicsplat.com/book "Tcl on Windows"] online book.
 
 [section "Overview"]
 
