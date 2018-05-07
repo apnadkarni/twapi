@@ -15,7 +15,7 @@
 </p>
 <p>
   In combination with the built-in facilities in
-  <a href="http://www.tcl.tk">Tcl</a>, TWAPI makes it possible
+  <a href="https://www.tcl.tk">Tcl</a>, TWAPI makes it possible
   to write a wide variety of Windows applications ranging from
   desktop applications to web servers running as Windows services.
   See <a href="https://windowstoolset.magicsplat.com">Windows
@@ -30,18 +30,18 @@
   <li>Visit the <a href="https://sourceforge.net/projects/twapi">SourceFourge</a> project</li>
   <li>Browse the <a href="https://sourceforge.net/p/twapi/code/">source repository</a></li>
   <li>Documentation for current release:
-    <a href="https://twapi.magicsplat.com/v4.3">4.3</a>
+    <a href="v4.3">4.3</a>
   </li>
   <li>Documentation for older versions: 
-    <a href="https://twapi.magicsplat.com/v4.2">4.2</a>
-    <a href="https://twapi.magicsplat.com/v4.1">4.1</a>
-    <a href="https://twapi.magicsplat.com/v4.0">4.0</a>
-    <a href="https://twapi.magicsplat.com/v3.1">3.1</a>
-    <a href="https://twapi.magicsplat.com/v3.0">3.0</a>
-    <a href="https://twapi.magicsplat.com/v2.2">2.2</a>
-    <a href="https://twapi.magicsplat.com/v2.1">2.1</a>
-    <a href="https://twapi.magicsplat.com/v2.0">2.0</a>
-    <a href="https://twapi.magicsplat.com/v1.1">1.1</a>
+    <a href="v4.2">4.2</a>
+    <a href="v4.1">4.1</a>
+    <a href="v4.0">4.0</a>
+    <a href="v3.1">3.1</a>
+    <a href="v3.0">3.0</a>
+    <a href="v2.2">2.2</a>
+    <a href="v2.1">2.1</a>
+    <a href="v2.0">2.0</a>
+    <a href="v1.1">1.1</a>
   </li>
   <li>Online chapters from <a href="https://www.magicsplat.com/book">Tcl
       Programming for Windows</a>
