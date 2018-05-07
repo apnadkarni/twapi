@@ -139,6 +139,7 @@ website.zip : $(MANFILES) styles.css index.htf generate_web_page.tcl generate_ww
         $(SILENT)for %f in ($(HTMLOUTPUTFILES) idx.html) do echo %f && $(SILENT)$(TIDY) -asxhtml -q website-build\%f > website\%f
         $(SILENT)$(TCLSH) generate_web_page.tcl index.htf $(TWAPI_VERSION) website-build\toc.htf $(ADFILE) $(ADFILE2) | $(TIDY) -asxhtml -q > website\index.html
 	@echo Copying files...
+	$(SILENT)xcopy /q /y reset-fonts-grids.css website
 	$(SILENT)xcopy /q /y styles.css website
 	$(SILENT)for %f in ($(IMGFILES)) do $(SILENT)xcopy /q /y %f website
 #	$(SILENT)xcopy /q /y *.example website
