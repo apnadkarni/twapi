@@ -11,8 +11,10 @@
 #      to update the table of contents. (why is this necessary?)
 #  (2b) Copy Tcl/Tk files from the Tcl\Tk docs to h2c\tcl-tk. Delete the
 #      .chm and .log files from there. Also delete the Keywords directory.
-#  (2c) Copy tcllib documentation into h2c\tcllib_doc
-#  (2d) Copy tklib documentation into h2c\tklib_doc
+#  (2c) Copy tcllib documentation into h2c\tcllib_doc. Note h2c*.cfg files
+#      may need to be fixed for new modules.
+#  (2d) Copy tklib documentation into h2c\tklib_doc. Note h2c*.cfg files
+#      may need to be fixed for new modules.
 #  (2e) Copy tdbc documentation into h2c\tdbc_doc. To build the tdbc docs
 #       extract all the tdbc packages under tcl/pkgs in the tcl tree. Then
 #       run the command 
