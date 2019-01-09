@@ -25,6 +25,7 @@
 #  (2g) Copy BWidget documentation into h2c\BWman. Delete index.html,
 #       navtree.html. In PasswordDlg.html, fix the <DD> to be </DD>
 #       otherwise tdom will correctly error out.
+#  (2h) Copy RBC, Tcl-UDP
 #  (3) Copy h2c-*.cfg files into the respective directories
 #  (3a) Edit h2c-tcllib-modules.cfg to update the module list if necessary
 #  (4) tclwinhelp.html to h2c directory
