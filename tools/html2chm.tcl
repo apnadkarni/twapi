@@ -22,6 +22,9 @@
 #  (2f) Copy thread documentation into h2c\thread_doc. Available in the
 #       thread/doc/html directory in the thread distribution.
 #  (2f) Copy tdom documentation into h2c\tdom_doc
+#  (2g) Copy BWidget documentation into h2c\BWman. Delete index.html,
+#       navtree.html. In PasswordDlg.html, fix the <DD> to be </DD>
+#       otherwise tdom will correctly error out.
 #  (3) Copy h2c-*.cfg files into the respective directories
 #  (3a) Edit h2c-tcllib-modules.cfg to update the module list if necessary
 #  (4) tclwinhelp.html to h2c directory
@@ -285,7 +288,7 @@ proc html2chm::process_content {path root} {
         # Note the -html flag is important, not just for being less
         # strict but also for the selectNodes later to work without
         # qualifiers (what the heck was I talking about here? - TBD)
-        set doc [dom parse -keepEmpties -html $data]
+        set doc [dom parse -keepEmpties -html  $data]
         set node [lindex [$doc selectNodes /html/head/title] 0]
         if {$node ne ""} {
             set title [$node asText]
