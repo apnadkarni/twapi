@@ -177,7 +177,7 @@ TWAPI_EXTERN TwapiCallback *TwapiCallbackNew(
             TwapiReturnErrorEx(ticP->interp, TWAPI_BUG, Tcl_ObjPrintf("Requested Callback size too small (%d).", sz));
         return NULL;
     }
-        
+
     cbP = (TwapiCallback *) TwapiAlloc(sz);
 
     cbP->callback = callback;
@@ -195,8 +195,10 @@ TWAPI_EXTERN void TwapiCallbackDelete(TwapiCallback *cbP)
     if (cbP) {
         if (cbP->completion_event)
             CloseHandle(cbP->completion_event);
+        cbP->completion_event = NULL;
+        TwapiClearResult(&cbP->response);
+        TwapiFree(cbP);
     }
-    TwapiClearResult(&cbP->response);
 }
 
 TWAPI_EXTERN void TwapiCallbackUnref(TwapiCallback *cbP, int decr)
