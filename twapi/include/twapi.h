@@ -1173,7 +1173,8 @@ extern HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
 extern GUID gTwapiNullGuid;
 extern struct TwapiTclVersion gTclVersion;
 
-#define ERROR_IF_UNTHREADED(interp_)   Twapi_CheckThreadedTcl(interp_)
+#define RETURN_ERROR_IF_UNTHREADED(interp_)    \
+  do { return Twapi_CheckThreadedTcl(interp_); } while (0)
 
 typedef NTSTATUS (WINAPI *NtQuerySystemInformation_t)(int, PVOID, ULONG, PULONG);
 
