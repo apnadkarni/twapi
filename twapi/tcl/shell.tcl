@@ -279,6 +279,34 @@ proc twapi::recycle_file {fn args} {
     return [expr {[lindex [Twapi_SHFileOperation 0 3 [list $fn] __null__ $flags ""] 0] ? false : true}]
 }
 
+# Send multiple files to the recycle bin - from Alexandru
+# This is much faster than "recycle_file"!
+proc twapi::recycle_files {fns args} {
+    array set opts [parseargs args {
+        confirm.bool
+        showerror.bool
+    } -maxleftover 0 -nulldefault]
+
+    set l [list]
+    foreach fn $fns {
+      set fn [file nativename [file normalize $fn]]
+      lappend l $fn
+    }
+    set fns $l
+
+    if {$opts(confirm)} {
+        set flags 0x40;         # FOF_ALLOWUNDO
+    } else {
+        set flags 0x50;         # FOF_ALLOWUNDO | FOF_NOCONFIRMATION
+    }
+
+    if {! $opts(showerror)} {
+        set flags [expr {$flags | 0x0400}]; # FOF_NOERRORUI
+    }
+
+    return [expr {[lindex [Twapi_SHFileOperation 0 3 $fns __null__ $flags ""] 0] ? false : true}]
+}
+
 proc twapi::shell_execute args {
     # TBD - Document following shell_execute options after testing.
     # [opt_def [cmd -class] [arg CLASS]] - see https://blogs.msdn.microsoft.com/oldnewthing/20100701-00/?p=13543 and https://blogs.msdn.microsoft.com/oldnewthing/20171220-00/?p=97615
