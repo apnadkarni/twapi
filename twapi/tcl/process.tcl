@@ -1022,15 +1022,17 @@ proc twapi::get_multiple_process_info {args} {
                             }
                         }
                     }
-                    
+
                     # Similarly, if we are looking for user account, special case
                     # system and system idle processes
                     if {"-user" in  $requested_opts} {
                         if {[is_idle_pid $pid] || [is_system_pid $pid]} {
                             set user SYSTEM
+                        } else {
+                            set user $opts(noaccess)
                         }
                     }
-                    
+
                 } onerror {TWAPI_WIN32 87} {
                     foreach opt $requested_opts {
                         if {$opt eq "-user"} {
