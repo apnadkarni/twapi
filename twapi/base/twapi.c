@@ -129,8 +129,7 @@ static TCL_RESULT TwapiTlsInit()
             return TCL_ERROR;
         }
         tlsP->thread = Tcl_GetCurrentThread();
-        /* TBD - should we raise alloc from 8000 ? Too small ? */
-        if (MemLifoInit(&tlsP->memlifo, NULL, NULL, NULL, 8000,
+        if (MemLifoInit(&tlsP->memlifo, NULL, NULL, NULL, 64000,
                              MEMLIFO_F_PANIC_ON_FAIL) != ERROR_SUCCESS) {
             TwapiFree(tlsP);
             return TCL_ERROR;
