@@ -43,7 +43,7 @@ TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(ClientData clientdata, Tcl_Inter
     DWORD filter;
     MemLifoMarkHandle mark;
 
-    ERROR_IF_UNTHREADED(interp);
+    RETURN_ERROR_IF_UNTHREADED(interp);
 
     mark = MemLifoPushMark(ticP->memlifoP);
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,

@@ -118,7 +118,7 @@ int Twapi_BecomeAService(
     int i;
 
     interp = ticP->interp;
-    ERROR_IF_UNTHREADED(interp);
+    RETURN_ERROR_IF_UNTHREADED(interp);
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);

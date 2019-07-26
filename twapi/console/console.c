@@ -279,7 +279,7 @@ static int Twapi_StartConsoleEventNotifier(TwapiInterpContext *ticP)
 {
     void *pv;
 
-    ERROR_IF_UNTHREADED(ticP->interp);
+    RETURN_ERROR_IF_UNTHREADED(ticP->interp);
     pv = InterlockedCompareExchangePointer(&console_control_ticP,
                                            ticP, NULL);
     if (pv) {

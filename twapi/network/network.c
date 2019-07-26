@@ -1786,7 +1786,7 @@ static int Twapi_ResolveHostnameAsyncObjCmd(ClientData clientdata, Tcl_Interp *i
     int family;
     int hint_flags;
 
-    ERROR_IF_UNTHREADED(ticP->interp);
+    RETURN_ERROR_IF_UNTHREADED(ticP->interp);
 
     if (TwapiGetArgs(ticP->interp, objc-1, objv+1,
                      GETASTRN(name, len), ARGUSEDEFAULT, GETINT(family),
@@ -1911,7 +1911,7 @@ static int Twapi_ResolveAddressAsyncObjCmd(ClientData clientdata, Tcl_Interp *in
     DWORD winerr;
     int family;
 
-    ERROR_IF_UNTHREADED(ticP->interp);
+    RETURN_ERROR_IF_UNTHREADED(ticP->interp);
 
     if (TwapiGetArgs(ticP->interp, objc-1, objv+1,
                      GETASTRN(addrstr, len), ARGUSEDEFAULT, GETINT(family),

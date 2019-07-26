@@ -1394,7 +1394,7 @@ int Twapi_device_Init(Tcl_Interp *interp)
         return TCL_ERROR;
     }
 
-    ERROR_IF_UNTHREADED(interp);
+    RETURN_ERROR_IF_UNTHREADED(interp);
     
     if (! TwapiDoOneTimeInit(&TwapiDeviceModuleInitialized,
                              TwapiDeviceModuleInit, interp))
