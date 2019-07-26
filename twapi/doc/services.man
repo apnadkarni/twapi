@@ -573,8 +573,8 @@ response to notifications received from the system as described below
 and returns. The application must be running the Tcl event loop for
 the service handlers to run, for example through the [cmd vwait] Tcl command.
 [nl]
-[arg SERVICES] is a list of
-[arg "SERVICENAME HANDLER"] pairs that describe the services that
+[arg SERVICES] is a list each element of which is a list of two elements
+[arg "SERVICENAME HANDLER"] that describe the services that
 will run in the process. Note a single process may host multiple services.
 [arg SERVICENAME] is the internal name
 of a service. [arg HANDLER] is a script that will be invoked
