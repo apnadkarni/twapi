@@ -313,8 +313,10 @@ TCL_RESULT Twapi_SourceResource(Tcl_Interp *interp, HANDLE dllH, const char *nam
                 /* If compressed, we need to uncompress it first */
                 if (compressed) {
                     dataP = TwapiLzmaUncompressBuffer(interp, dataP, sz, &sz);
-                    if (dataP == NULL)
+                    if (dataP == NULL) {
+                        Tcl_AppendResult(interp, "Could not uncompress resource.", NULL);
                         return TCL_ERROR; /* interp already has error */
+                    }
                 }
                 
                 /* The resource is expected to be UTF-8 (actually strict ASCII) */
@@ -324,6 +326,8 @@ TCL_RESULT Twapi_SourceResource(Tcl_Interp *interp, HANDLE dllH, const char *nam
                     TwapiLzmaFreeBuffer(dataP);
                 if (result == TCL_OK)
                     Tcl_ResetResult(interp);
+                else
+                    Tcl_AppendResult(interp, "Eval of script resource failed.", NULL);
                 return result;
             }
         }
@@ -348,8 +352,10 @@ TCL_RESULT Twapi_SourceResource(Tcl_Interp *interp, HANDLE dllH, const char *nam
         Tcl_ResetResult(interp); /* Since the GetVar may have store error */
         pathObj = TwapiGetInstallDir(interp, dllH);
     }
-    if (pathObj == NULL)
+    if (pathObj == NULL) {
+        Tcl_AppendResult(interp, "Could not locate script directory.", NULL);
         return TCL_ERROR;
+    }
 
     ObjIncrRefs(pathObj);  /* Must before calling any Tcl_FS functions */
 
@@ -361,16 +367,10 @@ TCL_RESULT Twapi_SourceResource(Tcl_Interp *interp, HANDLE dllH, const char *nam
 #endif
     Tcl_AppendStringsToObj(pathObj, name, ".tcl", NULL);
     result = Tcl_FSEvalFile(interp, pathObj);
+    if (result != TCL_OK)
+        Tcl_AppendResult(interp, "Error evaluating script ", ObjToString(pathObj), ".", NULL);
     ObjDecrRefs(pathObj);
     return result;
-#if 0
-    /* Caller should be doing PkgProvide as appropriate. This function
-       is not only called for packages.
-    */
-    if (result != TCL_OK)
-       return result;
-    return Tcl_PkgProvide(interp, MODULENAME, MODULEVERSION);
-#endif
 }
 
 /* Return dir path includes trailing \ */
