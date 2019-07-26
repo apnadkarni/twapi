@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013-2018, Ashok P. Nadkarni
+# Copyright (c) 2013-2019, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -23,7 +23,7 @@ source [file join [file dirname [info script]] tlsecho.tcl]
 
 set http_response {(?i)HTTP.*<HTML.*</HTML>} 
 
-# Note - caller has to do half-close on channel to force remove to 
+# Note - caller has to do half-close on channel to force remove to respond
 proc httpreq {so {host www.example.com}} {
     fconfigure $so -translation crlf
     puts $so "GET / HTTP/1.1"
@@ -1265,11 +1265,28 @@ test starttls-client-5.2 {
 test tls_socket-client-5.3 {
     Test untrusted root cert
 } -constraints {
-    TBD
+    TBD - use badssl.com
 } -body {
     # TBD - do manual version
     list [catch {twapi::tls_socket www.nlnetlabs.nl 443}] [errorcode]
 } -result {1 {TWAPI_WIN32 -2146893022}}
+
+test tls_socket-client-6.0 {
+    Test for optional client certificate request
+} -body {
+    # Test connect to a server that requests an optional client cert
+    close [twapi::tls_socket client.badssl.com 443]
+} -result ""
+
+test tls_socket-client-6.1 {
+    Verify asynchronous connection for optional client cert
+} -body {
+    set so [twapi::tls_socket -async client.badssl.com 443]
+    httpreq $so client.badssl.com
+    read $so
+} -cleanup {
+    catch {close $so}
+} -result $http_response -match regexp
 
 test starttls-optscheck-1.0 {
     Verify starttls preserves options
@@ -1702,3 +1719,7 @@ twapi::cert_release [openssl_ca_cert]
 
 ::tcltest::cleanupTests
 
+# Emacs config.
+# Local variables:
+# mode: tcl
+# End:
