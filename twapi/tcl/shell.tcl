@@ -281,7 +281,7 @@ proc twapi::recycle_file {fn args} {
 
 proc twapi::shell_execute args {
     # TBD - Document following shell_execute options after testing.
-    # [opt_def [cmd -class] [arg BOOLEAN]]
+    # [opt_def [cmd -class] [arg CLASS]] - see https://blogs.msdn.microsoft.com/oldnewthing/20100701-00/?p=13543 and https://blogs.msdn.microsoft.com/oldnewthing/20171220-00/?p=97615
     # [opt_def [cmd -connect] [arg BOOLEAN]]
     # [opt_def [cmd -hicon] [arg HANDLE]]
     # [opt_def [cmd -hkeyclass] [arg BOOLEAN]]
