@@ -899,7 +899,25 @@ namespace eval twapi::shell::test {
             [yesno "recycle_file-3.1: Did you see a ERROR dialog pertaining to file deletion ?"]
     } -result {1 0}
 
+    ################################################################
 
+    test recycle_files-1.0 {
+        Recycle files
+    } -setup {
+        set patha [makeFile "" [clock clicks]-a]
+        set pathb [makeFile "" [clock clicks]-b]
+    } -body {
+        list \
+            [twapi::recycle_files [list $patha $pathb]] \
+            [file exists $patha] \
+            [file exists $pathb]
+    } -result {true 0 0}
+
+    test recycle_files-1.1 {
+        Recycle an empty list
+    } -body {
+        twapi::recycle_files [list]
+    } -result true
     ################################################################
 
     test shell_object_properties_dialog-1.0 {

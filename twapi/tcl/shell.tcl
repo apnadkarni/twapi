@@ -259,41 +259,18 @@ proc twapi::invoke_url_shortcut {link args} {
 
 # Send a file to the recycle bin
 proc twapi::recycle_file {fn args} {
-    array set opts [parseargs args {
-        confirm.bool
-        showerror.bool
-    } -maxleftover 0 -nulldefault]
-
-    set fn [file nativename [file normalize $fn]]
-
-    if {$opts(confirm)} {
-        set flags 0x40;         # FOF_ALLOWUNDO
-    } else {
-        set flags 0x50;         # FOF_ALLOWUNDO | FOF_NOCONFIRMATION
-    }
-
-    if {! $opts(showerror)} {
-        set flags [expr {$flags | 0x0400}]; # FOF_NOERRORUI
-    }
-
-    return [expr {[lindex [Twapi_SHFileOperation 0 3 [list $fn] __null__ $flags ""] 0] ? false : true}]
+    return [recycle_files [list $fn] {*}$args]
 }
 
 # Send multiple files to the recycle bin - from Alexandru
 # This is much faster than "recycle_file"!
+# TBD - document
 proc twapi::recycle_files {fns args} {
     array set opts [parseargs args {
         confirm.bool
         showerror.bool
     } -maxleftover 0 -nulldefault]
 
-    set l [list]
-    foreach fn $fns {
-      set fn [file nativename [file normalize $fn]]
-      lappend l $fn
-    }
-    set fns $l
-
     if {$opts(confirm)} {
         set flags 0x40;         # FOF_ALLOWUNDO
     } else {
@@ -303,6 +280,10 @@ proc twapi::recycle_files {fns args} {
     if {! $opts(showerror)} {
         set flags [expr {$flags | 0x0400}]; # FOF_NOERRORUI
     }
+
+    set fns [lmap fn $fns {
+        file nativename [file normalize $fn]
+    }]
 
     return [expr {[lindex [Twapi_SHFileOperation 0 3 $fns __null__ $flags ""] 0] ? false : true}]
 }
