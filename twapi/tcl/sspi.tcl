@@ -329,6 +329,7 @@ proc twapi::sspi_shutdown_context {ctx} {
 #   {expired data}
 proc twapi::sspi_step {ctx {received ""}} {
     variable _sspi_state
+    variable _client_security_context_syms
 
     _sspi_validate_handle $ctx
 
@@ -360,9 +361,6 @@ proc twapi::sspi_step {ctx {received ""}} {
                     # 2 -> SECBUFFER_TOKEN, 0 -> SECBUFFER_EMPTY
                     set inbuflist [list [list 2 $Input] [list 0]]
                     if {$Ctxtype eq "client"} {
-                        # TBD - Handle SEC_E_INCOMPLETE_CREDENTIALS error
-                        # See ticket #146
-
                         set rawctx [InitializeSecurityContext \
                                         $Credentials \
                                         $Handle \
@@ -382,7 +380,13 @@ proc twapi::sspi_step {ctx {received ""}} {
                     }
                     lassign $rawctx State Handle out Outattr Expiration extra
                     lappend Output {*}$out
-                    set Input $extra
+                    # When the error is incomplete_credentials, we will retry
+                    # with the SEC_I_INCOMPLETE_CREDENTIALS flag set. For
+                    # this the Input should remain the same. Otherwise set it
+                    # to whatever remains to be processed in the buffer.
+                    if {$State ne "incomplete_credentials"} {
+                        set Input $extra
+                    }
                     # Will recurse at proc end
                 } else {
                     # There was no received data. Return any data
@@ -402,8 +406,26 @@ proc twapi::sspi_step {ctx {received ""}} {
                 return [list disconnected "" ""]
             }
             incomplete_credentials {
-                set ermsg "Handling of incomplete credentials not implemented. If using TLS, specify the -credentials option to tls_socket to provide credentials."
-                error $ermsg "" [list TWAPI SSPI UNSUPPORTED $ermsg]
+                # In this state, the remote has asked for an client certificate.
+                # In this case, we ask Schannel to limit itself to whatever
+                # the user supplied and retry. Servers that ask for a cert
+                # but do not mandate it will then proceed. However, we only
+                # do this if we have not already tried this route. If we have,
+                # then generate an error. The real solution would be to attempt
+                # to look up new credentials by retrieving a certificate
+                # from the certificate store (possibly by asking the user) but
+                # this is not implemented.
+                # TBD - get client cert from user. See
+                # https://github.com/david-maw/StreamSSL and
+                # https://www.codeproject.com/Articles/1094525/Configuring-SSL-and-Client-Certificate-Validation
+                if {$Inattr & $_client_security_context_syms(usesuppliedcreds)} {
+                    # Already tried with this. Give up.
+                    set ermsg "Handling of incomplete credentials not implemented. If using TLS, specify the -credentials option to tls_socket to provide credentials."
+                    error $ermsg "" [list TWAPI SSPI UNSUPPORTED $ermsg]
+                }
+                set Inattr [expr {$Inattr | $_client_security_context_syms(usesuppliedcreds)}]
+                set State continue
+                # Fall to bottom to recurse one more time
             }
             complete -
             complete_and_continue {

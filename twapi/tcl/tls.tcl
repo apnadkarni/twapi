@@ -665,6 +665,13 @@ proc twapi::tls::_init {chan type so creds peersubject requestclientcert verifie
     dict set _channels($chan) Credentials $creds
     dict set _channels($chan) FreeCredentials $free_creds
 
+    # See SF issue #178. Need to supply -usesuppliedcreds to sspi_client_context
+    # else servers that request (even optionally) client certs might fail since
+    # we do not currently implement incomplete credentials handling. This
+    # option will prevent schannel from trying to automatically look up client
+    # certificates.
+    dict set _channels($chan) UseSuppliedCreds 0; # TBD - make this use settable option
+
     if {[string length $accept_callback] &&
         ($type eq "LISTENER" || $type eq "SERVER")} {
         dict set _channels($chan) AcceptCallback $accept_callback
@@ -856,7 +863,7 @@ proc twapi::tls::_negotiate2 {chan} {
                 _client_blocking_negotiate $chan
             } else {
                 dict set _channels($chan) State NEGOTIATING
-                set SspiContext [sspi_client_context $Credentials -stream 1 -target $PeerSubject -manualvalidation [expr {[llength $Verifier] > 0}]]
+                set SspiContext [sspi_client_context $Credentials -usesuppliedcreds $UseSuppliedCreds -stream 1 -target $PeerSubject -manualvalidation [expr {[llength $Verifier] > 0}]]
                 dict set _channels($chan) SspiContext $SspiContext
                 lassign [sspi_step $SspiContext] status outdata
                 if {[string length $outdata]} {
@@ -937,7 +944,7 @@ proc twapi::tls::_client_blocking_negotiate {chan} {
     variable _channels
     dict with _channels($chan) {
         set State NEGOTIATING
-        set SspiContext [sspi_client_context $Credentials -stream 1 -target $PeerSubject -manualvalidation [expr {[llength $Verifier] > 0}]]
+        set SspiContext [sspi_client_context $Credentials -usesuppliedcreds $UseSuppliedCreds -stream 1 -target $PeerSubject -manualvalidation [expr {[llength $Verifier] > 0}]]
     }
     return [_blocking_negotiate_loop $chan]
 }
