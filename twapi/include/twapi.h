@@ -1174,7 +1174,11 @@ extern GUID gTwapiNullGuid;
 extern struct TwapiTclVersion gTclVersion;
 
 #define RETURN_ERROR_IF_UNTHREADED(interp_)    \
-  do { return Twapi_CheckThreadedTcl(interp_); } while (0)
+  do {
+    int result = Twapi_CheckThreadedTcl(interp_); \
+    if (result != TCL_OK) \
+        return result; \
+} while (0)
 
 typedef NTSTATUS (WINAPI *NtQuerySystemInformation_t)(int, PVOID, ULONG, PULONG);
 
