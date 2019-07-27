@@ -823,7 +823,7 @@ proc twapi::tls::_negotiate2 {chan} {
             set data [chan read $Socket]
             if {[string length $data] == 0} {
                 if {[chan eof $Socket]} {
-                    error "Unexpected EOF during TLS negotiation (NEGOTIATING)"
+                    throw {TWAPI TLS NEGOTIATE EOF} "Unexpected EOF during TLS negotiation (NEGOTIATING)"
                 } else {
                     # No data yet, just keep waiting
                     debuglog "Waiting (chan $chan) for more data on Socket $Socket"
@@ -889,7 +889,7 @@ proc twapi::tls::_negotiate2 {chan} {
                 set data [chan read $Socket]
                 if {[string length $data] == 0} {
                     if {[chan eof $Socket]} {
-                        error "Unexpected EOF during TLS negotiation (SERVERINIT)"
+                        throw {TWAPI TLS NEGOTIATE EOF} "Unexpected EOF during TLS negotiation (SERVERINIT)"
                     } else {
                         # No data yet, just keep waiting
                         debuglog "$chan: no data from socket $Socket. Waiting..."
@@ -956,7 +956,7 @@ proc twapi::tls::_server_blocking_negotiate {chan} {
     set so [dict get $_channels($chan) Socket]
     set indata [_blocking_read $so]
     if {[chan eof $so]} {
-        error "Unexpected EOF during TLS negotiation (server)."
+        throw {TWAPI TLS NEGOTIATE EOF} "Unexpected EOF during TLS negotiation (server)."
     }
     dict set _channels($chan) SspiContext [sspi_server_context [dict get $_channels($chan) Credentials] $indata -stream 1 -mutualauth [dict get $_channels($chan) RequestClientCert]]
     return [_blocking_negotiate_loop $chan]
@@ -982,7 +982,7 @@ proc twapi::tls::_blocking_negotiate_loop {chan} {
         set indata [_blocking_read $Socket]
         debuglog "Read [string length $indata] from socket $Socket"
         if {[chan eof $Socket]} {
-            error "Unexpected EOF during TLS negotiation."
+            throw {TWAPI TLS NEGOTIATE EOF} "Unexpected EOF during TLS negotiation."
         }
         trap {
             lassign [sspi_step $SspiContext $indata] status outdata leftover
