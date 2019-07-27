@@ -127,29 +127,12 @@ int Twapi_QueryServiceConfig(TwapiInterpContext *ticP, SC_HANDLE hService)
     DWORD winerr;
     int   tcl_result = TCL_ERROR;
 
-    /* Ask for 1000 bytes alloc, will get more if available */
-    qbuf = (QUERY_SERVICE_CONFIGW *) MemLifoPushFrame(ticP->memlifoP,
-                                                      1000, &buf_sz);
-
+    /* Max size of buffer required is 8K as per MSDN and must NOT be more. */
+    buf_sz = 8 * 1024;
+    qbuf = (QUERY_SERVICE_CONFIGW *)MemLifoPushFrame(ticP->memlifoP, buf_sz, NULL);
     if (! QueryServiceConfigW(hService, qbuf, buf_sz, &buf_sz)) {
-        /* For any error other than size, return */
         winerr = GetLastError();
-        if (winerr != ERROR_INSUFFICIENT_BUFFER)
-            goto vamoose;
-
-        /* Retry allocating specified size */
-        /*
-         * Don't bother popping the memlifo frame, just alloc new.
-         * We allocated max in current memlifo chunk above anyways. Also,
-         * remember MemLifoResize will do unnecessary copy so we don't use it.
-         */
-        qbuf = (QUERY_SERVICE_CONFIGW *) MemLifoAlloc(ticP->memlifoP, buf_sz, NULL);
-
-        /* Get the configuration information.  */
-        if (! QueryServiceConfigW(hService, qbuf, buf_sz, &buf_sz)) {
-            winerr = GetLastError();
-            goto vamoose;
-        }
+        goto vamoose;
     }
 
     objv[0] = STRING_LITERAL_OBJ("-dependencies");
@@ -211,11 +194,11 @@ int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWOR
     void *bufP;
     DWORD buf_sz;
     TCL_RESULT res = TCL_ERROR;
-    
 
-    /* Max size of buffer required is 8K as per MSDN */
+
+    /* Max size of buffer required is 8K as per MSDN. It must NOT be specified as more. */
     buf_sz = 8 * 1024;
-    bufP = MemLifoPushFrame(ticP->memlifoP, buf_sz, &buf_sz);
+    bufP = MemLifoPushFrame(ticP->memlifoP, buf_sz, NULL);
     if (QueryServiceConfig2W(hService, level, (LPBYTE) bufP, buf_sz, &buf_sz)) {
         switch (level) {
         case SERVICE_CONFIG_DESCRIPTION:
@@ -245,6 +228,7 @@ int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWOR
 
 //#define NOOP_BEYOND_VISTA // TBD - remove this functionality ?
 #ifdef NOOP_BEYOND_VISTA
+XXXX
 /*
  * Helper function to retrieve service lock status info
  * Returns a single dynamic block block after figuring out required size
@@ -745,6 +729,7 @@ int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 }
 
 #ifdef NOOP_BEYOND_VISTA
+XXXX
 /*
  * SC_LOCK is a opaque pointer that is a handle to a lock on the SCM database
  * We treat it as a pointer except that on return value, if it is NULL,
