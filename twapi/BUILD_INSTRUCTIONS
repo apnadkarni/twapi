@@ -35,7 +35,7 @@ Clone the twapi repository from SourceForge.
 
 If you are using the command line Mercurial client, the command would be
 
-    hg clone http://twapi.hg.sourceforge.net:8000/hgroot/twapi/twapi my_twapi
+    hg clone http://hg.code.sf.net/p/twapi/code my_twapi
 
 This will create a my_twapi/ subdirectory in your current working
 directory.
