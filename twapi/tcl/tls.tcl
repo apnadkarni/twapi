@@ -411,6 +411,11 @@ proc twapi::tls::read {chan nbytes} {
     }
 
     dict with _channels($chan) {
+        # Either in OPEN or CLOSED state. For the latter, if an error is
+        # present, immediately raise it else go on to return any pending data.
+        if {$State eq "CLOSED" && [info exists ErrorResult]} {
+            error $ErrorResult
+        }
         # Try to read more bytes if don't have enough AND conn is open
         set status ok
         if {[string length $Input] < $nbytes && $State eq "OPEN"} {
@@ -488,7 +493,7 @@ proc twapi::tls::write {chan data} {
     set datalen [string length $data]
     debuglog "twapi::tls::write: $chan, $datalen bytes"
 
-    # This is not inside the dict with because _negotiate will update the dict
+    # This is not inside the dict with below because _negotiate will update the dict
     if {[dict get $_channels($chan) State] in {SERVERINIT CLIENTINIT NEGOTIATING}} {
         _negotiate $chan
         if {[dict get $_channels($chan) State] in {SERVERINIT CLIENTINIT NEGOTIATING}} {
@@ -496,6 +501,7 @@ proc twapi::tls::write {chan data} {
                 # If a blocking channel, negotiation should have completed
                 error "TLS negotiation failed on blocking channel" 
             } else {
+                # TBD - which of the following alternatives to use?
                 if {1} {
                     # Store for later output once connection is open
                     debuglog "twapi::tls::write conn not open, appending $datalen bytes to pending output"
@@ -515,8 +521,13 @@ proc twapi::tls::write {chan data} {
         debuglog "twapi::tls::write state $State"
         switch $State {
             CLOSED {
-                # Just like a Tcl socket, we do not raise an error.
-                # Simply throw away the data
+                # Just like a Tcl socket, we do not raise an error on a
+                # write to a closed socket. Simply throw away the data/
+                # However, if an error already exists (negotiation fail)
+                # raise it.
+                if {[info exists ErrorResult]} {
+                    error $ErrorResult
+                }
             }
             OPEN {
                 if {$WriteDisabled} {
@@ -728,13 +739,48 @@ proc twapi::tls::_cleanup_failed_accept {chan} {
     }
 }
 
+proc twapi::tls::record_background_error {result ropts} {
+    # TBD - document that application can override
+    return -options $ropts $result
+}
+
+proc twapi::tls::_negotiate_from_handler {chan} {
+    # Called from socket read / write handlers if
+    # negotiation is still in progress.
+    # Returns the error code from next step of
+    # negotiation.
+    # 1 -> ok,
+    # 0 -> some error occured, most likely negotiation failure
+    variable _channels
+    if {[catch {_negotiate $chan} result ropts]} {
+        if {![dict exists $_channels($chan) ErrorResult]} {
+            dict set _channels($chan) ErrorResult $result
+        }
+        if {"read" in [dict get $_channels($chan) WatchMask]} {
+            _post_read_event $chan
+        }
+        if {"write" in [dict get $_channels($chan) WatchMask]} {
+            _post_write_event $chan
+        }
+        # For SERVER sockets, force error because no other way
+        # to record some error happened.
+        if {[dict get $_channels($chan) Type] eq "SERVER"} {
+            twapi::tls::record_background_error $result $ropts
+        }
+        return 0
+    }
+    return 1
+}
+
 proc twapi::tls::_so_read_handler {chan} {
     debuglog [info level 0]
     variable _channels
 
     if {[info exists _channels($chan)]} {
         if {[dict get $_channels($chan) State] in {SERVERINIT CLIENTINIT NEGOTIATING}} {
-            _negotiate $chan
+            if {![_negotiate_from_handler $chan]} {
+                return
+            }
         }
 
         if {"read" in [dict get $_channels($chan) WatchMask]} {
@@ -770,7 +816,10 @@ proc twapi::tls::_so_write_handler {chan} {
         }
 
         if {$State in {SERVERINIT CLIENTINIT NEGOTIATING}} {
-            _negotiate $chan
+            if {![_negotiate_from_handler $chan]} {
+                # TBD - should we throw so bgerror gets run?
+                return
+            }
         }
 
         # Do not use local var $State because _negotiate might have updated it

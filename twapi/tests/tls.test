@@ -870,7 +870,7 @@ test starttls-client-1.1.1 {
 test tls_socket-client-1.2 {
     Verify basic synchronous connection with unknown root certificate
 } -body {
-    list [catch {twapi::tls_socket www.mikestoolbox.org 443}] [lrange $::errorCode 0 1]
+    list [catch {twapi::tls_socket untrusted-root.badssl.com 443}] [lrange $::errorCode 0 1]
 } -result {1 {TWAPI_WIN32 -2146893019}}
 
 test starttls-client-1.2 {
