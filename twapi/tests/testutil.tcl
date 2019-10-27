@@ -100,7 +100,7 @@ proc load_twapi_package {{pkg twapi}} {
     }
 
     # If in source dir, we load that twapi in preference to installed package
-    if {[file exists ../dist] &&
+    if {![info exists ::env(TWAPI_TEST_USE_INSTALLED)] && [file exists ../dist] &&
         ! [info exists _twapi_test_loaded_packages]} {
         set ::auto_path [linsert $::auto_path 0 [file normalize ../dist]]
     }
