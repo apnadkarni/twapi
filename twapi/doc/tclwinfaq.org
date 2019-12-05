@@ -2,9 +2,9 @@
 #+STYLE: <style type='text/css'>div#text-table-of-contents ul {padding-left: 1em; list-style-type: none; line-height:1.3em}</style>
 #+STYLE: <style type='text/css'>div#text-table-of-contents > ul {padding-left: 0em;}</style>
 #+STYLE: <style type='text/css'>div#text-table-of-contents > ul > li {padding-top: 0.5em; line-height: 1.5em;}</style>
-#+TITLE:     Tcl on Windows FAQ (2015-05-09)
+#+TITLE:     Tcl on Windows FAQ (2019-12-05)
 #+AUTHOR:    Ashok P. Nadkarni
-#+DATE:      2015-05-09
+#+DATE:      2019-12-05
 #+DESCRIPTION: Frequently Asked Questions about Tcl on Windows
 #+KEYWORDS: 
 #+LANGUAGE:  en
@@ -18,10 +18,10 @@
 #+LINK_HOME: 
 
 #+LINK: twapiman http://twapi.sourceforge.net/
-#+LINK: wiki  http://wiki.tcl.tk/
-#+LINK: tclman http://www.tcl.tk/man/tcl8.6/
-#+LINK: book http://www.magicsplat.com/book/
-#+LINK: blog http://www.magicsplat.com/blog/
+#+LINK: wiki  http://wiki.tcl-lang.org/
+#+LINK: tclman http://www.tcl-lang.org/man/tcl8.6/
+#+LINK: book https://www.magicsplat.com/book/
+#+LINK: blog https://www.magicsplat.com/blog/
 
 * About this FAQ
    This FAQ is targeted towards using Tcl on Windows. Specifically,
@@ -30,7 +30,7 @@
    versions of Tcl.
 
    The FAQ does not address general Tcl platform-independent features.
-   Nor does it address questions related to the graphical toolkit [[#Tk][Tk]].
+   Nor does it address questions related to the graphical toolkit Tk.
 
 * About Tcl
 ** What is Tcl and why should I learn it?
@@ -100,32 +100,39 @@
    Tcl is covered under the very liberal open source BSD license.
    This means Tcl and its associated libraries can be used in all applications,
    including commercial ones.
+
 ** Where can I find documentation for Tcl?
-   The reference documentation for all Tcl versions can be downloaded or
-   browsed on-line at http://www.tcl.tk/man. The [[#activestatedistro][ActiveState distribution]] also
-   contains a Windows Help CHM file that includes not only the core 
-   documentation but also documentation for various extensions and libraries.
-   A standalone CHM help file, with similar content, is available from
-   the [[#twapi][=TWAPI=]] download area.
+   The reference documentation for Tcl 8.6 is available at
+   http://www.tcl-lang.org/man/tcl8.6/. A standalone
+   Windows CHM help file containing documentation for Tcl/Tk and several
+   extensions is available from the [[#twapi][=TWAPI=]] download area.
    
-   Several book chapters specific to programming with Tcl on Windows
-   are available [[http://www.magicsplat.com/book/index.html][online]].
+   The [[http://www.tcl-lang.org/doc/][Tcl web site]] lists several books
+   on Tcl/Tk. In addition, there is an 
+   [[https://www.magicsplat.com/book/index.html][online]] book
+   specific to programming with Tcl on Windows.
 
 ** Is there a Tcl tutorial?
-   See the [[http://www.tcl.tk/man/tcl8.5/tutorial/tcltutorial.html][online Tcl tutorial]]. In addition, the [[http://wiki.tcl.tk][Tcler's Wiki]] provides 
+   See the [[https://wiki.tcl-lang.org/page/Tcl+Tutorial+Index][online Tcl tutorial]]. In addition, the [[http://wiki.tcl-lang.org][Tcler's Wiki]] provides 
    tutorials, explanations
    and sample code in all areas. It is also an excellent jump point
    to the various Tcl resources on the net.
 
 ** Where can I get help on Tcl?
    You can get questions answered on the comp.lang.tcl newsgroup or the
-   #tcl channel on irc.freenode.net. Commercial support is available from
-   [[http://www.activestate.com/activetcl][ActiveState]].
+   #tcl channel on irc.freenode.net.
+
+** How do I keep up with news from the Tcl world?
+   There is [[https://twitter.com/TclLang][Twitter feed]] for
+   for Tcl-related news, including new releases of Tcl and extensions.
+   The comp.lang.tcl newsgroup and the [[http://wiki.tcl-lang.org][Tcler's Wiki]]
+   are other places to visit for announcements and such.
+
 
 * Installing Tcl
 ** What Tcl distributions are available for Windows?
    There are several freely downloadable binary distributions of Tcl available.
-   See the [[http://www.tcl.tk/software/tcltk/bindist.html][Binary Distributions]]
+   See the [[http://www.tcl-lang.org/software/tcltk/bindist.html][Binary Distributions]]
    page.
 
 ** Are there any single-executable distributions of Tcl?
@@ -183,11 +190,9 @@
 ** How can I associate a Tcl script with the Tcl interpreter application?
    Windows can associate a file with an application so that typing the
    name of the file will result in the application being invoked.
-   During its install, the
-   [[#activestatedistro][ActiveState distribution]] gives the user the option to associate
-   files ending in =.tcl= with the =wish= graphical Tcl shell. If you
-   are not using this distribution, or you want to associate the =.tcl=
-   extension with =tclsh= instead, you can change the association from
+   Many binary distributions will give you the option of associating
+   specific extensions with Tcl or Tk. Alternatively,
+   you can set or change the association from
    the =File Types= tab in the =Folder Options= dialog in Explorer.
 
    In addition, if you want to run the script from the command line simply
@@ -230,7 +235,7 @@
 #+END_SRC
 
    See an explanation of the above and more sophisticated versions
-   in the [[http://wiki.tcl.tk/2455][Tcl wiki]].
+   in the [[http://wiki.tcl-lang.org/2455][Tcl wiki]].
 
 ** How can I have Tcl always execute a certain set of commands on starting?
    On startup, =tclsh.exe= reads and executes commands in the file
@@ -250,7 +255,7 @@ on the target system (this is true even for Windows components)
 and differences arising from localization.
 * General Windows programming
 ** How can I access the Windows registry?
-   Tcl provides the [[http://www.tcl.tk/man/tcl8.5/TclCmd/registry.htm][=registry=]] command for doing various operations on
+   Tcl provides the [[http://www.tcl-lang.org/man/tcl8.5/TclCmd/registry.htm][=registry=]] command for doing various operations on
    the Windows registry. You will need to load the =registry= package
    first:
 
@@ -493,17 +498,8 @@ to a new CD-ROM device.
    vwait forever
 #+END_SRC
 
-** How can I play audio files?
-The [[#snack][Snack]] extension is a complete and powerful cross-platform package for
-audio generation, playback, recording and analysis.
-See the [[http://www.speech.kth.se/snack/tutorial.html][Snack tutorial]] for examples.
-
-   For very basic needs, [[#twapi][=TWAPI=]] has a module that can play =WAV= files
-   and system sounds.
-: % twapi::play_sound c:/windows/media/chimes.wav
-
 ** How can I copy and paste text to the clipboard?
-   If you are also using [[Tk]], use the =clipboard= command to read and
+   If you are also using [[#tk][Tk]], use the =clipboard= command to read and
    write the clipboard. If you are not using [[#tk][Tk]], or you need a format
    that is not supported by the =clipboard= command, use the
    =read_clipboard_text= and =write_clipboard_text= commands from [[#twapi][=TWAPI=]]
@@ -537,7 +533,7 @@ See the [[http://www.speech.kth.se/snack/tutorial.html][Snack tutorial]] for exa
    command on Line 4 and the =read_clipboard_text= command on Line 13.
 * Interoperating with other applications
 ** How can Tcl communicate with other applications using DDE?
-Tcl's built-in [[http://www.tcl.tk/man/tcl8.5/TclCmd/dde.htm][=dde package=]] allows Tcl scripts to act
+Tcl's built-in [[http://www.tcl-lang.org/man/tcl8.5/TclCmd/dde.htm][=dde package=]] allows Tcl scripts to act
 as a DDE client or server. However, DDE is a legacy technology
 and you should use COM interfaces instead wherever possible.
 ** How can Tcl act as a COM client?
@@ -559,11 +555,11 @@ and you should use COM interfaces instead wherever possible.
 #+BEGIN_SRC tcl -n
    % set ie [twapi::comobj InternetExplorer.Application]
    % $ie Visible true
-   % $ie Navigate http://www.tcl.tk
+   % $ie Navigate http://www.tcl-lang.org
    % $ie destroy
 #+END_SRC
 
-   For a [[#tcom][TCOM]] example, see the Wiki article at [[http://wiki.tcl.tk/29255]].
+   For a [[#tcom][TCOM]] example, see the Wiki article at [[http://wiki.tcl-lang.org/29255]].
 ** How can I integrate with Microsoft Office?
    Automation or integration with Office can be accomplished using
    any of the COM extensions mentioned above. For documentation
@@ -578,7 +574,7 @@ and you should use COM interfaces instead wherever possible.
    includes drivers for various database implementations as well as an
    ODBC connector. In addition to the reference pages in the Tcl
    documentation, an online
-   [[http://www.magicsplat.com/articles/tdbc.html][introduction]] is
+   [[https://www.magicsplat.com/articles/tdbc.html][introduction]] is
    available.
 
 
@@ -714,16 +710,6 @@ You can also use the Active Directory interfaces for this purpose.
 
    The [[#tclcurl][TclCurl]] extension provides an interface to the =libcurl= library
    for many more protocols and options.
-** How can I get better networking performance?
-   Tcl's built in =socket= cross-platform implementation is
-   sufficient for the majority
-   of applications. In some cases where maximum performance and capacity
-   is desired, the
-   [[#iocpsock][iocpsock]] extension provides an interface based on Windows I/O completion
-   ports. Except for the socket creation command, the extension is fully
-   compatible with Tcl's I/O commands so it is even possible to choose
-   between it and the Tcl =socket= command at run time.
-
 ** How do I secure my connections with SSL/TLS?
    You have the option of using the 
    [[http://tls.sourceforge.net][=TLS=]] extension or the =tls_socket=
@@ -762,9 +748,9 @@ You can also use the Active Directory interfaces for this purpose.
    have spaces in the path.
 
    To get the current development snapshot of Tcl, you can check out sources
-   from the Tcl source repository at http://core.tcl.tk with a mirror
-   at http://mirror1.tcl.tk. It is maintained using a distributed revision control
-   system called =fossil=, binaries for which can be downloaded from
+   from the Tcl source repository at http://core.tcl-lang.org with a mirror
+   at http://mirror1.tcl-lang.org. It is maintained using a distributed revision
+   control system called =fossil=, binaries for which can be downloaded from
    http://www.fossil-scm.org/download.html.
    Detailed instructions for working with the Tcl repository
    are at [[wiki:28126]].
@@ -812,7 +798,7 @@ You can also use the Active Directory interfaces for this purpose.
    The last step is only necessary to install the binaries on the build
    system or to create a distribution.
 
-   Note this only builds Tcl, and not the [[$tk][Tk]] library. If you want
+   Note this only builds Tcl, and not the [[#tk][Tk]] library. If you want
    to build the Tk library as well, you need the February 2003 version
    of the SDK since Visual C++ 6.0 does not contain the required libraries
    for theming support. Later versions of the SDK will not do as they are
@@ -868,6 +854,9 @@ You can also use the Active Directory interfaces for this purpose.
 
 * Tcl packages and extensions
 ** Tcllib
+   :PROPERTIES:
+   :CUSTOM_ID: tcllib
+   :END:
    Tcllib is a collection of cross-platform Tcl
    packages that cover a large number of areas from text processing,
    mathematical algorithms, data structures, parsing, data structures, 
@@ -879,10 +868,6 @@ You can also use the Active Directory interfaces for this purpose.
    :END:
    The TWAPI extension includes modules that cover a broad cross-section
    of the Windows API. It is available at http://twapi.sourceforge.net.
-** Snack Sound Toolkit
-   The Snack extension is a complete and powerful cross-platform package for
-   audio generation, playback, recording and analysis. It is available
-   at http://www.speech.kth.se/snack/. 
 ** TCOM
    :PROPERTIES:
    :CUSTOM_ID: tcom
@@ -908,10 +893,6 @@ You can also use the Active Directory interfaces for this purpose.
    Microsoft Office (Excel, Word, Powerpoint), Internet Explorer, Matlab
    and Google Earth.
    It is available at http://www.posoft.de/html/extCawt.html.
-** iocpsock
-   The iocpsock extension provides a higher performance socket
-   interface using I/O completion ports. It is available from
-   http://sourceforge.net/projects/iocpsock.
 ** TkPrint
    :PROPERTIES:
    :CUSTOM_ID: tkprint
@@ -932,6 +913,9 @@ You can also use the Active Directory interfaces for this purpose.
    that supports calling .Net components from Tcl.
    Both are available from http://eagle.to.
 ** TclCurl
+   :PROPERTIES:
+   :CUSTOM_ID: tclcurl
+   :END:
 The TclCurl extension provides a Tcl-callable interface to the =libcurl=
 library for retrieving URL's using many different protocols. It is
 available from http://personal.telefonica.terra.es/web/getleft/tclcurl/index.html.
