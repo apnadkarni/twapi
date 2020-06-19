@@ -1051,6 +1051,12 @@ proc twapi::get_multiple_process_info {args} {
             }
             # Now add token values in a specific order - MUST MATCH fields BELOW
             if {$opts(all) || $opts(user)} {
+                # TBD - BUG - user is supposed to be set to *something* by this
+                # point but WiTS throws error every blue moon on this line that
+                # user is not defined. Workaround.
+                if {![info exists user]} {
+                   set user $opts(noaccess) 
+                }
                 dict lappend records $pid $user
             }
             foreach opt $requested_token_opts {
