@@ -328,7 +328,7 @@ proc twapi::_init_vk_map {} {
     if {![info exists vk_map]} {
         # Map tokens to VK_* key codes
         array set vk_map {
-            + {0x10 0}   ^ {0x11 0}   % {0x12 0}   BACK {0x08 0}
+            BACK {0x08 0}
             BACKSPACE {0x08 0}   BS {0x08 0}   BKSP {0x08 0}   TAB {0x09 0}
             CLEAR {0x0C 0}   RETURN {0x0D 0}   ENTER {0x0D 0}   SHIFT {0x10 0}
             CONTROL {0x11 0}   MENU {0x12 0}   ALT {0x12 0}   PAUSE {0x13 0}
@@ -340,8 +340,8 @@ proc twapi::_init_vk_map {} {
             PRIOR {0x21 0}   PGUP {0x21 0}   NEXT {0x22 0}   PGDN {0x22 0}
             END {0x23 0}   HOME {0x24 0}   LEFT {0x25 0}   UP {0x26 0}
             RIGHT {0x27 0}   DOWN {0x28 0}   SELECT {0x29 0}
-            PRINT {0x2A 0}   PRTSC {0x2C 0}   EXECUTE {0x2B 0}   
-            SNAPSHOT {0x2C 0}   INSERT {0x2D 0}   INS {0x2D 0}   
+            PRINT {0x2A 0}   PRTSC {0x2C 0}   EXECUTE {0x2B 0}
+            SNAPSHOT {0x2C 0}   INSERT {0x2D 0}   INS {0x2D 0}
             DELETE {0x2E 0}   DEL {0x2E 0}   HELP {0x2F 0}   LWIN {0x5B 0}
             RWIN {0x5C 0}   APPS {0x5D 0}   SLEEP {0x5F 0}   NUMPAD0 {0x60 0}
             NUMPAD1 {0x61 0}   NUMPAD2 {0x62 0}   NUMPAD3 {0x63 0}
@@ -367,100 +367,122 @@ proc twapi::_init_vk_map {} {
             MEDIA_NEXT_TRACK {0xB0 0}   MEDIA_PREV_TRACK {0xB1 0}
             MEDIA_STOP {0xB2 0}   MEDIA_PLAY_PAUSE {0xB3 0}
             LAUNCH_MAIL {0xB4 0}   LAUNCH_MEDIA_SELECT {0xB5 0}
-            LAUNCH_APP1 {0xB6 0}   LAUNCH_APP2 {0xB7 0}  
+            LAUNCH_APP1 {0xB6 0}   LAUNCH_APP2 {0xB7 0}
         }
     }
 }
 
+# Find the next token from a send_keys argument
+# Returns pair token,position after token
+proc twapi::_parse_send_key_token {keys start} {
+    set char [string index $keys $start]
+    if {$char ne "\{"} {
+        return [list $char [incr start]]
+    }
+    # Need to find the matching end brace. Note special case of
+    # start/end brace enclosed within braces
+    set n [string length $keys]
+    # Jump past brace and succeeding character (which may be end brace)
+    set terminator [string first "\}" $keys $start+2]
+    if {$terminator < 0} {
+        error "Unterminated or empty braced key token."
+    }
+    return [list [string range $keys $start $terminator] [incr terminator]]
+}
 
 # Constructs a list of input events by parsing a string in the format
-# used by Visual Basic's SendKeys function
+# used by Visual Basic's SendKeys function. See that documentation
+# for syntax.
 proc twapi::_parse_send_keys {keys {inputs ""}} {
     variable vk_map
 
     _init_vk_map
 
-    set n [string length $keys]
     set trailer [list ]
-    for {set i 0} {$i < $n} {incr i} {
-        set key [string index $keys $i]
-        switch -exact -- $key {
-            "+" -
-            "^" -
+    set n [string length $keys]
+    set cursor 0
+    while {$cursor < $n} {
+        lassign [_parse_send_key_token $keys $cursor] token cursor
+        switch -exact -- $token {
+            "+" {
+                # SHIFT
+                lappend inputs [list keydown 0x10 0]
+                set trailer [linsert $trailer 0 [list keyup 0x10 0]]
+            }
+            "^" {
+                # CONTROL
+                lappend inputs [list keydown 0x11 0]
+                set trailer [linsert $trailer 0 [list keyup 0x11 0]]
+            }
             "%" {
-                lappend inputs [concat keydown $vk_map($key)]
-                set trailer [linsert $trailer 0 [concat keyup $vk_map($key)]]
+                # ALT
+                lappend inputs [list keydown 0x12 0]
+                set trailer [linsert $trailer 0 [list keyup 0x12 0]]
             }
             "~" {
+                # RETURN/ENTER
+                # TBD - why resetting trailer?
                 lappend inputs [concat key $vk_map(RETURN)]
                 set inputs [concat $inputs $trailer]
                 set trailer [list ]
             }
             "(" {
                 # Recurse for paren expression
-                set nextparen [string first ")" $keys $i]
+                # TBD - bug. Does not parse "({)})" etc.
+                set nextparen [string first ")" $keys $cursor]
                 if {$nextparen == -1} {
                     error "Invalid key sequence - unterminated ("
                 }
-                set inputs [concat $inputs [_parse_send_keys [string range $keys [expr {$i+1}] [expr {$nextparen-1}]]]]
+                set inputs [concat $inputs [_parse_send_keys [string range $keys [expr {$cursor+1}] [expr {$nextparen-1}]]]]
                 set inputs [concat $inputs $trailer]
                 set trailer [list ]
-                set i $nextparen
-            }
-            "\{" {
-                set nextbrace [string first "\}" $keys $i]
-                if {$nextbrace == -1} {
-                    error "Invalid key sequence - unterminated $key"
-                }
-
-                if {$nextbrace == ($i+1)} {
-                    # Look for the next brace
-                    set nextbrace [string first "\}" $keys $nextbrace]
-                    if {$nextbrace == -1} {
-                        error "Invalid key sequence - unterminated $key"
-                    }
-                }
-
-                set key [string range $keys [expr {$i+1}] [expr {$nextbrace-1}]]
-                set bracepat [string toupper $key]
-                if {[info exists vk_map($bracepat)]} {
-                    lappend inputs [concat key $vk_map($bracepat)]
-                } else {
-                    # May be pattern of the type {C} or {C N} where
-                    # C is a single char and N is a count
-                    set c [string index $key 0]
-                    set count [string trim [string range $key 1 end]]
-                    scan $c %c unicode
-                    if {[string length $count] == 0} {
-                        set count 1
-                    } else {
-                        # Note if $count is not an integer, an error
-                        # will be generated as we want
-                        incr count 0
-                        if {$count < 0} {
-                            error "Negative character count specified in braced key input"
-                        }
-                    }
-                    for {set j 0} {$j < $count} {incr j} {
-                        lappend inputs [list unicode 0 $unicode]
-                    }
-                }
-                set inputs [concat $inputs $trailer]
-                set trailer [list ]
-                set i $nextbrace
+                set cursor [expr {$nextparen + 1}]
             }
             default {
-                scan $key %c unicode
-                # Alphanumeric keys are treated separately so they will
-                # work correctly with control modifiers
+                if {[string length $token] == 1} {
+                    # Single character
+                    set ch $token
+                    set nch 1
+                } elseif {[string index $token 0] eq "\{"} {
+                    set key [string range $token 1 end-1]
+                    set vk [string toupper $key]
+                    if {[info exists vk_map($vk)]} {
+                        # Virtual key
+                        lappend inputs [list key {*}$vk_map($vk)]
+                        continue
+                    } else {
+                        # May be pattern of the type {C} or {C N} where
+                        # C is a single char and N is a count
+                        set ch  [string index $key 0]
+                        set nch [string trim [string range $key 1 end]]
+                        if {$nch eq ""} {
+                            set nch 1; # No count specified
+                        } else {
+                            incr nch 0; # Generate error if not integer
+                            if {$nch < 0} {
+                                error "Negative send_keys count \"$nch\"."
+                            }
+                        }
+                    }
+                } else {
+                    # Problem in token parsing. Would be a bug.
+                    error "Internal error: invalid token \"$token\" parsing send_keys string."
+                }
+                # ch -> character to send
+                # nch -> number to send
+                scan $ch %c unicode
                 if {$unicode >= 0x61 && $unicode <= 0x7A} {
                     # Lowercase letters
-                    lappend inputs [list key [expr {$unicode-32}] 0]
+                    set input_rec [list key [expr {$unicode-32}] 0]
                 } elseif {$unicode >= 0x30 && $unicode <= 0x39} {
                     # Digits
-                    lappend inputs [list key $unicode 0]
+                    set input_rec [list key $unicode 0]
                 } else {
-                    lappend inputs [list unicode 0 $unicode]
+                    set input_rec [list unicode 0 $unicode]
+                }
+                # TBD - use lrepeat?
+                for {set j 0} {$j < $nch} {incr j} {
+                    lappend inputs $input_rec
                 }
                 set inputs [concat $inputs $trailer]
                 set trailer [list ]
