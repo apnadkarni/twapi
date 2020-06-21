@@ -1,5 +1,5 @@
-/* 
- * Copyright (c) 2004-2012 Ashok P. Nadkarni
+/*
+ * Copyright (c) 2004-2020 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -365,6 +365,22 @@ static int Twapi_InputCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
             result.value.unicode.len = -1;
         }
         break;
+    case 12:
+        if (objc != 3) {
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+        }
+        else {
+            WCHAR ch = *Tcl_GetUnicode(objv[2]);
+            unsigned short ui16 = VkKeyScanW(ch);
+            Tcl_Obj *objs[2];
+            unsigned char keycode = ui16 & 0xff;
+            unsigned char shift_state = (ui16 >> 8) & 0xff;
+            objs[0] = Tcl_NewIntObj(shift_state == 255 ? -1 : shift_state);
+            objs[1] = Tcl_NewIntObj(keycode == 255 ? -1 : keycode);
+            ObjSetResult(interp, ObjNewList(2, objs));
+            return TCL_OK;
+        }
+
     }
     return TwapiSetResult(interp, &result);
 }
@@ -384,6 +400,7 @@ static int TwapiInputInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(SendInput, 9),
         DEFINE_ALIAS_CMD(Twapi_SendUnicode, 10),
         DEFINE_ALIAS_CMD(get_keyboard_layout_name, 11),
+        DEFINE_ALIAS_CMD(VkKeyScan, 12),
     };
 
     /* Create the underlying call dispatch commands */
