@@ -372,6 +372,42 @@ proc twapi::_init_vk_map {} {
     }
 }
 
+proc twapi::_modifiers_to_input_recs {state} {
+    set leader {}
+    set trailer {}
+    foreach {modifier vk} {0x1 0x10 0x2 0x11 0x4 0x12} {
+        if {$modifier & $state} {
+            lappend leader [list keydown $vk 0]
+            # Note trailer in reverse order
+            set trailer [linsert $trailer 0 [list keyup $vk 0]]
+        }
+    }
+    return [list $leader $trailer]
+}
+
+# Return the input records for a character.
+# Note return value is a *list* as some characters may need multiple
+# input records
+proc twapi::_chars_to_input_recs {ch {nch 1}} {
+    scan $ch %c code_point
+
+    # If within ascii range, try sending as scan codes as low level
+    # keyboard handlers for games etc. do not work with virtual key
+    # codes.
+    if {$code_point <= 127} {
+        # First find the virtual key
+        lassign [VkKeyScan $ch] state vk
+        if {$state != -1 && $vk != -1} {
+            lassign [_modifiers_to_input_recs $state] leader trailer
+            return [concat $leader [lrepeat $nch [list key $vk 0]] $trailer]
+        }
+    }
+
+    # Did not work. Send as Unicode
+    return [lrepeat $nch [list unicode 0 $code_point]]
+}
+
+
 # Find the next token from a send_keys argument
 # Returns pair token,position after token
 proc twapi::_parse_send_key_token {keys start} {
@@ -390,10 +426,170 @@ proc twapi::_parse_send_key_token {keys start} {
     return [list [string range $keys $start $terminator] [incr terminator]]
 }
 
+# Appends to inputs the trailer in reverse order. trailer is reset
+proc twapi::_emit_send_keys_trailer {vinputs vtrailer} {
+    upvar 1 $vinputs inputs
+    upvar 1 $vtrailer trailer
+
+    lappend inputs {*}[lreverse $trailer]
+    set trailer {}
+}
+
 # Constructs a list of input events by parsing a string in the format
 # used by Visual Basic's SendKeys function. See that documentation
 # for syntax.
-proc twapi::_parse_send_keys {keys {inputs ""}} {
+proc twapi::_parse_send_keys {keys} {
+    variable vk_map
+
+    _init_vk_map
+
+    set inputs {}
+
+    # Array state holds state of the parse
+    #  modifer - dictionary keyed by +,^,% with values 0/1 depending on the
+    #    state of shift, control, alt modifiers
+    #  group_modifiers - stack of modifiers state when parsing groups
+    #  trailer - list of trailing input records to add after next atom. Note
+    #    these are stored in order of occurence but need to be reversed
+    #    when emitted
+    #  group_trailers - stack of trailers to add after group ends. Each
+    #    element is a trailer which is a list of input records.
+    set state(modifier) {+ 0 ^ 0 % 0}
+    set state(group_modifiers) [list $state(modifier)]; # "Global" group
+    set state(trailer) {}
+    set state(group_trailers) {}
+
+    set keyslen [string length $keys]
+    set pos 0;                  # Current parse position
+    while {$pos < $keyslen} {
+        lassign [_parse_send_key_token $keys $pos] token pos
+        switch -exact -- $token {
+            + -
+            ^ -
+            % {
+                if {[dict get $state(modifier) $token]} {
+                    # Following VB SendKeys
+                    error "Modifier state for $token already set."
+                }
+                dict set state(modifier) $token 1
+                set vk [dict get {+ 0x10 ^ 0x11 % 0x12} $token]
+                lappend inputs [list keydown $vk 0]
+                lappend state(trailer) [list keyup $vk 0]
+            }
+            "(" {
+                # Start a group
+                lappend state(group_trailers) $state(trailer)
+                set trailer {}
+                lappend state(group_modifiers) $state(modifier)
+                # Note state(modifier) not to be reset here
+            }
+            ")" {
+                # Terminates group. Illegal if no group collection in progress
+                if {[llength $state(group_trailers)] == 0} {
+                    error "Unmatched \")\" in send_keys string."
+                }
+                # If there is a live trailer inside group, emit it e.g. +(ab^)
+                _emit_send_keys_trailer inputs state(trailer)
+                # Now emit the group trailer
+                set trailer [lpop state(group_trailers)]
+                _emit_send_keys_trailer inputs trailer
+                set state(modifier) [lpop state(group_modifiers)]
+            }
+            default {
+                if {$token eq "~"} {
+                    set token "{ENTER}"
+                }
+                # May be a single character to send, a braced virtual key
+                # or a braced single char with count
+                if {[string length $token] == 1} {
+                    # Single character.
+                    set key $token
+                    set nch 1
+                } elseif {[string index $token 0] eq "\{"} {
+                    # NOTE: a ~ inside a brace is treated as a literal ~
+                    # and not the ENTER key
+                    # Look for space skipping the starting brace and following
+                    # character which may be itself a space (to be repeated)
+                    set space_pos [string first " " $token 2]
+                    if {$space_pos < 0} {
+                        # No space found
+                        set nch 1
+                        set key [string range $token 1 end-1]
+                    } else {
+                        # A key followed by a count
+                        # Note space_pos >= 2
+                        set key [string range $token 1 $space_pos-1]
+                        set nch [string trim [string range $token $space_pos+1 end-1]]
+                        if {![string is integer -strict $nch] || $nch < 0} {
+                            error "Invalid count \"$nch\" in send_keys."
+                        } 
+                    }
+                } else {
+                    # Problem in token parsing. Would be a bug.
+                    error "Internal error: invalid token \"$token\" parsing send_keys string."
+                }
+
+                set vk_leader  {}
+                set vk_trailer {}
+                if {[string length $key] == 1} {
+                    # Single character
+                    scan $key %c code_point; # To check if ascii range 
+                    lassign [VkKeyScan $key] modifiers vk
+                    if {$code_point > 127 || $modifiers == -1 || $vk == -1} {
+                        set vk_rec [list unicode 0 $code_point]
+                    } else {
+                        # Generates input records for modifiers that are set
+                        # unless they are already set. NOTE: Do NOT set the
+                        # state(modifier) state since they will be in effect
+                        # only for the current character. This is for correctly
+                        # showing A-Z with shift and Ctrl-A etc. with control.
+                        if {($modifiers & 0x1) && ![dict get $state(modifier) +]} {
+                            lappend vk_leader  [list keydown 0x10 0]
+                            lappend vk_trailer [list keyup 0x10 0]
+                        }
+                        if {($modifiers & 0x2) && ![dict get $state(modifier) ^]} {
+                            lappend vk_leader  [list keydown 0x11 0]
+                            lappend vk_trailer [list keyup 0x11 0]
+                        }
+
+                        if {($modifiers & 0x4) && ![dict get $state(modifier) %]} {
+                            lappend vk_leader  [list keydown 0x12 0]
+                            lappend vk_trailer [list keyup 0x12 0]
+                        }
+                        set vk_rec [list key $vk 0]
+                    }
+                } else {
+                    # Virtual key string. Note modifiers ignored here
+                    # as for VB SendKeys
+                    if {[info exists vk_map($key)]} {
+                        # Virtual key
+                        set vk_rec [list key {*}$vk_map($key)]
+                    } else {
+                        error "Unknown braced virtual key \"$token\"."
+                    }
+                }
+                lappend inputs {*}$vk_leader
+                lappend inputs {*}[lrepeat $nch $vk_rec]
+                # vk_trailer arises from the character itself, e.g. A
+                # has shift set, Ctrl-A has control set.
+                _emit_send_keys_trailer inputs vk_trailer
+                # state(trailer) arises from preceding +,^,% This is also
+                # emitted and reset as it applied only to this character
+                _emit_send_keys_trailer inputs state(trailer)
+                set state(modifier) {+ 0 ^ 0 % 0}
+            }
+        }
+    }
+    # Emit left over trailer
+
+    return $inputs
+}
+
+
+# Constructs a list of input events by parsing a string in the format
+# used by Visual Basic's SendKeys function. See that documentation
+# for syntax.
+proc twapi::x_parse_send_keys {keys {inputs ""}} {
     variable vk_map
 
     _init_vk_map
@@ -421,7 +617,6 @@ proc twapi::_parse_send_keys {keys {inputs ""}} {
             }
             "~" {
                 # RETURN/ENTER
-                # TBD - why resetting trailer?
                 lappend inputs [concat key $vk_map(RETURN)]
                 set inputs [concat $inputs $trailer]
                 set trailer [list ]
@@ -470,24 +665,13 @@ proc twapi::_parse_send_keys {keys {inputs ""}} {
                 }
                 # ch -> character to send
                 # nch -> number to send
-                scan $ch %c unicode
-                if {$unicode >= 0x61 && $unicode <= 0x7A} {
-                    # Lowercase letters
-                    set input_rec [list key [expr {$unicode-32}] 0]
-                } elseif {$unicode >= 0x30 && $unicode <= 0x39} {
-                    # Digits
-                    set input_rec [list key $unicode 0]
-                } else {
-                    set input_rec [list unicode 0 $unicode]
-                }
-                # TBD - use lrepeat?
-                for {set j 0} {$j < $nch} {incr j} {
-                    lappend inputs $input_rec
-                }
-                set inputs [concat $inputs $trailer]
+                set inputs [concat $inputs [_chars_to_input_recs $ch $nch] $trailer]
                 set trailer [list ]
             }
         }
+    }
+    if {[llength $trailer]} {
+        set inputs [concat $inputs $trailer]
     }
     return $inputs
 }
