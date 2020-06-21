@@ -98,6 +98,14 @@ namespace eval twapi {
         return $result
     }
 
+    # Simple helper to treat lists as a stack
+    proc lpop {vl} {
+        upvar 1 $vl l
+        set top [lindex $l end]
+        # K combinator trick to reset l to allow lreplace to work in place
+        set l [lreplace $l [set l end] end]
+    }
+
     # twine list of n items
     proc ntwine {fields l} {
         set ntwine {}
