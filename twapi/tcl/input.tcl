@@ -372,42 +372,6 @@ proc twapi::_init_vk_map {} {
     }
 }
 
-proc twapi::_modifiers_to_input_recs {state} {
-    set leader {}
-    set trailer {}
-    foreach {modifier vk} {0x1 0x10 0x2 0x11 0x4 0x12} {
-        if {$modifier & $state} {
-            lappend leader [list keydown $vk 0]
-            # Note trailer in reverse order
-            set trailer [linsert $trailer 0 [list keyup $vk 0]]
-        }
-    }
-    return [list $leader $trailer]
-}
-
-# Return the input records for a character.
-# Note return value is a *list* as some characters may need multiple
-# input records
-proc twapi::_chars_to_input_recs {ch {nch 1}} {
-    scan $ch %c code_point
-
-    # If within ascii range, try sending as scan codes as low level
-    # keyboard handlers for games etc. do not work with virtual key
-    # codes.
-    if {$code_point <= 127} {
-        # First find the virtual key
-        lassign [VkKeyScan $ch] state vk
-        if {$state != -1 && $vk != -1} {
-            lassign [_modifiers_to_input_recs $state] leader trailer
-            return [concat $leader [lrepeat $nch [list key $vk 0]] $trailer]
-        }
-    }
-
-    # Did not work. Send as Unicode
-    return [lrepeat $nch [list unicode 0 $code_point]]
-}
-
-
 # Find the next token from a send_keys argument
 # Returns pair token,position after token
 proc twapi::_parse_send_key_token {keys start} {
@@ -443,7 +407,6 @@ proc twapi::_parse_send_keys {keys} {
 
     _init_vk_map
 
-    set inputs {}
 
     # Array state holds state of the parse
     #  modifer - dictionary keyed by +,^,% with values 0/1 depending on the
@@ -454,10 +417,24 @@ proc twapi::_parse_send_keys {keys} {
     #    when emitted
     #  group_trailers - stack of trailers to add after group ends. Each
     #    element is a trailer which is a list of input records.
+    #  cleanup_trailer - to be emitted right at the end if we have to
+    #    reset CAPSLOCK/NUMLOCK/SCROLL
     set state(modifier) {+ 0 ^ 0 % 0}
     set state(group_modifiers) [list $state(modifier)]; # "Global" group
     set state(trailer) {}
     set state(group_trailers) {}
+    set state(cleanup_trailer) {}
+
+    set inputs {}
+
+    # If {CAPS,NUM,SCROLL}LOCK are set, need to reset them and then
+    # set them back
+    foreach vk {20 144 145} {
+        if {[GetKeyState $vk]} {
+            lappend inputs [list key $vk 0]
+            lappend state(cleanup_trailer) [list key $vk 0]
+        }
+    }
 
     set keyslen [string length $keys]
     set pos 0;                  # Current parse position
@@ -533,9 +510,9 @@ proc twapi::_parse_send_keys {keys} {
                 set vk_trailer {}
                 if {[string length $key] == 1} {
                     # Single character
-                    scan $key %c code_point; # To check if ascii range 
                     lassign [VkKeyScan $key] modifiers vk
-                    if {$code_point > 127 || $modifiers == -1 || $vk == -1} {
+                    if {$modifiers == -1 || $vk == -1} {
+                        scan $key %c code_point
                         set vk_rec [list unicode 0 $code_point]
                     } else {
                         # Generates input records for modifiers that are set
@@ -581,98 +558,11 @@ proc twapi::_parse_send_keys {keys} {
         }
     }
     # Emit left over trailer
+    _emit_send_keys_trailer inputs state(trailer)
 
-    return $inputs
-}
+    # Restore capslock/numlock
+    _emit_send_keys_trailer inputs state(cleanup_trailer)
 
-
-# Constructs a list of input events by parsing a string in the format
-# used by Visual Basic's SendKeys function. See that documentation
-# for syntax.
-proc twapi::x_parse_send_keys {keys {inputs ""}} {
-    variable vk_map
-
-    _init_vk_map
-
-    set trailer [list ]
-    set n [string length $keys]
-    set cursor 0
-    while {$cursor < $n} {
-        lassign [_parse_send_key_token $keys $cursor] token cursor
-        switch -exact -- $token {
-            "+" {
-                # SHIFT
-                lappend inputs [list keydown 0x10 0]
-                set trailer [linsert $trailer 0 [list keyup 0x10 0]]
-            }
-            "^" {
-                # CONTROL
-                lappend inputs [list keydown 0x11 0]
-                set trailer [linsert $trailer 0 [list keyup 0x11 0]]
-            }
-            "%" {
-                # ALT
-                lappend inputs [list keydown 0x12 0]
-                set trailer [linsert $trailer 0 [list keyup 0x12 0]]
-            }
-            "~" {
-                # RETURN/ENTER
-                lappend inputs [concat key $vk_map(RETURN)]
-                set inputs [concat $inputs $trailer]
-                set trailer [list ]
-            }
-            "(" {
-                # Recurse for paren expression
-                # TBD - bug. Does not parse "({)})" etc.
-                set nextparen [string first ")" $keys $cursor]
-                if {$nextparen == -1} {
-                    error "Invalid key sequence - unterminated ("
-                }
-                set inputs [concat $inputs [_parse_send_keys [string range $keys [expr {$cursor+1}] [expr {$nextparen-1}]]]]
-                set inputs [concat $inputs $trailer]
-                set trailer [list ]
-                set cursor [expr {$nextparen + 1}]
-            }
-            default {
-                if {[string length $token] == 1} {
-                    # Single character
-                    set ch $token
-                    set nch 1
-                } elseif {[string index $token 0] eq "\{"} {
-                    set key [string range $token 1 end-1]
-                    set vk [string toupper $key]
-                    if {[info exists vk_map($vk)]} {
-                        # Virtual key
-                        lappend inputs [list key {*}$vk_map($vk)]
-                        continue
-                    } else {
-                        # May be pattern of the type {C} or {C N} where
-                        # C is a single char and N is a count
-                        set ch  [string index $key 0]
-                        set nch [string trim [string range $key 1 end]]
-                        if {$nch eq ""} {
-                            set nch 1; # No count specified
-                        } else {
-                            incr nch 0; # Generate error if not integer
-                            if {$nch < 0} {
-                                error "Negative send_keys count \"$nch\"."
-                            }
-                        }
-                    }
-                } else {
-                    # Problem in token parsing. Would be a bug.
-                    error "Internal error: invalid token \"$token\" parsing send_keys string."
-                }
-                # ch -> character to send
-                # nch -> number to send
-                set inputs [concat $inputs [_chars_to_input_recs $ch $nch] $trailer]
-                set trailer [list ]
-            }
-        }
-    }
-    if {[llength $trailer]} {
-        set inputs [concat $inputs $trailer]
-    }
     return $inputs
 }
 
