@@ -391,7 +391,7 @@ proc twapi::_parse_send_key_token {keys start} {
 }
 
 # Appends to inputs the trailer in reverse order. trailer is reset
-proc twapi::_emit_send_keys_trailer {vinputs vtrailer} {
+proc twapi::_flush_send_keys_trailer {vinputs vtrailer} {
     upvar 1 $vinputs inputs
     upvar 1 $vtrailer trailer
 
@@ -406,12 +406,18 @@ proc twapi::_parse_send_keys {keys} {
     variable vk_map
 
     _init_vk_map
+    array set modifier_vk {+ 0x10 ^ 0x11 % 0x12}
 
-
-    # Array state holds state of the parse
-    #  modifer - dictionary keyed by +,^,% with values 0/1 depending on the
-    #    state of shift, control, alt modifiers
-    #  group_modifiers - stack of modifiers state when parsing groups
+    # Array state holds state of the parse. An atom refers to a single
+    # character or a () group.
+    #  modifiers - list of current modifiers in order they were added including
+    #     those coming from containing groups.
+    #  group_modifiers - stack of modifiers state when parsing groups.
+    #     When a group begins, state(modifiers) is pushed on this stack.
+    #     The top of the stack is used to initialize state(modifiers)
+    #     for every atom within the group. When the group ends,
+    #     the top of the stack is popped and discarded and state(modifiers)
+    #     is reinitialized to new top of stack.
     #  trailer - list of trailing input records to add after next atom. Note
     #    these are stored in order of occurence but need to be reversed
     #    when emitted
@@ -419,8 +425,8 @@ proc twapi::_parse_send_keys {keys} {
     #    element is a trailer which is a list of input records.
     #  cleanup_trailer - to be emitted right at the end if we have to
     #    reset CAPSLOCK/NUMLOCK/SCROLL
-    set state(modifier) {+ 0 ^ 0 % 0}
-    set state(group_modifiers) [list $state(modifier)]; # "Global" group
+    set state(modifiers) {}
+    set state(group_modifiers) [list $state(modifiers)]; # "Global" group
     set state(trailer) {}
     set state(group_trailers) {}
     set state(cleanup_trailer) {}
@@ -444,21 +450,19 @@ proc twapi::_parse_send_keys {keys} {
             + -
             ^ -
             % {
-                if {[dict get $state(modifier) $token]} {
+                if {$token in $state(modifiers)} {
                     # Following VB SendKeys
                     error "Modifier state for $token already set."
                 }
-                dict set state(modifier) $token 1
-                set vk [dict get {+ 0x10 ^ 0x11 % 0x12} $token]
-                lappend inputs [list keydown $vk 0]
-                lappend state(trailer) [list keyup $vk 0]
+                lappend state(modifiers) $token
+                lappend inputs [list keydown $modifier_vk($token) 0]
+                lappend state(trailer) [list keyup $modifier_vk($token) 0]
             }
             "(" {
                 # Start a group
+                lappend state(group_modifiers) $state(modifiers)
                 lappend state(group_trailers) $state(trailer)
                 set state(trailer) {}
-                lappend state(group_modifiers) $state(modifier)
-                # Note state(modifier) not to be reset here
             }
             ")" {
                 # Terminates group. Illegal if no group collection in progress
@@ -466,12 +470,14 @@ proc twapi::_parse_send_keys {keys} {
                     error "Unmatched \")\" in send_keys string."
                 }
                 # If there is a live trailer inside group, emit it e.g. +(ab^)
-                _emit_send_keys_trailer inputs state(trailer)
+                _flush_send_keys_trailer inputs state(trailer)
                 # Now emit the group trailer
                 set trailer [lpop state(group_trailers)]
-                _emit_send_keys_trailer inputs trailer
-                set state(modifier) [lpop state(group_modifiers)]
-                puts state(modifier):$state(modifier)
+                _flush_send_keys_trailer inputs trailer
+                # Discard the initial modifier state for this group
+                lpop state(group_modifiers)
+                # Set the current modifiers to outer group state
+                set state(modifiers) [lindex $state(group_modifiers) end]
             }
             default {
                 if {$token eq "~"} {
@@ -521,16 +527,16 @@ proc twapi::_parse_send_keys {keys} {
                         # state(modifier) state since they will be in effect
                         # only for the current character. This is for correctly
                         # showing A-Z with shift and Ctrl-A etc. with control.
-                        if {($modifiers & 0x1) && ![dict get $state(modifier) +]} {
+                        if {($modifiers & 0x1) && ("+" ni $state(modifiers))} {
                             lappend vk_leader  [list keydown 0x10 0]
                             lappend vk_trailer [list keyup 0x10 0]
                         }
-                        if {($modifiers & 0x2) && ![dict get $state(modifier) ^]} {
+                        if {($modifiers & 0x2) && ("^" ni $state(modifiers))} {
                             lappend vk_leader  [list keydown 0x11 0]
                             lappend vk_trailer [list keyup 0x11 0]
                         }
 
-                        if {($modifiers & 0x4) && ![dict get $state(modifier) %]} {
+                        if {($modifiers & 0x4) && ("%" ni $state(modifiers))} {
                             lappend vk_leader  [list keydown 0x12 0]
                             lappend vk_trailer [list keyup 0x12 0]
                         }
@@ -550,23 +556,19 @@ proc twapi::_parse_send_keys {keys} {
                 lappend inputs {*}[lrepeat $nch $vk_rec]
                 # vk_trailer arises from the character itself, e.g. A
                 # has shift set, Ctrl-A has control set.
-                _emit_send_keys_trailer inputs vk_trailer
+                _flush_send_keys_trailer inputs vk_trailer
                 # state(trailer) arises from preceding +,^,% This is also
                 # emitted and reset as it applied only to this character
-                _emit_send_keys_trailer inputs state(trailer)
-                if {[llength $state(group_modifiers)]} {
-                    set state(modifier) [lindex $state(group_modifiers) end]
-                } else {
-                    set state(modifier) {+ 0 ^ 0 % 0}
-                }
+                _flush_send_keys_trailer inputs state(trailer)
+                set state(modifiers) [lindex $state(group_modifiers) end]
             }
         }
     }
     # Emit left over trailer
-    _emit_send_keys_trailer inputs state(trailer)
+    _flush_send_keys_trailer inputs state(trailer)
 
     # Restore capslock/numlock
-    _emit_send_keys_trailer inputs state(cleanup_trailer)
+    _flush_send_keys_trailer inputs state(cleanup_trailer)
 
     return $inputs
 }
