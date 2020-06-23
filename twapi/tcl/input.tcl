@@ -456,7 +456,7 @@ proc twapi::_parse_send_keys {keys} {
             "(" {
                 # Start a group
                 lappend state(group_trailers) $state(trailer)
-                set trailer {}
+                set state(trailer) {}
                 lappend state(group_modifiers) $state(modifier)
                 # Note state(modifier) not to be reset here
             }
@@ -471,6 +471,7 @@ proc twapi::_parse_send_keys {keys} {
                 set trailer [lpop state(group_trailers)]
                 _emit_send_keys_trailer inputs trailer
                 set state(modifier) [lpop state(group_modifiers)]
+                puts state(modifier):$state(modifier)
             }
             default {
                 if {$token eq "~"} {
@@ -553,7 +554,11 @@ proc twapi::_parse_send_keys {keys} {
                 # state(trailer) arises from preceding +,^,% This is also
                 # emitted and reset as it applied only to this character
                 _emit_send_keys_trailer inputs state(trailer)
-                set state(modifier) {+ 0 ^ 0 % 0}
+                if {[llength $state(group_modifiers)]} {
+                    set state(modifier) [lindex $state(group_modifiers) end]
+                } else {
+                    set state(modifier) {+ 0 ^ 0 % 0}
+                }
             }
         }
     }

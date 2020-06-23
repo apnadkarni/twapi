@@ -104,6 +104,7 @@ namespace eval twapi {
         set top [lindex $l end]
         # K combinator trick to reset l to allow lreplace to work in place
         set l [lreplace $l [set l end] end]
+        return $top
     }
 
     # twine list of n items
