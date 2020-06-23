@@ -33,15 +33,22 @@ proc twapi::_symbolize_printer_attributes {attr} {
         network        0x00000010
         hidden         0x00000020
         local          0x00000040
-        enabledevq       0x00000080
-        keepprintedjobs   0x00000100
+        enabledevq      0x00000080
+        keepprintedjobs 0x00000100
         docompletefirst 0x00000200
-        workoffline   0x00000400
-        enablebidi    0x00000800
-        rawonly       0x00001000
+        workoffline    0x00000400
+        enablebidi     0x00000800
+        rawonly        0x00001000
         published      0x00002000
         fax            0x00004000
         ts             0x00008000
+        pusheduser     0x00020000
+        pushedmachine  0x00040000
+        machine        0x00080000
+        friendlyname   0x00100000
+        tsgenericdriver 0x00200000
+        peruser        0x00400000
+        enterprisecloud 0x00800000
     }]
 }
 
