@@ -292,7 +292,7 @@ LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, L
      * caller had done an incr-ref on it.
      */
     for (i=0; i < ARRAYSIZE(objs); ++i) {
-        ObjIncrRefs(objs[i]);
+        ObjDecrRefs(objs[i]);
     }
 
     return lresult;
