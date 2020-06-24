@@ -388,6 +388,24 @@ proc system_drive_root {} {
 
 # $pid may be PID or image name
 proc kill {pid args} {
+
+    uplevel #0 package require twapi_process
+
+    if {![string is integer $pid]} {
+        set pid [twapi::get_process_ids -name $pid]
+        if {[llength $pid] == 0} {
+            return
+        }
+        if {[llength $pid] > 1} {
+            error "Multiple processes with name $name."
+        }
+        set pid [lindex $pid 0]
+    }
+
+    twapi::end_process $pid {*}$args
+    return
+
+    Code below replaced by code above because it takes too long
     # Note we do not want to use twapi to keep testing of modules
     # not dependent on each other
 
@@ -451,8 +469,8 @@ proc notepad_copy {text} {
 # Start notepad, make it add text and return its pid
 proc notepad_exec_and_insert {{text "Some junk"}} {
     # TBD - modify to get rid of both these package requirements
-    package require twapi_input
-    package require twapi_ui
+    uplevel #0 package require twapi_input
+    uplevel #0 package require twapi_ui
 
     set pid [notepad_exec]
     set hwins [twapi::find_windows -pids [list $pid] -class Notepad]
@@ -578,6 +596,10 @@ proc get_process_with_field_value {field value {refresh 0}} {
 }
 
 proc process_exists? pid {
+    uplevel #0 package require twapi_process
+    return [twapi::process_exists $pid]
+
+    Below twapi-independent code too slow ->
     # TBD - maybe use wmic instead
     set ret [catch {get_process_with_field_value -pid $pid 1}]
     return [expr {! $ret}]
@@ -592,7 +614,9 @@ proc get_winlogon_path {} {
 proc get_winlogon_pid {} {
     global winlogon_pid
     if {! [info exists winlogon_pid]} {
-        set winlogon_pid [get_process_with_field_value -name "winlogon.exe"]
+        # too slow - set winlogon_pid [get_process_with_field_value -name "winlogon.exe"]
+        uplevel #0 package require twapi_process
+        set winlogon_pid [twapi::get_process_ids -name winlogon.exe]
     }
     return $winlogon_pid
 }
@@ -605,7 +629,9 @@ proc get_explorer_path {} {
 proc get_explorer_pid {} {
     global explorer_pid
     if {! [info exists explorer_pid]} {
-        set explorer_pid [get_process_with_field_value -name "explorer.exe"]
+        # too slow set explorer_pid [get_process_with_field_value -name "explorer.exe"]
+        uplevel #0 package require twapi_process
+        set explorer_pid [twapi::get_process_ids -name explorer.exe]
     }
     return $explorer_pid
 }
