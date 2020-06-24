@@ -13,6 +13,7 @@ source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_input
 package require twapi_ui;               # Needed for find_windows - TBD
 package require twapi_clipboard;        # Needed for send_* - TBD
+package require twapi_console;          # ditto
 
 namespace eval twapi::input::test {
     namespace import ::tcltest::test
@@ -26,6 +27,27 @@ namespace eval twapi::input::test {
     } else {
         set button_edge_offset 5
     }
+
+    proc readchars {count} {
+        set s ""
+        while {[string length $s] < $count} {
+            append s [twapi::console_read stdin -lineinput 0 -echoinput 0]
+        }
+        return $s
+    }
+    proc readinputrecs {} {
+        set recs {}
+        while {[llength [twapi::console_read_input_records stdin -peek]]} {
+            lappend recs {*}[twapi::console_read_input_records]
+        }
+        return [lmap rec $recs {
+            lassign $rec type d
+            if {$type ne "key"} continue
+            dict with d {}
+            list $keycode $keystate $controls
+        }]
+    }
+
 
     proc hotkey_test {hk} {
         set ::twapi_test_hotkey_result fail
@@ -237,36 +259,112 @@ namespace eval twapi::input::test {
 
     ################################################################
 
-    test send_keys-1.0 {
+    test send_keys-11.0 {
         Send VB style keys to a window
     } -setup {
         set np_pid [notepad_exec]
         set np_win [notepad_top $np_pid]
     } -body {
         # TBD - need to try more combinations
-
         # "aBCDDD", Ctrl-a to select, Alt-e c to copy, BACKSPACE to delete
         # ALT to bring up menu, RETURN to open file menu, x to exit
         set keys {a+(bc){D 3}^a%ec{BACKSPACE}{ALT}{RETURN}x}
 
+        twapi::set_foreground_window $np_win
         twapi::set_focus $np_win
         twapi::send_keys $keys
 
-        # Give it a chance to process events
-        after 50;
+        # Give it a chance to process events and exit
+        after 200;
 
         twapi::open_clipboard
         set text [twapi::read_clipboard_text]
 
-        # Process should have exited
-        expr {
-              [string equal $text "aBCDDD"] &&
-              ![process_exists? $np_pid]
-          }
+        list $text [process_exists? $np_pid]
     } -cleanup {
         twapi::close_clipboard
-    } -result 1
+    } -result {aBCDDD 0}
 
+
+    proc send_keys_test {id comment keys result} {
+        test send_keys-$id $comment -body "twapi::send_keys \"$keys\"; readchars [string length $result]" -result "$result"
+    }
+
+    proc send_keys_raw_test {id comment keys result} {
+        set template {
+            test send_keys-%ID% "%COMMENT%" -setup {
+                twapi::modify_console_input_mode stdin -processedinput false -lineinput false -echoinput false
+                twapi::flush_console_input
+            } -cleanup {
+                twapi::modify_console_input_mode stdin -processedinput true -lineinput true -echoinput true
+                twapi::flush_console_input
+            } -body {
+                #twapi::send_keys "%KEYS%"
+                package require twapi_com
+                set shell [twapi::comobj WScript.Shell]
+                $shell SendKeys "%KEYS%"
+                $shell destroy
+                after 100
+                readinputrecs
+            } -result "%RESULT%"
+        }
+        eval [string map [list %ID% $id %COMMENT% $comment %KEYS% $keys %RESULT% $result] $template]
+    }
+    # WARNING: SOME TESTS REQUIRE RUNNING IN STANDARD CMD CONSOLE. WINDOWS TERMINAL SWALLOWS SOME KEYSTROKES>
+
+    send_keys_test 1.0 "Basic single char" a a
+    send_keys_test 1.1 "Grouping" (a) a
+
+    # Shifts
+    send_keys_raw_test 2.0 "Shift" + {{16 down shift} {16 up {}}}
+    send_keys_test 2.1 "Basic shift" +a A
+    send_keys_test 2.2 "Basic shift on capital letter" +A A
+    send_keys_test 2.3 "Interspersed shift" a+bc aBc
+    send_keys_test 2.4 "Grouping shifted" +(a) A
+    send_keys_test 2.5 "Grouping shifted multiple letters" +(ab) AB
+    send_keys_test 2.6 "Grouping shifted general" a+(bCd)e aBCDe
+    send_keys_test 2.7 "Non-alphanumeric shift"  +1 !
+    send_keys_test 2.8 "Non-alphanumeric shift group"  +(,.) <>
+
+    # Control
+    send_keys_raw_test 3.0 "control" ^ {{17 down leftctrl} {17 up {}}}
+    send_keys_raw_test 3.1 "Basic control" ^a {{17 down leftctrl} {65 down leftctrl} {65 up leftctrl} {17 up {}}}
+    send_keys_raw_test 3.2 "Interspersed control" a^bd {{65 down {}} {65 up {}} {17 down leftctrl} {66 down leftctrl} {66 up leftctrl} {17 up {}} {68 down {}} {68 up {}}}
+    send_keys_raw_test 3.3 "Grouped control" a^(bd)e {{65 down {}} {65 up {}} {17 down leftctrl} {66 down leftctrl} {66 up leftctrl} {68 down leftctrl} {68 up leftctrl} {17 up {}} {69 down {}} {69 up {}}}
+
+    # Alt
+    send_keys_raw_test 4.0 "Basic alt" % {{18 down leftalt} {18 up {}}}
+    send_keys_raw_test 4.1 "Basic alt" %a {{18 down leftalt} {65 down leftalt} {65 up leftalt} {18 up {}}}
+    send_keys_raw_test 4.2 "Interspersed alt" a%bd {{65 down {}} {65 up {}} {18 down leftalt} {66 down leftalt} {66 up leftalt} {18 up {}} {68 down {}} {68 up {}}}
+    send_keys_raw_test 4.3 "Grouped alt" a%(bd)e {{65 down {}} {65 up {}} {18 down leftalt} {66 down leftalt} {66 up leftalt} {68 down leftalt} {68 up leftalt} {18 up {}} {69 down {}} {69 up {}}}
+
+    # Mixed modifiers
+    # NOTE - CMD CONSOLE ALWAYS RELEASES MODIFIERS IN FIXED ORDER NO MATTER WHAT ORDER THEY WERE SENT.
+    # EXPECTED TEST RESULTS ARE DEFINED ACCORDINGLY
+    # (confirmed via winspy that correct order is sent)
+    send_keys_raw_test 5.0 "Shift control" +^b {{16 down shift} {17 down {leftctrl shift}} {66 down {leftctrl shift}} {66 up {leftctrl shift}} {16 up leftctrl} {17 up {}}}
+    # 5.1 fails because console swallows 66 up message. Winspy against Tk verifies correct sequence is sent
+    # send_keys_raw_test 5.1 "Control alt" ^%b {{17 down leftctrl} {18 down {leftalt leftctrl}} {66 down {leftalt leftctrl}} {66 up {leftalt leftctrl}} {18 up leftctrl} {17 up {}}}
+    send_keys_raw_test 5.2 "Nested Group control" +(^ab)d {{16 down shift} {17 down {leftctrl shift}} {65 down {leftctrl shift}} {65 up {leftctrl shift}} {17 up shift} {66 down shift} {66 up shift} {16 up {}} {68 down {}} {68 up {}}}
+    send_keys_raw_test 5.3 "Basic control" +(^(ab))d {{16 down shift} {17 down {leftctrl shift}} {65 down {leftctrl shift}} {65 up {leftctrl shift}} {66 down {leftctrl shift}} {66 up {leftctrl shift}} {17 up shift} {16 up {}} {68 down {}} {68 up {}}}
+    send_keys_raw_test 5.4 "Basic control" +(^(ab))d {{16 down shift} {17 down {leftctrl shift}} {65 down {leftctrl shift}} {65 up {leftctrl shift}} {66 down {leftctrl shift}} {66 up {leftctrl shift}} {17 up shift} {16 up {}} {68 down {}} {68 up {}}}
+
+    # BRACED, COUNTED
+    send_keys_test 6.0 "Counted keys" "{a 4}" aaaa
+    send_keys_test 6.1 "Shifted Counted keys" "+{a 4}" AAAA
+
+    # VIRTUAL KEYS, COUNTED
+    send_keys_test 7.0 "Virtual Keys" {{NUMLOCK}{NUMPAD1}{NUMLOCK}} 1
+    send_keys_test 7.1 "Virtual Keys" {{CAPSLOCK}ab{CAPSLOCK}} AB
+
+
+    # Error cases
+    test send_keys-99.0 "Repeated shift" -body {twapi::send_keys ++a} -result "Modifier state for + already set." -returnCodes error
+    test send_keys-99.1 "Repeated control" -body {twapi::send_keys ^^a} -result "Modifier state for ^ already set." -returnCodes error
+    test send_keys-99.2 "Repeated alt" -body {twapi::send_keys %%a} -result "Modifier state for % already set." -returnCodes error
+    test send_keys-99.3 "Repeated shift in group" -body {twapi::send_keys +(+a)} -result "Modifier state for + already set." -returnCodes error
+    test send_keys-99.4 "Repeated control in group" -body {twapi::send_keys ^(^a)} -result "Modifier state for ^ already set." -returnCodes error
+    test send_keys-99.5 "Repeated alt in group" -body {twapi::send_keys %(%a)} -result "Modifier state for % already set." -returnCodes error
 
     ################################################################
 
