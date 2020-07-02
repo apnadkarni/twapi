@@ -5,7 +5,6 @@
 # See the file LICENSE for license
 
 # TBD - tests  comobj? works with derived classes of Automation
-# TBD - document and test -iterate -cleanup option
 
 # TBD - object identity comparison 
 #   - see http://blogs.msdn.com/ericlippert/archive/2005/04/26/412199.aspx
