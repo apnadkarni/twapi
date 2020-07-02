@@ -303,6 +303,12 @@ an empty string unless the -getprocesshandle option is specified.
 [opt_def [cmd -asyncok] [arg BOOLEAN]] Indicates that the execution may
 be performed on a background thread. See the description in Windows SDK
 of the [const SEE_MASK_ASYNCOK] flag in the [const SHELLEXECUTEINFO] structure.
+[opt_def [cmd -class] [arg CLASS]]
+The file specified by the [cmd -path] option is handled based on its extension
+by default. The [cmd -class] option may be used to change the handler for the
+file. [arg CLASS] can be a file extension, a ProgID, a URI protocol scheme or 
+a registry path under [const HKEY_CLASSES_ROOT] that contains Shell verbs. See
+below for examples.
 [opt_def [cmd -dir] [arg PATH]]
 Path of the working directory. Defaults to the current directory.
 [opt_def [cmd -getprocesshandle] [arg BOOLEAN]]
@@ -343,6 +349,7 @@ and quotes.
 [opt_def [cmd -path] [arg STRING]]
 Path of the file or object on which the action is to be invoked.
 If unspecified, defaults to the current directory.
+[emph "Note that some handlers require the full path in native format to be be specified."]
 [opt_def [cmd -show] [arg STRING]]
 Specifies how the application invoking the action is to be
 displayed.
@@ -415,6 +422,15 @@ Invoke a dynamic action on a file. This will bring up the property sheet for
 
 [example "shell_execute -path notepad.exe -verb properties -invokeidlist true"]
 
+Start a text file using the handler for [const .html] files instead of the
+handler for [const .txt] files (Notepad by default). Note how the full file path
+is passed.
+
+[example "shell_execute -path [file nativename [file normalize foo.txt]] -class .html"]
+
+Similar to above except the `htmlfile` registry key is used.
+
+[example "shell_execute -path [file nativename [file normalize foo.txt]] -class htmlfile"]
 
 [call [cmd shell_object_properties_dialog] [arg OBJECTPATH] [opt [arg options]]]
 Displays the shell property dialog for the specified object which may be
