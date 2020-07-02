@@ -4,7 +4,6 @@
 #
 # See the file LICENSE for license
 #
-# TBD - document
 # TBD - tcl wrappers for semaphores
 
 namespace eval twapi {

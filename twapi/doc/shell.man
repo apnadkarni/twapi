@@ -30,8 +30,9 @@ opening a URL in a browser, searching a directory, starting a program
 and so on.
 
 [para]
-The command [uri #recycle_file [cmd recycle_file]] sends the specified file
-to the Windows Recycle Bin.
+The commands [uri #recycle_file [cmd recycle_file]] and
+[uri #recycle_files [cmd recycle_files]]
+sends the specified file(s) to the Windows Recycle Bin.
 
 
 [section "Shell Dialogs"]
@@ -266,6 +267,18 @@ Returns the URL pointed to by a URL shortcut.
 
 [call [cmd recycle_file] [arg FILENAME] [opt "[cmd -confirm] [arg BOOLEAN]"] [opt "[cmd -showerror] [arg BOOLEAN]"]]
 Sends the specified file to the Windows Recycle Bin. Returns [const true] on success
+and [const false] if user aborted the command. Any errors will generate a Tcl exception.
+[list_begin opt]
+[opt_def [cmd -confirm] [arg BOOLEAN]]
+If [const true], a confirmation dialog is displayed to the user.
+Default is [const false].
+[opt_def [cmd -showerror] [arg BOOLEAN]]
+If [const true], an error dialog is displayed to the user in case of errors.
+Default is [const false].
+[list_end]
+
+[call [cmd recycle_files] [arg FILENAMES] [opt "[cmd -confirm] [arg BOOLEAN]"] [opt "[cmd -showerror] [arg BOOLEAN]"]]
+Sends the specified files to the Windows Recycle Bin. Returns [const true] on success
 and [const false] if user aborted the command. Any errors will generate a Tcl exception.
 [list_begin opt]
 [opt_def [cmd -confirm] [arg BOOLEAN]]

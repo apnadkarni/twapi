@@ -1125,7 +1125,6 @@ twapi::proc* twapi::get_lockout_policy {{server_name ""}} {
     return [NetUserModalsGet $server_name 3 [_USER_MODALS_INFO_3]]
 }
 
-# TBD - doc & test
 twapi::proc* twapi::set_password_policy {name val {server_name ""}} {
     _define_user_modals
 } {
@@ -1154,7 +1153,6 @@ twapi::proc* twapi::set_password_policy {name val {server_name ""}} {
     }
 }
 
-# TBD - doc & test
 twapi::proc* twapi::set_lockout_policy {duration observe_window threshold {server_name ""}} {
     _define_user_modals
 } {

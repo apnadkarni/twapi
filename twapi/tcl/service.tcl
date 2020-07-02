@@ -366,6 +366,7 @@ proc twapi::get_service_configuration {name args} {
         scm_handle.arg
         tagid
         failureactions
+        delayedstart
     } -nulldefault -hyphenated]
 
     if {$opts(-scm_handle) eq ""} {
@@ -377,7 +378,7 @@ proc twapi::get_service_configuration {name args} {
             CloseServiceHandle $scmh
         }
     } else {
-        set svch [OpenService $scmh $name 1]; # 1 -> SERVICE_QUERY_CONFIG
+        set svch [OpenService $opts(-scm_handle) $name 1]; # 1 -> SERVICE_QUERY_CONFIG
     }
 
     trap {
@@ -399,6 +400,14 @@ proc twapi::get_service_configuration {name args} {
                 lappend actions [list [dict* {0 none 1 restart 2 reboot 3 run} [lindex $action 0]] [lindex $action 1]]
             }
             dict set result -failureactions [list -resetperiod $resetperiod -rebootmsg $rebootmsg -command $command -actions $actions]
+        }
+        if {$opts(-all) || $opts(-delayedstart)} {
+            if {[min_os_version 6]} {
+                # 3 -> SERVICE_CONFIG_DELAYED_AUTO_START_INFO
+                dict set result -delayedstart [QueryServiceConfig2 $svch 3]
+            } else {
+                dict set result -delayedstart 0
+            }
         }
     } finally {
         CloseServiceHandle $svch
@@ -548,6 +557,22 @@ proc twapi::set_service_configuration {name args} {
     return
 }
 
+proc twapi::set_service_delayed_start {name delay args} {
+    array set opts [parseargs args {
+        {system.arg ""}
+        {database.arg ""}
+    } -maxleftover 0]
+
+    set opts(scm_priv) 0x00020000; # 0x00020000 -> STANDARD_RIGHTS_READ
+    set opts(svc_priv) 2;    # 2 -> SERVICE_CHANGE_CONFIG
+
+    set opts(proc) twapi::ChangeServiceConfig2
+    set opts(args) [list 3 $delay]
+
+    _service_fn_wrapper $name opts
+    return
+}
+
 proc twapi::set_service_description {name description args} {
     array set opts [parseargs args {
         {system.arg ""}
@@ -559,7 +584,7 @@ proc twapi::set_service_description {name description args} {
 
     set opts(proc) twapi::ChangeServiceConfig2
     set opts(args) [list 1 $description]
-    
+
     _service_fn_wrapper $name opts
     return
 }

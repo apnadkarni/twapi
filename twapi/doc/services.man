@@ -411,6 +411,9 @@ which of the following options are specified:
 
 [opt_def [const -all]] Returns all option values
 
+[opt_def [const -delayedstart]] Returns 1 if the service's delayed start flag
+is set and 0 otherwise.
+
 [opt_def [const -description]] Returns description of the service if available,
 otherwise the empty string.
 
@@ -866,6 +869,10 @@ the [cmd -account] option.
 by the [uri base.html#read_credentials [cmd read_credentials]] or
 [uri base.html#conceal [cmd conceal]] commands.This option is ignored if the [cmd -account] option is not specified.
 [list_end]
+
+[call [cmd set_service_delayed_start] [arg INTERNAL_SERVICE_NAME] [arg BOOLEAN]]
+Sets the service's delayed start attribute to the specified boolean value. This
+only has effect if the service start type is automatic.
 
 [call [cmd set_service_description] [arg INTERNAL_SERVICE_NAME] [arg TEXT] [opt [arg options]]]
 Sets the description for a service to [arg TEXT].
