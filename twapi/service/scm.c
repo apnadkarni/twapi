@@ -17,6 +17,15 @@ static HMODULE gModuleHandle;
 #define MODULENAME "twapi_service"
 #endif
 
+#ifndef SERVICE_CONFIG_DELAYED_AUTO_START_INFO
+#define SERVICE_CONFIG_DELAYED_AUTO_START_INFO 3
+typedef struct _SERVICE_DELAYED_AUTO_START_INFO {
+    BOOL fDelayedAutostart;
+} SERVICE_DELAYED_AUTO_START_INFO, *LPSERVICE_DELAYED_AUTO_START_INFO;
+ #endif
+
+
+
 TWAPI_STATIC_INLINE TCL_RESULT ObjToSC_HANDLE(Tcl_Interp *interp, Tcl_Obj *objP, SC_HANDLE *schP) {
     HANDLE sch;
     TCL_RESULT res;
@@ -195,7 +204,6 @@ int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWOR
     DWORD buf_sz;
     TCL_RESULT res = TCL_ERROR;
 
-
     /* Max size of buffer required is 8K as per MSDN. It must NOT be specified as more. */
     buf_sz = 8 * 1024;
     bufP = MemLifoPushFrame(ticP->memlifoP, buf_sz, NULL);
@@ -210,6 +218,11 @@ int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWOR
 
         case SERVICE_CONFIG_FAILURE_ACTIONS:
             ObjSetResult(ticP->interp, ObjFromSERVICE_FAILURE_ACTIONS(bufP));
+            res = TCL_OK;
+            break;
+
+        case SERVICE_CONFIG_DELAYED_AUTO_START_INFO:
+            ObjSetResult(ticP->interp, ObjFromBoolean(((LPSERVICE_DELAYED_AUTO_START_INFO)bufP)->fDelayedAutostart));
             res = TCL_OK;
             break;
 
@@ -514,9 +527,11 @@ static TCL_RESULT Twapi_ChangeServiceConfig2(TwapiInterpContext *ticP, int objc,
     union {
         SERVICE_DESCRIPTIONW desc;
         SERVICE_FAILURE_ACTIONSW failure_actions;
+        SERVICE_DELAYED_AUTO_START_INFO delayed_auto_start;
     } u;
     SC_HANDLE h;
     void *pv;
+    int ival;
 
     mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc, objv,
@@ -534,6 +549,11 @@ static TCL_RESULT Twapi_ChangeServiceConfig2(TwapiInterpContext *ticP, int objc,
         pv = &u.failure_actions;
         res = ParseSERVICE_FAILURE_ACTIONS(ticP, infoObj, &u.failure_actions);
         break;
+    case SERVICE_CONFIG_DELAYED_AUTO_START_INFO:
+        pv = &u.delayed_auto_start;
+        res = ObjToBoolean(ticP->interp, infoObj, &ival);
+        u.delayed_auto_start.fDelayedAutostart = !!ival;
+        break;
     default:
         res = TwapiReturnError(ticP->interp, TWAPI_INVALID_OPTION);
         break;
@@ -544,7 +564,7 @@ static TCL_RESULT Twapi_ChangeServiceConfig2(TwapiInterpContext *ticP, int objc,
             res = TwapiReturnSystemError(ticP->interp);
     }
 
-vamoose:    
+vamoose:
     MemLifoPopMark(mark);
     return res;
 }

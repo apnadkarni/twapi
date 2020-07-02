@@ -1,11 +1,34 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Version History" "n" ""]
-[copyright "2003-2015 Ashok P. Nadkarni"]
+[copyright "2003-2020 Ashok P. Nadkarni"]
 [moddesc "TWAPI Version History"]
 [titledesc "Tcl Windows API extension version history"]
 [description]
 [para]
 Summarizes the list of changes for each version of TWAPI.
+
+
+[section "Version 4.4.0"]
+[list_begin bullet]
+[bullet]
+Added [uri shell.html#recycle_files [cmd recycle_files]].
+
+[bullet]
+Added [uri service.html#set_service_delayed_start [cmd set_service_delayed_start]].
+[list_end]
+
+[bullet]
+Added [cmd -class] option to
+[uri shell.html#shell_execute [cmd shell_execute]] for non-default handlers.
+
+[bullet]
+Support for incomplete client credentials in TLS connections. Client certificate
+will be retrieved from current credentials if requested by server and not specified
+to [cmd tls_socket].
+
+[bullet]
+Fixed [uri input.html#send_keys [cmd send_keys]] to be more compatible with
+VB SendKeys.
 
 [section "Version 4.3.5"]
 [list_begin bullet]

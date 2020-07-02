@@ -395,7 +395,6 @@ proc twapi::shell_execute args {
     if {$hotkey != 0} {
         setbits fmask 0x00000020
     }
-
     return [Twapi_ShellExecuteEx \
                 $fmask \
                 $opts(hwin) \
