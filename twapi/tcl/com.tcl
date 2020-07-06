@@ -5,6 +5,7 @@
 # See the file LICENSE for license
 
 # TBD - tests  comobj? works with derived classes of Automation
+# TBD - document and test -iterate -cleanup option
 
 # TBD - object identity comparison 
 #   - see http://blogs.msdn.com/ericlippert/archive/2005/04/26/412199.aspx
@@ -1809,108 +1810,126 @@ twapi::class create ::twapi::IDispatchProxy {
         if {$name eq ""} {
             # Default method
             return [uplevel 1 [list [self] Invoke {}] $params]
-        } else {
-            set nparams [llength $params]
-
-            # We will try for each invkind to match. matches can be of
-            # different degrees, in descending priority -
-            # 1. prototype has parameter info and num params match exactly
-            # 2. prototype has parameter info and num params is greater
-            #    than supplied arguments (assumes others have defaults)
-            # 3. prototype has no parameter information
-            # Within these classes, the order of invkinds determines
-            # priority
-
-            if {$name eq "_NewEnum"} {
-                # Special case property to retrieve iterator. Some objects
-                # call it _NewEnum, others NewEnum. The disp id must always
-                # be -4 so we hard code that instead
-                # DISPID=-4 LCID=0 INVOKE=2(propget) RETTYPE=13(IUnknown) no parameters
-                set class1 [list {-4 0 2 13 {} {}}]
-            } else {
-                foreach invkind $invkinds {
-                    set proto [my @Prototype $name $invkind $lcid]
-                    if {[llength $proto]} {
-                        if {[llength $proto] < 5} {
-                            # No parameter information
-                            lappend class3 $proto
-                        } else {
-                            if {[llength [lindex $proto 4]] == $nparams} {
-                                lappend class1 $proto
-                                break; # Class 1 match, no need to try others
-                            } elseif {[llength [lindex $proto 4]] > $nparams} {
-                                lappend class2 $proto
-                            } else {
-                                # Ignore - proto has fewer than supplied params
-                                # Could not be a match
-                            }
-                        }
-                    }
-                }
-            }
-
-            # For exact match (class1), we do not need the named
-            # arguments as positional arguments take priority. When
-            # number of passed parameters is fewer than those in
-            # prototype, check named arguments and use those
-            # values. If no parameter information, we can't use named
-            # arguments anyways.
-            
-            if {[info exists class1]} {
-                set proto [lindex $class1 0]
-            } elseif {[info exists class2]} {
-                set proto [lindex $class2 0]
-                # If we are passed named arguments AND the prototype also
-                # has parameter name information, replace the default values
-                # in the parameter definitions with the named arg value if
-                # it exists.
-                if {[llength $namedargs] &&
-                    [llength [set paramnames [lindex $proto 5]]]} {
-                    foreach {paramname paramval} $namedargs {
-                        set paramindex [lsearch -nocase $paramnames $paramname]
-                        if {$paramindex < 0} {
-                            twapi::win32_error 0x80020004 "No parameter with name '$paramname' found for method '$name'"
-                        }
-
-                        # Set the default value field of the
-                        # appropriate parameter to the named arg value
-                        set paramtype [lindex $proto 4 $paramindex 0]
-
-                        # If parameter is VT_DISPATCH or VT_VARIANT, 
-                        # convert from comobj if necessary.
-                        if {$paramtype == 9 || $paramtype == 12} {
-                            if {[::twapi::comobj? $paramval]} {
-                                # Note no AddRef when getting the interface
-                                # (last param 0) because it is the C code's
-                                # responsibility based on in/out direction
-                                set paramval [$paramval -interface 0]
-                            }
-                        }
-
-                        # Replace the default value field for that param def
-                        lset proto 4 $paramindex [linsert [lrange [lindex $proto 4 $paramindex] 0 1] 2 $paramval]
-                    }
-                }
-            } elseif {[info exists class3]} {
-                set proto [lindex $class3 0]
-            } else {
-                # No prototype via typecomp / typeinfo available.
-                # No lcid worked.
-                # We have to use the last resort of GetIDsOfNames
-                set dispid [my @GetIDOfOneName [list $name] 0]
-                # TBD - should we cache result ? Probably not.
-                if {$dispid ne ""} {
-                    # Note params field (last) is missing signifying we do not
-                    # know prototypes
-                    set proto [list $dispid 0 [lindex $invkinds 0] 8]
-                } else {
-                    twapi::win32_error 0x80020003 "No property or method found with name '$name'."
-                }
-            }
-
-            # Need uplevel so by-ref param vars are resolved correctly
-            return [uplevel 1 [list [self] Invoke $proto] $params]
         }
+        set nparams [llength $params]
+
+        # We will try for each invkind to match. matches can be of
+        # different degrees, in descending priority -
+        # 1. prototype has parameter info and num params match exactly
+        # 2. prototype has parameter info and num params is greater
+        #    than supplied arguments (assumes others have defaults)
+        # 3. prototype has no parameter information
+        # Within these classes, the order of invkinds determines
+        # priority
+
+        if {$name eq "_NewEnum"} {
+            # Special case property to retrieve iterator. Some objects
+            # call it _NewEnum, others NewEnum. The disp id must always
+            # be -4 so we hard code that instead
+            # DISPID=-4 LCID=0 INVOKE=2(propget) RETTYPE=13(IUnknown) no parameters
+            set class1 [list {-4 0 2 13 {} {}}]
+        } else {
+            foreach invkind $invkinds {
+                set proto [my @Prototype $name $invkind $lcid]
+                if {[llength $proto]} {
+                    if {[llength $proto] < 5} {
+                        # No parameter information
+                        lappend class3 $proto
+                    } else {
+                        if {[llength [lindex $proto 4]] == $nparams} {
+                            lappend class1 $proto
+                            break; # Class 1 match, no need to try others
+                        } elseif {[llength [lindex $proto 4]] > $nparams} {
+                            lappend class2 $proto
+                        } else {
+                            # Ignore - proto has fewer than supplied params
+                            # Could not be a match
+                        }
+                    }
+                }
+            }
+        }
+        # For exact match (class1), we do not need the named
+        # arguments as positional arguments take priority. When
+        # number of passed parameters is fewer than those in
+        # prototype, check named arguments and use those
+        # values. If no parameter information, we can't use named
+        # arguments anyways.
+        
+        if {[info exists class1]} {
+            set matched_proto [lindex $class1 0]
+        } elseif {[info exists class2]} {
+            set matched_proto [lindex $class2 0]
+            # If we are passed named arguments AND the prototype also
+            # has parameter name information, replace the default values
+            # in the parameter definitions with the named arg value if
+            # it exists.
+            if {[llength $namedargs] &&
+                [llength [set paramnames [lindex $matched_proto 5]]]} {
+                foreach {paramname paramval} $namedargs {
+                    set paramindex [lsearch -nocase $paramnames $paramname]
+                    if {$paramindex < 0} {
+                        twapi::win32_error 0x80020004 "No parameter with name '$paramname' found for method '$name'"
+                    }
+
+                    # Set the default value field of the
+                    # appropriate parameter to the named arg value
+                    set paramtype [lindex $matched_proto 4 $paramindex 0]
+
+                    # If parameter is VT_DISPATCH or VT_VARIANT, 
+                    # convert from comobj if necessary.
+                    if {$paramtype == 9 || $paramtype == 12} {
+                        if {[::twapi::comobj? $paramval]} {
+                            # Note no AddRef when getting the interface
+                            # (last param 0) because it is the C code's
+                            # responsibility based on in/out direction
+                            set paramval [$paramval -interface 0]
+                        }
+                    }
+
+                    # Replace the default value field for that param def
+                    lset matched_proto 4 $paramindex [linsert [lrange [lindex $matched_proto 4 $paramindex] 0 1] 2 $paramval]
+                }
+            }
+        } elseif {[info exists class3]} {
+            set matched_proto [lindex $class3 0]
+        }
+
+        if {[info exists matched_proto]} {
+            # Need uplevel so by-ref param vars are resolved correctly
+            return [uplevel 1 [list [self] Invoke $matched_proto] $params]
+        }
+
+        # No prototype via typecomp / typeinfo available.
+        # No lcid worked.
+        # We have to use the last resort of GetIDsOfNames
+        set dispid [my @GetIDOfOneName [list $name] 0]
+        # TBD - should we cache result ? Probably not.
+        if {$dispid eq ""} {
+            twapi::win32_error 0x80020003 "No property or method found with name '$name'."
+        }
+
+        # Try all invocation types except last in turn. If error is "Member not
+        # found" try the next prototype.
+        foreach invkind [lrange $invkinds 0 end-1] {
+            # Note params field (last) is missing signifying we do not
+            # know prototypes
+            set matched_proto [list $dispid 0 $invkind 8]
+            if {![catch {
+                uplevel 1 [list [self] Invoke $matched_proto] $params
+            } result ropts]} {
+                return $result
+            }
+            # If member not found error, keep going. Other errors, throw
+            lassign [dict get $ropts -errorcode] fac winerror
+            if {$fac ne "TWAPI_WIN32" && $winerror != -2147352573} {
+                # Some other error.
+                return -options $ropts $result
+            }
+        }
+        # Try the last one and hope for the best
+        set matched_proto [list $dispid 0 [lindex $invkinds end] 8]
+        return [uplevel 1 [list [self] Invoke $matched_proto] $params]
     }
 
     # Get prototype that match the specified name
