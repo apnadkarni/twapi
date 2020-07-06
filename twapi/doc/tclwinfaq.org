@@ -2,7 +2,7 @@
 #+STYLE: <style type='text/css'>div#text-table-of-contents ul {padding-left: 1em; list-style-type: none; line-height:1.3em}</style>
 #+STYLE: <style type='text/css'>div#text-table-of-contents > ul {padding-left: 0em;}</style>
 #+STYLE: <style type='text/css'>div#text-table-of-contents > ul > li {padding-top: 0.5em; line-height: 1.5em;}</style>
-#+TITLE:     Tcl on Windows FAQ (2019-12-05)
+#+TITLE:     Tcl on Windows FAQ (2020-07-01)
 #+AUTHOR:    Ashok P. Nadkarni
 #+DATE:      2019-12-05
 #+DESCRIPTION: Frequently Asked Questions about Tcl on Windows
@@ -25,8 +25,8 @@
 
 * About this FAQ
    This FAQ is targeted towards using Tcl on Windows. Specifically,
-   it addresses the two most recent releases of Tcl (8.5, 8.6) on 
-   Windows 2000 or later. Some examples will not work with older
+   it addresses the most recent release of Tcl (8.6) on 
+   Windows XP or later. Some examples will not work with older
    versions of Tcl.
 
    The FAQ does not address general Tcl platform-independent features.
@@ -60,57 +60,21 @@
    and the Windows 98 series, require Tcl 8.4 and are
    not covered by this FAQ. 
 
-** Why should I use Tcl instead of VBScript or PowerShell?
-   There are several reasons why you might want to use Tcl instead of
-   PowerShell or VBScript for scripting tasks on Windows. First, Tcl
-   deployment is simple, with the option of a single executable
-   distribution that includes your scripts and with no external
-   dependencies. This allows deployment even to systems such as Windows
-   2008 Server Core which did not support PowerShell due to its
-   dependence on the .NET framework.  Second, because of its use of
-   native Windows interfaces, Tcl is lightweight and efficient in use of
-   system resources including CPU, memory and disk. Third, generic
-   scripts such as for XML processing, will run on non-Windows platforms
-   without any modifications.
-
-** Why should I use Tcl instead of C#/C++/VB.Net
-   Simply put, it's all about minding your P's and Q's:
-   - Productivity - Tcl's dynamic nature, expressiveness and
-     high level constructs greatly increase programming productivity
-     with shorter development cycles and greater robustness.
-   - Portability - large portions of your code base, and even entire
-     applications are portable to other platforms with minimal
-     effort.
-   - Quality - By freeing programmers from low level details Tcl allows
-     them to focus on application logic and architecture. It facilitates
-     incremental development where test case generation fits naturally
-     with writing code.
-
-** When should I not use Tcl on Windows?
-   There are a few types of applications for which Tcl is not an ideal fit.
-   In particular, applications with sophisticated graphics or printing
-   needs are not good candidates for Tcl.
-   Nevertheless, note Tcl can still be used productively in such
-   applications as the "glue" language that drives and automates the
-   core application engine. For example, Tcl is the de facto standard
-   for scripting in the commercial CAD world even though the core applications
-   are in C++.
-
 ** How is Tcl licensed? Can I use it in commercial applications?
    Tcl is covered under the very liberal open source BSD license.
    This means Tcl and its associated libraries can be used in all applications,
    including commercial ones.
 
+   Specific binary distributions may have their own licenses.
+
 ** Where can I find documentation for Tcl?
-   The reference documentation for Tcl 8.6 is available at
-   http://www.tcl-lang.org/man/tcl8.6/. A standalone
-   Windows CHM help file containing documentation for Tcl/Tk and several
-   extensions is available from the [[#twapi][=TWAPI=]] download area.
+   The official reference documentation for Tcl 8.6 is available at
+   https://www.tcl-lang.org/man/tcl8.6/. A searchable index for
+   Tcl/Tk along with several popular extensions is available at
+   https://www.magicsplat.com/tcl-docs/docindex.html.
    
-   The [[http://www.tcl-lang.org/doc/][Tcl web site]] lists several books
-   on Tcl/Tk. In addition, there is an 
-   [[https://www.magicsplat.com/book/index.html][online]] book
-   specific to programming with Tcl on Windows.
+   The [[http://www.tcl-lang.org/doc/][Tcl web site]] lists several books on Tcl/Tk. In addition, there is an 
+   [[https://www.magicsplat.com/book/index.html][online]] book specific to programming with Tcl on Windows.
 
 ** Is there a Tcl tutorial?
    See the [[https://wiki.tcl-lang.org/page/Tcl+Tutorial+Index][online Tcl tutorial]]. In addition, the [[http://wiki.tcl-lang.org][Tcler's Wiki]] provides 
@@ -132,8 +96,7 @@
 * Installing Tcl
 ** What Tcl distributions are available for Windows?
    There are several freely downloadable binary distributions of Tcl available.
-   See the [[http://www.tcl-lang.org/software/tcltk/bindist.html][Binary Distributions]]
-   page.
+   See the [[http://www.tcl-lang.org/software/tcltk/bindist.html][Binary Distributions]] page.
 
 ** Are there any single-executable distributions of Tcl?
    There are several distributions of Tcl that consist of a single
@@ -239,7 +202,7 @@
 
 ** How can I have Tcl always execute a certain set of commands on starting?
    On startup, =tclsh.exe= reads and executes commands in the file
-   =tclshrc.tl= in the user's home directory. The user's home directory
+   =tclshrc.tcl= in the user's home directory. The user's home directory
    is given by the environment variable =USERPROFILE= or can be displayed
    with the Tcl command
 : % file normalize ~
@@ -538,9 +501,9 @@ as a DDE client or server. However, DDE is a legacy technology
 and you should use COM interfaces instead wherever possible.
 ** How can Tcl act as a COM client?
    Several extensions support COM client access from Tcl.
-   - The [[#tcom][TCOM]] extension (32-bit only)
-   - The [[#optcl][Optcl]] extension (32-bit only)
    - The =COM= module of the [[#twapi][=TWAPI=]] extension (32- and 64-bit)
+   - The [[#tcom][TCOM]] extension (32-bit only, not maintained)
+   - The [[#optcl][Optcl]] extension (32-bit only, not maintained)
    The online book chapter
    [[book:com.html][The Component Object Model]] provides a detailed
    guide to using the =COM= module from =TWAPI=.
@@ -560,14 +523,14 @@ and you should use COM interfaces instead wherever possible.
 #+END_SRC
 
    For a [[#tcom][TCOM]] example, see the Wiki article at [[http://wiki.tcl-lang.org/29255]].
-** How can I integrate with Microsoft Office?
-   Automation or integration with Office can be accomplished using
-   any of the COM extensions mentioned above. For documentation
-   on the objects and methods exposed by Office, follow the links
-   on the [[http://msdn.microsoft.com/en-us/office/aa905496][Office developer page]].
-   
+** How can I integrate with Microsoft Office and othe common applications?
    The [[#cawt][CAWT]] package provides a high level Tcl API over COM
-   to interact with Microsoft Office.
+   to interact with Microsoft Office and other Windows applications.
+   
+   At a lower level, automation or integration with Office can be accomplished
+   using any of the COM extensions mentioned above. For documentation on the
+   objects and methods exposed by Office, follow the links on the [[http://msdn.microsoft.com/en-us/office/aa905496][Office
+   developer page]].
 
 ** How can SQL Server and other databases be accessed from Tcl?
    The =tdbc= package shipped as part of the core Tcl 8.6 distribution
@@ -670,7 +633,9 @@ You can also use the Active Directory interfaces for this purpose.
 * Networking and Communications
 ** How can I communicate over the network?
    The Tcl =socket= command creates a TCP/IP socket that can be used
-   with the standard Tcl I/O commands such as =read= and =puts=.
+   with the standard Tcl I/O commands such as =read= and =puts=. The 
+  [[https://iocp.magicsplat.com][ iocp_inet]] package provides a much higher performance implementation
+   of the same.
 ** How can I communicate over named pipes and why would I want to?
    Use [[#twapi][=TWAPI=]]'s =namedpipe_server= or =namedpipe_client= commands. These
    create a Tcl channel that can be used with the standard Tcl I/O
@@ -775,6 +740,10 @@ You can also use the Active Directory interfaces for this purpose.
    - The compilers in newer versions of Visual Studio are identical
      to the free SDK compilers so not much is to be gained from using
      these commercial versions.
+     
+   For multi-platform builds, the [[http://www.bawt.tcl3d.org/][BAWT]] toolchain provides a complete
+   self-contained environment for building Tcl/Tk along with almost all
+   extensions.
 
 ** How do I build Tcl using Visual C++?
    :PROPERTIES:
@@ -817,40 +786,8 @@ You can also use the Active Directory interfaces for this purpose.
    nmake -f makefile.vc TCLDIR=..\..\tcl INSTALLDIR=c:\tcl install
 #+END_SRC 
 
-** How do I build Tcl using the free Windows SDK compiler?
-
-   The procedure for building using the Windows SDK compilers is similar
-   to that for Visual C++ 6.0. See that [[#vc6][entry]] for an overview.
-   The procedure below is specified
-   for Windows SDK 7.0 but will be similar for other SDK versions.
-
-   First, start a DOS command window to set up the build environment.
-   Note certain =cmd.exe= command extensions have to be enabled
-   for the SDK setup command file. Therefore, either start the command
-   shell from the =Start->All Programs->Microsoft Windows SDK v7.0->CMD shell=
-   menu or at the DOS command prompt, start a new shell by typing
-: C:\WINDOWS\system32\cmd.exe /E:ON /V:ON /T:0E
-
-   Then, at the command shell prompt, type the following to build 32-bit Tcl:
-: "%ProgramFiles%\Microsoft SDKs\Windows\v7.0\bin\setenv" /x86 /xp /Release
-
-   Alternatively, for 64-bit Tcl, set up for a 64-bit tool chain:
-: "%ProgramFiles%\Microsoft SDKs\Windows\v7.0\bin\setenv" /x64 /xp /Release
-
-   Then to build Tcl and Tk,
-#+BEGIN_SRC dos -n
-   cd <TCL SOURCE ROOT DIRECTORY>\win
-   nmake -f makefile.vc INSTALLDIR=c:\tcl release
-   nmake -f makefile.vc INSTALLDIR=c:\tcl install
-   nmake -f makefile.vc TCLDIR=..\..\tcl INSTALLDIR=c:\tcl release
-   nmake -f makefile.vc TCLDIR=..\..\tcl INSTALLDIR=c:\tcl install
-#+END_SRC 
-
-   This will build 32 or 64-bit Tcl depending on how the environment
-   was set up.
-
-   Note this procedure can be used for cross-building 64-bit Tcl from
-   a 32-bit system and vice versa.
+   Building with newer compilers is no different except for the path
+   to the appropriate vcvars batch file.
 
 * Tcl packages and extensions
 ** Tcllib
@@ -861,13 +798,13 @@ You can also use the Active Directory interfaces for this purpose.
    packages that cover a large number of areas from text processing,
    mathematical algorithms, data structures, parsing, data structures, 
    HTML and XML, networking, automata and more. It is available from
-   [[http://tcllib.sourceforge.net]].
+   https://core.tcl-lang.org/tcllib/wiki?name=Downloads.
 ** Tcl for Windows API (TWAPI)
    :PROPERTIES:
    :CUSTOM_ID: twapi
    :END:
    The TWAPI extension includes modules that cover a broad cross-section
-   of the Windows API. It is available at http://twapi.sourceforge.net.
+   of the Windows API. It is available at https://twapi.magicsplat.com.
 ** TCOM
    :PROPERTIES:
    :CUSTOM_ID: tcom
@@ -892,7 +829,7 @@ You can also use the Active Directory interfaces for this purpose.
    provides high level interfaces to
    Microsoft Office (Excel, Word, Powerpoint), Internet Explorer, Matlab
    and Google Earth.
-   It is available at http://www.posoft.de/html/extCawt.html.
+   It is available at http://www.cawt.tcl3d.org/.
 ** TkPrint
    :PROPERTIES:
    :CUSTOM_ID: tkprint
