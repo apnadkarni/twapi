@@ -1691,7 +1691,11 @@ TWAPI_EXTERN TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes,
 /* ObjFromCStruct flags definitions */
 #define CSTRUCT_RETURN_DICT 0x1
 
-/* Wrappers for memlifo based s/w stack */
+/* 
+ * Wrappers for memlifo based s/w stack
+ * NOTE these all panic on fail since twapi inits the memlifos with the
+ * PANIC_ON_FAIL flag.
+ */
 typedef MemLifo *SWStack;
 typedef MemLifoMarkHandle SWSMark;
 TWAPI_INLINE SWStack SWS(void) {

@@ -26,7 +26,7 @@ LAZYPACKAGELOAD=0
 PURETCLMODULES = metoo msi power printer synch
 BINMODULES = account apputil clipboard com console crypto device \
 	etw eventlog mstask multimedia namedpipe network nls \
-	os pdh process rds resource security service share shell \
+	os pdh process rds registry resource security service share shell \
 	storage ui input winsta wmi
 MODULES= $(PURETCLMODULES) $(BINMODULES)
 

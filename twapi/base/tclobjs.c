@@ -1413,7 +1413,7 @@ TWAPI_EXTERN TCL_RESULT ObjToMultiSzEx (
  * Convert a "MULTI_SZ" list of WCHAR strings, terminated with two nulls to
  * a Tcl list. For example, a list of three strings - "abc", "def" and
  * "hij" would look like 'abc\0def\0hij\0\0'. This function will create
- * a list Tcl_Obj and return it. Will return NULL on error.
+ * a list Tcl_Obj and return it.
  *
  * maxlen is provided because registry data can be badly formatted
  * by applications. So we optionally ensure we do not read beyond
