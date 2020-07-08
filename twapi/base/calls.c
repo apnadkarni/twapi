@@ -751,18 +751,6 @@ static int Twapi_CallIntArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         else
             result.type = TRT_GETLASTERROR;
         break;
-
-#ifdef NOTYET
-    case NOTYET:
-        result.value.ival = RegOpenCurrentUser(dw, &u.hkey);
-        if (result.value.ival != ERROR_SUCCESS)
-            result.type = TRT_EXCEPTION_ON_ERROR;
-        else {
-            result.type = TRT_HKEY;
-            result.value.hval = u.hkey;
-        }
-        break;
-#endif
     }
 
     return TwapiSetResult(interp, &result);
@@ -1269,50 +1257,12 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                                  guidP,
                                  ObjToLPWSTR_NULL_IF_EMPTY(objv[3]),
                                  dw);
-    case 10023: // RegOpenKeyEx
-#ifdef TBD
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(u.hkey, HKEY), GETWSTR(s),
-                         GETINT(dw), GETINT(dw2),
-                         ARGEND) != TCL_OK)
-            return TCL_ERROR;
-        result.value.ival = RegOpenKeyExW(u.hkey, s, dw, dw2, &u.hkey2);
-        if (result.value.ival != ERROR_SUCCESS)
-            result.type = TRT_EXCEPTION_ON_ERROR;
-        else {
-            result.type = TRT_HKEY;
-            result.value.hval = u.hkey2;
-        }
-#endif
+    case 10023: // Unused
         break;
 
-    case 10024: // RegCreateKeyEx
-#ifdef TBD
-        secattrP = NULL;
-        mark = SWSPushMark();
-        if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(u.hkey, HKEY),
-                         GETWSTR(s), GETINT(dw), ARGSKIP, GETINT(dw2),
-                         GETINT(dw3),
-                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
-                         ARGEND) == TCL_OK) {
-            result.value.ival = RegCreateKeyExW(u.hkey, s, dw, NULL, dw2, dw3, secattrP, &u.hkey2, &dw4);
-            if (result.value.ival != ERROR_SUCCESS)
-                result.type = TRT_EXCEPTION_ON_ERROR;
-            else {
-                objs[0] = ObjFromOpaque(u.hkey2, "HKEY");
-                objs[1] = ObjFromDWORD(dw4);
-                result.value.objv.nobj = 2;
-                result.value.objv.objPP = objs;
-                result.type = TRT_OBJV;
-            }
-        } else {
-            result.type = TRT_TCL_RESULT;
-            result.value.ival = TCL_ERROR;
-        }
-        SWSPopMark(mark);
-#endif
+    case 10024: // Unuused
         break;
+
     case 10025:
         if (TwapiGetArgs(interp, objc, objv,
                          GETINT(dw), ARGUSEDEFAULT, GETASTR(cP),
@@ -2347,9 +2297,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(GlobalDeleteAtom, 6), // TBD - tcl interface
         DEFINE_FNCODE_CMD(hex32, 7),
         DEFINE_FNCODE_CMD(WTSQueryUserToken, 8), // TBD - tcl interface
-#ifdef NOTYET
-        DEFINE_FNCODE_CMD(RegOpenCurrentUser, NOTYET), // TBD - tcl interface
-#endif
     };
 
     static struct fncode_dispatch_s CallOneArgDispatch[] = {
@@ -2406,10 +2353,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(SendMessageTimeout, 10020),
         DEFINE_FNCODE_CMD(SetWindowLongPtr, 10021),
         DEFINE_FNCODE_CMD(DsGetDcName, 10022),
-#ifdef TBD
-        DEFINE_FNCODE_CMD(RegOpenKeyEx, 10023),
-        DEFINE_FNCODE_CMD(RegCreateKeyEx, 10024),
-#endif
         DEFINE_FNCODE_CMD(win32_error, 10025),
         DEFINE_FNCODE_CMD(CreateMutex, 10026),
         DEFINE_FNCODE_CMD(OpenMutex, 10027),
