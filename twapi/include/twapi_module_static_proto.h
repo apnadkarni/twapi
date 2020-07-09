@@ -18,6 +18,7 @@ Tcl_PackageInitProc Twapi_pdh_Init;
 Tcl_PackageInitProc Twapi_process_Init;
 Tcl_PackageInitProc Twapi_rds_Init;
 Tcl_PackageInitProc Twapi_resource_Init;
+Tcl_PackageInitProc Twapi_registry_Init;
 Tcl_PackageInitProc Twapi_security_Init;
 Tcl_PackageInitProc Twapi_service_Init;
 Tcl_PackageInitProc Twapi_share_Init;
