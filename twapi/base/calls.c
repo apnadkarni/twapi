@@ -1701,12 +1701,6 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = DeleteObject(h);
             break;
-#ifdef NOTYET
-        case NOTYET:              /* RegCloseKey */
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            result.value.ival = RegCloseKey(h);
-            break;
-#endif
         }
     } else if (func < 2000) {
 
@@ -2251,9 +2245,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CloseEventLog, 21),
         DEFINE_FNCODE_CMD(DeregisterEventSource, 22),
         DEFINE_FNCODE_CMD(DeleteObject, 23),
-#ifdef NOTYET
-        DEFINE_FNCODE_CMD(RegCloseKey, NOTYET), // TBD Tcl
-#endif
         DEFINE_FNCODE_CMD(ReleaseSemaphore, 1001),
         DEFINE_FNCODE_CMD(WaitForSingleObject, 1002),
         DEFINE_FNCODE_CMD(Twapi_MemLifoAlloc, 1003),

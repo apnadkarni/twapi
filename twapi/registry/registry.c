@@ -24,6 +24,15 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 }
 #endif
 
+/*
+ * Define API not in XP
+ */
+MAKE_DYNLOAD_FUNC(RegDeleteKeyValueW, advapi32, FARPROC)
+MAKE_DYNLOAD_FUNC(RegDeleteKeyExW, advapi32, FARPROC)
+MAKE_DYNLOAD_FUNC(RegDeleteTreeW, advapi32, FARPROC)
+MAKE_DYNLOAD_FUNC(RegEnableReflectionKey, advapi32, FARPROC)
+MAKE_DYNLOAD_FUNC(RegDisableReflectionKey, advapi32, FARPROC)
+
 static int TwapiRegEnumKeyEx(Tcl_Interp *interp, HKEY hkey)
 {
     Tcl_Obj *resultObj = NULL;
@@ -156,6 +165,115 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
     }
 }
 
+#ifdef TBD
+// Vista+
+static int
+TwapiRegGetValue(Tcl_Interp *interp,
+                 HKEY        hkey,
+                 LPCWSTR     subkey,
+                 LPCWSTR     value_name,
+                 DWORD       flags)
+{
+    Tcl_Obj *resultObj = NULL;
+    FILETIME file_time;
+    DWORD    nch_value_name;
+    LONG     status;
+    SWSMark  mark;
+    LPBYTE   value_data;
+    DWORD    capacity_value_data = 256;
+    DWORD    value_type, nb_value_data;
+    int      max_loop; /* Safety measure if buf size keeps changing */
+
+    mark = SWSPushMark();
+    resultObj = ObjNewList(0, NULL);
+
+    value_data = SWSAlloc(capacity_value_data, &capacity_value_data);
+    max_loop   = 5; /* Retries for a particular key. Else error */
+    while (max_loop > 0) {
+        nb_value_data  = capacity_value_data;
+        status         = RegGetValueW(hkey,
+                              subkey,
+                              value_name,
+                              flags,
+                              &value_type,
+                              value_data,
+                              &nb_value_data);
+        if (status == ERROR_SUCCESS) {
+            Tcl_Obj *objs[2];
+            objs[0] = ObjFromDWORD(value_type);
+            objs[1] = ObjFromRegValue(
+                interp, value_type, value_data, nb_value_data);
+            resultObj = ObjNewList(2, objs);
+            break;
+        } else if (status == ERROR_MORE_DATA) {
+            value_data = SWSAlloc(nb_value_data, NULL);
+            /* Do not increment dwIndex and retry for same */
+        } else {
+            /* ERROR_NO_MORE_ITEMS or some other error */
+            break;
+        }
+    }
+    SWSPopMark(mark);
+    if (status == ERROR_SUCCESS) {
+        ObjSetResult(interp, resultObj);
+        return TCL_OK;
+    } else {
+        return Twapi_AppendSystemError(interp, status);
+    }
+}
+#endif
+
+static int
+TwapiRegQueryValueEx(Tcl_Interp *interp,
+                 HKEY        hkey,
+                 LPCWSTR     value_name)
+{
+    Tcl_Obj *resultObj = NULL;
+    DWORD    nch_value_name;
+    LONG     status;
+    SWSMark  mark;
+    LPBYTE   value_data;
+    DWORD    capacity_value_data = 256;
+    DWORD    value_type, nb_value_data;
+    int      max_loop; /* Safety measure if buf size keeps changing */
+
+    mark = SWSPushMark();
+    resultObj = ObjNewList(0, NULL);
+
+    value_data = SWSAlloc(capacity_value_data, &capacity_value_data);
+    max_loop   = 5; /* Retries for a particular key. Else error */
+    while (max_loop > 0) {
+        nb_value_data  = capacity_value_data;
+        status         = RegQueryValueExW(hkey,
+                              value_name,
+                              &value_type,
+                              NULL,
+                              value_data,
+                              &nb_value_data);
+        if (status == ERROR_SUCCESS) {
+            Tcl_Obj *objs[2];
+            objs[0] = ObjFromDWORD(value_type);
+            objs[1] = ObjFromRegValue(
+                interp, value_type, value_data, nb_value_data);
+            resultObj = ObjNewList(2, objs);
+            break;
+        } else if (status == ERROR_MORE_DATA) {
+            value_data = SWSAlloc(nb_value_data, NULL);
+            /* Do not increment dwIndex and retry for same */
+        } else {
+            /* ERROR_NO_MORE_ITEMS or some other error */
+            break;
+        }
+    }
+    SWSPopMark(mark);
+    if (status == ERROR_SUCCESS) {
+        ObjSetResult(interp, resultObj);
+        return TCL_OK;
+    } else {
+        return Twapi_AppendSystemError(interp, status);
+    }
+}
+
 static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     LPWSTR subkey, value_name;
@@ -163,9 +281,10 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     TwapiResult result;
     DWORD dw, dw2, dw3, dw4;
     SECURITY_ATTRIBUTES *secattrP;
+    SECURITY_DESCRIPTOR *secdP;
     SWSMark mark = NULL;
     Tcl_Obj *objs[2];
-    int func = PtrToInt(clientdata);
+    int func_code = PtrToInt(clientdata);
 
     /* Every command has at least two arguments */
     if (objc < 3)
@@ -176,7 +295,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     /* Assume error on system call */
     result.type = TRT_EXCEPTION_ON_ERROR;
-    switch (func) {
+    switch (func_code) {
     case 1: // RegOpenKeyEx
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(hkey, HKEY), GETWSTR(subkey),
@@ -220,20 +339,41 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          GETWSTR(subkey), GETWSTR(value_name),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.value.ival = RegDeleteKeyValueW(hkey, subkey, value_name);
-        if (result.value.ival == ERROR_SUCCESS)
-            result.type = TRT_EMPTY;
+        else {
+            FARPROC func = Twapi_GetProc_RegDeleteKeyValueW();
+            if (func) {
+                result.value.ival = func(hkey, subkey, value_name);
+                if (result.value.ival == ERROR_SUCCESS)
+                    result.type = TRT_EMPTY;
+            }
+            else {
+                result.value.ival = ERROR_PROC_NOT_FOUND;
+            }
+        }
         break;
 
     case 4: // RegDeleteKeyEx
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY), GETWSTR(subkey), GETINT(dw),
+                         GETHANDLET(hkey, HKEY), GETWSTR(subkey), 
+                         ARGUSEDEFAULT, GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.value.ival = RegDeleteKeyExW(hkey, subkey, dw, 0);
+        else {
+            FARPROC func = Twapi_GetProc_RegDeleteKeyExW();
+            if (func) {
+                result.value.ival = func(hkey, subkey, dw, 0);
+            }
+            else {
+                /* If the Ex call is not supported, the samDesired param
+                * does not matter. Use legacy api
+                */
+                result.value.ival = RegDeleteKey(hkey, subkey);
+            }
+        }
         if (result.value.ival == ERROR_SUCCESS)
             result.type = TRT_EMPTY;
         break;
+
     case 5: // RegDeleteValue
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(hkey, HKEY), GETWSTR(value_name),
@@ -249,7 +389,8 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          GETHANDLET(hkey, HKEY), GETWSTR(subkey),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.value.ival = RegDeleteTreeW(hkey, subkey);
+        /* RegDeleteTree does not exist on XP/2K. Use SHDeleteKey */
+        result.value.ival = SHDeleteKeyW(hkey, subkey);
         if (result.value.ival == ERROR_SUCCESS)
             result.type = TRT_EMPTY;
         break;
@@ -272,13 +413,88 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         result.value.ival = TwapiRegEnumValue(interp, hkey, dw);
         break;
 
-    case 9:
+    case 9: // RegOpenCurrentUser
         if (TwapiGetArgs(interp, objc, objv, GETINT(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.ival = RegOpenCurrentUser(dw, &hkey);
         if (result.value.ival == ERROR_SUCCESS) {
             result.type = TRT_HKEY;
             result.value.hval = hkey;
+        }
+        break;
+
+    case 10: // RegDisablePredefinedCache
+        CHECK_NARGS(interp, objc, 0);
+        result.value.ival = RegDisablePredefinedCache();
+        if (result.value.ival == ERROR_SUCCESS)
+            result.type = TRT_EMPTY;
+        break;
+
+    case 11: // RegGetKeySecurity
+        if (TwapiGetArgs(
+                interp, objc, objv, GETHANDLET(hkey, HKEY), GETINT(dw), ARGEND)
+            != TCL_OK)
+            return TCL_ERROR;
+        mark              = SWSPushMark();
+        secdP             = SWSAlloc(256, &dw2);
+        result.value.ival = RegGetKeySecurity(hkey, dw, secdP, &dw2);
+        if (result.value.ival == ERROR_INSUFFICIENT_BUFFER) {
+            secdP = SWSAlloc(dw2, NULL);
+            result.value.ival = RegGetKeySecurity(hkey, dw, secdP, &dw2);
+        }
+        if (result.value.ival == ERROR_SUCCESS) {
+            result.value.obj = ObjFromSECURITY_DESCRIPTOR(interp, secdP);
+            if (result.value.obj)
+                result.type = TRT_OBJ;
+            else {
+                result.value.ival = TCL_ERROR;
+                result.type       = TRT_TCL_RESULT;
+            }
+        }
+        SWSPopMark(mark);
+        break;
+
+    case 12: // RegQueryValueEx
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLET(hkey, HKEY), GETWSTR(subkey), 
+                         GETWSTR(value_name), GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_TCL_RESULT;
+        result.value.ival
+            = TwapiRegQueryValueEx(interp, hkey, value_name);
+        break;
+
+    case 111: // RegCloseKey
+    case 112: // RegDisableReflectionKey
+    case 113: // RegEnableReflectionKey
+    case 114: // RegFlushKey
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLET(hkey, HKEY), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        else {
+            FARPROC func;
+            switch (func_code) {
+            case 111:
+                func = RegCloseKey;
+            case 112:
+                func = Twapi_GetProc_RegDisableReflectionKey();
+                break;
+            case 113:
+                func = Twapi_GetProc_RegEnableReflectionKey();
+                break;
+            case 114:
+                func = RegFlushKey;
+                break;
+            }
+            if (func) {
+                result.value.ival = func(hkey);
+                if (result.value.ival == ERROR_SUCCESS)
+                    result.type = TRT_EMPTY;
+            }
+            else {
+                result.value.ival = ERROR_PROC_NOT_FOUND;
+            }
         }
         break;
 
@@ -301,6 +517,14 @@ static int TwapiRegInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(RegEnumKeyEx, 7),
         DEFINE_FNCODE_CMD(RegEnumValue, 8),
         DEFINE_FNCODE_CMD(RegOpenCurrentUser, 9),
+        DEFINE_FNCODE_CMD(RegDisablePredefinedCache, 10),
+        DEFINE_FNCODE_CMD(RegGetKeySecurity, 11),
+
+        DEFINE_FNCODE_CMD(RegCloseKey, 111),
+        DEFINE_FNCODE_CMD(RegDisableReflectionKey, 112),
+        DEFINE_FNCODE_CMD(RegEnableReflectionKey, 113),
+        DEFINE_FNCODE_CMD(RegFlushKey, 114),
+
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(RegDispatch), RegDispatch, Twapi_RegCallObjCmd);
