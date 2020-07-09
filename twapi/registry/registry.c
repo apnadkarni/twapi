@@ -6,6 +6,10 @@
  */
 
 #include "twapi.h"
+#include <shlwapi.h>
+
+/* Old SDK's are missing this prototype */
+LWSTDAPI_(DWORD) SHCopyKeyW(HKEY hkeySrc, LPCWSTR wszSrcSubKey, HKEY hkeyDest, DWORD fReserved);
 
 #ifndef TWAPI_SINGLE_MODULE
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
@@ -276,15 +280,16 @@ TwapiRegQueryValueEx(Tcl_Interp *interp,
 
 static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    LPWSTR subkey, value_name;
-    HKEY   hkey, hkey2;
-    TwapiResult result;
-    DWORD dw, dw2, dw3, dw4;
+    LPWSTR               subkey, value_name, file_name, file_name2;
+    HKEY                 hkey, hkey2;
+    HANDLE               h;
+    DWORD                dw, dw2, dw3, dw4;
     SECURITY_ATTRIBUTES *secattrP;
     SECURITY_DESCRIPTOR *secdP;
-    SWSMark mark = NULL;
-    Tcl_Obj *objs[2];
-    int func_code = PtrToInt(clientdata);
+    SWSMark              mark = NULL;
+    Tcl_Obj *            objs[2];
+    TwapiResult          result;
+    int                  func_code = PtrToInt(clientdata);
 
     /* Every command has at least two arguments */
     if (objc < 3)
@@ -385,6 +390,8 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         break;
 
     case 6: // RegDeleteTree
+#ifdef NOTYET
+ Even SHDeleteKey does not exist on VC++ 6 as of SP5
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(hkey, HKEY), GETWSTR(subkey),
                          ARGEND) != TCL_OK)
@@ -393,8 +400,8 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         result.value.ival = SHDeleteKeyW(hkey, subkey);
         if (result.value.ival == ERROR_SUCCESS)
             result.type = TRT_EMPTY;
+#endif
         break;
-
     case 7: // RegEnumKeyEx
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(hkey, HKEY),
@@ -465,6 +472,108 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
             = TwapiRegQueryValueEx(interp, hkey, value_name);
         break;
 
+    case 13: // SHCopyKey
+#ifdef NOTYET
+VC++ 6 SP5 does not even have SHCopyKey
+        /* XP does not have RegCopyTree. Use ShCopyKey instead */
+        /* NOTE: Latter does NOT copy security descriptors! */
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLET(hkey, HKEY), GETWSTR(subkey), 
+                         GETHANDLET(hkey2, HKEY),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.value.ival = SHCopyKeyW(hkey, subkey, hkey2, 0);
+        if (result.value.ival == ERROR_SUCCESS)
+            result.type = TRT_EMPTY;
+#endif
+        break;
+
+    case 14: // RegOpenUserClassesRoot
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLE(h), GETINT(dw), GETINT(dw2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.value.ival = RegOpenUserClassesRoot(h, dw, dw2, &hkey);
+        if (result.value.ival == ERROR_SUCCESS) {
+            result.value.hkey = hkey;
+            result.type       = TRT_HKEY;
+        }
+        break;
+
+    case 15: // RegOverridePredefKey
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLET(hkey, HKEY), GETHANDLET(hkey2, HKEY),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.value.ival = RegOverridePredefKey(hkey, hkey2);
+        if (result.value.ival)
+            result.type = TRT_EMPTY;
+        break;
+
+    case 16:  // RegSaveKeyEx
+        secattrP = NULL;
+        mark = SWSPushMark();
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLET(hkey, HKEY),
+                         GETWSTR(file_name),
+                         GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
+                         GETINT(dw),
+                         ARGEND) != TCL_OK) {
+            SWSPopMark(mark);
+            return TCL_ERROR;
+        }
+        result.value.ival = RegSaveKeyExW(hkey, file_name, secattrP, dw);
+        if (result.value.ival == ERROR_SUCCESS)
+            result.type = TRT_EMPTY;
+        SWSPopMark(mark);
+        break;
+
+    case 17: // RegLoadKey
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLET(hkey, HKEY), GETWSTR(subkey),
+                         GETWSTR(file_name), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.value.ival = RegLoadKeyW(hkey, subkey, file_name);
+        if (result.value.ival == ERROR_SUCCESS)
+            result.type = TRT_EMPTY;
+        break;
+
+    case 18: // RegUnLoadKey
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLET(hkey, HKEY), GETWSTR(subkey),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.value.ival = RegUnLoadKeyW(hkey, subkey);
+        if (result.value.ival == ERROR_SUCCESS)
+            result.type = TRT_EMPTY;
+        break;
+
+    case 19: // RegReplaceKey
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLET(hkey, HKEY), GETWSTR(subkey),
+                         GETWSTR(file_name), GETWSTR(file_name2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.value.ival = RegReplaceKeyW(hkey, subkey, file_name, file_name2);
+        if (result.value.ival == ERROR_SUCCESS)
+            result.type = TRT_EMPTY;
+        break;
+
+    case 20: // RegRestoreKey
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHANDLET(hkey, HKEY),
+                         GETWSTR(file_name), GETINT(dw),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        result.value.ival = RegRestoreKeyW(hkey, file_name, dw);
+        if (result.value.ival == ERROR_SUCCESS)
+            result.type = TRT_EMPTY;
+        break;
+
+    
+
+
+
     case 111: // RegCloseKey
     case 112: // RegDisableReflectionKey
     case 113: // RegEnableReflectionKey
@@ -519,6 +628,15 @@ static int TwapiRegInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(RegOpenCurrentUser, 9),
         DEFINE_FNCODE_CMD(RegDisablePredefinedCache, 10),
         DEFINE_FNCODE_CMD(RegGetKeySecurity, 11),
+        DEFINE_FNCODE_CMD(RegQueryValueEx, 12),
+        DEFINE_FNCODE_CMD(SHCopyTree, 13),
+        DEFINE_FNCODE_CMD(RegOpenUserClassesRoot, 14),
+        DEFINE_FNCODE_CMD(RegOverridedPredefKey, 15),
+        DEFINE_FNCODE_CMD(RegSaveKeyEx, 16),
+        DEFINE_FNCODE_CMD(RegLoadKey, 17),
+        DEFINE_FNCODE_CMD(RegUnLoadKey, 18),
+        DEFINE_FNCODE_CMD(RegReplaceKey, 19),
+        DEFINE_FNCODE_CMD(RegRestoreKey, 20),
 
         DEFINE_FNCODE_CMD(RegCloseKey, 111),
         DEFINE_FNCODE_CMD(RegDisableReflectionKey, 112),

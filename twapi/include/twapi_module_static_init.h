@@ -17,6 +17,7 @@ TWAPI_INIT_STATIC_PACKAGE(Twapi_os, Twapi_os_Init, NULL);
 TWAPI_INIT_STATIC_PACKAGE(Twapi_pdh, Twapi_pdh_Init, NULL);
 TWAPI_INIT_STATIC_PACKAGE(Twapi_process, Twapi_process_Init, NULL);
 TWAPI_INIT_STATIC_PACKAGE(Twapi_rds, Twapi_rds_Init, NULL);
+TWAPI_INIT_STATIC_PACKAGE(Twapi_registry, Twapi_registry_Init, NULL);
 TWAPI_INIT_STATIC_PACKAGE(Twapi_resource, Twapi_resource_Init, NULL);
 TWAPI_INIT_STATIC_PACKAGE(Twapi_security, Twapi_security_Init, NULL);
 TWAPI_INIT_STATIC_PACKAGE(Twapi_service, Twapi_service_Init, NULL);
