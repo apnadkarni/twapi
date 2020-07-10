@@ -737,7 +737,7 @@ static int TwapiCreateProcessHelper(TwapiInterpContext *ticP, int asuser, int ob
 
     envP = ObjToLPWSTR_WITH_NULL(envObj);
     if (envP) {
-        if (ObjToMultiSzEx(interp, envObj, (const WCHAR **) &envP, ticP->memlifoP) == TCL_ERROR)
+        if (ObjToMultiSzEx(interp, envObj, (const WCHAR **) &envP, NULL, ticP->memlifoP) == TCL_ERROR)
             goto vamoose;
         /* Note envP is allocated from ticP->memlifo */
     }
@@ -824,7 +824,7 @@ static int TwapiCreateProcessHelper2(TwapiInterpContext *ticP, int have_token, i
 
     envP = ObjToLPWSTR_WITH_NULL(envObj);
     if (envP) {
-        if (ObjToMultiSzEx(interp, envObj, (const WCHAR **) &envP, ticP->memlifoP) == TCL_ERROR)
+        if (ObjToMultiSzEx(interp, envObj, (const WCHAR **) &envP, NULL, ticP->memlifoP) == TCL_ERROR)
             goto vamoose;
         /* Note envP is allocated from ticP->memlifo */
     }

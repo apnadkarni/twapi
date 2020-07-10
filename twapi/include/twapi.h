@@ -864,6 +864,20 @@ typedef struct {
 typedef int (*TwapiGetArgsFn)(Tcl_Interp *, Tcl_Obj *, void *);
 
 /*
+ * Registry value type
+ */
+typedef struct TwapiRegValue {
+    DWORD value_type; /* REG_* */
+    DWORD value_size;
+    union {
+        WCHAR         *ws;
+        LONG           lval;
+        Tcl_WideInt    wide;
+        unsigned char *bytes;
+    } u;
+} TwapiRegValue;
+
+/*
  * Forward decls
  */
 typedef struct _TwapiInterpContext TwapiInterpContext;
@@ -1588,7 +1602,15 @@ TWAPI_EXTERN Tcl_Obj *ObjFromVARIANT(VARIANT *varP, int value_only);
 TWAPI_EXTERN TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT *varP, VARTYPE vt);
 
 /* Note: the returned multiszPP must be free()'ed */
-TWAPI_EXTERN int ObjToMultiSzEx (Tcl_Interp *interp, Tcl_Obj *listPtr, LPCWSTR *multiszPP, MemLifo *lifoP);
+TWAPI_EXTERN int ObjToMultiSzEx(Tcl_Interp *interp,
+                                Tcl_Obj *   listPtr,
+                                LPCWSTR *   multiszPP,
+                                int *,
+                                MemLifo *lifoP);
+TWAPI_EXTERN int ObjToMultiSzSWS(Tcl_Interp *interp,
+                                 Tcl_Obj *   listPtr,
+                                 LPCWSTR *   multiszPP,
+                                 int *);
 TWAPI_EXTERN Tcl_Obj *ObjFromMultiSz (LPCWSTR lpcw, int maxlen);
 #define ObjFromMultiSz_MAX(lpcw) ObjFromMultiSz(lpcw, INT_MAX)
 TWAPI_EXTERN Tcl_Obj *ObjFromEXPAND_SZW(WCHAR *ws);
@@ -1596,6 +1618,10 @@ TWAPI_EXTERN Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
                          BYTE *bufP, int count);
 TWAPI_EXTERN Tcl_Obj *ObjFromRegValueCooked(Tcl_Interp *interp, int regtype,
                                BYTE *bufP, int count);
+TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(Tcl_Interp *   interp,
+                                         Tcl_Obj *      objP,
+                                         const char *   typestr,
+                                         TwapiRegValue *valueP);
 TWAPI_EXTERN int ObjToRECT (Tcl_Interp *interp, Tcl_Obj *obj, RECT *rectP);
 TWAPI_EXTERN int ObjToRECT_NULL (Tcl_Interp *interp, Tcl_Obj *obj, RECT **rectPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromRECT(RECT *rectP);

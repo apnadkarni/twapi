@@ -614,7 +614,7 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     if (lstrcmpW(dependencies, NULL_TOKEN_L) == 0) {
         dependencies = NULL;
     } else {
-        res = ObjToMultiSzEx(interp, depObj, (LPCWSTR*) &dependencies, ticP->memlifoP);
+        res = ObjToMultiSzEx(interp, depObj, (LPCWSTR*) &dependencies, NULL, ticP->memlifoP);
         if (res != TCL_OK)
             goto vamoose;
     }
@@ -689,7 +689,7 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
     if (lstrcmpW(dependencies, NULL_TOKEN_L) == 0) {
         dependencies = NULL;
     } else {
-        res = ObjToMultiSzEx(interp, depObj, (LPCWSTR*) &dependencies, ticP->memlifoP);
+        res = ObjToMultiSzEx(interp, depObj, (LPCWSTR*) &dependencies, NULL, ticP->memlifoP);
         if (res == TCL_ERROR)
             goto vamoose;
     }

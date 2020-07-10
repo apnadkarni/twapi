@@ -1365,6 +1365,7 @@ TWAPI_EXTERN TCL_RESULT ObjToMultiSzEx (
      Tcl_Interp *interp,
      Tcl_Obj    *listPtr,
      LPCWSTR     *multiszPtrPtr,
+     int        *nbytesP, /* May be NULL, total length */
      MemLifo    *lifoP
     )
 {
@@ -1378,6 +1379,8 @@ TWAPI_EXTERN TCL_RESULT ObjToMultiSzEx (
     TWAPI_ASSERT(lifoP); /* Check since original API allowed lifoP == NULL */
     
     *multiszPtrPtr = NULL;
+    if (nbytesP)
+        *nbytesP = 0;
     for (i=0, len=0; ; ++i) {
         if (ObjListIndex(interp, listPtr, i, &objPtr) == TCL_ERROR)
             return TCL_ERROR;
@@ -1403,10 +1406,24 @@ TWAPI_EXTERN TCL_RESULT ObjToMultiSzEx (
     }
 
     /* Add the final terminating null */
-    *dst = 0;
+    *dst++ = 0;
 
     *multiszPtrPtr = buf;
+    if (nbytesP)
+        *nbytesP = sizeof(*dst) * (dst - buf);
     return TCL_OK;
+}
+
+/* Like ObjToMultiSzEx but uses the SWS. Caller responsible for SWS storage */
+TWAPI_EXTERN 
+TCL_RESULT ObjToMultiSzSWS (
+     Tcl_Interp *interp,
+     Tcl_Obj    *listPtr,
+     LPCWSTR    *multiszPtrPtr,
+     int        *nbytesP
+    )
+{
+    return ObjToMultiSzEx(interp, listPtr, multiszPtrPtr, nbytesP, SWS());
 }
 
 /*
@@ -1657,24 +1674,40 @@ TWAPI_EXTERN Tcl_Obj *ObjFromEXPAND_SZW(WCHAR *ws)
     return objP;
 }
 
+/*
+ * Maps registry types to their names. Must be in same order as REG_* values
+ */
+static const char *gRegTypeNames[] = {
+    "none",
+    "sz",
+    "expand_sz",
+    "binary",
+    "dword",
+    "dword_be",
+    "link",
+    "multi_sz",
+    "resource_list",
+    "full_resource_descriptor",
+    "resource_requirements_list",
+    "qword",
+};
 TWAPI_EXTERN Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
                          BYTE *bufP, int count)
 {
     Tcl_Obj *objv[2];
-    char *typestr = NULL;
+    const char *typestr;
     WCHAR *ws;
 
+    if (regtype < ARRAYSIZE(gRegTypeNames)) {
+        typestr = gRegTypeNames[regtype];
+    }
+    else
+        typestr = NULL;
+
     switch (regtype) {
-    case REG_LINK:
-        typestr = "link";
-        // FALLTHRU
-    case REG_SZ:
-        if (typestr == NULL)
-            typestr = "sz";
-        // FALLTHRU
+    case REG_LINK: // FALLTHRU
+    case REG_SZ: // FALLTHRU
     case REG_EXPAND_SZ:
-        if (typestr == NULL)
-            typestr = "expand_sz";
         /*
          * As per MS docs, may not always be null terminated.
          * If it is, we need to strip off the null.
@@ -1692,25 +1725,23 @@ TWAPI_EXTERN Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
     case REG_DWORD:
         if (count != 4)
             goto badformat;
-        typestr = regtype == REG_DWORD ? "dword" : "dword_be";
         objv[1] = ObjFromLong(*(int *)bufP);
         break;
 
     case REG_QWORD:
         if (count != 8)
             goto badformat;
-        typestr = regtype == REG_QWORD ? "qword" : "qword_be";
         objv[1] = ObjFromWideInt(*(Tcl_WideInt *)bufP);
         break;
 
     case REG_MULTI_SZ:
-        typestr = "multi_sz";
         objv[1] = ObjFromMultiSz((LPCWSTR) bufP, count/2);
         break;
 
     case REG_BINARY:
-        typestr = "binary";
-        // FALLTHRU
+    case REG_RESOURCE_LIST:
+    case REG_FULL_RESOURCE_DESCRIPTOR:
+    case REG_RESOURCE_REQUIREMENTS_LIST:
     default:
         objv[1] = ObjFromByteArray(bufP, count);
         break;
@@ -1784,6 +1815,9 @@ TWAPI_EXTERN Tcl_Obj *ObjFromRegValueCooked(Tcl_Interp *interp, int regtype,
         return ObjFromMultiSz((LPCWSTR) bufP, count/2);
 
     case REG_BINARY:  // FALLTHRU
+    case REG_RESOURCE_LIST:
+    case REG_FULL_RESOURCE_DESCRIPTOR:
+    case REG_RESOURCE_REQUIREMENTS_LIST:
     default:
         return ObjFromByteArray(bufP, count);
     }
@@ -1791,6 +1825,80 @@ TWAPI_EXTERN Tcl_Obj *ObjFromRegValueCooked(Tcl_Interp *interp, int regtype,
 badformat:
     ObjSetStaticResult(interp, "Badly formatted registry value");
     return NULL;
+}
+
+/* WARNING: String and byte array results point back into the Tcl_Obj so be
+ * careful of shimmering. Caller also responsible for SWS stack storage
+ * as returned pointers may allocate from there.
+ */
+TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(
+    Tcl_Interp *interp, 
+    Tcl_Obj *objP, 
+    const char *typestr,
+    TwapiRegValue *valueP
+    )
+{
+    int         regtype;
+    LONG        n;
+    LPWSTR      ws;
+    Tcl_WideInt wide;
+
+    for (regtype = 0; regtype < ARRAYSIZE(gRegTypeNames); ++regtype) {
+        if (!strcmp(typestr, gRegTypeNames[regtype]))
+            break;
+    }
+    if (regtype >= ARRAYSIZE(gRegTypeNames)) {
+        if (interp) {
+            Tcl_AppendResult(
+                interp, "Unknown registry value type \"", typestr, "\".", NULL);
+        }
+        return TCL_ERROR;
+    }
+
+    valueP->value_type = regtype;
+    switch (regtype) {
+    case REG_LINK: // FALLTHRU
+    case REG_SZ: // FALLTHRU
+    case REG_EXPAND_SZ:
+        valueP->u.ws       = ObjToWinCharsN(objP, &n);
+        valueP->value_size = sizeof(WCHAR) * (n + 1); /* Include \0 */
+        break;
+            
+    case REG_DWORD_BIG_ENDIAN:
+    case REG_DWORD:
+        if (ObjToLong(interp, objP, &n) != TCL_OK)
+            return TCL_ERROR;
+        if (regtype == REG_DWORD_BIG_ENDIAN)
+            n = swap4(n);
+
+        valueP->u.lval     = n;
+        valueP->value_size = 4;
+        break;
+
+    case REG_QWORD:
+        if (ObjToWideInt(interp, objP, &wide) != TCL_OK)
+            return TCL_ERROR;
+        valueP->u.wide     = wide;
+        valueP->value_size = 8;
+        break;
+
+    case REG_MULTI_SZ:
+        if (ObjToMultiSzSWS(interp, objP, &ws, &n) != TCL_OK)
+            return TCL_ERROR;
+        valueP->u.ws = ws;
+        valueP->value_size = n;
+        break;
+
+    case REG_BINARY:
+    case REG_RESOURCE_LIST:
+    case REG_FULL_RESOURCE_DESCRIPTOR:
+    case REG_RESOURCE_REQUIREMENTS_LIST:
+    default:
+        valueP->u.bytes = ObjToByteArray(objP, &valueP->value_size);
+        break;
+    }
+
+    return TCL_OK;
 }
 
 TWAPI_EXTERN TCL_RESULT ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *argcP)
