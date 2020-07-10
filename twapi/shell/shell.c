@@ -590,9 +590,9 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
                        GETWORD(sfop.fFlags), GETOBJ(titleObj),
                        ARGEND) != TCL_OK
         ||
-        ObjToMultiSzEx(interp, fromObj, &sfop.pFrom, sws) != TCL_OK
+        ObjToMultiSzSWS(interp, fromObj, &sfop.pFrom, NULL) != TCL_OK
         ||
-        ObjToMultiSzEx(interp, toObj, &sfop.pTo, sws) != TCL_OK
+        ObjToMultiSzSWS(interp, toObj, &sfop.pTo, NULL) != TCL_OK
         )
         goto vamoose;
      

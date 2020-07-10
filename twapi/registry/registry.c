@@ -8,9 +8,6 @@
 #include "twapi.h"
 #include <shlwapi.h>
 
-/* Old SDK's are missing this prototype */
-LWSTDAPI_(DWORD) SHCopyKeyW(HKEY hkeySrc, LPCWSTR wszSrcSubKey, HKEY hkeyDest, DWORD fReserved);
-
 #ifndef TWAPI_SINGLE_MODULE
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
@@ -36,6 +33,8 @@ MAKE_DYNLOAD_FUNC(RegDeleteKeyExW, advapi32, FARPROC)
 MAKE_DYNLOAD_FUNC(RegDeleteTreeW, advapi32, FARPROC)
 MAKE_DYNLOAD_FUNC(RegEnableReflectionKey, advapi32, FARPROC)
 MAKE_DYNLOAD_FUNC(RegDisableReflectionKey, advapi32, FARPROC)
+MAKE_DYNLOAD_FUNC(SHDeleteKeyW, shlwapi, FARPROC)
+MAKE_DYNLOAD_FUNC(SHCopyKeyW, shlwapi, FARPROC)
 
 static int TwapiRegEnumKeyEx(Tcl_Interp *interp, HKEY hkey)
 {
@@ -390,18 +389,33 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         break;
 
     case 6: // RegDeleteTree
-#ifdef NOTYET
- Even SHDeleteKey does not exist on VC++ 6 as of SP5
+    /* 
+     * Ideally we want to use RegDeleteTree. That does not exist 
+     * on older systems so we use SHDeleteKey. That is not included
+     * on VC++ 6 SP5 so we have to dynamically load everything.
+     */
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(hkey, HKEY), GETWSTR(subkey),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        /* RegDeleteTree does not exist on XP/2K. Use SHDeleteKey */
-        result.value.ival = SHDeleteKeyW(hkey, subkey);
-        if (result.value.ival == ERROR_SUCCESS)
-            result.type = TRT_EMPTY;
-#endif
+        else {
+            FARPROC func = Twapi_GetProc_RegDeleteTreeW();
+            if (func == NULL)
+                func = Twapi_GetProc_SHDeleteKeyW();
+            if (func) {
+                result.value.ival = func(hkey, subkey);
+                if (result.value.ival == ERROR_SUCCESS)
+                    result.type = TRT_EMPTY;
+            }
+            else {
+                /* If the Ex call is not supported, the samDesired param
+                * does not matter. Use legacy api
+                */
+                result.value.ival = RegDeleteKey(hkey, subkey);
+            }
+        }
         break;
+
     case 7: // RegEnumKeyEx
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(hkey, HKEY),
@@ -473,8 +487,6 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         break;
 
     case 13: // SHCopyKey
-#ifdef NOTYET
-VC++ 6 SP5 does not even have SHCopyKey
         /* XP does not have RegCopyTree. Use ShCopyKey instead */
         /* NOTE: Latter does NOT copy security descriptors! */
         if (TwapiGetArgs(interp, objc, objv,
@@ -482,10 +494,16 @@ VC++ 6 SP5 does not even have SHCopyKey
                          GETHANDLET(hkey2, HKEY),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        result.value.ival = SHCopyKeyW(hkey, subkey, hkey2, 0);
-        if (result.value.ival == ERROR_SUCCESS)
-            result.type = TRT_EMPTY;
-#endif
+        else {
+            FARPROC func = Twapi_GetProc_SHCopyKeyW();
+            if (func) {
+                result.value.ival = func(hkey, subkey, hkey2, 0);
+                if (result.value.ival == ERROR_SUCCESS)
+                    result.type = TRT_EMPTY;
+            } else {
+                result.value.ival = ERROR_PROC_NOT_FOUND;
+            }
+        }
         break;
 
     case 14: // RegOpenUserClassesRoot
