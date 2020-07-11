@@ -867,13 +867,12 @@ typedef int (*TwapiGetArgsFn)(Tcl_Interp *, Tcl_Obj *, void *);
  * Registry value type
  */
 typedef struct TwapiRegValue {
-    DWORD value_type; /* REG_* */
-    DWORD value_size;
+    void *bytes;
+    DWORD size;
+    DWORD type; /* REG_* */
     union {
-        WCHAR         *ws;
         LONG           lval;
         Tcl_WideInt    wide;
-        unsigned char *bytes;
     } u;
 } TwapiRegValue;
 
@@ -1619,8 +1618,8 @@ TWAPI_EXTERN Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
 TWAPI_EXTERN Tcl_Obj *ObjFromRegValueCooked(Tcl_Interp *interp, int regtype,
                                BYTE *bufP, int count);
 TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(Tcl_Interp *   interp,
+                                         Tcl_Obj *      typeObj,
                                          Tcl_Obj *      objP,
-                                         const char *   typestr,
                                          TwapiRegValue *valueP);
 TWAPI_EXTERN int ObjToRECT (Tcl_Interp *interp, Tcl_Obj *obj, RECT *rectP);
 TWAPI_EXTERN int ObjToRECT_NULL (Tcl_Interp *interp, Tcl_Obj *obj, RECT **rectPP);
