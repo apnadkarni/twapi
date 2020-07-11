@@ -636,25 +636,43 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         }
         break;
 
-    case 111: // RegCloseKey
-    case 112: // RegDisableReflectionKey
-    case 113: // RegEnableReflectionKey
-    case 114: // RegFlushKey
+    case 22:
+        if (TwapiGetArgs(interp,
+                         objc,
+                         objv,
+                         GETHANDLET(hkey, HKEY),
+                         GETINT(dw),
+                         GETINT(dw2),
+                         ARGUSEDEFAULT,
+                         GETHANDLE(h))
+            != TCL_OK)
+            return TCL_ERROR;
+        dw3 = h != NULL;
+        result.value.ival = RegNotifyChangeKeyValue(hkey, dw, dw2, h, dw3);
+        if (result.value.ival == ERROR_SUCCESS)
+            result.type = TRT_EMPTY;
+        break;
+
+    case 25: // RegCloseKey
+    case 26: // RegDisableReflectionKey
+    case 27: // RegEnableReflectionKey
+    case 28: // RegFlushKey
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(hkey, HKEY), ARGEND) != TCL_OK)
             return TCL_ERROR;
         else {
             FARPROC func;
             switch (func_code) {
-            case 111:
+            case 25:
                 func = RegCloseKey;
-            case 112:
+                break;
+            case 26:
                 func = Twapi_GetProc_RegDisableReflectionKey();
                 break;
-            case 113:
+            case 27:
                 func = Twapi_GetProc_RegEnableReflectionKey();
                 break;
-            case 114:
+            case 28:
                 func = RegFlushKey;
                 break;
             }
@@ -700,12 +718,11 @@ static int TwapiRegInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(RegReplaceKey, 19),
         DEFINE_FNCODE_CMD(RegRestoreKey, 20),
         DEFINE_FNCODE_CMD(RegSetValueEx, 21),
-
-        DEFINE_FNCODE_CMD(RegCloseKey, 111),
-        DEFINE_FNCODE_CMD(RegDisableReflectionKey, 112),
-        DEFINE_FNCODE_CMD(RegEnableReflectionKey, 113),
-        DEFINE_FNCODE_CMD(RegFlushKey, 114),
-
+        DEFINE_FNCODE_CMD(RegNotifyChangeKeyValue, 22),
+        DEFINE_FNCODE_CMD(RegCloseKey, 25),
+        DEFINE_FNCODE_CMD(RegDisableReflectionKey, 26),
+        DEFINE_FNCODE_CMD(RegEnableReflectionKey, 27),
+        DEFINE_FNCODE_CMD(RegFlushKey, 28),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(RegDispatch), RegDispatch, Twapi_RegCallObjCmd);
