@@ -1833,8 +1833,8 @@ badformat:
  */
 TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(
     Tcl_Interp *interp, 
+    Tcl_Obj *typeObj,
     Tcl_Obj *objP, 
-    const char *typestr,
     TwapiRegValue *valueP
     )
 {
@@ -1842,6 +1842,7 @@ TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(
     LONG        n;
     LPWSTR      ws;
     Tcl_WideInt wide;
+    const char *typestr = ObjToString(typeObj);
 
     for (regtype = 0; regtype < ARRAYSIZE(gRegTypeNames); ++regtype) {
         if (!strcmp(typestr, gRegTypeNames[regtype]))
@@ -1855,13 +1856,13 @@ TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(
         return TCL_ERROR;
     }
 
-    valueP->value_type = regtype;
+    valueP->type = regtype;
     switch (regtype) {
     case REG_LINK: // FALLTHRU
     case REG_SZ: // FALLTHRU
     case REG_EXPAND_SZ:
-        valueP->u.ws       = ObjToWinCharsN(objP, &n);
-        valueP->value_size = sizeof(WCHAR) * (n + 1); /* Include \0 */
+        valueP->bytes = ObjToWinCharsN(objP, &n);
+        valueP->size  = sizeof(WCHAR) * (n + 1); /* Include \0 */
         break;
             
     case REG_DWORD_BIG_ENDIAN:
@@ -1870,23 +1871,25 @@ TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(
             return TCL_ERROR;
         if (regtype == REG_DWORD_BIG_ENDIAN)
             n = swap4(n);
-
-        valueP->u.lval     = n;
-        valueP->value_size = 4;
+        valueP->u.lval = n;
+        valueP->size   = sizeof(valueP->u.lval);
+        valueP->bytes  = &valueP->u.lval;
         break;
 
     case REG_QWORD:
         if (ObjToWideInt(interp, objP, &wide) != TCL_OK)
             return TCL_ERROR;
-        valueP->u.wide     = wide;
-        valueP->value_size = 8;
+        valueP->u.wide = wide;
+        valueP->size   = sizeof(valueP->u.wide);
+        valueP->bytes  = &valueP->u.wide;
         break;
 
     case REG_MULTI_SZ:
+        /* NOTE - SWS allocation, caller has to free */
         if (ObjToMultiSzSWS(interp, objP, &ws, &n) != TCL_OK)
             return TCL_ERROR;
-        valueP->u.ws = ws;
-        valueP->value_size = n;
+        valueP->bytes = ws;
+        valueP->size = n;
         break;
 
     case REG_BINARY:
@@ -1894,7 +1897,7 @@ TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(
     case REG_FULL_RESOURCE_DESCRIPTOR:
     case REG_RESOURCE_REQUIREMENTS_LIST:
     default:
-        valueP->u.bytes = ObjToByteArray(objP, &valueP->value_size);
+        valueP->bytes = ObjToByteArray(objP, &valueP->size);
         break;
     }
 
