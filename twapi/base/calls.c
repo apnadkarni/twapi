@@ -34,10 +34,11 @@ TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
     WCHAR     *uval;
 #endif
     char      *sval;
-    TwapiGetArgsFn converter_fn;
     int        len;
     int        use_default = 0;
-    void       *pv;
+    HKEY       hkey;
+    void      *pv;
+    TwapiGetArgsFn converter_fn;
 
     for (argno = -1; fmtch != ARGEND && fmtch != ARGTERM; fmtch = va_arg(ap, int)) {
         if (fmtch == ARGUSEDEFAULT) {
@@ -111,7 +112,6 @@ TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             if (p)
                 *(void **)p = ptrval;
             break;
-            
         case ARGPTR:
             typeP = va_arg(ap, char *);
             ptrval = NULL;
@@ -126,6 +126,13 @@ TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                 goto argerror;
             if (p)
                 *(DWORD_PTR *)p = dwval;
+            break;
+        case ARGHKEY:
+            hkey = NULL; /* TBD - appropriate default ? */
+            if (objP && ObjToHKEY(interp, objP, &hkey) != TCL_OK)
+                goto argerror;
+            if (p)
+                *(HKEY *)p = hkey;
             break;
         case ARGASTR: // char string
             if (p)
@@ -144,6 +151,7 @@ TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             break;
 
 #ifdef UNSAFE
+            /* THese are unsafe because of shimmering possibility */
         case ARGBIN: // bytearray
             lenP = va_arg(ap, int *);
             if (p || lenP) {
@@ -195,7 +203,7 @@ TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             if (p)
                 *(short *)p = (short) ival;
             break;
-            
+
         case ARGVAR: // Does not handle default.
             if (objP == NULL) {
                 ObjSetStaticResult(interp, "Default values invalid used for ARGVAR types.");
@@ -287,11 +295,12 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     double     dblval;
     WCHAR     *uval;
     char      *sval;
-    TwapiGetArgsFn converter_fn;
     int        len;
     int        use_default = 0;
-    int        *iP;
-    void       *pv;
+    HKEY       hkey;
+    int       *iP;
+    void      *pv;
+    TwapiGetArgsFn converter_fn;
 
     for (argno = -1; fmtch != ARGEND && fmtch != ARGTERM; fmtch = va_arg(ap, int)) {
         if (fmtch == ARGUSEDEFAULT) {
@@ -380,7 +389,6 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
             if (p)
                 *(void **)p = ptrval;
             break;
-            
         case ARGPTR:
             typeP = va_arg(ap, char *);
             ptrval = NULL;
@@ -395,6 +403,13 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
                 goto argerror;
             if (p)
                 *(DWORD_PTR *)p = dwval;
+            break;
+        case ARGHKEY:
+            hkey = NULL; /* TBD - appropriate default ? */
+            if (objP && ObjToHKEY(interp, objP, &hkey) != TCL_OK)
+                goto argerror;
+            if (p)
+                *(HKEY *)p = hkey;
             break;
         case ARGASTR: // char string
             /* We do not copy into separate memlifo space since the string
@@ -459,7 +474,6 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
             if (p)
                 *(short *)p = (short) ival;
             break;
-            
         case ARGVAR: // Does not handle default.
             if (objP == NULL) {
                 ObjSetStaticResult(interp, "Default values invalid used for ARGVAR types.");
@@ -580,7 +594,7 @@ static TCL_RESULT Twapi_CallNoargsObjCmd(ClientData clientdata, Tcl_Interp *inte
         SYSTEM_POWER_STATUS power_status;
     } u;
     int func = PtrToInt(clientdata);
-    
+
     if (objc != 1)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
@@ -687,7 +701,6 @@ static int Twapi_CallIntArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         RPC_STATUS rpc_status;
         MemLifo *lifoP;
         WCHAR buf[MAX_PATH+1];
-        HKEY hkey;
     } u;
 
     if (objc != 2)
@@ -850,7 +863,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.type = TRT_OBJ;
         result.value.obj = ObjFromULONGLONGHex(u.wide);
         break;
-        
+
     case 1006: // reveal
         mark = SWSPushMark();
         s = ObjDecryptWinCharsSWS(interp, objv[0], &i);
@@ -1007,7 +1020,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     }
 
     res = TwapiSetResult(interp, &result);
-    
+
 vamoose:
     /* Interpreter result must be set. res must contain return code */
     if (mark)
@@ -1027,10 +1040,6 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         struct {
             HWND hwnd;
             HWND hwnd2;
-        };
-        struct {
-            HKEY hkey;
-            HKEY hkey2;
         };
         LSA_OBJECT_ATTRIBUTES lsa_oattr;
         FARPROC fn;
@@ -1170,7 +1179,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         result.type = TRT_HWND;
         result.value.hval =
             FindWindowExW(u.hwnd, u.hwnd2,
-                          ObjToLPWSTR_NULL_IF_EMPTY(objv[2]),                
+                          ObjToLPWSTR_NULL_IF_EMPTY(objv[2]),
                           ObjToLPWSTR_NULL_IF_EMPTY(objv[3]));
         break;
     case 10015:
@@ -1189,7 +1198,6 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             result.value.ival = dw2;
         }
         break;
-            
     case 10017:
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLET(u.hwnd, HWND), GETINT(dw),
@@ -1486,7 +1494,7 @@ static int Twapi_CallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc,
     MemLifoMarkHandle mark;
 #endif
     int i;
-    
+
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
     CHECK_INTEGER_OBJ(interp, func, objv[1]);
@@ -1914,7 +1922,7 @@ static TCL_RESULT Twapi_ReadMemoryObjCmd(ClientData clientdata, Tcl_Interp *inte
         }
         objP = ObjFromStringN((char*) p, len);
         break;
-        
+
     case 3:                     /* wide chars */
         if (len > 0)
             len /= sizeof(WCHAR); /* Convert to num chars */
@@ -1928,7 +1936,7 @@ static TCL_RESULT Twapi_ReadMemoryObjCmd(ClientData clientdata, Tcl_Interp *inte
         }
         objP = ObjFromWinCharsN(wp, len);
         break;
-        
+
     case 4:                     /* pointer */
         objP = ObjFromLPVOID(*(void* *) p);
         break;
@@ -2013,7 +2021,7 @@ static TCL_RESULT Twapi_WriteMemoryObjCmd(ClientData clientdata, Tcl_Interp *int
     default:
         ObjSetStaticResult(interp, "Unknown type.");
         return TCL_ERROR;
-    }        
+    }
 
     return TCL_OK;
 
@@ -2073,7 +2081,7 @@ static TCL_RESULT Twapi_CredPrompt(ClientData clientdata, Tcl_Obj *uiObj, int ob
                                      GETHANDLET(cui.hbmBanner, HBITMAP),
                                      ARGEND)) != TCL_OK)
                 goto vamoose;
-        
+
             cui.cbSize = sizeof(cui);
             cuiP = &cui;
         }
@@ -2172,7 +2180,7 @@ void TwapiDefineFncodeCmds(Tcl_Interp *interp, int count,
                                         struct fncode_dispatch_s *tabP, TwapiTclObjCmd *cmdfn)
 {
     Tcl_DString ds;
-    
+
     Tcl_DStringInit(&ds);
     Tcl_DStringAppend(&ds, "twapi::", ARRAYSIZE("twapi::")-1);
 
@@ -2191,7 +2199,7 @@ void TwapiDefineTclCmds(Tcl_Interp *interp, int count,
     )
 {
     Tcl_DString ds;
-    
+
     Tcl_DStringInit(&ds);
     Tcl_DStringAppend(&ds, "twapi::", ARRAYSIZE("twapi::")-1);
 
@@ -2206,7 +2214,7 @@ void TwapiDefineTclCmds(Tcl_Interp *interp, int count,
 void TwapiDefineAliasCmds(Tcl_Interp *interp, int count, struct alias_dispatch_s *tabP, const char *aliascmd)
 {
     Tcl_DString ds;
-    
+
     Tcl_DStringInit(&ds);
     Tcl_DStringAppend(&ds, "twapi::", ARRAYSIZE("twapi::")-1);
 

@@ -7,4 +7,5 @@
 namespace eval twapi {}
 
 
-proc twapi::reg_open {} {}
+proc twapi::open_registry_key {} {
+}

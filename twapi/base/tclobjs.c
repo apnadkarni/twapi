@@ -2035,6 +2035,39 @@ TWAPI_EXTERN TCL_RESULT ObjToLPVOID(Tcl_Interp *interp, Tcl_Obj *objP, HANDLE *p
     return ObjToOpaque(interp, objP, pvP, NULL);
 }
 
+TWAPI_EXTERN TCL_RESULT ObjToHKEY(Tcl_Interp *interp, Tcl_Obj *objP, HKEY *hkeyP)
+{
+    const char *s;
+    int i;
+    static struct {const char *keyname; HKEY key;} hkeymap[] = {
+        {"HKEY_LOCAL_MACHINE", HKEY_LOCAL_MACHINE},
+        {"HKEY_CLASSES_ROOT", HKEY_CLASSES_ROOT},
+        {"HKEY_CURRENT_USER", HKEY_CURRENT_USER},
+        {"HKEY_LOCAL_MACHINE", HKEY_LOCAL_MACHINE},
+        {"HKEY_USERS", HKEY_USERS},
+        {"HKEY_PERFORMANCE_DATA", HKEY_PERFORMANCE_DATA},
+        {"HKEY_PERFORMANCE_TEXT", HKEY_PERFORMANCE_TEXT},
+        {"HKEY_PERFORMANCE_NLSTEXT", HKEY_PERFORMANCE_NLSTEXT},
+        {"HKEY_CURRENT_CONFIG", HKEY_CURRENT_CONFIG},
+        {"HKEY_DYN_DATA", HKEY_DYN_DATA},
+        {"HKEY_CURRENT_USER", HKEY_CURRENT_USER},
+    };
+    if (ObjToOpaque(NULL, objP, hkeyP, "HKEY") == TCL_OK)
+        return TCL_OK;
+    s = Tcl_GetString(objP);
+    for (i = 0; i < ARRAYSIZE(hkeymap); ++i) {
+        if (lstrcmpiA(s,hkeymap[i].keyname) == 0) {
+            *hkeyP = hkeymap[i].key;
+            return TCL_OK;
+        }
+    }
+
+    if (interp)
+        Tcl_AppendResult(interp, "Invalid HKEY value '",
+                         s, "'.", NULL);
+    return TCL_ERROR;
+}
+
 /* Converts a Tcl_Obj to a pointer of any of the specified types */
 TWAPI_EXTERN TCL_RESULT ObjToOpaqueMulti(Tcl_Interp *interp, Tcl_Obj *obj, void **pvP, int ntypes, char **types)
 {

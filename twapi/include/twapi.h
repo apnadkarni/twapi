@@ -812,6 +812,7 @@ typedef struct {
 #define ARGEMPTYASNULL 'E'
 #define ARGINT     'i'
 #define ARGWIDE    'I'
+#define ARGHKEY    'k'
 #define ARGTOKENNULL 'N'
 #define ARGOBJ     'o'
 #define ARGPTR      'p'
@@ -852,6 +853,7 @@ typedef struct {
 #define GETVERIFIEDORNULL(v, typesym, verifier)    ARGVERIFIEDORNULL, &(v), #typesym, (verifier)
 #define GETHANDLE(v)   GETVOIDP(v)
 #define GETHANDLET(v, typesym) GETPTR(v, typesym)
+#define GETHKEY(v)     ARGHKEY, &(v)
 #define GETHWND(v) GETHANDLET(v, HWND)
 #define GETVAR(v, fn)  ARGVAR, &(v), fn
 #define GETVARWITHDEFAULT(v, fn)  ARGVARWITHDEFAULT, &(v), fn
@@ -1439,9 +1441,10 @@ TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointerOrNullTic(TwapiInterpContext *, Tcl_
 TWAPI_EXTERN TCL_RESULT ObjToLPVOID(Tcl_Interp *interp, Tcl_Obj *objP, HANDLE *pvP);
 #define ObjToHANDLE ObjToLPVOID
 
+TWAPI_EXTERN TCL_RESULT ObjToHKEY(Tcl_Interp *interp, Tcl_Obj *objP, HKEY *hkeyP);
 TWAPI_INLINE TCL_RESULT ObjToHWND(Tcl_Interp *ip, Tcl_Obj *objP, HWND *pvP) {
     return ObjToOpaque(ip, objP, (void **)pvP, "HWND");
-}        
+}
 
 TWAPI_INLINE TCL_RESULT ObjToHMODULE(Tcl_Interp *ip, Tcl_Obj *objP, HMODULE *pvP) {
     return ObjToOpaque(ip, objP, (void **)pvP, "HMODULE");
