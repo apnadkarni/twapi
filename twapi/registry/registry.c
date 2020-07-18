@@ -305,7 +305,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     switch (func_code) {
     case 1: // RegOpenKeyEx
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY), GETOBJ(subkeyObj),
+                         GETHKEY(hkey), GETOBJ(subkeyObj),
                          GETINT(dw), GETINT(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -321,7 +321,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         secattrP = NULL;
         mark = SWSPushMark();
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY),
+                         GETHKEY(hkey),
                          GETOBJ(subkeyObj), GETINT(dw), ARGSKIP, GETINT(dw2),
                          GETINT(dw3),
                          GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
@@ -350,7 +350,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 3: // RegDeleteKeyValue
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY),
+                         GETHKEY(hkey),
                          GETOBJ(subkeyObj), GETOBJ(objP),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -372,7 +372,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         if (TwapiGetArgs(interp,
                          objc,
                          objv,
-                         GETHANDLET(hkey, HKEY),
+                         GETHKEY(hkey),
                          GETOBJ(subkeyObj),
                          ARGUSEDEFAULT,
                          GETINT(dw),
@@ -397,7 +397,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 5: // RegDeleteValue
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY), GETOBJ(objP),
+                         GETHKEY(hkey), GETOBJ(objP),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.ival = RegDeleteValueW(hkey, ObjToWinChars(objP));
@@ -412,7 +412,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
      * on VC++ 6 SP5 so we have to dynamically load everything.
      */
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY), GETOBJ(subkeyObj),
+                         GETHKEY(hkey), GETOBJ(subkeyObj),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         else {
@@ -435,7 +435,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 7: // RegEnumKeyEx
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY),
+                         GETHKEY(hkey),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_TCL_RESULT;
@@ -444,7 +444,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 8: // RegEnumValue
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY), GETINT(dw),
+                         GETHKEY(hkey), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_TCL_RESULT;
@@ -470,7 +470,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 11: // RegGetKeySecurity
         if (TwapiGetArgs(
-                interp, objc, objv, GETHANDLET(hkey, HKEY), GETINT(dw), ARGEND)
+                interp, objc, objv, GETHKEY(hkey), GETINT(dw), ARGEND)
             != TCL_OK)
             return TCL_ERROR;
         mark              = SWSPushMark();
@@ -494,7 +494,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 12: // RegQueryValueEx
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY),
+                         GETHKEY(hkey),
                          GETOBJ(objP), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -507,8 +507,8 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         /* XP does not have RegCopyTree. Use ShCopyKey instead */
         /* NOTE: Latter does NOT copy security descriptors! */
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY), GETOBJ(subkeyObj), 
-                         GETHANDLET(hkey2, HKEY),
+                         GETHKEY(hkey), GETOBJ(subkeyObj), 
+                         GETHKEY(hkey2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         else {
@@ -537,7 +537,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 15: // RegOverridePredefKey
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY), GETHANDLET(hkey2, HKEY),
+                         GETHKEY(hkey), GETHKEY(hkey2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.ival = RegOverridePredefKey(hkey, hkey2);
@@ -549,7 +549,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         secattrP = NULL;
         mark = SWSPushMark();
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY),
+                         GETHKEY(hkey),
                          GETOBJ(objP),
                          GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
                          GETINT(dw),
@@ -566,7 +566,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 17: // RegLoadKey
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY), GETOBJ(subkeyObj),
+                         GETHKEY(hkey), GETOBJ(subkeyObj),
                          GETOBJ(objP), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.ival
@@ -577,7 +577,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 18: // RegUnLoadKey
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY), GETOBJ(subkeyObj),
+                         GETHKEY(hkey), GETOBJ(subkeyObj),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.ival = RegUnLoadKeyW(hkey, ObjToWinChars(subkeyObj));
@@ -587,7 +587,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 19: // RegReplaceKey
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY), GETOBJ(subkeyObj),
+                         GETHKEY(hkey), GETOBJ(subkeyObj),
                          GETOBJ(objP), GETOBJ(obj2P),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -601,7 +601,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 20: // RegRestoreKey
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY),
+                         GETHKEY(hkey),
                          GETOBJ(objP), GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -612,7 +612,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 21: // RegSetValueEx
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY), GETOBJ(nameObj),
+                         GETHKEY(hkey), GETOBJ(nameObj),
                          GETOBJ(objP), GETOBJ(obj2P),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -640,7 +640,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         if (TwapiGetArgs(interp,
                          objc,
                          objv,
-                         GETHANDLET(hkey, HKEY),
+                         GETHKEY(hkey),
                          GETINT(dw),
                          GETINT(dw2),
                          ARGUSEDEFAULT,
@@ -658,7 +658,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     case 27: // RegEnableReflectionKey
     case 28: // RegFlushKey
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hkey, HKEY), ARGEND) != TCL_OK)
+                         GETHKEY(hkey), ARGEND) != TCL_OK)
             return TCL_ERROR;
         else {
             FARPROC func;
