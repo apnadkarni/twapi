@@ -374,7 +374,6 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          objv,
                          GETHKEY(hkey),
                          GETOBJ(subkeyObj),
-                         ARGUSEDEFAULT,
                          GETINT(dw),
                          ARGEND)
             != TCL_OK)
@@ -469,6 +468,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         break;
 
     case 11: // RegGetKeySecurity
+#if 0 // Already available via GetSecurityInfo
         if (TwapiGetArgs(
                 interp, objc, objv, GETHKEY(hkey), GETINT(dw), ARGEND)
             != TCL_OK)
@@ -490,12 +490,13 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
             }
         }
         SWSPopMark(mark);
+#endif
         break;
 
     case 12: // RegQueryValueEx
         if (TwapiGetArgs(interp, objc, objv,
                          GETHKEY(hkey),
-                         GETOBJ(objP), GETINT(dw),
+                         GETOBJ(objP), ARGUSEDEFAULT, GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_TCL_RESULT;
@@ -664,7 +665,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
             FARPROC func;
             switch (func_code) {
             case 25:
-                func = RegCloseKey;
+                func = (FARPROC) RegCloseKey;
                 break;
             case 26:
                 func = Twapi_GetProc_RegDisableReflectionKey();
@@ -673,7 +674,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                 func = Twapi_GetProc_RegEnableReflectionKey();
                 break;
             case 28:
-                func = RegFlushKey;
+                func = (FARPROC) RegFlushKey;
                 break;
             }
             if (func) {
@@ -703,26 +704,39 @@ static int TwapiRegInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(RegDeleteKeyEx, 4),
         DEFINE_FNCODE_CMD(RegDeleteValue, 5),
         DEFINE_FNCODE_CMD(RegDeleteTree, 6),
+        DEFINE_FNCODE_CMD(reg_delete_tree, 6), // TBD doc and test
         DEFINE_FNCODE_CMD(RegEnumKeyEx, 7),
+        DEFINE_FNCODE_CMD(reg_enum_keys, 7), // TBD doc and test
         DEFINE_FNCODE_CMD(RegEnumValue, 8),
         DEFINE_FNCODE_CMD(RegOpenCurrentUser, 9),
         DEFINE_FNCODE_CMD(RegDisablePredefinedCache, 10),
+        DEFINE_FNCODE_CMD(reg_disable_predefined_cache, 10),
         DEFINE_FNCODE_CMD(RegGetKeySecurity, 11),
         DEFINE_FNCODE_CMD(RegQueryValueEx, 12),
+        DEFINE_FNCODE_CMD(reg_value_get, 12), // TBD doc and test
         DEFINE_FNCODE_CMD(SHCopyTree, 13),
+        DEFINE_FNCODE_CMD(reg_key_copy, 13), // TBD doc and test
         DEFINE_FNCODE_CMD(RegOpenUserClassesRoot, 14),
-        DEFINE_FNCODE_CMD(RegOverridedPredefKey, 15),
+        DEFINE_FNCODE_CMD(RegOverridePredefKey, 15),
+        DEFINE_FNCODE_CMD(reg_key_predef_override, 15), // TBD doc and test
         DEFINE_FNCODE_CMD(RegSaveKeyEx, 16),
         DEFINE_FNCODE_CMD(RegLoadKey, 17),
+        DEFINE_FNCODE_CMD(reg_key_load, 17), // TBD doc and test
         DEFINE_FNCODE_CMD(RegUnLoadKey, 18),
+        DEFINE_FNCODE_CMD(reg_key_unload, 18), // TBD doc and test
         DEFINE_FNCODE_CMD(RegReplaceKey, 19),
+        DEFINE_FNCODE_CMD(reg_key_replace, 19), // TBD doc and test
         DEFINE_FNCODE_CMD(RegRestoreKey, 20),
         DEFINE_FNCODE_CMD(RegSetValueEx, 21),
         DEFINE_FNCODE_CMD(RegNotifyChangeKeyValue, 22),
         DEFINE_FNCODE_CMD(RegCloseKey, 25),
+        DEFINE_FNCODE_CMD(reg_key_close, 25), // TBD doc and test
         DEFINE_FNCODE_CMD(RegDisableReflectionKey, 26),
+        DEFINE_FNCODE_CMD(reg_key_disable_reflection, 26), // TBD doc and test
         DEFINE_FNCODE_CMD(RegEnableReflectionKey, 27),
+        DEFINE_FNCODE_CMD(reg_key_enable_reflection, 27), // TBD doc and test
         DEFINE_FNCODE_CMD(RegFlushKey, 28),
+        DEFINE_FNCODE_CMD(reg_key_flush, 28),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(RegDispatch), RegDispatch, Twapi_RegCallObjCmd);
