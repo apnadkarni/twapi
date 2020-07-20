@@ -207,12 +207,13 @@ TCL_RESULT SetOpaqueFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
 
     /* For backward compat with SWIG based script, we accept NULL
        as a valid pointer of any type and for convenience 0 as well */
+    /* TBD - since list format is more likely, check that first */
     s = ObjToString(objP);
     if (STREQ(s, "NULL") ||
         (ObjToLong(NULL, objP, &lval) == TCL_OK && lval == 0)) {
         pv = NULL;
         ctype = NULL;
-    } else {        
+    } else {
         DWORD_PTR dwp;
 
         /* Should be a two element list */
@@ -1795,7 +1796,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromRegValueCooked(Tcl_Interp *interp, int regtype,
             }
         }
         break;
-            
+
     case REG_DWORD_BIG_ENDIAN:
         if (count != 4)
             goto badformat;

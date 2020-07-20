@@ -193,3 +193,27 @@ proc twapi::reg_restore_from_file {hkey filepath args} {
     } -setvars
     RegRestoreKey $hkey $filepath [expr {$force | $volatile}]
 }
+
+proc twapi::reg_key_monitor {hkey args} {
+    parseargs arg {
+        {keys.bool 0 0x1}
+        {attr.bool 0 0x2}
+        {values.bool 0 0x4}
+        {secd.bool 0 0x8}
+        {subtree.bool 0}
+        hevent.arg
+    } -setvars
+
+    set filter [expr {$keys | $attr | $values | $secd}]
+    if {$filter == 0} {
+        set filter $0xf
+    }
+
+    if {[info exists hevent]} {
+        set async 1
+    } else {
+        set async 0
+        set hevent $::twapi::nullptr
+    }
+    RegNotifyChangeKeyValue $hkey $subtree $filter $hevent $async
+}
