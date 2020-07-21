@@ -293,10 +293,6 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     TwapiResult          result;
     int                  func_code = PtrToInt(clientdata);
 
-    /* Every command has at least two arguments */
-    if (objc < 3)
-        return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-
     --objc;
     ++objv;
 
@@ -468,7 +464,6 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         break;
 
     case 11: // RegGetKeySecurity
-#if 0 // Already available via GetSecurityInfo
         if (TwapiGetArgs(
                 interp, objc, objv, GETHKEY(hkey), GETINT(dw), ARGEND)
             != TCL_OK)
@@ -490,7 +485,6 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
             }
         }
         SWSPopMark(mark);
-#endif
         break;
 
     case 12: // RegQueryValueEx
@@ -652,6 +646,24 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         result.value.ival = RegNotifyChangeKeyValue(hkey, dw, dw2, h, dw3);
         if (result.value.ival == ERROR_SUCCESS)
             result.type = TRT_EMPTY;
+        break;
+
+    case 23:
+        secdP = NULL;
+        mark = SWSPushMark();
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHKEY(hkey),
+                         GETINT(dw),
+                         GETVAR(secdP, ObjToPSECURITY_DESCRIPTORSWS),
+                         ARGEND) != TCL_OK) {
+            SWSPopMark(mark);
+            return TCL_ERROR;
+        }
+        result.value.ival =
+            RegSetKeySecurity(hkey, dw, secdP);
+        if (result.value.ival == ERROR_SUCCESS)
+            result.type = TRT_EMPTY;
+        SWSPopMark(mark);
         break;
 
     case 25: // RegCloseKey
