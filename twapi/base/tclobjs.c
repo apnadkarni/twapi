@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2015, Ashok P. Nadkarni
+ * Copyright (c) 2010-2020, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -2041,7 +2041,6 @@ TWAPI_EXTERN TCL_RESULT ObjToHKEY(Tcl_Interp *interp, Tcl_Obj *objP, HKEY *hkeyP
     const char *s;
     int i;
     static struct {const char *keyname; HKEY key;} hkeymap[] = {
-        {"HKEY_LOCAL_MACHINE", HKEY_LOCAL_MACHINE},
         {"HKEY_CLASSES_ROOT", HKEY_CLASSES_ROOT},
         {"HKEY_CURRENT_USER", HKEY_CURRENT_USER},
         {"HKEY_LOCAL_MACHINE", HKEY_LOCAL_MACHINE},
@@ -2051,7 +2050,7 @@ TWAPI_EXTERN TCL_RESULT ObjToHKEY(Tcl_Interp *interp, Tcl_Obj *objP, HKEY *hkeyP
         {"HKEY_PERFORMANCE_NLSTEXT", HKEY_PERFORMANCE_NLSTEXT},
         {"HKEY_CURRENT_CONFIG", HKEY_CURRENT_CONFIG},
         {"HKEY_DYN_DATA", HKEY_DYN_DATA},
-        {"HKEY_CURRENT_USER", HKEY_CURRENT_USER},
+        {"HKEY_CURRENT_USER_LOCAL_SETTINGS", HKEY_CURRENT_USER_LOCAL_SETTINGS},
     };
     if (ObjToOpaque(NULL, objP, hkeyP, "HKEY") == TCL_OK)
         return TCL_OK;
