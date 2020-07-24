@@ -7,32 +7,13 @@
 namespace eval twapi {}
 
 
-proc twapi::reg_key_open {hkey subkey args} {
-    parseargs args {
-        {link.bool 0}
-        {access.arg generic_read}
-        32bit
-        64bit
-    } -maxleftover 0 -setvars
-
-    set access [_access_rights_to_mask $access]
-    # Note: Following might be set via -access as well. The -32bit and -64bit
-    # options just make it a little more convenient for caller
-    if {$32bit} {
-        set access [expr {$access | 0x200}]
-    }
-    if {$64bit} {
-        set access [expr {$access | 0x100}]
-    }
-    return [RegOpenKeyEx $hkey $subkey $link $access]
-}
-
 proc twapi::reg_key_create {hkey subkey args} {
     parseargs args {
         {access.arg generic_read}
         {inherit.bool 0}
         {secd.arg ""}
         {volatile.bool 0 0x1}
+        {link.bool 0 0x2}
         {backup.bool 0 0x4}
         32bit
         64bit
@@ -56,19 +37,79 @@ proc twapi::reg_key_create {hkey subkey args} {
                  [expr {$volatile | $backup}] \
                  $access \
                  [_make_secattr $opts(secd) $inherit] \
-                ] hkey created
+                ] hkey disposition_value
     if {[info exists disposition]} {
-        upvar 1 $disposition created_flags
-        set created_flag $created
+        upvar 1 $disposition created_or_existed
+        if {$disposition_value == 1} {
+            set created_or_existed created
+        } else {
+            # disposition_value == 2
+            set created_or_existed existed
+        }
     }
     return $hkey
 }
 
-proc twapi::reg_value_delete {hkey value_name {subkey {}}} {
-    if {$subkey eq ""} {
-        RegDeleteValue $hkey $value_name
+proc twapi::reg_key_delete {hkey subkey args} {
+    parseargs args {
+        32bit
+        64bit
+    } -maxleftover 0 -setvars
+
+    # TBD - document options after adding tests
+    set access 0
+    if {$32bit} {
+        set access [expr {$access | 0x200}]
+    }
+    if {$64bit} {
+        set access [expr {$access | 0x100}]
+    }
+
+    RegDeleteKeyEx $hkey $subkey $access
+}
+
+proc twapi::reg_keys {hkey {pattern {}}} {
+    if {$pattern eq ""} {
+        lmap keyrec [RegEnumKeyEx $hkey] {
+            lindex $keyrec 0
+        }
     } else {
-        RegDeleteKeyValue $hkey $subkey $value_name
+        lmap keyrec [RegEnumKeyEx $hkey] {
+            if {![string match -nocase $pattern [lindex $keyrec 0]]} {
+                continue
+            }
+            lindex $keyrec 0
+        }
+    }
+}
+
+proc twapi::reg_key_open {hkey subkey args} {
+    parseargs args {
+        {link.bool 0}
+        {access.arg generic_read}
+        32bit
+        64bit
+    } -maxleftover 0 -setvars
+
+    set access [_access_rights_to_mask $access]
+    # Note: Following might be set via -access as well. The -32bit and -64bit
+    # options just make it a little more convenient for caller
+    if {$32bit} {
+        set access [expr {$access | 0x200}]
+    }
+    if {$64bit} {
+        set access [expr {$access | 0x100}]
+    }
+    return [RegOpenKeyEx $hkey $subkey $link $access]
+}
+
+proc twapi::reg_value_delete {hkey args} {
+    if {[llength $args] == 1} {
+        RegDeleteValue $hkey [lindex $args 0]
+    } elseif {[llength $args] == 2} {
+        RegDeleteKeyValue $hkey {*}$args
+    } else {
+        error "Wrong # args: should be \"reg_value_delete ?SUBKEY? VALUENAME\""
     }
 }
 
@@ -107,32 +148,40 @@ proc twapi::reg_set_qword {hkey value_name value} {
     RegSetValueEx $hkey $value_name qword $value
 }
 
-proc twapi::reg_key_delete {hkey subkey args} {
-    parseargs args {
-        32bit
-        64bit
-    } -maxleftover 0 -setvars
-    set access 0
-    if {$32bit} {
-        set access [expr {$access | 0x200}]
+proc twapi::reg_value_names {hkey {pattern {}}} {
+    if {$pattern eq ""} {
+        lmap rec [RegEnumValue $hkey 0] {
+            lindex $rec 0
+        }
+    } else {
+        lmap rec [RegEnumValue $hkey 0] {
+            if {![string match -nocase $pattern [lindex $rec 0]]} {
+                continue
+            }
+            lindex $rec 0
+        }
     }
-    if {$64bit} {
-        set access [expr {$access | 0x100}]
-    }
-
-    RegDeleteKeyEx $hkey $subkey $access
 }
 
-proc twapi::reg_enum_value_names {hkey} {
-    return [RegEnumValue $hkey 0]
-}
-
-proc twapi::reg_enum_values {hkey} {
-    return [RegEnumValue $hkey 1]
+proc twapi::reg_values {hkey {pattern {}}} {
+    set values [list ];         # Actually a dictionary
+    if {$pattern eq ""} {
+        foreach rec [RegEnumValue $hkey 0] {
+            lappend values [lindex $rec 0] [list Type [lindex $rec 1] Value [lindex $rec 2]]
+        }
+    } else {
+        foreach rec [RegEnumValue $hkey 0] {
+            if {![string match -nocase $pattern [lindex $rec 0]]} {
+                continue
+            }
+            lappend values [lindex $rec 0] [list Type [lindex $rec 1] Value [lindex $rec 2]]
+        }
+    }
+    return $values
 }
 
 proc twapi::reg_key_copy {from_hkey subkey to_hkey} {
-    SHCopyKey $from_hkey $subkey $to_hkey
+    RegCopyTree $from_hkey $subkey $to_hkey
 }
 
 proc twapi::reg_open_user {args} {
