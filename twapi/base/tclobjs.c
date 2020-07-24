@@ -2040,6 +2040,9 @@ TWAPI_EXTERN TCL_RESULT ObjToHKEY(Tcl_Interp *interp, Tcl_Obj *objP, HKEY *hkeyP
 {
     const char *s;
     int i;
+#ifndef HKEY_CURRENT_USER_LOCAL_SETTINGS
+#define HKEY_CURRENT_USER_LOCAL_SETTINGS    (( HKEY ) (ULONG_PTR)((LONG)0x80000007) )
+#endif
     static struct {const char *keyname; HKEY key;} hkeymap[] = {
         {"HKEY_CLASSES_ROOT", HKEY_CLASSES_ROOT},
         {"HKEY_CURRENT_USER", HKEY_CURRENT_USER},

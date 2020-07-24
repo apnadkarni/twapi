@@ -36,6 +36,7 @@ MAKE_DYNLOAD_FUNC(RegDeleteTreeW, advapi32, FARPROC)
 MAKE_DYNLOAD_FUNC(RegEnableReflectionKey, advapi32, FARPROC)
 MAKE_DYNLOAD_FUNC(RegDisableReflectionKey, advapi32, FARPROC)
 MAKE_DYNLOAD_FUNC(SHDeleteKeyW, shlwapi, FARPROC)
+MAKE_DYNLOAD_FUNC(SHDeleteValueW, shlwapi, FARPROC)
 MAKE_DYNLOAD_FUNC(SHCopyKeyW, shlwapi, FARPROC)
 
 static int TwapiRegEnumKeyEx(Tcl_Interp *interp, HKEY hkey)
@@ -355,7 +356,10 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         else {
             FARPROC func = Twapi_GetProc_RegDeleteKeyValueW_advapi32();
             if (func == NULL)
-                func = Twapi_GetProc_RegDeleteKeyValueW_kernel32();
+                func = Twapi_GetProc_RegDeleteKeyValueW_kernel32(); {
+                if (func == NULL)
+                    func = Twapi_GetProc_SHDeleteValueW();
+            }
             if (func == NULL)
                 result.value.ival = ERROR_PROC_NOT_FOUND;
             else {
@@ -373,6 +377,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          objv,
                          GETHKEY(hkey),
                          GETOBJ(subkeyObj),
+                         ARGUSEDEFAULT,
                          GETINT(dw),
                          ARGEND)
             != TCL_OK)
@@ -730,9 +735,8 @@ static int TwapiRegInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(RegDeleteKeyEx, 4),
         DEFINE_FNCODE_CMD(RegDeleteValue, 5),
         DEFINE_FNCODE_CMD(RegDeleteTree, 6),
-        DEFINE_FNCODE_CMD(reg_delete_tree, 6), // TBD doc and test
+        DEFINE_FNCODE_CMD(reg_key_prune, 6),
         DEFINE_FNCODE_CMD(RegEnumKeyEx, 7),
-        DEFINE_FNCODE_CMD(reg_enum_keys, 7), // TBD doc and test
         DEFINE_FNCODE_CMD(RegEnumValue, 8),
         DEFINE_FNCODE_CMD(RegOpenCurrentUser, 9),
         DEFINE_FNCODE_CMD(RegDisablePredefinedCache, 10),
