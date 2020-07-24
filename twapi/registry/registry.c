@@ -28,7 +28,9 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 /*
  * Define API not in XP
  */
-MAKE_DYNLOAD_FUNC(RegDeleteKeyValueW, advapi32, FARPROC)
+MAKE_DYNLOAD_FUNC(RegCopyTreeW, advapi32, FARPROC)
+MAKE_DYNLOAD_FUNC2(RegDeleteKeyValueW, advapi32)
+MAKE_DYNLOAD_FUNC2(RegDeleteKeyValueW, kernel32)
 MAKE_DYNLOAD_FUNC(RegDeleteKeyExW, advapi32, FARPROC)
 MAKE_DYNLOAD_FUNC(RegDeleteTreeW, advapi32, FARPROC)
 MAKE_DYNLOAD_FUNC(RegEnableReflectionKey, advapi32, FARPROC)
@@ -351,15 +353,16 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         else {
-            FARPROC func = Twapi_GetProc_RegDeleteKeyValueW();
-            if (func) {
+            FARPROC func = Twapi_GetProc_RegDeleteKeyValueW_advapi32();
+            if (func == NULL)
+                func = Twapi_GetProc_RegDeleteKeyValueW_kernel32();
+            if (func == NULL)
+                result.value.ival = ERROR_PROC_NOT_FOUND;
+            else {
                 result.value.ival
                     = func(hkey, ObjToWinChars(subkeyObj), ObjToWinChars(objP));
                 if (result.value.ival == ERROR_SUCCESS)
                     result.type = TRT_EMPTY;
-            }
-            else {
-                result.value.ival = ERROR_PROC_NOT_FOUND;
             }
         }
         break;
@@ -401,8 +404,8 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         break;
 
     case 6: // RegDeleteTree
-    /* 
-     * Ideally we want to use RegDeleteTree. That does not exist 
+    /*
+     * Ideally we want to use RegDeleteTree. That does not exist
      * on older systems so we use SHDeleteKey. That is not included
      * on VC++ 6 SP5 so we have to dynamically load everything.
      */
@@ -420,10 +423,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                     result.type = TRT_EMPTY;
             }
             else {
-                /* If the Ex call is not supported, the samDesired param
-                * does not matter. Use legacy api
-                */
-                result.value.ival = RegDeleteKey(hkey, ObjToWinChars(subkeyObj));
+                result.value.ival = ERROR_PROC_NOT_FOUND;
             }
         }
         break;
@@ -498,16 +498,18 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
             = TwapiRegQueryValueEx(interp, hkey, ObjToWinChars(objP));
         break;
 
-    case 13: // SHCopyKey
-        /* XP does not have RegCopyTree. Use ShCopyKey instead */
-        /* NOTE: Latter does NOT copy security descriptors! */
+    case 13: // RegCopyTree
         if (TwapiGetArgs(interp, objc, objv,
                          GETHKEY(hkey), GETOBJ(subkeyObj), 
                          GETHKEY(hkey2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         else {
-            FARPROC func = Twapi_GetProc_SHCopyKeyW();
+            FARPROC func = Twapi_GetProc_RegCopyTreeW();
+            /* XP does not have RegCopyTree. Use ShCopyKey instead */
+            /* NOTE: Latter does NOT copy security descriptors! */
+            if (func == NULL)
+                func = Twapi_GetProc_SHCopyKeyW();
             if (func) {
                 result.value.ival = func(hkey, ObjToWinChars(subkeyObj), hkey2, 0);
                 if (result.value.ival == ERROR_SUCCESS)
@@ -666,6 +668,18 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         SWSPopMark(mark);
         break;
 
+    case 24: // RegConnectRegistry
+        if (TwapiGetArgs(interp, objc, objv, 
+                         GETOBJ(objP), GETHKEY(hkey), ARGEND) != TCL_OK) {
+            return TCL_ERROR;
+        }
+        result.value.ival = RegConnectRegistryW(ObjToWinChars(objP), hkey, &hkey2);
+        if (result.value.ival == ERROR_SUCCESS) {
+            result.type = TRT_HKEY;
+            result.value.hval = hkey2;
+        }
+        break;
+
     case 25: // RegCloseKey
     case 26: // RegDisableReflectionKey
     case 27: // RegEnableReflectionKey
@@ -741,6 +755,9 @@ static int TwapiRegInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(RegRestoreKey, 20),
         DEFINE_FNCODE_CMD(RegSetValueEx, 21),
         DEFINE_FNCODE_CMD(RegNotifyChangeKeyValue, 22),
+        DEFINE_FNCODE_CMD(RegKeySetSecurity, 23),
+        DEFINE_FNCODE_CMD(RegConnectRegistry, 24), // TBD doc and test
+        DEFINE_FNCODE_CMD(reg_connect, 24), // TBD doc and test
         DEFINE_FNCODE_CMD(RegCloseKey, 25),
         DEFINE_FNCODE_CMD(reg_key_close, 25), // TBD doc and test
         DEFINE_FNCODE_CMD(RegDisableReflectionKey, 26),
