@@ -184,7 +184,7 @@ proc twapi::reg_key_copy {from_hkey subkey to_hkey} {
     RegCopyTree $from_hkey $subkey $to_hkey
 }
 
-proc twapi::reg_open_user {args} {
+proc twapi::reg_key_current_user {args} {
     parseargs args {
         {access.arg generic_read}
         32bit
@@ -222,20 +222,21 @@ proc twapi::reg_key_user_classes_root {usertoken args} {
     return [RegOpenUserClassesRoot 0 $access]
 }
 
-proc twapi::reg_save_to_file {hkey filepath args} {
+proc twapi::reg_key_export {hkey filepath args} {
     parseargs args {
         {secd.arg {}}
-        {format.int 2 {1 2}}
-        {compress.bool 1}
+        {format.arg xp {win2k xp}}
+        {compress.bool 0}
     } -setvars
 
+    set format [dict get {win2k 1 xp 2} $format]
     if {! $compress} {
         set format [expr {$format | 4}]
     }
     RegSaveKeyEx $hkey $filepath [_make_secattr $secd 0] $format
 }
 
-proc twapi::reg_restore_from_file {hkey filepath args} {
+proc twapi::reg_restore_import {hkey filepath args} {
     parseargs args {
         {volatile.bool 0 0x1}
         {force.bool 0 0x8}
