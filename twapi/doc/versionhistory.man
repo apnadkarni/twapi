@@ -15,7 +15,6 @@ Added [uri shell.html#recycle_files [cmd recycle_files]].
 
 [bullet]
 Added [uri service.html#set_service_delayed_start [cmd set_service_delayed_start]].
-[list_end]
 
 [bullet]
 Added [cmd -class] option to
@@ -29,6 +28,8 @@ to [cmd tls_socket].
 [bullet]
 Fixed [uri input.html#send_keys [cmd send_keys]] to be more compatible with
 VB SendKeys.
+
+[list_end]
 
 [section "Version 4.3.5"]
 [list_begin bullet]

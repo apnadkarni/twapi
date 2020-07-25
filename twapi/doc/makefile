@@ -25,11 +25,8 @@ TIDY="$(TOOLDIR)\tidy.exe"
 DTP="$(TOOLDIR)\twapi-dtp.kit"
 !ifndef HHC
 HHC="$(PROGRAMFILES)\HTML Help Workshop\hhc.exe"
-!if !exist($(HHC))
-HHC="$(PROGRAMFILES) (x86)\HTML Help Workshop\hhc.exe"
 !endif
-!endif
-
+!message $(HHC)
 # Documentation input files. Note this also specifies the order in the ToC
 !ifndef MANFILES
 MANFILES= \
@@ -64,6 +61,7 @@ MANFILES= \
 	console.man \
 	winsta.man \
 	schedule.man \
+	registry.man \
 	resource.man \
 	msi.man \
 	nls.man \

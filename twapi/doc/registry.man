@@ -31,13 +31,13 @@ The following registry key handles are predefined:
 
 [section "Registry commands"]
 
-[list_begin [definitions]
+[list_begin definitions]
 
 [call [cmd reg_key_create] [arg HKEY] [arg SUBKEY] [opt [arg options]]]
 
 Returns a handle to a registry key.
 [arg HKEY] must be a handle to a registry key as returned by a prior call to
-[cmd reg_key_open], [uri \#reg_key_create [cmd reg_key_create] etc. or a
+[cmd reg_key_open], [uri \#reg_key_create [cmd reg_key_create]] etc. or a
 predefined key handle such as [const HKEY_LOCAL_MACHINE]. [arg SUBKEY] is the
 path to the subkey to be created under [arg HKEY]. It is not an error if
 the subkey already exists. In that case, it is opened and its handle returned.
@@ -82,7 +82,7 @@ as the [const HKEY_CURRENT_USER] handle cached for the process. If the
 user profile is not loaded, the default profile is used.
 
 The following options may be specified:
-[list_being opt]
+[list_begin opt]
 [opt_def [cmd -32bit]] Specifies that the 32-bit registry view should be
 accessed.
 [opt_def [cmd -64bit]] Specifies that the 64-bit registry view should be
@@ -127,7 +127,7 @@ created into which the file is imported. In this case, [arg HKEY] must be
 
 Returns a handle to a registry key.
 [arg HKEY] must be a handle to a registry key as returned by a prior call to
-[cmd reg_key_open], [uri \#reg_key_create [cmd reg_key_create] etc. or a
+[cmd reg_key_open], [uri \#reg_key_create [cmd reg_key_create]] etc. or a
 predefined key handle such as [const HKEY_LOCAL_MACHINE]. [arg SUBKEY] is the
 path to the subkey under [arg HKEY] whose handle is to be returned.
 
@@ -156,12 +156,12 @@ not exist.
 Returns a handle to the [emph merged] [const HKEY_CLASSES_ROOT] key for the user
 corresponding to the passed [arg USERTOKEN] which must be a user token as
 returned by
-[uri security.html#get_user_token [cmd get_user_token],
-[uri process.html#get_process_token [cmd get_process_token],
-[uri process.html#get_thread_token [cmd get_thread_token] etc.
+[uri security.html#get_user_token [cmd get_user_token]],
+[uri process.html#get_process_token [cmd get_process_token]],
+[uri process.html#get_thread_token [cmd get_thread_token]] etc.
 
 The following options may be specified:
-[list_being opt]
+[list_begin opt]
 [opt_def [cmd -32bit]] Specifies that the 32-bit registry view should be
 accessed.
 [opt_def [cmd -64bit]] Specifies that the 64-bit registry view should be
