@@ -426,11 +426,11 @@ Start a text file using the handler for [const .html] files instead of the
 handler for [const .txt] files (Notepad by default). Note how the full file path
 is passed.
 
-[example "shell_execute -path [file nativename [file normalize foo.txt]] -class .html"]
+[example "shell_execute -path \[file nativename \[file normalize foo.txt]] -class .html"]
 
-Similar to above except the `htmlfile` registry key is used.
+Similar to above except the [const htmlfile] registry key is used.
 
-[example "shell_execute -path [file nativename [file normalize foo.txt]] -class htmlfile"]
+[example "shell_execute -path \[file nativename \[file normalize foo.txt]] -class htmlfile"]
 
 [call [cmd shell_object_properties_dialog] [arg OBJECTPATH] [opt [arg options]]]
 Displays the shell property dialog for the specified object which may be
