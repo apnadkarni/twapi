@@ -75,11 +75,53 @@ is [const false].
 
 [list_end]
 
+[call [cmd reg_key_current_user] [opt [arg options]]]
+Returns a handle to the [const HKEY_CURRENT_USER] key for the user that
+the current thread is impersonating. Note this is not necessarily the same
+as the [const HKEY_CURRENT_USER] handle cached for the process. If the
+user profile is not loaded, the default profile is used.
+
+The following options may be specified:
+[list_being opt]
+[opt_def [cmd -32bit]] Specifies that the 32-bit registry view should be
+accessed.
+[opt_def [cmd -64bit]] Specifies that the 64-bit registry view should be
+accessed.
+[opt_def [cmd -access] [arg ACCESSRIGHTS]] Specifies the desired access
+rights and may be
+specified as a list of integer access rights flags or symbols as described in
+[uri security.html#accessrights "Access Rights"]. Defaults to [const generic_read].
+[list_end]
+
 [call [cmd reg_key_delete] [arg HKEY] [arg SUBKEY]]
 Deletes the key identified by the key path [arg SUBKEY] under
 the key specified by the handle [arg HKEY] and any values it contains.
 The key must not have any subkeys. No error is raised if the key does
 not exist.
+
+[call [cmd reg_key_export] [arg HKEY] [arg FILEPATH] [opt [arg options]]]
+Exports a key and its contents to the file [arg FILEPATH]. The following
+options may be specified.
+[list_begin opt]
+[opt_def [cmd -compress] [arg BOOL]] If [const true], the file is
+written in compressed format. Otherwise uncompressed. Default is [const false].
+[opt_def [cmd -format] [arg FORMAT]] Specifies the format for the file.
+[arg FORMAT] must be one of [const win2k] or [const xp]. Default is [const xp]
+which is not readable on earlier (pre-XP) Windows systems.
+[opt_def [cmd -secd] [arg SECD]] Specifies a security descriptor to use when
+creating the file.
+[list_end]
+
+[call [cmd reg_key_import] [arg HKEY] [arg FILEPATH] [opt [arg options]]]
+Imports an exported registry key from a file. The following
+options may be specified.
+[list_begin opt]
+[opt_def [cmd -force] [arg BOOL]] If [const true], the file is imported even if
+there are open handles under [arg HKEY]. Default is [const false].
+[opt_def [cmd -volatile] [arg BOOL]] If [const true], a new volatile hive is
+created into which the file is imported. In this case, [arg HKEY] must be
+[arg HKEY_USERS] or [arg HKEY_LOCAL_MACHINE]. Default is [const false].
+[list_end]
 
 [call [cmd reg_key_open] [arg HKEY] [arg SUBKEY] [opt [arg options]]]
 
@@ -109,6 +151,27 @@ The command will raise an error if the specified key does not exist.
 Deletes the tree rooted at the key identified by the key path [arg SUBKEY] under
 the key specified by the handle [arg HKEY]. No error is raised if the key does
 not exist.
+
+[call [cmd reg_key_user_classes_root] [arg USERTOKEN] [opt [arg options]]]
+Returns a handle to the [emph merged] [const HKEY_CLASSES_ROOT] key for the user
+corresponding to the passed [arg USERTOKEN] which must be a user token as
+returned by
+[uri security.html#get_user_token [cmd get_user_token],
+[uri process.html#get_process_token [cmd get_process_token],
+[uri process.html#get_thread_token [cmd get_thread_token] etc.
+
+The following options may be specified:
+[list_being opt]
+[opt_def [cmd -32bit]] Specifies that the 32-bit registry view should be
+accessed.
+[opt_def [cmd -64bit]] Specifies that the 64-bit registry view should be
+accessed.
+[opt_def [cmd -access] [arg ACCESSRIGHTS]] Specifies the desired access
+rights and may be
+specified as a list of integer access rights flags or symbols as described in
+[uri security.html#accessrights "Access Rights"]. Defaults to [const generic_read].
+[list_end]
+
 
 [call [cmd reg_keys] [arg HKEY] [opt [arg PATTERN]]]
 Returns the list of keys under the key specified by the handle [arg HKEY].
