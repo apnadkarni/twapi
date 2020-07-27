@@ -1,5 +1,5 @@
 [comment {-*- tcl -*- doctools manpage}]
-[manpage_begin "Registry Access" n ""]
+[manpage_begin "Registry" n ""]
 [copyright "2020 Ashok P. Nadkarni"]
 [moddesc "Registry access in Windows"]
 [titledesc "Commands for accessing the Windows registry"]
@@ -28,10 +28,60 @@ The following registry key handles are predefined:
 [const HKEY_CURRENT_CONFIG],
 [const HKEY_DYN_DATA] or
 [const HKEY_CURRENT_USER_LOCAL_SETTINGS].
+These may be directly passed as key handles without an explicit call to
+[cmd reg_key_open] or [cmd reg_key_create].
+
+[section "Registry data types"]
+
+The data stored in the registry may be one of several types listed below. When
+setting or retrieving registry data, the value is always paired with its type.
+
+[list_begin opt]
+[opt_def binary] Binary data represented in Tcl as a binary string.
+[opt_def dword] 32-bit integer in little-endian format
+represented in Tcl as a decimal string.
+[opt_def dword_be] 32-bit integer in big-endian format
+represented in Tcl as a decimal string.
+[opt_def expand_sz] Same as the [const sz] type but expected to contain
+environment variables that should be expanded. 
+[opt_def link] Symbolic link and represented in Tcl as a binary string.
+[opt_def multi_sz] List of strings represented in Tcl as such.
+[opt_def qword] 64-bit little-endian format integer
+represented in Tcl as a decimal string.
+[opt_def resource_descriptor] Resource descriptor represented in Tcl as a binary
+string.
+[opt_def resource_list] Resource list represented in Tcl as a binary string.
+[opt_def resource_requirements_list] Resource requirements list represented in
+Tcl as a binary string.
+[opt_def sz] Null-terminated text represented as a Tcl string.
+[list_end]
 
 [section "Registry commands"]
 
 [list_begin definitions]
+
+
+[call [cmd reg_connect] [arg SYSTEM] [arg HPREDEFINE]]
+
+Returns a handle to a predefined registry key on a remote system.
+[arg SYSTEM] specifies the name of the remote system.
+[arg HPREDEFINE] must be one of the predefined keys
+[const HKEY_USERS], [const HKEY_LOCAL_MACHINE] or [const HKEY_PERFORMANCE_DATA].
+
+[call [cmd reg_disable_current_user_cache]]
+
+Disables the caching of the [const HKEY_CURRENT_USER] handle for the current
+process.
+
+[call [cmd reg_key_close] [arg HKEY]]
+
+Releases the passed registry key handle. [arg HKEY] must not be one of
+the predefined registry handles.
+
+[call [cmd reg_key_copy] [arg HFROM] [arg SUBKEY] [arg HTO]]
+
+Copies the contents of the key identified by the key path [arg SUBKEY] under
+the handle [arg HFROM] to the target key with handle [arg HTO].
 
 [call [cmd reg_key_create] [arg HKEY] [arg SUBKEY] [opt [arg options]]]
 
@@ -74,6 +124,9 @@ in memory and not preserved to disk when the registry hive is unloaded. Default
 is [const false].
 
 [list_end]
+
+The returned key handle should be released by calling the
+[uri \#reg_key_close [cmd reg_key_close]] command.
 
 [call [cmd reg_key_current_user] [opt [arg options]]]
 Returns a handle to the [const HKEY_CURRENT_USER] key for the user that
@@ -120,7 +173,67 @@ options may be specified.
 there are open handles under [arg HKEY]. Default is [const false].
 [opt_def [cmd -volatile] [arg BOOL]] If [const true], a new volatile hive is
 created into which the file is imported. In this case, [arg HKEY] must be
-[arg HKEY_USERS] or [arg HKEY_LOCAL_MACHINE]. Default is [const false].
+[const HKEY_USERS] or [const HKEY_LOCAL_MACHINE]. Default is [const false].
+[list_end]
+
+[call [cmd reg_key_load] [arg HKEY] [arg SUBKEY] [arg REGFILE]]
+Creates a key [arg SUBKEY] under [arg HKEY] and loads the contents of
+the file [arg REGFILE] under it. [arg HKEY] must be one of the predefined keys
+[const HKEY_LOCAL_MACHINE] or [const HKEY_USERS] or a handle returned by
+[uri \#reg_connect [cmd reg_connect]]. [arg REGFILE] must be
+a file in the format saved by [uri \#reg_key_export [cmd reg_key_export]].
+The [uri \#reg_key_unload [cmd reg_key_unload]] command may be used to
+undo the operation.
+
+Note the caller process must be running with [const SE_BACKUP_NAME] and
+[const SE_RESTORE_NAME] privileges.
+
+[call [cmd reg_key_unload] [arg HKEY] [arg SUBKEY]]
+Unloads the registry hive at key path [arg SUBKEY] under the key with
+handle [arg HKEY]. [arg HKEY] must be one of the predefined keys
+[const HKEY_LOCAL_MACHINE] or [const HKEY_USERS] or a handle returned by
+[uri \#reg_connect [cmd reg_connect]]. This reverses the effect
+of the [uri \#reg_key_load [cmd reg_key_load]] command.
+
+Note the caller process must be running with [const SE_BACKUP_NAME] and
+[const SE_RESTORE_NAME] privileges.
+
+[call [cmd reg_key_monitor] [arg HKEY] [opt [arg options]]]
+
+Monitors a registry key for changes. The following options control the types of
+changes that are monitored.
+
+[list_begin opt]
+[opt_def [cmd -attr] [arg BOOL]] Monitors changes in key attributes like
+security descriptors.
+[opt_def [cmd -keys] [arg BOOL]] Monitors addition and deletion of immediate
+child keys to the specified key.
+[opt_def [cmd -secd] [arg BOOL]] Monitors changes to the security attributes.
+[opt_def [cmd -subtree] [arg BOOL]] Monitors the entire tree below the specified
+key. If [const false] (default), only monitors the specified key.
+[opt_def [cmd -values] [arg BOOL]] Monitors changes to the values in the key
+including additions and deletions.
+[list_end]
+
+If none of the options [cmd -attr], [cmd -keys], [cmd -secd] and [cmd -values]
+are specified as [const true], all are enabled.
+
+By default, the command is synchrnous and will return only after a change of the
+requested type has been signalled. The [cmd -hevent] option may be used for
+asynchronous notifications. The argument to the option must be a handle to
+an event as returned by [uri synch.html#create_event [cmd create_event]]. The
+event will be signalled when the key changes. The caller can wait on the
+passed event or register a callback using the
+[uri base.html#wait_on_handle [cmd wait_on_handle]] command.
+
+Note the following important points about asynchronous operation:
+
+[list_begin bullet]
+[bullet] The event is signalled only once. To continue to receive notifications,
+the command must be called again on the handle.
+[bullet] Moreover, the command must not be called
+on the key handle again until the previously registered notification request has
+been signalled.
 [list_end]
 
 [call [cmd reg_key_open] [arg HKEY] [arg SUBKEY] [opt [arg options]]]
@@ -146,6 +259,24 @@ symbolic link. Defaults to [const false].
 [list_end]
 
 The command will raise an error if the specified key does not exist.
+
+The returned key handle should be released by calling the
+[uri \#reg_key_close [cmd reg_key_close]] command.
+
+[call [cmd reg_key_override] [arg HPREDEFINED] [arg HKEY]]
+Maps a predefined key with handle [arg HPREDEFINE] to the key with handle
+[arg HKEY]. This will cause all access to [arg HPREDEFINED] to be redirected
+to [arg HKEY]. The override can be reversed by calling
+[uri \#reg_key_override_undo [cmd reg_key_override_undo]].
+
+[arg HPREDEFINED] must be one of the predefined keys
+[const HKEY_CLASSES_ROOT],
+[const HKEY_CURRENT_CONFIG],
+[const HKEY_CURRENT_USER],
+[const HKEY_LOCAL_MACHINE],
+[const HKEY_USERS] or
+[const HKEY_PERFORMANCE_DATA].
+
 
 [call [cmd reg_key_prune] [arg HKEY] [arg SUBKEY]]
 Deletes the tree rooted at the key identified by the key path [arg SUBKEY] under
@@ -184,10 +315,26 @@ specified registry value under the key specified by the handle [arg HKEY].
 If [arg SUBKEY] is specified, it should be a key path under [arg HKEY].
 In this case the value is deleted from that key.
 
+[call [cmd reg_value_get] [arg HKEY] [opt [arg SUBKEY]] [arg VALUENAME]]
+
+Returns a pair consisting of the type and data for a registry value. If
+[arg SUBKEY] is not specified, the returned data is from the value
+[arg VALUENAME] under [arg HKEY] which is a handle to a registry key.
+If [arg SUBKEY] is specified, it must be a registry path under [arg HKEY]
+and [arg VALUENAME] is retrieved from that key.
+
 [call [cmd reg_value_names] [arg HKEY] [opt [arg PATTERN]]]
 Returns the list of names of values under the key specified by the handle [arg HKEY].
 If [arg PATTERN] is specified, only those names matching it are returned.
 The matching is as for [cmd "string match"] and is case-insensitive.
+
+[call [cmd reg_value_set] [arg HKEY] [opt [arg SUBKEY]] [arg VALUENAME] [arg TYPE] [arg DATA]]
+
+Stores the data [arg DATA] as a registry value of type [arg TYPE]. If
+[arg SUBKEY] is not specified, the data is stored as
+[arg VALUENAME] under [arg HKEY] which is a handle to a registry key.
+If [arg SUBKEY] is specified, it must be a registry path under [arg HKEY]
+and the data is stored in [arg VALUENAME] under that key.
 
 [call [cmd reg_values] [arg HKEY] [opt [arg PATTERN]]]
 Returns a nested dictionary keyed by value name with the corresponding

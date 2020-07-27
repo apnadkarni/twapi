@@ -113,77 +113,6 @@ proc twapi::reg_value_delete {hkey args} {
     }
 }
 
-proc twapi::reg_set_sz {hkey value_name value} {
-    RegSetValueEx $hkey $value_name sz $value
-}
-
-proc twapi::reg_set_expand_sz {hkey value_name value} {
-    RegSetValueEx $hkey $value_name expand_sz $value
-}
-proc twapi::reg_set_binary {hkey value_name value} {
-    RegSetValueEx $hkey $value_name binary $value
-}
-proc twapi::reg_set_dword {hkey value_name value} {
-    RegSetValueEx $hkey $value_name dword $value
-}
-proc twapi::reg_set_dword_be {hkey value_name value} {
-    RegSetValueEx $hkey $value_name dword_be $value
-}
-proc twapi::reg_set_link {hkey value_name value} {
-    RegSetValueEx $hkey $value_name link $value
-}
-proc twapi::reg_set_multi_sz {hkey value_name value} {
-    RegSetValueEx $hkey $value_name multi_sz $value
-}
-proc twapi::reg_set_resource_list {hkey value_name value} {
-    RegSetValueEx $hkey $value_name resource_list $value
-}
-proc twapi::reg_set_full_resource_descriptor {hkey value_name value} {
-    RegSetValueEx $hkey $value_name full_resource_descriptor $value
-}
-proc twapi::reg_set_resource_requirements_list {hkey value_name value} {
-    RegSetValueEx $hkey $value_name resource_requirements_list $value
-}
-proc twapi::reg_set_qword {hkey value_name value} {
-    RegSetValueEx $hkey $value_name qword $value
-}
-
-proc twapi::reg_value_names {hkey {pattern {}}} {
-    if {$pattern eq ""} {
-        lmap rec [RegEnumValue $hkey 0] {
-            lindex $rec 0
-        }
-    } else {
-        lmap rec [RegEnumValue $hkey 0] {
-            if {![string match -nocase $pattern [lindex $rec 0]]} {
-                continue
-            }
-            lindex $rec 0
-        }
-    }
-}
-
-proc twapi::reg_values {hkey {pattern {}}} {
-    set values [list ];         # Actually a dictionary
-    if {$pattern eq ""} {
-        foreach rec [RegEnumValue $hkey 0] {
-            lappend values [lindex $rec 0] [list Type [lindex $rec 1] Value [lindex $rec 2]]
-        }
-    } else {
-        foreach rec [RegEnumValue $hkey 0] {
-            if {![string match -nocase $pattern [lindex $rec 0]]} {
-                continue
-            }
-            lappend values [lindex $rec 0] [list Type [lindex $rec 1] Value [lindex $rec 2]]
-        }
-    }
-    return $values
-}
-
-proc twapi::reg_key_copy {from_hkey subkey to_hkey} {
-    RegCopyTree $from_hkey $subkey $to_hkey
-}
-
 proc twapi::reg_key_current_user {args} {
     parseargs args {
         {access.arg generic_read}
@@ -236,7 +165,7 @@ proc twapi::reg_key_export {hkey filepath args} {
     RegSaveKeyEx $hkey $filepath [_make_secattr $secd 0] $format
 }
 
-proc twapi::reg_restore_import {hkey filepath args} {
+proc twapi::reg_key_import {hkey filepath args} {
     parseargs args {
         {volatile.bool 0 0x1}
         {force.bool 0 0x8}
@@ -266,4 +195,82 @@ proc twapi::reg_key_monitor {hkey args} {
         set hevent $::twapi::nullptr
     }
     RegNotifyChangeKeyValue $hkey $subtree $filter $hevent $async
+}
+
+proc twapi::reg_value_names {hkey {pattern {}}} {
+    if {$pattern eq ""} {
+        lmap rec [RegEnumValue $hkey 0] {
+            lindex $rec 0
+        }
+    } else {
+        lmap rec [RegEnumValue $hkey 0] {
+            if {![string match -nocase $pattern [lindex $rec 0]]} {
+                continue
+            }
+            lindex $rec 0
+        }
+    }
+}
+
+proc twapi::reg_values {hkey {pattern {}}} {
+    set values [list ];         # Actually a dictionary
+    if {$pattern eq ""} {
+        foreach rec [RegEnumValue $hkey 0] {
+            lappend values [lindex $rec 0] [list Type [lindex $rec 1] Value [lindex $rec 2]]
+        }
+    } else {
+        foreach rec [RegEnumValue $hkey 0] {
+            if {![string match -nocase $pattern [lindex $rec 0]]} {
+                continue
+            }
+            lappend values [lindex $rec 0] [list Type [lindex $rec 1] Value [lindex $rec 2]]
+        }
+    }
+    return $values
+}
+
+proc twapi::reg_value_get {hkey args} {
+    if {[llength $args] == 1} {
+        return [RegQueryValueEx $hkey [lindex $args 0]]
+    } elseif {[llength $args] == 2} {
+        return [RegGetValue $hkey {*}$args]
+    } else {
+        error "wrong # args: should be \"reg_value_get HKEY ?SUBKEY? VALUENAME\""
+    }
+}
+
+if {[twapi::min_os_version 6]} {
+    proc twapi::reg_value_set {hkey args} {
+        if {[llength $args] == 3} {
+            return [RegSetValueEx $hkey {*}$args]
+        } elseif {[llength $args] == 4} {
+            return [RegSetKeyValue $hkey {*}$args]
+        } else {
+            error "wrong # args: should be \"reg_value_set HKEY ?SUBKEY? VALUENAME TYPE VALUE\""
+        }
+    }
+} else {
+    proc twapi::reg_value_set {hkey args} {
+        if {[llength $args] == 3} {
+            lassign $args value_name value_type value
+        } elseif {[llength $args] == 4} {
+            lassign $args subkey value_name value_type value
+            set hkey [reg_key_open $hkey $subkey -access key_set_value]
+        } else {
+            error "wrong # args: should be \"reg_value_set HKEY ?SUBKEY? VALUENAME TYPE VALUE\""
+        }
+    }
+
+    try {
+        RegSetValueEx $hkey $value_name $value_type $value
+    } finally {
+        if {[info exists subkey]} {
+            # We opened hkey
+            reg_close_key $hkey
+        }
+    }
+}
+
+proc twapi::reg_key_override_undo {hkey} {
+    RegOverridePredefKey $hkey 0
 }
