@@ -33,11 +33,14 @@ MAKE_DYNLOAD_FUNC2(RegDeleteKeyValueW, advapi32)
 MAKE_DYNLOAD_FUNC2(RegDeleteKeyValueW, kernel32)
 MAKE_DYNLOAD_FUNC(RegDeleteKeyExW, advapi32, FARPROC)
 MAKE_DYNLOAD_FUNC(RegDeleteTreeW, advapi32, FARPROC)
-MAKE_DYNLOAD_FUNC(RegEnableReflectionKey, advapi32, FARPROC)
 MAKE_DYNLOAD_FUNC(RegDisableReflectionKey, advapi32, FARPROC)
+MAKE_DYNLOAD_FUNC(RegEnableReflectionKey, advapi32, FARPROC)
+MAKE_DYNLOAD_FUNC(RegGetValueW, advapi32, FARPROC)
+MAKE_DYNLOAD_FUNC(RegSetKeyValueW, advapi32, FARPROC)
+MAKE_DYNLOAD_FUNC(SHCopyKeyW, shlwapi, FARPROC)
 MAKE_DYNLOAD_FUNC(SHDeleteKeyW, shlwapi, FARPROC)
 MAKE_DYNLOAD_FUNC(SHDeleteValueW, shlwapi, FARPROC)
-MAKE_DYNLOAD_FUNC(SHCopyKeyW, shlwapi, FARPROC)
+MAKE_DYNLOAD_FUNC(SHRegGetValueW, shlwapi, FARPROC)
 
 static int TwapiRegEnumKeyEx(Tcl_Interp *interp, HKEY hkey)
 {
@@ -171,8 +174,6 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
     }
 }
 
-#ifdef TBD
-// Vista+
 static int
 TwapiRegGetValue(Tcl_Interp *interp,
                  HKEY        hkey,
@@ -189,6 +190,7 @@ TwapiRegGetValue(Tcl_Interp *interp,
     DWORD    capacity_value_data = 256;
     DWORD    value_type, nb_value_data;
     int      max_loop; /* Safety measure if buf size keeps changing */
+    FARPROC func = Twapi_GetProc_RegGetValueW();
 
     mark = SWSPushMark();
     resultObj = ObjNewList(0, NULL);
@@ -197,13 +199,31 @@ TwapiRegGetValue(Tcl_Interp *interp,
     max_loop   = 5; /* Retries for a particular key. Else error */
     while (max_loop > 0) {
         nb_value_data  = capacity_value_data;
-        status         = RegGetValueW(hkey,
-                              subkey,
-                              value_name,
-                              flags,
-                              &value_type,
-                              value_data,
-                              &nb_value_data);
+        if (func) {
+            flags &= 0x00030000; /* RRF_SUBKEY_WOW64{32,64}KEY */
+            flags |= 0x1000ffff; /* RRF_NOEXPAND, RRF_RT_ANY */
+            status = func(hkey,
+                                  subkey,
+                                  value_name,
+                                  flags,
+                                  &value_type,
+                                  value_data,
+                                  &nb_value_data);
+        } else {
+            /* Note if WOW64 bits were set in flags, func would not be NULL as 
+             * RegGetValueW would be present and we would not come here */
+            func = Twapi_GetProc_SHRegGetValueW();
+            if (func)
+                status = func(hkey,
+                                        subkey,
+                                        value_name,
+                                        0x1000ffff, //SRRF_RT_ANY | SRRF_NOEXPAND
+                                        &value_type,
+                                        value_data,
+                                        &nb_value_data);
+            else
+                status = ERROR_PROC_NOT_FOUND;
+        }
         if (status == ERROR_SUCCESS) {
             Tcl_Obj *objs[2];
             objs[0] = ObjFromDWORD(value_type);
@@ -215,7 +235,6 @@ TwapiRegGetValue(Tcl_Interp *interp,
             value_data = SWSAlloc(nb_value_data, NULL);
             /* Do not increment dwIndex and retry for same */
         } else {
-            /* ERROR_NO_MORE_ITEMS or some other error */
             break;
         }
     }
@@ -227,7 +246,6 @@ TwapiRegGetValue(Tcl_Interp *interp,
         return Twapi_AppendSystemError(interp, status);
     }
 }
-#endif
 
 static int
 TwapiRegQueryValueEx(Tcl_Interp *interp,
@@ -685,27 +703,71 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         }
         break;
 
-    case 25: // RegCloseKey
-    case 26: // RegDisableReflectionKey
-    case 27: // RegEnableReflectionKey
+    case 25: // RegGetValue
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHKEY(hkey), GETOBJ(subkeyObj), GETOBJ(nameObj),
+                         ARGUSEDEFAULT, GETINT(dw)) != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_TCL_RESULT;
+        result.value.ival
+            = TwapiRegGetValue(interp, hkey, ObjToWinChars(subkeyObj), ObjToWinChars(nameObj), dw);
+        break;
+
+    case 26: // RegSetKeyValue
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHKEY(hkey), GETOBJ(subkeyObj), GETOBJ(nameObj),
+                         GETOBJ(objP), GETOBJ(obj2P),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        else {
+            FARPROC func = Twapi_GetProc_RegSetKeyValueW();
+            if (func == NULL) {
+                result.value.ival = ERROR_PROC_NOT_FOUND;
+            } else {
+                TwapiRegValue regval;
+                mark              = SWSPushMark();
+                result.value.ival = ObjToRegValueSWS(interp, objP, obj2P, &regval);
+                if (result.value.ival != TCL_OK) {
+                    result.type = TRT_TCL_RESULT;
+                } else {
+                    result.value.ival = func(hkey,
+                                             ObjToWinChars(subkeyObj),
+                                             ObjToWinChars(nameObj),
+                                             regval.type,
+                                             regval.bytes,
+                                             regval.size);
+                    if (result.value.ival == TCL_OK)
+                        result.type = TRT_EMPTY;
+                }
+                SWSPopMark(mark);
+            }
+        }
+        break;
+
+    case 27: // UNUSED
+        break;
+
     case 28: // RegFlushKey
+    case 29: // RegCloseKey
+    case 30: // RegDisableReflectionKey
+    case 31: // RegEnableReflectionKey
         if (TwapiGetArgs(interp, objc, objv,
                          GETHKEY(hkey), ARGEND) != TCL_OK)
             return TCL_ERROR;
         else {
             FARPROC func;
             switch (func_code) {
-            case 25:
-                func = (FARPROC) RegCloseKey;
-                break;
-            case 26:
-                func = Twapi_GetProc_RegDisableReflectionKey();
-                break;
-            case 27:
-                func = Twapi_GetProc_RegEnableReflectionKey();
-                break;
             case 28:
                 func = (FARPROC) RegFlushKey;
+                break;
+            case 29:
+                func = (FARPROC) RegCloseKey;
+                break;
+            case 30:
+                func = Twapi_GetProc_RegDisableReflectionKey();
+                break;
+            case 31:
+                func = Twapi_GetProc_RegEnableReflectionKey();
                 break;
             }
             if (func) {
@@ -740,36 +802,37 @@ static int TwapiRegInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(RegEnumValue, 8),
         DEFINE_FNCODE_CMD(RegOpenCurrentUser, 9),
         DEFINE_FNCODE_CMD(RegDisablePredefinedCache, 10),
-        DEFINE_FNCODE_CMD(reg_disable_predefined_cache, 10),
+        DEFINE_FNCODE_CMD(reg_disable_current_user_cache, 10),
         DEFINE_FNCODE_CMD(RegGetKeySecurity, 11),
         DEFINE_FNCODE_CMD(RegQueryValueEx, 12),
-        DEFINE_FNCODE_CMD(reg_value_get, 12), // TBD doc and test
-        DEFINE_FNCODE_CMD(SHCopyTree, 13),
-        DEFINE_FNCODE_CMD(reg_key_copy, 13), // TBD doc and test
+        DEFINE_FNCODE_CMD(RegCopyTree, 13),
+        DEFINE_FNCODE_CMD(reg_key_copy, 13),
         DEFINE_FNCODE_CMD(RegOpenUserClassesRoot, 14),
         DEFINE_FNCODE_CMD(RegOverridePredefKey, 15),
-        DEFINE_FNCODE_CMD(reg_key_predef_override, 15), // TBD doc and test
+        DEFINE_FNCODE_CMD(reg_key_override, 15),
         DEFINE_FNCODE_CMD(RegSaveKeyEx, 16),
         DEFINE_FNCODE_CMD(RegLoadKey, 17),
-        DEFINE_FNCODE_CMD(reg_key_load, 17), // TBD doc and test
+        DEFINE_FNCODE_CMD(reg_key_load, 17),
         DEFINE_FNCODE_CMD(RegUnLoadKey, 18),
-        DEFINE_FNCODE_CMD(reg_key_unload, 18), // TBD doc and test
+        DEFINE_FNCODE_CMD(reg_key_unload, 18),
         DEFINE_FNCODE_CMD(RegReplaceKey, 19),
         DEFINE_FNCODE_CMD(reg_key_replace, 19), // TBD doc and test
         DEFINE_FNCODE_CMD(RegRestoreKey, 20),
         DEFINE_FNCODE_CMD(RegSetValueEx, 21),
         DEFINE_FNCODE_CMD(RegNotifyChangeKeyValue, 22),
         DEFINE_FNCODE_CMD(RegKeySetSecurity, 23),
-        DEFINE_FNCODE_CMD(RegConnectRegistry, 24), // TBD doc and test
-        DEFINE_FNCODE_CMD(reg_connect, 24), // TBD doc and test
-        DEFINE_FNCODE_CMD(RegCloseKey, 25),
-        DEFINE_FNCODE_CMD(reg_key_close, 25), // TBD doc and test
-        DEFINE_FNCODE_CMD(RegDisableReflectionKey, 26),
-        DEFINE_FNCODE_CMD(reg_key_disable_reflection, 26), // TBD doc and test
-        DEFINE_FNCODE_CMD(RegEnableReflectionKey, 27),
-        DEFINE_FNCODE_CMD(reg_key_enable_reflection, 27), // TBD doc and test
+        DEFINE_FNCODE_CMD(RegConnectRegistry, 24),
+        DEFINE_FNCODE_CMD(reg_connect, 24),
+        DEFINE_FNCODE_CMD(RegGetValue, 25),
+        DEFINE_FNCODE_CMD(RegSetKeyValue, 26),
         DEFINE_FNCODE_CMD(RegFlushKey, 28),
         DEFINE_FNCODE_CMD(reg_key_flush, 28),
+        DEFINE_FNCODE_CMD(RegCloseKey, 29),
+        DEFINE_FNCODE_CMD(reg_key_close, 29),
+        DEFINE_FNCODE_CMD(RegDisableReflectionKey, 30),
+        DEFINE_FNCODE_CMD(reg_key_disable_reflection, 30), // TBD doc and test
+        DEFINE_FNCODE_CMD(RegEnableReflectionKey, 31),
+        DEFINE_FNCODE_CMD(reg_key_enable_reflection, 31), // TBD doc and test
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(RegDispatch), RegDispatch, Twapi_RegCallObjCmd);

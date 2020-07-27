@@ -1833,9 +1833,9 @@ badformat:
  * as returned pointers may allocate from there.
  */
 TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(
-    Tcl_Interp *interp, 
+    Tcl_Interp *interp,
     Tcl_Obj *typeObj,
-    Tcl_Obj *objP, 
+    Tcl_Obj *objP,
     TwapiRegValue *valueP
     )
 {
@@ -1865,7 +1865,7 @@ TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(
         valueP->bytes = ObjToWinCharsN(objP, &n);
         valueP->size  = sizeof(WCHAR) * (n + 1); /* Include \0 */
         break;
-            
+
     case REG_DWORD_BIG_ENDIAN:
     case REG_DWORD:
         if (ObjToLong(interp, objP, &n) != TCL_OK)
