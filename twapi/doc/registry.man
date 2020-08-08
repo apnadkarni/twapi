@@ -25,8 +25,7 @@ The following registry key handles are predefined:
 [const HKEY_PERFORMANCE_DATA],
 [const HKEY_PERFORMANCE_TEXT],
 [const HKEY_PERFORMANCE_NLSTEXT],
-[const HKEY_CURRENT_CONFIG],
-[const HKEY_DYN_DATA] or
+[const HKEY_CURRENT_CONFIG] or
 [const HKEY_CURRENT_USER_LOCAL_SETTINGS].
 These may be directly passed as key handles without an explicit call to
 [cmd reg_key_open] or [cmd reg_key_create].

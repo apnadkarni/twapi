@@ -142,7 +142,8 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
                     } else {
                         objs[0] = ObjFromTclUniCharN(value_name, nch_value_name);
                     }
-                    ObjAppendElement(interp, resultObj, ObjNewList(2, objs));
+                    ObjAppendElement(interp, resultObj, objs[0]);
+                    ObjAppendElement(interp, resultObj, objs[1]);
                 }
                 ++dwIndex;
                 max_loop = 10; /* Reset safety check */
@@ -230,6 +231,7 @@ TwapiRegGetValue(Tcl_Interp *interp,
     value_data = SWSAlloc(nb_value_data, &nb_value_data);
     max_loop   = 10; /* Retries for a particular key. Else error */
     while (--max_loop >= 0) {
+        DWORD original_nb_value_data = nb_value_data;
         if (func) {
             flags &= 0x00030000; /* RRF_SUBKEY_WOW64{32,64}KEY */
             flags |= 0x1000ffff; /* RRF_NOEXPAND, RRF_RT_ANY */
@@ -272,6 +274,13 @@ TwapiRegGetValue(Tcl_Interp *interp,
             }
             break;
         } else if (status == ERROR_MORE_DATA) {
+            /*
+             * Workaround for HKEY_PERFORMANCE_DATA bug - does not
+             * update nb_value_data. In that case, double the current
+             * size
+             */
+            if (nb_value_data == original_nb_value_data)
+                nb_value_data *= 2; // TBD - check for overflow(!)
             value_data = SWSAlloc(nb_value_data, NULL);
             /* Do not increment dwIndex and retry for same */
         } else {
@@ -311,6 +320,7 @@ TwapiRegQueryValueEx(Tcl_Interp *interp,
     value_data = SWSAlloc(nb_value_data, &nb_value_data);
     max_loop   = 10; /* Retries for a particular key. Else error */
     while (--max_loop >= 0) {
+        DWORD original_nb_value_data = nb_value_data;
         status         = RegQueryValueExW(hkey,
                               value_name,
                               NULL,
@@ -322,18 +332,18 @@ TwapiRegQueryValueEx(Tcl_Interp *interp,
                 resultObj
                     = ObjFromRegValueCooked(interp, value_type, value_data, nb_value_data);
             } else {
-                Tcl_Obj *objs[2];
-                objs[1] = ObjFromRegValue(
+                resultObj = ObjFromRegValue(
                     interp, value_type, value_data, nb_value_data);
-                if (objs[1] == NULL)
-                    resultObj = NULL;
-                else {
-                    objs[0]   = ObjFromDWORD(value_type);
-                    resultObj = ObjNewList(2, objs);
-                }
             }
             break;
         } else if (status == ERROR_MORE_DATA) {
+            /*
+             * Workaround for HKEY_PERFORMANCE_DATA bug - does not
+             * update nb_value_data. In that case, double the current
+             * size
+             */
+            if (nb_value_data == original_nb_value_data)
+                nb_value_data *= 2; // TBD - check for overflow(!)
             value_data = SWSAlloc(nb_value_data, NULL);
             /* Do not increment dwIndex and retry for same */
         } else {
