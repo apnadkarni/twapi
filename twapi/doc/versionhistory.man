@@ -11,6 +11,9 @@ Summarizes the list of changes for each version of TWAPI.
 [section "Version 4.4.0"]
 [list_begin bullet]
 [bullet]
+Added [uri registry.html [cmd registry]] module.
+
+[bullet]
 Added [uri shell.html#recycle_files [cmd recycle_files]].
 
 [bullet]
