@@ -24,9 +24,9 @@ TOOLDIR= $(SRCROOT)\..\tools
 TIDY="$(TOOLDIR)\tidy.exe"
 DTP="$(TOOLDIR)\twapi-dtp.kit"
 !ifndef HHC
-HHC="$(PROGRAMFILES)\HTML Help Workshop\hhc.exe"
+HHC="C:\Program Files (x86)\HTML Help Workshop\hhc.exe"
 !endif
-!message $(HHC)
+!message "Using Help compiler $(HHC)"
 # Documentation input files. Note this also specifies the order in the ToC
 !ifndef MANFILES
 MANFILES= \
