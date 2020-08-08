@@ -133,7 +133,15 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
                     interp, value_type, value_data, nb_value_data);
                 /* Bad values are skipped - TBD */
                 if (objs[1] != NULL) {
-                    objs[0] = ObjFromTclUniCharN(value_name, nch_value_name);
+                    /* Workaround for HKEY_PERFORMANCE_DATA bug - return
+                     * length is off by 1.
+                     */
+                    if (hkey == HKEY_PERFORMANCE_DATA) {
+                        value_name[capacity_value_name - 1] = 0; /* Ensure null termination */
+                        objs[0] = ObjFromTclUniChar(value_name);
+                    } else {
+                        objs[0] = ObjFromTclUniCharN(value_name, nch_value_name);
+                    }
                     ObjAppendElement(interp, resultObj, ObjNewList(2, objs));
                 }
                 ++dwIndex;
@@ -158,6 +166,7 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
         /* Only value names asked for */
         dwIndex = 0;
         while (1) {
+            Tcl_Obj *objP;
             nch_value_name = capacity_value_name;
             status         = RegEnumValueW(hkey,
                                    dwIndex,
@@ -173,8 +182,14 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
                not be for the value_name buffer */
             if (status != ERROR_SUCCESS && status != ERROR_MORE_DATA)
                 break;
-            ObjAppendElement(interp, resultObj,
-                             ObjFromTclUniCharN(value_name, nch_value_name));
+            /* Workaround for HKEY_PERFORMANCE_DATA bug - length is off by 1. */
+            if (hkey == HKEY_PERFORMANCE_DATA) {
+                value_name[capacity_value_name - 1] = 0; /* Ensure null termination */
+                objP = ObjFromTclUniChar(value_name);
+            } else {
+                objP = ObjFromTclUniCharN(value_name, nch_value_name);
+            }
+            ObjAppendElement(interp, resultObj, objP);
             ++dwIndex;
         }
     }
