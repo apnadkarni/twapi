@@ -1692,18 +1692,20 @@ static const char *gRegTypeNames[] = {
     "resource_requirements_list",
     "qword",
 };
+
+TWAPI_EXTERN Tcl_Obj *ObjFromRegType(int regtype)
+{
+    if (regtype < ARRAYSIZE(gRegTypeNames))
+        return ObjFromString(gRegTypeNames[regtype]);
+    else
+        return ObjFromLong(regtype);
+}
+
 TWAPI_EXTERN Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
                          BYTE *bufP, int count)
 {
     Tcl_Obj *objv[2];
-    const char *typestr;
     WCHAR *ws;
-
-    if (regtype < ARRAYSIZE(gRegTypeNames)) {
-        typestr = gRegTypeNames[regtype];
-    }
-    else
-        typestr = NULL;
 
     switch (regtype) {
     case REG_LINK: // FALLTHRU
@@ -1748,14 +1750,12 @@ TWAPI_EXTERN Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
         break;
     }
 
-    if (typestr)
-        objv[0] = ObjFromString(typestr);
-    else
-        objv[0] = ObjFromLong(regtype);
+    objv[0] = ObjFromRegType(regtype);
     return ObjNewList(2, objv);
 
 badformat:
-    ObjSetStaticResult(interp, "Badly formatted registry value");
+    if (interp)
+        ObjSetStaticResult(interp, "Badly formatted registry value");
     return NULL;
 }
 
@@ -1824,7 +1824,8 @@ TWAPI_EXTERN Tcl_Obj *ObjFromRegValueCooked(Tcl_Interp *interp, int regtype,
     }
 
 badformat:
-    ObjSetStaticResult(interp, "Badly formatted registry value");
+    if (interp)
+        ObjSetStaticResult(interp, "Badly formatted registry value");
     return NULL;
 }
 

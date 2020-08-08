@@ -198,42 +198,35 @@ proc twapi::reg_key_monitor {hkey args} {
 }
 
 proc twapi::reg_value_names {hkey {pattern {}}} {
-    if {$pattern eq ""} {
-        lmap rec [RegEnumValue $hkey 0] {
-            lindex $rec 0
-        }
-    } else {
-        lmap rec [RegEnumValue $hkey 0] {
-            if {![string match -nocase $pattern [lindex $rec 0]]} {
-                continue
-            }
-            lindex $rec 0
-        }
-    }
+    # 0 - value names only
+    return [RegEnumValue $hkey 0]
 }
 
-proc twapi::reg_values {hkey {pattern {}}} {
-    set values [list ];         # Actually a dictionary
-    if {$pattern eq ""} {
-        foreach rec [RegEnumValue $hkey 0] {
-            lappend values [lindex $rec 0] [list Type [lindex $rec 1] Value [lindex $rec 2]]
-        }
-    } else {
-        foreach rec [RegEnumValue $hkey 0] {
-            if {![string match -nocase $pattern [lindex $rec 0]]} {
-                continue
-            }
-            lappend values [lindex $rec 0] [list Type [lindex $rec 1] Value [lindex $rec 2]]
-        }
-    }
-    return $values
+proc twapi::reg_values {hkey} {
+    #  3 -> 0x1 - return data values, 0x2 - cooked data
+    return [RegEnumValue $hkey 3]
 }
 
-proc twapi::reg_value_get {hkey args} {
+proc twapi::reg_values_raw {hkey} {
+    #  0x1 - return data values
+    return [RegEnumValue $hkey 1]
+}
+
+proc twapi::reg_value_raw {hkey args} {
     if {[llength $args] == 1} {
-        return [RegQueryValueEx $hkey [lindex $args 0]]
+        return [RegQueryValueEx $hkey [lindex $args 0] false]
     } elseif {[llength $args] == 2} {
-        return [RegGetValue $hkey {*}$args]
+        return [RegGetValue $hkey {*}$args 0x1000ffff false]
+    } else {
+        error "wrong # args: should be \"reg_value_get HKEY ?SUBKEY? VALUENAME\""
+    }
+}
+
+proc twapi::reg_value {hkey args} {
+    if {[llength $args] == 1} {
+        return [RegQueryValueEx $hkey [lindex $args 0] true]
+    } elseif {[llength $args] == 2} {
+        return [RegGetValue $hkey {*}$args 0x1000ffff true]
     } else {
         error "wrong # args: should be \"reg_value_get HKEY ?SUBKEY? VALUENAME\""
     }

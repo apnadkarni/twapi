@@ -56,6 +56,13 @@ Tcl as a binary string.
 [opt_def sz] Null-terminated text represented as a Tcl string.
 [list_end]
 
+Command may return registry value either in raw or cooked form. The former
+is returned as a pair consisting of a data type from the list above and the
+corresponding data value. A cooked value returns only the data value which
+is also transformed based on the type. In particular, data of type
+[const dword_be] are converted to native format, [const expand_sz] have
+embedded environment variables expanded.
+
 [section "Registry commands"]
 
 [list_begin definitions]
@@ -309,24 +316,31 @@ Returns the list of keys under the key specified by the handle [arg HKEY].
 If [arg PATTERN] is specified, only those keys matching it are returned.
 The matching is as for [cmd "string match"] and is case-insensitive.
 
+[call [cmd reg_value] [arg HKEY] [opt [arg SUBKEY]] [arg VALUENAME]]
+Returns the cooked data value for a registry value. If
+[arg SUBKEY] is not specified, the returned data is from the value
+[arg VALUENAME] under [arg HKEY] which is a handle to a registry key.
+If [arg SUBKEY] is specified, it must be a registry path under [arg HKEY]
+and [arg VALUENAME] is retrieved from that key.
+
 [call [cmd reg_value_delete] [arg HKEY] [opt [arg SUBKEY]] [arg VALUENAME]]
 If the optional [arg SUBKEY] argument is not specified, the command deletes the
 specified registry value under the key specified by the handle [arg HKEY].
 If [arg SUBKEY] is specified, it should be a key path under [arg HKEY].
 In this case the value is deleted from that key.
 
-[call [cmd reg_value_get] [arg HKEY] [opt [arg SUBKEY]] [arg VALUENAME]]
+[call [cmd reg_value_names] [arg HKEY] [opt [arg PATTERN]]]
+Returns the list of names of values under the key specified by the handle [arg HKEY].
+If [arg PATTERN] is specified, only those names matching it are returned.
+The matching is as for [cmd "string match"] and is case-insensitive.
+
+[call [cmd reg_value_raw] [arg HKEY] [opt [arg SUBKEY]] [arg VALUENAME]]
 
 Returns a pair consisting of the type and data for a registry value. If
 [arg SUBKEY] is not specified, the returned data is from the value
 [arg VALUENAME] under [arg HKEY] which is a handle to a registry key.
 If [arg SUBKEY] is specified, it must be a registry path under [arg HKEY]
 and [arg VALUENAME] is retrieved from that key.
-
-[call [cmd reg_value_names] [arg HKEY] [opt [arg PATTERN]]]
-Returns the list of names of values under the key specified by the handle [arg HKEY].
-If [arg PATTERN] is specified, only those names matching it are returned.
-The matching is as for [cmd "string match"] and is case-insensitive.
 
 [call [cmd reg_value_set] [arg HKEY] [opt [arg SUBKEY]] [arg VALUENAME] [arg TYPE] [arg DATA]]
 
@@ -336,12 +350,14 @@ Stores the data [arg DATA] as a registry value of type [arg TYPE]. If
 If [arg SUBKEY] is specified, it must be a registry path under [arg HKEY]
 and the data is stored in [arg VALUENAME] under that key.
 
-[call [cmd reg_values] [arg HKEY] [opt [arg PATTERN]]]
-Returns a nested dictionary keyed by value name with the corresponding
-element being another dictionary with keys [const Type] and [const Value]
-containing the type and data of the registry value.
-If [arg PATTERN] is specified, only those values whose names match it are returned.
-The matching is as for [cmd "string match"] and is case-insensitive.
+[call [cmd reg_values] [arg HKEY]]
+Returns a dictionary keyed by the value names in the specified registry key
+[arg HKEY]. The value data is in cooked form.
+
+[call [cmd reg_values_raw] [arg HKEY]]
+Returns a dictionary keyed by the value names in the specified registry key
+[arg HKEY]. The value data is in raw form as a pair containing the data type
+and data value.
 
 [list_end]
 

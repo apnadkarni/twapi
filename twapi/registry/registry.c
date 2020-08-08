@@ -68,7 +68,8 @@ static int TwapiRegEnumKeyEx(Tcl_Interp *interp, HKEY hkey)
             ObjAppendElement(interp, resultObj, ObjNewList(2, objs));
             ++dwIndex; /* Get next key */
         } else if (status == ERROR_MORE_DATA) {
-            /* Need bigger buffer for this key */
+            /* Need bigger buffer for this key. Note nch_subkey does NOT 
+               contain required size */
             capacity_subkey *= 2;
             subkey = SWSAlloc(sizeof(WCHAR) * capacity_subkey, &capacity_subkey);
             /* Do not increment dwIndex */
@@ -94,29 +95,30 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
     FILETIME file_time;
     LPWSTR   value_name;
     DWORD    capacity_value_name;
-    DWORD    nch_value_name;
+    DWORD    nch_value_name, nb_value_data;
     DWORD    dwIndex;
     LONG  status;
     SWSMark  mark;
 
     mark = SWSPushMark();
-    capacity_value_name = 32768; /* Max as per registry limits */
+    /* NOTE: do not increase beyond 32767 as RegEnum treats as signed short*/
+    capacity_value_name = 32767; /* Max as per registry limits */
     value_name          = SWSAlloc(sizeof(WCHAR) * capacity_value_name, NULL);
 
     resultObj = ObjNewList(0, NULL);
 
+    nb_value_data = 256;
     if (flags & 1) {
         /* Caller wants data as well. */
         LPBYTE value_data;
-        DWORD capacity_value_data = 256;
-        DWORD value_type, nb_value_data;
+        DWORD  value_type;
         int    max_loop; /* Safety measure if buf size keeps changing */
-        value_data = SWSAlloc(capacity_value_data, &capacity_value_data);
+        value_data = SWSAlloc(nb_value_data, &nb_value_data);
         dwIndex    = 0;
-        max_loop   = 5; /* Retries for a particular key. Else error */
-        while (max_loop > 0) {
+        max_loop   = 10; /* Retries for a particular key. Else error */
+        while (--max_loop >= 0) {
+            DWORD original_nb_value_data = nb_value_data;
             nch_value_name = capacity_value_name;
-            nb_value_data  = capacity_value_data;
             status         = RegEnumValueW(hkey,
                                    dwIndex,
                                    value_name,
@@ -126,16 +128,25 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
                                    value_data,
                                    &nb_value_data);
             if (status == ERROR_SUCCESS) {
-                Tcl_Obj *objs[3];
-                objs[0] = ObjFromTclUniCharN(value_name, nch_value_name);
-                objs[1] = ObjFromDWORD(value_type);
-                objs[2] = ObjFromRegValue(
+                Tcl_Obj *objs[2];
+                objs[1] = (flags & 2 ? ObjFromRegValueCooked : ObjFromRegValue)(
                     interp, value_type, value_data, nb_value_data);
-                ObjAppendElement(interp, resultObj, ObjNewList(3, objs));
+                /* Bad values are skipped - TBD */
+                if (objs[1] != NULL) {
+                    objs[0] = ObjFromTclUniCharN(value_name, nch_value_name);
+                    ObjAppendElement(interp, resultObj, ObjNewList(2, objs));
+                }
                 ++dwIndex;
-                max_loop = 5; /* Reset safety check */
+                max_loop = 10; /* Reset safety check */
             }
             else if (status == ERROR_MORE_DATA) {
+                /*
+                 * Workaround for HKEY_PERFORMANCE_DATA bug - does not
+                 * update nb_value_data. In that case, double the current
+                 * size
+                 */
+                if (nb_value_data == original_nb_value_data)
+                    nb_value_data *= 2; // TBD - check for overflow(!)
                 value_data = SWSAlloc(nb_value_data, NULL);
                 /* Do not increment dwIndex and retry for same */
             } else {
@@ -156,7 +167,11 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
                                    NULL,
                                    NULL,
                                    NULL);
-            if (status != ERROR_SUCCESS)
+            /* Since we are passing NULL as data buffer, the call will
+               return ERROR_MORE_DATA even on success. Note that since
+               we are passing max size name buffer, this error will
+               not be for the value_name buffer */
+            if (status != ERROR_SUCCESS && status != ERROR_MORE_DATA)
                 break;
             ObjAppendElement(interp, resultObj,
                              ObjFromTclUniCharN(value_name, nch_value_name));
@@ -179,15 +194,16 @@ TwapiRegGetValue(Tcl_Interp *interp,
                  HKEY        hkey,
                  LPCWSTR     subkey,
                  LPCWSTR     value_name,
-                 DWORD       flags)
+                 DWORD       flags,
+                 BOOL        cooked
+                 )
 {
     Tcl_Obj *resultObj = NULL;
+    LONG     status; /* Win32 code */
     FILETIME file_time;
     DWORD    nch_value_name;
-    LONG     status;
     SWSMark  mark;
     LPBYTE   value_data;
-    DWORD    capacity_value_data = 256;
     DWORD    value_type, nb_value_data;
     int      max_loop; /* Safety measure if buf size keeps changing */
     FARPROC func = Twapi_GetProc_RegGetValueW();
@@ -195,20 +211,20 @@ TwapiRegGetValue(Tcl_Interp *interp,
     mark = SWSPushMark();
     resultObj = ObjNewList(0, NULL);
 
-    value_data = SWSAlloc(capacity_value_data, &capacity_value_data);
-    max_loop   = 5; /* Retries for a particular key. Else error */
-    while (max_loop > 0) {
-        nb_value_data  = capacity_value_data;
+    nb_value_data = 256;
+    value_data = SWSAlloc(nb_value_data, &nb_value_data);
+    max_loop   = 10; /* Retries for a particular key. Else error */
+    while (--max_loop >= 0) {
         if (func) {
             flags &= 0x00030000; /* RRF_SUBKEY_WOW64{32,64}KEY */
             flags |= 0x1000ffff; /* RRF_NOEXPAND, RRF_RT_ANY */
             status = func(hkey,
-                                  subkey,
-                                  value_name,
-                                  flags,
-                                  &value_type,
-                                  value_data,
-                                  &nb_value_data);
+                          subkey,
+                          value_name,
+                          flags,
+                          &value_type,
+                          value_data,
+                          &nb_value_data);
         } else {
             /* Note if WOW64 bits were set in flags, func would not be NULL as 
              * RegGetValueW would be present and we would not come here */
@@ -225,11 +241,20 @@ TwapiRegGetValue(Tcl_Interp *interp,
                 status = ERROR_PROC_NOT_FOUND;
         }
         if (status == ERROR_SUCCESS) {
-            Tcl_Obj *objs[2];
-            objs[0] = ObjFromDWORD(value_type);
-            objs[1] = ObjFromRegValue(
-                interp, value_type, value_data, nb_value_data);
-            resultObj = ObjNewList(2, objs);
+            if (cooked) {
+                resultObj
+                    = ObjFromRegValueCooked(interp, value_type, value_data, nb_value_data);
+            } else {
+                Tcl_Obj *objs[2];
+                objs[1] = ObjFromRegValue(
+                    interp, value_type, value_data, nb_value_data);
+                if (objs[1] == NULL)
+                    resultObj = NULL;
+                else {
+                    objs[0]   = ObjFromDWORD(value_type);
+                    resultObj = ObjNewList(2, objs);
+                }
+            }
             break;
         } else if (status == ERROR_MORE_DATA) {
             value_data = SWSAlloc(nb_value_data, NULL);
@@ -240,6 +265,9 @@ TwapiRegGetValue(Tcl_Interp *interp,
     }
     SWSPopMark(mark);
     if (status == ERROR_SUCCESS) {
+        /* The Win32 call may have succeeded but some Tcl call might fail */
+        if (resultObj == NULL)
+            return TCL_ERROR; /* interp should already have error message */
         ObjSetResult(interp, resultObj);
         return TCL_OK;
     } else {
@@ -250,36 +278,45 @@ TwapiRegGetValue(Tcl_Interp *interp,
 static int
 TwapiRegQueryValueEx(Tcl_Interp *interp,
                  HKEY        hkey,
-                 LPCWSTR     value_name)
+                 LPCWSTR     value_name,
+                 BOOL        cooked)
 {
     Tcl_Obj *resultObj = NULL;
-    DWORD    nch_value_name;
     LONG     status;
+    DWORD    nch_value_name;
     SWSMark  mark;
     LPBYTE   value_data;
-    DWORD    capacity_value_data = 256;
     DWORD    value_type, nb_value_data;
     int      max_loop; /* Safety measure if buf size keeps changing */
 
     mark = SWSPushMark();
     resultObj = ObjNewList(0, NULL);
 
-    value_data = SWSAlloc(capacity_value_data, &capacity_value_data);
-    max_loop   = 5; /* Retries for a particular key. Else error */
-    while (max_loop > 0) {
-        nb_value_data  = capacity_value_data;
+    nb_value_data = 256;
+    value_data = SWSAlloc(nb_value_data, &nb_value_data);
+    max_loop   = 10; /* Retries for a particular key. Else error */
+    while (--max_loop >= 0) {
         status         = RegQueryValueExW(hkey,
                               value_name,
-                              &value_type,
                               NULL,
+                              &value_type,
                               value_data,
                               &nb_value_data);
         if (status == ERROR_SUCCESS) {
-            Tcl_Obj *objs[2];
-            objs[0] = ObjFromDWORD(value_type);
-            objs[1] = ObjFromRegValue(
-                interp, value_type, value_data, nb_value_data);
-            resultObj = ObjNewList(2, objs);
+            if (cooked) {
+                resultObj
+                    = ObjFromRegValueCooked(interp, value_type, value_data, nb_value_data);
+            } else {
+                Tcl_Obj *objs[2];
+                objs[1] = ObjFromRegValue(
+                    interp, value_type, value_data, nb_value_data);
+                if (objs[1] == NULL)
+                    resultObj = NULL;
+                else {
+                    objs[0]   = ObjFromDWORD(value_type);
+                    resultObj = ObjNewList(2, objs);
+                }
+            }
             break;
         } else if (status == ERROR_MORE_DATA) {
             value_data = SWSAlloc(nb_value_data, NULL);
@@ -291,6 +328,9 @@ TwapiRegQueryValueEx(Tcl_Interp *interp,
     }
     SWSPopMark(mark);
     if (status == ERROR_SUCCESS) {
+        /* The Win32 call may have succeeded but some Tcl call might fail */
+        if (resultObj == NULL)
+            return TCL_ERROR;
         ObjSetResult(interp, resultObj);
         return TCL_OK;
     } else {
@@ -513,12 +553,13 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     case 12: // RegQueryValueEx
         if (TwapiGetArgs(interp, objc, objv,
                          GETHKEY(hkey),
-                         GETOBJ(objP), ARGUSEDEFAULT, GETINT(dw),
+                         GETOBJ(objP),
+                         GETBOOL(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_TCL_RESULT;
         result.value.ival
-            = TwapiRegQueryValueEx(interp, hkey, ObjToWinChars(objP));
+            = TwapiRegQueryValueEx(interp, hkey, ObjToWinChars(objP), dw);
         break;
 
     case 13: // RegCopyTree
@@ -706,11 +747,11 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     case 25: // RegGetValue
         if (TwapiGetArgs(interp, objc, objv,
                          GETHKEY(hkey), GETOBJ(subkeyObj), GETOBJ(nameObj),
-                         ARGUSEDEFAULT, GETINT(dw)) != TCL_OK)
+                         GETINT(dw), GETBOOL(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_TCL_RESULT;
         result.value.ival
-            = TwapiRegGetValue(interp, hkey, ObjToWinChars(subkeyObj), ObjToWinChars(nameObj), dw);
+            = TwapiRegGetValue(interp, hkey, ObjToWinChars(subkeyObj), ObjToWinChars(nameObj), dw, dw2);
         break;
 
     case 26: // RegSetKeyValue
