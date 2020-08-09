@@ -25,6 +25,10 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 }
 #endif
 
+/* Window key length limits */
+#define TWAPI_KEY_NAME_NCHARS 255
+#define TWAPI_VALUE_NAME_NCHARS 16383
+
 /*
  * Define API not in XP
  */
@@ -42,43 +46,33 @@ MAKE_DYNLOAD_FUNC(SHDeleteKeyW, shlwapi, FARPROC)
 MAKE_DYNLOAD_FUNC(SHDeleteValueW, shlwapi, FARPROC)
 MAKE_DYNLOAD_FUNC(SHRegGetValueW, shlwapi, FARPROC)
 
-static int TwapiRegEnumKeyEx(Tcl_Interp *interp, HKEY hkey)
+static int TwapiRegEnumKeyEx(Tcl_Interp *interp, HKEY hkey, DWORD flags)
 {
     Tcl_Obj *resultObj = NULL;
     FILETIME file_time;
-    LPWSTR subkey;
-    DWORD capacity_subkey;
-    DWORD nch_subkey, dwIndex;
-    LONG status;
-    SWSMark mark;
+    DWORD    nch_subkey, dwIndex;
+    WCHAR    subkey[TWAPI_KEY_NAME_NCHARS];
+    LONG     status;
 
-    mark = SWSPushMark();
     resultObj = ObjNewList(0, NULL);
     dwIndex = 0;
-    capacity_subkey = 256;
-    subkey = SWSAlloc(sizeof(WCHAR) * capacity_subkey, &capacity_subkey);
     while (1) {
-        nch_subkey = capacity_subkey;
+        Tcl_Obj *objs[2];
+        nch_subkey = ARRAYSIZE(subkey);
         status     = RegEnumKeyExW(hkey, dwIndex, subkey, &nch_subkey, NULL,
                                    NULL, NULL, &file_time);
-        if (status == ERROR_SUCCESS) {
-            Tcl_Obj *objs[2];
-            objs[0] = ObjFromTclUniCharN(subkey, nch_subkey);
+        /* Should errors be ignored? TBD */
+        if (status != ERROR_SUCCESS)
+            break;
+        objs[0] = ObjFromTclUniCharN(subkey, nch_subkey);
+        if (flags & 1) {
             objs[1] = ObjFromFILETIME(&file_time);
             ObjAppendElement(interp, resultObj, ObjNewList(2, objs));
-            ++dwIndex; /* Get next key */
-        } else if (status == ERROR_MORE_DATA) {
-            /* Need bigger buffer for this key. Note nch_subkey does NOT 
-               contain required size */
-            capacity_subkey *= 2;
-            subkey = SWSAlloc(sizeof(WCHAR) * capacity_subkey, &capacity_subkey);
-            /* Do not increment dwIndex */
-        } else {
-            /* ERROR_NO_MORE_ITEMS (done) or some other error */
-            break;
-        }
+        } else
+            ObjAppendElement(interp, resultObj, objs[0]);
+
+        ++dwIndex;
     }
-    SWSPopMark(mark);
     if (status == ERROR_NO_MORE_ITEMS) {
         ObjSetResult(interp, resultObj);
         return TCL_OK;
@@ -94,22 +88,17 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
     Tcl_Obj *resultObj = NULL;
     FILETIME file_time;
     LPWSTR   value_name;
-    DWORD    capacity_value_name;
-    DWORD    nch_value_name, nb_value_data;
+    DWORD    nch_value_name;
     DWORD    dwIndex;
     LONG  status;
     SWSMark  mark;
 
     mark = SWSPushMark();
-    /* NOTE: do not increase beyond 32767 as RegEnum treats as signed short*/
-    capacity_value_name = 32767; /* Max as per registry limits */
-    value_name          = SWSAlloc(sizeof(WCHAR) * capacity_value_name, NULL);
-
+    value_name          = SWSAlloc(sizeof(WCHAR) * TWAPI_VALUE_NAME_NCHARS, NULL);
     resultObj = ObjNewList(0, NULL);
-
-    nb_value_data = 256;
     if (flags & 1) {
         /* Caller wants data as well. */
+        DWORD nb_value_data = 256;
         LPBYTE value_data;
         DWORD  value_type;
         int    max_loop; /* Safety measure if buf size keeps changing */
@@ -117,8 +106,9 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
         dwIndex    = 0;
         max_loop   = 10; /* Retries for a particular key. Else error */
         while (--max_loop >= 0) {
-            DWORD original_nb_value_data = nb_value_data;
-            nch_value_name = capacity_value_name;
+            DWORD original_nb_value_data;
+            original_nb_value_data = nb_value_data;
+            nch_value_name         = TWAPI_VALUE_NAME_NCHARS;
             status         = RegEnumValueW(hkey,
                                    dwIndex,
                                    value_name,
@@ -137,7 +127,7 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
                      * length is off by 1.
                      */
                     if (hkey == HKEY_PERFORMANCE_DATA) {
-                        value_name[capacity_value_name - 1] = 0; /* Ensure null termination */
+                        value_name[TWAPI_VALUE_NAME_NCHARS - 1] = 0; /* Ensure null termination */
                         objs[0] = ObjFromTclUniChar(value_name);
                     } else {
                         objs[0] = ObjFromTclUniCharN(value_name, nch_value_name);
@@ -168,7 +158,7 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
         dwIndex = 0;
         while (1) {
             Tcl_Obj *objP;
-            nch_value_name = capacity_value_name;
+            nch_value_name = TWAPI_VALUE_NAME_NCHARS;
             status         = RegEnumValueW(hkey,
                                    dwIndex,
                                    value_name,
@@ -185,7 +175,7 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
                 break;
             /* Workaround for HKEY_PERFORMANCE_DATA bug - length is off by 1. */
             if (hkey == HKEY_PERFORMANCE_DATA) {
-                value_name[capacity_value_name - 1] = 0; /* Ensure null termination */
+                value_name[TWAPI_VALUE_NAME_NCHARS - 1] = 0; /* Ensure null termination */
                 objP = ObjFromTclUniChar(value_name);
             } else {
                 objP = ObjFromTclUniCharN(value_name, nch_value_name);
@@ -217,7 +207,6 @@ TwapiRegGetValue(Tcl_Interp *interp,
     Tcl_Obj *resultObj = NULL;
     LONG     status; /* Win32 code */
     FILETIME file_time;
-    DWORD    nch_value_name;
     SWSMark  mark;
     LPBYTE   value_data;
     DWORD    value_type, nb_value_data;
@@ -307,7 +296,6 @@ TwapiRegQueryValueEx(Tcl_Interp *interp,
 {
     Tcl_Obj *resultObj = NULL;
     LONG     status;
-    DWORD    nch_value_name;
     SWSMark  mark;
     LPBYTE   value_data;
     DWORD    value_type, nb_value_data;
@@ -518,11 +506,11 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 7: // RegEnumKeyEx
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHKEY(hkey),
+                         GETHKEY(hkey), ARGUSEDEFAULT, GETINT(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_TCL_RESULT;
-        result.value.ival = TwapiRegEnumKeyEx(interp, hkey);
+        result.value.ival = TwapiRegEnumKeyEx(interp, hkey, dw);
         break;
 
     case 8: // RegEnumValue
@@ -865,6 +853,7 @@ static int TwapiRegInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(RegDeleteTree, 6),
         DEFINE_FNCODE_CMD(reg_key_prune, 6),
         DEFINE_FNCODE_CMD(RegEnumKeyEx, 7),
+        DEFINE_FNCODE_CMD(reg_keys, 7),
         DEFINE_FNCODE_CMD(RegEnumValue, 8),
         DEFINE_FNCODE_CMD(RegOpenCurrentUser, 9),
         DEFINE_FNCODE_CMD(RegDisablePredefinedCache, 10),
