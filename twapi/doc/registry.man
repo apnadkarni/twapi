@@ -79,6 +79,50 @@ Returns a handle to a predefined registry key on a remote system.
 Disables the caching of the [const HKEY_CURRENT_USER] handle for the current
 process.
 
+[call [cmd reg_iterator] [arg HKEY] [opt [arg options]]]
+
+Returns an iterator command that can be invoked to iterate over all keys and
+values under a registry key. The following options may be specified with
+the command:
+
+[list_begin opt]
+[opt_def [cmd -subkey] [arg SUBKEY]] Registry path relative to [arg HKEY]
+iterate over. If unspecified, the root of the iteration tree is [arg HKEY]
+itself.
+[opt_def [cmd -raw] [arg BOOLEAN]] If [const false] (default), values are
+returned in cooked form. If [const true] the value data is a pair consisting
+of the type and data.
+[opt_def [cmd -withkeys] [arg BOOLEAN]] If [const true] (default), keys
+are included in the items returned by the iteration. If [const false] they
+are excluded.
+[opt_def [cmd -withvalues] [arg BOOLEAN]] If [const true] (default), values
+are included in the items returned by the iteration. If [const false] they
+are excluded.
+[list_end]
+
+The iterator command should be invoked with zero or one argument. If invoked
+with no arguments or the argument [cmd next], the iterator returns the next
+item in the iteration. If invoked with an argument of [cmd skipchildren],
+the iterator returns the next key at the same level at the current level.
+In other words, all children of the current item, both keys and values are
+skipped in the iteration. Note this argument value has the same effect
+as [cmd next] when the current item is a value since values never have
+children. The [cmd skipsiblings] is similar except that it skips items
+at the same level as the current leve. Finally, the argument [cmd stop]
+will end the iteration (even if more items remain). Any further attempt
+to invoke the iterator command will result in an error being raised.
+
+The return value from the iterator invocation is a list of three elements.
+The first element is a list containing the relative path to the current item.
+The second element is the type of the item, either [const Key] or [const Values]
+depending on whether the item is a registry key or a dictionary of values.
+If the former, the third element is the key name. If the latter, the third
+element is a dictionary keyed by the value name. The value data may
+be in cooked or raw form depending on the [cmd -raw] option value.
+
+The iterator will return an empty list when no more items remain. Invoking
+it again will raise an error.
+
 [call [cmd reg_key_close] [arg HKEY]]
 
 Releases the passed registry key handle. [arg HKEY] must not be one of
