@@ -310,10 +310,11 @@ specified as a list of integer access rights flags or symbols as described in
 [list_end]
 
 
-[call [cmd reg_keys] [arg HKEY] [opt [arg PATTERN]]]
+[call [cmd reg_keys] [arg HKEY] [opt [cmd -withtime]]]
 Returns the list of keys under the key specified by the handle [arg HKEY].
-If [arg PATTERN] is specified, only those keys matching it are returned.
-The matching is as for [cmd "string match"] and is case-insensitive.
+If the option [cmd -withtime] is specified, the returned list consists
+of pairs the first element being the key name and the second being the time
+of last modification in 100ns since Jan 1, 1601.
 
 [call [cmd reg_value] [arg HKEY] [opt [arg SUBKEY]] [arg VALUENAME]]
 Returns the cooked data value for a registry value. If
@@ -328,10 +329,8 @@ specified registry value under the key specified by the handle [arg HKEY].
 If [arg SUBKEY] is specified, it should be a key path under [arg HKEY].
 In this case the value is deleted from that key.
 
-[call [cmd reg_value_names] [arg HKEY] [opt [arg PATTERN]]]
+[call [cmd reg_value_names] [arg HKEY]]
 Returns the list of names of values under the key specified by the handle [arg HKEY].
-If [arg PATTERN] is specified, only those names matching it are returned.
-The matching is as for [cmd "string match"] and is case-insensitive.
 
 [call [cmd reg_value_raw] [arg HKEY] [opt [arg SUBKEY]] [arg VALUENAME]]
 
