@@ -291,7 +291,7 @@ proc twapi::_reg_walker {hkey path withvalues callback cbdata} {
                 if {$code == 4} {
                     # continue - skip children, continue with siblings
                     continue
-                } elseif {$coded == 3} {
+                } elseif {$code == 3} {
                     # break - skip siblings
                     break
                 } elseif {$code == 2} {
@@ -323,13 +323,14 @@ proc twapi::_reg_walker {hkey path withvalues callback cbdata} {
 
 proc twapi::reg_walk {hkey args} {
     parseargs args {
-        subkey.arg
+        {subkey.arg {}}
         {withvalues.arg none {none raw cooked}}
         callback.arg
         {cbdata.arg ""}
     } -maxleftover 0 -setvars
 
-    if {[info exists subkey]} {
+
+    if {$subkey ne ""} {
         set hkey [reg_key_open $hkey $subkey]
         set path [list $subkey]
     } else {
@@ -346,7 +347,7 @@ proc twapi::reg_walk {hkey args} {
             return -options $ropts $result
         }
     } finally {
-        if {[info exists subkey]} {
+        if {$subkey ne ""} {
             reg_key_close $hkey
         }
     }
@@ -360,4 +361,37 @@ proc twapi::reg_walk_cb {cbdata path type name args} {
         dict set cbdata {*}$path \\Values $name
     }
     return $cbdata
+}
+
+proc twapi::_reg_iterator_callback {cbdata path type item} {
+    set ret [yield [list $path $type $item]]
+    # Loop until valid argument
+    while {1} {
+        switch -exact -- $ret {
+            "" -
+            next { return $cbdata }
+            stop { return -code return $cbdata }
+            skip { return -code break $cbdata }
+            skipchildren { return -code continue $cbdata }
+            default {
+                set ret [yieldto return -level 0 -code error "Invalid argument \"$ret\"."]
+            }
+        }
+    }
+}
+
+proc twapi::_reg_iterator_coro {hkey args} {
+    parseargs args {
+        {subkey.arg {}}
+        {withvalues.arg none {none raw cooked}}
+    } -maxleftover 0 -setvars
+
+    yield [info coroutine]
+    reg_walk $hkey -subkey $subkey -withvalues $withvalues -callback [namespace current]::_reg_iterator_callback
+}
+
+proc twapi::reg_iterator {args} {
+    variable reg_walk_counter
+
+    return [coroutine "regwalk#[incr reg_walk_counter]" _reg_iterator_coro {*}$args]
 }
