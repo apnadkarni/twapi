@@ -68,19 +68,11 @@ proc twapi::reg_key_delete {hkey subkey args} {
     RegDeleteKeyEx $hkey $subkey $access
 }
 
-proc twapi::reg_keys {hkey {pattern {}}} {
-    if {$pattern eq ""} {
-        lmap keyrec [RegEnumKeyEx $hkey] {
-            lindex $keyrec 0
-        }
-    } else {
-        lmap keyrec [RegEnumKeyEx $hkey] {
-            if {![string match -nocase $pattern [lindex $keyrec 0]]} {
-                continue
-            }
-            lindex $keyrec 0
-        }
-    }
+proc twapi::reg_keys {hkey args} {
+    parseargs args {
+        withtime
+    } -maxleftover 0 -setvars
+    return [RegEnumKeyEx $hkey $withtime]
 }
 
 proc twapi::reg_key_open {hkey subkey args} {
@@ -197,7 +189,7 @@ proc twapi::reg_key_monitor {hkey args} {
     RegNotifyChangeKeyValue $hkey $subtree $filter $hevent $async
 }
 
-proc twapi::reg_value_names {hkey {pattern {}}} {
+proc twapi::reg_value_names {hkey} {
     # 0 - value names only
     return [RegEnumValue $hkey 0]
 }
@@ -266,4 +258,102 @@ if {[twapi::min_os_version 6]} {
 
 proc twapi::reg_key_override_undo {hkey} {
     RegOverridePredefKey $hkey 0
+}
+
+proc twapi::_reg_walker {hkey path callback cbdata} {
+    try {
+        foreach {value_name value} [reg_values_raw $hkey] {
+            set code [catch {
+                {*}$callback $cbdata $path Value $value_name $value
+            } cbdata ropts]
+            if {$code != 0} {
+                if {$code == 0 || $code == 4} {
+                    continue
+                } elseif {$code == 3} {
+                    # break - skip siblings
+                    break
+                } elseif {$code == 2} {
+                    # return - stop all iteration all up the tree
+                    return -code return $cbdata
+                } else {
+                    return $cbdata -options $ropts
+                }
+            }
+        }
+        foreach childkey [reg_keys $hkey] {
+            set code [catch {
+                {*}$callback $cbdata $path Key $childkey
+            } cbdata ropts]
+            if {$code != 0} {
+                if {$code == 4} {
+                    # continue - skip children, continue with siblings
+                    continue
+                } elseif {$coded == 3} {
+                    # break - skip siblings
+                    break
+                } elseif {$code == 2} {
+                    # return - stop all iteration all up the tree
+                    return -code return $cbdata
+                } else {
+                    return $cbdata -options $ropts
+                }
+            }
+            set child_hkey [reg_key_open $hkey $childkey]
+            try {
+                set code [catch {
+                    _reg_walker $child_hkey [linsert $path end $childkey] $callback $cbdata
+                } cbdata ropts]
+                if {$code != 0} {
+                    return -code $code -options $ropts $cbdata
+                }
+            } finally {
+                reg_key_close $child_hkey
+            }
+        }
+    } finally {
+        if {[info exists subkey]} {
+            reg_key_close $hkey
+        }
+    }
+    return $cbdata
+}
+
+proc twapi::reg_walk {hkey args} {
+    parseargs args {
+        subkey.arg
+        callback.arg
+        {cbdata.arg ""}
+    } -maxleftover 0 -setvars
+
+    if {[info exists subkey]} {
+        set hkey [reg_key_open $hkey $subkey]
+        set path [list $subkey]
+    } else {
+        set path [list ]
+    }
+
+    if {![info exists callback]} {
+        set callback [lambda {args} {puts [join $args { }]}]
+    }
+    try {
+        set code [catch {_reg_walker $hkey $path $callback $cbdata } result ropts]
+        # Codes 2 (return), 3 (break) and 4 (continue) are just early terminations
+        if {$code == 1} {
+            return -options $ropts $result
+        }
+    } finally {
+        if {[info exists subkey]} {
+            reg_key_close $hkey
+        }
+    }
+    return $result
+}
+
+proc twapi::reg_walk_cb {cbdata path type name args} {
+    if {$type eq "Key"} {
+        dict set cbdata {*}$path $name \\Values {}
+    } else {
+        dict set cbdata {*}$path \\Values $name [lindex $args 0]
+    }
+    return $cbdata
 }
