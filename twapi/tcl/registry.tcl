@@ -388,8 +388,25 @@ proc twapi::_reg_iterator_coro {hkey args} {
     return
 }
 
-proc twapi::reg_iterator {args} {
+proc twapi::reg_iterator {hkey args} {
     variable reg_walk_counter
 
-    return [coroutine "regwalk#[incr reg_walk_counter]" _reg_iterator_coro {*}$args]
+    return [coroutine "regwalk#[incr reg_walk_counter]" _reg_iterator_coro $hkey {*}$args]
+}
+
+proc twapi::reg_as_dict {hkey args} {
+    set iter [reg_iterator $hkey {*}$args]
+
+    set reg [dict create]
+    while {[llength [set item [$iter next]]]} {
+        lassign $item path type content
+        if {$type eq "Values"} {
+            dict set reg {*}$path Values $content
+        } else {
+            dict with reg {*}$path {
+                lappend Keys $content
+            }
+        }
+    }
+    return $reg
 }
