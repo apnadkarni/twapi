@@ -12,8 +12,9 @@ the [cmd registry] package that is included with the Tcl core distribution. The
 commands in the Tcl [cmd registry] package are in most cases easier to use and
 may in many cases be more performant as well. This package is useful to fill in
 missing capabilities there such as accessing security descriptors, receiving
-change notifications. Certain bulk operations may also be more efficient through
-the explicit ues of registry handles in this package.
+change notifications and back up / restore. The package also provides some
+utility commands for iteration etc and certain bulk operations may also be
+more efficient through the explicit ues of registry handles in this package.
 
 [section "Predefined keys"]
 
@@ -112,6 +113,7 @@ at the same level as the current leve. Finally, the argument [cmd stop]
 will end the iteration (even if more items remain). Any further attempt
 to invoke the iterator command will result in an error being raised.
 
+[nl]
 The return value from the iterator invocation is a list of three elements.
 The first element is a list containing the relative path to the current item.
 The second element is the type of the item, either [const Key] or [const Values]
@@ -120,6 +122,7 @@ If the former, the third element is the key name. If the latter, the third
 element is a dictionary keyed by the value name. The value data may
 be in cooked or raw form depending on the [cmd -raw] option value.
 
+[nl]
 The iterator will return an empty list when no more items remain. Invoking
 it again will raise an error.
 
@@ -184,6 +187,7 @@ the current thread is impersonating. Note this is not necessarily the same
 as the [const HKEY_CURRENT_USER] handle cached for the process. If the
 user profile is not loaded, the default profile is used.
 
+[nl]
 The following options may be specified:
 [list_begin opt]
 [opt_def [cmd -32bit]] Specifies that the 32-bit registry view should be
@@ -235,6 +239,7 @@ a file in the format saved by [uri \#reg_key_export [cmd reg_key_export]].
 The [uri \#reg_key_unload [cmd reg_key_unload]] command may be used to
 undo the operation.
 
+[nl]
 Note the caller process must be running with [const SE_BACKUP_NAME] and
 [const SE_RESTORE_NAME] privileges.
 
@@ -268,6 +273,7 @@ including additions and deletions.
 If none of the options [cmd -attr], [cmd -keys], [cmd -secd] and [cmd -values]
 are specified as [const true], all are enabled.
 
+[nl]
 By default, the command is synchrnous and will return only after a change of the
 requested type has been signalled. The [cmd -hevent] option may be used for
 asynchronous notifications. The argument to the option must be a handle to
@@ -276,6 +282,7 @@ event will be signalled when the key changes. The caller can wait on the
 passed event or register a callback using the
 [uri base.html#wait_on_handle [cmd wait_on_handle]] command.
 
+[nl]
 Note the following important points about asynchronous operation:
 
 [list_begin bullet]
