@@ -260,20 +260,43 @@ proc twapi::reg_key_override_undo {hkey} {
     RegOverridePredefKey $hkey 0
 }
 
-proc twapi::_reg_walker {hkey path withkeys withvalues callback cbdata} {
-    try {
-        if {$withvalues ne "none"} {
-            if {$withvalues eq "raw"} {
-                set values [reg_values_raw $hkey]
-            } else {
-                set values [reg_values $hkey]
-            }
+proc twapi::_reg_walker {hkey path withvalues callback cbdata} {
+    if {$withvalues eq "cooked"} {
+        set values [reg_values $hkey]
+    } elseif {$withvalues eq "raw"} {
+        set values [reg_values_raw $hkey]
+    } else {
+        set values {}
+    }
+    set code [catch {
+        {*}$callback $cbdata $hkey $path $values
+    } cbdata ropts]
+
+    if {$code != 0} {
+        if {$code == 4} {
+            # continue - skip children, continue with siblings
+            return $cbdata
+        } elseif {$code == 3} {
+            # break - skip siblings as well as children
+            return -code break $cbdata
+        } elseif {$code == 2} {
+            # return - stop all iteration all up the tree
+            return -code return $cbdata
+        } else {
+            return -options $ropts $cbdata
+        }
+    }
+
+    # Iterate over child keys
+    foreach childkey [reg_keys $hkey] {
+        set child_hkey [reg_key_open $hkey $childkey]
+        try {
             set code [catch {
-                {*}$callback $cbdata $path Values $values
+                _reg_walker $child_hkey [linsert $path end $childkey] $withvalues $callback $cbdata
             } cbdata ropts]
             if {$code != 0 && $code != 4} {
                 if {$code == 3} {
-                    # break - skip keys
+                    # break - skip remaining child keys
                     return $cbdata
                 } elseif {$code == 2} {
                     # return - stop all iteration all up the tree
@@ -282,45 +305,11 @@ proc twapi::_reg_walker {hkey path withkeys withvalues callback cbdata} {
                     return $cbdata -options $ropts
                 }
             }
-        }
-
-        foreach childkey [reg_keys $hkey] {
-            if {$withkeys} {
-                set code [catch {
-                    {*}$callback $cbdata $path Key $childkey
-                } cbdata ropts]
-                if {$code != 0} {
-                    if {$code == 4} {
-                        # continue - skip children, continue with siblings
-                        continue
-                    } elseif {$code == 3} {
-                        # break - skip siblings
-                        break
-                    } elseif {$code == 2} {
-                        # return - stop all iteration all up the tree
-                        return -code return $cbdata
-                    } else {
-                        return $cbdata -options $ropts
-                    }
-                }
-            }
-            set child_hkey [reg_key_open $hkey $childkey]
-            try {
-                set code [catch {
-                    _reg_walker $child_hkey [linsert $path end $childkey] $withkeys $withvalues $callback $cbdata
-                } cbdata ropts]
-                if {$code != 0} {
-                    return -code $code -options $ropts $cbdata
-                }
-            } finally {
-                reg_key_close $child_hkey
-            }
-        }
-    } finally {
-        if {[info exists subkey]} {
-            reg_key_close $hkey
+        } finally {
+            reg_key_close $child_hkey
         }
     }
+
     return $cbdata
 }
 
@@ -329,7 +318,6 @@ proc twapi::reg_walk {hkey args} {
     parseargs args {
         {subkey.arg {}}
         {withvalues.arg cooked {none raw cooked}}
-        {withkeys.bool true}
         callback.arg
         {cbdata.arg ""}
     } -maxleftover 0 -setvars
@@ -346,7 +334,7 @@ proc twapi::reg_walk {hkey args} {
         set callback [lambda {args} {puts [join $args { }]}]
     }
     try {
-        set code [catch {_reg_walker $hkey $path $withkeys $withvalues $callback $cbdata } result ropts]
+        set code [catch {_reg_walker $hkey $path $withvalues $callback $cbdata } result ropts]
         # Codes 2 (return), 3 (break) and 4 (continue) are just early terminations
         if {$code == 1} {
             return -options $ropts $result
@@ -359,18 +347,18 @@ proc twapi::reg_walk {hkey args} {
     return $result
 }
 
-proc twapi::_reg_iterator_callback {cbdata path type item} {
-    set ret [yield [list $path $type $item]]
+proc twapi::_reg_iterator_callback {cbdata hkey path args} {
+    set cmd [yield [list $hkey $path {*}$args]]
     # Loop until valid argument
     while {1} {
-        switch -exact -- $ret {
+        switch -exact -- $cmd {
             "" -
             next { return $cbdata }
             stop { return -code return $cbdata }
             skipsiblings { return -code break $cbdata }
             skipchildren { return -code continue $cbdata }
             default {
-                set ret [yieldto return -level 0 -code error "Invalid argument \"$ret\"."]
+                set ret [yieldto return -level 0 -code error "Invalid argument \"$cmd\"."]
             }
         }
     }
@@ -380,11 +368,25 @@ proc twapi::_reg_iterator_coro {hkey args} {
     parseargs args {
         {subkey.arg {}}
         {withvalues.arg cooked {none raw cooked}}
-        {withkeys.bool true}
     } -maxleftover 0 -setvars
 
-    yield [info coroutine]
-    reg_walk $hkey -subkey $subkey -withkeys $withkeys -withvalues $withvalues -callback [namespace current]::_reg_iterator_callback
+    set cmd [yield [info coroutine]]
+    switch -exact -- $cmd {
+        "" -
+        next {
+            # Drop into reg_walk
+        }
+        stop -
+        skipsiblings -
+        skipchildren {
+            return {}
+        }
+        default {
+            error "Invalid argument \"$cmd\"."
+        }
+    }
+
+    reg_walk $hkey -subkey $subkey -withvalues $withvalues -callback [namespace current]::_reg_iterator_callback
     return
 }
 
@@ -394,19 +396,14 @@ proc twapi::reg_iterator {hkey args} {
     return [coroutine "regwalk#[incr reg_walk_counter]" _reg_iterator_coro $hkey {*}$args]
 }
 
-proc twapi::reg_as_dict {hkey args} {
+proc twapi::reg_tree {hkey args} {
     set iter [reg_iterator $hkey {*}$args]
 
-    set reg [dict create]
+    set reg {}
     while {[llength [set item [$iter next]]]} {
-        lassign $item path type content
-        if {$type eq "Values"} {
-            dict set reg {*}$path Values $content
-        } else {
-            dict with reg {*}$path {
-                lappend Keys $content
-            }
-        }
+        lassign $item hkey keypath values
+        dict set reg {*}$keypath \\Values $values
     }
     return $reg
 }
+
