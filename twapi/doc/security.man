@@ -167,6 +167,8 @@ to all securable object types: [const delete], [const read_control],
 [const standard_rights_read], [const standard_rights_write],
 [const standard_rights_execute],
 [const standard_rights_required] and [const standard_rights_all].
+Some APIs will also accept [const maximum_allowed] to indicate the
+the maximum permitted access to the resource for the process is desired.
 Refer to the Windows SDK for a definition of these access rights.
 
 [para]

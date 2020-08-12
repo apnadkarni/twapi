@@ -114,10 +114,18 @@ it again will raise an error.
 Releases the passed registry key handle. [arg HKEY] must not be one of
 the predefined registry handles.
 
-[call [cmd reg_key_copy] [arg HFROM] [arg SUBKEY] [arg HTO]]
+[call [cmd reg_key_copy] [arg HFROM] [arg HTO] [opt "[cmd -subkey] [arg SUBKEY]"] [opt "[cmd -copysecd] [arg BOOL]"]]
 
-Copies the contents of the key identified by the key path [arg SUBKEY] under
-the handle [arg HFROM] to the target key with handle [arg HTO].
+Copies the subtree under a registry key to another registry key. The source key is
+specified by [arg HFROM] which must be a handle to a registry key. If the [cmd -subkey]
+option is specified it must be a path to subkey under [arg HFROM] and the source
+tree is then copied from there. The target key identified by its handle [arg HTO]
+must have been opened with the appropriate access permissions.
+
+The [cmd -copysecd] option controls whether the security descriptors in the source
+tree are also to be copied. If [const true], the descriptors are copied as well.
+The default is [const false]. The option must be [const false] on Windows XP
+and Windows 2003 as otherwise the copy will fail.
 
 [call [cmd reg_key_create] [arg HKEY] [arg SUBKEY] [opt [arg options]]]
 
