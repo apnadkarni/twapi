@@ -583,12 +583,11 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
             return TCL_ERROR;
         else {
             FARPROC func = Twapi_GetProc_RegCopyTreeW();
-            /* XP does not have RegCopyTree. Use ShCopyKey instead */
-            /* NOTE: Latter does NOT copy security descriptors! */
-            if (func == NULL)
-                func = Twapi_GetProc_SHCopyKeyW();
             if (func) {
-                result.value.ival = func(hkey, ObjToWinChars(subkeyObj), hkey2, 0);
+                Tcl_UniChar *subkey = ObjToWinCharsN(subkeyObj, &dw);
+                if (dw == 0)
+                    subkey = NULL;
+                result.value.ival = func(hkey, subkey, hkey2);
                 if (result.value.ival == ERROR_SUCCESS)
                     result.type = TRT_EMPTY;
             } else {
@@ -798,7 +797,24 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         }
         break;
 
-    case 27: // UNUSED
+    case 27: // SHCopyKey
+        if (TwapiGetArgs(interp, objc, objv,
+                         GETHKEY(hkey), GETOBJ(subkeyObj), 
+                         GETHKEY(hkey2),
+                         ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        else {
+            FARPROC func = Twapi_GetProc_SHCopyKeyW();
+            if (func) {
+                Tcl_UniChar *subkey = ObjToWinCharsN(subkeyObj, &dw);
+                if (dw == 0)
+                    subkey = NULL;
+                result.value.ival = func(hkey, subkey, hkey2, 0);
+                if (result.value.ival == ERROR_SUCCESS)
+                    result.type = TRT_EMPTY;
+            } else
+                result.value.ival = ERROR_PROC_NOT_FOUND;
+        }
         break;
 
     case 28: // RegFlushKey
@@ -861,7 +877,6 @@ static int TwapiRegInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(RegGetKeySecurity, 11),
         DEFINE_FNCODE_CMD(RegQueryValueEx, 12),
         DEFINE_FNCODE_CMD(RegCopyTree, 13),
-        DEFINE_FNCODE_CMD(reg_key_copy, 13),
         DEFINE_FNCODE_CMD(RegOpenUserClassesRoot, 14),
         DEFINE_FNCODE_CMD(RegOverridePredefKey, 15),
         DEFINE_FNCODE_CMD(reg_key_override, 15),
@@ -875,11 +890,12 @@ static int TwapiRegInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(RegRestoreKey, 20),
         DEFINE_FNCODE_CMD(RegSetValueEx, 21),
         DEFINE_FNCODE_CMD(RegNotifyChangeKeyValue, 22),
-        DEFINE_FNCODE_CMD(RegKeySetSecurity, 23),
+        DEFINE_FNCODE_CMD(RegSetKeySecurity, 23),
         DEFINE_FNCODE_CMD(RegConnectRegistry, 24),
         DEFINE_FNCODE_CMD(reg_connect, 24),
         DEFINE_FNCODE_CMD(RegGetValue, 25),
         DEFINE_FNCODE_CMD(RegSetKeyValue, 26),
+        DEFINE_FNCODE_CMD(SHCopyKey, 27),
         DEFINE_FNCODE_CMD(RegFlushKey, 28),
         DEFINE_FNCODE_CMD(reg_key_flush, 28),
         DEFINE_FNCODE_CMD(RegCloseKey, 29),

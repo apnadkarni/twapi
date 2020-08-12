@@ -6,6 +6,18 @@
 
 namespace eval twapi {}
 
+proc twapi::reg_key_copy {hkey to_hkey args} {
+    parseargs args {
+        subkey.arg
+        copysecd.bool
+    } -setvars -maxleftover 0 -nulldefault
+
+    if {$copysecd} {
+        RegCopyTree $hkey $subkey $to_hkey
+    } else {
+        SHCopyKey $hkey $subkey $to_hkey
+    }
+}
 
 proc twapi::reg_key_create {hkey subkey args} {
     parseargs args {
@@ -36,7 +48,7 @@ proc twapi::reg_key_create {hkey subkey args} {
                  "" \
                  [expr {$volatile | $backup}] \
                  $access \
-                 [_make_secattr $opts(secd) $inherit] \
+                 [_make_secattr $secd $inherit] \
                 ] hkey disposition_value
     if {[info exists disposition]} {
         upvar 1 $disposition created_or_existed
