@@ -485,6 +485,8 @@ proc twapi::_init_security_defs {} {
         WRITE_OWNER                    0x00080000
         SYNCHRONIZE                    0x00100000
 
+        MAXIMUM_ALLOWED                0x02000000
+
         COM_RIGHTS_EXECUTE 1
         COM_RIGHTS_EXECUTE_LOCAL 2
         COM_RIGHTS_EXECUTE_REMOTE 4
