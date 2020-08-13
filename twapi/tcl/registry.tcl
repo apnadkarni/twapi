@@ -273,19 +273,19 @@ proc twapi::reg_key_override_undo {hkey} {
 }
 
 proc twapi::_reg_walker {hkey path callback cbdata} {
+    # Callback for the key
     set code [catch {
         {*}$callback $cbdata $hkey $path
     } cbdata ropts]
-
     if {$code != 0} {
         if {$code == 4} {
-            # continue - skip children, continue with siblings
+            # Continue - skip children, continue with siblings
             return $cbdata
         } elseif {$code == 3} {
-            # break - skip siblings as well as children
+            # Skip siblings as well
             return -code break $cbdata
         } elseif {$code == 2} {
-            # return - stop all iteration all up the tree
+            # Stop complete iteration
             return -code return $cbdata
         } else {
             return -options $ropts $cbdata
@@ -293,11 +293,12 @@ proc twapi::_reg_walker {hkey path callback cbdata} {
     }
 
     # Iterate over child keys
-    foreach childkey [reg_keys $hkey] {
-        set child_hkey [reg_key_open $hkey $childkey]
+    foreach child_key [reg_keys $hkey] {
+        set child_hkey [reg_key_open $hkey $child_key]
         try {
+            # Recurse to call into children
             set code [catch {
-                _reg_walker $child_hkey [linsert $path end $childkey] $callback $cbdata
+                _reg_walker $child_hkey [linsert $path end $child_key] $callback $cbdata
             } cbdata ropts]
             if {$code != 0 && $code != 4} {
                 if {$code == 3} {
