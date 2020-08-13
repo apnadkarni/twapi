@@ -359,8 +359,8 @@ proc twapi::_reg_iterator_callback {cbdata hkey path args} {
             "" -
             next { return $cbdata }
             stop { return -code return $cbdata }
-            skipsiblings { return -code break $cbdata }
-            skipchildren { return -code continue $cbdata }
+            parentsibling { return -code break $cbdata }
+            sibling { return -code continue $cbdata }
             default {
                 set ret [yieldto return -level 0 -code error "Invalid argument \"$cmd\"."]
             }
@@ -376,16 +376,24 @@ proc twapi::_reg_iterator_coro {hkey subkey} {
             # Drop into reg_walk
         }
         stop -
-        skipsiblings -
-        skipchildren {
+        parentsibling -
+        sibling {
             return {}
         }
         default {
             error "Invalid argument \"$cmd\"."
         }
     }
-
-    reg_walk $hkey -subkey $subkey -callback [namespace current]::_reg_iterator_callback
+    if {$subkey ne ""} {
+        set hkey [reg_key_open $hkey $subkey]
+    }
+    try {
+        reg_walk $hkey -callback [namespace current]::_reg_iterator_callback
+    } finally {
+        if {$subkey ne ""} {
+            reg_key_close $hkey
+        }
+    }
     return
 }
 
