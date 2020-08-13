@@ -86,15 +86,17 @@ Returns an iterator command that can be invoked to iterate over all keys and
 values under a registry key. The iteration is carried out over [arg HKEY]
 unless a non-empty [arg SUBKEY] argument is specified. In that case,
 it must the path to a subkey under [arg HKEY] and the iteration is
-carried out over that instead.
+carried out over its subtree instead.
 
+[nl]
 The returned iterator command should be invoked with zero or one argument. If
 invoked with no arguments or the argument [cmd next], the iterator returns the
-next item in the iteration. If invoked with an argument of [cmd skipchildren],
+next item in the iteration. If invoked with an argument of [cmd sibling],
 the iterator returns the next key at the same level at the current level
 skipping over the children of the key that was last returned. The
-[cmd skipsiblings] is similar except that it skips the remaining keys
-at the same level as the current level. Finally, the argument [cmd stop] will
+[cmd parentsibling] is similar except that it skips the remaining keys
+at the same level as the current level and returns the parent's sibling.
+Finally, the argument [cmd stop] will
 end the iteration (even if more items remain). Any further attempt to invoke the
 iterator command will result in an error being raised.
 
