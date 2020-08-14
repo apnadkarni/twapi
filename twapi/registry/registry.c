@@ -465,7 +465,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                 result.value.ival = RegDeleteKey(hkey, ObjToWinChars(subkeyObj));
             }
         }
-        if (result.value.ival == ERROR_SUCCESS)
+        if (result.value.ival == ERROR_SUCCESS || result.value.ival == ERROR_FILE_NOT_FOUND)
             result.type = TRT_EMPTY;
         break;
 
