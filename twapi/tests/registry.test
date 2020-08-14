@@ -1,0 +1,640 @@
+#
+# Copyright (c) Ashok P. Nadkarni
+# All rights reserved
+#
+# See the file LICENSE for license
+
+# registry tests
+
+package require tcltest
+eval tcltest::configure $argv
+
+package require registry
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi_package twapi_registry
+load_twapi_package twapi_security
+load_twapi_package twapi_process
+
+namespace eval twapi::registry::test {
+    namespace import ::tcltest::test
+    # Constraint x64 is true if we are a 64-bit process
+    ::tcltest::testConstraint x64 [expr {$::tcl_platform(machine) eq "amd64"}]
+    ::tcltest::testConstraint elevated [expr {[twapi::get_process_elevation] eq "full"}]
+    ::tcltest::testConstraint notelevated [expr {[twapi::get_process_elevation] ne "full"}]
+
+    variable computer_name [info hostname]
+    variable rootKey TwapiTestRoot
+    variable rootPath HKEY_CURRENT_USER\\$rootKey
+
+    variable roots {
+        HKEY_CLASSES_ROOT   {.txt {Content Type}}
+        HKEY_CURRENT_USER   {Environment Path}
+        HKEY_LOCAL_MACHINE  {Software\Microsoft\Windows\CurrentVersion ProgramFilesDir}
+        HKEY_USERS          {.DEFAULT Path}
+        HKEY_PERFORMANCE_DATA {Global}
+        HKEY_PERFORMANCE_TEXT {Help}
+        HKEY_PERFORMANCE_NLSTEXT {Help}
+        HKEY_CURRENT_CONFIG {Software\Fonts LogPixels}
+        HKEY_CURRENT_USER_LOCAL_SETTINGS {}
+    } 
+    variable tcl_roots {
+        HKEY_CLASSES_ROOT 
+        HKEY_CURRENT_USER
+        HKEY_LOCAL_MACHINE 
+        HKEY_USERS 
+        HKEY_PERFORMANCE_DATA
+        HKEY_CURRENT_CONFIG 
+    }
+
+    variable testStructure {
+        Keys {
+            Key1 {
+                Keys {
+                    SubkeyA {
+                        Keys {}
+                        Values {
+                            SubValueA {{subvalue a} sz}
+                            SubValueB {{subvalue b} sz}
+                        }
+                    }
+                    SubkeyX {
+                        Keys {}
+                        Values {SubValueX {99 dword}}
+                    }
+                }
+                Values {
+                    ValueSz {"a string" sz}
+                    ValueDword {42 dword}
+                    ValueDwordBE {42 dword_big_endian}
+                    ValueExpandSz {"%PATH%" expand_sz}
+                    ValueBinary {"\t\r\n\v" binary}
+                    ValueMultiSz {{abc def hij} multi_sz}
+                    ValueResourceList {"\v\r\n\t" resource_list}
+                    ValueNone {"" none}
+                }
+            }
+            Key2 {
+                Keys {}
+                Values {
+                    ValueSz {"key2 string" sz}
+                }
+            }
+        }
+        Values {}
+    }
+
+    proc makeSecd {} {
+        set dacl [twapi::new_restricted_dacl [list $::env(username)] KEY_ALL_ACCESS]
+        return [twapi::new_security_descriptor -dacl $dacl]
+    }
+
+    proc initKey {key_path subtree} {
+        registry set $key_path
+        dict for {value_name content} [dict get $subtree Values] {
+            registry set $key_path $value_name {*}$content
+        }
+        dict for {key_name subtree} [dict get $subtree Keys] {
+            initKey "$key_path\\$key_name" $subtree
+        }
+        # Set a special key with a non-default security descriptor
+        set secpath HKEY_CURRENT_USER\\TwapiTestRoot\\Key1\\SecKey
+        registry delete $secpath
+        registry set $secpath
+        set secd [makeSecd]
+        # The security API expects different root key name
+        twapi::set_resource_security_descriptor registry CURRENT_USER\\TwapiTestRoot\\Key1\\SecKey $secd -dacl -protect_dacl
+    }
+
+    proc initTestRegistry {} {
+        variable testStructure
+        variable rootPath
+        initKey $rootPath $testStructure
+        return
+    }
+
+    proc compare_registry {path1 path2} {
+        set path1_values [registry values $path1]
+        set path2_values [registry values $path2]
+        if {![equal_lists $path1_values $path2_values]} {
+            return "Value names do not match $path1 vs $path2. $path1_values != $path2_values"
+        }
+        foreach value_name $path1_values {
+            if {[registry get $path1 $value_name] ne [registry get $path2 $value_name]} {
+                return "Value content does not match $path1\\$value_name vs $path2\\$value_name"
+            }
+        }
+        # Now compare keys
+        set path1_keys [registry keys $path1]
+        set path2_keys [registry keys $path2]
+        if {![equal_lists $path1_keys $path2_keys]} {
+            return "Keys do not match $path1 vs $path2. $path1_keys != $path2_keys"
+        }
+        foreach path_key $path1_keys {
+            set diff [compare_registry "$path1\\$path_key" "$path2\\$path_key"]
+            if {$diff ne ""} {
+                return $diff
+            }
+        }
+        return
+    }
+
+    proc compare_test_registry {path} {
+        variable rootPath
+        return [compare_registry $rootPath $path]
+    }
+
+    proc roothandle {} {
+        variable rootKey
+        return [twapi::reg_key_open HKEY_CURRENT_USER $rootKey]
+    }
+
+    proc handlecount {} {
+        return [lindex [twapi::get_process_info [pid] -handlecount] 1]
+    }
+
+
+    initTestRegistry
+
+    #
+    # Tests
+
+    set testnum 0
+    foreach root $tcl_roots {
+        test reg_connect-$root-0 "reg_connect $root" -body {
+            set hkey [twapi::reg_connect $computer_name $root]
+            lsort [twapi::reg_keys $hkey]
+        } -cleanup {
+            twapi::reg_key_close $hkey
+        } -result [lsort [registry keys \\\\$computer_name\\$root]]
+    }
+
+    test reg_connect-fail-0 "reg_connect unknown computer" -body {
+        twapi::reg_connect UNKNOWN HKEY_LOCAL_MACHINE
+    } -result "The network path was not found." -returnCodes error
+
+    ###
+
+    test reg_disable_current_user_cache-99 "TBD" -constraints TBD -body TBD -result TBD
+
+    ###
+
+    test reg_iterator-1 {reg_iterator HKEY} -setup {
+        set hkey [roothandle]
+        set nhandles [handlecount]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -body {
+        set l [list ]
+        set iter [twapi::reg_iterator $hkey]
+        while {[llength [set item [$iter next]]]} {
+            lappend l [lindex $item 1]
+        }
+        list [equal_lists $l {{} Key1 {Key1 SecKey} {Key1 SubkeyA} {Key1 SubkeyX} Key2}] \
+            [catch {$iter next}] \
+            [expr {[handlecount] == $nhandles}]
+
+    } -result {1 1 1}
+
+    test reg_iterator-2 {reg_iterator HKEY subkey} -setup {
+        set nhandles [handlecount]
+    } -body {
+        set l [list ]
+        set iter [twapi::reg_iterator HKEY_CURRENT_USER $rootKey]
+        while {[llength [set item [$iter]]]} {
+            lappend l [lindex $item 1]
+        }
+        list [equal_lists $l {{} Key1 {Key1 SecKey} {Key1 SubkeyA} {Key1 SubkeyX} Key2}] \
+            [catch {$iter next}] \
+            [expr {[handlecount] == $nhandles}]
+
+    } -result {1 1 1}
+
+    test reg_iterator-3 {reg_iterator HKEY next} -setup {
+        set nhandles [handlecount]
+    } -body {
+        set l [list ]
+        set iter [twapi::reg_iterator HKEY_CURRENT_USER $rootKey]
+        while {[llength [set item [$iter next]]]} {
+            lappend l [lindex $item 1]
+        }
+        list [equal_lists $l {{} Key1 {Key1 SecKey} {Key1 SubkeyA} {Key1 SubkeyX} Key2}] \
+            [catch {$iter next}] \
+            [expr {[handlecount] == $nhandles}]
+
+    } -result {1 1 1}
+
+    test reg_iterator-4 {reg_iterator HKEY sibling} -setup {
+        set nhandles [handlecount]
+    } -body {
+        set l [list ]
+        set iter [twapi::reg_iterator HKEY_CURRENT_USER $rootKey]
+        lappend l [lindex [$iter next] 1]
+        while {[llength [set item [$iter sibling]]]} {
+            lappend l [lindex $item 1]
+        }
+        list [equal_lists $l {{}}] \
+            [catch {$iter next}] \
+            [expr {[handlecount] == $nhandles}]
+
+    } -result {1 1 1}
+
+    test reg_iterator-5 {reg_iterator HKEY sibling} -setup {
+        set nhandles [handlecount]
+    } -body {
+        set l [list ]
+        set iter [twapi::reg_iterator HKEY_CURRENT_USER $rootKey]
+        lappend l [lindex [$iter next] 1]
+        lappend l [lindex [$iter next] 1]
+        while {[llength [set item [$iter sibling]]]} {
+            lappend l [lindex $item 1]
+        }
+        list [equal_lists $l {{} Key1 Key2}] \
+            [catch {$iter next}] \
+            [expr {[handlecount] == $nhandles}]
+
+    } -result {1 1 1}
+
+    test reg_iterator-6 {reg_iterator HKEY parentsibling} -setup {
+        set nhandles [handlecount]
+    } -body {
+        set l [list ]
+        set iter [twapi::reg_iterator HKEY_CURRENT_USER $rootKey]
+        lappend l [lindex [$iter next] 1]
+        lappend l [lindex [$iter next] 1]
+        lappend l [lindex [$iter next] 1]
+        while {[llength [set item [$iter parentsibling]]]} {
+            lappend l [lindex $item 1]
+        }
+        list [equal_lists $l {{} Key1 {Key1 SecKey} Key2}] \
+            [catch {$iter next}] \
+            [expr {[handlecount] == $nhandles}]
+
+    } -result {1 1 1}
+
+    test reg_iterator-7 {reg_iterator HKEY stop} -setup {
+        set nhandles [handlecount]
+    } -body {
+        set l [list ]
+        set iter [twapi::reg_iterator HKEY_CURRENT_USER $rootKey]
+        lappend l [lindex [$iter next] 1]
+        lappend l [lindex [$iter next] 1]
+        while {[llength [set item [$iter stop]]]} {
+            lappend l [lindex $item 1]
+        }
+        list [equal_lists $l {{} Key1}] \
+            [catch {$iter next}] \
+            [expr {[handlecount] == $nhandles}]
+
+    } -result {1 1 1}
+
+    test reg_iterator-8 {reg_iterator HKEY handles} -setup {
+        set hkey [roothandle]
+        set nhandles [handlecount]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -body {
+        set l [list ]
+        set iter [twapi::reg_iterator $hkey]
+        while {[llength [set item [$iter next]]]} {
+            lappend l [lindex $item 1] [twapi::reg_keys [lindex $item 0]]
+        }
+        list [equal_lists $l {{} {Key1 Key2} Key1 {SecKey SubkeyA SubkeyX} {Key1 SecKey} {} {Key1 SubkeyA} {} {Key1 SubkeyX} {} Key2 {}}] \
+            [catch {$iter next}] \
+            [expr {[handlecount] == $nhandles}]
+
+    } -result {1 1 1}
+
+    ###
+
+    test reg_key_close-1 "reg_key_close basic" -setup {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER Environment]
+    } -body {
+        list [catch {twapi::reg_key_close $hkey}] [catch {twapi::reg_key_close $hkey}]
+    } -result {0 1}
+
+    ###
+
+    test reg_key_copy-1 "reg_key_copy" -setup {
+        set tokey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\ToKey -access maximum_allowed]
+        set fromkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+    } -cleanup {
+        twapi::reg_key_close $fromkey
+        twapi::reg_key_close $tokey
+        registry delete $rootPath\\ToKey
+    } -body {
+        twapi::reg_key_copy $fromkey $tokey
+        list \
+            [compare_registry $rootPath\\Key1 $rootPath\\ToKey] \
+            [string equal [twapi::get_resource_security_descriptor registry CURRENT_USER\\TwapiTestRoot\\Key1\\SecKey] [twapi::get_resource_security_descriptor registry CURRENT_USER\\TwapiTestRoot\\ToKey\\SecKey]]
+    } -result [list {} 0]
+
+    test reg_key_copy-2 "reg_key_copy -subkey" -setup {
+        set tokey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\ToKey -access maximum_allowed]
+    } -cleanup {
+        twapi::reg_key_close $tokey
+        registry delete $rootPath\\ToKey
+    } -body {
+        twapi::reg_key_copy HKEY_CURRENT_USER $tokey -subkey $rootKey\\Key1
+        compare_registry $rootPath\\Key1 $rootPath\\ToKey
+    } -result {}
+
+    test reg_key_copy-3 "reg_key_copy -copysecd false" -setup {
+        set tokey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\ToKey -access maximum_allowed]
+        set fromkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+    } -cleanup {
+        twapi::reg_key_close $fromkey
+        twapi::reg_key_close $tokey
+        registry delete $rootPath\\ToKey
+    } -body {
+        twapi::reg_key_copy $fromkey $tokey -copysecd false
+        list \
+            [compare_registry $rootPath\\Key1 $rootPath\\ToKey] \
+            [string equal [twapi::get_resource_security_descriptor registry CURRENT_USER\\TwapiTestRoot\\Key1\\SecKey] [twapi::get_resource_security_descriptor registry CURRENT_USER\\TwapiTestRoot\\ToKey\\SecKey]]
+    } -result [list {} 0]
+
+    test reg_key_copy-4 "reg_key_copy -copysecd true" -setup {
+        set tokey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\ToKey -access maximum_allowed]
+        set fromkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+    } -cleanup {
+        twapi::reg_key_close $fromkey
+        twapi::reg_key_close $tokey
+        registry delete $rootPath\\ToKey
+    } -body {
+        twapi::reg_key_copy $fromkey $tokey -copysecd true
+        set orig_dacl [twapi::get_security_descriptor_dacl [twapi::get_resource_security_descriptor registry CURRENT_USER\\TwapiTestRoot\\Key1\\SecKey]]
+        set to_dacl [twapi::get_security_descriptor_dacl [twapi::get_resource_security_descriptor registry CURRENT_USER\\TwapiTestRoot\\ToKey\\SecKey]]
+        list \
+            [compare_registry $rootPath\\Key1 $rootPath\\ToKey] \
+            [string equal $orig_dacl $to_dacl]
+    } -result [list {} 1]
+
+    ### 
+
+    test reg_key_create-1 {Create new key} -body {
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-1]
+        list [tcl::mathop::in reg_key_create-1 [registry keys $rootPath]] [twapi::get_handle_inheritance $hkey]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete $rootPath\\reg_key_create-1
+    } -result {1 0}
+
+    test reg_key_create-2 {Create existing key} -body {
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\Key1]
+        tcl::mathop::in Key1 [registry keys $rootPath]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -result 1
+
+    test reg_key_create-3 {Create new key -disposition} -body {
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-3 -disposition created]
+        list [tcl::mathop::in reg_key_create-3 [registry keys $rootPath]] $created
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete $rootPath\\reg_key_create-3
+    } -result {1 created}
+
+    test reg_key_create-4 {Create existing key -disposition} -body {
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\Key1 -disposition created]
+        list [tcl::mathop::in Key1 [registry keys $rootPath]] $created
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -result {1 existed}
+
+    test reg_key_create-5 {Create new key -inherit} -body {
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-5 -inherit 0]
+        list [tcl::mathop::in reg_key_create-5 [registry keys $rootPath]] [twapi::get_handle_inheritance $hkey]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete $rootPath\\reg_key_create-5
+    } -result {1 0}
+
+    test reg_key_create-6 {Create new key -inherit} -body {
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-6 -inherit 1]
+        list [tcl::mathop::in reg_key_create-6 [registry keys $rootPath]] [twapi::get_handle_inheritance $hkey]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete $rootPath\\reg_key_create-6
+    } -result {1 1}
+
+    test reg_key_create-7 {Create new key -secd} -body {
+        set secd [makeSecd]
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-7 -secd $secd]
+        set dacl [twapi::get_security_descriptor_dacl [twapi::get_resource_security_descriptor registry CURRENT_USER\\TwapiTestRoot\\reg_key_create-7]]
+        list [tcl::mathop::in reg_key_create-7 [registry keys $rootPath]] [string equal $dacl [twapi::get_security_descriptor_dacl $secd]]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete $rootPath\\reg_key_create-7
+    } -result {1 1}
+
+    test reg_key_create-8 {Create new key -volatile false} -body {
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-8 -volatile false]
+        # Child create will work since parent is not volatile and neither is child
+        set volatile [catch {registry set HKEY_CURRENT_USER\\$rootKey\\reg_key_create-8\\child}]
+        list [tcl::mathop::in reg_key_create-8 [registry keys $rootPath]] $volatile
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete $rootPath\\reg_key_create-8
+    } -result {1 0}
+
+    test reg_key_create-9 {Create new key -volatile true} -body {
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-9 -volatile true]
+        # Child create will fail since child is not specified as also volatile
+        set volatile [catch {registry set HKEY_CURRENT_USER\\$rootKey\\reg_key_create-9\\child}]
+        list [tcl::mathop::in reg_key_create-9 [registry keys $rootPath]] $volatile [errorcode]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete $rootPath\\reg_key_create-9
+    } -result {1 1 {WINDOWS 1021}}
+
+    test reg_key_create-10 {Create new key -backup} -constraints {
+        elevated
+    } -body {
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-10 -backup true]
+        tcl::mathop::in reg_key_create-10 [registry keys $rootPath]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete $rootPath\\reg_key_create-10
+    } -result 1
+
+    test reg_key_create-11 {Create new key -backup} -constraints {
+        notelevated
+    } -body {
+        catch {twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-11 -backup true}
+        errorcode
+    } -result {TWAPI_WIN32 5}
+
+    test reg_key_create-12 {Create new key -access success} -body {
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-12 -access generic_write]
+        twapi::reg_value_set $hkey TestValue sz TestString
+        registry get $rootPath\\reg_key_create-12 TestValue
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete $rootPath\\reg_key_create-12
+    } -result TestString
+
+    test reg_key_create-13 {Create new key -access fail} -body {
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-12 -access generic_read]
+        list [catch {twapi::reg_value_set $hkey TestValue sz TestString}] [errorcode]
+    } -result {1 {TWAPI_WIN32 5}}
+
+    test reg_key_create-99 {Create new key -32bit} -constraints {
+        x64 TBD
+    } -body {
+        HKEY_CURRENT_USER not reflected - need to use HKEY_LOCAL_MACHINE
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-10\\child -32bit]
+        set keys [registry keys HKEY_CURRENT_USER\\$rootKey\\reg_key_create-10]
+        set keys32 [registry -32bit keys HKEY_CURRENT_USER\\$rootKey\\reg_key_create-10]
+        list $keys $keys32
+    } -cleanup {
+        registry delete HKEY_CURRENT_USER\\$rootKey
+        registry -32bit delete HKEY_CURRENT_USER\\$rootKey
+    } -result {{} {child}}
+
+
+    ###
+
+    test reg_key_current_user-1 {Get current user hive} -body {
+        set hkey [twapi::reg_key_current_user]
+        twapi::reg_value $hkey $rootKey\\Key1 ValueSz
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -result "a string"
+
+    test reg_key_current_user-2 {Get current user hive -access success} -body {
+        set hkey [twapi::reg_key_current_user -access generic_write]
+        catch {twapi::reg_value_set $hkey TwapiTestValue sz "twapi test value"}
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER TwapiTestValue
+    } -result 0
+
+    test reg_key_current_user-3 {Get current user hive -access fail} -body {
+        set hkey [twapi::reg_key_current_user -access generic_read]
+        list [catch {twapi::reg_value_set $hkey TwapiTestValue sz "twapi test value"}] [errorcode]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -result {1 {TWAPI_WIN32 5}}
+
+    ###
+
+    test reg_key_delete-1 {Delete key} -setup {
+        registry set HKEY_CURRENT_USER\\$rootKey\\reg_key_delete-1 Value "delete test"
+    } -body {
+        list \
+            [tcl::mathop::in reg_key_delete-1 [registry keys HKEY_CURRENT_USER\\$rootKey]] \
+            [twapi::reg_key_delete HKEY_CURRENT_USER $rootKey\\reg_key_delete-1] \
+            [tcl::mathop::in reg_key_delete-1 [registry keys HKEY_CURRENT_USER\\$rootKey]]
+    } -result {1 {} 0}
+
+    test reg_key_delete-2 {Delete non-existent key} -body {
+        twapi::reg_key_delete HKEY_CURRENT_USER $rootKey\\reg_key_delete-2
+    } -result {}
+
+    test reg_key_delete-3 {Delete non-empty key} -body {
+        list [catch {twapi::reg_key_delete HKEY_CURRENT_USER $rootKey}] [errorcode]
+    } -result {1 {TWAPI_WIN32 5}}
+
+    ###
+
+    test reg_key_export-1 {Export registry key} -constraints {
+        elevated
+    } -setup {
+        set tokey RestoreKey-1
+        set filepath [tcltest::makeFile "" $tokey.reg]
+        file delete $filepath
+    } -body {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+        twapi::reg_key_export $hkey [file nativename $filepath]
+        set to_hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\$tokey -access maximum_allowed]
+        twapi::reg_key_import $to_hkey $filepath
+        compare_registry HKEY_CURRENT_USER\\$rootKey\\$tokey HKEY_CURRENT_USER\\$rootKey\\Key1
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        twapi::reg_key_close $to_hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\$tokey
+    } -result {}
+
+    test reg_key_export-2 {Export registry key -format xp} -constraints {
+        elevated
+    } -setup {
+        set tokey RestoreKey-2
+        set filepath [tcltest::makeFile "" $tokey.reg]
+        file delete $filepath
+    } -body {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+        twapi::reg_key_export $hkey [file nativename $filepath]
+        set to_hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\$tokey -access maximum_allowed]
+        twapi::reg_key_import $to_hkey $filepath -format xp
+        compare_registry HKEY_CURRENT_USER\\$rootKey\\$tokey HKEY_CURRENT_USER\\$rootKey\\Key1
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        twapi::reg_key_close $to_hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\$tokey
+    } -result {}
+
+    test reg_key_export-3 {Export registry key -format win2k} -constraints {
+        elevated
+    } -setup {
+        set tokey RestoreKey-3
+        set filepath [tcltest::makeFile "" $tokey.reg]
+        file delete $filepath
+    } -body {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+        twapi::reg_key_export $hkey [file nativename $filepath]
+        set to_hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\$tokey -access maximum_allowed]
+        twapi::reg_key_import $to_hkey $filepath -format win2k
+        compare_registry HKEY_CURRENT_USER\\$rootKey\\$tokey HKEY_CURRENT_USER\\$rootKey\\Key1
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        twapi::reg_key_close $to_hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\$tokey
+    } -result {}
+
+    test reg_key_export-4 {Export registry key -secattr} -constraints {
+        elevated
+    } -setup {
+        set tokey RestoreKey-4
+        set filepath [tcltest::makeFile "" $tokey.reg]
+        file delete $filepath
+        set secd [makeSecd]
+        set dacl [twapi::get_security_descriptor_dacl $secd]
+    } -body {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+        twapi::reg_key_export $hkey [file nativename $filepath]
+        set to_hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\$tokey -access maximum_allowed]
+        twapi::reg_key_import $to_hkey $filepath -secd $secd
+        set secd2 [twapi::get_resource_security_descriptor file $filepath -dacl]
+        set dacl2 [twapi::get_security_descriptor_dacl $secd2]
+        list \
+            [compare_registry HKEY_CURRENT_USER\\$rootKey\\$tokey HKEY_CURRENT_USER\\$rootKey\\Key1] \
+            [string equal $dacl $dacl2]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        twapi::reg_key_close $to_hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\$tokey
+    } -result {{} 1}
+
+    test reg_key_export-5 {Export registry key -compress} -constraints {
+        elevated TBD
+    } -setup {
+        set tokey RestoreKey-5
+        set filepath [tcltest::makeFile "" $tokey.reg]
+        file delete $filepath
+    } -body {
+        set hkey [twapi::reg_key_open HKEY_LOCAL_MACHINE Software]
+        twapi::reg_key_export $hkey [file nativename $filepath] -compress 0
+        # TBD
+        expr {[file size $filepath] > 0}
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -result 1
+
+    ### Clean up
+
+    #registry delete HKEY_CURRENT_USER\\TwapiTestRoot
+}
+
+
+::tcltest::cleanupTests
+namespace delete ::twapi::registry::test

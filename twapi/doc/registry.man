@@ -140,10 +140,6 @@ the subkey already exists. In that case, it is opened and its handle returned.
 
 The following options may be specified:
 [list_begin opt]
-[opt_def [cmd -32bit]] Specifies that the 32-bit registry view should be
-accessed.
-[opt_def [cmd -64bit]] Specifies that the 64-bit registry view should be
-accessed.
 [opt_def [cmd -access] [arg ACCESSRIGHTS]] Specifies the desired access
 rights and may be
 specified as a list of integer access rights flags or symbols as described in
@@ -157,9 +153,6 @@ if the key was created and [const existed] if it was already present.
 [opt_def [cmd -inherit] [arg BOOL]]
 If true, the returned handle is inheritable by child processes. Defaults
 to [const false].
-[opt_def [cmd -link] [arg BOOL]] If [const true], [arg SUBKEY] is stored as the
-value of the [const SymbolicLinkValue] value under [arg HKEY]. Default is
-[const false].
 [opt_def [cmd -secd] [arg SECURITY_DESCRIPTOR]]
 Specifies a [uri security.html\#securitydescriptors "security descriptor"]
 to be attached to the file or device if it has to be created. Defaults
@@ -183,10 +176,6 @@ user profile is not loaded, the default profile is used.
 [nl]
 The following options may be specified:
 [list_begin opt]
-[opt_def [cmd -32bit]] Specifies that the 32-bit registry view should be
-accessed.
-[opt_def [cmd -64bit]] Specifies that the 64-bit registry view should be
-accessed.
 [opt_def [cmd -access] [arg ACCESSRIGHTS]] Specifies the desired access
 rights and may be
 specified as a list of integer access rights flags or symbols as described in
@@ -203,8 +192,6 @@ not exist.
 Exports a key and its contents to the file [arg FILEPATH]. The following
 options may be specified.
 [list_begin opt]
-[opt_def [cmd -compress] [arg BOOL]] If [const true], the file is
-written in compressed format. Otherwise uncompressed. Default is [const false].
 [opt_def [cmd -format] [arg FORMAT]] Specifies the format for the file.
 [arg FORMAT] must be one of [const win2k] or [const xp]. Default is [const xp]
 which is not readable on earlier (pre-XP) Windows systems.
@@ -296,10 +283,6 @@ path to the subkey under [arg HKEY] whose handle is to be returned.
 
 The following options may be specified:
 [list_begin opt]
-[opt_def [cmd -32bit]] Specifies that the 32-bit registry view should be
-accessed.
-[opt_def [cmd -64bit]] Specifies that the 64-bit registry view should be
-accessed.
 [opt_def [cmd -access] [arg ACCESSRIGHTS]] Specifies the desired access
 rights and may be
 specified as a list of integer access rights flags or symbols as described in
@@ -343,10 +326,6 @@ returned by
 
 The following options may be specified:
 [list_begin opt]
-[opt_def [cmd -32bit]] Specifies that the 32-bit registry view should be
-accessed.
-[opt_def [cmd -64bit]] Specifies that the 64-bit registry view should be
-accessed.
 [opt_def [cmd -access] [arg ACCESSRIGHTS]] Specifies the desired access
 rights and may be
 specified as a list of integer access rights flags or symbols as described in
