@@ -254,7 +254,7 @@ If none of the options [cmd -attr], [cmd -keys], [cmd -secd] and [cmd -values]
 are specified as [const true], all are enabled.
 
 [nl]
-By default, the command is synchrnous and will return only after a change of the
+By default, the command is synchronous and will return only after a change of the
 requested type has been signalled. The [cmd -hevent] option may be used for
 asynchronous notifications. The argument to the option must be a handle to
 an event as returned by [uri synch.html#create_event [cmd create_event]]. The
