@@ -201,14 +201,13 @@ proc twapi::reg_key_unload {hkey hivename} {
     } {SeBackupPrivilege SeRestorePrivilege}
 }
 
-proc twapi::reg_key_monitor {hkey args} {
+proc twapi::reg_key_monitor {hkey hevent args} {
     parseargs args {
         {keys.bool 0 0x1}
         {attr.bool 0 0x2}
         {values.bool 0 0x4}
         {secd.bool 0 0x8}
         {subtree.bool 0}
-        hevent.arg
     } -setvars
 
     set filter [expr {$keys | $attr | $values | $secd}]
@@ -216,13 +215,7 @@ proc twapi::reg_key_monitor {hkey args} {
         set filter 0xf
     }
 
-    if {[info exists hevent]} {
-        set async 1
-    } else {
-        set async 0
-        set hevent 0
-    }
-    RegNotifyChangeKeyValue $hkey $subtree $filter $hevent $async
+    RegNotifyChangeKeyValue $hkey $subtree $filter $hevent true
 }
 
 proc twapi::reg_value_names {hkey} {

@@ -233,30 +233,10 @@ of the [uri \#reg_key_load [cmd reg_key_load]] command.
 Note the caller process must be running with [const SE_BACKUP_NAME] and
 [const SE_RESTORE_NAME] privileges.
 
-[call [cmd reg_key_monitor] [arg HKEY] [opt [arg options]]]
+[call [cmd reg_key_monitor] [arg HKEY] [arg HEVENT] [opt [arg options]]]
 
-Monitors a registry key for changes. The following options control the types of
-changes that are monitored.
-
-[list_begin opt]
-[opt_def [cmd -attr] [arg BOOL]] Monitors changes in key attributes like
-security descriptors.
-[opt_def [cmd -keys] [arg BOOL]] Monitors addition and deletion of immediate
-child keys to the specified key.
-[opt_def [cmd -secd] [arg BOOL]] Monitors changes to the security attributes.
-[opt_def [cmd -subtree] [arg BOOL]] Monitors the entire tree below the specified
-key. If [const false] (default), only monitors the specified key.
-[opt_def [cmd -values] [arg BOOL]] Monitors changes to the values in the key
-including additions and deletions.
-[list_end]
-
-If none of the options [cmd -attr], [cmd -keys], [cmd -secd] and [cmd -values]
-are specified as [const true], all are enabled.
-
-[nl]
-By default, the command is synchronous and will return only after a change of the
-requested type has been signalled. The [cmd -hevent] option may be used for
-asynchronous notifications. The argument to the option must be a handle to
+Monitors a registry key for changes. When a change is detected
+the event [arg HEVENT] is set. [arg HEVENT] must be a handle to
 an event as returned by [uri synch.html#create_event [cmd create_event]]. The
 event will be signalled when the key changes. The caller can wait on the
 passed event or register a callback using the
@@ -272,6 +252,24 @@ the command must be called again on the handle.
 on the key handle again until the previously registered notification request has
 been signalled.
 [list_end]
+
+[nl]
+The following options control the types of changes that are monitored.
+
+[list_begin opt]
+[opt_def [cmd -attr] [arg BOOL]] Monitors changes in key attributes like
+security descriptors.
+[opt_def [cmd -keys] [arg BOOL]] Monitors addition and deletion of immediate
+child keys to the specified key.
+[opt_def [cmd -secd] [arg BOOL]] Monitors changes to the security attributes.
+[opt_def [cmd -subtree] [arg BOOL]] Monitors the entire tree below the specified
+key. If [const false] (default), only monitors the specified key.
+[opt_def [cmd -values] [arg BOOL]] Monitors changes to the values in the key
+including additions and deletions.
+[list_end]
+
+If none of the options [cmd -attr], [cmd -keys], [cmd -secd] and [cmd -values]
+are specified as [const true], all are enabled.
 
 [call [cmd reg_key_open] [arg HKEY] [arg SUBKEY] [opt [arg options]]]
 
