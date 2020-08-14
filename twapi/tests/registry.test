@@ -15,6 +15,7 @@ source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_registry
 load_twapi_package twapi_security
 load_twapi_package twapi_process
+load_twapi_package twapi_synch
 
 namespace eval twapi::registry::test {
     namespace import ::tcltest::test
@@ -629,6 +630,197 @@ namespace eval twapi::registry::test {
     } -cleanup {
         twapi::reg_key_close $hkey
     } -result 1
+
+    ###
+
+    test reg_key_load-1 {Load registry hive} -constraints {
+        elevated systemmodificationok
+    } -setup {
+        set tokey TwapiTestHive
+        set filepath [tcltest::makeFile "" $tokey.dat]
+        file delete $filepath
+    } -body {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+        twapi::reg_key_export $hkey [file nativename $filepath]
+        twapi::reg_key_load HKEY_LOCAL_MACHINE $tokey $filepath
+        set equal [compare_registry HKEY_LOCAL_MACHINE\\TwapiTestHive HKEY_CURRENT_USER\\$rootKey\\Key1]
+        twapi::reg_key_unload HKEY_LOCAL_MACHINE $tokey
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -result {}
+
+    test reg_key_monitor-1 {Monitor registry value change} -setup {
+        set hev [twapi::create_event]
+        set hkey [roothandle]
+    } -cleanup {
+        twapi::close_handle $hev
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey reg_key_monitor-1
+    } -body {
+        twapi::reg_key_monitor $hkey -hevent $hev
+        registry set HKEY_CURRENT_USER\\$rootKey reg_key_monitor-1 foo
+        twapi::wait_on_handle $hev -wait 100
+    } -result signalled
+
+    test reg_key_monitor-2 {Monitor registry key change} -setup {
+        set hev [twapi::create_event]
+        set hkey [roothandle]
+    } -cleanup {
+        twapi::close_handle $hev
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\reg_key_monitor-2
+    } -body {
+        twapi::reg_key_monitor $hkey -hevent $hev
+        registry set HKEY_CURRENT_USER\\$rootKey\\reg_key_monitor-2
+        twapi::wait_on_handle $hev -wait 100
+    } -result signalled
+
+    test reg_key_monitor-3 {Monitor registry - subtree key change} -setup {
+        set hev [twapi::create_event]
+        set hkey [roothandle]
+    } -cleanup {
+        twapi::close_handle $hev
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\Key1\\reg_key_monitor-3
+    } -body {
+        twapi::reg_key_monitor $hkey -hevent $hev
+        registry set HKEY_CURRENT_USER\\$rootKey\\Key1\\reg_key_monitor-3
+        twapi::wait_on_handle $hev -wait 100
+    } -result timeout
+
+    test reg_key_monitor-4 {Monitor registry - subtree value change} -setup {
+        set hev [twapi::create_event]
+        set hkey [roothandle]
+    } -cleanup {
+        twapi::close_handle $hev
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\Key1 reg_key_monitor-4
+    } -body {
+        twapi::reg_key_monitor $hkey -hevent $hev
+        registry set HKEY_CURRENT_USER\\$rootKey\\Key1 reg_key_monitor-4 foo
+        twapi::wait_on_handle $hev -wait 100
+    } -result timeout
+
+    test reg_key_monitor-subtree-1 {Monitor subtree - subtree key change} -setup {
+        set hev [twapi::create_event]
+        set hkey [roothandle]
+    } -cleanup {
+        twapi::close_handle $hev
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\Key1\\reg_key_monitor-subtree-1
+    } -body {
+        twapi::reg_key_monitor $hkey -hevent $hev -subtree true
+        registry set HKEY_CURRENT_USER\\$rootKey\\Key1\\reg_key_monitor-subtree-1
+        twapi::wait_on_handle $hev -wait 100
+    } -result signalled
+
+    test reg_key_monitor-subtree-2 {Monitor subtree - subtree value change} -setup {
+        set hev [twapi::create_event]
+        set hkey [roothandle]
+    } -cleanup {
+        twapi::close_handle $hev
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\Key1 reg_key_monitor-subtree-2
+    } -body {
+        twapi::reg_key_monitor $hkey -hevent $hev
+        registry set HKEY_CURRENT_USER\\$rootKey\\Key1 reg_key_monitor-subtree-2 foo
+        twapi::wait_on_handle $hev -wait 100
+    } -result signalled
+
+    test reg_key_monitor-values-1 {Monitor values - value change} -setup {
+        set value_name reg_key_monitor-values-1
+        set hev [twapi::create_event]
+        set hkey [roothandle]
+    } -cleanup {
+        twapi::close_handle $hev
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey $value_name
+    } -body {
+        twapi::reg_key_monitor $hkey -hevent $hev -values true
+        registry set HKEY_CURRENT_USER\\$rootKey $value_name foo
+        twapi::wait_on_handle $hev -wait 100
+    } -result signalled
+
+    test reg_key_monitor-values-2 {Monitor values key change} -setup {
+        set key_name reg_key_monitor-values-2
+        set hev [twapi::create_event]
+        set hkey [roothandle]
+    } -cleanup {
+        twapi::close_handle $hev
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\$key_name
+    } -body {
+        twapi::reg_key_monitor $hkey -hevent $hev -values true
+        registry set HKEY_CURRENT_USER\\$rootKey\\$key_name
+        twapi::wait_on_handle $hev -wait 100
+    } -result timeout
+
+    test reg_key_monitor-keys-1 {Monitor keys - key change} -setup {
+        set key_name reg_key_monitor-keys-1
+        set hev [twapi::create_event]
+        set hkey [roothandle]
+    } -cleanup {
+        twapi::close_handle $hev
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\$key_name
+    } -body {
+        twapi::reg_key_monitor $hkey -hevent $hev -keys true
+        registry set HKEY_CURRENT_USER\\$rootKey\\$key_name
+        twapi::wait_on_handle $hev -wait 100
+    } -result signalled
+
+    test reg_key_monitor-keys-2 {Monitor keys - value change} -setup {
+        set value_name reg_key_monitor-keys-2
+        set hev [twapi::create_event]
+        set hkey [roothandle]
+    } -cleanup {
+        twapi::close_handle $hev
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey $value_name
+    } -body {
+        twapi::reg_key_monitor $hkey -hevent $hev -keys true
+        registry set HKEY_CURRENT_USER\\$rootKey $value_name foo
+        twapi::wait_on_handle $hev -wait 100
+    } -result timeout
+
+    test reg_key_monitor-secd-1 {Monitor secd} -setup {
+        set key_name reg_key_monitor-secd-1
+        set hev [twapi::create_event]
+        set hkey [roothandle]
+    } -cleanup {
+        twapi::close_handle $hev
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\$key_name
+    } -body {
+        twapi::reg_key_monitor $hkey -hevent $hev -secd true -subtree true
+        registry set HKEY_CURRENT_USER\\$rootKey\\$key_name
+        set wait1 [twapi::wait_on_handle $hev -wait 100]
+        set secd [makeSecd]
+        # The security API expects different root key name
+        twapi::set_resource_security_descriptor registry CURRENT_USER\\$rootKey\\$key_name $secd -dacl
+        list $wait1 [twapi::wait_on_handle $hev -wait 100]
+    } -result {timeout signalled}
+
+    test reg_key_monitor-attr-1 {Monitor attr} -setup {
+        set key_name reg_key_monitor-attr-1
+        set hev [twapi::create_event]
+        set hkey [roothandle]
+    } -cleanup {
+        twapi::close_handle $hev
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\$key_name
+    } -body {
+        twapi::reg_key_monitor $hkey -hevent $hev -attr true -subtree true
+        registry set HKEY_CURRENT_USER\\$rootKey\\$key_name
+        set wait1 [twapi::wait_on_handle $hev -wait 100]
+        set secd [makeSecd]
+        # The security API expects different root key name
+        twapi::set_resource_security_descriptor registry CURRENT_USER\\$rootKey\\$key_name $secd -dacl
+        list $wait1 [twapi::wait_on_handle $hev -wait 100]
+    } -result {timeout signalled}
+
+
+
 
     ### Clean up
 

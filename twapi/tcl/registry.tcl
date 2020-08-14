@@ -189,8 +189,20 @@ proc twapi::reg_key_import {hkey filepath args} {
     } {SeBackupPrivilege SeRestorePrivilege}
 }
 
+proc twapi::reg_key_load {hkey hivename filepath} {
+    twapi::eval_with_privileges {
+        RegLoadKey $hkey $subkey $filepath
+    } {SeBackupPrivilege SeRestorePrivilege}
+}
+
+proc twapi::reg_key_unload {hkey hivename} {
+    twapi::eval_with_privileges {
+        RegUnLoadKey $hkey $subkey
+    } {SeBackupPrivilege SeRestorePrivilege}
+}
+
 proc twapi::reg_key_monitor {hkey args} {
-    parseargs arg {
+    parseargs args {
         {keys.bool 0 0x1}
         {attr.bool 0 0x2}
         {values.bool 0 0x4}
@@ -201,14 +213,14 @@ proc twapi::reg_key_monitor {hkey args} {
 
     set filter [expr {$keys | $attr | $values | $secd}]
     if {$filter == 0} {
-        set filter $0xf
+        set filter 0xf
     }
 
     if {[info exists hevent]} {
         set async 1
     } else {
         set async 0
-        set hevent $::twapi::nullptr
+        set hevent 0
     }
     RegNotifyChangeKeyValue $hkey $subtree $filter $hevent $async
 }

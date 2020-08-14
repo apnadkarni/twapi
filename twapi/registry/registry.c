@@ -717,10 +717,11 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          GETINT(dw),
                          GETINT(dw2),
                          ARGUSEDEFAULT,
-                         GETHANDLE(h))
+                         GETHANDLE(h),
+                         GETINT(dw3),
+                         ARGEND)
             != TCL_OK)
             return TCL_ERROR;
-        dw3 = h != NULL;
         result.value.ival = RegNotifyChangeKeyValue(hkey, dw, dw2, h, dw3);
         if (result.value.ival == ERROR_SUCCESS)
             result.type = TRT_EMPTY;
@@ -882,9 +883,7 @@ static int TwapiRegInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(reg_key_override, 15),
         DEFINE_FNCODE_CMD(RegSaveKeyEx, 16),
         DEFINE_FNCODE_CMD(RegLoadKey, 17),
-        DEFINE_FNCODE_CMD(reg_key_load, 17),
         DEFINE_FNCODE_CMD(RegUnLoadKey, 18),
-        DEFINE_FNCODE_CMD(reg_key_unload, 18),
         DEFINE_FNCODE_CMD(RegReplaceKey, 19),
         DEFINE_FNCODE_CMD(reg_key_replace, 19), // TBD doc and test
         DEFINE_FNCODE_CMD(RegRestoreKey, 20),
