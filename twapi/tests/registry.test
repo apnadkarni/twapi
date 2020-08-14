@@ -649,6 +649,8 @@ namespace eval twapi::registry::test {
         twapi::reg_key_close $hkey
     } -result {}
 
+    ###
+
     test reg_key_monitor-1 {Monitor registry value change} -setup {
         set hev [twapi::create_event]
         set hkey [roothandle]
@@ -657,7 +659,7 @@ namespace eval twapi::registry::test {
         twapi::reg_key_close $hkey
         registry delete HKEY_CURRENT_USER\\$rootKey reg_key_monitor-1
     } -body {
-        twapi::reg_key_monitor $hkey -hevent $hev
+        twapi::reg_key_monitor $hkey $hev
         registry set HKEY_CURRENT_USER\\$rootKey reg_key_monitor-1 foo
         twapi::wait_on_handle $hev -wait 100
     } -result signalled
@@ -670,7 +672,7 @@ namespace eval twapi::registry::test {
         twapi::reg_key_close $hkey
         registry delete HKEY_CURRENT_USER\\$rootKey\\reg_key_monitor-2
     } -body {
-        twapi::reg_key_monitor $hkey -hevent $hev
+        twapi::reg_key_monitor $hkey $hev
         registry set HKEY_CURRENT_USER\\$rootKey\\reg_key_monitor-2
         twapi::wait_on_handle $hev -wait 100
     } -result signalled
@@ -683,7 +685,7 @@ namespace eval twapi::registry::test {
         twapi::reg_key_close $hkey
         registry delete HKEY_CURRENT_USER\\$rootKey\\Key1\\reg_key_monitor-3
     } -body {
-        twapi::reg_key_monitor $hkey -hevent $hev
+        twapi::reg_key_monitor $hkey $hev
         registry set HKEY_CURRENT_USER\\$rootKey\\Key1\\reg_key_monitor-3
         twapi::wait_on_handle $hev -wait 100
     } -result timeout
@@ -696,7 +698,7 @@ namespace eval twapi::registry::test {
         twapi::reg_key_close $hkey
         registry delete HKEY_CURRENT_USER\\$rootKey\\Key1 reg_key_monitor-4
     } -body {
-        twapi::reg_key_monitor $hkey -hevent $hev
+        twapi::reg_key_monitor $hkey $hev
         registry set HKEY_CURRENT_USER\\$rootKey\\Key1 reg_key_monitor-4 foo
         twapi::wait_on_handle $hev -wait 100
     } -result timeout
@@ -709,7 +711,7 @@ namespace eval twapi::registry::test {
         twapi::reg_key_close $hkey
         registry delete HKEY_CURRENT_USER\\$rootKey\\Key1\\reg_key_monitor-subtree-1
     } -body {
-        twapi::reg_key_monitor $hkey -hevent $hev -subtree true
+        twapi::reg_key_monitor $hkey $hev -subtree true
         registry set HKEY_CURRENT_USER\\$rootKey\\Key1\\reg_key_monitor-subtree-1
         twapi::wait_on_handle $hev -wait 100
     } -result signalled
@@ -722,7 +724,7 @@ namespace eval twapi::registry::test {
         twapi::reg_key_close $hkey
         registry delete HKEY_CURRENT_USER\\$rootKey\\Key1 reg_key_monitor-subtree-2
     } -body {
-        twapi::reg_key_monitor $hkey -hevent $hev
+        twapi::reg_key_monitor $hkey $hev -subtree true
         registry set HKEY_CURRENT_USER\\$rootKey\\Key1 reg_key_monitor-subtree-2 foo
         twapi::wait_on_handle $hev -wait 100
     } -result signalled
@@ -736,7 +738,7 @@ namespace eval twapi::registry::test {
         twapi::reg_key_close $hkey
         registry delete HKEY_CURRENT_USER\\$rootKey $value_name
     } -body {
-        twapi::reg_key_monitor $hkey -hevent $hev -values true
+        twapi::reg_key_monitor $hkey $hev -values true
         registry set HKEY_CURRENT_USER\\$rootKey $value_name foo
         twapi::wait_on_handle $hev -wait 100
     } -result signalled
@@ -750,7 +752,7 @@ namespace eval twapi::registry::test {
         twapi::reg_key_close $hkey
         registry delete HKEY_CURRENT_USER\\$rootKey\\$key_name
     } -body {
-        twapi::reg_key_monitor $hkey -hevent $hev -values true
+        twapi::reg_key_monitor $hkey $hev -values true
         registry set HKEY_CURRENT_USER\\$rootKey\\$key_name
         twapi::wait_on_handle $hev -wait 100
     } -result timeout
@@ -764,7 +766,7 @@ namespace eval twapi::registry::test {
         twapi::reg_key_close $hkey
         registry delete HKEY_CURRENT_USER\\$rootKey\\$key_name
     } -body {
-        twapi::reg_key_monitor $hkey -hevent $hev -keys true
+        twapi::reg_key_monitor $hkey $hev -keys true
         registry set HKEY_CURRENT_USER\\$rootKey\\$key_name
         twapi::wait_on_handle $hev -wait 100
     } -result signalled
@@ -778,7 +780,7 @@ namespace eval twapi::registry::test {
         twapi::reg_key_close $hkey
         registry delete HKEY_CURRENT_USER\\$rootKey $value_name
     } -body {
-        twapi::reg_key_monitor $hkey -hevent $hev -keys true
+        twapi::reg_key_monitor $hkey $hev -keys true
         registry set HKEY_CURRENT_USER\\$rootKey $value_name foo
         twapi::wait_on_handle $hev -wait 100
     } -result timeout
@@ -792,7 +794,7 @@ namespace eval twapi::registry::test {
         twapi::reg_key_close $hkey
         registry delete HKEY_CURRENT_USER\\$rootKey\\$key_name
     } -body {
-        twapi::reg_key_monitor $hkey -hevent $hev -secd true -subtree true
+        twapi::reg_key_monitor $hkey $hev -secd true -subtree true
         registry set HKEY_CURRENT_USER\\$rootKey\\$key_name
         set wait1 [twapi::wait_on_handle $hev -wait 100]
         set secd [makeSecd]
@@ -810,7 +812,7 @@ namespace eval twapi::registry::test {
         twapi::reg_key_close $hkey
         registry delete HKEY_CURRENT_USER\\$rootKey\\$key_name
     } -body {
-        twapi::reg_key_monitor $hkey -hevent $hev -attr true -subtree true
+        twapi::reg_key_monitor $hkey $hev -attr true -subtree true
         registry set HKEY_CURRENT_USER\\$rootKey\\$key_name
         set wait1 [twapi::wait_on_handle $hev -wait 100]
         set secd [makeSecd]
