@@ -6,6 +6,10 @@
 
 namespace eval twapi {}
 
+#
+# TBD -32bit and -64bit options are not documented
+# pending test cases
+
 proc twapi::reg_key_copy {hkey to_hkey args} {
     parseargs args {
         subkey.arg
@@ -20,6 +24,10 @@ proc twapi::reg_key_copy {hkey to_hkey args} {
 }
 
 proc twapi::reg_key_create {hkey subkey args} {
+    # TBD - document -link
+    # [opt_def [cmd -link] [arg BOOL]] If [const true], [arg SUBKEY] is stored as the
+    # value of the [const SymbolicLinkValue] value under [arg HKEY]. Default is
+    # [const false].
     parseargs args {
         {access.arg generic_read}
         {inherit.bool 0}
@@ -159,14 +167,16 @@ proc twapi::reg_key_export {hkey filepath args} {
     parseargs args {
         {secd.arg {}}
         {format.arg xp {win2k xp}}
-        {compress.bool 0}
+        {compress.bool 1}
     } -setvars
 
     set format [dict get {win2k 1 xp 2} $format]
     if {! $compress} {
         set format [expr {$format | 4}]
     }
-    RegSaveKeyEx $hkey $filepath [_make_secattr $secd 0] $format
+    twapi::eval_with_privileges {
+        RegSaveKeyEx $hkey $filepath [_make_secattr $secd 0] $format
+    } SeBackupPrivilege
 }
 
 proc twapi::reg_key_import {hkey filepath args} {
@@ -174,7 +184,9 @@ proc twapi::reg_key_import {hkey filepath args} {
         {volatile.bool 0 0x1}
         {force.bool 0 0x8}
     } -setvars
-    RegRestoreKey $hkey $filepath [expr {$force | $volatile}]
+    twapi::eval_with_privileges {
+        RegRestoreKey $hkey $filepath [expr {$force | $volatile}]
+    } {SeBackupPrivilege SeRestorePrivilege}
 }
 
 proc twapi::reg_key_monitor {hkey args} {
