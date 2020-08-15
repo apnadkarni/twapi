@@ -96,6 +96,9 @@ proc twapi::reg_keys {hkey args} {
 }
 
 proc twapi::reg_key_open {hkey subkey args} {
+    # Not documented: -link, -32bit, -64bit
+    # [opt_def [cmd -link] [arg BOOL]] If [const true], specifies the key is a
+    # symbolic link. Defaults to [const false].
     parseargs args {
         {link.bool 0}
         {access.arg generic_read}

@@ -285,8 +285,6 @@ The following options may be specified:
 rights and may be
 specified as a list of integer access rights flags or symbols as described in
 [uri security.html#accessrights "Access Rights"]. Defaults to [const generic_read].
-[opt_def [cmd -link] [arg BOOL]] If [const true], specifies the key is a
-symbolic link. Defaults to [const false].
 [list_end]
 
 The command will raise an error if the specified key does not exist.
