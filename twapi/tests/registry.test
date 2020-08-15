@@ -866,8 +866,56 @@ namespace eval twapi::registry::test {
         list [catch {twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\NoSuchKey}] [errorcode]
     } -result {1 {TWAPI_WIN32 2}}
 
+    ###
 
+    test reg_key_override-1 {Override predefined key} -constraints {
+        systemmodificationok
+    } -setup {
+        set ohkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey -access maximum_allowed]
+    } -cleanup {
+        twapi::reg_key_close $ohkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\TwapiOverrideKey
+    } -body {
+        twapi::reg_key_override HKEY_LOCAL_MACHINE $ohkey
+        registry set HKEY_LOCAL_MACHINE\\TwapiOverrideKey Override "override"
+        twapi::reg_key_override_undo HKEY_LOCAL_MACHINE
+        registry get HKEY_CURRENT_USER\\$rootKey\\TwapiOverrideKey Override
+    } -result override
 
+    ###
+
+    test reg_key_prune-1 {Prune subtree} -setup {
+        registry set HKEY_CURRENT_USER\\$rootKey\\reg_key_prune-1\\child
+        registry set HKEY_CURRENT_USER\\$rootKey\\reg_key_prune-1\\child2 value foo
+        set hkey [roothandle]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -body {
+        list \
+            [tcl::mathop::in reg_key_prune-1 [twapi::reg_keys $hkey]] \
+            [twapi::reg_tree_prune $hkey reg_key_prune-1] \
+            [tcl::mathop::in reg_key_prune-1 [twapi::reg_keys $hkey]]
+    } -result {1 {} 0}
+
+    ###
+
+    test reg_key_user_classes_root-1 {Merged classes} -setup {
+        set tok [twapi::open_process_token]
+    } -cleanup {
+        twapi::close_token $tok
+    } -body {
+        twapi::reg_key_close [twapi::reg_key_user_classes_root $tok]
+    } -result ""
+
+    ###
+
+    test reg_keys-1 {Child keys} -body {
+        twapi::reg_keys HKEY_LOCAL_MACHINE
+    } -result [registry keys HKEY_LOCAL_MACHINE] -match set
+
+    test reg_keys-2 {Child keys} -body {
+        twapi::reg_keys HKEY_CURRENT_USER $rootKey
+    } -result [registry keys HKEY_CURRENT_USER\\$rootKey] -match set
 
     ### Clean up
 

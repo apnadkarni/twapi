@@ -306,6 +306,16 @@ to [arg HKEY]. The override can be reversed by calling
 [const HKEY_USERS] or
 [const HKEY_PERFORMANCE_DATA].
 
+[call [cmd reg_key_override_undo] [arg HPREDEFINED]]
+Undoes the effect of a previous call to [uri #reg_key_override [cmd reg_key_override]].
+[arg HPREDEFINED] must be one of the predefined keys
+[const HKEY_CLASSES_ROOT],
+[const HKEY_CURRENT_CONFIG],
+[const HKEY_CURRENT_USER],
+[const HKEY_LOCAL_MACHINE],
+[const HKEY_USERS] or
+[const HKEY_PERFORMANCE_DATA].
+
 
 [call [cmd reg_key_prune] [arg HKEY] [arg SUBKEY]]
 Deletes the tree rooted at the key identified by the key path [arg SUBKEY] under
@@ -316,9 +326,9 @@ not exist.
 Returns a handle to the [emph merged] [const HKEY_CLASSES_ROOT] key for the user
 corresponding to the passed [arg USERTOKEN] which must be a user token as
 returned by
-[uri security.html#get_user_token [cmd get_user_token]],
-[uri process.html#get_process_token [cmd get_process_token]],
-[uri process.html#get_thread_token [cmd get_thread_token]] etc.
+[uri security.html#open_user_token [cmd open_user_token]],
+[uri security.html#open_process_token [cmd open_process_token]],
+[uri security.html#open_thread_token [cmd open_thread_token]] etc.
 
 The following options may be specified:
 [list_begin opt]
@@ -329,11 +339,10 @@ specified as a list of integer access rights flags or symbols as described in
 [list_end]
 
 
-[call [cmd reg_keys] [arg HKEY] [opt [cmd -withtime]]]
-Returns the list of keys under the key specified by the handle [arg HKEY].
-If the option [cmd -withtime] is specified, the returned list consists
-of pairs the first element being the key name and the second being the time
-of last modification in 100ns since Jan 1, 1601.
+[call [cmd reg_keys] [arg HKEY] [opt [arg SUBKEY]]]
+Returns the list of keys under the key [arg SUBKEY] under the handle [arg HKEY].
+If [arg SUBKEY] is not specified or is empty, keys under [arg HKEY] are
+returned.
 
 [call [cmd reg_tree] [arg HKEY] [opt [arg options]]]
 Returns a registry subtree in the form of a dictionary. The following

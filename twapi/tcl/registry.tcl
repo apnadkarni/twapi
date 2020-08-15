@@ -88,12 +88,19 @@ proc twapi::reg_key_delete {hkey subkey args} {
     RegDeleteKeyEx $hkey $subkey $access
 }
 
-proc twapi::reg_keys {hkey args} {
-    parseargs args {
-        withtime
-    } -maxleftover 0 -setvars
-    return [RegEnumKeyEx $hkey $withtime]
+proc twapi::reg_keys {hkey {subkey {}}} {
+    if {$subkey ne ""} {
+        set hkey [reg_key_open $hkey $subkey]
+    }
+    try {
+        return [RegEnumKeyEx $hkey 0]
+    } finally {
+        if {$subkey ne ""} {
+            reg_key_close $hkey
+        }
+    }
 }
+
 
 proc twapi::reg_key_open {hkey subkey args} {
     # Not documented: -link, -32bit, -64bit
