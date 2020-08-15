@@ -38,14 +38,14 @@ namespace eval twapi::registry::test {
         HKEY_PERFORMANCE_NLSTEXT {Help}
         HKEY_CURRENT_CONFIG {Software\Fonts LogPixels}
         HKEY_CURRENT_USER_LOCAL_SETTINGS {}
-    } 
+    }
     variable tcl_roots {
-        HKEY_CLASSES_ROOT 
+        HKEY_CLASSES_ROOT
         HKEY_CURRENT_USER
-        HKEY_LOCAL_MACHINE 
-        HKEY_USERS 
+        HKEY_LOCAL_MACHINE
+        HKEY_USERS
         HKEY_PERFORMANCE_DATA
-        HKEY_CURRENT_CONFIG 
+        HKEY_CURRENT_CONFIG
     }
 
     variable testStructure {
@@ -820,6 +820,51 @@ namespace eval twapi::registry::test {
         twapi::set_resource_security_descriptor registry CURRENT_USER\\$rootKey\\$key_name $secd -dacl
         list $wait1 [twapi::wait_on_handle $hev -wait 100]
     } -result {timeout signalled}
+
+    ###
+
+    proc testopen {id root key value} {
+        test reg_key_open-$id "open $root $key" -body {
+            if {$key ne ""} {
+                set hkey [twapi::reg_key_open $root $key]
+                set result [lindex [twapi::reg_value_raw $hkey $value] 1]
+                twapi::reg_key_close $hkey
+            } else {
+                set result [lindex [twapi::reg_value_raw $root $value] 1]
+            }
+            set result
+        } -result [registry get $root\\$key $value]
+    }
+    testopen 1 HKEY_CURRENT_USER Environment Path
+    testopen 2 HKEY_CLASSES_ROOT .txt "Content Type"
+    testopen 3 HKEY_LOCAL_MACHINE {Software\Microsoft\Windows\CurrentVersion} ProgramFilesDir
+    testopen 4 HKEY_USERS .DEFAULT\\Environment Path
+    testopen 5 HKEY_CURRENT_CONFIG Software\\Fonts LogPixels
+    # HKEY_PERFORMANCE_* have no subkeys to open
+    # HKEY_CURRENT_USER_LOCAL_SETTINGS not supported by Tcl registry
+    test reg_key_open-6 "open HKEY_CURRENT_USER_LOCAL_SETTINGS" -body {
+        twapi::reg_key_close [twapi::reg_key_open HKEY_CURRENT_USER_LOCAL_SETTINGS Software]
+    } -result ""
+
+    test reg_key_open-7 {Open key -access success} -body {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1 -access generic_write]
+        twapi::reg_value_set $hkey TestValue sz TestString
+        registry get $rootPath\\Key1 TestValue
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete $rootPath\\Key1 TestValue
+    } -result TestString
+
+    test reg_key_open-8 {Open key -access success} -body {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1 -access generic_read]
+        list [catch {twapi::reg_value_set $hkey TestValue sz TestString}] [errorcode]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -result {1 {TWAPI_WIN32 5}}
+
+    test reg_key_open-9 {Open non-existent key} -body {
+        list [catch {twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\NoSuchKey}] [errorcode]
+    } -result {1 {TWAPI_WIN32 2}}
 
 
 
