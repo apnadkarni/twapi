@@ -114,17 +114,20 @@ namespace eval twapi::registry::test {
         return
     }
 
-    proc compare_registry {path1 path2} {
-        set path1_values [registry values $path1]
-        set path2_values [registry values $path2]
-        if {![equal_lists $path1_values $path2_values]} {
-            return "Value names do not match $path1 vs $path2. $path1_values != $path2_values"
-        }
-        foreach value_name $path1_values {
-            if {[registry get $path1 $value_name] ne [registry get $path2 $value_name]} {
-                return "Value content does not match $path1\\$value_name vs $path2\\$value_name"
+    proc compare_registry {path1 path2 {keys_only 0}} {
+        if {! $keys_only} {
+            set path1_values [registry values $path1]
+            set path2_values [registry values $path2]
+            if {![equal_lists $path1_values $path2_values]} {
+                return "Value names do not match $path1 vs $path2. $path1_values != $path2_values"
+            }
+            foreach value_name $path1_values {
+                if {[registry get $path1 $value_name] ne [registry get $path2 $value_name]} {
+                    return "Value content does not match $path1\\$value_name vs $path2\\$value_name"
+                }
             }
         }
+
         # Now compare keys
         set path1_keys [registry keys $path1]
         set path2_keys [registry keys $path2]
@@ -132,7 +135,7 @@ namespace eval twapi::registry::test {
             return "Keys do not match $path1 vs $path2. $path1_keys != $path2_keys"
         }
         foreach path_key $path1_keys {
-            set diff [compare_registry "$path1\\$path_key" "$path2\\$path_key"]
+            set diff [compare_registry "$path1\\$path_key" "$path2\\$path_key" $keys_only]
             if {$diff ne ""} {
                 return $diff
             }
@@ -916,6 +919,31 @@ namespace eval twapi::registry::test {
     test reg_keys-2 {Child keys} -body {
         twapi::reg_keys HKEY_CURRENT_USER $rootKey
     } -result [registry keys HKEY_CURRENT_USER\\$rootKey] -match set
+
+    ###
+
+    test reg_tree-1 {tree} -setup {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\reg_tree-1
+    } -body {
+        set paths [twapi::reg_tree $hkey]
+        foreach path $paths {
+            registry set HKEY_CURRENT_USER\\$rootKey\\reg_tree-1\\$path
+        }
+        compare_registry HKEY_CURRENT_USER\\$rootKey\\Key1 HKEY_CURRENT_USER\\$rootKey\\reg_tree-1 1
+    } -result {}
+
+    test reg_tree-2 {tree} -cleanup {
+        registry delete HKEY_CURRENT_USER\\$rootKey\\reg_tree-2
+    } -body {
+        set paths [twapi::reg_tree HKEY_CURRENT_USER $rootKey\\Key1]
+        foreach path $paths {
+            registry set HKEY_CURRENT_USER\\$rootKey\\reg_tree-2\\$path
+        }
+        compare_registry HKEY_CURRENT_USER\\$rootKey\\Key1 HKEY_CURRENT_USER\\$rootKey\\reg_tree-2 1
+    } -result {}
 
     ### Clean up
 

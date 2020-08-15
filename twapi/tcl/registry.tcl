@@ -101,7 +101,6 @@ proc twapi::reg_keys {hkey {subkey {}}} {
     }
 }
 
-
 proc twapi::reg_key_open {hkey subkey args} {
     # Not documented: -link, -32bit, -64bit
     # [opt_def [cmd -link] [arg BOOL]] If [const true], specifies the key is a
@@ -431,11 +430,18 @@ proc twapi::reg_iterator {hkey {subkey {}}} {
     return [coroutine "regwalk#[incr reg_walk_counter]" _reg_iterator_coro $hkey $subkey]
 }
 
-proc twapi::reg_tree {hkey args} {
-    parseargs args {
-        {subkey.arg {}}
-        {withvalues.arg cooked {none cooked raw}}
-    } -maxleftover 0 -setvars
+proc twapi::reg_tree {hkey {subkey {}}} {
+
+    set iter [reg_iterator $hkey $subkey]
+
+    set paths {}
+    while {[llength [set item [$iter next]]]} {
+        lappend paths [join [lindex $item 1] \\]
+    }
+    return $paths
+}
+
+proc twapi::reg_tree_values {hkey {subkey {}} {format cooked}} {
 
     set iter [reg_iterator $hkey $subkey]
 
@@ -455,11 +461,8 @@ proc twapi::reg_tree {hkey args} {
                 dict set tree {*}$keypath \\Values [reg_values_raw $hkey]
             }
         }
-        none {
-            while {[llength [set item [$iter next]]]} {
-                lassign $item hkey keypath
-                dict set tree {*}$keypath \\Values {}
-            }
+        default {
+            error "Unknown registry value format \"$format\"."
         }
     }
     return $tree
