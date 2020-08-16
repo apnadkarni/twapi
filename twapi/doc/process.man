@@ -333,7 +333,7 @@ Caller should not rely on this.
 
 [call [cmd expand_environment_strings] [arg STRING]]
 [emph Deprecated.] 
-See [uri #expand_environment_vars [cmd expand_environment_strings]].
+See [uri #expand_environment_vars [cmd expand_environment_vars]].
 
 [call [cmd expand_environment_vars] [arg STRING]]
 Returns the string formed by replacing all environment variable references in
@@ -357,7 +357,7 @@ Returns the string formed by replacing all environment variable references in
 Environment variable references are in the
 form [arg %ENVIRONMENTVAR%]. References to undefined environment variables
 are not replaced.
-
+[nl]
 [arg TOKEN] must be a 
 security token for the user account whose environment is to be 
 retrieved and must have [const token_impersonate], [const token_query]

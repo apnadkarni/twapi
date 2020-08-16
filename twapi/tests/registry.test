@@ -122,7 +122,18 @@ namespace eval twapi::registry::test {
                 return "Value names do not match $path1 vs $path2. $path1_values != $path2_values"
             }
             foreach value_name $path1_values {
-                if {[registry get $path1 $value_name] ne [registry get $path2 $value_name]} {
+                set value1 [registry get $path1 $value_name]
+                set type1 [registry type $path1 $value_name]
+                set value2 [registry get $path2 $value_name]
+                set type2 [registry type $path2 $value_name]
+                if {$type1 != $type2} {
+                    return "Value type does not match $path1\\$value_name ($type1) vs $path2\\$value_name ($type2)"
+                }
+                # TBD - skip for now since Tcl registry does not format these the same
+                if {$type1 in {expand_sz dword_big_endian}} {
+                    continue
+                }
+                if {$value1 ne $value2} {
                     return "Value content does not match $path1\\$value_name vs $path2\\$value_name"
                 }
             }
@@ -944,6 +955,45 @@ namespace eval twapi::registry::test {
         }
         compare_registry HKEY_CURRENT_USER\\$rootKey\\Key1 HKEY_CURRENT_USER\\$rootKey\\reg_tree-2 1
     } -result {}
+
+    ###
+
+    test reg_tree_values_raw-1 {tree values} -setup {
+        set key_name reg_tree_values_raw-1
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete HKEY_CURRENT_USER\\$rootKey\\$key_name
+    } -body {
+        set dict [twapi::reg_tree_values_raw $hkey ""]
+        dict for {keypath values} $dict {
+            # Create key even if no values
+            registry set [join [list HKEY_CURRENT_USER\\$rootKey\\$key_name $keypath] \\]
+            dict for {value_name raw_value} $values {
+                registry set [join [list HKEY_CURRENT_USER\\$rootKey\\$key_name $keypath] \\] $value_name [lindex $raw_value 1] [lindex $raw_value 0]
+            }
+        }
+        compare_registry HKEY_CURRENT_USER\\$rootKey\\Key1 HKEY_CURRENT_USER\\$rootKey\\$key_name
+    } -result {}
+
+    test reg_tree_values_raw-2 {tree values subkey} -setup {
+        set key_name reg_tree_values_raw-2
+    } -cleanup {
+        registry delete HKEY_CURRENT_USER\\$rootKey\\$key_name
+    } -body {
+        set dict [twapi::reg_tree_values_raw HKEY_CURRENT_USER $rootKey\\Key1]
+        dict for {keypath values} $dict {
+            # Create key even if no values
+            registry set [join [list HKEY_CURRENT_USER\\$rootKey\\$key_name $keypath] \\]
+            dict for {value_name raw_value} $values {
+                registry set [join [list HKEY_CURRENT_USER\\$rootKey\\$key_name $keypath] \\] $value_name [lindex $raw_value 1] [lindex $raw_value 0]
+            }
+        }
+        compare_registry HKEY_CURRENT_USER\\$rootKey\\Key1 HKEY_CURRENT_USER\\$rootKey\\$key_name
+    } -result {}
+
+    ###
+
 
     ### Clean up
 

@@ -441,29 +441,23 @@ proc twapi::reg_tree {hkey {subkey {}}} {
     return $paths
 }
 
-proc twapi::reg_tree_values {hkey {subkey {}} {format cooked}} {
+proc twapi::reg_tree_values {hkey {subkey {}}} {
 
     set iter [reg_iterator $hkey $subkey]
 
     set tree {}
-    # For efficiency duplicate loops instead of checking
-    # value format inside the loop
-    switch -exact -- $withvalues {
-        cooked {
-            while {[llength [set item [$iter next]]]} {
-                lassign $item hkey keypath
-                dict set tree {*}$keypath \\Values [reg_values $hkey]
-            }
-        }
-        raw {
-            while {[llength [set item [$iter next]]]} {
-                lassign $item hkey keypath
-                dict set tree {*}$keypath \\Values [reg_values_raw $hkey]
-            }
-        }
-        default {
-            error "Unknown registry value format \"$format\"."
-        }
+    while {[llength [set item [$iter next]]]} {
+        dict set tree [join [lindex $item 1] \\] [reg_values [lindex $item 0]]
+    }
+    return $tree
+}
+
+proc twapi::reg_tree_values_raw {hkey {subkey {}}} {
+    set iter [reg_iterator $hkey $subkey]
+
+    set tree {}
+    while {[llength [set item [$iter next]]]} {
+        dict set tree [join [lindex $item 1] \\] [reg_values_raw [lindex $item 0]]
     }
     return $tree
 }
