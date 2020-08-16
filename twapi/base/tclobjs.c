@@ -1684,7 +1684,7 @@ static const char *gRegTypeNames[] = {
     "expand_sz",
     "binary",
     "dword",
-    "dword_be",
+    "dword_big_endian",
     "link",
     "multi_sz",
     "resource_list",
@@ -1721,7 +1721,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
             --count;        /* Do not include \0 */
         objv[1] = ObjFromWinCharsN(ws, count);
         break;
-            
+
     case REG_DWORD_BIG_ENDIAN:
         /* Since we are returning *typed* values, do not byte swap */
         /* FALLTHRU */
@@ -2046,13 +2046,18 @@ TWAPI_EXTERN TCL_RESULT ObjToHKEY(Tcl_Interp *interp, Tcl_Obj *objP, HKEY *hkeyP
 #endif
     static struct {const char *keyname; HKEY key;} hkeymap[] = {
         {"HKEY_CLASSES_ROOT", HKEY_CLASSES_ROOT},
+        {"HKCR", HKEY_CLASSES_ROOT},
         {"HKEY_CURRENT_USER", HKEY_CURRENT_USER},
+        {"HKCU", HKEY_CURRENT_USER},
         {"HKEY_LOCAL_MACHINE", HKEY_LOCAL_MACHINE},
+        {"HKLM", HKEY_LOCAL_MACHINE},
         {"HKEY_USERS", HKEY_USERS},
+        {"HKU", HKEY_USERS},
         {"HKEY_PERFORMANCE_DATA", HKEY_PERFORMANCE_DATA},
         {"HKEY_PERFORMANCE_TEXT", HKEY_PERFORMANCE_TEXT},
         {"HKEY_PERFORMANCE_NLSTEXT", HKEY_PERFORMANCE_NLSTEXT},
         {"HKEY_CURRENT_CONFIG", HKEY_CURRENT_CONFIG},
+        {"HKCC", HKEY_CURRENT_CONFIG},
         /* Only on Win 9x {"HKEY_DYN_DATA", HKEY_DYN_DATA}, */
         {"HKEY_CURRENT_USER_LOCAL_SETTINGS", HKEY_CURRENT_USER_LOCAL_SETTINGS},
     };
