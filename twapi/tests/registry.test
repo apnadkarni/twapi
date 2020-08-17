@@ -1089,6 +1089,77 @@ namespace eval twapi::registry::test {
         } -result {1 1}
     }
 
+    ###
+
+    test reg_value_delete-1 "Delete value" -setup {
+        set key_name reg_value_delete-1
+        registry set $rootPath\\$key_name Value1 avalue
+        registry set $rootPath\\$key_name Value2 bvalue
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\$key_name -access generic_write]
+    } -cleanup {
+        registry delete $rootPath\\$key_name
+        twapi::reg_key_close $hkey
+    } -body {
+        twapi::reg_value_delete $hkey Value1
+        registry values $rootPath\\$key_name
+    } -result Value2
+
+    test reg_value_delete-2 "Delete subkey value" -setup {
+        set key_name reg_value_delete-2
+        registry set $rootPath\\$key_name Value1 avalue
+        registry set $rootPath\\$key_name Value2 bvalue
+    } -cleanup {
+        registry delete $rootPath\\$key_name
+    } -body {
+        twapi::reg_value_delete HKEY_CURRENT_USER $rootKey\\$key_name Value1
+        registry values $rootPath\\$key_name
+    } -result Value2
+
+    ###
+
+    test reg_value_names-1 "value names" -setup {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -body {
+        twapi::reg_value_names $hkey
+    } -result [registry values $rootPath\\Key1] -match set
+
+    test reg_value_names-2 "value names subkey" -body {
+        twapi::reg_value_names HKEY_CURRENT_USER $rootKey\\Key1
+    } -result [registry values $rootPath\\Key1] -match set
+
+    ###
+
+    foreach {type value} {
+        sz "sz value"
+        expand_sz "%path%"
+        multi_sz {list of elements}
+        dword 42
+        dword_big_endian 42
+        binary "\t\v\r\n"
+    } {
+        test reg_value_set-$type-1 "reg_value_set" -setup {
+            set key_name reg_value_set-1
+            set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\$key_name -access generic_write]
+        } -cleanup {
+            twapi::reg_key_close $hkey
+            registry delete HKEY_CURRENT_USER\\$rootKey\\$key_name
+        } -body {
+            twapi::reg_value_set $hkey Value$type $type $value
+            registry get HKEY_CURRENT_USER\\$rootKey\\$key_name Value$type
+        } -result $value
+
+        test reg_value_set-$type-2 "reg_value_set subkey" -setup {
+            set key_name reg_value_set-2
+        } -cleanup {
+            registry delete HKEY_CURRENT_USER\\$rootKey\\$key_name
+        } -body {
+            twapi::reg_value_set HKEY_CURRENT_USER $rootKey\\$key_name Value$type $type $value
+            registry get HKEY_CURRENT_USER\\$rootKey\\$key_name Value$type
+        } -result $value
+    }
+
     ### Clean up
 
     #registry delete HKEY_CURRENT_USER\\TwapiTestRoot
