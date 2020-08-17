@@ -977,6 +977,8 @@ namespace eval twapi::registry::test {
     } -result {}
 
     test reg_tree_values_raw-2 {tree values subkey} -setup {
+        set handle_count [lindex [twapi::get_process_info [pid] -handlecount] 1]
+        set dict [twapi::reg_tree_values HKEY_CURRENT_USER $rootKey\\Key1]
         set key_name reg_tree_values_raw-2
     } -cleanup {
         registry delete HKEY_CURRENT_USER\\$rootKey\\$key_name
@@ -989,11 +991,51 @@ namespace eval twapi::registry::test {
                 registry set [join [list HKEY_CURRENT_USER\\$rootKey\\$key_name $keypath] \\] $value_name [lindex $raw_value 1] [lindex $raw_value 0]
             }
         }
-        compare_registry HKEY_CURRENT_USER\\$rootKey\\Key1 HKEY_CURRENT_USER\\$rootKey\\$key_name
-    } -result {}
+
+        list \
+            [tcl::mathop::== $handle_count [lindex [twapi::get_process_info [pid] -handlecount] 1]] \
+            [compare_registry HKEY_CURRENT_USER\\$rootKey\\Key1 HKEY_CURRENT_USER\\$rootKey\\$key_name]
+    } -result {1 {}}
 
     ###
 
+    test reg_tree_values-1 {tree values} -setup {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -body {
+        set dict [twapi::reg_tree_values $hkey ""]
+        list \
+            [string equal [dict get $dict "" ValueSz] [lindex [dict get $testStructure Keys Key1 Values ValueSz] 0]] \
+            [string equal [dict get $dict "" ValueExpandSz] $::env(Path)] \
+            [tcl::mathop::== [dict get $dict "" ValueDword] [lindex [dict get $testStructure Keys Key1 Values ValueDword] 0]] \
+            [tcl::mathop::== [dict get $dict "" ValueDword] [lindex [dict get $testStructure Keys Key1 Values ValueDwordBE] 0]] \
+            [string equal [dict get $dict "" ValueMultiSz] [lindex [dict get $testStructure Keys Key1 Values ValueMultiSz] 0]] \
+            [string equal [dict get $dict "" ValueBinary] [lindex [dict get $testStructure Keys Key1 Values ValueBinary] 0]] \
+            [string equal [dict get $dict "" ValueResourceList] [lindex [dict get $testStructure Keys Key1 Values ValueResourceList] 0]] \
+            [string equal [dict get $dict SubkeyA SubValueA] [lindex [dict get $testStructure Keys Key1 Keys  SubkeyA Values SubValueA] 0]] \
+            [string equal [dict get $dict SubkeyA SubValueB] [lindex [dict get $testStructure Keys Key1 Keys  SubkeyA Values SubValueB] 0]] \
+            [string equal [dict get $dict SubkeyX SubValueX] [lindex [dict get $testStructure Keys Key1 Keys SubkeyX Values SubValueX] 0]] \
+
+    } -result {1 1 1 1 1 1 1 1 1 1}
+
+    test reg_tree_values-2 {tree values - subtree} -body {
+        set handle_count [lindex [twapi::get_process_info [pid] -handlecount] 1]
+        set dict [twapi::reg_tree_values HKEY_CURRENT_USER $rootKey\\Key1]
+        list \
+            [tcl::mathop::== $handle_count [lindex [twapi::get_process_info [pid] -handlecount] 1]] \
+            [string equal [dict get $dict "" ValueSz] [lindex [dict get $testStructure Keys Key1 Values ValueSz] 0]] \
+            [string equal [dict get $dict "" ValueExpandSz] $::env(Path)] \
+            [tcl::mathop::== [dict get $dict "" ValueDword] [lindex [dict get $testStructure Keys Key1 Values ValueDword] 0]] \
+            [tcl::mathop::== [dict get $dict "" ValueDword] [lindex [dict get $testStructure Keys Key1 Values ValueDwordBE] 0]] \
+            [string equal [dict get $dict "" ValueMultiSz] [lindex [dict get $testStructure Keys Key1 Values ValueMultiSz] 0]] \
+            [string equal [dict get $dict "" ValueBinary] [lindex [dict get $testStructure Keys Key1 Values ValueBinary] 0]] \
+            [string equal [dict get $dict "" ValueResourceList] [lindex [dict get $testStructure Keys Key1 Values ValueResourceList] 0]] \
+            [string equal [dict get $dict SubkeyA SubValueA] [lindex [dict get $testStructure Keys Key1 Keys  SubkeyA Values SubValueA] 0]] \
+            [string equal [dict get $dict SubkeyA SubValueB] [lindex [dict get $testStructure Keys Key1 Keys  SubkeyA Values SubValueB] 0]] \
+            [string equal [dict get $dict SubkeyX SubValueX] [lindex [dict get $testStructure Keys Key1 Keys SubkeyX Values SubValueX] 0]] \
+
+    } -result {1 1 1 1 1 1 1 1 1 1 1}
 
     ### Clean up
 
