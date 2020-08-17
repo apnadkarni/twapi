@@ -227,19 +227,45 @@ proc twapi::reg_key_monitor {hkey hevent args} {
     RegNotifyChangeKeyValue $hkey $subtree $filter $hevent true
 }
 
-proc twapi::reg_value_names {hkey} {
-    # 0 - value names only
-    return [RegEnumValue $hkey 0]
+proc twapi::reg_value_names {hkey {subkey {}}} {
+    if {$subkey eq ""} {
+        # 0 - value names only
+        return [RegEnumValue $hkey 0]
+    }
+    set hkey [reg_key_open $hkey $subkey]
+    try {
+        # 0 - value names only
+        return [RegEnumValue $hkey 0]
+    } finally {
+        reg_key_close $hkey
+    }
 }
 
-proc twapi::reg_values {hkey} {
-    #  3 -> 0x1 - return data values, 0x2 - cooked data
-    return [RegEnumValue $hkey 3]
+proc twapi::reg_values {hkey {subkey {}}} {
+    if {$subkey eq ""} {
+        #  3 -> 0x1 - return data values, 0x2 - cooked data
+        return [RegEnumValue $hkey 3]
+    }
+    set hkey [reg_key_open $hkey $subkey]
+    try {
+        #  3 -> 0x1 - return data values, 0x2 - cooked data
+        return [RegEnumValue $hkey 3]
+    } finally {
+        reg_key_close $hkey
+    }
 }
 
-proc twapi::reg_values_raw {hkey} {
-    #  0x1 - return data values
-    return [RegEnumValue $hkey 1]
+proc twapi::reg_values_raw {hkey {subkey {}}} {
+    if {$subkey eq ""} {
+        #  0x1 - return data values
+        return [RegEnumValue $hkey 1]
+    }
+    set hkey [reg_key_open $hkey $subkey]
+    try {
+        return [RegEnumValue $hkey 1]
+    } finally {
+        reg_key_close $hkey
+    }
 }
 
 proc twapi::reg_value_raw {hkey args} {

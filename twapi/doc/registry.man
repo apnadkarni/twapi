@@ -80,11 +80,11 @@ Returns a handle to a predefined registry key on a remote system.
 Disables the caching of the [const HKEY_CURRENT_USER] handle for the current
 process.
 
-[call [cmd reg_iterator] [arg HKEY] [opt [arg SUBKEY]]]
+[call [cmd reg_iterator] [arg HKEY] [opt [arg SUBKEYPATH]]]
 
 Returns an iterator command that can be invoked to iterate over all keys and
 values under a registry key. The iteration is carried out over [arg HKEY]
-unless a non-empty [arg SUBKEY] argument is specified. In that case,
+unless a non-empty [arg SUBKEYPATH] argument is specified. In that case,
 it must the path to a subkey under [arg HKEY] and the iteration is
 carried out over its subtree instead.
 
@@ -104,7 +104,7 @@ iterator command will result in an error being raised.
 The return value from the iterator invocation is a list of two elements.
 The first element is the handle to the current key. This handle must not
 be closed or modified in any way. The second element is the key path
-to the key as a list of key names starting with [arg SUBKEY] or [arg HKEY]
+to the key as a list of key names starting with [arg SUBKEYPATH] or [arg HKEY]
 if the former was not specified.
 
 [nl]
@@ -116,7 +116,7 @@ it again will raise an error.
 Releases the passed registry key handle. [arg HKEY] must not be one of
 the predefined registry handles.
 
-[call [cmd reg_key_copy] [arg HFROM] [arg HTO] [opt "[cmd -subkey] [arg SUBKEY]"] [opt "[cmd -copysecd] [arg BOOL]"]]
+[call [cmd reg_key_copy] [arg HFROM] [arg HTO] [opt "[cmd -subkey] [arg SUBKEYPATH]"] [opt "[cmd -copysecd] [arg BOOL]"]]
 
 Copies the subtree under a registry key to another registry key. The source key is
 specified by [arg HFROM] which must be a handle to a registry key. If the [cmd -subkey]
@@ -129,12 +129,12 @@ tree are also to be copied. If [const true], the descriptors are copied as well.
 The default is [const false]. The option must be [const false] on Windows XP
 and Windows 2003 as otherwise the copy will fail.
 
-[call [cmd reg_key_create] [arg HKEY] [arg SUBKEY] [opt [arg options]]]
+[call [cmd reg_key_create] [arg HKEY] [arg SUBKEYPATH] [opt [arg options]]]
 
 Returns a handle to a registry key.
 [arg HKEY] must be a handle to a registry key as returned by a prior call to
 [cmd reg_key_open], [uri \#reg_key_create [cmd reg_key_create]] etc. or a
-predefined key handle such as [const HKEY_LOCAL_MACHINE]. [arg SUBKEY] is the
+predefined key handle such as [const HKEY_LOCAL_MACHINE]. [arg SUBKEYPATH] is the
 path to the subkey to be created under [arg HKEY]. It is not an error if
 the subkey already exists. In that case, it is opened and its handle returned.
 
@@ -182,8 +182,8 @@ specified as a list of integer access rights flags or symbols as described in
 [uri security.html#accessrights "Access Rights"]. Defaults to [const generic_read].
 [list_end]
 
-[call [cmd reg_key_delete] [arg HKEY] [arg SUBKEY]]
-Deletes the key identified by the key path [arg SUBKEY] under
+[call [cmd reg_key_delete] [arg HKEY] [arg SUBKEYPATH]]
+Deletes the key identified by the key path [arg SUBKEYPATH] under
 the key specified by the handle [arg HKEY] and any values it contains.
 The key must not have any subkeys. No error is raised if the key does
 not exist.
@@ -210,8 +210,8 @@ created into which the file is imported. In this case, [arg HKEY] must be
 [const HKEY_USERS] or [const HKEY_LOCAL_MACHINE]. Default is [const false].
 [list_end]
 
-[call [cmd reg_key_load] [arg HKEY] [arg SUBKEY] [arg REGFILE]]
-Creates a key [arg SUBKEY] under [arg HKEY] and loads the contents of
+[call [cmd reg_key_load] [arg HKEY] [arg SUBKEYPATH] [arg REGFILE]]
+Creates a key [arg SUBKEYPATH] under [arg HKEY] and loads the contents of
 the file [arg REGFILE] under it. [arg HKEY] must be one of the predefined keys
 [const HKEY_LOCAL_MACHINE] or [const HKEY_USERS] or a handle returned by
 [uri \#reg_connect [cmd reg_connect]]. [arg REGFILE] must be
@@ -223,8 +223,8 @@ undo the operation.
 Note the caller process must be running with [const SE_BACKUP_NAME] and
 [const SE_RESTORE_NAME] privileges.
 
-[call [cmd reg_key_unload] [arg HKEY] [arg SUBKEY]]
-Unloads the registry hive at key path [arg SUBKEY] under the key with
+[call [cmd reg_key_unload] [arg HKEY] [arg SUBKEYPATH]]
+Unloads the registry hive at key path [arg SUBKEYPATH] under the key with
 handle [arg HKEY]. [arg HKEY] must be one of the predefined keys
 [const HKEY_LOCAL_MACHINE] or [const HKEY_USERS] or a handle returned by
 [uri \#reg_connect [cmd reg_connect]]. This reverses the effect
@@ -271,12 +271,12 @@ including additions and deletions.
 If none of the options [cmd -attr], [cmd -keys], [cmd -secd] and [cmd -values]
 are specified as [const true], all are enabled.
 
-[call [cmd reg_key_open] [arg HKEY] [arg SUBKEY] [opt [arg options]]]
+[call [cmd reg_key_open] [arg HKEY] [arg SUBKEYPATH] [opt [arg options]]]
 
 Returns a handle to a registry key.
 [arg HKEY] must be a handle to a registry key as returned by a prior call to
 [cmd reg_key_open], [uri \#reg_key_create [cmd reg_key_create]] etc. or a
-predefined key handle such as [const HKEY_LOCAL_MACHINE]. [arg SUBKEY] is the
+predefined key handle such as [const HKEY_LOCAL_MACHINE]. [arg SUBKEYPATH] is the
 path to the subkey under [arg HKEY] whose handle is to be returned.
 
 The following options may be specified:
@@ -317,8 +317,8 @@ Undoes the effect of a previous call to [uri #reg_key_override [cmd reg_key_over
 [const HKEY_PERFORMANCE_DATA].
 
 
-[call [cmd reg_key_prune] [arg HKEY] [arg SUBKEY]]
-Deletes the tree rooted at the key identified by the key path [arg SUBKEY] under
+[call [cmd reg_key_prune] [arg HKEY] [arg SUBKEYPATH]]
+Deletes the tree rooted at the key identified by the key path [arg SUBKEYPATH] under
 the key specified by the handle [arg HKEY]. No error is raised if the key does
 not exist.
 
@@ -339,23 +339,23 @@ specified as a list of integer access rights flags or symbols as described in
 [list_end]
 
 
-[call [cmd reg_keys] [arg HKEY] [opt [arg SUBKEY]]]
-Returns the list of keys under the key [arg SUBKEY] under the handle [arg HKEY].
-If [arg SUBKEY] is not specified or is empty, keys under [arg HKEY] are
+[call [cmd reg_keys] [arg HKEY] [opt [arg SUBKEYPATH]]]
+Returns the list of keys under the key [arg SUBKEYPATH] under the handle [arg HKEY].
+If [arg SUBKEYPATH] is not specified or is empty, keys under [arg HKEY] are
 returned.
 
-[call [cmd reg_tree] [arg HKEY] [opt [arg SUBKEY]]]
+[call [cmd reg_tree] [arg HKEY] [opt [arg SUBKEYPATH]]]
 Returns a list of key paths of the keys in the subtree under a registry key.
-If [arg SUBKEY] is specified, it identifies the path under [arg HKEY]
+If [arg SUBKEYPATH] is specified, it identifies the path under [arg HKEY]
 for the subtree. If [arg SUBTREE] is not specified or empty the paths
 under [arg HKEY] itself are returned.
 [nl]
 The returned paths are all relative to root of the subtree. Note that the
 empty string corresponding to the root is also returned.
 
-[call [cmd reg_tree_values] [arg HKEY] [opt [arg SUBKEY]]]
+[call [cmd reg_tree_values] [arg HKEY] [opt [arg SUBKEYPATH]]]
 Returns a registry subtree in the form of a nested dictionary mapping keys to their
-values. [arg SUBKEY] is the registry path relative to [arg HKEY]
+values. [arg SUBKEYPATH] is the registry path relative to [arg HKEY]
 iterate over. If unspecified, the root of the  tree is [arg HKEY]
 itself.
 [nl]
@@ -365,9 +365,9 @@ to the root of the subtree.
 The dictionary content for each key is itself a dictionary mapping
 value names contained in the key to their content in cooked form.
 
-[call [cmd reg_tree_values_raw] [arg HKEY] [opt [arg SUBKEY]]]
+[call [cmd reg_tree_values_raw] [arg HKEY] [opt [arg SUBKEYPATH]]]
 Returns a registry subtree in the form of a nested dictionary mapping keys to their
-values. [arg SUBKEY] is the registry path relative to [arg HKEY]
+values. [arg SUBKEYPATH] is the registry path relative to [arg HKEY]
 iterate over. If unspecified, the root of the  tree is [arg HKEY]
 itself.
 [nl]
@@ -376,46 +376,48 @@ The corresponding dictionary element is itself a dictionary mapping
 value names contained in the key to their content in raw form as a type and data
 pair.
 
-[call [cmd reg_value] [arg HKEY] [opt [arg SUBKEY]] [arg VALUENAME]]
+[call [cmd reg_value] [arg HKEY] [opt [arg SUBKEYPATH]] [arg VALUENAME]]
 Returns the cooked data value for a registry value. If
-[arg SUBKEY] is not specified, the returned data is from the value
+[arg SUBKEYPATH] is not specified, the returned data is from the value
 [arg VALUENAME] under [arg HKEY] which is a handle to a registry key.
-If [arg SUBKEY] is specified, it must be a registry path under [arg HKEY]
+If [arg SUBKEYPATH] is specified, it must be a registry path under [arg HKEY]
 and [arg VALUENAME] is retrieved from that key.
 
-[call [cmd reg_value_delete] [arg HKEY] [opt [arg SUBKEY]] [arg VALUENAME]]
-If the optional [arg SUBKEY] argument is not specified, the command deletes the
+[call [cmd reg_value_delete] [arg HKEY] [opt [arg SUBKEYPATH]] [arg VALUENAME]]
+If the optional [arg SUBKEYPATH] argument is not specified, the command deletes the
 specified registry value under the key specified by the handle [arg HKEY].
-If [arg SUBKEY] is specified, it should be a key path under [arg HKEY].
+If [arg SUBKEYPATH] is specified, it should be a key path under [arg HKEY].
 In this case the value is deleted from that key.
 
-[call [cmd reg_value_names] [arg HKEY]]
-Returns the list of names of values under the key specified by the handle [arg HKEY].
+[call [cmd reg_value_names] [arg HKEY] [opt [arg SUBKEYPATH]]]
+Returns the list of names of values under the key specified by the handle [arg HKEY]
+or if [arg SUBKEYPATH] is specified and non-empty, the value names under that subkey.
 
-[call [cmd reg_value_raw] [arg HKEY] [opt [arg SUBKEY]] [arg VALUENAME]]
+[call [cmd reg_value_raw] [arg HKEY] [opt [arg SUBKEYPATH]] [arg VALUENAME]]
 
 Returns a pair consisting of the type and data for a registry value. If
-[arg SUBKEY] is not specified, the returned data is from the value
+[arg SUBKEYPATH] is not specified, the returned data is from the value
 [arg VALUENAME] under [arg HKEY] which is a handle to a registry key.
-If [arg SUBKEY] is specified, it must be a registry path under [arg HKEY]
+If [arg SUBKEYPATH] is specified, it must be a registry path under [arg HKEY]
 and [arg VALUENAME] is retrieved from that key.
 
-[call [cmd reg_value_set] [arg HKEY] [opt [arg SUBKEY]] [arg VALUENAME] [arg TYPE] [arg DATA]]
+[call [cmd reg_value_set] [arg HKEY] [opt [arg SUBKEYPATH]] [arg VALUENAME] [arg TYPE] [arg DATA]]
 
 Stores the data [arg DATA] as a registry value of type [arg TYPE]. If
-[arg SUBKEY] is not specified, the data is stored as
+[arg SUBKEYPATH] is not specified, the data is stored as
 [arg VALUENAME] under [arg HKEY] which is a handle to a registry key.
-If [arg SUBKEY] is specified, it must be a registry path under [arg HKEY]
+If [arg SUBKEYPATH] is specified, it must be a registry path under [arg HKEY]
 and the data is stored in [arg VALUENAME] under that key.
 
-[call [cmd reg_values] [arg HKEY]]
+[call [cmd reg_values] [arg HKEY] [opt [arg SUBKEYPATH]]]
 Returns a dictionary keyed by the value names in the specified registry key
-[arg HKEY]. The value data is in cooked form.
+[arg HKEY] or under its subkey [arg SUBKEYPATH] if specified and non-empty.
+The value data is in cooked form.
 
-[call [cmd reg_values_raw] [arg HKEY]]
+[call [cmd reg_values_raw] [arg HKEY] [opt [arg SUBKEYPATH]]]
 Returns a dictionary keyed by the value names in the specified registry key
-[arg HKEY]. The value data is in raw form as a pair containing the data type
-and data value.
+[arg HKEY] or under its subkey [arg SUBKEYPATH] if specified and non-empty.
+The value data is in raw form as a pair containing the data type and data value.
 
 [list_end]
 
