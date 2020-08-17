@@ -1037,6 +1037,58 @@ namespace eval twapi::registry::test {
 
     } -result {1 1 1 1 1 1 1 1 1 1 1}
 
+    ###
+
+    set testnum 0
+    foreach value_name [registry values HKEY_CURRENT_USER\\$rootKey\\Key1] {
+        set value [registry get HKEY_CURRENT_USER\\$rootKey\\Key1 $value_name]
+        if {[registry type HKEY_CURRENT_USER\\$rootKey\\Key1 $value_name] eq "expand_sz"} {
+            set value [twapi::expand_environment_vars $value]
+        }
+        test reg_value-[incr testnum] "reg_value subkey $value_name" -body {
+            tcl::mathop::== [twapi::reg_value HKEY_CURRENT_USER $rootKey\\Key1 $value_name] $value
+        } -result 1
+        test reg_value-[incr testnum] "reg_value $value_name" -setup {
+            set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+        } -cleanup {
+            twapi::reg_key_close $hkey
+        } -body {
+            tcl::mathop::== [twapi::reg_value $hkey $value_name] $value
+        } -result 1
+    }
+
+    ###
+
+    set testnum 0
+    foreach value_name [registry values HKEY_CURRENT_USER\\$rootKey\\Key1] {
+        set value [registry get HKEY_CURRENT_USER\\$rootKey\\Key1 $value_name]
+        set type [registry type HKEY_CURRENT_USER\\$rootKey\\Key1 $value_name]
+        test reg_value_raw-[incr testnum] "reg_value subkey $value_name" -body {
+            set value_raw [twapi::reg_value_raw HKEY_CURRENT_USER $rootKey\\Key1 $value_name]
+            if {$type eq "dword_big_endian"} {
+                lset value_raw 1 [twapi::swap4 [lindex $value_raw 1]]
+            }
+            list \
+                [tcl::mathop::== [lindex $value_raw 1] $value] \
+                [tcl::mathop::== [lindex $value_raw 0] $type]
+
+        } -result {1 1}
+        test reg_value_raw-[incr testnum] "reg_value $value_name" -setup {
+            set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+        } -cleanup {
+            twapi::reg_key_close $hkey
+        } -body {
+            set value_raw [twapi::reg_value_raw $hkey $value_name]
+            if {$type eq "dword_big_endian"} {
+                lset value_raw 1 [twapi::swap4 [lindex $value_raw 1]]
+            }
+            list \
+                [tcl::mathop::== [lindex $value_raw 1] $value] \
+                [tcl::mathop::== [lindex $value_raw 0] $type]
+
+        } -result {1 1}
+    }
+
     ### Clean up
 
     #registry delete HKEY_CURRENT_USER\\TwapiTestRoot

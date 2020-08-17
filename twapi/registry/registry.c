@@ -251,15 +251,8 @@ TwapiRegGetValue(Tcl_Interp *interp,
                 resultObj
                     = ObjFromRegValueCooked(interp, value_type, value_data, nb_value_data);
             } else {
-                Tcl_Obj *objs[2];
-                objs[1] = ObjFromRegValue(
+                resultObj = ObjFromRegValue(
                     interp, value_type, value_data, nb_value_data);
-                if (objs[1] == NULL)
-                    resultObj = NULL;
-                else {
-                    objs[0]   = ObjFromDWORD(value_type);
-                    resultObj = ObjNewList(2, objs);
-                }
             }
             break;
         } else if (status == ERROR_MORE_DATA) {
