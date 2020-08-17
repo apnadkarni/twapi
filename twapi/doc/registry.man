@@ -350,7 +350,8 @@ If [arg SUBKEY] is specified, it identifies the path under [arg HKEY]
 for the subtree. If [arg SUBTREE] is not specified or empty the paths
 under [arg HKEY] itself are returned.
 [nl]
-The returned paths are all relative to root of the subtree.
+The returned paths are all relative to root of the subtree. Note that the
+empty string corresponding to the root is also returned.
 
 [call [cmd reg_tree_values] [arg HKEY] [opt [arg SUBKEY]]]
 Returns a registry subtree in the form of a nested dictionary mapping keys to their
@@ -359,7 +360,9 @@ iterate over. If unspecified, the root of the  tree is [arg HKEY]
 itself.
 [nl]
 The keys of the returned dictionary are the relative key paths in the subtree.
-The corresponding dictionary element is itself a dictionary mapping
+Thus the tree includes an empty string as a dictionary key corresponding
+to the root of the subtree.
+The dictionary content for each key is itself a dictionary mapping
 value names contained in the key to their content in cooked form.
 
 [call [cmd reg_tree_values_raw] [arg HKEY] [opt [arg SUBKEY]]]

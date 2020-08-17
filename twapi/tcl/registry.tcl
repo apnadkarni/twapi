@@ -446,6 +446,8 @@ proc twapi::reg_tree_values {hkey {subkey {}}} {
     set iter [reg_iterator $hkey $subkey]
 
     set tree {}
+    # Note here we cannot ignore the first empty node corresponding
+    # to the root because we have to return any values it contains.
     while {[llength [set item [$iter next]]]} {
         dict set tree [join [lindex $item 1] \\] [reg_values [lindex $item 0]]
     }
