@@ -711,7 +711,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          GETINT(dw2),
                          ARGUSEDEFAULT,
                          GETHANDLE(h),
-                         GETINT(dw3),
+                         GETBOOL(dw3),
                          ARGEND)
             != TCL_OK)
             return TCL_ERROR;
