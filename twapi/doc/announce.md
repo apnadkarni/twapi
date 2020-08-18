@@ -17,7 +17,7 @@ TWAPI 4.4 requires
 Primary change is the addition of the registry module.
 
 For a complete list, including INCOMPATIBLE CHANGES, see 
-https://twapi.magicsplat.com/v4.3/versionhistory.html
+https://twapi.magicsplat.com/v4.4/versionhistory.html
 
 ## Distributions
 
