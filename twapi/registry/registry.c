@@ -426,7 +426,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                 result.value.ival = ERROR_PROC_NOT_FOUND;
             else {
                 result.value.ival
-                    = (LSTATUS) func(hkey, ObjToWinChars(subkeyObj), ObjToWinChars(objP));
+                    = (LONG) func(hkey, ObjToWinChars(subkeyObj), ObjToWinChars(objP));
                 if (result.value.ival == ERROR_SUCCESS)
                     result.type = TRT_EMPTY;
             }
@@ -447,7 +447,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         else {
             FARPROC func = Twapi_GetProc_RegDeleteKeyExW();
             if (func) {
-                result.value.ival = (LSTATUS) func(hkey, ObjToWinChars(subkeyObj), dw, 0);
+                result.value.ival = (LONG) func(hkey, ObjToWinChars(subkeyObj), dw, 0);
             }
             else {
                 /* If the Ex call is not supported, the samDesired param
@@ -485,7 +485,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
             if (func == NULL)
                 func = Twapi_GetProc_SHDeleteKeyW();
             if (func) {
-                result.value.ival = (LSTATUS) func(hkey, ObjToWinChars(subkeyObj));
+                result.value.ival = (LONG) func(hkey, ObjToWinChars(subkeyObj));
                 if (result.value.ival == ERROR_SUCCESS)
                     result.type = TRT_EMPTY;
             }
@@ -578,7 +578,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                 Tcl_UniChar *subkey = ObjToWinCharsN(subkeyObj, &dw);
                 if (dw == 0)
                     subkey = NULL;
-                result.value.ival = (LSTATUS) func(hkey, subkey, hkey2);
+                result.value.ival = (LONG) func(hkey, subkey, hkey2);
                 if (result.value.ival == ERROR_SUCCESS)
                     result.type = TRT_EMPTY;
             } else {
@@ -775,7 +775,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                 if (result.value.ival != TCL_OK) {
                     result.type = TRT_TCL_RESULT;
                 } else {
-                    result.value.ival = (LSTATUS) func(hkey,
+                    result.value.ival = (LONG) func(hkey,
                                              ObjToWinChars(subkeyObj),
                                              ObjToWinChars(nameObj),
                                              regval.type,
@@ -801,7 +801,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                 Tcl_UniChar *subkey = ObjToWinCharsN(subkeyObj, &dw);
                 if (dw == 0)
                     subkey = NULL;
-                result.value.ival = (LSTATUS) func(hkey, subkey, hkey2, 0);
+                result.value.ival = (LONG) func(hkey, subkey, hkey2, 0);
                 if (result.value.ival == ERROR_SUCCESS)
                     result.type = TRT_EMPTY;
             } else
@@ -833,7 +833,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                 break;
             }
             if (func) {
-                result.value.ival = (LSTATUS) func(hkey);
+                result.value.ival = (LONG) func(hkey);
                 if (result.value.ival == ERROR_SUCCESS)
                     result.type = TRT_EMPTY;
             }
