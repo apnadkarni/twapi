@@ -299,11 +299,13 @@ namespace eval twapi::input::test {
                 twapi::modify_console_input_mode stdin -processedinput true -lineinput true -echoinput true
                 twapi::flush_console_input
             } -body {
-                #twapi::send_keys "%KEYS%"
-                package require twapi_com
-                set shell [twapi::comobj WScript.Shell]
-                $shell SendKeys "%KEYS%"
-                $shell destroy
+                twapi::send_keys "%KEYS%"
+                if {0} {
+                    package require twapi_com
+                    set shell [twapi::comobj WScript.Shell]
+                    $shell SendKeys "%KEYS%"
+                    $shell destroy
+                }
                 after 100
                 readinputrecs
             } -result "%RESULT%"
