@@ -19,14 +19,14 @@ more efficient through the explicit ues of registry handles in this package.
 [section "Predefined keys"]
 
 The following registry key handles are predefined:
-[const HKEY_CLASSES_ROOT],
-[const HKEY_CURRENT_USER],
-[const HKEY_LOCAL_MACHINE],
-[const HKEY_USERS],
+[const HKEY_CLASSES_ROOT] (or [const HKCR]),
+[const HKEY_CURRENT_USER] (or [const HKCU]),
+[const HKEY_LOCAL_MACHINE] (or [const HKLM]),
+[const HKEY_CURRENT_CONFIG] (or [const HKCC]),
+[const HKEY_USERS] (or [const HKU]),
 [const HKEY_PERFORMANCE_DATA],
 [const HKEY_PERFORMANCE_TEXT],
-[const HKEY_PERFORMANCE_NLSTEXT],
-[const HKEY_CURRENT_CONFIG] or
+[const HKEY_PERFORMANCE_NLSTEXT] or
 [const HKEY_CURRENT_USER_LOCAL_SETTINGS].
 These may be directly passed as key handles without an explicit call to
 [cmd reg_key_open] or [cmd reg_key_create].

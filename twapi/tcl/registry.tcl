@@ -169,7 +169,7 @@ proc twapi::reg_key_user_classes_root {usertoken args} {
     if {$64bit} {
         set access [expr {$access | 0x100}]
     }
-    return [RegOpenUserClassesRoot 0 $access]
+    return [RegOpenUserClassesRoot $usertoken 0 $access]
 }
 
 proc twapi::reg_key_export {hkey filepath args} {
@@ -224,7 +224,7 @@ proc twapi::reg_key_monitor {hkey hevent args} {
         set filter 0xf
     }
 
-    RegNotifyChangeKeyValue $hkey $subtree $filter $hevent true
+    RegNotifyChangeKeyValue $hkey $subtree $filter $hevent 1
 }
 
 proc twapi::reg_value_names {hkey {subkey {}}} {

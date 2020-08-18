@@ -65,6 +65,7 @@ namespace eval twapi::registry::test {
                     }
                 }
                 Values {
+                    "" {"default value" sz}
                     ValueSz {"a string" sz}
                     ValueDword {42 dword}
                     ValueDwordBE {42 dword_big_endian}
@@ -489,8 +490,11 @@ namespace eval twapi::registry::test {
     } -result TestString
 
     test reg_key_create-13 {Create new key -access fail} -body {
-        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-12 -access generic_read]
+        set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-13 -access generic_read]
         list [catch {twapi::reg_value_set $hkey TestValue sz TestString}] [errorcode]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+        registry delete $rootPath\\reg_key_create-13
     } -result {1 {TWAPI_WIN32 5}}
 
     test reg_key_create-99 {Create new key -32bit} -constraints {
@@ -837,7 +841,10 @@ namespace eval twapi::registry::test {
 
     ###
 
-    proc testopen {id root key value} {
+    proc testopen {id root key value {alias ""}} {
+        if {$alias eq ""} {
+            set alias $root
+        }
         test reg_key_open-$id "open $root $key" -body {
             if {$key ne ""} {
                 set hkey [twapi::reg_key_open $root $key]
@@ -847,7 +854,7 @@ namespace eval twapi::registry::test {
                 set result [lindex [twapi::reg_value_raw $root $value] 1]
             }
             set result
-        } -result [registry get $root\\$key $value]
+        } -result [registry get $alias\\$key $value]
     }
     testopen 1 HKEY_CURRENT_USER Environment Path
     testopen 2 HKEY_CLASSES_ROOT .txt "Content Type"
@@ -859,8 +866,13 @@ namespace eval twapi::registry::test {
     test reg_key_open-6 "open HKEY_CURRENT_USER_LOCAL_SETTINGS" -body {
         twapi::reg_key_close [twapi::reg_key_open HKEY_CURRENT_USER_LOCAL_SETTINGS Software]
     } -result ""
+    testopen 7 HKCU Environment Path HKEY_CURRENT_USER
+    testopen 8 HKCR .txt "Content Type" HKEY_CLASSES_ROOT
+    testopen 9 HKLM {Software\Microsoft\Windows\CurrentVersion} ProgramFilesDir HKEY_LOCAL_MACHINE
+    testopen 10 HKU .DEFAULT\\Environment Path HKEY_USERS
+    testopen 11 HKCC Software\\Fonts LogPixels HKEY_CURRENT_CONFIG
 
-    test reg_key_open-7 {Open key -access success} -body {
+    test reg_key_open-12 {Open key -access success} -body {
         set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1 -access generic_write]
         twapi::reg_value_set $hkey TestValue sz TestString
         registry get $rootPath\\Key1 TestValue
@@ -869,14 +881,14 @@ namespace eval twapi::registry::test {
         registry delete $rootPath\\Key1 TestValue
     } -result TestString
 
-    test reg_key_open-8 {Open key -access success} -body {
+    test reg_key_open-13 {Open key -access success} -body {
         set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1 -access generic_read]
         list [catch {twapi::reg_value_set $hkey TestValue sz TestString}] [errorcode]
     } -cleanup {
         twapi::reg_key_close $hkey
     } -result {1 {TWAPI_WIN32 5}}
 
-    test reg_key_open-9 {Open non-existent key} -body {
+    test reg_key_open-14 {Open non-existent key} -body {
         list [catch {twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\NoSuchKey}] [errorcode]
     } -result {1 {TWAPI_WIN32 2}}
 
@@ -907,7 +919,7 @@ namespace eval twapi::registry::test {
     } -body {
         list \
             [tcl::mathop::in reg_key_prune-1 [twapi::reg_keys $hkey]] \
-            [twapi::reg_tree_prune $hkey reg_key_prune-1] \
+            [twapi::reg_key_prune $hkey reg_key_prune-1] \
             [tcl::mathop::in reg_key_prune-1 [twapi::reg_keys $hkey]]
     } -result {1 {} 0}
 
@@ -1006,24 +1018,7 @@ namespace eval twapi::registry::test {
     } -body {
         set dict [twapi::reg_tree_values $hkey ""]
         list \
-            [string equal [dict get $dict "" ValueSz] [lindex [dict get $testStructure Keys Key1 Values ValueSz] 0]] \
-            [string equal [dict get $dict "" ValueExpandSz] $::env(Path)] \
-            [tcl::mathop::== [dict get $dict "" ValueDword] [lindex [dict get $testStructure Keys Key1 Values ValueDword] 0]] \
-            [tcl::mathop::== [dict get $dict "" ValueDword] [lindex [dict get $testStructure Keys Key1 Values ValueDwordBE] 0]] \
-            [string equal [dict get $dict "" ValueMultiSz] [lindex [dict get $testStructure Keys Key1 Values ValueMultiSz] 0]] \
-            [string equal [dict get $dict "" ValueBinary] [lindex [dict get $testStructure Keys Key1 Values ValueBinary] 0]] \
-            [string equal [dict get $dict "" ValueResourceList] [lindex [dict get $testStructure Keys Key1 Values ValueResourceList] 0]] \
-            [string equal [dict get $dict SubkeyA SubValueA] [lindex [dict get $testStructure Keys Key1 Keys  SubkeyA Values SubValueA] 0]] \
-            [string equal [dict get $dict SubkeyA SubValueB] [lindex [dict get $testStructure Keys Key1 Keys  SubkeyA Values SubValueB] 0]] \
-            [string equal [dict get $dict SubkeyX SubValueX] [lindex [dict get $testStructure Keys Key1 Keys SubkeyX Values SubValueX] 0]] \
-
-    } -result {1 1 1 1 1 1 1 1 1 1}
-
-    test reg_tree_values-2 {tree values - subtree} -body {
-        set handle_count [lindex [twapi::get_process_info [pid] -handlecount] 1]
-        set dict [twapi::reg_tree_values HKEY_CURRENT_USER $rootKey\\Key1]
-        list \
-            [tcl::mathop::== $handle_count [lindex [twapi::get_process_info [pid] -handlecount] 1]] \
+            [string equal [dict get $dict "" ""] [lindex [dict get $testStructure Keys Key1 Values ""] 0]] \
             [string equal [dict get $dict "" ValueSz] [lindex [dict get $testStructure Keys Key1 Values ValueSz] 0]] \
             [string equal [dict get $dict "" ValueExpandSz] $::env(Path)] \
             [tcl::mathop::== [dict get $dict "" ValueDword] [lindex [dict get $testStructure Keys Key1 Values ValueDword] 0]] \
@@ -1037,10 +1032,31 @@ namespace eval twapi::registry::test {
 
     } -result {1 1 1 1 1 1 1 1 1 1 1}
 
+    test reg_tree_values-2 {tree values - subtree} -body {
+        set handle_count [lindex [twapi::get_process_info [pid] -handlecount] 1]
+        set dict [twapi::reg_tree_values HKEY_CURRENT_USER $rootKey\\Key1]
+        list \
+            [tcl::mathop::== $handle_count [lindex [twapi::get_process_info [pid] -handlecount] 1]] \
+            [string equal [dict get $dict "" ""] [lindex [dict get $testStructure Keys Key1 Values ""] 0]] \
+            [string equal [dict get $dict "" ValueSz] [lindex [dict get $testStructure Keys Key1 Values ValueSz] 0]] \
+            [string equal [dict get $dict "" ValueExpandSz] $::env(Path)] \
+            [tcl::mathop::== [dict get $dict "" ValueDword] [lindex [dict get $testStructure Keys Key1 Values ValueDword] 0]] \
+            [tcl::mathop::== [dict get $dict "" ValueDword] [lindex [dict get $testStructure Keys Key1 Values ValueDwordBE] 0]] \
+            [string equal [dict get $dict "" ValueMultiSz] [lindex [dict get $testStructure Keys Key1 Values ValueMultiSz] 0]] \
+            [string equal [dict get $dict "" ValueBinary] [lindex [dict get $testStructure Keys Key1 Values ValueBinary] 0]] \
+            [string equal [dict get $dict "" ValueResourceList] [lindex [dict get $testStructure Keys Key1 Values ValueResourceList] 0]] \
+            [string equal [dict get $dict SubkeyA SubValueA] [lindex [dict get $testStructure Keys Key1 Keys  SubkeyA Values SubValueA] 0]] \
+            [string equal [dict get $dict SubkeyA SubValueB] [lindex [dict get $testStructure Keys Key1 Keys  SubkeyA Values SubValueB] 0]] \
+            [string equal [dict get $dict SubkeyX SubValueX] [lindex [dict get $testStructure Keys Key1 Keys SubkeyX Values SubValueX] 0]] \
+
+    } -result {1 1 1 1 1 1 1 1 1 1 1 1}
+
     ###
 
     set testnum 0
-    foreach value_name [registry values HKEY_CURRENT_USER\\$rootKey\\Key1] {
+    foreach value_name {
+        {} ValueSz ValueDword ValueDwordBE ValueExpandSz ValueBinary ValueMultiSz ValueResourceList ValueNone
+    } {
         set value [registry get HKEY_CURRENT_USER\\$rootKey\\Key1 $value_name]
         if {[registry type HKEY_CURRENT_USER\\$rootKey\\Key1 $value_name] eq "expand_sz"} {
             set value [twapi::expand_environment_vars $value]
@@ -1097,8 +1113,8 @@ namespace eval twapi::registry::test {
         registry set $rootPath\\$key_name Value2 bvalue
         set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\$key_name -access generic_write]
     } -cleanup {
-        registry delete $rootPath\\$key_name
         twapi::reg_key_close $hkey
+        registry delete $rootPath\\$key_name
     } -body {
         twapi::reg_value_delete $hkey Value1
         registry values $rootPath\\$key_name
@@ -1160,9 +1176,45 @@ namespace eval twapi::registry::test {
         } -result $value
     }
 
+    ###
+
+    test reg_values-1 {values} -setup {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -body {
+        set dict [twapi::reg_values $hkey ""]
+        list \
+            [string equal [dict get $dict ""] [lindex [dict get $testStructure Keys Key1 Values ""] 0]] \
+            [string equal [dict get $dict ValueSz] [lindex [dict get $testStructure Keys Key1 Values ValueSz] 0]] \
+            [string equal [dict get $dict ValueExpandSz] $::env(Path)] \
+            [tcl::mathop::== [dict get $dict ValueDword] [lindex [dict get $testStructure Keys Key1 Values ValueDword] 0]] \
+            [tcl::mathop::== [dict get $dict ValueDword] [lindex [dict get $testStructure Keys Key1 Values ValueDwordBE] 0]] \
+            [string equal [dict get $dict ValueMultiSz] [lindex [dict get $testStructure Keys Key1 Values ValueMultiSz] 0]] \
+            [string equal [dict get $dict ValueBinary] [lindex [dict get $testStructure Keys Key1 Values ValueBinary] 0]] \
+            [string equal [dict get $dict ValueResourceList] [lindex [dict get $testStructure Keys Key1 Values ValueResourceList] 0]]
+
+    } -result {1 1 1 1 1 1 1 1}
+
+    test reg_values-2 {values subkey} -body {
+        set handle_count [lindex [twapi::get_process_info [pid] -handlecount] 1]
+        set dict [twapi::reg_values HKEY_CURRENT_USER $rootKey\\Key1]
+        list \
+            [tcl::mathop::== $handle_count [lindex [twapi::get_process_info [pid] -handlecount] 1]] \
+            [string equal [dict get $dict ""] [lindex [dict get $testStructure Keys Key1 Values ""] 0]] \
+            [string equal [dict get $dict ValueSz] [lindex [dict get $testStructure Keys Key1 Values ValueSz] 0]] \
+            [string equal [dict get $dict ValueExpandSz] $::env(Path)] \
+            [tcl::mathop::== [dict get $dict ValueDword] [lindex [dict get $testStructure Keys Key1 Values ValueDword] 0]] \
+            [tcl::mathop::== [dict get $dict ValueDword] [lindex [dict get $testStructure Keys Key1 Values ValueDwordBE] 0]] \
+            [string equal [dict get $dict ValueMultiSz] [lindex [dict get $testStructure Keys Key1 Values ValueMultiSz] 0]] \
+            [string equal [dict get $dict ValueBinary] [lindex [dict get $testStructure Keys Key1 Values ValueBinary] 0]] \
+            [string equal [dict get $dict ValueResourceList] [lindex [dict get $testStructure Keys Key1 Values ValueResourceList] 0]]
+    } -result {1 1 1 1 1 1 1 1 1}
+
+
     ### Clean up
 
-    #registry delete HKEY_CURRENT_USER\\TwapiTestRoot
+    registry delete HKEY_CURRENT_USER\\TwapiTestRoot
 }
 
 
