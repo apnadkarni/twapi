@@ -1,14 +1,10 @@
 #
-# Generates a WiTS Web page.
+# Usage:
 #   tclsh generate_web_page.tcl INPUTFILE VERSION [NAVFILE] [ADFILE] [ADFILE2] [OUTPUTFILE]
 # where INPUTFILE is the html fragment that should go into the content
 # section of the web page, NAVFILE is the navigation link fragment file,
 # and the two ADFILE are right side and top ad content.
 # TBD - fix hardcoded version numbers and copyright years
-
-# TBD - for IE8, we may need to insert the following as it defaults to full
-# standards mode
-# <meta http-equiv="X-UA-Compatible" content="IE=7" />
 
 #
 # Read the given file and write out the HTML
@@ -121,7 +117,7 @@ proc transform_file {infile {navfile ""} {adfile ""} {adfile2 ""} {outfile ""}} 
     puts $outfd "Tcl Windows API $::twapi_version"
     puts $outfd {
         <div class='copyright'>
-          &copy; 2002-2011 Ashok P. Nadkarni
+          &copy; 2002-2020 Ashok P. Nadkarni
         </div>
     }
     # <a href='http://www.magicsplat.com/privacy.html'>Privacy policy</a>
