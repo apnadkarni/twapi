@@ -1,23 +1,20 @@
-# Tcl Windows API (TWAPI) 4.3
+# Tcl Windows API (TWAPI) 4.4
 
-This is the release version of TWAPI 4.3.
+This is the release version of TWAPI 4.4.
 
   * Project home page is at https://twapi.sourceforge.net
-  * V4.3 documentation is at https://twapi.magicsplat.com/v4.3
+  * V4.4 documentation is at https://twapi.magicsplat.com/v4.4
 
 ## Supported platforms
 
-TWAPI 4.3 requires
+TWAPI 4.4 requires
 
   * Windows XP (32-bit only) or later (32- or 64- bit)
   * Tcl 8.6 (32- or 64-bit) (NOTE: Tcl 8.5 is no longer supported)
 
-## Changes since 4.2
+## Changes since 4.3
 
-Changes in this release are enhancements in the `crypto`, `com` and `tls` 
-modules.
-
-Tcl 8.5 support has been dropped.
+Primary change is the addition of the registry module.
 
 For a complete list, including INCOMPATIBLE CHANGES, see 
 https://twapi.magicsplat.com/v4.3/versionhistory.html
@@ -25,7 +22,7 @@ https://twapi.magicsplat.com/v4.3/versionhistory.html
 ## Distributions
 
 TWAPI is distributed in multiple formats.
-See https://twapi.magicsplat.com/v4.3/installation.html for the details
+See https://twapi.magicsplat.com/v4.4/installation.html for the details
 and the pros and cons of each format.
 
 ## TWAPI Summary
@@ -61,6 +58,7 @@ Functions in the following areas are implemented:
   * Internationalization
   * Task scheduling
   * Shell functions 
+  * Registry
   * Windows Installer
   * Synchronization
   * Power management
