@@ -5408,6 +5408,8 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 
 	    twapi/rds/rds.c
 
+            twapi/registry/registry.c
+
 	    twapi/resource/resource.c
 
 	    twapi/security/security.c
@@ -5559,6 +5561,8 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 	    twapi/tcl/process.tcl
 
 	    twapi/tcl/rds.tcl
+
+	    twapi/tcl/registry.tcl
 
 	    twapi/tcl/resource.tcl
 
