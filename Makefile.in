@@ -299,6 +299,7 @@ VPATH += :$(srcdir)/twapi/os
 VPATH += :$(srcdir)/twapi/pdh
 VPATH += :$(srcdir)/twapi/process
 VPATH += :$(srcdir)/twapi/rds
+VPATH += :$(srcdir)/twapi/registry
 VPATH += :$(srcdir)/twapi/resource
 VPATH += :$(srcdir)/twapi/security
 VPATH += :$(srcdir)/twapi/service
