@@ -843,7 +843,7 @@ static TCL_RESULT ParseCERT_CHAIN_PARA(
         ObjToInt(NULL, objs[0], &i) != TCL_OK)
         return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Invalid CERT_CHAIN_PARA");
 
-    ZeroMemory(paramP, sizeof(paramP));
+    ZeroMemory(paramP, sizeof(*paramP));
 
     paramP->cbSize = sizeof(*paramP);
     paramP->RequestedUsage.dwType = i;
@@ -3308,7 +3308,7 @@ static TCL_RESULT Twapi_CryptSetKeyParamObjCmd(ClientData clientdata, Tcl_Interp
         p = ObjToByteArrayDW(paramObj, &dw);
         if (dw != block_len) {
             ObjSetResult(interp, 
-                         Tcl_ObjPrintf("Invalid salt length %d. Should be %d.", dw, block_len));
+                         Tcl_ObjPrintf("Invalid salt length %lu. Should be %lu.", dw, block_len));
             return TCL_ERROR;
         }
         
