@@ -1411,12 +1411,12 @@ TWAPI_EXTERN TCL_RESULT ObjToMultiSzEx (
 
     *multiszPtrPtr = buf;
     if (nbytesP)
-        *nbytesP = sizeof(*dst) * (dst - buf);
+        *nbytesP = (int) (sizeof(*dst) * (dst - buf));
     return TCL_OK;
 }
 
 /* Like ObjToMultiSzEx but uses the SWS. Caller responsible for SWS storage */
-TWAPI_EXTERN 
+TWAPI_EXTERN
 TCL_RESULT ObjToMultiSzSWS (
      Tcl_Interp *interp,
      Tcl_Obj    *listPtr,
@@ -1841,8 +1841,8 @@ TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(
     )
 {
     int         regtype;
-    LONG        n;
-    LPWSTR      ws;
+    int         n;
+    LPCWSTR     cws;
     Tcl_WideInt wide;
     const char *typestr = ObjToString(typeObj);
 
@@ -1869,7 +1869,7 @@ TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(
 
     case REG_DWORD_BIG_ENDIAN:
     case REG_DWORD:
-        if (ObjToLong(interp, objP, &n) != TCL_OK)
+        if (ObjToInt(interp, objP, &n) != TCL_OK)
             return TCL_ERROR;
         if (regtype == REG_DWORD_BIG_ENDIAN)
             n = swap4(n);
@@ -1888,9 +1888,9 @@ TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(
 
     case REG_MULTI_SZ:
         /* NOTE - SWS allocation, caller has to free */
-        if (ObjToMultiSzSWS(interp, objP, &ws, &n) != TCL_OK)
+        if (ObjToMultiSzSWS(interp, objP, &cws, &n) != TCL_OK)
             return TCL_ERROR;
-        valueP->bytes = ws;
+        valueP->bytes = (void *)cws;
         valueP->size = n;
         break;
 
@@ -1899,7 +1899,8 @@ TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(
     case REG_FULL_RESOURCE_DESCRIPTOR:
     case REG_RESOURCE_REQUIREMENTS_LIST:
     default:
-        valueP->bytes = ObjToByteArray(objP, &valueP->size);
+        valueP->bytes = ObjToByteArray(objP, &n);
+        valueP->size = n;
         break;
     }
 
@@ -2040,6 +2041,7 @@ TWAPI_EXTERN TCL_RESULT ObjToLPVOID(Tcl_Interp *interp, Tcl_Obj *objP, HANDLE *p
 TWAPI_EXTERN TCL_RESULT ObjToHKEY(Tcl_Interp *interp, Tcl_Obj *objP, HKEY *hkeyP)
 {
     const char *s;
+    void *pv;
     int i;
 #ifndef HKEY_CURRENT_USER_LOCAL_SETTINGS
 #define HKEY_CURRENT_USER_LOCAL_SETTINGS    (( HKEY ) (ULONG_PTR)((LONG)0x80000007) )
@@ -2061,8 +2063,10 @@ TWAPI_EXTERN TCL_RESULT ObjToHKEY(Tcl_Interp *interp, Tcl_Obj *objP, HKEY *hkeyP
         /* Only on Win 9x {"HKEY_DYN_DATA", HKEY_DYN_DATA}, */
         {"HKEY_CURRENT_USER_LOCAL_SETTINGS", HKEY_CURRENT_USER_LOCAL_SETTINGS},
     };
-    if (ObjToOpaque(NULL, objP, hkeyP, "HKEY") == TCL_OK)
+    if (ObjToOpaque(NULL, objP, &pv, "HKEY") == TCL_OK) {
+        *hkeyP = pv;
         return TCL_OK;
+    }
     s = Tcl_GetString(objP);
     for (i = 0; i < ARRAYSIZE(hkeymap); ++i) {
         if (lstrcmpiA(s,hkeymap[i].keyname) == 0) {
