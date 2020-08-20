@@ -388,40 +388,43 @@ int Twapi_AppendWNetError(
     DWORD error                 /* Win32 error */
     )
 {
-    WCHAR provider[256];
-    WCHAR errorbuf[1024];
-    DWORD wneterror;
-    DWORD wnetcode;
+    if (error != ERROR_EXTENDED_ERROR) {
+        Twapi_AppendSystemError(interp, error);
+    } else {
+        /* Have an extended error */
+        WCHAR provider[256];
+        WCHAR errorbuf[1024];
+        DWORD wneterror;
+        DWORD wnetcode;
 
-    if (error == ERROR_EXTENDED_ERROR) {
         /* Get the WNet error BEFORE we do ANYTHING else */
         wneterror = WNetGetLastErrorW(&wnetcode,
                                       errorbuf, ARRAYSIZE(errorbuf),
                                       provider, ARRAYSIZE(provider));
-    }
 
-    /* First write the win32 error message */
-    Twapi_AppendSystemError(interp, error);
+        /* First write the win32 error message */
+        Twapi_AppendSystemError(interp, error);
 
-    /* If we had a extended error and we got it successfully, 
-     * append the WNet message 
-     */
-    if (error == ERROR_EXTENDED_ERROR && wneterror == NO_ERROR) {
-        Tcl_Obj *resultObj = ObjDuplicate(ObjGetResult(interp));
-        Tcl_DString ds;
-        Tcl_Obj *msgObj;
+        /* If we had a extended error and we got it successfully
+         * (wneterror would be NO_ERROR) append the WNet message 
+         */
+        if (wneterror == NO_ERROR) {
+            Tcl_Obj *resultObj = ObjDuplicate(ObjGetResult(interp));
+            Tcl_DString ds;
+            Tcl_Obj *msgObj;
 
-        Tcl_DStringInit(&ds);
-        Tcl_DStringAppend(&ds, (char *) L" ", sizeof (WCHAR));
-        Tcl_DStringAppend(&ds, (char *) provider, lstrlenW(provider) * sizeof (WCHAR));
-        Tcl_DStringAppend(&ds, (char *) L": ", 2 * sizeof (WCHAR));
-        Tcl_DStringAppend(&ds, (char *) errorbuf, lstrlenW(errorbuf) * sizeof (WCHAR));
-        Tcl_DStringAppend(&ds, (char *) L"\0", sizeof (WCHAR));
-        msgObj = ObjFromWinChars((WCHAR *) Tcl_DStringValue(&ds));
-        Tcl_AppendObjToObj(resultObj, msgObj);
-        ObjDecrRefs(msgObj);
-        Tcl_DStringFree(&ds);
-        (void) ObjSetResult(interp, resultObj);
+            Tcl_DStringInit(&ds);
+            Tcl_DStringAppend(&ds, (char *) L" ", sizeof (WCHAR));
+            Tcl_DStringAppend(&ds, (char *) provider, lstrlenW(provider) * sizeof (WCHAR));
+            Tcl_DStringAppend(&ds, (char *) L": ", 2 * sizeof (WCHAR));
+            Tcl_DStringAppend(&ds, (char *) errorbuf, lstrlenW(errorbuf) * sizeof (WCHAR));
+            Tcl_DStringAppend(&ds, (char *) L"\0", sizeof (WCHAR));
+            msgObj = ObjFromWinChars((WCHAR *) Tcl_DStringValue(&ds));
+            Tcl_AppendObjToObj(resultObj, msgObj);
+            ObjDecrRefs(msgObj);
+            Tcl_DStringFree(&ds);
+            (void) ObjSetResult(interp, resultObj);
+        }
     }
 
     return TCL_ERROR;

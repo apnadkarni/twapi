@@ -417,8 +417,8 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
             return TCL_ERROR;
         else {
             FARPROC func = Twapi_GetProc_RegDeleteKeyValueW_advapi32();
-            if (func == NULL)
-                func = Twapi_GetProc_RegDeleteKeyValueW_kernel32(); {
+            if (func == NULL) {
+                func = Twapi_GetProc_RegDeleteKeyValueW_kernel32(); 
                 if (func == NULL)
                     func = Twapi_GetProc_SHDeleteValueW();
             }
@@ -575,7 +575,9 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         else {
             FARPROC func = Twapi_GetProc_RegCopyTreeW();
             if (func) {
-                Tcl_UniChar *subkey = ObjToWinCharsN(subkeyObj, &dw);
+                int n;
+                Tcl_UniChar *subkey = ObjToWinCharsN(subkeyObj, &n);
+                dw = n;
                 if (dw == 0)
                     subkey = NULL;
                 result.value.ival = (LONG) func(hkey, subkey, hkey2);
@@ -798,7 +800,9 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         else {
             FARPROC func = Twapi_GetProc_SHCopyKeyW();
             if (func) {
-                Tcl_UniChar *subkey = ObjToWinCharsN(subkeyObj, &dw);
+                int n;
+                Tcl_UniChar *subkey = ObjToWinCharsN(subkeyObj, &n);
+                dw = n;
                 if (dw == 0)
                     subkey = NULL;
                 result.value.ival = (LONG) func(hkey, subkey, hkey2, 0);

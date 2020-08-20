@@ -580,7 +580,6 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     Tcl_Obj  *titleObj, *fromObj, *toObj;
     SWSMark  mark = NULL;
     TCL_RESULT res;
-    SWStack sws = SWS();
 
     mark = SWSPushMark();
     res = TCL_ERROR;

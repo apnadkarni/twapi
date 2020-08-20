@@ -472,7 +472,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 /**********************************************
  * Macros and definitions dealing with Tcl_Obj 
  **********************************************/
-enum {
+enum TwapiTclType {
     TWAPI_TCLTYPE_NONE  = 0,
     TWAPI_TCLTYPE_STRING,
     TWAPI_TCLTYPE_BOOLEAN,
@@ -487,9 +487,7 @@ enum {
     TWAPI_TCLTYPE_OPAQUE = TWAPI_TCLTYPE_NATIVE_END, /* Added by Twapi */
     TWAPI_TCLTYPE_VARIANT,      /* Added by Twapi */
     TWAPI_TCLTYPE_BOUND
-} TwapiTclType;
-    
-
+};
 
 /* Create a string obj from a string literal. */
 #define STRING_LITERAL_OBJ(x) ObjFromStringN((x), sizeof(x)-1)
@@ -1727,18 +1725,18 @@ TWAPI_EXTERN TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes,
  */
 typedef MemLifo *SWStack;
 typedef MemLifoMarkHandle SWSMark;
-TWAPI_INLINE SWStack SWS(void) {
+TWAPI_STATIC_INLINE SWStack SWS(void) {
     TwapiTls *tlsP = Twapi_GetTls();
     return &tlsP->memlifo;
 }
 
-TWAPI_INLINE SWSMark SWSPushMark(void) { return MemLifoPushMark(SWS()); }
-TWAPI_INLINE void SWSPopMark(SWSMark mark) { MemLifoPopMark(mark); }
-TWAPI_INLINE void *SWSPushFrame(DWORD sz, DWORD *szP) {
+TWAPI_STATIC_INLINE SWSMark SWSPushMark(void) { return MemLifoPushMark(SWS()); }
+TWAPI_STATIC_INLINE void SWSPopMark(SWSMark mark) { MemLifoPopMark(mark); }
+TWAPI_STATIC_INLINE void *SWSPushFrame(DWORD sz, DWORD *szP) {
     return MemLifoPushFrame(SWS(), sz, szP);
 }
-TWAPI_INLINE void SWSPopFrame(void) { MemLifoPopFrame(SWS()); }
-TWAPI_INLINE void *SWSAlloc(DWORD sz, DWORD *actual_szP) {
+TWAPI_STATIC_INLINE void SWSPopFrame(void) { MemLifoPopFrame(SWS()); }
+TWAPI_STATIC_INLINE void *SWSAlloc(DWORD sz, DWORD *actual_szP) {
     return MemLifoAlloc(SWS(), sz, actual_szP);
 }
 

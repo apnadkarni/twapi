@@ -530,7 +530,7 @@ static TCL_RESULT Twapi_ChangeServiceConfig2(TwapiInterpContext *ticP, int objc,
         SERVICE_DELAYED_AUTO_START_INFO delayed_auto_start;
     } u;
     SC_HANDLE h;
-    void *pv;
+    void *pv = NULL;
     int ival;
 
     mark = MemLifoPushMark(ticP->memlifoP);
