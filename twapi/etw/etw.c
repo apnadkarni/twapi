@@ -1802,7 +1802,12 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
             /* TBD - see GetPropertyLength in SDK doc article
                "Using TdhFormatProperty to Consume Event Data". More involved
                than just calling TdhGetPropertySize. Do we need to copy
-               that code ? */
+               that code ?
+               Also see https://github.com/microsoft/windows-container-tools/tree/master/LogMonitor
+               and
+               https://github.com/microsoft/onnxruntime/blob/master/onnxruntime/tool/etw/eparser.cc
+               for similar log file parsing.
+            */
             winerr = TdhGetPropertySize(evrP, 1, &tdhctx, pdd_count, pdd, &prop_size);
             if (winerr == ERROR_SUCCESS) {
                 ULONG map_size;
