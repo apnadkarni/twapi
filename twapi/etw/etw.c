@@ -1,5 +1,5 @@
-/* 
- * Copyright (c) 2012, Ashok P. Nadkarni
+/*
+ * Copyright (c) 2012-2020, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -148,7 +148,7 @@ typedef struct _EVENT_RECORD {
 #define PROCESS_TRACE_MODE_RAW_TIMESTAMP            0x00001000
 #define PROCESS_TRACE_MODE_EVENT_RECORD             0x10000000
 
-typedef enum _TDH_CONTEXT_TYPE { 
+typedef enum _TDH_CONTEXT_TYPE {
     TDH_CONTEXT_WPP_TMFFILE = 0,
     TDH_CONTEXT_WPP_TMFSEARCHPATH = 1,
     TDH_CONTEXT_WPP_GMT = 2,
@@ -163,10 +163,11 @@ typedef struct _TDH_CONTEXT {
     ULONG ParameterSize;
 } TDH_CONTEXT;
 
-typedef enum _DECODING_SOURCE { 
+typedef enum _DECODING_SOURCE {
   DecodingSourceXMLFile  = 0,
   DecodingSourceWbem     = 1,
-  DecodingSourceWPP      = 2
+  DecodingSourceWPP      = 2,
+  DecodingSourceTlg      = 3
 } DECODING_SOURCE;
 
 typedef enum _TEMPLATE_FLAGS
@@ -422,32 +423,34 @@ struct TwapiObjKeyCache {
 struct TwapiETWContext {
     TwapiInterpContext *ticP;
 
-    /* If a callback is supplied, buffer_cmdObj holds it and buffer_cmdlen
-       is non-0. If no callback is supplied, we collect the buffer descriptor
-       and events list in buffer_listObj and return it to caller.
-    */
-    union {
-        Tcl_Obj *cmdObj;     /* Callback for buffers */
-        Tcl_Obj *listObj;    /* List of buffer descriptor, event list pairs */
-    } buffer;
+    TRACEHANDLE traceH;
 
     /*
      * when non-NULL, an ObjIncrRefs must have been done on eventsObj
      * with a corresponding ObjDecrRefs when setting to NULL
-      */
-    Tcl_Obj *eventsObj;
-    TCL_RESULT status;
+     */
+    Tcl_Obj *eventsObj;         /* Collects events within a single buffer */
 
-    TRACEHANDLE traceH;
-
-    int   buffer_cmdlen;        /* length of buffer_cmdObj */
+    /*
+     * If a callback is supplied, callback holds it.
+     * If no callback is supplied, we collect the buffer descriptor
+     * and events list in listObj and return it to caller.
+     */
+    union {
+        struct {
+            Tcl_Obj *cmdObj;    /* Callback command (list) */
+            int      cmdlen;    /* Number of elements in cmdObj. */
+            TCL_RESULT return_code; /* Return code from callback */
+        } callback;
+        Tcl_Obj     *listObj;   /* List of buffer descriptor, event list pairs */
+    } u;
+    int callback_specified; /* Tag for above union - 0 -> not callback, non-0 - callback */
     ULONG pointer_size;         /* Used if event itself does not specify */
     ULONG timer_resolution;
     ULONG user_mode;
+    DWORD last_winerr;          /* Last Windows error seen */
+    DWORD error_count;           /* Number of events dropped because of error */
 } gETWContext;                  /* IMPORTANT : Sync access via gETWCS */
-
-
-/* IMPORTANT : Sync access via gETWCS */
 
 
 CRITICAL_SECTION gETWCS; /* Access to gETWContext */
@@ -1155,17 +1158,12 @@ void WINAPI TwapiETWEventCallback(
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
 
-    if (gETWContext.status != TCL_OK)   /* If some previous error occurred, return */
-        return;
-
     if (evP->Header.Class.Type == EVENT_TRACE_TYPE_INFO &&
         IsEqualGUID(&evP->Header.Guid, &EventTraceGuid)) {
         /* If further events do not indicate pointer size, we will use this size*/
         gETWContext.pointer_size = ((TRACE_LOGFILE_HEADER *) evP->MofData)->PointerSize;
     }
 
-
-    /* TBD - create as a list - faster than as a dict */
     objs[0] = ObjFromEVENT_TRACE_HEADER(&evP->Header);
     objs[1] = ObjFromULONG(evP->InstanceId);
     objs[2] = ObjFromULONG(evP->ParentInstanceId);
@@ -1174,7 +1172,7 @@ void WINAPI TwapiETWEventCallback(
         objs[4] = ObjFromByteArray(evP->MofData, evP->MofLength);
     else
         objs[4] = ObjFromEmptyString();
-    
+
     ObjAppendElement(NULL, gETWContext.eventsObj, ObjNewList(ARRAYSIZE(objs), objs));
 }
 
@@ -1232,7 +1230,7 @@ static Tcl_Obj *ObjFromEVENT_HEADER(EVENT_HEADER *evhP)
 }
 
 
-static TCL_RESULT TwapiTdhPropertyArraySize(TwapiInterpContext *ticP,
+static WIN32_ERROR TwapiTdhPropertyArraySize(TwapiInterpContext *ticP,
                                             EVENT_RECORD *evrP,
                                             TRACE_EVENT_INFO *teiP,
                                             USHORT prop_index, USHORT *countP)
@@ -1251,7 +1249,7 @@ static TCL_RESULT TwapiTdhPropertyArraySize(TwapiInterpContext *ticP,
     epiP = &teiP->EventPropertyInfoArray[prop_index];
     if ((epiP->Flags & PropertyParamCount) == 0) {
         *countP = epiP->count; /* Size of array is directly specified */
-        return TCL_OK;
+        return ERROR_SUCCESS;
     }
 
     tdhctx.ParameterValue = TwapiCalcPointerSize(evrP);
@@ -1266,27 +1264,25 @@ static TCL_RESULT TwapiTdhPropertyArraySize(TwapiInterpContext *ticP,
     pdd.ArrayIndex = ULONG_MAX; /* Since index property is not an array */
     pdd.Reserved = 0;
     winerr = TdhGetPropertySize(evrP, 1, &tdhctx, 1, &pdd, &ref_value_size);
-    if (winerr == ERROR_SUCCESS) {
-        if (ref_value_size != 2 && ref_value_size != 4)
-            return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_DATA, "Indirect property index size is not 2 or 4.");
-        winerr = TdhGetProperty(evrP, 1, &tdhctx, 1, &pdd, ref_value_size, (PBYTE)&ref_value);
-    }
     if (winerr != ERROR_SUCCESS)
-        return Twapi_AppendSystemError(ticP->interp, winerr);
+        return winerr;
+    if (ref_value_size != 2 && ref_value_size != 4)
+        return ERROR_INVALID_DATA; /* Indirect property index size is not 2 or 4. */
+    winerr = TdhGetProperty(evrP, 1, &tdhctx, 1, &pdd, ref_value_size, (PBYTE)&ref_value);
+    if (winerr != ERROR_SUCCESS)
+        return winerr;
 
     if (ref_value_size == 2)
         *countP = ref_value.ushort_val;
     else {
         if (ref_value.ulong_val > teiP->PropertyCount)
-            return TwapiReturnErrorEx(ticP->interp, TWAPI_INVALID_DATA,
-                                      Tcl_ObjPrintf("Property index %lu out of bounds.", ref_value.ulong_val));
+            return ERROR_INVALID_DATA; /* Property index out of bounds. */
 
         *countP = (USHORT) ref_value.ulong_val;
     }
 
-    return TCL_OK;
+    return ERROR_SUCCESS;
 }
-
 
 static Tcl_Obj *TwapiMapTDHProperty(EVENT_MAP_INFO *emiP, ULONG val)
 {
@@ -1398,7 +1394,7 @@ static Tcl_Obj *TwapiMapTDHProperty(EVENT_MAP_INFO *emiP, ULONG val)
 
 
 /* Given the raw bytes for a TDH property, return the Tcl_Obj */
-static TCL_RESULT TwapiTdhPropertyValue(
+static WIN32_ERROR TwapiTdhPropertyValue(
     TwapiInterpContext *ticP,
     EVENT_RECORD *evrP,
     EVENT_PROPERTY_INFO *epiP,
@@ -1428,13 +1424,14 @@ static TCL_RESULT TwapiTdhPropertyValue(
 
 #define EXTRACT(var_, type_) \
     do { \
-        if (prop_size < sizeof(type_)) goto size_error;        \
+        if (prop_size < sizeof(type_)) return ERROR_INVALID_DATA;        \
         var_ = *(type_ UNALIGNED *) bytesP; \
     } while (0)
+
     switch (epiP->nonStructType.InType) {
     case TDH_INTYPE_NULL:
         *valueObjP = ObjFromEmptyString(); /* TBD - use a NULL obj type*/
-        return TCL_OK;
+        return ERROR_SUCCESS;
     case TDH_INTYPE_UNICODESTRING:
         u.string.s = bytesP;
         u.string.len = -1;
@@ -1458,16 +1455,16 @@ static TCL_RESULT TwapiTdhPropertyValue(
     case TDH_INTYPE_BOOLEAN:
         EXTRACT(u.i64, int);
         *valueObjP = ObjFromBoolean(u.i64 != 0);
-        return TCL_OK;
+        return ERROR_SUCCESS;
 
     case TDH_INTYPE_BINARY:
         u.bin = bytesP;
         break;
     case TDH_INTYPE_GUID:
         if (prop_size < sizeof(GUID))
-            goto size_error;
+            return ERROR_INVALID_DATA;
         *valueObjP = ObjFromGUID(bytesP);
-        return TCL_OK;
+        return ERROR_SUCCESS;
     case TDH_INTYPE_POINTER:
     case TDH_INTYPE_HEXINT32:
     case TDH_INTYPE_HEXINT64:
@@ -1476,14 +1473,15 @@ static TCL_RESULT TwapiTdhPropertyValue(
         else if (prop_size == 8)
             *valueObjP = ObjFromULONGLONGHex(*(unsigned __int64 UNALIGNED *)bytesP);
         else
-            goto size_error;
-        return TCL_OK;
+            return ERROR_INVALID_DATA;
+        return ERROR_SUCCESS;
 
     case TDH_INTYPE_FILETIME:
         EXTRACT(ftime, FILETIME);
         if (! FileTimeToSystemTime(&ftime, &u.stime)) {
+            /* Failed to convert to system time, return as file time */
             *valueObjP = ObjFromFILETIME(&ftime);
-            return TCL_OK;
+            return ERROR_SUCCESS;
         }
         break;
 
@@ -1522,15 +1520,15 @@ static TCL_RESULT TwapiTdhPropertyValue(
         else if (prop_size == 8)
             *valueObjP = ObjFromULONGLONG(*(unsigned __int64 UNALIGNED *)bytesP);
         else
-            goto size_error;
-        return TCL_OK;
+            return ERROR_INVALID_DATA;
+        return ERROR_SUCCESS;
 
     case TDH_INTYPE_HEXDUMP:
         EXTRACT(dw, DWORD);
         remain -= sizeof(DWORD);
         *valueObjP = ObjFromByteArray(sizeof(DWORD)+(BYTE*)bytesP,
                                       remain < dw ? remain : dw);
-        return TCL_OK;
+        return ERROR_SUCCESS;
 
     case TDH_INTYPE_WBEMSID:
         /* TOKEN_USER structure followed by SID. Sizeof TOKEN_USER
@@ -1543,23 +1541,22 @@ static TCL_RESULT TwapiTdhPropertyValue(
             dw = gETWContext.pointer_size;
         dw *= 2; /* sizeof(TOKEN_USER) == 16 on 64bit arch, 8 on 32bit */
         if (prop_size < (dw+sizeof(SID)))
-            goto size_error;
+            return ERROR_INVALID_DATA;
         bytesP = dw + (char*) bytesP;
         prop_size -= dw;
         /* FALLTHROUGH */
 
     case TDH_INTYPE_SID:
-        if (TwapiValidateSID(interp, bytesP, prop_size) != TCL_OK)
-            return TCL_ERROR;
-        return ObjFromSID(interp, bytesP, valueObjP);
-
+        if (TwapiValidateSID(NULL, bytesP, prop_size) != TCL_OK ||
+            ObjFromSID(NULL, bytesP, valueObjP) != TCL_OK)
+            return ERROR_INVALID_SID;
+        return ERROR_SUCCESS;
 
     default:
-        return TwapiReturnErrorEx(interp, TWAPI_UNSUPPORTED_TYPE,
-                                  Tcl_ObjPrintf("Unsupported TDH type %d.", epiP->nonStructType.InType));
+        return ERROR_UNSUPPORTED_TYPE;
     }
 
-    
+
     /* Now format based on output type */
     switch (epiP->nonStructType.InType) {
     case TDH_INTYPE_FILETIME:
@@ -1655,30 +1652,26 @@ static TCL_RESULT TwapiTdhPropertyValue(
     case TDH_INTYPE_BINARY:
         if (epiP->nonStructType.OutType == TDH_OUTTYPE_IPV6) {
             if (remain != 16)
-                goto size_error;
+                return ERROR_INVALID_DATA;
             *valueObjP = ObjFromIPv6Addr(u.bin, 0);
             if (*valueObjP == NULL)
-                return TwapiReturnSystemError(interp);
+                return ERROR_INVALID_DATA;
         } else {
             *valueObjP = ObjFromByteArray(u.bin, remain);
         }
         break;
 
     default:
-        return TwapiReturnErrorEx(interp, TWAPI_UNSUPPORTED_TYPE,
-                                  Tcl_ObjPrintf("Unsupported TDH type %d.", epiP->nonStructType.InType));
+        return ERROR_NOT_SUPPORTED;
     }
 
-    return TCL_OK;
+    return ERROR_SUCCESS;
 
-size_error:
-    return TwapiReturnErrorEx(interp, TWAPI_INVALID_DATA,
-                              Tcl_ObjPrintf("TDH property field of type %d trucated or wrong size", epiP->nonStructType.InType));
 }
 
 
 /* Uses ticP->memlifo, caller responsible for memory management always */
-static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
+static WIN32_ERROR TwapiDecodeEVENT_PROPERTY_INFO(
     TwapiInterpContext *ticP,
     EVENT_RECORD *evrP,
     TRACE_EVENT_INFO *teiP,
@@ -1695,8 +1688,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
     EVENT_PROPERTY_INFO *epiP;
     Tcl_Obj **valueObjs;
     USHORT nvalues, array_index;
-    TCL_RESULT res;
-    DWORD winerr;
+    WIN32_ERROR winerr;
     Tcl_Interp *interp = ticP->interp;
     MemLifo *memlifoP = ticP->memlifoP;
     void *pv;
@@ -1710,7 +1702,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
 
     if (epiP->NameOffset == 0) {
         /* Should not happen. */
-        return TwapiReturnErrorMsg(interp, TWAPI_INVALID_DATA, "NameOffset field is 0 for property in event record.");
+        return ERROR_INVALID_DATA;
     }
 
     tdhctx.ParameterValue = TwapiCalcPointerSize(evrP);
@@ -1718,10 +1710,10 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
     tdhctx.ParameterSize = 0;   /* Reserved value */
 
     nvalues = 0;
-    res = TwapiTdhPropertyArraySize(ticP, evrP, teiP, prop_index, &nvalues);
-    if (res != TCL_OK)
-        return res;
-    
+    winerr = TwapiTdhPropertyArraySize(ticP, evrP, teiP, prop_index, &nvalues);
+    if (winerr != ERROR_SUCCESS)
+        return winerr;
+ 
     prop_name = (ULONGLONG)(epiP->NameOffset + (char*) teiP);
 
     /* Special case arrays of UNICHAR and ANSICHAR. These are actually strings*/
@@ -1749,7 +1741,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
             }
             MemLifoPopFrame(memlifoP);
         }
-        return winerr == ERROR_SUCCESS ? TCL_OK : Twapi_AppendSystemError(interp, winerr);
+        return winerr;
     }
 
     valueObjs = nvalues ?
@@ -1764,14 +1756,12 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
             ULONG member_index_bound = member_index + epiP->structType.NumOfStructMembers;
             valueObj = ObjNewList(2 * epiP->structType.NumOfStructMembers, NULL);
             if (member_index_bound > teiP->TopLevelPropertyCount) {
-                res = TwapiReturnErrorEx(interp,
-                                         TWAPI_INVALID_DATA,
-                                         Tcl_ObjPrintf("Property index %lu out of bounds.", member_index_bound));
+                winerr = ERROR_INVALID_DATA; /* Property index is out of bounds */
             } else {
                 while (member_index < member_index_bound) {
                     Tcl_Obj *membernameObj, *membervalObj;
-                    res = TwapiDecodeEVENT_PROPERTY_INFO(ticP, evrP, teiP, member_index, (LPWSTR)(epiP->NameOffset + (char *) teiP), array_index, &membernameObj, &membervalObj);
-                    if (res != TCL_OK)
+                    winerr = TwapiDecodeEVENT_PROPERTY_INFO(ticP, evrP, teiP, member_index, (LPWSTR)(epiP->NameOffset + (char *) teiP), array_index, &membernameObj, &membervalObj);
+                    if (winerr != ERROR_SUCCESS)
                         break;
                     ObjAppendElement(NULL, valueObj, membernameObj);
                     ObjAppendElement(NULL, valueObj, membervalObj);
@@ -1798,7 +1788,7 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
 
                 /* TBD - sample in MSDN docs (not sdk sample) says tdh
                    cannot handle IPv6 data and skips event. Check on this */
-            }            
+            }
             /* TBD - see GetPropertyLength in SDK doc article
                "Using TdhFormatProperty to Consume Event Data". More involved
                than just calling TdhGetPropertySize. Do we need to copy
@@ -1806,6 +1796,8 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
                Also see https://github.com/microsoft/windows-container-tools/tree/master/LogMonitor
                and
                https://github.com/microsoft/onnxruntime/blob/master/onnxruntime/tool/etw/eparser.cc
+               and
+               https://github.com/microsoft/krabsetw
                for similar log file parsing.
             */
             winerr = TdhGetPropertySize(evrP, 1, &tdhctx, pdd_count, pdd, &prop_size);
@@ -1827,37 +1819,34 @@ static TCL_RESULT TwapiDecodeEVENT_PROPERTY_INFO(
                     if (winerr == ERROR_INSUFFICIENT_BUFFER) {
                         mapP = MemLifoAlloc(memlifoP, map_size, NULL);
                         winerr = TdhGetEventMapInformation(evrP, (LPWSTR) (epiP->nonStructType.MapNameOffset + (char *)teiP), mapP, &map_size);
-                        
                     }
                 }
                 if (winerr == ERROR_SUCCESS) {
                     winerr = TdhGetProperty(evrP, 1, &tdhctx, pdd_count, pdd, prop_size, pv);
                     if (winerr == ERROR_SUCCESS)
-                        res = TwapiTdhPropertyValue(ticP, evrP, epiP, pv, prop_size, mapP, &valueObj);
+                        winerr = TwapiTdhPropertyValue(ticP, evrP, epiP, pv, prop_size, mapP, &valueObj);
                 }
                 MemLifoPopFrame(memlifoP);
             }
-            if (winerr != ERROR_SUCCESS)
-                res = Twapi_AppendSystemError(interp, winerr);                
         }
 
-        if (res != TCL_OK) {
+        if (winerr != ERROR_SUCCESS) {
             if (valueObj)
                 ObjDecrRefs(valueObj);
             ObjDecrArrayRefs(array_index, valueObjs);
-            return res;
+            return winerr;
         }
         valueObjs[array_index] = valueObj;
     }
 
     *propvalObjP  = ObjNewList(nvalues, valueObjs);
     *propnameObjP = ObjFromWinChars((WCHAR *)(epiP->NameOffset + (char*)teiP));
-    return TCL_OK;
+    return ERROR_SUCCESS;
 }
 
 
 /* Uses memlifo frame. Caller responsible for cleanup */
-static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RECORD *evrP, Tcl_Obj **teiObjP)
+static WIN32_ERROR TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RECORD *evrP, Tcl_Obj **teiObjP)
 {
     DWORD sz, winerr;
     Tcl_Obj *objs[13];
@@ -1883,7 +1872,7 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
         teiP = MemLifoAlloc(ticP->memlifoP, sz, NULL);
         winerr = TdhGetEventInformation(evrP, 1, &tdhctx, teiP, &sz);
     }
-    
+
     if (winerr != ERROR_SUCCESS) {
         /* Dummy up data */
         for (i = 0; i < ARRAYSIZE(objs); ++i)
@@ -1891,27 +1880,21 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
         switch (evrP->EventHeader.EventProperty) {
         case EVENT_HEADER_PROPERTY_XML: i = DecodingSourceXMLFile; break;
         case EVENT_HEADER_PROPERTY_LEGACY_EVENTLOG: i = DecodingSourceWbem; break;
+        case EVENT_HEADER_PROPERTY_FORWARDED_XML: /*  FALLTHRU */
         default : i = -1; break;
-        }            
+        }
         objs[1] = ObjFromLong(i); /* Decoding source */
         objs[12] = ObjNewList(2, NULL);
         ObjAppendElement(NULL, objs[12], STRING_LITERAL_OBJ("_userdata"));
         ObjAppendElement(NULL, objs[12], ObjFromByteArray(evrP->UserData, evrP->UserDataLength));
         *teiObjP = ObjNewList(ARRAYSIZE(objs), objs);
         ObjDecrRefs(emptyObj);
-        return TCL_OK;
+        return ERROR_SUCCESS;
     }
 
     edP = &teiP->EventDescriptor;
 
-    switch (teiP->DecodingSource) {
-    case DecodingSourceXMLFile: classic = 0; break;
-    case DecodingSourceWbem:    classic = 1; break;
-    default:
-        return TwapiReturnErrorEx(ticP->interp, TWAPI_UNSUPPORTED_TYPE,
-                                  Tcl_ObjPrintf("Unsupported ETW decoding source (%d)", teiP->DecodingSource));
-    }
-
+    classic = (teiP->DecodingSource == DecodingSourceWbem);
 
 #define OFFSET_TO_OBJ(field_) (teiP->field_ ? ObjFromWinCharsNoTrailingSpace((LPWSTR)(teiP->field_ + (char*)teiP)) : emptyObj)
 
@@ -1919,11 +1902,11 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
        of EVENT_HEADER. We prefer to do it there so that we can return
        partial info even when the TdhGetEventInformation call fails
        due to the MOF not having been registered
+       objs[] = ObjFromGUID(&teiP->ProviderGuid);
+       objs[] = ObjFromEVENT_DESCRIPTOR(&teiP->EventDescriptor);
     */
 
-    //objs[] = ObjFromGUID(&teiP->ProviderGuid);
-    objs[0] = classic ? ObjFromGUID(&teiP->EventGuid) : emptyObj;
-    //objs[] = ObjFromEVENT_DESCRIPTOR(&teiP->EventDescriptor);
+    objs[0] = classic ? ObjFromGUID(&teiP->EventGuid) : emptyObj; /* TBD - why not just NULL GUID */
     objs[1] = ObjFromLong(teiP->DecodingSource);
     objs[2] = OFFSET_TO_OBJ(ProviderNameOffset);
     objs[3] = TwapiTEIWinCharsObj(teiP, teiP->LevelNameOffset, edP->Level);
@@ -1940,6 +1923,8 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
         objs[10] = OFFSET_TO_OBJ(ActivityIDNameOffset);
         objs[11] = OFFSET_TO_OBJ(RelatedActivityIDNameOffset);
     } else {
+        /*  TBD - check in debugger what this field contains. They are aliased
+         as EventNameOffset and EventAttributesOffset */
         objs[10] = emptyObj;
         objs[11] = emptyObj;
     }
@@ -1955,15 +1940,15 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
 
         for (i = 0; i < teiP->TopLevelPropertyCount; ++i) {
             Tcl_Obj *propnameObj, *propvalObj;
-            status = TwapiDecodeEVENT_PROPERTY_INFO(ticP, evrP, teiP, i, NULL, 0, &propnameObj, &propvalObj);
-            if (status != TCL_OK) {
+            winerr = TwapiDecodeEVENT_PROPERTY_INFO(ticP, evrP, teiP, i, NULL, 0, &propnameObj, &propvalObj);
+            if (winerr != ERROR_SUCCESS) {
                 /* Cannot use ObjDecrArrayRefs here to free objs[] because
                    it contains multiple occurences of emptyObj. Explicitly
                    build a list and free it */
                 ObjDecrRefs(ObjNewList(ARRAYSIZE(objs), objs));
                 if (emptyObj)
                     ObjDecrRefs(emptyObj); /* For the additional IncrRefs above */
-                return TCL_ERROR;
+                return winerr;
             }
             ObjAppendElement(NULL, objs[12], propnameObj);
             ObjAppendElement(NULL, objs[12], propvalObj);
@@ -1973,7 +1958,7 @@ static TCL_RESULT TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RE
     *teiObjP = ObjNewList(ARRAYSIZE(objs), objs);
     ObjDecrRefs(emptyObj);
 
-    return TCL_OK;
+    return ERROR_SUCCESS;
 }
 
 static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD evrP)
@@ -1983,17 +1968,18 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD evrP)
     Tcl_Obj *objs[3];
     MemLifoMarkHandle mark;
     TwapiInterpContext *ticP;
+    WIN32_ERROR winerr;
 
     /* Called back from Win32 ProcessTrace call. Assumed that gETWContext is locked */
     TWAPI_ASSERT(gETWContext.ticP != NULL);
     TWAPI_ASSERT(gETWContext.ticP->interp != NULL);
 
-    if (gETWContext.status != TCL_OK) /* If some previous error occurred, return */
-        return;
-
-    if ((evrP->EventHeader.Flags & EVENT_HEADER_FLAG_TRACE_MESSAGE) != 0)
+    if ((evrP->EventHeader.Flags & EVENT_HEADER_FLAG_TRACE_MESSAGE) != 0) {
+        gETWContext.last_winerr  = ERROR_NOT_SUPPORTED;
+        gETWContext.error_count += 1;
         return; // Ignore WPP events. - TBD
-    
+    }
+
     if (evrP->EventHeader.EventDescriptor.Opcode == EVENT_TRACE_TYPE_INFO &&
         IsEqualGUID(&evrP->EventHeader.ProviderId, &EventTraceGuid)) {
         /*
@@ -2020,7 +2006,7 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD evrP)
     }
     objs[1] = ObjFromLong(evrP->BufferContext.LoggerId);
     recObjs[1] = ObjNewList(2, objs);
-    
+
     /* Extended Data */
     /* TBD - do we need to check the evrP->EventHeader.Flags EVENT_HEADER_FLAG_EXTENDED_INFO bit ? */
     recObjs[2] = ObjNewList(0, NULL);
@@ -2055,12 +2041,15 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD evrP)
             break;              /* Skip/ignore */
         }
     }
-    
-    gETWContext.status = TwapiTdhGetEventInformation(ticP, evrP, &recObjs[3]);
-    if (gETWContext.status == TCL_OK)
+
+    winerr = TwapiTdhGetEventInformation(ticP, evrP, &recObjs[3]);
+    if (winerr == ERROR_SUCCESS)
         ObjAppendElement(ticP->interp, gETWContext.eventsObj, ObjNewList(ARRAYSIZE(recObjs), recObjs));
-    else
+    else {
         ObjDecrArrayRefs(3, recObjs);
+        gETWContext.last_winerr = winerr;
+        gETWContext.error_count += 1;
+    }
 
     MemLifoPopMark(mark);
     return;
@@ -2086,14 +2075,11 @@ ULONG WINAPI TwapiETWBufferCallback(
     if (Tcl_InterpDeleted(interp))
         return FALSE;
 
-    if (gETWContext.status != TCL_OK) /* If some previous error occurred, return */
-        return FALSE;
-
     TWAPI_ASSERT(gETWContext.eventsObj);
 
-    if (gETWContext.buffer_cmdlen == 0) {
+    if (! gETWContext.callback_specified) {
         /* We are simply collecting events without invoking callback */
-        TWAPI_ASSERT(gETWContext.buffer.listObj != NULL);
+        TWAPI_ASSERT(gETWContext.u.listObj != NULL);
     } else {
         /*
          * Construct a command to call with the event. 
@@ -2102,11 +2088,11 @@ ULONG WINAPI TwapiETWBufferCallback(
          * So we need to check for that and Dup it if necessary
          */
 
-        if (Tcl_IsShared(gETWContext.buffer.cmdObj)) {
-            evalObj = ObjDuplicate(gETWContext.buffer.cmdObj);
+        if (Tcl_IsShared(gETWContext.u.callback.cmdObj)) {
+            evalObj = ObjDuplicate(gETWContext.u.callback.cmdObj);
             ObjIncrRefs(evalObj);
         } else
-            evalObj = gETWContext.buffer.cmdObj;
+            evalObj = gETWContext.u.callback.cmdObj;
     }
 
     objs[0] = etlP->LogFileName ? ObjFromWinChars(etlP->LogFileName) : ObjFromEmptyString();
@@ -2121,26 +2107,26 @@ ULONG WINAPI TwapiETWBufferCallback(
     objs[7] = ObjFromLong(etlP->IsKernelTrace);
 
     bufObj = ObjNewList(ARRAYSIZE(objs), objs);
+    ObjIncrRefs(bufObj);
 
-    if (gETWContext.buffer_cmdlen) {
+    if (gETWContext.callback_specified) {
         args[0] = bufObj;
         args[1] = gETWContext.eventsObj;
-        Tcl_ListObjReplace(interp, evalObj, gETWContext.buffer_cmdlen, ARRAYSIZE(args), ARRAYSIZE(args), args);
+        Tcl_ListObjReplace(interp, evalObj, gETWContext.u.callback.cmdlen, ARRAYSIZE(args), ARRAYSIZE(args), args);
         code = Tcl_EvalObjEx(gETWContext.ticP->interp, evalObj, TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL);
 
         /* Get rid of the command obj if we created it */
-        if (evalObj != gETWContext.buffer.cmdObj)
+        if (evalObj != gETWContext.u.callback.cmdObj)
             ObjDecrRefs(evalObj);
     } else {
         /* No callback. Just collect */
-        ObjAppendElement(NULL, gETWContext.buffer.listObj, bufObj);
-        ObjAppendElement(NULL, gETWContext.buffer.listObj, gETWContext.eventsObj);
+        ObjAppendElement(NULL, gETWContext.u.listObj, bufObj);
+        ObjAppendElement(NULL, gETWContext.u.listObj, gETWContext.eventsObj);
         code = TCL_OK;
     }
 
-    /* Note bufObj is ref'ed only in one of the lists above. Do not Decr it */
-    /* eventObjs needs a DecrRefs to match the one when it was created */
-    ObjDecrRefs(gETWContext.eventsObj);
+    ObjDecrRefs(bufObj); /* Matches Incr above */
+    ObjDecrRefs(gETWContext.eventsObj); /* Matches Incr on creation */
     gETWContext.eventsObj = ObjNewList(0, NULL);/* For next set of events */
     ObjIncrRefs(gETWContext.eventsObj);
 
@@ -2148,14 +2134,16 @@ ULONG WINAPI TwapiETWBufferCallback(
     case TCL_BREAK:
         /* Any other value - not an error, but stop processing */
         return FALSE;
+    case TCL_OK:
+        return TRUE;
     case TCL_ERROR:
-        gETWContext.status = TCL_ERROR;
+    default:
+        /* Should only happen for callback case */
+        TWAPI_ASSERT(gETWContext.callback_specified);
+        gETWContext.u.callback.return_code = TCL_ERROR;
         ObjDecrRefs(gETWContext.eventsObj);
         gETWContext.eventsObj = NULL;
         return FALSE;
-    case TCL_OK:
-    default:        /* Any other value - proceed as normal - TBD */
-        return TRUE;
     }
 }
 
@@ -2336,7 +2324,7 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
     int i;
     FILETIME start, end, *startP, *endP;
     struct TwapiETWContext etwc;
-    int buffer_cmdlen;
+    int callback_cmdlen;
     DWORD winerr;
     Tcl_Obj **htraceObjs;
     TRACEHANDLE htraces[8];
@@ -2356,7 +2344,7 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
     /* Verify callback command prefix is a list. If empty, data
      * is returned instead.
      */
-    if (ObjListLength(interp, objv[2], &buffer_cmdlen) != TCL_OK)
+    if (ObjListLength(interp, objv[2], &callback_cmdlen) != TCL_OK)
         return TCL_ERROR;
 
     if (Tcl_GetCharLength(objv[3]) == 0)
@@ -2365,16 +2353,16 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
             return TCL_ERROR;
     else
         startP = &start;
-    
+
     if (Tcl_GetCharLength(objv[4]) == 0)
         endP = NULL;
     else if (ObjToFILETIME(interp, objv[4], &end) != TCL_OK)
             return TCL_ERROR;
     else
         endP = &end;
-    
+
     EnterCriticalSection(&gETWCS);
-    
+
     if (gETWContext.ticP != NULL) {
         LeaveCriticalSection(&gETWCS);
         ObjSetStaticResult(interp, "Recursive call to ProcessTrace");
@@ -2382,52 +2370,70 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
     }
 
     gETWContext.traceH = htraces[0];
-    gETWContext.buffer_cmdlen = buffer_cmdlen;
-    if (buffer_cmdlen)
-        gETWContext.buffer.cmdObj = objv[2];
-    else
-        gETWContext.buffer.listObj = ObjNewList(0, NULL);
+
+    if (callback_cmdlen) {
+        gETWContext.callback_specified     = 1;
+        gETWContext.u.callback.cmdlen      = callback_cmdlen;
+        gETWContext.u.callback.cmdObj = ObjDuplicate(objv[2]);
+        ObjIncrRefs(gETWContext.u.callback.cmdObj);
+        gETWContext.u.callback.return_code = 0;
+    }
+    else {
+        gETWContext.callback_specified = 0;
+        gETWContext.u.listObj = ObjNewList(0, NULL);
+        ObjIncrRefs(gETWContext.u.listObj);
+    }
     gETWContext.eventsObj = ObjNewList(0, NULL);
     ObjIncrRefs(gETWContext.eventsObj);
-    gETWContext.status = TCL_OK;
     gETWContext.ticP = ticP;
     gETWContext.pointer_size = sizeof(void*); /* Default unless otherwise indicated */
-
+    gETWContext.error_count = 0;
+    gETWContext.last_winerr = ERROR_SUCCESS;
 
     winerr = ProcessTrace(htraces, ntraces, startP, endP);
 
     /* Copy and reset context before unlocking */
     etwc = gETWContext;
-    gETWContext.buffer.cmdObj = NULL;
+    if (gETWContext.callback_specified)
+        gETWContext.u.callback.cmdObj = NULL;
+    else
+        gETWContext.u.listObj = NULL;
+
     gETWContext.eventsObj = NULL;
-    gETWContext.status = TCL_OK;
     gETWContext.ticP = NULL;
+    /* NOTE: gETWContext.last_winerr should be preserved till next call */
 
     LeaveCriticalSection(&gETWCS);
 
     if (etwc.eventsObj)
         ObjDecrRefs(etwc.eventsObj);
 
-    if (etwc.status != TCL_OK) {
-        if (etwc.buffer_cmdlen == 0)
-            ObjDecrRefs(etwc.buffer.listObj);
-        /* interp should already have the error */
-        return etwc.status;
+    if (etwc.callback_specified) {
+        ObjDecrRefs(etwc.u.callback.cmdObj);
+        /*
+         * A winerr of ERROR_CANCELLED means the callback returned TCL_BREAK
+         * to terminate the processing. That is not treated as an error
+         */
+        if (winerr && winerr != ERROR_CANCELLED)
+            return Twapi_AppendSystemError(interp, winerr);
+        if (etwc.u.callback.return_code == TCL_ERROR) {
+            /* Interp should already contain error message */
+            return TCL_ERROR;
+        } else {
+            /* Erase any left over result from callback */
+            Tcl_ResetResult(interp);
+            return TCL_OK;
+        }
+    } else {
+        /* Not a call back */
+        if (winerr) {
+            ObjDecrRefs(etwc.u.listObj);
+            return Twapi_AppendSystemError(interp, winerr);
+        }
+        ObjSetResult(interp, etwc.u.listObj);
+        ObjDecrRefs(etwc.u.listObj); /* NOTE: do AFTER setting result */
+        return TCL_OK;
     }
-
-    /* A winerr of ERROR_CANCELLED means the callback returned TCL_BREAK
-     * to terminate the processing. That is not treated as an error
-     */
-    if (winerr && winerr != ERROR_CANCELLED)
-        return Twapi_AppendSystemError(interp, winerr);
-
-    if (etwc.buffer_cmdlen == 0) {
-        /* No callback so return collected events */
-        ObjSetResult(interp, etwc.buffer.listObj);
-    } else
-        Tcl_ResetResult(interp); /* For any holdover from callbacks */
-
-    return TCL_OK;
 }
 
 TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
