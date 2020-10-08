@@ -1669,6 +1669,74 @@ static WIN32_ERROR TwapiTdhPropertyValue(
 
 }
 
+static WIN32_ERROR TwapiTdhPropertySize(
+    EVENT_RECORD *evrP,
+    TRACE_EVENT_INFO *teiP,
+    USHORT prop_index,
+    USHORT *sizeP)
+{
+    const EVENT_PROPERTY_INFO *epiP = &teiP->EventPropertyInfoArray[prop_index];
+    WIN32_ERROR winerr;
+    if (epiP->Flags & PropertyParamLength) {
+        /*
+         * The length of the property is given by the value of another property.
+         */
+        UINT32 len32 = 0;
+        UINT16 len16 = 0;
+        DWORD len_index = epiP->lengthPropertyIndex;
+        PROPERTY_DATA_DESCRIPTOR pdd;
+        ZeroMemory(&pdd, sizeof(pdd));
+        /* TBD - need to check len_index validity? */
+        pdd.PropertyName =
+            (ULONGLONG) ((char*)(teiP) + teiP->EventPropertyInfoArray[len_index].NameOffset);
+        pdd.ArrayIndex = ULONG_MAX;
+        winerr = TdhGetPropertySize(evrP, 0, NULL, 1, &pdd, &len32);
+        if (winerr == ERROR_SUCCESS) {
+            if (len32 == 2) {
+                winerr = TdhGetProperty(evrP, 0, NULL, 1, &pdd, len32, (PBYTE)&len16);
+                if (winerr == ERROR_SUCCESS)
+                    *sizeP = len16;
+            } else if (len32 == 4) {
+                winerr = TdhGetProperty(evrP, 0, NULL, 1, &pdd, len32, (PBYTE)&len32);
+                if (winerr == ERROR_SUCCESS) {
+                    if (len32 <= 65535)
+                        *sizeP = (USHORT) len32;
+                    else
+                        winerr = ERROR_EVT_INVALID_EVENT_DATA;
+                }
+            } else {
+                winerr = ERROR_EVT_INVALID_EVENT_DATA; /* Length should be 2/4 byte integer */
+            }
+        }
+    }
+    else {
+        if (epiP->length > 0) {
+            *sizeP = epiP->length;
+            winerr = ERROR_SUCCESS;
+        }
+        else {
+            /* Need to special case IPv6 addresses stored as binary */
+            /* TBD - do we need to check if it is nonStructType first ? */
+            if (epiP->nonStructType.InType == TDH_INTYPE_BINARY &&
+                epiP->nonStructType.OutType == TDH_OUTTYPE_IPV6) {
+                *sizeP = sizeof(IN6_ADDR);
+                winerr = ERROR_SUCCESS;
+            }
+            else if ((epiP->Flags & PropertyStruct) == PropertyStruct ||
+                     epiP->nonStructType.InType == TDH_INTYPE_UNICODESTRING ||
+                     epiP->nonStructType.InType == TDH_INTYPE_ANSISTRING) {
+                /* TBD - this case already covered above unless length is 0? */
+                /* In otherwords, here epiP->length will always be 0? */
+                *sizeP = epiP->length;
+                winerr = ERROR_SUCCESS;
+            }
+            else {
+                winerr = ERROR_EVT_INVALID_EVENT_DATA;
+            }
+        }
+    }
+    return winerr;
+}
 
 /* Uses ticP->memlifo, caller responsible for memory management always */
 static WIN32_ERROR TwapiDecodeEVENT_PROPERTY_INFO(
@@ -1713,7 +1781,7 @@ static WIN32_ERROR TwapiDecodeEVENT_PROPERTY_INFO(
     winerr = TwapiTdhPropertyArraySize(ticP, evrP, teiP, prop_index, &nvalues);
     if (winerr != ERROR_SUCCESS)
         return winerr;
- 
+
     prop_name = (ULONGLONG)(epiP->NameOffset + (char*) teiP);
 
     /* Special case arrays of UNICHAR and ANSICHAR. These are actually strings*/
@@ -1731,7 +1799,7 @@ static WIN32_ERROR TwapiDecodeEVENT_PROPERTY_INFO(
             winerr = TdhGetProperty(evrP, 1, &tdhctx, 1, pdd, prop_size, pv);
             if (winerr == ERROR_SUCCESS) {
                 *propvalObjP  = ObjNewList(1, NULL);
-                *propnameObjP = ObjFromWinChars((WCHAR *)(epiP->NameOffset + (char*)teiP));
+                *propnameObjP = ObjFromWinChars((WCHAR *)(prop_name));
                 if (epiP->nonStructType.InType == TDH_INTYPE_UNICODECHAR)
                     ObjAppendElement(NULL, *propvalObjP,
                                      ObjFromWinCharsLimited(pv, prop_size/sizeof(WCHAR), NULL));
