@@ -10,6 +10,8 @@
  * TBD - replace CALL_ with DEFINE_ALIAS_CMD oR DEFINE_FNCODE_CMD
  * TBD - replace dict ops with list ops if possible
  * TBD - TraceMessage
+ * TBD - Once XP is dropped, get rid of global gETWContext and use
+ * the Context field in EVENT_TRACE_LOGFILE (OpenTrace) for this purpose.
  */
 /* References:
    "Using TdhFormatProperty to Consume Event Data". More involved
@@ -1875,6 +1877,12 @@ static WIN32_ERROR TwapiDecodeEVENT_PROPERTY_INFO(
                 /* TBD - sample in MSDN docs (not sdk sample) says tdh
                    cannot handle IPv6 data and skips event. Check on this */
             }
+            /* TBD https://fossies.org/linux/pcp/src/pmdas/etw/tdhconsume.c claims
+               TdhGetPropertySize fails on Windows2008 and instead loops doing
+               TdhGetProperty instead increasin buffer size on ERROR_INSUFFICIENT_BUFFER.
+               So we only call it to get an initial estimate and then loop
+               increasing buffer size if buffer size is not enough.
+             */
             winerr = TdhGetPropertySize(evrP, 1, &tdhctx, pdd_count, pdd, &prop_size);
             if (winerr == ERROR_SUCCESS) {
                 ULONG map_size;
