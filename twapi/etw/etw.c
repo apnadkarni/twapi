@@ -11,6 +11,19 @@
  * TBD - replace dict ops with list ops if possible
  * TBD - TraceMessage
  */
+/* References:
+   "Using TdhFormatProperty to Consume Event Data". More involved
+   than just calling TdhGetPropertySize. Do we need to copy
+   that code ?
+   Also see https://github.com/microsoft/windows-container-tools/tree/master/LogMonitor
+   and
+   https://github.com/microsoft/onnxruntime/blob/master/onnxruntime/tool/etw/eparser.cc
+   and
+   https://fossies.org/linux/pcp/src/pmdas/etw/tdhconsume.c
+   and
+   https://github.com/microsoft/krabsetw
+   for similar log file parsing.
+*/
 
 #include "twapi.h"
 #include <evntrace.h>
@@ -1670,11 +1683,17 @@ static WIN32_ERROR TwapiTdhPropertyValue(
 
 }
 
+#ifdef NOTNEEDED
+This function copied from GetPropertyLength in SDK Docs
+not needed unless using  TdhFormatProperty ?
+Moreover does not seem to return correct value for UNICODE strings
+(null terminated)
+    Moreover does TdhGetPropertySize not already to all this?
 static WIN32_ERROR TwapiTdhPropertySize(
     EVENT_RECORD *evrP,
     TRACE_EVENT_INFO *teiP,
     USHORT prop_index,
-    USHORT *sizeP)
+    ULONG *sizeP)
 {
     const EVENT_PROPERTY_INFO *epiP = &teiP->EventPropertyInfoArray[prop_index];
     WIN32_ERROR winerr;
@@ -1700,10 +1719,7 @@ static WIN32_ERROR TwapiTdhPropertySize(
             } else if (len32 == 4) {
                 winerr = TdhGetProperty(evrP, 0, NULL, 1, &pdd, len32, (PBYTE)&len32);
                 if (winerr == ERROR_SUCCESS) {
-                    if (len32 <= 65535)
-                        *sizeP = (USHORT) len32;
-                    else
-                        winerr = ERROR_EVT_INVALID_EVENT_DATA;
+                    *sizeP = len32;
                 }
             } else {
                 winerr = ERROR_EVT_INVALID_EVENT_DATA; /* Length should be 2/4 byte integer */
@@ -1738,6 +1754,7 @@ static WIN32_ERROR TwapiTdhPropertySize(
     }
     return winerr;
 }
+#endif
 
 /* Uses ticP->memlifo, caller responsible for memory management always */
 static WIN32_ERROR TwapiDecodeEVENT_PROPERTY_INFO(
@@ -1858,17 +1875,6 @@ static WIN32_ERROR TwapiDecodeEVENT_PROPERTY_INFO(
                 /* TBD - sample in MSDN docs (not sdk sample) says tdh
                    cannot handle IPv6 data and skips event. Check on this */
             }
-            /* TBD - see GetPropertyLength in SDK doc article
-               "Using TdhFormatProperty to Consume Event Data". More involved
-               than just calling TdhGetPropertySize. Do we need to copy
-               that code ?
-               Also see https://github.com/microsoft/windows-container-tools/tree/master/LogMonitor
-               and
-               https://github.com/microsoft/onnxruntime/blob/master/onnxruntime/tool/etw/eparser.cc
-               and
-               https://github.com/microsoft/krabsetw
-               for similar log file parsing.
-            */
             winerr = TdhGetPropertySize(evrP, 1, &tdhctx, pdd_count, pdd, &prop_size);
             if (winerr == ERROR_SUCCESS) {
                 ULONG map_size;
@@ -2014,6 +2020,7 @@ static WIN32_ERROR TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_R
 #if 1
                 /*  Ignore property errors */
                 gETWContext.property_error_count += 1;
+                gETWContext.last_winerr = winerr;
                 winerr = ERROR_SUCCESS;
 #else
                 // Ignore property errors
