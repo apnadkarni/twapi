@@ -444,12 +444,13 @@ struct TwapiETWContext {
         } callback;
         Tcl_Obj     *listObj;   /* List of buffer descriptor, event list pairs */
     } u;
-    int callback_specified; /* Tag for above union - 0 -> not callback, non-0 - callback */
+    int   callback_specified;   /* Tag for above union - 0 -> not callback, non-0 - callback */
     ULONG pointer_size;         /* Used if event itself does not specify */
     ULONG timer_resolution;
     ULONG user_mode;
     DWORD last_winerr;          /* Last Windows error seen */
-    DWORD error_count;           /* Number of events dropped because of error */
+    DWORD error_count;          /* Number of events dropped because of error */
+    DWORD property_error_count; /* Number of properties ignored */
 } gETWContext;                  /* IMPORTANT : Sync access via gETWCS */
 
 
@@ -2010,6 +2011,12 @@ static WIN32_ERROR TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_R
             Tcl_Obj *propnameObj, *propvalObj;
             winerr = TwapiDecodeEVENT_PROPERTY_INFO(ticP, evrP, teiP, i, NULL, 0, &propnameObj, &propvalObj);
             if (winerr != ERROR_SUCCESS) {
+#if 1
+                /*  Ignore property errors */
+                gETWContext.property_error_count += 1;
+                winerr = ERROR_SUCCESS;
+#else
+                // Ignore property errors
                 /* Cannot use ObjDecrArrayRefs here to free objs[] because
                    it contains multiple occurences of emptyObj. Explicitly
                    build a list and free it */
@@ -2017,6 +2024,7 @@ static WIN32_ERROR TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_R
                 if (emptyObj)
                     ObjDecrRefs(emptyObj); /* For the additional IncrRefs above */
                 return winerr;
+#endif
             }
             ObjAppendElement(NULL, objs[12], propnameObj);
             ObjAppendElement(NULL, objs[12], propvalObj);
@@ -2456,6 +2464,7 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
     gETWContext.ticP = ticP;
     gETWContext.pointer_size = sizeof(void*); /* Default unless otherwise indicated */
     gETWContext.error_count = 0;
+    gETWContext.property_error_count = 0;
     gETWContext.last_winerr = ERROR_SUCCESS;
 
     winerr = ProcessTrace(htraces, ntraces, startP, endP);
@@ -2904,6 +2913,18 @@ static int Twapi_ETWCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         }
         objP = ObjFromLong(gForceMofAPI);
         break;
+    case 5:
+        CHECK_NARGS(interp, objc, 1);
+        objP = ObjNewList(8, NULL);
+        ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("error_count"));
+        ObjAppendElement(interp, objP, ObjFromWideInt(gETWContext.error_count));
+        ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("property_error_count"));
+        ObjAppendElement(interp, objP, ObjFromWideInt(gETWContext.property_error_count));
+        ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("last_winerr"));
+        ObjAppendElement(interp, objP, ObjFromWideInt(gETWContext.last_winerr));
+        ObjAppendElement(interp, objP, STRING_LITERAL_OBJ("last_winerr_text"));
+        ObjAppendElement(interp, objP, Twapi_MapWindowsErrorToString(gETWContext.last_winerr));
+        break;
     default:
         return TwapiReturnError(interp, TWAPI_INVALID_FUNCTION_CODE);
     }
@@ -2936,6 +2957,7 @@ static int TwapiETWInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(etw_provider_enable_level, 2),     /* TBD docs */
         DEFINE_FNCODE_CMD(etw_provider_enabled, 3),          /* TBD docs */
         DEFINE_FNCODE_CMD(etw_force_mof, 4),
+        DEFINE_FNCODE_CMD(etw_errors, 5), /* TBD docs and test */
     };
 
     TwapiDefineTclCmds(interp, ARRAYSIZE(EtwDispatch), EtwDispatch, ticP);
