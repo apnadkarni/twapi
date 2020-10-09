@@ -71,7 +71,7 @@ namespace eval twapi {
     record tdh_event_header { flags event_property tid pid timestamp
         kernel_time user_time processor_time activity_id descriptor provider_guid}
     record tdh_event_buffer_context { processor logger_id }
-    record tdh_event_data {event_guid decoder provider_name level_name channel_name keyword_names task_name opcode_name message localized_provider_name activity_id related_activity_id properties }
+    record tdh_event_data {provider_guid event_guid decoder provider_name level_name channel_name keyword_names task_name opcode_name message localized_provider_name activity_id related_activity_id properties flags}
 
     record tdh_event_data_descriptor {id version channel level opcode task keywords}
 
@@ -456,7 +456,7 @@ proc twapi::etw_parse_mof_event_class {ocls} {
                 }
                 $quals destroy
             }
-                    
+
             # Process the records to put the fields in order based on
             # their wmidataid. If any info is missing or inconsistent
             # we will mark the whole event type class has undecodable.
@@ -791,7 +791,7 @@ proc twapi::etw_format_events {formatter args} {
 }
 
 proc twapi::_etw_format_tdh_events {bufdesc events} {
-    
+
     set bufhdr [etw_event_trace_logfile trace_logfile_header $bufdesc]
     set timer_resolution [etw_trace_logfile_header timer_resolution $bufhdr]
     set private_session [expr {0x800 & [etw_trace_logfile_header logfile_mode $bufhdr]}]
@@ -801,7 +801,10 @@ proc twapi::_etw_format_tdh_events {bufdesc events} {
     foreach event $events {
         array set fields [tdh_event $event]
         set formatted_event [tdh_event_header descriptor $fields(header)]
-        lappend formatted_event {*}[tdh_event_header select $fields(header) {timestamp tid pid provider_guid}]
+        # Do not select provider_guid from header as for TDH it needs to come
+        # from the provider_guid in the data portion.
+        lappend formatted_event {*}[tdh_event_header select $fields(header) {timestamp tid pid}]
+        lappend formatted_event {*}[tdh_event_data select $fields(data) provider_guid]
         if {$private_session} {
             lappend formatted_event [expr {[tdh_event_header processor_time $fields(header)] * $timer_resolution}] 0
         } else {
@@ -844,11 +847,11 @@ proc twapi::_etw_format_mof_events {oswbemservices bufdesc events} {
     set formatted_events {}
     foreach event $events {
         array set hdr [mof_event_header [mof_event header $event]]
-        
+
         # Formatted event must match field sequence in etw_event record
         set formatted_event [list 0 $hdr(version) 0 $hdr(level) $hdr(type) 0 0 \
                                  $hdr(timestamp) $hdr(tid) $hdr(pid) $provider_guid]
-        
+
         if {$private_session} {
             lappend formatted_event [expr {$hdr(processor_time) * $timer_resolution}] 0
         } else {

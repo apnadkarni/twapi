@@ -1932,7 +1932,7 @@ static WIN32_ERROR TwapiDecodeEVENT_PROPERTY_INFO(
 static WIN32_ERROR TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_RECORD *evrP, Tcl_Obj **teiObjP)
 {
     DWORD sz, winerr;
-    Tcl_Obj *objs[13];
+    Tcl_Obj *objs[15];
     TCL_RESULT status;
     TRACE_EVENT_INFO *teiP;
     EVENT_DESCRIPTOR *edP;
@@ -1989,33 +1989,34 @@ static WIN32_ERROR TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_R
        objs[] = ObjFromEVENT_DESCRIPTOR(&teiP->EventDescriptor);
     */
 
-    objs[0] = classic ? ObjFromGUID(&teiP->EventGuid) : emptyObj; /* TBD - why not just NULL GUID */
-    objs[1] = ObjFromLong(teiP->DecodingSource);
-    objs[2] = OFFSET_TO_OBJ(ProviderNameOffset);
-    objs[3] = TwapiTEIWinCharsObj(teiP, teiP->LevelNameOffset, edP->Level);
-    objs[4] = TwapiTEIWinCharsObj(teiP, teiP->ChannelNameOffset, edP->Channel);
+    objs[0] = ObjFromGUID(&teiP->ProviderGuid);
+    objs[1] = ObjFromGUID(&teiP->EventGuid); /* TBD - why not just NULL GUID */
+    objs[2] = ObjFromLong(teiP->DecodingSource);
+    objs[3] = OFFSET_TO_OBJ(ProviderNameOffset);
+    objs[4] = TwapiTEIWinCharsObj(teiP, teiP->LevelNameOffset, edP->Level);
+    objs[5] = TwapiTEIWinCharsObj(teiP, teiP->ChannelNameOffset, edP->Channel);
     if (teiP->KeywordsNameOffset)
-        objs[5] = ObjFromMultiSz((LPWSTR) (teiP->KeywordsNameOffset + (char*)teiP), -1);
+        objs[6] = ObjFromMultiSz((LPWSTR) (teiP->KeywordsNameOffset + (char*)teiP), -1);
     else
-        objs[5] = emptyObj;
-    objs[6] = TwapiTEIWinCharsObj(teiP, teiP->TaskNameOffset, edP->Task);
-    objs[7] = TwapiTEIWinCharsObj(teiP, teiP->OpcodeNameOffset, edP->Opcode);
-    objs[8] = OFFSET_TO_OBJ(EventMessageOffset);
-    objs[9] = OFFSET_TO_OBJ(ProviderMessageOffset);
+        objs[6] = emptyObj;
+    objs[7] = TwapiTEIWinCharsObj(teiP, teiP->TaskNameOffset, edP->Task);
+    objs[8] = TwapiTEIWinCharsObj(teiP, teiP->OpcodeNameOffset, edP->Opcode);
+    objs[9] = OFFSET_TO_OBJ(EventMessageOffset);
+    objs[10] = OFFSET_TO_OBJ(ProviderMessageOffset);
     if (classic) {
-        objs[10] = OFFSET_TO_OBJ(ActivityIDNameOffset);
-        objs[11] = OFFSET_TO_OBJ(RelatedActivityIDNameOffset);
+        objs[11] = OFFSET_TO_OBJ(ActivityIDNameOffset);
+        objs[12] = OFFSET_TO_OBJ(RelatedActivityIDNameOffset);
     } else {
         /*  TBD - check in debugger what this field contains. They are aliased
          as EventNameOffset and EventAttributesOffset */
-        objs[10] = emptyObj;
         objs[11] = emptyObj;
+        objs[12] = emptyObj;
     }
 
-    objs[12] = ObjNewList(2 * teiP->TopLevelPropertyCount, NULL);
+    objs[13] = ObjNewList(2 * teiP->TopLevelPropertyCount, NULL);
     if (evrP->EventHeader.Flags & EVENT_HEADER_FLAG_STRING_ONLY) {
-        ObjAppendElement(NULL, objs[12], STRING_LITERAL_OBJ("_stringdata"));
-        ObjAppendElement(NULL, objs[12],
+        ObjAppendElement(NULL, objs[13], STRING_LITERAL_OBJ("_stringdata"));
+        ObjAppendElement(NULL, objs[13],
                          ObjFromWinCharsLimited(evrP->UserData,
                                                evrP->UserDataLength/sizeof(WCHAR), NULL));
     } else {
@@ -2040,11 +2041,13 @@ static WIN32_ERROR TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_R
                     ObjDecrRefs(emptyObj); /* For the additional IncrRefs above */
                 return winerr;
 #endif
+            } else {
+                ObjAppendElement(NULL, objs[13], propnameObj);
+                ObjAppendElement(NULL, objs[13], propvalObj);
             }
-            ObjAppendElement(NULL, objs[12], propnameObj);
-            ObjAppendElement(NULL, objs[12], propvalObj);
         }
     }
+    objs[14] = ObjFromDWORD(teiP->Flags);
 
     *teiObjP = ObjNewList(ARRAYSIZE(objs), objs);
     ObjDecrRefs(emptyObj);
