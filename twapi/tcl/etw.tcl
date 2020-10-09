@@ -978,7 +978,11 @@ proc twapi::etw_dump_to_file {args} {
                     }
                     array set fields $event
                     if {"-message" in $opts(fields)} {
-                        set fields(-message) [etw_format_event_message $fields(-message) $fields(-properties)]
+                        if {$fields(-message) ne ""} {
+                            set fields(-message) [etw_format_event_message $fields(-message) $fields(-properties)]
+                        } else {
+                            set fields(-message) "Properties: $fields(-properties)"
+                        }
                     }
                     if {"-properties" in $opts(fields)} {
                         set fmtdata $fields(-properties)
