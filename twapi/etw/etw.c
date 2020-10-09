@@ -2071,6 +2071,11 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD evrP)
     if ((evrP->EventHeader.Flags & EVENT_HEADER_FLAG_TRACE_MESSAGE) != 0) {
         gETWContext.last_winerr  = ERROR_NOT_SUPPORTED;
         gETWContext.error_count += 1;
+        /* - Handle simple WPP case */
+        /*     if (EVENT_HEADER_FLAG_STRING_ONLY == */
+        /*         666     (pEvent->EventHeader.Flags & EVENT_HEADER_FLAG_STRING_ONLY)) { */
+        /*         667     printf("Embedded: %s\n", (char *)pEvent->UserData); */
+        /*         668     }  */
         return; // Ignore WPP events. - TBD
     }
 
