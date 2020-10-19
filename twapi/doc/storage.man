@@ -76,6 +76,14 @@ allow retrieval and setting of the times associated with a file.
 The command [uri #flush_channel [cmd flush_channel]] flushes
 operating system buffers associated with a Tcl channel to disk.
 
+[para]
+The commands
+[uri \#find_file_open [cmd file_file_open]],
+[uri \#find_file_next [cmd file_file_next]] and
+[uri \#find_file_close [cmd file_file_close]]
+can be used to incrementally iterate through directory or file system contents
+while retrieving file meta-information.
+
 [section Commands]
 [list_begin definitions]
 
@@ -218,6 +226,56 @@ returned by [uri \#begin_filesystem_monitor [cmd begin_filesystem_monitor]].
 Returns 1 if the specified drive is ready and 0 otherwise
 (for example if the drive media is not inserted). The drive must
 exist else an error is raised.
+
+[call [cmd find_file_close] [arg FFTOKEN]]
+Closes a token previously returned by
+[uri \#find_file_open [cmd find_file_open]].
+
+[call [cmd find_file_next] [arg FFTOKEN] [arg VARNAME]]
+
+Each call returns the next entry from file iteration corresponding to
+[arg FFTOKEN] which must be a token returned by
+[uri \#find_file_open [cmd find_file_open]].
+If there are additional entries in the iteration, the command returns a
+boolean true value and stores the entry in a variable [arg VARNAME] in the
+caller's context. If no more entries remain the command returns a boolean
+false.
+
+The entry stored in [arg VARNAME] is in the form of a dictionary with
+the following keys.
+
+[list_begin opt]
+[opt_def atime] Last access time as 100ns units since Jan 1, 1601.
+[opt_def attrs] Bit mask of file attributes. This can be decoded with the
+[uri \#map_file_attributes [cmd map_file_attributes]] command.
+[opt_def ctime] Creation time as 100ns units since Jan 1, 1601.
+[opt_def mtime] Last modification time as 100ns units since Jan 1, 1601.
+[opt_def size] File size.
+[opt_def name] File name.
+[opt_def altname] Alternate name (generally, the short name) of file, if any.
+The [cmd -detail] option to the [uri \#find_file_open [cmd find_file_open]]
+must be specified as [const standard] for this to be retrieved. The element
+will be present bu empty if the option was specified as [const basic] or
+if there is no alternate name.
+[list_end]
+
+Any additional dictionary keys should be ignored.
+
+[call [cmd find_file_open] [arg PATH] [opt "[cmd -detail] [const basic|standard]"]]
+
+Returns a token that can be used to iterate through files with the
+[uri \#find_file_next [cmd find_file_next]] command. The iteration
+will include all files that match [arg PATH] which may include wildcard
+patterns in the filename component. The wildcards are as interpreted
+by Windows and different from the patterns expected by the Tcl [cmd glob]
+command.
+
+The [cmd -detail] option may be specified as [const basic] (default) or
+[const standard]. See the [uri \#find_file_next [cmd find_file_next]]
+command for the difference.
+
+The returned token must be closed by calling
+[uri \#find_file_close [cmd find_file_close]].
 
 [call [cmd find_logical_drives] [opt "[cmd -type] [arg DRIVETYPELIST]"]]
 
@@ -370,6 +428,17 @@ The following options may be specified with the command:
 [opt_def [cmd -raw]] Specifies that [arg PATH] is a raw path specification that
 includes the device name as opposed to a drive letter.
 [list_end]
+
+[call [cmd decode_file_attributes] [arg ATTRS]]
+Decodes the bitmask [arg ATTRS] as returned in file entries by the
+[uri \#find_file_next [cmd find_file_next]] command. The return value
+is a list of elements from amongst
+[const archive], [const compressed], [const device], [const directory],
+[const encrypted], [const hidden], [const integrity], [const normal],
+[const not], [const no], [const offline], [const readonly], [const recall],
+[const recall], [const reparse], [const sparse], [const attribute],
+[const temporary], [const virtual]. Any bits not recognized will be returned
+as numeric values.
 
 [call [cmd mount_volume] [arg MOUNTPOINTPATH] [arg VOLNAME]]
 Mounts the volume specified by [arg VOLNAME] at the mount point specified

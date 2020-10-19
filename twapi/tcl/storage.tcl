@@ -524,6 +524,78 @@ proc twapi::flush_channel {chan} {
     FlushFileBuffers [get_tcl_channel_handle $chan write]
 }
 
+proc twapi::find_file_open {path args} {
+    variable _find_tokens
+    variable _find_counter
+    parseargs args {
+        {detail.arg basic {basic standard}}
+    } -setvars -maxleftover 0
+
+    set detail_level [expr {$detail eq "basic" ? 1 : 0}]
+    if {[min_os_version 6 1]} {
+        set flags 2;            # FIND_FIRST_EX_LARGE_FETCH - Win 7
+    } else {
+        set flags 0
+    }
+    lassign [FindFirstFileEx $path $detail_level 0 "" $flags] handle entry
+    set token ff#[incr _find_counter]
+    set _find_tokens($token) [list Handle $handle Entry $entry]
+    return $token
+}
+
+proc twapi::find_file_close {token} {
+    variable _find_tokens
+    if {[info exists _find_tokens($token)]} {
+        FindClose [dict get $_find_tokens($token) Handle]
+        unset _find_tokens($token)
+    }
+    return
+}
+
+proc twapi::map_file_attributes {attrs} {
+    return [_make_symbolic_bitmask $attrs {
+        archive               0x20
+        compressed            0x800
+        device                0x40
+        directory             0x10
+        encrypted             0x4000
+        hidden                0x2
+        integrity_stream      0x8000
+        normal                0x80
+        not_content_indexed   0x2000
+        no_scrub_data         0x20000
+        offline               0x1000
+        readonly              0x1
+        recall_on_data_access 0x400000
+        recall_on_open        0x40000
+        reparse_point         0x400
+        sparse_file           0x200
+        attribute_system      0x4
+        temporary             0x100
+        virtual               0x10000
+    }]
+}
+
+proc twapi::find_file_next {token varname} {
+    variable _find_tokens
+    if {![info exists _find_tokens($token)]} {
+        return false
+    }
+    if {[dict exists $_find_tokens($token) Entry]} {
+        set entry [dict get $_find_tokens($token) Entry]
+        dict unset _find_tokens($token) Entry
+    } else {
+        set entry [FindNextFile [dict get $_find_tokens($token) Handle]]
+    }
+    if {[llength $entry]} {
+        upvar 1 $varname result
+        set result [twine {attrs ctime atime mtime size reserve0 reserve1 name altname} $entry]
+        return true
+    } else {
+        return false
+    }
+}
+
 # Utility functions
 
 proc twapi::_drive_rootpath {drive} {

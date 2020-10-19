@@ -1069,7 +1069,7 @@ syntax_error:
     return TCL_ERROR;
 }
 
-TWAPI_EXTERN Tcl_Obj *ObjFromFILETIME(FILETIME *ftimeP)
+TWAPI_EXTERN Tcl_Obj *ObjFromFILETIME(const FILETIME *ftimeP)
 {
     LARGE_INTEGER large;
     large.LowPart = ftimeP->dwLowDateTime;

@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2003-2012, Ashok P. Nadkarni
+ * Copyright (c) 2003-2020, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -17,6 +17,24 @@ static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #endif
 
 /* File and disk related */
+
+static Tcl_Obj *ObjFromWIN32_FIND_DATA(const WIN32_FIND_DATAW *findP)
+{
+    Tcl_Obj *objs[9];
+    LARGE_INTEGER i64;
+    objs[0] = ObjFromDWORD(findP->dwFileAttributes);
+    objs[1] = ObjFromFILETIME(&findP->ftCreationTime);
+    objs[2] = ObjFromFILETIME(&findP->ftLastAccessTime);
+    objs[3] = ObjFromFILETIME(&findP->ftLastWriteTime);
+    i64.LowPart = findP->nFileSizeLow;
+    i64.HighPart = findP->nFileSizeHigh;
+    objs[4] = ObjFromLARGE_INTEGER(i64);
+    objs[5] = ObjFromDWORD(findP->dwReserved0);
+    objs[6] = ObjFromDWORD(findP->dwReserved1);
+    objs[7] = ObjFromWinChars(findP->cFileName);
+    objs[8] = ObjFromWinChars(findP->cAlternateFileName);
+    return ObjNewList(ARRAYSIZE(objs), objs);
+}
 
 int Twapi_GetFileType(Tcl_Interp *interp, HANDLE h)
 {
@@ -181,13 +199,14 @@ int Twapi_GetDiskFreeSpaceEx(Tcl_Interp *interp, LPCWSTR dir)
 static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     LPWSTR s, s2;
-    DWORD dw;
+    DWORD dw, dw2, dw3;
     HANDLE h;
     TwapiResult result;
     WCHAR buf[MAX_PATH+1];
     LARGE_INTEGER largeint;
     FILETIME ft[3];
     FILETIME *ftP[3];
+    WIN32_FIND_DATAW finder;
     Tcl_Obj *objs[3];
     int i;
     int func = PtrToInt(clientdata);
@@ -360,7 +379,49 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             DefineDosDeviceW(dw, ObjToWinChars(objv[1]),
                              ObjToLPWSTR_NULL_IF_EMPTY(objv[2]));
         break;
-
+    case 24:
+        CHECK_NARGS(interp, objc, 5);
+        /* Note retrieve Unicode arg last to avoid shimmering disaster */
+        CHECK_DWORD_OBJ(interp, dw, objv[1]);
+        CHECK_DWORD_OBJ(interp, dw2, objv[2]);
+        /* objv[3] currently ignored */
+        CHECK_DWORD_OBJ(interp, dw3, objv[4]);
+        s = ObjToWinChars(objv[0]);
+        h = FindFirstFileExW(s, dw, &finder, dw2, NULL, dw3);
+        if (h == INVALID_HANDLE_VALUE)
+            result.type = TRT_GETLASTERROR;
+        else {
+            objs[0] = ObjFromOpaque(h, "FindFirstFileExW");
+            objs[1] = ObjFromWIN32_FIND_DATA(&finder);
+            result.type = TRT_OBJV;
+            result.value.objv.objPP = objs;
+            result.value.objv.nobj  = 2;
+        }
+        break;
+    case 25:
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLET(h, FindFirstFileExW))
+            != TCL_OK)
+            return TCL_ERROR;
+        result.value.ival = FindNextFile(h, &finder);
+        if (result.value.ival) {
+            result.value.obj = ObjFromWIN32_FIND_DATA(&finder);
+            result.type = TRT_OBJ;
+        }
+        else {
+            result.value.ival = GetLastError();
+            if (result.value.ival == ERROR_NO_MORE_FILES)
+                result.type = TRT_EMPTY;
+            else
+                result.type = TRT_EXCEPTION_ON_ERROR;
+        }
+        break;
+    case 26:
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLET(h, FindFirstFileExW))
+            != TCL_OK)
+            return TCL_ERROR;
+        result.type = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = FindClose(h);
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -370,6 +431,7 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
 static int TwapiStorageInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s StorDispatch[] = {
+
         DEFINE_FNCODE_CMD(GetLogicalDrives, 1),
         DEFINE_FNCODE_CMD(FindFirstVolume, 2),
         DEFINE_FNCODE_CMD(QueryDosDevice, 3),
@@ -385,7 +447,7 @@ static int TwapiStorageInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(FindVolumeMountPointClose, 13),
         DEFINE_FNCODE_CMD(FindNextVolume, 14),
         DEFINE_FNCODE_CMD(FindNextVolumeMountPoint, 15),
-        DEFINE_FNCODE_CMD(GetFileType, 16), // TBD - TCL 
+        DEFINE_FNCODE_CMD(GetFileType, 16), // TBD - TCL
         DEFINE_FNCODE_CMD(GetFileTime, 17),
         DEFINE_FNCODE_CMD(FlushFileBuffers, 18),
         DEFINE_FNCODE_CMD(MoveFileEx, 19), // TBD - Tcl
@@ -393,6 +455,9 @@ static int TwapiStorageInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(SetVolumeMountPoint, 21),
         DEFINE_FNCODE_CMD(SetFileTime, 22),
         DEFINE_FNCODE_CMD(DefineDosDevice, 23),
+        DEFINE_FNCODE_CMD(FindFirstFileEx, 24),
+        DEFINE_FNCODE_CMD(FindNextFile, 25),
+        DEFINE_FNCODE_CMD(FindClose, 26),
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(StorDispatch), StorDispatch, Twapi_StorageCallObjCmd);
