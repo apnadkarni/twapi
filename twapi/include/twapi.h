@@ -11,7 +11,7 @@
 #if _WIN32_WINNT < 0x0501
 #error _WIN32_WINNT too low
 #endif
-        
+
 #ifndef _UNICODE
 #error -D_UNICODE is not defined on compile command.
 #endif
@@ -1589,7 +1589,7 @@ TWAPI_EXTERN int ObjToBSTR (Tcl_Interp *, Tcl_Obj *, BSTR *);
 TWAPI_EXTERN int ObjToRangedInt(Tcl_Interp *, Tcl_Obj *obj, int low, int high, int *iP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSYSTEMTIME(const SYSTEMTIME *timeP);
 TWAPI_EXTERN int ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LPSYSTEMTIME timeP);
-TWAPI_EXTERN Tcl_Obj *ObjFromFILETIME(FILETIME *ftimeP);
+TWAPI_EXTERN Tcl_Obj *ObjFromFILETIME(const FILETIME *ftimeP);
 TWAPI_EXTERN int ObjToFILETIME(Tcl_Interp *interp, Tcl_Obj *obj, FILETIME *cyP);
 TWAPI_EXTERN Tcl_Obj *ObjFromTIME_ZONE_INFORMATION(const TIME_ZONE_INFORMATION *tzP);
 TWAPI_EXTERN TCL_RESULT ObjToTIME_ZONE_INFORMATION(Tcl_Interp *interp, Tcl_Obj *tzObj, TIME_ZONE_INFORMATION *tzP);
