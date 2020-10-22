@@ -1511,7 +1511,7 @@ namespace eval twapi::disk::test {
     } -body {
         twapi::drive_ready $drive
     } -result 1
-    
+
     test drive_ready-1.1 {
         Check drive ready for all drives
     } -body {
@@ -1527,7 +1527,111 @@ namespace eval twapi::disk::test {
         }
         set mismatches
     } -result {}
-        
+
+    ################################################################
+
+    test find_file-1.0 {
+        find_file_open/next/close vs glob
+    } -body {
+        set tok [twapi::find_file_open C:/*]
+        set files [list ]
+        while {[twapi::find_file_next $tok finfo]} {
+            lappend files [dict get $finfo name]
+            #set attrs [twapi::decode_file_attributes [dict get $finfo attrs]]
+            #puts [dict get $finfo name]:$attrs
+        }
+        twapi::find_file_close $tok
+        lsort $files
+    } -result [lsort [concat [glob -directory C:/ -tails *] [glob -directory C:/ -types hidden -tails *]]]
+
+    test find_file-1.1 {
+        find_file_open/next/close size
+    } -body {
+        set tok [twapi::find_file_open C:/*]
+        set mismatch ""
+        while {[twapi::find_file_next $tok finfo]} {
+            set path [file join c:/ [dict get $finfo name]]
+            if {"directory" in [twapi::decode_file_attributes [dict get $finfo attrs]]} {
+               set expected_size 0
+            } else {
+                set expected_size [file size $path]
+            }
+            if {[dict get $finfo size] != $expected_size} {
+                append mismatch "File size mismatch for $path.\n"
+            }
+        }
+        twapi::find_file_close $tok
+        set mismatch
+    } -result ""
+
+    test find_file-1.2 {
+        find_file_open/next/close time stamps
+    } -body {
+        # TBD - Only basic test because times do not match for whatever reason
+        # between FindFile* and GetFileTime (or file size command) though
+        # verified as correctly retrieved.
+        set tok [twapi::find_file_open [info nameofexecutable]]
+        set mismatch ""
+        while {$mismatch eq "" && [twapi::find_file_next $tok finfo]} {
+            foreach t {ctime mtime atime} {
+                if {![string is entier [dict get $finfo $t]]} {
+                    append mismatch "File time stamp not a integer."
+                }
+            }
+        }
+        twapi::find_file_close $tok
+        set mismatch
+    } -result ""
+
+    test find_file-1.3.0 {
+        find_file_open/next/close altname without -detail
+    } -body {
+        set tok [twapi::find_file_open $::env(programfiles)]
+        twapi::find_file_next $tok finfo
+        twapi::find_file_close $tok
+        list [dict get $finfo name] [dict get $finfo altname]
+    } -result [list [file tail [file attributes $::env(programfiles) -longname]] {}]
+
+    test find_file-1.3.1 {
+        find_file_open/next/close altname -detail basic
+    } -body {
+        set tok [twapi::find_file_open $::env(programfiles) -detail basic]
+        twapi::find_file_next $tok finfo
+        twapi::find_file_close $tok
+        list [dict get $finfo name] [dict get $finfo altname]
+    } -result [list [file tail [file attributes $::env(programfiles) -longname]] {}]
+
+    test find_file-1.3.2 {
+        find_file_open/next/close altname -detail full
+    } -body {
+        set tok [twapi::find_file_open $::env(programfiles) -detail full]
+        twapi::find_file_next $tok finfo
+        twapi::find_file_close $tok
+        list [dict get $finfo name] [dict get $finfo altname]
+    } -result [list [file tail [file attributes $::env(programfiles) -longname]] [file tail [file attributes $::env(programfiles) -shortname]]]
+
+    test find_file-1.4.0 {
+        find_file_open/next/close attrs archive hidden system
+    } -body {
+        set tok [twapi::find_file_open c:/pagefile.sys]
+        twapi::find_file_next $tok finfo
+        twapi::find_file_close $tok
+        set attrs [twapi::decode_file_attributes [dict get $finfo attrs]]
+        lsort $attrs
+    } -result {archive hidden system}
+
+    test find_file-1.4.1 {
+        find_file_open/next/close other attributes
+    } -constraints {
+        TBD
+    } -body {
+        set tok [twapi::find_file_open $::env(systemroot)]
+        twapi::find_file_next $tok finfo
+        twapi::find_file_close $tok
+        set attrs [twapi::decode_file_attributes [dict get $finfo attrs]]
+        lsort $attrs
+    } -result {archive hidden system}
+
     ################################################################
 
     ::tcltest::cleanupTests
