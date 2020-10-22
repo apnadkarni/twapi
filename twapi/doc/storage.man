@@ -250,18 +250,18 @@ the following keys.
 [uri \#map_file_attributes [cmd map_file_attributes]] command.
 [opt_def ctime] Creation time as 100ns units since Jan 1, 1601.
 [opt_def mtime] Last modification time as 100ns units since Jan 1, 1601.
-[opt_def size] File size.
+[opt_def size] File size. This will always be 0 for directories.
 [opt_def name] File name.
 [opt_def altname] Alternate name (generally, the short name) of file, if any.
 The [cmd -detail] option to the [uri \#find_file_open [cmd find_file_open]]
-must be specified as [const standard] for this to be retrieved. The element
+must be specified as [const full] for this to be retrieved. The element
 will be present bu empty if the option was specified as [const basic] or
 if there is no alternate name.
 [list_end]
 
 Any additional dictionary keys should be ignored.
 
-[call [cmd find_file_open] [arg PATH] [opt "[cmd -detail] [const basic|standard]"]]
+[call [cmd find_file_open] [arg PATH] [opt "[cmd -detail] [const basic|full]"]]
 
 Returns a token that can be used to iterate through files with the
 [uri \#find_file_next [cmd find_file_next]] command. The iteration
@@ -271,7 +271,7 @@ by Windows and different from the patterns expected by the Tcl [cmd glob]
 command.
 
 The [cmd -detail] option may be specified as [const basic] (default) or
-[const standard]. See the [uri \#find_file_next [cmd find_file_next]]
+[const full]. See the [uri \#find_file_next [cmd find_file_next]]
 command for the difference.
 
 The returned token must be closed by calling
@@ -436,7 +436,7 @@ is a list of elements from amongst
 [const archive], [const compressed], [const device], [const directory],
 [const encrypted], [const hidden], [const integrity], [const normal],
 [const not], [const no], [const offline], [const readonly], [const recall],
-[const recall], [const reparse], [const sparse], [const attribute],
+[const recall], [const reparse], [const sparse], [const system],
 [const temporary], [const virtual]. Any bits not recognized will be returned
 as numeric values.
 

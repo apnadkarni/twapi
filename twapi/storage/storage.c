@@ -399,7 +399,7 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         }
         break;
     case 25:
-        if (TwapiGetArgs(interp, objc, objv, GETHANDLET(h, FindFirstFileExW))
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLET(h, FindFirstFileExW), ARGEND)
             != TCL_OK)
             return TCL_ERROR;
         result.value.ival = FindNextFile(h, &finder);
@@ -416,7 +416,7 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         }
         break;
     case 26:
-        if (TwapiGetArgs(interp, objc, objv, GETHANDLET(h, FindFirstFileExW))
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLET(h, FindFirstFileExW), ARGEND)
             != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;

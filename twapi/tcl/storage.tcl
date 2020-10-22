@@ -528,7 +528,7 @@ proc twapi::find_file_open {path args} {
     variable _find_tokens
     variable _find_counter
     parseargs args {
-        {detail.arg basic {basic standard}}
+        {detail.arg basic {basic full}}
     } -setvars -maxleftover 0
 
     set detail_level [expr {$detail eq "basic" ? 1 : 0}]
@@ -537,6 +537,9 @@ proc twapi::find_file_open {path args} {
     } else {
         set flags 0
     }
+    # 0 -> search op. Could be specified as 1 to limit search to
+    # directories but that is only advisory and does not seem to work
+    # in many cases. So don't bother making it an option.
     lassign [FindFirstFileEx $path $detail_level 0 "" $flags] handle entry
     set token ff#[incr _find_counter]
     set _find_tokens($token) [list Handle $handle Entry $entry]
@@ -552,7 +555,7 @@ proc twapi::find_file_close {token} {
     return
 }
 
-proc twapi::map_file_attributes {attrs} {
+proc twapi::decode_file_attributes {attrs} {
     return [_make_symbolic_bitmask $attrs {
         archive               0x20
         compressed            0x800
@@ -570,7 +573,7 @@ proc twapi::map_file_attributes {attrs} {
         recall_on_open        0x40000
         reparse_point         0x400
         sparse_file           0x200
-        attribute_system      0x4
+        system                0x4
         temporary             0x100
         virtual               0x10000
     }]
