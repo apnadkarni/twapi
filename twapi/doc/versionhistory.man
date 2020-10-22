@@ -7,6 +7,12 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
+[section "Version 4.5.0"]
+[list_begin bullet]
+[bullet]
+Added [uri storage.html#find_file_open [cmd find_file_open]] and related
+commands.
+[list_end]
 
 [section "Version 4.4.0"]
 [list_begin bullet]
