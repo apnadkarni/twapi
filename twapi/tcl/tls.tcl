@@ -317,36 +317,44 @@ proc twapi::tls::blocking {chan mode} {
 
     variable _channels
 
-    dict with _channels($chan) {
-        set Blocking $mode
+    dict set _channels($chan) Blocking $mode
 
-        if {![info exists Socket]} {
-            # We do not currently generate an error because the Tcl socket
-            # command does not either on a fconfigure when remote has
-            # closed connection
-            return
-        }
+    if {![dict exists $_channels($chan) Socket]} {
+        # We do not currently generate an error because the Tcl socket
+        # command does not either on a fconfigure when remote has
+        # closed connection
+        return
+    }
+    set so [dict get $_channels($chan) Socket]
+    fconfigure $so -blocking $mode
 
-        fconfigure $Socket -blocking $mode
+    # There is an issue with Tcl sockets created with -async switching
+    # from blocking->non-blocking->blocking and writing to the socket
+    # before connection is fully open. The internal buffers containing
+    # data that was written before the connection was open do not get
+    # flushed even if there was an explicit flush call by the application.
+    # Doing a flush after changing blocking mode seems to fix this
+    # problem. TBD - check if still the case
+    flush $so
 
-        # There is an issue with Tcl sockets created with -async switching
-        # from blocking->non-blocking->blocking and writing to the socket
-        # before connection is fully open. The internal buffers containing
-        # data that was written before the connection was open do not get
-        # flushed even if there was an explicit flush call by the application.
-        # Doing a flush after changing blocking mode seems to fix this
-        # problem.
-        flush $Socket
-        
-        if {$mode == 0} {
-            # Since we need to negotiate TLS we always have socket event
-            # handlers irrespective of the state of the watch mask
-            chan event $Socket readable [list [namespace current]::_so_read_handler $chan]
-            chan event $Socket writable [list [namespace current]::_so_write_handler $chan]
-        } else {
-            chan event $Socket readable {}
-            chan event $Socket writable {}
-        }
+    # TBD - Should we change handlers BEFORE flushing?
+
+    # The flush may recursively call event handler (possibly) which
+    # may change state so have to retrieve values from _channels again.
+    if {![dict exists $_channels($chan) Socket]} {
+        return
+    }
+    set so [dict get $_channels($chan) Socket]
+
+    if {[dict get $_channels($chan) Blocking] == 0} {
+        # Non-blocking
+        # Since we need to negotiate TLS we always have socket event
+        # handlers irrespective of the state of the watch mask
+        chan event $so readable [list [namespace current]::_so_read_handler $chan]
+        chan event $so writable [list [namespace current]::_so_write_handler $chan]
+    } else {
+        chan event $so readable {}
+        chan event $so writable {}
     }
     return
 }
@@ -355,32 +363,31 @@ proc twapi::tls::watch {chan watchmask} {
     debuglog [info level 0]
     variable _channels
 
-    dict with _channels($chan) {
-        set WatchMask $watchmask
-        if {"read" in $watchmask} {
-            # Post a read even if we already have input or if the 
-            # underlying socket has gone away.
-            # TBD - do we have a mechanism for continuously posting
-            # events when socket has gone away ? Do we even post once
-            # when socket is closed (on error for example)
-            if {[string length $Input] || ![info exists Socket]} {
-                _post_read_event $chan
-            }
-            # Turn read handler back on in case it had been turned off.
-            chan event $Socket readable [list [namespace current]::_so_read_handler $chan]
-        }
+    dict set _channels($chan) WatchMask $watchmask
 
-        # TBD - do we need to turn write handler back on?
-        if {"write" in $watchmask} {
-            # We will mark channel as writable even if we are still
-            # initializing. This is to deal with the case where 
-            # the -async option is used and caller waits for the
-            # writable event to do the actual write (which will then
-            # trigger the negotiation if needed)
-            if {$State in {OPEN SERVERINIT CLIENTINIT NEGOTIATING}} {
-                _post_write_event $chan
-            }
+    if {"read" in $watchmask} {
+        # Post a read even if we already have input or if the
+        # underlying socket has gone away.
+        # TBD - do we have a mechanism for continuously posting
+        # events when socket has gone away ? Do we even post once
+        # when socket is closed (on error for example)
+        if {[string length [dict get $_channels($chan) Input]] || ![dict exists $_channels($chan) Socket]} {
+            _post_read_event $chan
         }
+        # Turn read handler back on in case it had been turned off.
+        chan event [dict get $_channels($chan) Socket] readable [list [namespace current]::_so_read_handler $chan]
+    }
+
+    if {"write" in [dict get $_channels($chan) WatchMask]} {
+        # We will mark channel as writable even if we are still
+        # initializing. This is to deal with the case where
+        # the -async option is used and caller waits for the
+        # writable event to do the actual write (which will then
+        # trigger the negotiation if needed)
+        if {[dict get $_channels($chan) State] in {OPEN SERVERINIT CLIENTINIT NEGOTIATING}} {
+            _post_write_event $chan
+        }
+        # TBD - do we need to turn write handler back on?
     }
 
     return
