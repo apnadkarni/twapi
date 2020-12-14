@@ -57,6 +57,10 @@ can be used to check if a process is waiting
 for input, and more specifically if it has finished initialization.
 
 [para]
+[uri \#get_process_memory_info [cmd get_process_memory_info]]
+retrieves the memory statistics for a process.
+
+[para]
 [uri \#get_process_modules [cmd get_process_modules]]
 retrieves information pertaining to the
 modules and DLL's loaded into a process. The commands
@@ -332,7 +336,7 @@ Caller should not rely on this.
 [list_end]
 
 [call [cmd expand_environment_strings] [arg STRING]]
-[emph Deprecated.] 
+[emph Deprecated.]
 See [uri #expand_environment_vars [cmd expand_environment_vars]].
 
 [call [cmd expand_environment_vars] [arg STRING]]
@@ -344,7 +348,7 @@ are not replaced.
 
 [call [cmd expand_system_environment_vars] [arg STRING]]
 Returns the string formed by replacing all environment variable references in
-[arg STRING] with their value defined in the [emph system] 
+[arg STRING] with their value defined in the [emph system]
 environment variables ([emph not] from the current process environment).
 Environment variable references are in the
 form [arg %ENVIRONMENTVAR%]. References to undefined environment variables
@@ -654,6 +658,39 @@ or with a handle to it through the [cmd -hprocess] option.
 See
 [uri security.html#get_token_integrity [cmd get_token_integrity]] for
 details on the other options, return value and semantics of this command.
+
+[call [cmd get_process_memory_info] [opt [arg PID]]]
+
+Returns a dictionary containing memory statistics for the process with
+the specified PID. If no argument is provided, returns the statistics
+for the current process. The returned dictionary has the following keys:
+
+[list_begin opt]
+[opt_def [cmd -pagefaults]]
+Number of page faults for the process.
+[opt_def [cmd -pagefilebytes]]
+Returns total number of bytes in use for this process in all the
+system paging files.
+[opt_def [cmd -pagefilebytespeak]]
+Returns the maximum number of bytes that have been used for this
+process in the system paging file since the process started.
+[opt_def [cmd -poolnonpagedbytes]]
+Returns the number of bytes of nonpaged pool memory in use for the process.
+[opt_def [cmd -poolnonpagedbytes]]
+Returns the peak number of bytes of nonpaged pool memory in use for the process.
+[opt_def [cmd -poolpagedbytes]]
+Returns the number of bytes of paged pool memory in use for the process.
+[opt_def [cmd -poolpagedbytespeak]]
+Returns the peak number of bytes of paged pool memory in use for the process.
+[opt_def [cmd -privateusage]]
+Total amount of private memory that the memory manager has committed for
+the process.
+[opt_def [cmd -workingset]]
+Returns the number of bytes currently in the process' working set.
+[opt_def [cmd -workingsetpeak]]
+Returns the maximum number of bytes in the process' working set since
+it began execution.
+[list_end]
 
 [call [cmd get_process_modules] [arg PID] [opt [arg options]]]
 This command returns information about the modules loaded in the

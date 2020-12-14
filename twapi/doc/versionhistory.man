@@ -12,6 +12,8 @@ Summarizes the list of changes for each version of TWAPI.
 [bullet]
 Added [uri storage.html#find_file_open [cmd find_file_open]] and related
 commands.
+[bullet]
+Added [uri process.html#get_process_memory_info [cmd get_process_memory_info]].
 [list_end]
 
 [section "Version 4.4.0"]
