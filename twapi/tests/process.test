@@ -1,4 +1,4 @@
-# Copyright (c) 2003-2014, Ashok P. Nadkarni
+# Copyright (c) 2003-2020, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -989,10 +989,10 @@ namespace eval ::twapi::process::test {
         after 100
         twapi::process_exists $notepad_pid
     } -result 0
-    
-    
+
+
     ################################################################
-    
+
     test get_thread_parent_process_id-1.0 {
         Get process id of current thread
     } -constraints {
@@ -1000,9 +1000,9 @@ namespace eval ::twapi::process::test {
     } -body {
         twapi::get_thread_parent_process_id [twapi::get_current_thread_id]
     } -result [pid]
-    
+
     ###
-    
+
     test get_thread_parent_process_id-1.1 {
         Get process id of a thread in some other process
     } -constraints {
@@ -1011,9 +1011,9 @@ namespace eval ::twapi::process::test {
         get_threads [get_explorer_pid]
         twapi::get_thread_parent_process_id [lindex [get_process_tids [get_explorer_pid]] 0]
     } -result [get_explorer_pid]
-    
+
     ################################################################
-    
+
     test get_process_thread_ids-1.0 {
         Get list of thread ids in a process
     } -constraints {
@@ -1023,9 +1023,9 @@ namespace eval ::twapi::process::test {
         set pid [get_explorer_pid]
         setops::symdiff [twapi::get_process_thread_ids $pid] [get_process_tids $pid]
     } -result ""
-    
+
     ################################################################
-    
+
     test get_process_info-1.0 {
         Verify get_process_info with no options specified
     } -constraints {
@@ -1033,7 +1033,7 @@ namespace eval ::twapi::process::test {
     } -body {
         twapi::get_process_info [pid]
     } -result ""
-    
+
     ###
 
     test get_process_info-2.0 {
@@ -1311,7 +1311,7 @@ namespace eval ::twapi::process::test {
             }
         " -result ""
     }
-    
+
     ### Option tests - numeric type fields - approximate match
     # Note when comparing values, the WMI code to get values is potentially
     # scaled on different platforms. Hence we pass 1024 as a potential
@@ -3040,6 +3040,58 @@ namespace eval ::twapi::process::test {
         TBD
     }
 
+    ################################################################
+    proc memory_info_check {pid meminfo} {
+        array set procinfo $meminfo
+        set result ""
+        foreach field {
+            -workingsetpeak -workingset
+            -poolpagedbytes -poolnonpagedbytes
+            -pagefilebytes -pagefilebytespeak
+        } {
+            set checkval [get_process_field $pid $field]
+            if {![approx $checkval $procinfo($field)]} {
+                append result "Mismatch in $field. $checkval !~ $procinfo($field).\n"
+            }
+        }
+        if {![string is entier $procinfo(-pagefaults)]} {
+            append result "Invalid -pagefault field.\n"
+        }
+        if {$procinfo(-poolpagedbytespeak) < $procinfo(-poolpagedbytes)} {
+            append result "-poolpagedbytespeak < -poolpagedbytes. ($procinfo(-poolpagedbytespeak) < $procinfo(-poolpagedbytes)).\n"
+        }
+        if {$procinfo(-poolnonpagedbytespeak) < $procinfo(-poolnonpagedbytes)} {
+            append result "-poolnonpagedbytespeak < -poolnonpagedbytes. ($procinfo(-poolnonpagedbytespeak) < $procinfo(-poolnonpagedbytes)).\n"
+        }
+        if {$procinfo(-privatebytes) > $procinfo(-pagefilebytespeak)} {
+            append result "-privatebytes > -pagefilebytespeak. ($procinfo(-privatebytes) > $procinfo(-pagefilebytespeak)).\n"
+        }
+        return $result
+    }
+    test get_process_memory_info-1.0 {
+        get_process_memory_info - no args
+    } -constraints {
+        nt
+    } -body {
+        memory_info_check [pid] [twapi::get_process_memory_info]
+    } -result ""
+
+    test get_process_memory_info-1.1 {
+        get_process_memory_info current process
+    } -constraints {
+        nt
+    } -body {
+        memory_info_check [pid] [twapi::get_process_memory_info [pid]]
+    } -result ""
+
+    test get_process_memory_info-1.2 {
+        get_process_memory_info another process
+    } -constraints {
+        nt
+    } -body {
+        set pid [get_explorer_pid]
+        memory_info_check $pid [twapi::get_process_memory_info $pid]
+    } -result ""
     ################################################################
 
 }

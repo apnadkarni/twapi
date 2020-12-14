@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003-2015, Ashok P. Nadkarni
+# Copyright (c) 2003-2020, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -55,7 +55,7 @@ proc twapi::create_process {path args} {
 
         token.arg
     } -maxleftover 0]
-                    
+
     set process_sec_attr [_make_secattr $opts(childprocesssecd) $opts(inheritablechildprocess)]
     set thread_sec_attr [_make_secattr $opts(childthreadsecd) $opts(inheritablechildthread)]
 
@@ -338,7 +338,7 @@ proc twapi::get_process_ids {args} {
     if {[info exists opts(path)] == 0 &&
         [info exists opts(logonsession)] == 0} {
         if {![info exists opts(user)]} {
-            # How did we get here? 
+            # How did we get here?
             error "Internal error - option -user not specified where expected"
         }
         if {[catch {map_account_to_sid $opts(user)} sid]} {
@@ -385,22 +385,47 @@ proc twapi::get_process_ids {args} {
     if {[info exists opts(path)]} {
         lappend popts -path
         lappend filter_expr [list -path $match_op $opts(path) -nocase]
-    } 
+    }
 
     if {[info exists opts(user)]} {
         lappend popts -user
         lappend filter_expr [list -user eq $opts(user) -nocase]
-    } 
+    }
     if {[info exists opts(logonsession)]} {
         lappend popts -logonsession
         lappend filter_expr [list -logonsession eq $opts(logonsession) -nocase]
-    } 
+    }
 
 
     set matches [recordarray get [get_multiple_process_info -matchpids $all_pids {*}$popts] -filter $filter_expr]
     return [recordarray column $matches -pid]
 }
 
+proc twapi::get_process_memory_info {{pid {}}} {
+    variable my_process_handle
+
+    if {$pid eq "" || $pid == [pid]} {
+        set hpid $my_process_handle
+    } else {
+        set hpid [get_process_handle $pid -access {process_query_information process_vm_read}]
+    }
+
+    try {
+        # Note: -pagefileusage and -privateusage are same according to SDK.
+        # However for Win7 and earlier, -pagefileusage is always set to 0.
+        # We return what was given and not try to fix it up.
+        return [twine {
+            -pagefaults -workingsetpeak -workingset
+            -poolpagedbytespeak -poolpagedbytes
+            -poolnonpagedbytespeak -poolnonpagedbytes
+            -pagefilebytes -pagefilebytespeak -privatebytes
+        } [GetProcessMemoryInfo $hpid]]
+    } finally {
+        if {$hpid != $my_process_handle} {
+            CloseHandle $hpid
+        }
+    }
+}
 
 # Return list of modules handles for a process
 proc twapi::get_process_modules {pid args} {
@@ -424,7 +449,7 @@ proc twapi::get_process_modules {pid args} {
                 lappend fields -$opt
             }
         }
-        
+
     }
 
     if {$pid == [pid]} {

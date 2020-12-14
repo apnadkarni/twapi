@@ -7,6 +7,10 @@
 
 /* Define interface to Windows API related to process information */
 
+/*  TBD - Vista and later - use QueryFullProcessImageName to get process image
+    name since GetProcessImageName etc. have issues. See end of Jobs chapter
+    in Richter's Windows via C/C++ */
+
 #include "twapi.h"
 
 #ifndef TWAPI_SINGLE_MODULE
@@ -1269,7 +1273,7 @@ static int TwapiProcessInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(ProcessIdToSessionId, 14),
         DEFINE_FNCODE_CMD(OpenProcess, 15),
         DEFINE_FNCODE_CMD(OpenThread, 16),
-        DEFINE_FNCODE_CMD(GetProcessMemoryInfo, 17), // TBD - Tcl
+        DEFINE_FNCODE_CMD(GetProcessMemoryInfo, 17),
         DEFINE_FNCODE_CMD(IsWow64Process, 18),
         DEFINE_FNCODE_CMD(ResumeThread, 19),
         DEFINE_FNCODE_CMD(SuspendThread, 20),
