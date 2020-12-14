@@ -746,9 +746,11 @@ proc twapi::tls::_cleanup_failed_accept {chan} {
     }
 }
 
-proc twapi::tls::record_background_error {result ropts} {
-    # TBD - document that application can override
-    return -options $ropts $result
+# TBD - document that application can override
+if {[llength [info commands ::twapi::tls::record_background_error]] == 0} {
+    proc twapi::tls::record_background_error {result ropts} {
+        return -options $ropts $result
+    }
 }
 
 proc twapi::tls::_negotiate_from_handler {chan} {
