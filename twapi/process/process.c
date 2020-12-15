@@ -1282,7 +1282,7 @@ static int TwapiProcessInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_NtQueryInformationThreadBasicInformation, 23),
         DEFINE_FNCODE_CMD(GetThreadPriority, 24),
         DEFINE_FNCODE_CMD(GetExitCodeProcess, 25),
-        DEFINE_FNCODE_CMD(GetProcessImageFileName, 26), /* TBD - Tcl wrapper */
+        DEFINE_FNCODE_CMD(GetProcessImageFileName, 26),
         DEFINE_FNCODE_CMD(GetDeviceDriverBaseName, 27),
         DEFINE_FNCODE_CMD(GetDeviceDriverFileName, 28),
         DEFINE_FNCODE_CMD(WaitForInputIdle, 29),

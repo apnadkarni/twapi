@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2004-2012 Ashok P. Nadkarni
  * All rights reserved.
  *
@@ -43,7 +43,7 @@ static DLLVERSIONINFO *TwapiShellVersion()
 {
     static DLLVERSIONINFO shellver;
     static int initialized = 0;
-    
+
     if (! initialized) {
         TwapiGetDllVersion("shell32.dll", &shellver);
         initialized = 1;
@@ -1025,7 +1025,7 @@ static int TwapiShellInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     static struct fncode_dispatch_s ShellDispatch[] = {
         DEFINE_FNCODE_CMD(Twapi_ReadShortcut, 2),
         DEFINE_FNCODE_CMD(Twapi_InvokeUrlShortcut, 3),
-        DEFINE_FNCODE_CMD(SHInvokePrinterCommand, 4), // TBD - Tcl
+        DEFINE_FNCODE_CMD(SHInvokePrinterCommand, 4), // Deprecated in lieu of ShellExecute
         DEFINE_FNCODE_CMD(Twapi_GetShellVersion, 5),
         DEFINE_FNCODE_CMD(SHGetFolderPath, 6),
         DEFINE_FNCODE_CMD(SHGetSpecialFolderPath, 7),

@@ -7,13 +7,8 @@
 [description]
 
 [para]
-This module provides procedures to read and write the clipboard.
-
-[section Overview]
-
-The command [uri \#read_clipboard [cmd read_clipboard]]
-and [uri \#write_clipboard [cmd write_clipboard]] allow reading and
-writing to the Windows clipboard. Tcl/Tk has a [cmd clipboard]
+This module provides procedures to read and write the clipboard as well
+as to monitor changes. Tcl/Tk has a [cmd clipboard]
 command that provides similar functionality. The [cmd TWAPI] commands
 are useful in two circumstances:
 [list_begin bullet]
@@ -24,6 +19,19 @@ command may be used to access the clipboard in this case.
 into the clipboard.
 [list_end]
 In other cases, the Tcl/Tk [cmd clipboard] command should be preferred.
+
+[section "Clipboard ownership"]
+
+Access to the clipboard requires it to be first opened with
+[uri #open_clipboard [cmd open_clipboard]] and closed afterwards with
+[uri #close_clipboard [cmd close_clipboard]]. However, several commands will
+do this on behalf of the caller if the clipboard was not already opened.
+
+[para]
+The [uri #get_clipboard_owner [cmd get_clipboard_owner]] and
+[uri #get_open_clipboard_window [cmd get_open_clipboard_window]] return
+information about the clipboard owner and the window
+that has the clipboard open.
 
 [section "Clipboard formats"]
 
@@ -96,6 +104,10 @@ To read data from the clipboard, call
 An application can monitor the clipboard by calling
 [uri #start_clipboard_monitor [cmd start_clipboard_monitor]] to set up a notification
 callback that is invoked when the contents of the clipboard change.
+The clipboard also maintains a sequence number that is incremented on every
+change. This sequence number can be retrieved with
+[uri #get_clipboard_sequence [cmd get_clipboard_sequence]].
+
 
 [section Commands]
 [list_begin definitions]
@@ -119,6 +131,22 @@ previously opened with [uri \#open_clipboard [cmd open_clipboard]].
 [call [cmd get_clipboard_formats]]
 Returns a list of the formats currently available in the clipboard. The
 clipboard must have been opened before this function is called.
+
+[call [cmd get_clipboard_owner]]
+Returns the window handle of the window that owns the clipboard. This is
+the window associated with the last call to [cmd EmptyClipboard] and is
+generally the window that last wrote to the clipboard. The returned window
+handle may be NULL if the clipboard is not currently owned.
+
+[call [cmd get_clipboard_sequence]]
+Returns the current clipboard sequence number. This number is incremented
+every time the clipboard changes and can therefore be used by applications
+that track the clipboard to figure out if the contents have changed.
+
+[call [cmd get_open_clipboard_window]]
+Returns the window handle of the window that has the clipboard open.
+This may be NULL if no window has the clipboard open or if the current
+[cmd OpenClipboard] call specified a NULL window handle.
 
 [call [cmd get_registered_clipboard_format_name] [arg FORMAT]]
 Returns the name associated with a registered clipboard format. [arg FORMAT]

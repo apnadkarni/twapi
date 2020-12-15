@@ -1,10 +1,9 @@
 /*
- * Copyright (c) 2004-2010, Ashok P. Nadkarni
+ * Copyright (c) 2004-2020, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
  */
-/* TBD - GetClipboardSequenceNumber */
 
 #include "twapi.h"
 #include "twapi_wm.h"
@@ -232,6 +231,10 @@ static TCL_RESULT Twapi_ClipboardCallObjCmd(ClientData clientdata, Tcl_Interp *i
         result.value.ival = OpenClipboard(hwnd);
         result.type = TRT_EXCEPTION_ON_FALSE;
         break;
+    case 14:
+        result.value.uval = GetClipboardSequenceNumber();
+        result.type = TRT_DWORD;
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -244,8 +247,10 @@ static int TwapiClipboardInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(Twapi_EnumClipboardFormats, 1),
         DEFINE_ALIAS_CMD(CloseClipboard, 2),
         DEFINE_ALIAS_CMD(EmptyClipboard, 3),
-        DEFINE_ALIAS_CMD(GetOpenClipboardWindow, 4), /* TBD - Tcl */
-        DEFINE_ALIAS_CMD(GetClipboardOwner, 5), /* TBD - Tcl */
+        DEFINE_ALIAS_CMD(GetOpenClipboardWindow, 4),
+        DEFINE_ALIAS_CMD(get_open_clipboard_window, 4),
+        DEFINE_ALIAS_CMD(GetClipboardOwner, 5),
+        DEFINE_ALIAS_CMD(get_clipboard_owner, 5),
         DEFINE_ALIAS_CMD(Twapi_ClipboardMonitorStart, 6),
         DEFINE_ALIAS_CMD(Twapi_ClipboardMonitorStop, 7),
         DEFINE_ALIAS_CMD(IsClipboardFormatAvailable, 8),
@@ -254,6 +259,8 @@ static int TwapiClipboardInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(SetClipboardData, 11),
         DEFINE_ALIAS_CMD(RegisterClipboardFormat, 12),
         DEFINE_ALIAS_CMD(OpenClipboard, 13),
+        DEFINE_ALIAS_CMD(GetClipboardSequenceNumber, 14),
+        DEFINE_ALIAS_CMD(get_clipboard_sequence, 14),
     };
 
 

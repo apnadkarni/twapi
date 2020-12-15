@@ -4,11 +4,6 @@
 #
 # See the file LICENSE for license
 
-# TBD - allow access rights to be specified symbolically using procs
-# from security.tcl
-# TBD - add -user option to get_process_info and get_thread_info
-# TBD - add wrapper for GetProcessExitCode
-
 namespace eval twapi {}
 
 
