@@ -12,6 +12,12 @@ Summarizes the list of changes for each version of TWAPI.
 [bullet]
 Added [uri storage.html#find_file_open [cmd find_file_open]] and related
 commands.
+
+[bullet]
+Added [uri clipboard.html#get_clipboard_sequence [cmd get_clipboard_sequence]],
+[uri clipboard.html#get_clipboard_owner [cmd get_clipboard_owner]],
+[uri clipboard.html#get_open_clipboard_window [cmd get_open_clipboard_window]].
+
 [bullet]
 Added [uri process.html#get_process_memory_info [cmd get_process_memory_info]].
 [list_end]

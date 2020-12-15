@@ -5,9 +5,8 @@
 # See the file LICENSE for license
 
 # TBD - tests  comobj? works with derived classes of Automation
-# TBD - document and test -iterate -cleanup option
 
-# TBD - object identity comparison 
+# TBD - object identity comparison
 #   - see http://blogs.msdn.com/ericlippert/archive/2005/04/26/412199.aspx
 # TBD - we seem to resolve UDT's every time a COM method is actually invoked.
 # Optimize by doing it when prototype is stored or only the first time it
@@ -16,7 +15,7 @@
 # is read.
 
 # TBD - optimize comobj unknown by caching previously resolved names
-# 
+#
 
 
 namespace eval twapi {
@@ -162,7 +161,7 @@ proc twapi::com_query_proxy_blanket {ifc} {
                 -clientprincipal $client \
                 -cloaking $cloaking \
                ]
-            
+
 }
 
 proc twapi::com_initialize_security {args} {
@@ -176,7 +175,7 @@ proc twapi::com_initialize_security {args} {
         appid.arg
         authenticationservices.arg
     } -maxleftover 0 -setvars
-    
+
     if {[info exists secd] && [info exists appid]} {
         badargs! "Only one of -secd and -appid can be specified."
     }
@@ -355,8 +354,8 @@ proc twapi::com_create_instance {clsid args} {
     set ifc [cast_handle $ifc $iid_name]
 
     if {[info exists activation_blanket]} {
-        # In order for servers to release objects properly, the IUnknown 
-        # interface must have the same security settings as were used in 
+        # In order for servers to release objects properly, the IUnknown
+        # interface must have the same security settings as were used in
         # the object creation
         _com_set_iunknown_proxy $ifc $activation_blanket
     }
@@ -483,7 +482,7 @@ proc twapi::ITypeLibProxy_from_guid {uuid major minor args} {
     array set opts [parseargs args {
         lcid.int
     } -maxleftover 0 -nulldefault]
-    
+
     return [make_interface_proxy [LoadRegTypeLib $uuid $major $minor $opts(lcid)]]
 }
 

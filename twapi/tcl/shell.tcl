@@ -252,7 +252,6 @@ proc twapi::invoke_url_shortcut {link args} {
         setbits flags 2
         set opts(verb) ""
     }
-    
 
     Twapi_InvokeUrlShortcut $link $opts(verb) $flags $opts(hwin)
 }
@@ -264,7 +263,6 @@ proc twapi::recycle_file {fn args} {
 
 # Send multiple files to the recycle bin - from Alexandru
 # This is much faster than "recycle_file"!
-# TBD - document
 proc twapi::recycle_files {fns args} {
     array set opts [parseargs args {
         confirm.bool
@@ -290,7 +288,6 @@ proc twapi::recycle_files {fns args} {
 
 proc twapi::shell_execute args {
     # TBD - Document following shell_execute options after testing.
-    # [opt_def [cmd -class] [arg CLASS]] - see https://blogs.msdn.microsoft.com/oldnewthing/20100701-00/?p=13543 and https://blogs.msdn.microsoft.com/oldnewthing/20171220-00/?p=97615
     # [opt_def [cmd -connect] [arg BOOLEAN]]
     # [opt_def [cmd -hicon] [arg HANDLE]]
     # [opt_def [cmd -hkeyclass] [arg BOOLEAN]]
@@ -445,7 +442,7 @@ namespace eval twapi::systemtray {
         1028 balloontimeout
         1029 balloonuserclick
     }
-        
+
     proc _make_NOTIFYICONW {id args} {
         # TBD - implement -hiddenicon and -sharedicon using
         # dwState and dwStateMask
@@ -563,9 +560,9 @@ namespace eval twapi::systemtray {
 
         _register_script_wm_handler [_get_script_wm NOTIFY_ICON_CALLBACK] [list [namespace current]::_icon_handler] 1
         _register_script_wm_handler [_get_script_wm TASKBAR_RESTART] [list [namespace current]::_taskbar_restart_handler] 1
-        
+
         set id [incr _icon_id_ctr]
-        
+
         # 0 -> Add
         Shell_NotifyIcon 0 [_make_NOTIFYICONW $id -hicon $hicon]
 

@@ -217,7 +217,7 @@ namespace eval twapi::clipboard::test {
         twapi::close_clipboard
         list [twapi::read_clipboard_text] [twapi::read_clipboard_paths]
     } -result [list "This is plain text" [list "C:/temp/foo bar" "C:/xxx/yyy.zzz"]]
-        
+
     test write_clipboard-2.1 {
         Write multiple formats to the clipboard - fail
     } -body {
@@ -227,7 +227,7 @@ namespace eval twapi::clipboard::test {
         # so there will be no file paths stored in clipboard
         list [twapi::read_clipboard_text] [catch {twapi::read_clipboard_paths}]
     } -result [list "This is plain text" 1]
-        
+
     ################################################################
 
     test write_clipboard_text-1.0 {
@@ -271,18 +271,28 @@ namespace eval twapi::clipboard::test {
     } -result "write_clipboard_text-1.0\nSecond line"
 
     ################################################################
-    
+
     test write_clipboard_paths-1.0 {
         Write paths to the clipboard, without opening clipboard
     } -body {
         set paths [list foo [file nativename [info nameofexecutable]]]
         twapi::write_clipboard_paths $paths
-        twapi::read_clipboard_paths 
+        twapi::read_clipboard_paths
     } -result [list [file normalize foo] [file normalize [info nameofexecutable]]]
-    
+
 
     ################################################################
 
+    test get_clipboard_sequence-1.0 {
+        Clipboard sequence number
+    } -body {
+        set oldseq [twapi::get_clipboard_sequence]
+        twapi::write_clipboard_text "This is plain text"
+        set newseq [twapi::get_clipboard_sequence]
+        expr {$newseq >= [incr oldseq]}
+    } -result 1
+
+    ################################################################
     test start_clipboard_monitor-1.0 {
         Monitor the clipboard
     } -constraints {
@@ -318,6 +328,26 @@ namespace eval twapi::clipboard::test {
         update;                 # So callback runs if still registered
         set ::clipboard_changed
     } -result false
+
+    ################################################################
+
+    test get_clipboard_owner-1.0 {
+        Get clipboard owner
+    } -body {
+        twapi::get_clipboard_owner
+    } -match handle -result HWND
+
+    ################################################################
+
+    test get_open_clipboard_window-1.0 {
+        Get open clipboard owner
+    } -setup {
+        twapi::open_clipboard
+    } -cleanup {
+        twapi::close_clipboard
+    } -body {
+        twapi::get_clipboard_owner
+    } -match handle -result HWND
 
     ################################################################
 
