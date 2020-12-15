@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "SSL/TLS" n ""]
-[copyright "2013 Ashok P. Nadkarni"]
+[copyright "2013-2020 Ashok P. Nadkarni"]
 [moddesc "Transport Layer Security"]
 [titledesc "Secure Sockets Layer and Transport Layer Security Channels"]
 [require twapi_crypto]
@@ -10,8 +10,8 @@
 [emph "This module is still experimental and liable to change."]
 
 [para]
-This package provides a Tcl channel facility that implements 
-the Secure Sockets Layer / Transport Layer Security 
+This package provides a Tcl channel facility that implements
+the Secure Sockets Layer / Transport Layer Security
 (collectively referred to as TLS) on top
 of the Windows Security Service
 Provider Interface (SSPI) interface.
@@ -28,11 +28,15 @@ The [uri #tls_handshake [cmd tls_handshake]] command completes
 negotiation on a TLS channel. The current channel state can be retrieved
 with [uri #tls_state [cmd tls_state]].
 
-Channels are closed using either
-the [uri #tls_close [cmd tls_close]] command 
-or the Tcl [cmd close] command. The former permits half-closing of the
-output side of the channel which the latter does not allow for reflected
-channels.
+Channels are closed using either the [uri #tls_close [cmd tls_close]] command or
+the Tcl [cmd close] command. The former permits half-closing of the output side
+of the channel which the latter does not allow for reflected channels.
+
+[section "Error handling"]
+
+Errors that occur in the background are reported by [cmd twapi_tls] by
+calling the internal command [uri #tls_background_error [cmd tls_background_error]].
+This command may be overridden by applications.
 
 [section Commands]
 
@@ -40,15 +44,15 @@ channels.
 [call [cmd starttls] [arg CHAN] [opt [cmd -server]] [opt [arg options]]]
 Returns a new TLS channel that wraps an existing channel [arg CHAN].
 [arg CHAN] must be in an open state.
-Caller should use the returned channel and must not access [arg CHAN] 
+Caller should use the returned channel and must not access [arg CHAN]
 directly after the command returns, [emph "even on errors"].
 By default, the returned
-channel is for the client end of the connection. 
+channel is for the client end of the connection.
 If the option [cmd -server] is specified the channel corresponds
 to the server end. This impacts how authentication and certificate
 validation is handled.
 [nl]
-The newly returned channel has the same settings for 
+The newly returned channel has the same settings for
 [cmd -buffering], [cmd -buffersize], [cmd -encoding], [cmd -eofchar]
 and [cmd -translation] as the wrapped channel [arg CHAN]. The
 setting for [cmd -blocking] is also preserved.
@@ -67,9 +71,24 @@ Specifies the subject name to be verified on the remote certificate.
 Must be specified for client side connections and
 must not be specified for server-side connections.
 [opt_def [cmd -verifier] [arg VERIFYCOMMAND]]
-Specifies a callback to invoke to verify remote credentials. 
+Specifies a callback to invoke to verify remote credentials.
 See [uri #tls_socket [cmd tls_socket]] for details.
 [list_end]
+
+[call [cmd tls_background_error] [arg MESSAGE] [arg OPTIONDICT]]
+
+This command is internally called by [cmd twapi_tls] to report errors in event
+handler during negotiation etc. The default implementation simply raises an
+exception which causes the event loop to report the error via the [cmd bgerror]
+mechanism. An application may override this if it so chooses, for example to log
+or change the message etc.. However, the application defined command must also
+raise an exception but has the option of doing so with a different message,
+error code and options dictionary. If the application defined command returns
+normally, [cmd twapi_tls] will itself raise the original exception.
+
+[nl]
+The command is passed the original error message as [arg MESSAGE] and the
+error options dictionary as [arg OPTIONDICT].
 
 [call [cmd tls_close] [arg CHAN] [opt [arg DIRECTION]]]
 Closes the specified TLS channel. This command is similar to the
@@ -135,7 +154,7 @@ connections.
 [opt_def [cmd -requestclientcert]]
 Indicates that the client should be asked to send its certificate.
 Only applicable to server side sockets and is ignored if
-[cmd -server] is not specified. 
+[cmd -server] is not specified.
 [emph {
     Note that this option only results in the client being requested
     for its certificate. Unlike server certificates, client certificates
@@ -145,14 +164,14 @@ Applications must themselves check that a certificate was received
 and validate it, generally by specifying a verification callback
 via the [cmd -verifier] option.
 [opt_def [cmd -verifier] [arg VERIFYCOMMAND]]
-Specifies a callback to invoke to verify remote credentials. 
+Specifies a callback to invoke to verify remote credentials.
 The [arg VERIFYCOMMAND] command prefix is invoked with two additional
 parameters - the channel and a handle to the
 [uri sspi.html "security context"] for the connection. If the command
 returns a [const true] value, the connection is completed. For any other
 values or errors, the connection is aborted. The callback can
 retrieve the remote certificate from the passed
-security context with the 
+security context with the
 [uri sspi.html#sspi_remote_cert [cmd sspi_remote_cert]] command
 and use [uri crypto.html#cert_tls_verify [cmd cert_tls_verify]]
 to validate it.

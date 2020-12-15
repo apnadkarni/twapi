@@ -1,3 +1,8 @@
+#
+# Copyright (c) 2012-2020, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
 namespace eval twapi::tls {
     # Each element of _channels is dictionary with the following keys
     #  Socket - the underlying socket. This key will not exist if
@@ -746,9 +751,8 @@ proc twapi::tls::_cleanup_failed_accept {chan} {
     }
 }
 
-# TBD - document that application can override
-if {[llength [info commands ::twapi::tls::record_background_error]] == 0} {
-    proc twapi::tls::record_background_error {result ropts} {
+if {[llength [info commands ::twapi::tls_background_error]] == 0} {
+    proc twapi::tls_background_error {result ropts} {
         return -options $ropts $result
     }
 }
@@ -774,7 +778,10 @@ proc twapi::tls::_negotiate_from_handler {chan} {
         # For SERVER sockets, force error because no other way
         # to record some error happened.
         if {[dict get $_channels($chan) Type] eq "SERVER"} {
-            twapi::tls::record_background_error $result $ropts
+            ::twapi::tls_background_error $result $ropts
+            # Above should raise an error, else do it ourselves
+            # since stack needs to be rewound
+            return -options $ropts $result
         }
         return 0
     }
