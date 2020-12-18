@@ -20,10 +20,11 @@ Added [uri clipboard.html#get_clipboard_sequence [cmd get_clipboard_sequence]],
 
 [bullet]
 Added [uri process.html#get_process_memory_info [cmd get_process_memory_info]].
-[list_end]
 
 [bullet]
 Added [uri tls.html#tls_background_error [cmd tls_background_error]].
+
+[list_end]
 
 [section "Version 4.4.0"]
 [list_begin bullet]

@@ -31,6 +31,7 @@
   <li>Browse the <a href="https://sourceforge.net/p/twapi/code/">source repository</a></li>
   <li>Documentation for older versions: 
     <!-- NOTE: Explicit HTTP links because older doc versions do not support https due to http links to yahoo yui css -->
+    <a href="http://twapi.magicsplat.com/v4.4/index.html">4.4</a>
     <a href="http://twapi.magicsplat.com/v4.3/index.html">4.3</a>
     <a href="http://twapi.magicsplat.com/v4.2/index.html">4.2</a>
     <a href="http://twapi.magicsplat.com/v4.1/index.html">4.1</a>
