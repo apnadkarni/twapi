@@ -97,7 +97,7 @@ A modifier may be one of [const ctrl] (or [const control]),
 [const alt] (or [const menu]), [const shift] or
 [const win]. The key code itself may be a single alphanumeric character,
 one of the virtual key names, such as [const F9], listed in
-[uri \#send_input [cmd send_input]],
+[uri \#send_keys [cmd send_keys]] (but without the surrounding braces),
 or the actual virtual key code itself. Examples are
 [const ctrl-alt-a], [const shift-f9] and [const ctrl-alt-65].
 
