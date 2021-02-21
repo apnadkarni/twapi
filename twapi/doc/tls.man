@@ -173,7 +173,7 @@ values or errors, the connection is aborted. The callback can
 retrieve the remote certificate from the passed
 security context with the
 [uri sspi.html#sspi_remote_cert [cmd sspi_remote_cert]] command
-and use [uri crypto.html#cert_tls_verify [cmd cert_tls_verify]]
+and use [uri certs.html#cert_tls_verify [cmd cert_tls_verify]]
 to validate it.
 [nl]
 For client-side
