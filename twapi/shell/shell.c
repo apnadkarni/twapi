@@ -6,6 +6,7 @@
  */
 
 /* TBD - move theme functions to UI module ? */
+/* TBD - SHLoadIndirectString */
 
 #include "twapi.h"
 #include <initguid.h> /* GUIDs in all included files below this will be instantiated */

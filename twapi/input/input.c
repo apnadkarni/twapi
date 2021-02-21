@@ -367,10 +367,11 @@ static int Twapi_InputCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         break;
     case 12:
         if (objc != 3) {
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
+            result.type = TRT_TWAPI_ERROR;
+            result.value.ival = TWAPI_BAD_ARG_COUNT;
         }
         else {
-            WCHAR ch = *Tcl_GetUnicode(objv[2]);
+            WCHAR ch = *ObjToTclUniChar(objv[2]);
             unsigned short ui16 = VkKeyScanW(ch);
             Tcl_Obj *objs[2];
             unsigned char keycode = ui16 & 0xff;
@@ -380,7 +381,43 @@ static int Twapi_InputCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
             ObjSetResult(interp, ObjNewList(2, objs));
             return TCL_OK;
         }
+        break;
+    case 13:
+        if (objc != 2) {
+            result.type = TRT_TWAPI_ERROR;
+            result.value.ival = TWAPI_BAD_ARG_COUNT;
+        }
+        else {
+            BYTE key_state[256];
+            if (! GetKeyboardState(key_state))
+                result.type = TRT_GETLASTERROR;
+            else {
+                result.type = TRT_OBJ;
+                result.value.obj = ObjFromByteArray(key_state, ARRAYSIZE(key_state));
+            }
+        }
+        break;
+    case 14:
+        if (objc != 3) {
+            result.type = TRT_TWAPI_ERROR;
+            result.value.ival = TWAPI_BAD_ARG_COUNT;
+        }
+        else {
+            int len;
+            BYTE *key_stateP = ObjToByteArray(objv[2], &len);
+            if (len != 256) {
+                result.type = TRT_TWAPI_ERROR;
+                result.value.ival = TWAPI_INVALID_DATA;
+            } else {
+                if (! SetKeyboardState(key_stateP))
+                    result.type = TRT_GETLASTERROR;
+                else {
+                    result.type = TRT_EMPTY;
+                }
+            }
 
+        }
+        break;
     }
     return TwapiSetResult(interp, &result);
 }
@@ -401,6 +438,8 @@ static int TwapiInputInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(Twapi_SendUnicode, 10),
         DEFINE_ALIAS_CMD(get_keyboard_layout_name, 11),
         DEFINE_ALIAS_CMD(VkKeyScan, 12),
+        DEFINE_ALIAS_CMD(GetKeyboardState, 13), // TBD - Tcl
+        DEFINE_ALIAS_CMD(SetKeyboardState, 14), // TBD - Tcl
     };
 
     /* Create the underlying call dispatch commands */
