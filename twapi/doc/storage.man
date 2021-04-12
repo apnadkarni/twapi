@@ -247,7 +247,7 @@ the following keys.
 [list_begin opt]
 [opt_def atime] Last access time as 100ns units since Jan 1, 1601.
 [opt_def attrs] Bit mask of file attributes. This can be decoded with the
-[uri \#map_file_attributes [cmd map_file_attributes]] command.
+[uri \#decode_file_attributes [cmd decode_file_attributes]] command.
 [opt_def ctime] Creation time as 100ns units since Jan 1, 1601.
 [opt_def mtime] Last modification time as 100ns units since Jan 1, 1601.
 [opt_def size] File size. This will always be 0 for directories.

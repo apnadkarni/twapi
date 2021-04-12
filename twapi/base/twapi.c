@@ -239,7 +239,7 @@ int Twapi_base_Init(Tcl_Interp *interp)
     hr = CoInitializeEx(
         NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
     if (hr != S_OK && hr != S_FALSE)
-        return TCL_ERROR;
+        return Twapi_GenerateWin32Error(interp, hr, "Could not initialize COM.");
 
     /* Create the name space and some variables. Not sure if this is explicitly needed */
     Tcl_CreateNamespace(interp, "::twapi", NULL, NULL);
