@@ -141,7 +141,7 @@ static int LookupBaseVTToken(Tcl_Interp *interp, const char *tok, VARTYPE *vtP)
         }
     }
     if (interp) {
-        Tcl_Obj *objP; 
+        Tcl_Obj *objP;
         objP = STRING_LITERAL_OBJ("Invalid or unsupported VARTYPE token: ");
         Tcl_AppendToObj(objP, tok ? tok : "<null pointer>", -1);
         (void)ObjSetResult(interp, objP);
@@ -310,7 +310,7 @@ int TwapiInitTclTypes(void)
         ObjToBoolean(NULL, objP, &i);
         /* This may still be NULL, but what can we do ? */
         gTclTypes[TWAPI_TCLTYPE_BOOLEANSTRING].typeptr = objP->typePtr;
-    }    
+    }
 
     /* Add our TWAPI types */
     gTclTypes[TWAPI_TCLTYPE_OPAQUE].typename = gOpaqueType.name;
@@ -324,7 +324,7 @@ int TwapiInitTclTypes(void)
 TWAPI_EXTERN int TwapiGetTclType(Tcl_Obj *objP)
 {
     int i;
-    
+
     for (i = 0; i < ARRAYSIZE(gTclTypes); ++i) {
         if (gTclTypes[i].typeptr == objP->typePtr)
             return i;
@@ -392,7 +392,7 @@ int Twapi_InternalCastObjCmd(
         /* No type, make pure string */
         return ObjSetResult(interp, ObjFromString(ObjToString(objv[2])));
     }
-        
+
     /*
      * We special case int because Tcl will convert 0x80000000 to wide int
      * but we want it to be passed as 32-bits in case of some COM calls.
@@ -673,7 +673,7 @@ TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_INT:
         resultObj = ObjFromLong(resultP->value.ival);
         break;
-        
+
     case TRT_LONG:
         resultObj = ObjFromLong(resultP->value.lval);
         break;
@@ -681,7 +681,7 @@ TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_DWORD:
         resultObj = ObjFromWideInt((Tcl_WideInt) resultP->value.uval);
         break;
-        
+
     case TRT_WIDE:
         resultObj = ObjFromWideInt(resultP->value.wide);
         break;
@@ -713,7 +713,7 @@ TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_LUID:
         resultObj = ObjFromLUID(&resultP->value.luid);
         break;
-        
+
     case TRT_DWORD_PTR:
         resultObj = ObjFromDWORD_PTR(resultP->value.dwp);
         break;
@@ -752,7 +752,7 @@ TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
     case TRT_TCL_RESULT:
         /* interp result already stored. Status in ival */
         return resultP->value.ival;
-        
+
     case TRT_NTSTATUS:
         if (resultP->value.ival != STATUS_SUCCESS)
             return Twapi_AppendSystemError(interp,
@@ -913,7 +913,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remai
         if (remainP)
             *remainP = 0;
         return ObjFromString(strP);
-    }        
+    }
 
     p = strP;
     endP = max + strP;
@@ -938,7 +938,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsLimited(const WCHAR *strP, int max, int *re
         if (remainP)
             *remainP = 0;
         return ObjFromWinChars(strP);
-    }        
+    }
 
     p = strP;
     endP = max + strP;
@@ -1022,7 +1022,7 @@ TWAPI_EXTERN TCL_RESULT ObjToSYSTEMTIME(Tcl_Interp *interp, Tcl_Obj *timeObj, LP
         goto syntax_error;
 
     /*
-     * List size - 
+     * List size -
      * 0 - current date and time
      * 3-7 - year, month, day, ?hour, min, sec, ms?
      * Additional elements are ignored (since the reverse operation
@@ -1243,7 +1243,7 @@ TWAPI_EXTERN int ObjToGUID(Tcl_Interp *interp, Tcl_Obj *objP, GUID *guidP)
         /* Accept both GUID and UUID forms */
         if (*wsP == L'{') {
             /* GUID form */
-            /* We *used* to use CLSIDFromString but it turns out that 
+            /* We *used* to use CLSIDFromString but it turns out that
                accepts Prog IDs as valid GUIDs as well */
             if ((hr = IIDFromString(wsP, guidP)) != NOERROR) {
                 Twapi_AppendSystemError(interp, hr);
@@ -1268,7 +1268,7 @@ TWAPI_EXTERN int ObjToGUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, GUID **guidPP
     if (objP == NULL || ObjCharLength(objP) == 0) {
         *guidPP = NULL;
         return TCL_OK;
-    } else 
+    } else
         return ObjToGUID(interp, objP, *guidPP);
 }
 
@@ -1309,7 +1309,7 @@ TWAPI_EXTERN int ObjToUUID_NULL(Tcl_Interp *interp, Tcl_Obj *objP, UUID **uuidPP
     if (ObjCharLength(objP) == 0) {
         *uuidPP = NULL;
         return TCL_OK;
-    } else 
+    } else
         return ObjToUUID(interp, objP, *uuidPP);
 }
 
@@ -1378,7 +1378,7 @@ TWAPI_EXTERN TCL_RESULT ObjToMultiSzEx (
     LPCWSTR   src;
 
     TWAPI_ASSERT(lifoP); /* Check since original API allowed lifoP == NULL */
-    
+
     *multiszPtrPtr = NULL;
     if (nbytesP)
         *nbytesP = 0;
@@ -1469,7 +1469,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromMultiSz(LPCWSTR lpcw, int maxlen)
 
 TWAPI_EXTERN TCL_RESULT ObjToUCHAR(Tcl_Interp *interp, Tcl_Obj *obj, UCHAR *ucP)
 {
-    int lval;
+    int lval = 0; /* Init to stop gcc from whining */
 
     TWAPI_ASSERT(sizeof(UCHAR) == sizeof(unsigned char));
     if (ObjToRangedInt(interp, obj, 0, UCHAR_MAX, &lval) != TCL_OK)
@@ -1480,7 +1480,7 @@ TWAPI_EXTERN TCL_RESULT ObjToUCHAR(Tcl_Interp *interp, Tcl_Obj *obj, UCHAR *ucP)
 
 TWAPI_EXTERN TCL_RESULT ObjToCHAR(Tcl_Interp *interp, Tcl_Obj *obj, CHAR *cP)
 {
-    int lval;
+    int lval = 0; /* Init to stop gcc from whining */
 
     TWAPI_ASSERT(sizeof(CHAR) == sizeof(char));
     if (ObjToRangedInt(interp, obj, SCHAR_MIN, SCHAR_MAX, &lval) != TCL_OK)
@@ -1491,7 +1491,7 @@ TWAPI_EXTERN TCL_RESULT ObjToCHAR(Tcl_Interp *interp, Tcl_Obj *obj, CHAR *cP)
 
 TWAPI_EXTERN TCL_RESULT ObjToUSHORT(Tcl_Interp *interp, Tcl_Obj *obj, WORD *wordP)
 {
-    int lval;
+    int lval = 0; /* Init to stop gcc from whining */
 
     TWAPI_ASSERT(sizeof(WORD) == sizeof(unsigned short));
     if (ObjToRangedInt(interp, obj, 0, USHRT_MAX, &lval) != TCL_OK)
@@ -1502,7 +1502,7 @@ TWAPI_EXTERN TCL_RESULT ObjToUSHORT(Tcl_Interp *interp, Tcl_Obj *obj, WORD *word
 
 TWAPI_EXTERN TCL_RESULT ObjToSHORT(Tcl_Interp *interp, Tcl_Obj *obj, SHORT *shortP)
 {
-    int lval;
+    int lval = 0; /* Init to stop gcc from whining */
     TWAPI_ASSERT(sizeof(WORD) == sizeof(short));
     if (ObjToRangedInt(interp, obj, SHRT_MIN, SHRT_MAX, &lval) != TCL_OK)
         return TCL_ERROR;
@@ -1994,7 +1994,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromOpaque(void *pv, char *name)
         ObjIncrRefs(OPAQUE_REP_CTYPE(objP));
     } else {
         OPAQUE_REP_CTYPE_SET(objP) = NULL;
-    }        
+    }
     objP->typePtr = &gOpaqueType;
     return objP;
 }
@@ -2129,7 +2129,7 @@ TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointerTic(TwapiInterpContext *ticP, Tcl_Ob
     return res;
 }
 
-TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointer(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char *name, void *verifier) 
+TWAPI_EXTERN TCL_RESULT ObjToVerifiedPointer(Tcl_Interp *interp, Tcl_Obj *objP, void **pvP, const char *name, void *verifier)
 {
     TwapiInterpContext *ticP = TwapiGetBaseContext(interp);
     TWAPI_ASSERT(ticP);
@@ -2172,7 +2172,7 @@ Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP)
 
 /* If buf is NULL or buf_sz is 0, returns the number of bytes required
    for the result. Else stores the utf-8 in the buffer and returns number
-   of bytes stored. 
+   of bytes stored.
 
    The function does not explicitly add a terminating null. If the length
    (nchars) of wsP is explicitly specified, a terminating null will be included
@@ -2186,19 +2186,19 @@ Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP)
 TWAPI_EXTERN int TwapiWinCharsToUtf8(CONST WCHAR *wsP, int nchars, char *buf, int buf_sz)
 {
     int nbytes;
-    
+
     if (buf_sz < 1)
         buf = NULL;
     else if (buf == NULL)
         buf_sz = 0;
-    
+
     /* Note WideChar... does not like 0 length strings */
     if (wsP == NULL || nchars == 0)
         return 0;
 
     if (nchars < 0)
         nchars = -1;
-    
+
     nbytes = WideCharToMultiByte(
         CP_UTF8, /* CodePag */
         0,       /* dwFlags */
@@ -2209,7 +2209,7 @@ TWAPI_EXTERN int TwapiWinCharsToUtf8(CONST WCHAR *wsP, int nchars, char *buf, in
         NULL,    /* lpDefaultChar */
         NULL     /* lpUsedDefaultChar */
         );
-    
+
     if (nbytes == 0)
         return -1; /* Caller should use GetLastError() */
 
@@ -2225,12 +2225,12 @@ TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromWinChars(CONST WCHAR *wsP, int nchars)
     int nbytes;
     char *p;
     Tcl_Obj *objP;
-    
+
     nbytes = TwapiWinCharsToUtf8(wsP, nchars, NULL, 0);
     if (nbytes == -1)
         goto do_panic;
-    
-    p = ckalloc(nbytes+1); /* +1 for case where WCTMB doesn't terminate \0 */ 
+
+    p = ckalloc(nbytes+1); /* +1 for case where WCTMB doesn't terminate \0 */
     nbytes = TwapiWinCharsToUtf8(wsP, nchars, p, nbytes);
     if (nbytes == -1)
         goto do_panic;
@@ -2241,7 +2241,7 @@ TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromWinChars(CONST WCHAR *wsP, int nchars)
         nbytes -= 1; /* Don't include terminating null */
     else
         p[nbytes] = '\0'; /* Terminate string */
-    
+
     objP = Tcl_NewObj();
     if (objP->bytes)
         Tcl_InvalidateStringRep(objP);
@@ -2472,7 +2472,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR_address(SOCKADDR *saP)
 {
     char buf[50];
     DWORD bufsz = ARRAYSIZE(buf);
-    
+
     if (WSAAddressToStringA(saP,
                             ((SOCKADDR_IN6 *)saP)->sin6_family == AF_INET6 ? sizeof(SOCKADDR_IN6) : sizeof(SOCKADDR_IN),
                             NULL,
@@ -2500,7 +2500,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromSOCKADDR(SOCKADDR *saP)
         save_port = ((SOCKADDR_IN *)saP)->sin_port;
         ((SOCKADDR_IN *)saP)->sin_port = 0;
     }
-    
+
     objv[1] = ObjFromSOCKADDR_address(saP);
     if (objv[1] == NULL)
         return NULL;
@@ -2665,7 +2665,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
         *saPP = saP;
         return TCL_OK;
     }
-        
+
     if (saP == NULL)
         return TwapiReturnErrorEx(interp, TWAPI_SYSTEM_ERROR,
                                   Tcl_ObjPrintf("Allocation of %d-dimensional SAFEARRAY of type %d failed.", ndim, vt));
@@ -2681,7 +2681,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
     objs[0] = valueObj;
     indices[0] = 0;
 
-    /* TBD - is this loop needed? Is it not just repeated at top of 
+    /* TBD - is this loop needed? Is it not just repeated at top of
        while loop below ?*/
     for (i = 1; i < ndim; ++i) {
         indices[i] = 0;
@@ -2693,10 +2693,10 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
      * So now indices[] is all 0 (ie each dimension index is 0) and
      * the objs[] array contains the first Tcl_Obj at each nested level
      * (which corresponds to a dimension). We will iterate through all
-     * elements incrementing indices[]. 
+     * elements incrementing indices[].
      */
 
-    
+
     while (1) {
         int ival;
         double dval;
@@ -2848,7 +2848,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
         /*
          * Now increment indices[] to point to next entry. We increment
          * the index for each dimension and if it exceeds the number of
-         * elements in that dimension, we reset its index to 0 and 
+         * elements in that dimension, we reset its index to 0 and
          * carry over and increment the previous dimension.
          */
         for (cur_dim = ndim-1; cur_dim >= 0; --cur_dim) {
@@ -2864,7 +2864,7 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
          *  cur_dim >= 0 - implies that dimension is not done with. indices[i]
          *          contains the index into elements in that dimension
          *          that we next iterate over. We also have to reset
-         *          the innermost dimension indices accordingly. This 
+         *          the innermost dimension indices accordingly. This
          *          is done at the top of the loop.
          */
 
@@ -2893,7 +2893,7 @@ error_handler:
 /*
  * Returns a Tcl_Obj that is a list representing the elements in the
  * dimension dim. indices[] is an array specifying the dimension to
- * retrieve. For example, consider a 4-dimensional safearray. When 
+ * retrieve. For example, consider a 4-dimensional safearray. When
  * this function is called with dim=2 (meaning third dimension),
  * indices[0], indices[1] will contain valid indices for the dimensions
  * 0 and 1. The returned Tcl_Obj will be a list containing the elements
@@ -2913,7 +2913,7 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
     VARIANT *variantP;
     LONG upper, lower;
     VARTYPE vt;
-    
+
     if (indices_size < saP-> cDims)
         return NULL;            /* Not supported as exceed max dimensions */
 
@@ -3053,7 +3053,7 @@ static Tcl_Obj *ObjFromSAFEARRAY(SAFEARRAY *saP, int value_only)
 
     if (SafeArrayLock(saP) != S_OK)
         return NULL;
-        
+
     objv[1] = ObjFromSAFEARRAYDimension(saP, 0, indices, ARRAYSIZE(indices));
     if (objv[1] == NULL || value_only) {
         SafeArrayUnlock(saP);
@@ -3116,7 +3116,7 @@ TWAPI_EXTERN VARTYPE ObjTypeToVT(Tcl_Obj *objP)
             else if (ObjToIUnknown(NULL, objP, &pv) == TCL_OK)
                 return VT_UNKNOWN;
         }
-#endif        
+#endif
 
         /* We do not know the type of each SAFEARRAY element. Guess on element value */
         vt = VT_VARIANT;   /* In case we cannot tell */
@@ -3366,10 +3366,10 @@ TWAPI_EXTERN TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT 
 }
 
 
-/* 
+/*
  * If value_only is 0, returns a Tcl object that is a list {VT_xxx value}.
  * If VT_xxx is not known, value is missing (only the VT_xxx is
- * returned). 
+ * returned).
  * If value_only is 1, returns only the value object and am empty object
  * if VT_xxx is not known.
  * Never returns NULL.
@@ -3617,7 +3617,7 @@ TWAPI_EXTERN int ObjToLSASTRINGARRAYSWS(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UN
     /* Allocate the array of structures */
     sz = nitems * sizeof(LSA_UNICODE_STRING);
     ustrP = MemLifoAlloc(memlifoP, sz, NULL);
-    
+
     for (i = 0; i < nitems; ++i) {
         WCHAR *srcP;
         int    slen;
@@ -3808,7 +3808,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromACE (Tcl_Interp *interp, void *aceP)
         if (ObjFromSID(interp, sidP, &obj) != TCL_OK)
             goto error_return;
         ObjAppendElement(interp, resultObj, obj);
-        
+
         break;
 
     default:
@@ -4254,7 +4254,7 @@ TWAPI_EXTERN TCL_RESULT ObjToPSECURITY_DESCRIPTORSWS(
         /*
          * Keyword "null" means no DACL (as opposed to an empty one)
          * In that case daclP will be NULL. We don't need to call
-         * SetSecurityDescriptorDacl in that case because it is already 
+         * SetSecurityDescriptorDacl in that case because it is already
          * initialized to not have a DACL. However, if the secd_control
          * flags have SE_DACL_DEFAULTED is set, we make the call because
          * we're not sure how the system treates a NULL DACL with
@@ -4281,12 +4281,12 @@ TWAPI_EXTERN TCL_RESULT ObjToPSECURITY_DESCRIPTORSWS(
         }
         /* Note the sacl field in *secdPP now points directly to saclP! */
     }
-    
+
     return TCL_OK;
 
  system_error:
     TwapiReturnSystemError(interp);
-    
+
  error_return:
     *secdPP = NULL;
     return TCL_ERROR;
@@ -4341,12 +4341,12 @@ TWAPI_EXTERN int ObjToPSECURITY_ATTRIBUTESSWS(
     return TCL_ERROR;
 }
 
-TWAPI_EXTERN void ObjIncrRefs(Tcl_Obj *objP) 
+TWAPI_EXTERN void ObjIncrRefs(Tcl_Obj *objP)
 {
     Tcl_IncrRefCount(objP);
 }
 
-TWAPI_EXTERN void ObjDecrRefs(Tcl_Obj *objP) 
+TWAPI_EXTERN void ObjDecrRefs(Tcl_Obj *objP)
 {
     Tcl_DecrRefCount(objP);
 }
@@ -4672,9 +4672,9 @@ TWAPI_EXTERN TCL_RESULT TwapiEncryptData(Tcl_Interp *interp, BYTE *inP, int nin,
      */
 #ifndef RTL_ENCRYPT_MEMORY_SIZE // Not defined in all SDK's
 # define RTL_ENCRYPT_MEMORY_SIZE 8
-#endif    
+#endif
 #define BLOCK_SIZE_MASK (RTL_ENCRYPT_MEMORY_SIZE-1)
-    
+
     if (nin & BLOCK_SIZE_MASK) {
         /* Not a multiple of RTL_ENCRYPT_MEMORY_SIZE */
         sz = (nin + BLOCK_SIZE_MASK) & ~BLOCK_SIZE_MASK;
@@ -4693,13 +4693,13 @@ TWAPI_EXTERN TCL_RESULT TwapiEncryptData(Tcl_Interp *interp, BYTE *inP, int nin,
         *noutP = sz;
         return TCL_OK;
     }
-            
+
     if (sz > *noutP)
         return TwapiReturnError(interp, TWAPI_BUFFER_OVERRUN);
-    
+
     outP[sz-1] = (BYTE) pad_len;
     CopyMemory(outP, inP, nin);
-    
+
     /* RtlEncryptMemory */
     status = fnP(outP, sz, 0);
     if (status != 0)
@@ -4718,13 +4718,13 @@ TWAPI_EXTERN Tcl_Obj *ObjEncryptBytes(Tcl_Interp *interp, void *pv, int nbytes)
     WCHAR *wsP;
 
     /* Note data is always encrypted in WCHAR form */
-    
+
     nalloc = nbytes*sizeof(WCHAR);
     if (nalloc == 0)
         nalloc = sizeof(WCHAR); /* Can't alloc 0 */
 
     wsP = SWSPushFrame(nalloc, NULL);
-    
+
     for (nenc = 0; nenc < nbytes; ++nenc)
         wsP[nenc] = bytes[nenc];
     objP = ObjEncryptWinChars(interp, wsP, nbytes);
@@ -4755,7 +4755,7 @@ TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *interp, BYTE *encP, int nen
 
     if (fnP == NULL)
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
-    
+
     if (nenc == 0 || (nenc & BLOCK_SIZE_MASK))
         return TwapiDecryptPadLengthError(interp, nenc);
 
@@ -4772,7 +4772,7 @@ TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *interp, BYTE *encP, int nen
 
     /* RtlDecryptMemory */
     status = fnP(outP, nenc, 0);
-    if (status != 0) 
+    if (status != 0)
             return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
 
     /* Last byte contains pad count */
@@ -4780,7 +4780,7 @@ TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *interp, BYTE *encP, int nen
 
     if (pad_len == 0 || pad_len > RTL_ENCRYPT_MEMORY_SIZE || pad_len > nenc)
         return TwapiDecryptPadLengthError(interp, pad_len);
-    
+
     *noutP = nenc - pad_len;
     return TCL_OK;
 }
@@ -4791,7 +4791,7 @@ TWAPI_EXTERN BYTE *TwapiDecryptDataSWS(Tcl_Interp *interp, BYTE *encP, int nenc,
     TCL_RESULT res;
     int nout;
     BYTE *outP;
-    
+
     res = TwapiDecryptData(interp, encP, nenc, NULL, &nout);
     if (res == TCL_OK) {
         outP = SWSAlloc(nout, NULL);
@@ -4806,14 +4806,14 @@ TWAPI_EXTERN BYTE *TwapiDecryptDataSWS(Tcl_Interp *interp, BYTE *encP, int nenc,
 
 /* Encrypts the  rep to a byte array. We choose WCHAR strings
    as the base format for strings because most API's need WCHAR and makes it
-   easier to SecureZeroMemory the buffer. 
+   easier to SecureZeroMemory the buffer.
 */
 TWAPI_EXTERN Tcl_Obj *ObjEncryptWinChars(Tcl_Interp *interp, WCHAR *uniP, int nchars)
 {
     int nenc;
     Tcl_Obj *objP = NULL;
     TCL_RESULT res;
-    
+
     if (nchars < 0)
         nchars = lstrlenW(uniP);
 
@@ -4847,16 +4847,16 @@ TWAPI_EXTERN WCHAR * ObjDecryptWinCharsSWS(Tcl_Interp *interp,
     int nenc, ndec;
     BYTE *enc, *dec;
     TCL_RESULT res;
-    
+
     enc = ObjToByteArray(objP, &nenc);
-    
+
     res = TwapiDecryptData(interp, enc, nenc, NULL, &ndec);
     if (res != TCL_OK)
         return NULL;
 
     /* additional WCHAR is for terminating \0 */
     dec = SWSAlloc(ndec+sizeof(WCHAR), NULL);
-    
+
     res = TwapiDecryptData(interp, enc, nenc, dec, &ndec);
     if (res != TCL_OK)
         return NULL;
@@ -4871,7 +4871,7 @@ TWAPI_EXTERN WCHAR * ObjDecryptWinCharsSWS(Tcl_Interp *interp,
 
 /*
  * Decrypts encrypted objP to SWS in UTF8 encoding.
- * Caller responsible for SWS storage management and should also zero out 
+ * Caller responsible for SWS storage management and should also zero out
  * the plaintext after use.
  * Returns length of string (in bytes) NOT including terminating
  * char in *ncharsP
@@ -4888,7 +4888,7 @@ TWAPI_EXTERN char *ObjDecryptUtf8SWS(Tcl_Interp *interp, Tcl_Obj *objP, int *nby
     TWAPI_ASSERT(uniP[nuni] == 0); /* Should be terminated */
 
     /* REMEMBER we have to zero out uniP beyond this point */
-    
+
     nutf = TwapiWinCharsToUtf8(uniP, nuni, NULL, 0);
     if (nutf == -1)
         utfP = NULL;
@@ -4907,13 +4907,13 @@ TWAPI_EXTERN char *ObjDecryptUtf8SWS(Tcl_Interp *interp, Tcl_Obj *objP, int *nby
         TwapiReturnSystemError(interp);
 
     SecureZeroMemory(uniP, sizeof(WCHAR) * nuni);
-    
+
     return utfP;
 }
 
 /*
  * Decrypts encrypted objP to SWS as a byte array.
- * Caller responsible for SWS storage management and should also zero out 
+ * Caller responsible for SWS storage management and should also zero out
  * the plaintext after use.
  * Leaves nleading bytes space in front so decrypted data starts at
  * offset nleading bytes from returned pointer. *nbytesP is length of
@@ -4935,15 +4935,15 @@ TWAPI_EXTERN void *ObjDecryptBytesExSWS(Tcl_Interp *interp, Tcl_Obj *objP, int n
     if (nalloc == 0)
         nalloc = 1;
     p = SWSAlloc(nalloc, NULL);
-    
+
     to = p + nleading;    /* Leave nleading bytes space in front */
     from = uniP;
     end = uniP + nuni;
     while (from < end)
         *to++ = (unsigned char) *from++;
-    
+
     SecureZeroMemory(uniP, sizeof(WCHAR) * nuni);
-    
+
     if (nbytesP)
         *nbytesP = nuni;
     return p;
@@ -4974,7 +4974,7 @@ TWAPI_EXTERN WCHAR * ObjDecryptPasswordSWS(Tcl_Obj *objP, int *ncharsP)
 
 /*
  * TwapiEnum is a Tcl "type" that maps strings to their positions in a
- * string table. 
+ * string table.
  * The Tcl_Obj.internalRep.ptrAndLongRep.value holds the position
  * and Tcl_Obj.internalRep.ptrAndLongRep.ptr holds the table as a Tcl_Obj
  * of type list.
@@ -5023,17 +5023,17 @@ static void UpdateEnumTypeString(Tcl_Obj *objP)
     TWAPI_ASSERT(objP->bytes == NULL);
     TWAPI_ASSERT(objP->typePtr == &gEnumType);
     TWAPI_ASSERT(objP->internalRep.ptrAndLongRep.ptr);
-    
+
     res = ObjListIndex(NULL, objP->internalRep.ptrAndLongRep.ptr, objP->internalRep.ptrAndLongRep.value, &obj2P);
     TWAPI_ASSERT(res == TCL_OK);
     TWAPI_ASSERT(obj2P);
 
 #else
-    
+
     (void) ObjListIndex(NULL, objP->internalRep.ptrAndLongRep.ptr, objP->internalRep.ptrAndLongRep.value, &obj2P);
 
 #endif
-    
+
     p = ObjToStringN(obj2P, &len);
     objP->bytes = ckalloc(len+1);
     objP->length = len;
@@ -5089,7 +5089,7 @@ TWAPI_EXTERN void SecureZeroSEC_WINNT_AUTH_IDENTITY(PSEC_WINNT_AUTH_IDENTITY_W s
         return;
     if (swaiP->Flags & SEC_WINNT_AUTH_IDENTITY_UNICODE)
         len = swaiP->PasswordLength * sizeof(WCHAR);
-    else 
+    else
         len = swaiP->PasswordLength;
     SecureZeroMemory(swaiP->Password, len);
 }
@@ -5106,7 +5106,7 @@ TWAPI_EXTERN TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (
     TCL_RESULT res;
     SEC_WINNT_AUTH_IDENTITY_W *swaiP;
     int i;
-    
+
     if ((res = ObjGetElements(ticP->interp, authObj, &objc, &objv)) != TCL_OK)
         return res;
 
