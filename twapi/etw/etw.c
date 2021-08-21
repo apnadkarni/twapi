@@ -478,7 +478,7 @@ static int gForceMofAPI = 0;
  * Event Trace Provider Support
  *
  * Currently only support *one* provider, shared among all interps and
- * modules. The extra code for locking/bookkeeping etc. for multiple 
+ * modules. The extra code for locking/bookkeeping etc. for multiple
  * providers not likely to be used.
  */
 GUID   gETWProviderGuid;        /* GUID for our ETW Provider */
@@ -568,7 +568,7 @@ static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
 
     /* Actual position of remaining fields may not match.
      * if the file came from a different architecture
-     * so we have to adjust pointer accordingly. See 
+     * so we have to adjust pointer accordingly. See
      * "Implementing an Event Callback Function" in the SDK docs
      */
 
@@ -579,11 +579,11 @@ static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
         adjustedP = tlhP;
 
     /* Now continue with remaining fields */
-    
+
     /* LoggerName and LogFileName fields are not to be used as per doc. */
 
     objs[15] = ObjFromTIME_ZONE_INFORMATION(&adjustedP->TimeZone);
-    
+
     objs[16] = ObjFromLARGE_INTEGER(adjustedP->BootTime);
     objs[17] = ObjFromLARGE_INTEGER(adjustedP->PerfFreq);
     objs[18] = ObjFromLARGE_INTEGER(adjustedP->StartTime);
@@ -593,7 +593,7 @@ static Tcl_Obj *ObjFromTRACE_LOGFILE_HEADER(TRACE_LOGFILE_HEADER *tlhP)
     return ObjNewList(ARRAYSIZE(objs), objs);
 }
 
-    
+
 /* TBD - should we make this SWS based ? */
 TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     Tcl_Interp *interp,
@@ -610,7 +610,7 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     EVENT_TRACE_PROPERTIES *etP;
     Tcl_WideInt wide;
     int field;
-    /* IMPORTANT : 
+    /* IMPORTANT :
      * Do not change order without changing switch statement below!
      */
     static const char * g_event_trace_fields[] = {
@@ -660,7 +660,7 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
             break;
         }
     }
-    
+
     if (session_name_i >= 0) {
         session_name = ObjToWinCharsN(objv[session_name_i+1], &session_name_i);
     } else {
@@ -712,7 +712,7 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
         /* We left max space for unknown session name */
         etP->LogFileNameOffset = sizeof(*etP) + (sizeof(WCHAR) * (MAX_TRACE_NAME_CHARS+1));
     }
-        
+
     if (logfile_name_i > 0) {
         CopyMemory(etP->LogFileNameOffset + (char *) etP,
                    logfile_name, sizeof(WCHAR) * (logfile_name_i + 1));
@@ -798,7 +798,7 @@ st */
             ObjSetStaticResult(interp, "Internal error: Unexpected field index.");
             goto error_handler;
         }
-        
+
         if (ulP == NULL) {
             /* Nothing to do, value already set in the switch */
         } else {
@@ -806,7 +806,7 @@ st */
                 goto error_handler;
         }
     }
-    
+
     *etPP = etP;
     return TCL_OK;
 
@@ -855,7 +855,7 @@ static Tcl_Obj *ObjFromEVENT_TRACE_PROPERTIES(EVENT_TRACE_PROPERTIES *etP)
 static ULONG WINAPI TwapiETWProviderControlCallback(
     WMIDPREQUESTCODE request,
     PVOID contextP,             /* TBD - can we use this ? */
-    ULONG* reserved, 
+    ULONG* reserved,
     PVOID headerP
     )
 {
@@ -890,7 +890,7 @@ static ULONG WINAPI TwapiETWProviderControlCallback(
         }
 
         SetLastError(0);
-        enable_level = GetTraceEnableLevel(session); 
+        enable_level = GetTraceEnableLevel(session);
         if (enable_level == 0) {
             /* *Possible* error */
             rc = GetLastError();
@@ -914,7 +914,7 @@ static ULONG WINAPI TwapiETWProviderControlCallback(
         gETWProviderTraceEnableLevel = enable_level;
         gETWProviderTraceEnableFlags = enable_flags;
         break;
- 
+
     case WMI_DISABLE_EVENTS:  //Disable Provider.
         /* Don't we need to check session handle ? Sample MSDN does not */
         gETWProviderSessionHandle = (TRACEHANDLE) gInvalidTraceHandle;
@@ -934,11 +934,11 @@ TCL_RESULT Twapi_RegisterTraceGuids(ClientData clientdata, Tcl_Interp *interp, i
     DWORD rc;
     GUID provider_guid, event_class_guid;
     TRACE_GUID_REGISTRATION event_class_reg;
-    
+
     if (TwapiGetArgs(interp, objc-1, objv+1, GETUUID(provider_guid),
                      GETUUID(event_class_guid), ARGEND) != TCL_OK)
         return TCL_ERROR;
-    
+
     if (IsEqualGUID(&provider_guid, &gNullGuid) ||
         IsEqualGUID(&event_class_guid, &gNullGuid)) {
         ObjSetStaticResult(interp, "NULL provider GUID specified.");
@@ -986,7 +986,7 @@ TCL_RESULT Twapi_UnregisterTraceGuids(ClientData clientdata, Tcl_Interp *interp,
 {
     TRACEHANDLE traceH;
     DWORD rc;
-    
+
     if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
@@ -1061,7 +1061,7 @@ TCL_RESULT Twapi_StartTrace(ClientData clientdata, Tcl_Interp *interp, int objc,
     EVENT_TRACE_PROPERTIES *etP;
     TRACEHANDLE htrace;
     TCL_RESULT res;
-    
+
     if (objc != 3)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
@@ -1070,7 +1070,7 @@ TCL_RESULT Twapi_StartTrace(ClientData clientdata, Tcl_Interp *interp, int objc,
 
     /* Note etP has to be freed */
 
-    /* If no log file specified, set logfilenameoffset to 0 
+    /* If no log file specified, set logfilenameoffset to 0
        since ObjToPEVENT_TRACE_PROPERTIES does not do that as it
        is also used by ControlTrace */
     if (*(WCHAR *) (etP->LogFileNameOffset + (char *)etP) == 0)
@@ -1192,7 +1192,7 @@ void WINAPI TwapiETWEventCallback(
     ObjAppendElement(NULL, gETWContext.eventsObj, ObjNewList(ARRAYSIZE(objs), objs));
 }
 
-/* Used in constructing a Tcl_Obj for TRACE_EVENT_INFO when a name is 
+/* Used in constructing a Tcl_Obj for TRACE_EVENT_INFO when a name is
    missing */
 static Tcl_Obj *TwapiTEIWinCharsObj(TRACE_EVENT_INFO *teiP, int offset, ULONG numeric_val)
 {
@@ -1238,7 +1238,7 @@ static Tcl_Obj *ObjFromEVENT_HEADER(EVENT_HEADER *evhP)
     objs[7] = ObjFromULONGLONG(evhP->ProcessorTime);
 
     objs[8] = ObjFromGUID(&evhP->ActivityId);
-    
+
     objs[9] = ObjFromEVENT_DESCRIPTOR(&evhP->EventDescriptor);
     objs[10] = ObjFromGUID(&evhP->ProviderId);
 
@@ -1326,7 +1326,7 @@ static Tcl_Obj *TwapiMapTDHProperty(EVENT_MAP_INFO *emiP, ULONG val)
      * EVENTMAP_INFO_FLAG_WBEM_VALUEMAP | EVENTMAP_INFO_FLAG_WBEM_FLAG
      *   - bit flags to list of string values using a mapping array (MOF based)
      * EVENTMAP_INFO_FLAG_WBEM_VALUEMAP | EVENTMAP_INFO_FLAG_WBEM_FLAG | EVENTMAP_INFO_FLAG_WBEM_NO_MAP
-     *   - not clear this is valid and makes sense 
+     *   - not clear this is valid and makes sense
      * EVENTMAP_INFO_FLAG_MANIFEST_BITMAP
      *   - bit map to list of strings using a mapping array (manifest based)
      * EVENTMAP_INFO_FLAG_WBEM_BITMAP
@@ -1334,7 +1334,7 @@ static Tcl_Obj *TwapiMapTDHProperty(EVENT_MAP_INFO *emiP, ULONG val)
      * EVENTMAP_INFO_FLAG_WBEM_BITMAP | EVENTMAP_INFO_FLAG_WBEM_NO_MAP
      *   - maps 0-based bit positions to list of string values (MOF based)
      */
-     
+
     switch ((int) emiP->Flag) {
     case EVENTMAP_INFO_FLAG_MANIFEST_VALUEMAP:
     case EVENTMAP_INFO_FLAG_WBEM_VALUEMAP:
@@ -1435,8 +1435,6 @@ static WIN32_ERROR TwapiTdhPropertyValue(
     FILETIME ftime;
     ULONG remain = prop_size;
     DWORD dw;
-    Tcl_Interp *interp = ticP->interp;
-
 
 #define EXTRACT(var_, type_) \
     do { \
@@ -1649,7 +1647,7 @@ static WIN32_ERROR TwapiTdhPropertyValue(
             break;
         default:
             if (emiP && u.i64 < ULONG_MAX && u.i64 >= 0) {
-                *valueObjP = TwapiMapTDHProperty(emiP, (ULONG) u.i64); 
+                *valueObjP = TwapiMapTDHProperty(emiP, (ULONG) u.i64);
             } else {
                 if (epiP->nonStructType.InType == TDH_INTYPE_UINT64)
                     *valueObjP = ObjFromULONGLONG(u.ui64);
@@ -1777,7 +1775,6 @@ static WIN32_ERROR TwapiDecodeEVENT_PROPERTY_INFO(
     Tcl_Obj **valueObjs;
     USHORT nvalues, array_index;
     WIN32_ERROR winerr;
-    Tcl_Interp *interp = ticP->interp;
     MemLifo *memlifoP = ticP->memlifoP;
     void *pv;
     TDH_CONTEXT tdhctx;
@@ -1888,7 +1885,7 @@ static WIN32_ERROR TwapiDecodeEVENT_PROPERTY_INFO(
                 ULONG map_size;
                 EVENT_MAP_INFO *mapP = NULL;
 
-                /* Since we might be looping, alloc and release memory in 
+                /* Since we might be looping, alloc and release memory in
                    every iteration.
                    Not necessary for correctness since caller will pop memlifo
                    frame anyway so in error case, we don't bother to pop
@@ -1933,7 +1930,6 @@ static WIN32_ERROR TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_R
 {
     DWORD sz, winerr;
     Tcl_Obj *objs[15];
-    TCL_RESULT status;
     TRACE_EVENT_INFO *teiP;
     EVENT_DESCRIPTOR *edP;
     TDH_CONTEXT tdhctx;
@@ -2181,7 +2177,7 @@ ULONG WINAPI TwapiETWBufferCallback(
         TWAPI_ASSERT(gETWContext.u.listObj != NULL);
     } else {
         /*
-         * Construct a command to call with the event. 
+         * Construct a command to call with the event.
          * gETWContext.buffer_cmdObj could be a shared object, either
          * initially itself or result in a shared object in the callback.
          * So we need to check for that and Dup it if necessary
@@ -2275,7 +2271,7 @@ TCL_RESULT Twapi_TdhEnumerateProvidersObjCmd(ClientData clientdata, Tcl_Interp *
 
     if (status == ERROR_SUCCESS) {
         Tcl_Obj *objs[3];
-        i = peiP->NumberOfProviders; 
+        i = peiP->NumberOfProviders;
         if (objc == 1) {
             /* Return all */
             Tcl_Obj **objPP = MemLifoAlloc(memlifoP, peiP->NumberOfProviders * sizeof(*objPP), NULL);
@@ -2300,7 +2296,7 @@ TCL_RESULT Twapi_TdhEnumerateProvidersObjCmd(ClientData clientdata, Tcl_Interp *
                     ObjSetResult(interp, ObjNewList(3, objs));
                     break;
                 }
-            }            
+            }
         }
         res = TCL_OK;
     } else
@@ -2558,14 +2554,14 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
     */
     if (objc != 4)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    
+
     bytesP = ObjToByteArray(objv[1], &nbytes);
 
     /* The field descriptor is a list of alternating field types and names */
     if (ObjGetElements(interp, objv[2], &ntypes, &types) != TCL_OK ||
         ObjToInt(interp, objv[3], &pointer_size) != TCL_OK)
         return TCL_ERROR;
-        
+
     if (ntypes & 1) {
         return TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
                            Tcl_ObjPrintf("Field descriptor argument has odd number of elements (%d).", ntypes));
@@ -2575,7 +2571,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
         return TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
                            Tcl_ObjPrintf("Invalid pointer size parameter (%d), must be 4 or 8", pointer_size));
     }
-    
+
     resultObj = Tcl_NewDictObj();
 
     for (i = 0, remain = nbytes; i < ntypes && remain > 0; i += 2, bytesP += eaten, remain -= eaten) {
@@ -2647,7 +2643,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
                as number of *bytes* in their sample code as does the
                well know LogParser utility. On XP there does not seem
                to be a MoF that actually uses this so maybe it is moot.
-               For now leave as is 
+               For now leave as is
             */
 
             if ((remain-2) < (sizeof(WCHAR)*eaten)) {
@@ -2672,7 +2668,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
             objP = ObjFromInt(typeenum == 8 ? *(signed char *)bytesP : *(unsigned char *)bytesP);
             eaten = sizeof(char);
             break;
-            
+
         case 10: // csint8
         case 11: // cuint8
             /* Return as an ascii char */
@@ -2739,7 +2735,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
             objP = ObjFromULONGLONGHex(*(unsigned __int64 UNALIGNED *)bytesP);
             eaten = sizeof(__int64);
             break;
-            
+
         case 24: // real32
             if (remain < 4)
                 goto done;      /* Data truncation */
@@ -2757,7 +2753,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
         case 26: // object
             /* We should never see this except for a bad MoF definition where
              * the object does not have an associated qualifier. We can
-             * only punt 
+             * only punt
              */
             goto done;
 
@@ -2784,7 +2780,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
             objP = IPAddrObjFromDWORD(*(DWORD UNALIGNED *)bytesP);
             eaten = sizeof(DWORD);
             break;
-            
+
         case 31: // objectipaddrv6
             if (remain < sizeof(IN6_ADDR))
                 goto done;      /* Data truncation */
@@ -2811,10 +2807,10 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
             }
 
             /* From MSDN -
-             * A property with the Sid extension is actually a 
+             * A property with the Sid extension is actually a
              * TOKEN_USER structure followed by the SID. The size
-             * of the TOKEN_USER structure differs depending on 
-             * whether the events were generated on a 32-bit or 
+             * of the TOKEN_USER structure differs depending on
+             * whether the events were generated on a 32-bit or
              * 64-bit architecture. Also the structure is aligned
              * on an 8-byte boundary, so its size is 8 bytes on a
              * 32-bit computer and 16 bytes on a 64-bit computer.
@@ -2870,7 +2866,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
         case 40: // datetime - TBD
             goto done;          /* TBD */
             break;
-            
+
         case 41: // stringnotcounted
             objP = ObjFromStringN((char *) bytesP, remain);
             eaten = remain;
@@ -2899,7 +2895,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
             objP = ObjFromEmptyString();
         Tcl_DictObjPut(interp, resultObj, types[i], objP);
     }
-    
+
     done:
     ObjSetResult(interp, resultObj);
     return TCL_OK;
@@ -3019,7 +3015,7 @@ void TwapiInitTdhStubs(Tcl_Interp *interp)
     gTdhDllHandle = LoadLibraryW(path);
     if (gTdhDllHandle == NULL)
         return;                 /* DLL not available */
-    
+
 #define INIT_TDH_STUB(fn) \
     do { \
       if (((gTdhStubs._ ## fn) = (void *)GetProcAddress(gTdhDllHandle, #fn)) == NULL) \
@@ -3075,7 +3071,7 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 
 /* Main entry point */
 #ifndef TWAPI_SINGLE_MODULE
-__declspec(dllexport) 
+__declspec(dllexport)
 #endif
 int Twapi_etw_Init(Tcl_Interp *interp)
 {

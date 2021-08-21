@@ -19,12 +19,12 @@ static HMODULE gModuleHandle;
 
 #ifndef SERVICE_CONFIG_DELAYED_AUTO_START_INFO
 #define SERVICE_CONFIG_DELAYED_AUTO_START_INFO 3
-typedef struct _SERVICE_DELAYED_AUTO_START_INFO {
+#endif
+
+/* Clone this SDK structure as older SDKs do not have it defined */
+typedef struct _TWAPI_SERVICE_DELAYED_AUTO_START_INFO {
     BOOL fDelayedAutostart;
-} SERVICE_DELAYED_AUTO_START_INFO, *LPSERVICE_DELAYED_AUTO_START_INFO;
- #endif
-
-
+} TWAPI_SERVICE_DELAYED_AUTO_START_INFO;
 
 TWAPI_STATIC_INLINE TCL_RESULT ObjToSC_HANDLE(Tcl_Interp *interp, Tcl_Obj *objP, SC_HANDLE *schP) {
     HANDLE sch;
@@ -222,7 +222,7 @@ int Twapi_QueryServiceConfig2(TwapiInterpContext *ticP, SC_HANDLE hService, DWOR
             break;
 
         case SERVICE_CONFIG_DELAYED_AUTO_START_INFO:
-            ObjSetResult(ticP->interp, ObjFromBoolean(((LPSERVICE_DELAYED_AUTO_START_INFO)bufP)->fDelayedAutostart));
+            ObjSetResult(ticP->interp, ObjFromBoolean(((TWAPI_SERVICE_DELAYED_AUTO_START_INFO *)bufP)->fDelayedAutostart));
             res = TCL_OK;
             break;
 
@@ -512,7 +512,7 @@ static TCL_RESULT ParseSERVICE_FAILURE_ACTIONS(
             ObjToDWORD(interp, fields[1], &sfaP->lpsaActions[i].Delay) != TCL_OK)
             return TCL_ERROR;
         sfaP->lpsaActions[i].Type = (SC_ACTION_TYPE) sc_type;
-    }        
+    }
 
     return TCL_OK;
 }
@@ -527,7 +527,7 @@ static TCL_RESULT Twapi_ChangeServiceConfig2(TwapiInterpContext *ticP, int objc,
     union {
         SERVICE_DESCRIPTIONW desc;
         SERVICE_FAILURE_ACTIONSW failure_actions;
-        SERVICE_DELAYED_AUTO_START_INFO delayed_auto_start;
+        TWAPI_SERVICE_DELAYED_AUTO_START_INFO delayed_auto_start;
     } u;
     SC_HANDLE h;
     void *pv = NULL;
@@ -618,7 +618,7 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
         if (res != TCL_OK)
             goto vamoose;
     }
-    
+
     TWAPI_ASSERT(ticP->memlifoP == SWS());
     password = ObjDecryptPasswordSWS(passwordObj, &password_len);
     if (ChangeServiceConfigW(h, service_type, start_type, error_control,
@@ -637,7 +637,7 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
 
     SecureZeroMemory(password, password_len);
 
-vamoose:    
+vamoose:
     MemLifoPopMark(mark);
     return res;
 }
@@ -717,13 +717,13 @@ vamoose:
     return res;
 }
 
-int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[]) 
+int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     SC_HANDLE svcH;
     LPCWSTR args[64];
     Tcl_Obj **argObjs;
     int     i, nargs;
-    
+
     if (objc != 2) {
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
     }
@@ -894,7 +894,7 @@ static int Twapi_ServiceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             return Twapi_ChangeServiceConfig2(ticP, objc-2, objv+2);
         }
     }
-    
+
     return TwapiSetResult(interp, &result);
 }
 
@@ -935,7 +935,7 @@ static int TwapiServiceInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
 /* Main entry point */
 #ifndef TWAPI_SINGLE_MODULE
-__declspec(dllexport) 
+__declspec(dllexport)
 #endif
 int Twapi_service_Init(Tcl_Interp *interp)
 {
