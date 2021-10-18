@@ -1127,6 +1127,58 @@ test tls_socket-client-3.1 {
     list $::done [regexp $http_response $response]
 } -result {eof 1}
 
+test tls_socket-client-3.1.1 {
+    Verify event driven client i/o - Bug #203
+} -body {
+    # Note this test differs from 3.1 ONLY in the use of www.example.com instead
+    # of www.google.com. This is because only the former triggered bug #203.
+    set response ""
+    set so [twapi::tls_socket -async www.example.com 443]
+    fconfigure $so -blocking 0 -translation binary -buffering none
+    fileevent $so writable "fileevent $so writable {}; set ::done open"
+    set after_id [after 5000 set ::done timeout]
+    vwait ::done
+    if {$::done eq "open"} {
+        httpreq $so www.example.com
+        set reader [twapi::lambda {so} {
+            append ::response [read $so]
+            if {[eof $so]} {
+                set ::done eof
+                chan close $so
+            }
+        }]
+        fileevent $so readable "$reader $so"
+        vwait ::done
+    }
+    list $::done [regexp $http_response $response]
+} -result {eof 1}
+
+test tls_socket-client-3.1.2 {
+    Verify event driven client i/o - Bug #203 with single byte reads
+} -body {
+    # Note this test differs from 3.1 ONLY in the use of www.example.com instead
+    # of www.google.com. This is because only the former triggered bug #203.
+    set response ""
+    set so [twapi::tls_socket -async www.example.com 443]
+    fconfigure $so -blocking 0 -translation binary -buffering none
+    fileevent $so writable "fileevent $so writable {}; set ::done open"
+    set after_id [after 5000 set ::done timeout]
+    vwait ::done
+    if {$::done eq "open"} {
+        httpreq $so www.example.com
+        set reader [twapi::lambda {so} {
+            append ::response [read $so 1]
+            if {[eof $so]} {
+                set ::done eof
+                chan close $so
+            }
+        }]
+        fileevent $so readable "$reader $so"
+        vwait ::done
+    }
+    list $::done [regexp $http_response $response]
+} -result {eof 1}
+
 test tls_socket-client-3.2 {
     Verify event driven client i/o using gets
 } -body {
