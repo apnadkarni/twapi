@@ -18,6 +18,9 @@ eval tcltest::configure $argv
 
 # Note tlsecho loads testutil and twapi
 source [file join [file dirname [info script]] tlsecho.tcl]
+package require twapi_network
+
+namespace eval ::twapi::test {}
 
 ::tcltest::testConstraint vista [expr {![string match 5.* $::tcl_platform(osVersion)]}]
 
@@ -1045,7 +1048,7 @@ test tls_socket-client-2.8 {
     close $so
     set result
 } -result "HTTP/1.1 200 OK"
-    
+
 test tls_socket-client-2.8.1 {
     Async connection, switching between blocking/non-blocking
 } -body {
@@ -1059,7 +1062,44 @@ test tls_socket-client-2.8.1 {
     close $so
     set result
 } -result "HTTP/1.1 200 OK"
-    
+
+test tls_socket-client-2.9 {
+    Async connection callback only after negotiation done. Bug #202
+} -body {
+    set so [twapi::tls_socket -async www.example.com 443]
+    fileevent $so writable [list apply {{chan} {
+        set state [twapi::tls_state $chan]
+        set sockname [fconfigure $chan -sockname]
+        close $chan
+        set ::twapi::test::results(tls_socket-client-2.9) [list $state {*}$sockname]
+    }} $so]
+    vwait ::twapi::test::results(tls_socket-client-2.9)
+    lassign $::twapi::test::results(tls_socket-client-2.9) state addr hostname port
+    list $state \
+        [expr {$addr in [twapi::get_system_ipaddrs]}] \
+        [string equal $hostname [twapi::resolve_address $addr]] \
+        [string is integer -strict $port]
+} -result [list OPEN 1 1 1]
+
+test tls_socket-client-2.9.1 {
+    Async connection callback only after negotiation done. Bug #202. Non-blocking case.
+} -body {
+    set so [twapi::tls_socket -async www.example.com 443]
+    fconfigure $so -blocking 0
+    fileevent $so writable [list apply {{chan} {
+        set state [twapi::tls_state $chan]
+        set sockname [fconfigure $chan -sockname]
+        close $chan
+        set ::twapi::test::results(tls_socket-client-2.9) [list $state {*}$sockname]
+    }} $so]
+    vwait ::twapi::test::results(tls_socket-client-2.9)
+    lassign $::twapi::test::results(tls_socket-client-2.9) state addr hostname port
+    list $state \
+        [expr {$addr in [twapi::get_system_ipaddrs]}] \
+        [string equal $hostname [twapi::resolve_address $addr]] \
+        [string is integer -strict $port]
+} -result [list OPEN 1 1 1]
+
 
 test tls_socket-client-3.0 {
     Verify event driven client i/o

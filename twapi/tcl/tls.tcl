@@ -71,7 +71,7 @@ proc twapi::tls::_socket {args} {
             if {$server eq ""} {
                 error "Cannot specify an empty value for -server."
             }
-            
+
             if {[info exists peersubject]} {
                 error "Option -peersubject cannot be specified for with -server"
             }
@@ -98,7 +98,9 @@ proc twapi::tls::_socket {args} {
         _init $chan $type $so $credentials $peersubject $requestclientcert [lrange $verifier 0 end] $server
 
         if {$type eq "CLIENT"} {
-            if {! $async} {
+            if {$async} {
+                chan event $so writable [list [namespace current]::_so_write_handler $chan]
+            } else {
                 _client_blocking_negotiate $chan
                 if {(![info exists _channels($chan)]) ||
                     [dict get $_channels($chan) State] ne "OPEN"} {
@@ -358,6 +360,8 @@ proc twapi::tls::blocking {chan mode} {
         chan event $so readable [list [namespace current]::_so_read_handler $chan]
         chan event $so writable [list [namespace current]::_so_write_handler $chan]
     } else {
+        # TBD - is this right? Application may have file event handlers even
+        # on blocking sockets
         chan event $so readable {}
         chan event $so writable {}
     }
@@ -384,12 +388,7 @@ proc twapi::tls::watch {chan watchmask} {
     }
 
     if {"write" in [dict get $_channels($chan) WatchMask]} {
-        # We will mark channel as writable even if we are still
-        # initializing. This is to deal with the case where
-        # the -async option is used and caller waits for the
-        # writable event to do the actual write (which will then
-        # trigger the negotiation if needed)
-        if {[dict get $_channels($chan) State] in {OPEN SERVERINIT CLIENTINIT NEGOTIATING}} {
+        if {[dict get $_channels($chan) State] eq "OPEN"} {
             _post_write_event $chan
         }
         # TBD - do we need to turn write handler back on?
