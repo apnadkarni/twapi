@@ -485,6 +485,10 @@ proc twapi::tls::read {chan nbytes} {
         }
         if {$status ne "ok"} {
             # TBD - handle renegotiate
+            debuglog "read: setting State CLOSED"
+
+            # Need a EOF event even if read event posted. See Bug #203
+            _post_eof_event $chan
             set State CLOSED
             lassign [sspi_shutdown_context $SspiContext] _ outdata
             if {[info exists Socket]} {
@@ -1183,6 +1187,23 @@ proc twapi::tls::_post_read_event {chan} {
             [after 0 [namespace current]::_post_read_event_callback $chan]
     }
 }
+proc twapi::tls::_post_eof_event_callback {chan} {
+    debuglog [info level 0]
+    variable _channels
+    if {[info exists _channels($chan)]} {
+        if {"read" in [dict get $_channels($chan) WatchMask]} {
+            chan postevent $chan read
+        }
+    }
+}
+proc twapi::tls::_post_eof_event {chan} {
+    # EOF events are always generated event if a read event is already posted.
+    # See Bug #203
+    debuglog [info level 0]
+    after 0 [namespace current]::_post_eof_event_callback $chan
+}
+
+
 proc twapi::tls::_post_write_event_callback {chan} {
     debuglog [info level 0]
     variable _channels
