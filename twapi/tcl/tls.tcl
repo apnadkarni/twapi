@@ -1230,3 +1230,18 @@ namespace eval twapi::tls {
         initialize finalize blocking watch read write configure cget cgetall
     }
 }
+
+proc twapi::tls::sample_server_creds pfxFile {
+    set fd [open $pfxFile rb]
+    set pfx [read $fd]
+    close $fd
+    # Set up the store containing the certificates
+    set certStore [twapi::cert_temporary_store -pfx $pfx]
+    # Set up the client and server credentials
+    set serverCert [twapi::cert_store_find_certificate $certStore subject_substring twapitestserver]
+    # TBD - check if certs can be released as soon as we obtain credentials
+    set creds [twapi::sspi_acquire_credentials -credentials [twapi::sspi_schannel_credentials -certificates [list $serverCert]] -package unisp -role server]
+    twapi::cert_release $serverCert
+    twapi::cert_store_release $certStore
+    return $creds
+}
