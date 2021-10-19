@@ -624,7 +624,33 @@ namespace eval twapi::com::test {
         $wscript -destroy
         cd $prevdir
     } -body {
+        $wscript -put CurrentDirectory c:/
+        string tolower [pwd]
+    } -result c:/
+
+    test comobj-16.0.1 {
+        Put comobj property using -set
+    } -setup {
+        set prevdir [pwd]
+        set wscript [twapi::comobj wscript.shell]
+    } -cleanup {
+        $wscript -destroy
+        cd $prevdir
+    } -body {
         $wscript -set CurrentDirectory c:/
+        string tolower [pwd]
+    } -result c:/
+
+    test comobj-16.0.2 {
+        Put comobj property using implicit -put
+    } -setup {
+        set prevdir [pwd]
+        set wscript [twapi::comobj wscript.shell]
+    } -cleanup {
+        $wscript -destroy
+        cd $prevdir
+    } -body {
+        $wscript CurrentDirectory c:/
         string tolower [pwd]
     } -result c:/
 
@@ -777,6 +803,44 @@ namespace eval twapi::com::test {
     } -body {
         TBD - comobj -lcid
     } -result TBD
+
+    ###
+
+    test comobj-24.0 {
+        comobj -putref
+    } -setup {
+        set sapiId [twapi::comobj "sapi.SpVoice"]
+        set voices [$sapiId GetVoices]
+        set nvoices [$voices Count]
+    } -cleanup {
+        $voices destroy
+        $sapiId destroy
+    } -body {
+        for {set i 0} {$i < $nvoices} {incr i} {
+            set voice [$voices Item $i]
+            $sapiId -putref Voice $voice
+            $voice destroy ;# OK to destroy here while sapiId has a ref?
+            $sapiId Speak "Twapi testing going on"
+        }
+    } -result {}
+
+    test comobj-24.1 {
+        comobj implicit -putref
+    } -setup {
+        set sapiId [twapi::comobj "sapi.SpVoice"]
+        set voices [$sapiId GetVoices]
+        set nvoices [$voices Count]
+    } -cleanup {
+        $voices destroy
+        $sapiId destroy
+    } -body {
+        for {set i 0} {$i < $nvoices} {incr i} {
+            set voice [$voices Item $i]
+            $sapiId Voice $voice
+            $voice destroy ;# OK to destroy here while sapiId has a ref?
+            $sapiId Speak "Twapi testing still going on"
+        }
+    } -result {}
 
     ################################################################
     

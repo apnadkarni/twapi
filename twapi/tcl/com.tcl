@@ -3509,8 +3509,13 @@ twapi::class create ::twapi::Automation {
         return [my _invoke $name [list 2] $args]
     }
 
-    method -set {name args} {
+    method -put {name args} {
         return [my _invoke $name [list 4] $args]
+    }
+    forward -set my -put
+
+    method -putref {name args} {
+        return [my _invoke $name [list 8] $args]
     }
 
     method -call {name args} {
@@ -3795,20 +3800,20 @@ twapi::class create ::twapi::Automation {
         # or a method. We make a guess based on number of parameters.
         # We specify an order to try based on this. The invoke will try
         # all invocations in that order.
-        # TBD - what about propputref ?
         set nargs [llength $args]
         if {$nargs == 0} {
-            # No arguments, cannot be propput. Try propget and method
+            # No arguments, cannot be propput*. Try propget and method
             set invkinds [list 2 1]
         } elseif {$nargs == 1} {
-            # One argument, likely propput, method, propget
-            set invkinds [list 4 1 2]
+            # One argument, likely propput, method, propget, propputref
+            # propputref is last as least likely
+            set invkinds [list 4 1 2 8]
         } else {
-            # Multiple arguments, likely method, propput, propget
-            set invkinds [list 1 4 2]
+            # Multiple arguments, likely method, propput, propget, propputref
+            # propputref is last as least likely
+            set invkinds [list 1 4 2 8]
         }
 
-        # TBD - should this do an uplevel ?
         return [my _invoke $name $invkinds $args]
     }
 

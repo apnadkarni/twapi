@@ -117,9 +117,13 @@ its window visible by changing its [var Visible] property.
 In theory, the names of properties and methods of an automation
 object can overlap. Althouth TWAPI can usually figure
 out whether a property is being retrieved/set or a method is being called,
-you can explicitly control this by using the [cmd -get], [cmd -set] or
-[cmd -call] subcommands followed by the actual name. So the above
-call could also have been written as
+you can explicitly control this by using the [cmd -get], [cmd -set],
+[cmd -propput] or [cmd -call] subcommands followed by the actual name.
+These correspond to the  [const DISPATCH_PROPERTYGET],
+[const DISPATCH_PROPERTYPUT], [const DISPATCH_PROPERTYPUTREF] and
+[const DISPATCH_METHOD] COM IDispatch invocation methods respectively.
+
+So the above call could also have been written as
 
 [example "\$ie -set Visible true"]
 
@@ -825,6 +829,7 @@ See [sectref "COM Events"] for an example.
 Calls the specified COM object method with the given parameters and returns
 the result if any. Trailing parameters with default values need not
 be specified.
+This corresponds to the [const DISPATCH_METHOD] in the SDK.
 
 [call "[arg COMOBJ] [cmd -callnamedargs]" [arg METHOD] [opt "[arg parametername] [arg parameter]..."]]
 Calls the specified COM object method with the given parameters and returns
@@ -846,6 +851,7 @@ defining prototypes using [uri #define_dispatch_prototypes [cmd define_dispatch_
 [call "[arg COMOBJ] [cmd -get]" [arg PROPERTY] [opt "[arg parameter] ..."]]
 Returns the value of the specified property. Optional parameters may be
 specified if the property is an indexed property.
+This corresponds to the [const DISPATCH_PROPERTYGET] in the SDK.
 
 [call "[arg COMOBJ] [cmd -instanceof] [arg TYPENAME]"]
 Declares the specified object be an instance of the specified type
@@ -900,6 +906,18 @@ Generally, [arg LCID] should be [const 0] (LOCALE_NEUTRAL, default),
 [call "[arg COMOBJ] [cmd -print]"]
 Prints to stdout the methods and properties of the object. Used for debugging.
 
+[call "[arg COMOBJ] [cmd -put]" [arg PROPERTY] [arg VALUE] [opt "[arg VALUE] ..."]]
+Sets the value of the specified property.
+This corresponds to the [const DISPATCH_PROPERTYPUT] in the SDK.
+Additional optional parameters may be
+specified if supported by the underlying COM object.
+
+[call "[arg COMOBJ] [cmd -putref]" [arg PROPERTY] [arg VALUE] [opt "[arg VALUE] ..."]]
+Sets the value of the specified property *by reference*.
+This corresponds to the [const DISPATCH_PROPERTYPUTREF] in the SDK.
+Additional optional parameters may be
+specified if supported by the underlying COM object.
+
 [call "[arg COMOBJ] [cmd -securityblanket]" [opt [arg BLANKET]]]
 If [arg BLANKET] is not specified, returns the
 [uri #security "security blanket"] in use for the remote object.
@@ -910,8 +928,11 @@ In that case, it is set as the new security blanket.
 Note that COM does not support security blankets for in-process components.
 
 [call "[arg COMOBJ] [cmd -set]" [arg PROPERTY] [arg VALUE] [opt "[arg VALUE] ..."]]
-Sets the value of the specified property. Additional optional parameters may be
-specified if supported by the underlying COM object.
+Sets the value of the specified property.
+This corresponds to the [const DISPATCH_PROPERTYPUT] in the SDK.
+Additional optional parameters may be
+specified if supported by the underlying COM object. This is a synonym
+for the [cmd -put] method.
 
 [call "[arg COMOBJ] [cmd -unbind]" [arg BINDID]]
 Deletes the COM event binding identified by [arg BINDID].
