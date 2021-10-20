@@ -90,7 +90,7 @@ set initScript {
 eval $initScript
 
 proc tls_client_credentials {} {
-    set pfx [read_binary [openssl_path certs simpleuser.pfx]]
+    set pfx [read_binary [openssl_store_path certs simpleuser.pfx]]
     set hstore [twapi::cert_temporary_store -pfx $pfx -password ""]
     set cert [twapi::cert_store_find_certificate $hstore subject_substring "Simple User"]
     set creds [twapi::sspi_acquire_credentials -credentials [twapi::sspi_schannel_credentials -certificates [list $cert]] -package unisp -role client]
@@ -1462,8 +1462,8 @@ test tls-client-openssl-1.0 {
     Normal connect with verifier
 } -setup {
     set fd [openssl& s_server \
-                -key [openssl_path certs simple.org.key] \
-                -cert [openssl_path certs simple.org.crt] \
+                -key [openssl_store_path certs simple.org.key] \
+                -cert [openssl_store_path certs simple.org.crt] \
                 -naccept 1 -rev]
 } -cleanup {
     close $fd
@@ -1479,8 +1479,8 @@ test tls-client-openssl-1.0.1 {
     Normal connect with verifier
 } -setup {
     set fd [openssl& s_server \
-                -key [openssl_path certs simple.org.key] \
-                -cert [openssl_path certs simple.org.crt] \
+                -key [openssl_store_path certs simple.org.key] \
+                -cert [openssl_store_path certs simple.org.crt] \
                 -naccept 1 -rev]
 } -cleanup {
     close $fd
@@ -1498,8 +1498,8 @@ test tls-client-openssl-1.1 {
     Normal connect with verifier - wrong peer
 } -setup {
     set fd [openssl& s_server \
-                -key [openssl_path certs simple.org.key] \
-                -cert [openssl_path certs simple.org.crt] \
+                -key [openssl_store_path certs simple.org.key] \
+                -cert [openssl_store_path certs simple.org.crt] \
                 -naccept 1 -rev]
 } -cleanup {
     close $fd
@@ -1513,8 +1513,8 @@ test tls-client-openssl-2.0 {
     Untrusted root
 } -setup {
     set fd [openssl& s_server \
-                -key [openssl_path certs simple.org.key] \
-                -cert [openssl_path certs simple.org.crt] \
+                -key [openssl_store_path certs simple.org.key] \
+                -cert [openssl_store_path certs simple.org.crt] \
                 -naccept 1 -rev]
 } -cleanup {
     close $fd
@@ -1531,10 +1531,10 @@ test tls-client-openssl-3.0 {
     # Note -Verify (uppercase V) openssl option mandates client cert
     set creds [tls_client_credentials]
     set fd [openssl& s_server \
-                -key [openssl_path certs simple.org.key] \
-                -cert [openssl_path certs simple.org.crt] \
+                -key [openssl_store_path certs simple.org.key] \
+                -cert [openssl_store_path certs simple.org.crt] \
                 -rev -naccept 1 \
-                -Verify 1 -CAfile [openssl_path ca ca-chain.p7b]]
+                -Verify 1 -CAfile [openssl_store_path ca ca-chain.p7b]]
 } -cleanup {
     twapi::sspi_free_credentials $creds
     close $fd
@@ -1552,9 +1552,9 @@ test tls-client-openssl-3.1 {
 } -setup {
     # Note -Verify (uppercase V) openssl option mandates client cert
     set fd [openssl& s_server \
-                -key [openssl_path certs simple.org.key] \
-                -cert [openssl_path certs simple.org.crt] \
-                -naccept 1 -Verify 1 -CAfile [openssl_path ca ca-chain.p7b]]
+                -key [openssl_store_path certs simple.org.key] \
+                -cert [openssl_store_path certs simple.org.crt] \
+                -naccept 1 -Verify 1 -CAfile [openssl_store_path ca ca-chain.p7b]]
 } -cleanup {
     close $fd
 } -body {
@@ -1567,10 +1567,10 @@ test tls-client-openssl-3.2 {
 } -setup {
     # Note -verify (lowercase v) openssl option mandates client cert
     set fd [openssl& s_server \
-                -key [openssl_path certs simple.org.key] \
-                -cert [openssl_path certs simple.org.crt] \
+                -key [openssl_store_path certs simple.org.key] \
+                -cert [openssl_store_path certs simple.org.crt] \
                 -rev -naccept 1 \
-                -verify 1 -CAfile [openssl_path ca ca-chain.p7b]]
+                -verify 1 -CAfile [openssl_store_path ca ca-chain.p7b]]
 } -cleanup {
     close $fd
 } -body {
@@ -1586,8 +1586,8 @@ test tls-client-openssl-4.0 {
     Normal connect with verifier
 } -setup {
     set fd [openssl& s_server \
-                -key [openssl_path certs simple.org.key] \
-                -cert [openssl_path certs simple.org.crt] \
+                -key [openssl_store_path certs simple.org.key] \
+                -cert [openssl_store_path certs simple.org.crt] \
                 -naccept 1 -rev]
 } -cleanup {
     close $fd
@@ -1625,7 +1625,7 @@ test tls-server-openssl-1.0 {
 } -body {
     after 5000 [list set ::done timeout]
     set listener [twapi::tls_socket -server $acceptor -credentials $::serverCreds -requestclientcert -verifier [list openssl_verify ""] 8828]
-    set fd [openssl& s_client -connect 127.0.0.1:8828  -cert [openssl_path certs simpleuser.crt] -key [openssl_path certs simpleuser.key]]
+    set fd [openssl& s_client -connect 127.0.0.1:8828  -cert [openssl_store_path certs simpleuser.crt] -key [openssl_store_path certs simpleuser.key]]
     vwait ::done
     set ::done
 } -result {Simple User}
@@ -1832,6 +1832,16 @@ twapi::cert_store_release [openssl_ca_store]
 twapi::cert_release [openssl_ca_cert]
 
 ::tcltest::cleanupTests
+
+# TBD
+# Command for testing SNI with openssl - NOTE - need a fairly current openssl version
+# Note both certs are the same, that is ok. Appears -servername option must be
+# given else Hostname in TLS extension: is not printed.
+#
+# openssl s_server -accept 443 -www -servername www.domain1.com -cert domain1.cert.pem -key domain1.key.pem -servername www.domain2.com -cert2 domain2.cert.pem -key2 domain2.key.pem
+#
+# Alternately, use -tlxextdebug:
+# openssl s_server -key /d/src/twapi/tools/openssl/certs/simple.org.key -cert /d/src/twapi/tools/openssl/certs/simple.org.crt -tlsextdebug
 
 # Emacs config.
 # Local variables:
