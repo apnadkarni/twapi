@@ -139,7 +139,7 @@ Building for debugging
 
 For debugging, build a version with the NOOPTIMIZE option as follows:
 
-    nmake twapi NOOPTIMIZE=1
+    nmake twapi NOOPTIMIZE=1 MAKEDIST=1
 
 Building with MinGW-W64
 -----------------------
