@@ -1643,7 +1643,7 @@ proc pick_cert {hstore {n 4}} {
     return $hcert
 }
 
-proc openssl_path {args} {
+proc openssl_store_path {args} {
     set path [file join [pwd] .. openssl bin openssl.exe]
     if {![file exists $path]} {
         # Try from the source pool. We do it this way because 
@@ -1657,11 +1657,16 @@ proc openssl_path {args} {
     return [file normalize [file join [file dirname [file dirname $path]] {*}$args]]
 }
 
+proc openssl_install_path {args} {
+    # For now, return the store path assuming everything in one location.
+    return [openssl_store_path {*}$args]
+}
+
 proc openssl {args} {
     # WARNING: exec converts line endings so do not use for binary output
     # Pass openssl the -out option instead in that case
-    set cmd [openssl_path bin openssl.exe]
-    set ::env(OPENSSL_CONF) [openssl_path ssl openssl.cnf]
+    set cmd [openssl_install_path bin openssl.exe]
+    set ::env(OPENSSL_CONF) [openssl_store_path ssl openssl.cnf]
     set stderr_temp [file join [temp_crypto_dir_path] twapi-openssl-stderr.tmp]
     set status 0
     if {[catch {exec -keepnewline -- $cmd {*}$args 2> $stderr_temp} stdout options]} {
@@ -1678,8 +1683,8 @@ proc openssl {args} {
 # can be intermixed. Take into consideration when matching data read
 # from the returned channel
 proc openssl& {args} {
-    set cmd [openssl_path bin openssl.exe]
-    set ::env(OPENSSL_CONF) [openssl_path ssl openssl.cnf]
+    set cmd [openssl_install_path bin openssl.exe]
+    set ::env(OPENSSL_CONF) [openssl_store_path ssl openssl.cnf]
     set stderr_temp [file join [temp_crypto_dir_path] twapi-openssl-stderr.tmp]
     set status 0
     return [open |[list $cmd {*}$args 2>@1]]
@@ -1692,7 +1697,7 @@ proc openssl_port {} {
 proc openssl_ca_store {} {
     set store [twapi::cert_temporary_store]
     foreach ca {root-ca signing-ca} {
-        set cert [twapi::cert_import [read_file [openssl_path ca ${ca}.crt]] -encoding pem]
+        set cert [twapi::cert_import [read_file [openssl_store_path ca ${ca}.crt]] -encoding pem]
         twapi::cert_release [twapi::cert_store_add_certificate $store $cert]
         twapi::cert_release $cert
     }
@@ -1701,7 +1706,7 @@ proc openssl_ca_store {} {
 }
 
 proc openssl_ca_cert {} {
-    set cert [twapi::cert_import [read_file [openssl_path ca root-ca.crt]] -encoding pem]
+    set cert [twapi::cert_import [read_file [openssl_store_path ca root-ca.crt]] -encoding pem]
     proc openssl_ca_cert {} [list return $cert]
     return $cert
 }
