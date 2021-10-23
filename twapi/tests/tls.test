@@ -585,7 +585,7 @@ test starttlsIO-2.1.3 {Validate server altname -verifier: name mismatch} {socket
     gets $f x
     if {[catch {twapi::starttls [socket 127.0.0.1 8828] -credentials $::clientCreds \
                     -verifier [list verify twapitestserver.twapitest.com] \
-                    -peersubject 127.0.0.1} msg]} {
+                    -peersubject twapitestserver.twapitest.com} msg]} {
         set x [list $msg]
     } else {
         puts $msg enod; flush $msg
@@ -695,7 +695,7 @@ test starttlsIO-3.0 {Validate server non-blocking -verifier: success} {socket st
     if {[catch {
         set client_so [socket 127.0.0.1 8828]
         twapi::starttls $client_so -credentials $::clientCreds \
-            -verifier [list verify twapitestserver] -peersubject 127.0.0.1
+            -verifier [list verify twapitestserver] -peersubject twapitestserver.twapitest.com
         } msg]} {
         set response [list $msg\n$::errorInfo]
     } else {
@@ -720,7 +720,7 @@ test starttlsIO-3.0.1 {Validate server non-blocking -verifier: success, loop} {s
     set so [twapi::starttls [socket 127.0.0.1 8828] \
                 -credentials $::clientCreds \
                 -verifier [list verify twapitestserver] \
-                -peersubject 127.0.0.1]
+                -peersubject twapitestserver.twapitest.com]
     fconfigure $so -buffering line -translation lf
     for {set i 0} {$i < 5000} {incr i} {
         puts $so $i; flush $so
@@ -767,7 +767,7 @@ test starttlsIO-3.1 {Validate server non-blocking -verifier: name mismatch} {soc
         twapi::starttls [socket 127.0.0.1 8828] \
             -credentials $::clientCreds \
             -verifier [list verify twapitestserverx] \
-            -peersubject 127.0.0.1} msg]} {
+            -peersubject twapitestserver.twapitest.com} msg]} {
         set x [list $msg]
     } else {
         puts $msg enod; flush $msg
@@ -1534,7 +1534,7 @@ test tls-client-openssl-3.0 {
                 -key [openssl_store_path certs simple.org.key] \
                 -cert [openssl_store_path certs simple.org.crt] \
                 -rev -naccept 1 \
-                -Verify 1 -CAfile [openssl_store_path ca ca-chain.p7b]]
+                -Verify 1 -CAfile [openssl_store_path ca ca-chain.pem]]
 } -cleanup {
     twapi::sspi_free_credentials $creds
     close $fd
@@ -1554,7 +1554,7 @@ test tls-client-openssl-3.1 {
     set fd [openssl& s_server \
                 -key [openssl_store_path certs simple.org.key] \
                 -cert [openssl_store_path certs simple.org.crt] \
-                -naccept 1 -Verify 1 -CAfile [openssl_store_path ca ca-chain.p7b]]
+                -naccept 1 -Verify 1 -CAfile [openssl_store_path ca ca-chain.pem]]
 } -cleanup {
     close $fd
 } -body {
@@ -1570,7 +1570,7 @@ test tls-client-openssl-3.2 {
                 -key [openssl_store_path certs simple.org.key] \
                 -cert [openssl_store_path certs simple.org.crt] \
                 -rev -naccept 1 \
-                -verify 1 -CAfile [openssl_store_path ca ca-chain.p7b]]
+                -verify 1 -CAfile [openssl_store_path ca ca-chain.pem]]
 } -cleanup {
     close $fd
 } -body {

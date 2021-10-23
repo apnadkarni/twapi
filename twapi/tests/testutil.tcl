@@ -1657,15 +1657,19 @@ proc openssl_store_path {args} {
     return [file normalize [file join [file dirname [file dirname $path]] {*}$args]]
 }
 
-proc openssl_install_path {args} {
-    # For now, return the store path assuming everything in one location.
-    return [openssl_store_path {*}$args]
+proc openssl_exe_path {} {
+    if {[info exists ::env(OPENSSL_EXEPATH)]} {
+        set path $::env(OPENSSL_EXEPATH)
+    } {
+        set path {C:\msys64\mingw32\bin\openssl.exe}
+    }
+    return [file normalize $path]
 }
 
 proc openssl {args} {
     # WARNING: exec converts line endings so do not use for binary output
     # Pass openssl the -out option instead in that case
-    set cmd [openssl_install_path bin openssl.exe]
+    set cmd [openssl_exe_path]
     set ::env(OPENSSL_CONF) [openssl_store_path ssl openssl.cnf]
     set stderr_temp [file join [temp_crypto_dir_path] twapi-openssl-stderr.tmp]
     set status 0
@@ -1683,7 +1687,7 @@ proc openssl {args} {
 # can be intermixed. Take into consideration when matching data read
 # from the returned channel
 proc openssl& {args} {
-    set cmd [openssl_install_path bin openssl.exe]
+    set cmd [openssl_exe_path]
     set ::env(OPENSSL_CONF) [openssl_store_path ssl openssl.cnf]
     set stderr_temp [file join [temp_crypto_dir_path] twapi-openssl-stderr.tmp]
     set status 0
