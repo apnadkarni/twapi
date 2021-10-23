@@ -5512,3 +5512,44 @@ patience "Cleaning test certs"
 cleanup_test_cert_files
 ::tcltest::cleanupTests
 namespace delete ::twapi::crypto::test
+
+# SAMPLE to generate CSR using openssl with subjaltnames
+# #generate the RSA private key
+# openssl genpkey -outform PEM -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out priv.key
+
+# #Create the CSR (Click csrconfig.txt in the command below to download config)
+# openssl req -new -nodes -key priv.key -config csrconfig.txt -nameopt utf8 -utf8 -out cert.csr
+
+# File csrconfig.txt
+# [ req ]
+# default_md = sha256
+# prompt = no
+# req_extensions = req_ext
+# distinguished_name = req_distinguished_name
+# [ req_distinguished_name ]
+# commonName = myexample
+# countryName = IN
+# stateOrProvinceName = Karnataka
+# localityName = Bengaluru
+# [ req_ext ]
+# keyUsage=critical,digitalSignature,keyEncipherment
+# extendedKeyUsage=serverAuth,clientAuth
+# basicConstraints=critical,CA:false
+# subjectAltName = @alt_names
+# [ alt_names ]
+# DNS.0 = myexample.com
+URI.0 = http://myexample.com
+
+# Alternative one-liner for above CSR generation
+# openssl req -new -sha256 -key domain.key -subj "/C=US/ST=CA/O=Acme, Inc./CN=example.com" -reqexts SAN -config <(cat /etc/ssl/openssl.cnf <(printf "[SAN]\nsubjectAltName=DNS:example.com,DNS:www.example.com")) -out domain.csr
+#
+# Better still
+# c:\msys64\mingw32\bin\openssl req -sha256 -newkey RSA:2048 -keyout x.key -out x.csr -outform der -nodes -subj "/C=US/ST=CA/O=Acme, Inc./CN=example.com" -addext subjectAltName=DNS.0:abc
+# IMPORTANT - the above has to be done from a DOS window, not msys/mingw because that
+# converts the "/C..." to "C:\..." thinking it is a file name. Moreover specifying
+# environment variable MSYS_NO_PATHCONV=1 does not help when in the msys winpty.
+
+# To print the CSR
+# openssl req -in x.der -inform der -text
+
+
