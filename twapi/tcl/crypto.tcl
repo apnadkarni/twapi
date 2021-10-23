@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2007-2018, Ashok P. Nadkarni
+# Copyright (c) 2007-2021, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -661,7 +661,6 @@ proc twapi::cert_info {hcert} {
 }
 
 proc twapi::cert_extension {hcert oid} {
-    # TBD - add option to "cook" OID
     set ext [CertFindExtension $hcert [oid $oid]]
     if {[llength $ext] == 0} {
         return $ext
@@ -722,8 +721,8 @@ proc twapi::cert_create {subject pubkey cissuer args} {
     parseargs args {
         {encoding.arg pem {der pem}}
     } -maxleftover 0 -setvars
-    
-    # TBD - check that issuer is a CA
+
+    # TBD - check that issuer is a CA - but then what about self-signed?
 
     set issuer_info [cert_info $cissuer]
     set issuer_blob [cert_name_to_blob [dict get $issuer_info -subject] -format x500]
@@ -1240,19 +1239,27 @@ proc twapi::cert_request_parse {req args} {
     foreach attr $attrs {
         lassign $attr oid values
         if {$oid eq "1.2.840.113549.1.9.14"} {
-            # Extensions
+            # ...1.9.14 -> oid_rsa_certextensions
             set extensions {}
             foreach ext [lindex $values 0] {
                 lassign $ext oid critical value
                 set value [_cert_decode_extension $oid $value]
+                lappend extensions $oid [list $value $critical]
+                # Also add "option keyed" values
                 switch -exact -- $oid {
-                    2.5.29.15 { set oidname -keyusage }
-                    2.5.29.17 { set oidname -altnames }
-                    2.5.29.19 { set oidname -basicconstraints }
-                    2.5.29.37 { set oidname -enhkeyusage }
-                    default { set oidname $oid }
+                    2.5.29.15 {
+                        lappend extensions -keyusage [list $value $critical]
+                    }
+                    2.5.29.17 {
+                        lappend extensions -altnames [list $value $critical]
+                    }
+                    2.5.29.19 {
+                        lappend extensions -basicconstraints [list $value $critical]
+                    }
+                    2.5.29.37 {
+                        lappend extensions -enhkeyusage [list $value $critical]
+                    }
                 }
-                lappend extensions $oidname [list $value $critical]
             }
             lappend reqdict extensions $extensions
         }
@@ -2637,14 +2644,18 @@ twapi::proc* twapi::oid {name} {
 } {
     variable _name_oid_map
 
+    if {[regexp {^\d+\.\d+(\.\d+)*$} $name]} {
+        return $name;           # OID literal n.n...
+    }
     if {[info exists _name_oid_map($name)]} {
         return $_name_oid_map($name)
     }
-    if {[regexp {^\d+\.\d+(\.\d+)*$} $name]} {
-        return $name;           # OID literal n.n...
-    } else {
-        badargs! "Invalid OID '$name'"
+    # Try by adding oid_
+    if {[info exists _name_oid_map(oid_$name)]} {
+        return $_name_oid_map(oid_$name)
     }
+
+    badargs! "Invalid OID '$name'"
 
 }
 
@@ -2662,7 +2673,7 @@ twapi::proc* twapi::oidname {oid} {
     if {[regexp {^\d([\d\.]*\d)?$} $oid]} {
         return $oid
     } else {
-        badargs! "Invalid OID '$name'"
+        badargs! "Invalid OID '$oid'"
     }
 }
 
@@ -3096,6 +3107,7 @@ proc twapi::_cert_decode_extension {oid val} {
         2.5.29.37 { return [_cert_decode_enhkey $val] }
         2.5.29.17 -
         2.5.29.18 {
+            # TBD - replace with lmap for 8.6
             set names {}
             foreach elem $val {
                 lappend names [list [dict* {
@@ -3182,7 +3194,8 @@ proc twapi::_cert_create_parse_options {optvals optsvar} {
     }
     if {$sslserver || $sslclient} {
         # TBD - not clear key_agreement is needed for SSL certs for
-        # either client or server. See https://access.redhat.com/documentation/en-US/Red_Hat_Certificate_System/8.0/html/Admin_Guide/Standard_X.509_v3_Certificate_Extensions.html#Discussion-Certificate_Uses_and_Corresponding_Key_Usage_Bits
+        # either client or server. See
+        # https://access.redhat.com/documentation/en-us/red_hat_certificate_system/10/html/administration_guide/standard_x.509_v3_certificate_extensions
         lappend extra_keyusage digital_signature key_encipherment key_agreement
         if {$sslserver} { 
            lappend extra_enhkeyusage oid_pkix_kp_server_auth

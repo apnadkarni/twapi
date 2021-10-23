@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Certificates" n ""]
-[copyright "2007-2016 Ashok P. Nadkarni"]
+[copyright "2007-2021 Ashok P. Nadkarni"]
 [moddesc "Certificate API"]
 [titledesc "Commands related to certificate and PKI operations"]
 [require twapi_crypto]
@@ -1064,7 +1064,7 @@ together select the public/private key pair
 for which a certificate is to be requested.
 [arg HCRYPT] is a handle to a
 cryptographic context and
-[arg KEYSPEC] must be [const signature] or [const keyexhange] to
+[arg KEYSPEC] must be [const signature] or [const keyexchange] to
 select the appropriate key pair in the context.
 [nl]
 The following options may be specified:
@@ -1087,7 +1087,7 @@ See [uri #cert_create [cmd cert_create]]
 
 [call [cmd cert_request_parse] [arg CSR] [opt "[cmd -encoding] [arg ENCODING]"]]
 Parses a certificate signing request [arg CSR] and returns a dictionary with
-its contents. 
+its contents.
 [arg ENCODING] may be [const der] or [const pem]
 depending on whether [arg ENCODEDCERT] uses DER- or PEM-encoding.
 If unspecified, the command attempts to determine the encoding itself.
@@ -1114,9 +1114,12 @@ OID [const 1.2.840.113549.1.9.14] through which the requestor
 can indicate certain certificate extensions to be included in
 the returned certificate. This specific attribute is parsed and
 returned as the value of the [cmd extensions] dictionary element above.
-This value is itself a dictionary which may contain zero or more of the
-keys [cmd -basicconstraints], [cmd -keyusage] and [cmd -enhkeyusage].
-The corresponding values have the same format as the corresponding
+This value is itself a dictionary mapping OID's to values.
+In addition, the extensions dictionary may contain zero or more of the
+keys [cmd -altnames], [cmd -basicconstraints], [cmd -keyusage]
+and [cmd -enhkeyusage] whose values duplicate the values of the corresponding
+OID's.
+The values in the extensions dictionary have the same format as the corresponding
 options to the [uri #cert_create [cmd cert_create]] command.
 
 [call [cmd cert_set_key_prov] [arg HCERT] [arg KEYCONTAINER] [arg KEYSPEC] [opt [arg options]]]
