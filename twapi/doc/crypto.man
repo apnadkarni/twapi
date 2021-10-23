@@ -1243,13 +1243,11 @@ Returns the size of the symmetric key in the container.
 
 [call [cmd csp_types]]
 Returns a list of pairs, each representing a CSP type on the system.
-The first element of each pair is a CSP type 
-and the second is the name of the CSP.
+The first element of each pair is a CSP type and the second is the name of the CSP.
 
 [call [cmd csps]]
 Returns a list of pairs, each representing a CSP on the system.
-The first element of each pair is a CSP type 
-and the second is the name of the CSP.
+The first element of each pair is a CSP type and the second is the name of the CSP.
 
 
 [call [cmd des] [const iv|encrypt|decrypt] [arg BYTES] [arg CONCEALEDKEY] [opt [arg options]]]
@@ -1276,17 +1274,6 @@ The cipher mode to be used for the operation. See
 [uri #capi_key_mode [cmd capi_key_mode]].
 [list_end]
 
-
-
-
-
-
-
-
-
-
-
-
 [call [cmd hmac] [arg DATA] [arg KEY] [opt [arg PRF]] [opt [arg CHARSET]]]
 Computes the HMAC hash for the specified data [arg DATA].
 The key [arg KEY] used in computation of the HMAC is and must be
@@ -1311,6 +1298,26 @@ specified or is an empty string, [arg DATA] is assumed to be
 a binary string. Otherwise, it is converted to a binary string
 using the specified encoding [arg CHARSET] and the digest is calculated
 on the result.
+
+[call [cmd oid] [arg OID_OR_NAME]]
+If [arg OID_OR_NAME] is an OID dotted decimal string, returns it as is.
+Otherwise, treats it as a mnemonic and returns the corresponding dotted decimal
+OID. The [const oid_] prefix is optional so either [const common_name] or
+[const oid_common_name] are accepted. An error is raised if there is no
+matching mnemonic.
+[nl]
+For a list of mnemonics, see the [uri #oids [cmd oids]] command.
+
+[call [cmd oidname] [arg OID_OR_NAME]]
+If [arg OID_OR_NAME] is an OID dotted decimal string, returns its mnemonic if
+there is one. Otherwise, if the passed argument is a dotted decimal OID, returns
+it. If neither condition is met, raises an error.
+[nl]
+For a list of mnemonics, see the [uri #oids [cmd oids]] command.
+
+[call [cmd oids] [opt [arg PATTERN]]]
+Returns a dictionary mapping OID mnemonics matching [arg PATTERN] to their
+dotted decimal OID's.
 
 [call [cmd pbkdf2] [arg PASSPHRASE] [arg KEYSIZE] [arg PRF] [arg SALT] [arg NITERATIONS]]
 Generates a key of the specified number of bits [arg KEYSIZE]
