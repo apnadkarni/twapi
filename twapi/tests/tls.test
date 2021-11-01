@@ -1380,6 +1380,32 @@ test tls_socket-client-6.1 {
     catch {close $so}
 } -result $http_response -match regexp
 
+test tls_socket-client-7.0 {
+    Server initiated data transfer on synchronous socket
+} -body {
+    set so [twapi::tls_socket irc.libera.chat 6697]
+    gets $so
+} -cleanup {
+    close $so
+} -result "*NOTICE*Checking Ident*" -match glob
+
+test tls_socket-client-7.1 {
+    Server initiated data transfer on asynchronous socket
+} -setup {
+    proc cb {so} {
+        set ::twapi::test::results(tls_socket-client-7.1) [gets $so]
+        fileevent $so writable {}
+    }
+} -body {
+    set so [twapi::tls_socket -async irc.libera.chat 6697]
+    fileevent $so writable [list cb $so]
+    vwait ::twapi::test::results(tls_socket-client-7.1)
+    set ::twapi::test::results(tls_socket-client-7.1)
+} -cleanup {
+    rename cb {}
+    close $so
+} -result "*NOTICE*Checking Ident*" -match glob
+
 test starttls-optscheck-1.0 {
     Verify starttls preserves options
 } -body {
