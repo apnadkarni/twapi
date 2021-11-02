@@ -2285,8 +2285,10 @@ twapi::class create ::twapi::IDispatchExProxy {
         } elseif {$invkind == 4} {
             # propput
             set flags 0x4
+        } elseif {$invkind == 8 } {
+            # propputref
+            set flags 0x10
         } else {
-            # TBD - what about putref (flags 0x10)
             error "Internal error: Invalid invkind value $invkind"
         }
 
