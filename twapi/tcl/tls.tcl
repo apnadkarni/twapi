@@ -31,13 +31,27 @@ namespace eval twapi::tls {
     variable _channels
     array set _channels {}
 
+    # Socket command - Tcl socket by default.
+    variable _socket_cmd ::socket
+
     namespace path [linsert [namespace path] 0 [namespace parent]]
 
+}
+
+proc twapi::tls_socket_command {args} {
+    set orig_command $tls::_socket_cmd
+    if {[llength $args] == 1} {
+        set tls::_socket_cmd [lindex $args 0]
+    } elseif {[llength $args] != 0} {
+        error "wrong # args: should be \"tls_socket_command ?cmd?\""
+    }
+    return $orig_command
 }
 
 interp alias {} twapi::tls_socket {} twapi::tls::_socket
 proc twapi::tls::_socket {args} {
     variable _channels
+    variable _socket_cmd
 
     debuglog [info level 0]
 
@@ -45,6 +59,7 @@ proc twapi::tls::_socket {args} {
         myaddr.arg
         myport.int
         async
+        socketcmd.arg
         server.arg
         peersubject.arg
         requestclientcert
@@ -89,12 +104,20 @@ proc twapi::tls::_socket {args} {
             set server ""
             set type CLIENT
         }
+
+        if {[info exists socketcmd]} {
+            if {$socketcmd eq ""} {
+                set socketcmd ::socket
+            }
+        } else {
+            set socketcmd $_socket_cmd
+        }
     } onerror {} {
         catch {chan close $chan}
         rethrow
     }
     trap {
-        set so [socket {*}$socket_args {*}$args]
+        set so [$socketcmd {*}$socket_args {*}$args]
         _init $chan $type $so $credentials $peersubject $requestclientcert [lrange $verifier 0 end] $server
 
         if {$type eq "CLIENT"} {
@@ -604,11 +627,17 @@ proc twapi::tls::cget {chan opt} {
 proc twapi::tls::cgetall {chan} {
     debuglog [info level 0]
     variable _channels
-
     dict with _channels($chan) {
         if {[info exists Socket]} {
-            foreach opt {-peername -sockname} {
-                lappend config $opt [chan configure $Socket $opt]
+            # First get all options underlying socket supports. Note this may
+            # or may not a Tcl native socket.
+            array set so_config [chan configure $Socket]
+            # Only return options that are not owned by the core channel code
+            # and apply to the $chan itself.
+            foreach {opt val} [chan configure $Socket] {
+                if {$opt ni {-blocking -buffering -buffersize -encoding -eofchar -translation}} {
+                    lappend config $opt $val
+                }
             }
         }
         lappend config -credentials $Credentials \

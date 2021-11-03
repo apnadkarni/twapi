@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013-2019, Ashok P. Nadkarni
+# Copyright (c) 2013-2021, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -20,9 +20,16 @@ eval tcltest::configure $argv
 source [file join [file dirname [info script]] tlsecho.tcl]
 package require twapi_network
 
-namespace eval ::twapi::test {}
+namespace eval ::twapi::test {
+    variable localhost_name [twapi::resolve_address 127.0.0.1]
+}
 
 ::tcltest::testConstraint vista [expr {![string match 5.* $::tcl_platform(osVersion)]}]
+if {![catch {
+    package require iocp_inet
+}]} {
+    ::tcltest::testConstraint iocp 1
+}
 
 set http_response {(?i)HTTP.*<HTML.*</HTML>} 
 
@@ -249,7 +256,7 @@ test tlsIO-1.7 {arg parsing for socket command} {socket} {
 
 test tlsIO-1.8 {arg parsing for socket command} {socket} {
     list [catch {twapi::tls_socket -froboz} msg] $msg
-} {1 {Invalid option '-froboz'. Must be one of -myaddr, -myport, -async, -server, -peersubject, -requestclientcert, -credentials, -verifier}}
+} {1 {Invalid option '-froboz'. Must be one of -myaddr, -myport, -async, -socketcmd, -server, -peersubject, -requestclientcert, -credentials, -verifier}}
 
 test tlsIO-1.9 {arg parsing for socket command} {socket} {
     list [catch {twapi::tls_socket -server foo -myport 2521 3333} msg] $msg
@@ -619,7 +626,7 @@ test tlsIO-2.2 {Validate option -myport -myaddr: success} {socket stdio vista} {
     lappend x [gets $f]
     close $f
     string tolower $x
-} [list ready [list [list 127.0.0.2 $Port] [list 127.0.0.1 [string tolower [info hostname]] 8828] [list 127.0.0.2 127.0.0.2 $Port]] conninfo]
+} [list ready [list [list 127.0.0.2 $Port] [list 127.0.0.1 [string tolower $::twapi::test::localhost_name] 8828] [list 127.0.0.2 127.0.0.2 $Port]] conninfo]
 
 test tlsIO-2.6 {connection to nonexistent port} {socket} {
     set status ok
@@ -801,7 +808,7 @@ test tlsIO-3.2 {Validate server non-blocking -verifier altname: success} {socket
     lappend response [gets $f]
     close $f
     string tolower $response
-} [list ready 321 [list [list 127.0.0.2 $Port] [list 127.0.0.1 [string tolower [info hostname]] 8828] [list 127.0.0.2 127.0.0.2 $Port]] [list 123 conninfo quit]]
+} [list ready 321 [list [list 127.0.0.2 $Port] [list 127.0.0.1 [string tolower $::twapi::test::localhost_name] 8828] [list 127.0.0.2 127.0.0.2 $Port]] [list 123 conninfo quit]]
 
 test tlsIO-3.3 {Validate server -verifier: name mismatch} {socket stdio} {
     removeFile script
@@ -1406,6 +1413,8 @@ test tls_socket-client-7.1 {
     close $so
 } -result "*NOTICE*Checking Ident*" -match glob
 
+################################################################
+
 test starttls-optscheck-1.0 {
     Verify starttls preserves options
 } -body {
@@ -1417,7 +1426,7 @@ test starttls-optscheck-1.0 {
     set diffs {}
     foreach opt {-blocking -buffering -buffersize -encoding -eofchar -translation -peername -sockname} {
         if {[dict get $so_opts $opt] ne [dict get $chan_opts $opt]} {
-            lappend diffs $opt
+            lappend diffs "$opt: [dict get $so_opts $opt] != [dict get $chan_opts $opt]"
         }
     }
     set diffs
@@ -1813,6 +1822,7 @@ test tls_handshake-2.2 {
     list [twapi::tls_handshake $so] [twapi::tls_state $so]
 } -result {0 NEGOTIATING}
 
+
 ################################################################
 
 test tls_state-1.0 {
@@ -1845,6 +1855,67 @@ test tls_state-1.2 {
     twapi::tls_state $so
 } -result LISTENERINIT
 
+################################################################
+# Note the iocp tests have more comprehensive tests with twapi tls
+
+test tls_socket_command-1.0 {get socket command} -body {
+    twapi::tls_socket_command
+} -result ::socket
+
+test tls_socket_command-2.0 {connect using iocp} -constraints iocp -body {
+    twapi::tls_socket_command ::iocp::inet::socket
+    set so [twapi::tls_socket www.example.com 443]
+    httpreq $so www.example.com
+    # Verify it was indeed iocp
+    set pendingreads [fconfigure $so -maxpendingreads]
+    set response [read $so]
+    list $pendingreads [regexp $http_response $response]
+} -cleanup {
+    close $so
+    twapi::tls_socket_command ::socket
+} -result {3 1}
+
+
+test tls_socket-socketcmd-1.0 {
+    Client connection with -socketcmd
+} -constraints {
+    iocp
+} -body {
+    set so [twapi::tls_socket -socketcmd ::iocp::inet::socket www.google.com 443]
+    httpreq $so www.google.com
+    set pending [fconfigure $so -maxpendingreads]
+    set response [read $so]
+    list $pending [regexp $http_response $response] [::twapi::tls_socket_command]
+} -cleanup {
+    catch {close $so}
+} -result [list 3 1 ::socket]
+
+test tls_socket-socketcmd-2.0 {
+    Server socket with -socketcmd
+} -constraints {
+    iocp
+} -body {
+    set so [twapi::tls_socket -credentials $::serverCreds -socketcmd ::iocp::inet::socket -server accept 443]
+    fconfigure $so -maxpendingaccepts
+} -cleanup {
+    catch {close $so}
+} -result 5
+
+################################################################
+
+
+#
+# SNI tests
+# Command for testing SNI with openssl - NOTE - need a fairly current openssl version
+# Note both certs are the same, that is ok. Appears -servername option must be
+# given else Hostname in TLS extension: is not printed.
+#
+# openssl s_server -accept 443 -www -servername www.domain1.com -cert domain1.cert.pem -key domain1.key.pem -servername www.domain2.com -cert2 domain2.cert.pem -key2 domain2.key.pem
+#
+# Alternately, use -tlxextdebug:
+# openssl s_server -key /d/src/twapi/tools/openssl/certs/simple.org.key -cert /d/src/twapi/tools/openssl/certs/simple.org.crt -tlsextdebug
+#
+# NOTE: not implemented because Windows always sends SNI and no options
 
 #################################################################
 # Cleanup
@@ -1859,15 +1930,6 @@ twapi::cert_release [openssl_ca_cert]
 
 ::tcltest::cleanupTests
 
-# TBD
-# Command for testing SNI with openssl - NOTE - need a fairly current openssl version
-# Note both certs are the same, that is ok. Appears -servername option must be
-# given else Hostname in TLS extension: is not printed.
-#
-# openssl s_server -accept 443 -www -servername www.domain1.com -cert domain1.cert.pem -key domain1.key.pem -servername www.domain2.com -cert2 domain2.cert.pem -key2 domain2.key.pem
-#
-# Alternately, use -tlxextdebug:
-# openssl s_server -key /d/src/twapi/tools/openssl/certs/simple.org.key -cert /d/src/twapi/tools/openssl/certs/simple.org.crt -tlsextdebug
 
 # Emacs config.
 # Local variables:

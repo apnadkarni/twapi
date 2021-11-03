@@ -163,6 +163,10 @@ Only applicable to server side sockets and is ignored if
 Applications must themselves check that a certificate was received
 and validate it, generally by specifying a verification callback
 via the [cmd -verifier] option.
+[opt_def [cmd -socketcmd] [arg SOCKET_COMMAND]]
+Specifies [arg SOCKET_COMMAND] as the command to use to create the underlying
+TCP socket for this connection in lieu of the command registed with
+[uri #tls_socket_command [cmd tls_socket_command]].
 [opt_def [cmd -verifier] [arg VERIFYCOMMAND]]
 Specifies a callback to invoke to verify remote credentials.
 The [arg VERIFYCOMMAND] command prefix is invoked with two additional
@@ -194,6 +198,15 @@ Returns the handle to the security context for the channel.
 [opt_def [cmd -verifier]]
 Returns the verification callback for the channel.
 [list_end]
+
+[call [cmd tls_socket_command] [opt [arg SOCKET_COMMAND]]]
+If no arguments are specified, returns the command used by the extension
+to create TCP sockets for TLS connections. By default, this is the standard Tcl
+[cmd socket] command.
+
+[nl]
+If [arg SOCKET_COMMAND] is specified, it is registered as the command to call
+to create TCP sockets. The return value is the previously registered command.
 
 [call [cmd tls_state] [arg CHAN]]
 Returns the current state of a TLS channel. This may be one of
