@@ -7,9 +7,16 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 4.5.3"]
+[section "Version 4.6"]
 [list_begin bullet]
 [bullet] Added [const -putref] support for COM.
+
+[bullet] Added [uri certs.html#cert_store_iterate [cmd cert_store_iterate]].
+
+[bullet] Added [uri tls.html#set_socket_command [cmd set_socket_command]] and
+[cmd -socketcmd] option to [cmd tls_socket].
+
+
 [list_end]
 
 [section "Version 4.5.2"]

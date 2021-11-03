@@ -259,8 +259,6 @@ proc twapi::cert_serialized_store_open {data args} {
     return [CertOpenStore 6 0x10001 NULL $flags $data]
 }
 
-
-
 proc twapi::cert_physical_store_open {name location args} {
     variable _system_stores
 
@@ -273,7 +271,7 @@ proc twapi::cert_physical_store_open {name location args} {
 proc twapi::cert_physical_store_delete {name location} {
     set flags 0x10;             # CERT_STORE_DELETE_FLAG
     incr flags [_system_store_id $location]
-    
+ 
     # 14 -> CERT_STORE_PROV_PHYSICAL_W
     return [CertOpenStore 14 0 NULL $flags $name]
 }
@@ -317,7 +315,6 @@ proc twapi::cert_system_stores {location} {
     return $l
 }
 
-# TBD - document?
 proc twapi::cert_store_iterate {hstore varname script {type any} {term {}}} {
     upvar 1 $varname cert
     set cert NULL
@@ -326,8 +323,12 @@ proc twapi::cert_store_iterate {hstore varname script {type any} {term {}}} {
         if {$cert eq ""} break
         switch [catch {uplevel 1 $script} result options] {
             0 -
-            4 {}
+            4 {
+                # Normal execution or continue. Keep $cert to get next cert
+                # from store
+            }
             3 {
+                # break - get out of loop so free the last cert
                 cert_release $cert
                 set cert ""
                 return
@@ -928,7 +929,7 @@ proc twapi::_map_trust_error {errbits} {
         ctlusage 0x00080000
     }]
 }
-                            
+
 proc twapi::cert_verify {hcert policy args} {
     # TBD - should we explicitly look for nulls in the subject name?
     # The Chrome source at
@@ -998,7 +999,7 @@ proc twapi::cert_verify {hcert policy args} {
     if {[info exists enabletestroot]} {
         set verify_flags [expr {$verify_flags | 0x00010000}]
     }
-    
+
     if {$policy eq "basicconstraints"} {
         # TBD - peertrust 0x1000, see below
         set ignore_options {}
@@ -1020,7 +1021,7 @@ proc twapi::cert_verify {hcert policy args} {
             criticalextensions 0x2000
         }
     }
-    
+
     foreach ignore $ignoreerrors {
         if {![dict exists $ignore_options $ignore]} {
             error "Value $ignore for option -ignoreerrors cannot be used with policy $policy."
@@ -1043,7 +1044,7 @@ proc twapi::cert_verify {hcert policy args} {
             }
         }
     }
-    
+
     if {[info exists ignoreerrors] && "revocation" in $ignoreerrors} {
         lappend args -revocationcheck none
     }
@@ -1083,7 +1084,7 @@ proc twapi::cert_verify {hcert policy args} {
                 }
             }
         }
-        
+
         set status [Twapi_CertVerifyChainPolicy $policy_id $chainh [list $verify_flags $policyparams]]
 
         # If caller had provided additional trusted roots that are not
@@ -1173,12 +1174,12 @@ proc twapi::_map_cert_verify_error {err} {
 
 # TBD - document
 proc twapi::cert_policy_params_tls {args} {
-    
+
     parseargs args {
         ignoreerrors.arg
         server.arg
     } -maxleftover 0 -setvars -ignoreunknown
-    
+
     if {[info exists server]} {
         set role 2;         # AUTHTYPE_SERVER
     } else {
@@ -1206,6 +1207,7 @@ proc twapi::cert_tls_verify {hcert args} {
     return [cert_verify $hcert tls {*}$args]
 }
 
+# TBD - provide a -peersubject option
 proc twapi::cert_fetch {addr {port 443}} {
     set so [tls_socket $addr $port]
     trap {
@@ -1215,13 +1217,13 @@ proc twapi::cert_fetch {addr {port 443}} {
         close $so
     }
 }
-                        
+
 proc twapi::cert_locate_private_key {hcert args} {
     parseargs args {
         {keysettype.arg any {any user machine}}
         {silent 0 0x40}
     } -maxleftover 0 -setvars
-    
+
     return [CryptFindCertificateKeyProvInfo $hcert \
                 [expr {$silent | [dict get {any 0 user 1 machine 2} $keysettype]}]]
 }
@@ -1423,16 +1425,16 @@ proc twapi::crypt_public_key_import {hprov key args} {
             set pub $key
         }
     }
-    
+
     return [CryptImportPublicKeyInfoEx $hprov 0x10001 $pub [capi_algid $algid]]
 }
-                    
+
 proc twapi::crypt_public_key_export {hprov keyspec args} {
     parseargs args {
         algoid.arg
         {encoding.arg pem {pem der native}}
     } -setvars -nulldefault
-    
+
     if {$algoid ne ""} {
         set algoid [oid $algoid]
     }

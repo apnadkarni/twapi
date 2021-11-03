@@ -164,7 +164,8 @@ locates the private key corresponding to the public key in a certificate.
 An existing certificate in a store can be retrieved in one of two ways:
 [list_begin bullet]
 [bullet] Enumerate each certificate in the store using
-[uri #cert_store_enum_contents [cmd cert_store_enum_contents]] and
+[uri #cert_store_enum_contents [cmd cert_store_enum_contents]] or
+[uri #cert_store_iterate [cmd cert_store_iterate]] and
 looking for a match using
 [uri #cert_subject_name [cmd cert_subject_name]] or
 [uri #cert_property [cmd cert_property]].
@@ -1240,7 +1241,9 @@ empty string when there are no more certificates in the store.
 [nl]
 The command 
 [uri #cert_store_find_certificate [cmd cert_store_find_certificate]]
-offers another means for retrieving certificates from a store.
+offers another means for retrieving certificates from a store while
+[uri #cert_store_iterate [cmd cert_store_iterate]] can also be used
+to iterate through all certificates in a store.
 
 [call [cmd cert_store_export_pem] [arg HSTORE]]
 Returns all certificates in a store in PEM encoded format. This format is
@@ -1349,6 +1352,17 @@ Returns certificates whose subject contains the string [arg SEARCHTERM].
 Note [arg SEARCHTERM] is a string, not in X.509 encoded form.
 
 [list_end]
+
+[call [cmd cert_store_iterate] [arg HSTORE] [arg CERTVAR] [arg SCRIPT] [opt [arg SEARCHTYPE]] [opt [arg SEARCHTERM]]]
+Iterates through certificates in the store [arg HSTORE]. On each iteration,
+evaluates [arg SCRIPT] in the caller's context with the value of the variable
+[arg CERTVAR] set to a certificate handle. Any certificate handles that the
+script wants to hold on to must be duplicated with [uri #cert_duplicate [cmd cert_duplicate]]
+as each handle is released at the end of each iteration. The script may use
+[cmd break] and [cmd continue] to control iterations in the usual fashion.
+[nl]
+The arguments [arg SEARCHTYPE] and [arg SEARCHTERM] can be used to filter
+certificates as described for [uri #cert_store_find_certificate [cmd cert_store_find_certificate]].
 
 [call [cmd cert_store_release] [arg HSTORE]]
 Decreases the reference count for the specified handle to a certificate store

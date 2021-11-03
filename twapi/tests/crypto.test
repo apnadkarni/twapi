@@ -1299,12 +1299,99 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
+    test cert_store_iterate-1.0 {
+        Iterate through a certificate store
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+    } -body {
+        set subjects {}
+        twapi::cert_store_iterate $hstore cert {
+            lappend subjects [twapi::cert_subject_name $cert]
+        }
+        list [expr {[lsearch -glob $subjects *Entrust*] >= 0}] \
+            [expr {[lsearch -glob $subjects *Microsoft*] >= 0}] \
+            [expr {[lsearch -glob $subjects *GlobalSign*] >= 0}]
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result {1 1 1}
+
+    test cert_store_iterate-2.0 {
+        Iterate through a certificate store matching subject
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+    } -body {
+        set subjects {}
+        set matches 0
+        set mismatches 0
+        twapi::cert_store_iterate $hstore cert {
+            set name [twapi::cert_subject_name $cert]
+            if {[string match -nocase *entrust* $name]} {
+                incr matches
+            } else {
+                incr mismatches
+            }
+        } subject_substring Entrust 
+        list [expr {$matches > 1}] $mismatches
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result {1 0}
+
+    test cert_store_iterate-2.99 {
+        TBD - try all other type matches
+    } -setup {
+    } -body {
+        TBD
+    } -constraints {
+        TBD
+    } -result TBD
+
+    test cert_store_iterate-3.0 {
+        Iterate through a certificate store and break
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+    } -body {
+        set subjects {}
+        set matches 0
+        twapi::cert_store_iterate $hstore cert {
+            set name [twapi::cert_subject_name $cert]
+            if {[string match -nocase *entrust* $name]} {
+                incr matches
+            } else {
+                error "Iterated cert does not match"
+            }
+            break
+        } subject_substring Entrust 
+        set matches
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result 1
+
+    test cert_store_iterate-3.1 {
+        Iterate through a certificate store and continue
+    } -setup {
+        set hstore [twapi::cert_system_store_open Root]
+    } -body {
+        set matches 0
+        set iterations 0
+        twapi::cert_store_iterate $hstore cert {
+            incr iterations
+            set name [twapi::cert_subject_name $cert]
+            continue
+            incr matches
+        } subject_substring Entrust 
+        list [expr {$iterations > 1}] $matches
+    } -cleanup {
+        twapi::cert_store_release $hstore
+    } -result {1 0}
+
+    ################################################################
+
     test cert_store_add_certificate-1.0 {
         Add a certficate to a store
     } -setup {
-        
+
     } -body {
-        TBD 
+        TBD
     } -constraints {
         TBD
     } -result TBD
@@ -1326,7 +1413,7 @@ namespace eval twapi::crypto::test {
     } -result twapitestfull
 
     test cert_store_add_encoded_certificate-1.1 {
-        Add PEM encoded certificate to store 
+        Add PEM encoded certificate to store
     } -setup {
         set hstore [twapi::cert_temporary_store]
         set cer [samplepemencodedcert]
@@ -2228,7 +2315,7 @@ namespace eval twapi::crypto::test {
     } -body {
         twapi::cert_blob_to_name [twapi::cert_name_to_blob "CN=A+CN=B, O=Org" -noplus true] -noplus true
     } -result {CN="A+CN=B", O=Org}
-                              
+
     test blob_name_conversion-5.4 {
         Convert name blob to string -noplus false,default
     } -body {
@@ -2243,12 +2330,13 @@ namespace eval twapi::crypto::test {
 
     ################################################################
 
+    # TBD - need better tests than just verifying no error is thrown
+
     test cert_enum_properties-1.0 {
         Enumerate certificate properties
     } -setup {
         set hstore [twapi::cert_system_store_open CA user -readonly 1]
     } -body {
-        set count 0
         twapi::cert_store_iterate $hstore hcert {
             foreach prop [twapi::cert_enum_properties $hcert] {
                 twapi::cert_property $hcert $prop
@@ -2263,7 +2351,6 @@ namespace eval twapi::crypto::test {
     } -setup {
         set hstore [twapi::cert_system_store_open Root user -readonly 1]
     } -body {
-        set count 0
         twapi::cert_store_iterate $hstore hcert {
             foreach prop [twapi::cert_enum_properties $hcert -names] {
                 twapi::cert_property $hcert $prop
@@ -3817,7 +3904,7 @@ namespace eval twapi::crypto::test {
     } -body {
         TBD
     } -result TBD
-               
+
     test capi_keyblob_plaintext-1.0 {
         Create and import a plaintext keyblob
     } -setup {
@@ -5473,10 +5560,8 @@ namespace eval twapi::crypto::test {
             set plaintexts [lmap len {1 7 8 9 15 16 17 23 24 25 31 32 33} {
                 string repeat A $len
             }]
-                            
             foreach plaintext $plaintexts {
                 set len [string length $plaintext]
-                
                 test $algo-$mode-encrypt-len$len "$algo encrypt -mode $mode $len bytes" -body {
                     set iv [twapi::$algo iv]
                     set key [twapi::random_bytes [dict get {
@@ -5538,7 +5623,7 @@ namespace delete ::twapi::crypto::test
 # subjectAltName = @alt_names
 # [ alt_names ]
 # DNS.0 = myexample.com
-URI.0 = http://myexample.com
+#URI.0 = http://myexample.com
 
 # Alternative one-liner for above CSR generation
 # openssl req -new -sha256 -key domain.key -subj "/C=US/ST=CA/O=Acme, Inc./CN=example.com" -reqexts SAN -config <(cat /etc/ssl/openssl.cnf <(printf "[SAN]\nsubjectAltName=DNS:example.com,DNS:www.example.com")) -out domain.csr
