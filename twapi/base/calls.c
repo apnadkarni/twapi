@@ -1265,8 +1265,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                                  guidP,
                                  ObjToLPWSTR_NULL_IF_EMPTY(objv[3]),
                                  dw);
-    case 10023: // Unused
-        break;
+    case 10023: // unused
 
     case 10024: // Unuused
         break;
@@ -1286,7 +1285,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                          GETBOOL(dw), ARGSKIP,
                          ARGUSEDEFAULT, GETINT(dw2),
                          ARGEND) == TCL_OK) {
-            result.type = TRT_HANDLE;                        
+            result.type = TRT_HANDLE;
             result.value.hval = CreateMutexW(secattrP, dw, ObjToLPWSTR_NULL_IF_EMPTY(objv[2]));
             if (result.value.hval) {
                 if (dw2 & 1) {
@@ -1489,6 +1488,7 @@ static int Twapi_CallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc,
     TwapiId twapi_id;
     DWORD dw, dw2;
     HANDLE h;
+    LPWSTR s;
 #ifdef TWAPI_ENABLE_INSTRUMENTATION
     void *pv;
     MemLifoMarkHandle mark;
@@ -1592,6 +1592,16 @@ static int Twapi_CallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc,
         return TwapiCStructDefDump(interp, objv[0]);
 #endif        
         break;
+    case 14: // CredDelete
+        if (TwapiGetArgsEx(ticP, objc, objv,
+                           GETWSTR(s), GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+            return TCL_ERROR;
+        if (CredDeleteW(s, dw, dw2))
+            result.type = TRT_EMPTY;
+        else
+            result.type = TRT_GETLASTERROR;
+        break;
+
     }
 
     return TwapiSetResult(interp, &result);
@@ -2044,6 +2054,7 @@ static TCL_RESULT Twapi_CredPrompt(ClientData clientdata, Tcl_Obj *uiObj, int ob
     Tcl_Obj *resultObjs[3], *passwordObj;
     Tcl_Interp *interp = ticP->interp;
     MemLifoMarkHandle mark;
+    int sz;
 
     mark = MemLifoPushMark(ticP->memlifoP);
     user_buf = NULL;
@@ -2086,8 +2097,10 @@ static TCL_RESULT Twapi_CredPrompt(ClientData clientdata, Tcl_Obj *uiObj, int ob
             cuiP = &cui;
         }
     }
-
-    password_buf = MemLifoAlloc(ticP->memlifoP, sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH + 1), NULL);
+    sz = sizeof(WCHAR) * (CREDUI_MAX_PASSWORD_LENGTH + 1);
+    password_buf = MemLifoAlloc(ticP->memlifoP, sz, NULL);
+    /* Zero out full buf as per https://docs.microsoft.com/en-us/windows/win32/secbp/asking-the-user-for-credentials */
+    SecureZeroMemory(password_buf, sz);
     if (ObjCharLength(passwordObj) == 0) {
         password_buf[0] = 0;
     } else {
@@ -2110,10 +2123,12 @@ static TCL_RESULT Twapi_CredPrompt(ClientData clientdata, Tcl_Obj *uiObj, int ob
         res = TwapiReturnError(interp, TWAPI_BUFFER_OVERRUN);
         goto vamoose;
     }
-    user_buf = MemLifoAlloc(ticP->memlifoP, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH + 1), NULL);
+    sz = sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH + 1);
+    user_buf = MemLifoAlloc(ticP->memlifoP, sz, NULL);
+    /* Zero out full buf as per https://docs.microsoft.com/en-us/windows/win32/secbp/asking-the-user-for-credentials */
+    SecureZeroMemory(user_buf, sz);
     CopyMemory(user_buf, user, sizeof(WCHAR) * (user_len+1));
 
-    /* Zero out the decrypted password */
     if (uiObj) {
         status = CredUIPromptForCredentialsW(
             cuiP, target, NULL, autherr,
@@ -2146,6 +2161,7 @@ static TCL_RESULT Twapi_CredPrompt(ClientData clientdata, Tcl_Obj *uiObj, int ob
     }
 
 vamoose:
+    /* Zero out the decrypted password */
     if (user_buf)
         SecureZeroMemory(user_buf, sizeof(WCHAR) * (CREDUI_MAX_USERNAME_LENGTH+1));
     if (password_buf)
@@ -2388,6 +2404,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(atoms, 11),
         DEFINE_ALIAS_CMD(cstruct, 12),
         DEFINE_ALIAS_CMD(cstruct_dumpdef, 13),
+        DEFINE_ALIAS_CMD(CredDelete, 14),
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {

@@ -3909,13 +3909,59 @@ namespace eval twapi::base::test {
 
     ################################################################
 
-    test read_credentials-1.0 {
-        read_credentials
+    test credentials_prompt-1.0 {
+        credentials_prompt - no args
     } -constraints {
-        TBD
+        userInteraction
     } -body {
-        TBD
-    } -result ""
+        puts "Enter \"tester\" and \"mypass\" and \"N\" at the prompts."
+        lassign [twapi::credentials_prompt] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y]
+    } -result [list tester mypass 0 1]
+
+    test credentials_prompt-1.1 {
+        credentials_prompt -target
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"mypass\" and \"N\" at the prompts."
+        set target credentials_prompt-1.1
+        lassign [twapi::credentials_prompt -target $target] name pass save
+        list $name [twapi::reveal $pass] $save \
+            [yesno "Was $target displayed as the prompt target?"] \
+            [yesno "Did you see a prompt to remember the password?" Y]
+    } -result [list tester mypass 0 1 1]
+
+    test credentials_prompt-2.0 {
+        credentials_prompt -username
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"mypass\" and \"N\" at the prompts."
+        lassign [twapi::credentials_prompt -username tester] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt for the *username*?" Y] [yesno "Did you see a prompt to remember the password?" Y]
+    } -result [list tester mypass 0 0 1]
+
+    test credentials_prompt-3.0 {
+        credentials_prompt -persist
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"mypass\" and \"Y\" at the prompts."
+        set target credentials_prompt-3.0
+        lassign [twapi::credentials_prompt -persist 1 -target $target] name pass save
+        
+    } -result [list tester mypass 0 1 1]
+
+    test read_credentials-1.0 {
+        read_credentials - alias for credentials_prompt
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"mypass\" and \"N\" at the prompts."
+        lassign [twapi::read_credentials] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y]
+    } -result [list tester mypass 0 1]
 
     test credentials_dialog-1.0 {
         credentials_dialog

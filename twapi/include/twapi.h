@@ -30,7 +30,7 @@
  * linking to the static library version of TWAPI.
  *
  * twapi_base_BUILD - the TWAPI core build and ONLY the TWAPI core build
- * should define this, both for static as well dll builds. Clients should never 
+ * should define this, both for static as well dll builds. Clients should never
  * define it for their builds, nor should other twapi components. (lower
  * case "twapi_base" because it is derived from the build system)
  *
@@ -44,7 +44,7 @@
 # if defined(TWAPI_SINGLE_MODULE)
 // We still want to export but modules are built-in so TWAPI_IMPORT is no-op
 #  define TWAPI_EXPORT __declspec(dllexport)
-#  define TWAPI_IMPORT 
+#  define TWAPI_IMPORT
 # else
 #  define TWAPI_EXPORT __declspec(dllexport)
 #  define TWAPI_IMPORT __declspec(dllimport)
@@ -150,13 +150,14 @@
 #include <dsgetdc.h>
 #include <powrprof.h>
 #if _MSC_VER <= 1400
-/* Not present in newer compiler/sdks as it is subsumed by winuser.h */ 
+/* Not present in newer compiler/sdks as it is subsumed by winuser.h */
 # include <winable.h>
 #endif
 #define SECURITY_WIN32 1
 #include <security.h>
 #include <userenv.h>
 #include <wmistr.h>             /* Needed for WNODE_HEADER for evntrace */
+#include <wincred.h>
 
 #include "tcl.h"
 
@@ -372,7 +373,7 @@ typedef BOOL (WINAPI *FARPROC_BOOL)();
 #define PTRDIFF32(p_, q_) ((int)((char*)(p_) - (char *)(q_)))
 
 /*
- * Support for one-time initialization 
+ * Support for one-time initialization
  */
 typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_INITSTATE_NOT_DONE    0
@@ -470,7 +471,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 
 
 /**********************************************
- * Macros and definitions dealing with Tcl_Obj 
+ * Macros and definitions dealing with Tcl_Obj
  **********************************************/
 enum TwapiTclType {
     TWAPI_TCLTYPE_NONE  = 0,
@@ -586,7 +587,7 @@ enum TwapiTclType {
 
 /*
  * Macros to build ordered list of names and values of the fields
- * in a struct while maintaining consistency in the order. 
+ * in a struct while maintaining consistency in the order.
  * See services.i for examples of usage
  */
 #define FIELD_NAME_OBJ(x, unused, unused2) STRING_LITERAL_OBJ(# x)
@@ -722,7 +723,7 @@ typedef enum {
     TRT_HMACHINE = 52,
     TRT_CONFIGRET = 53,         /* PnP Manager status (CM_* calls) */
     TRT_GETLASTERROR_SETUPAPI = 54, /* Setup* calls */
-    TRT_LONG = 55, 
+    TRT_LONG = 55,
 } TwapiResultType;
 
 typedef struct {
@@ -880,23 +881,23 @@ typedef struct TwapiRegValue {
  * Forward decls
  */
 typedef struct _TwapiInterpContext TwapiInterpContext;
-ZLINK_CREATE_TYPEDEFS(TwapiInterpContext); 
+ZLINK_CREATE_TYPEDEFS(TwapiInterpContext);
 ZLIST_CREATE_TYPEDEFS(TwapiInterpContext);
 
 typedef struct _TwapiCallback TwapiCallback;
-ZLINK_CREATE_TYPEDEFS(TwapiCallback); 
+ZLINK_CREATE_TYPEDEFS(TwapiCallback);
 ZLIST_CREATE_TYPEDEFS(TwapiCallback);
 
 
 /*
- * We need to keep track of handles that are being tracked by the 
+ * We need to keep track of handles that are being tracked by the
  * thread pool so they can be released on interp deletion even if
  * the application code does not explicitly release them.
  * NOTE: currently not all modules make use of this but probably should - TBD.
  */
 typedef struct _TwapiThreadPoolRegistration TwapiThreadPoolRegistration;
-ZLINK_CREATE_TYPEDEFS(TwapiThreadPoolRegistration); 
-ZLIST_CREATE_TYPEDEFS(TwapiThreadPoolRegistration); 
+ZLINK_CREATE_TYPEDEFS(TwapiThreadPoolRegistration);
+ZLIST_CREATE_TYPEDEFS(TwapiThreadPoolRegistration);
 typedef struct _TwapiThreadPoolRegistration {
     HANDLE handle;              /* Handle being waited on by thread pool */
     HANDLE tp_handle;           /* Corresponding handle returned by pool */
@@ -934,7 +935,7 @@ typedef struct _TwapiThreadPoolRegistration {
  *  - the cbP->ticP, which contains the interp context is also guaranteed
  *    to be non-NULL.
  *  - the cbP->ticP->interp is the Tcl interp if non-NULL. This may be NULL
- *    if the original associated interp has been logically or physically 
+ *    if the original associated interp has been logically or physically
  *    deleted.
  *  - the cbP->clientdata* fields may contain any callback-specific data
  *    set by the enqueueing module.
@@ -1009,7 +1010,7 @@ typedef struct _TwapiCallback {
  * tracked through reference counts which are incr/decr'ed whenever
  * an interp or a new TwapiInterpContext is allocated/freed.
  *
- * IT IS NOT ACCESSIBLE IN A THREAD UNLESS AT LEAST ONE INTERP IS 
+ * IT IS NOT ACCESSIBLE IN A THREAD UNLESS AT LEAST ONE INTERP IS
  * STILL ALIVE
  */
 typedef struct _TwapiTls {
@@ -1021,7 +1022,7 @@ typedef struct _TwapiTls {
      * released when the thread terminates.
      */
     MemLifo memlifo;
-    
+
     /*
      * ffiObj points to a Tcl_DictObj that maps the DLL and function
      * to its address. The key is the DLL name/path and function name.
@@ -1055,7 +1056,7 @@ typedef struct _TwapiModuleDef {
 
     /* Function to call to clean up the module. */
     void (*finalizer)(TwapiInterpContext *); // NULL ok
-    
+
     /* Debug / trace flags for the module */
     unsigned long log_flags;
 } TwapiModuleDef;
@@ -1085,10 +1086,10 @@ typedef struct _TwapiInterpContext {
     ZLIST_DECL(TwapiCallback) pending;
 
     /*
-     * List of handles registered with the Windows thread pool. 
+     * List of handles registered with the Windows thread pool.
      * NOTE: TO BE ACCESSED ONLY FROM THE INTERP THREAD.
      */
-    ZLIST_DECL(TwapiThreadPoolRegistration) threadpool_registrations; 
+    ZLIST_DECL(TwapiThreadPoolRegistration) threadpool_registrations;
 
     struct {
         HMODULE      hmod;        /* Handle of allocating module */
@@ -1446,11 +1447,11 @@ TWAPI_INLINE TCL_RESULT ObjToHWND(Tcl_Interp *ip, Tcl_Obj *objP, HWND *pvP) {
 
 TWAPI_INLINE TCL_RESULT ObjToHMODULE(Tcl_Interp *ip, Tcl_Obj *objP, HMODULE *pvP) {
     return ObjToOpaque(ip, objP, (void **)pvP, "HMODULE");
-}        
+}
 
 TWAPI_INLINE TCL_RESULT ObjToFARPROC(Tcl_Interp *ip, Tcl_Obj *objP, FARPROC *pvP) {
     return ObjToOpaque(ip, objP, (void **)pvP, "FARPROC");
-}        
+}
 
 TWAPI_EXTERN Tcl_Obj *ObjFromBoolean(int bval);
 TWAPI_EXTERN TCL_RESULT ObjToBoolean(Tcl_Interp *, Tcl_Obj *, int *);
@@ -1662,6 +1663,8 @@ TWAPI_EXTERN void SecureZeroSEC_WINNT_AUTH_IDENTITY(SEC_WINNT_AUTH_IDENTITY_W *)
 int TwapiFormatMessageHelper( Tcl_Interp *interp, DWORD dwFlags,
                               LPCVOID lpSource, DWORD dwMessageId,
                               DWORD dwLanguageId, int argc, LPCWSTR *argv );
+TWAPI_EXTERN Tcl_Obj *ObjFromCREDENTIAL_ATTRIBUTEW(const CREDENTIAL_ATTRIBUTEW *attrP);
+TWAPI_EXTERN Tcl_Obj *ObjFromCREDENTIALW(const CREDENTIALW *credsP);
 
 /* LZMA */
 TWAPI_EXTERN unsigned char *TwapiLzmaUncompressBuffer(Tcl_Interp *,
@@ -1718,7 +1721,7 @@ TWAPI_EXTERN TCL_RESULT ObjFromCStruct(Tcl_Interp *interp, void *pv, int nbytes,
 /* ObjFromCStruct flags definitions */
 #define CSTRUCT_RETURN_DICT 0x1
 
-/* 
+/*
  * Wrappers for memlifo based s/w stack
  * NOTE these all panic on fail since twapi inits the memlifos with the
  * PANIC_ON_FAIL flag.
@@ -1780,8 +1783,8 @@ TWAPI_INLINE unsigned short swap2(unsigned short us)
 
 TWAPI_INLINE unsigned long swap4(unsigned long ul)
 {
-    ul = ((ul << 8) & 0xFF00FF00 ) | ((ul >> 8) & 0xFF00FF ); 
-    return (ul << 16) | (ul >> 16);    
+    ul = ((ul << 8) & 0xFF00FF00 ) | ((ul >> 8) & 0xFF00FF );
+    return (ul << 16) | (ul >> 16);
 }
 
 TWAPI_INLINE unsigned __int64 swap8(unsigned __int64 ull)

@@ -457,9 +457,12 @@ a user account or logon session. The [cmd twapi_security] package
 provides some additional commands to those already
 present in the [cmd twapi_base] package.
 [para]
-The [uri base.html#credentials [cmd credentials]] returns a list of credentials
-for the calling process.
-
+The [uri #credentials [cmd credentials]] returns a list containing the content
+of the credentials cache.
+The [uri #cred_get [cmd cred_get]] command returns cached
+credentials for a credential target.
+The [uri #cred_delete [cmd cred_delete]] command deletes cached
+credentials.
 
 [section "User Account Control"]
 
@@ -537,14 +540,64 @@ returns 1 if at least one of the privileges is enabled, and 0 otherwise.
 [call [cmd close_token] [arg TOKEN]]
 Frees resources associated with an access token.
 
+[call [cmd cred_delete] [arg TARGET] [opt [arg TYPE]]]
+
+Deletes the credentials identified by [arg TARGET] from the credential cache
+associated with the logon session of the curent security token.
+The [arg TYPE] argument is one of [const generic], [const domain_password],
+[const domain_certificate], [const domain_visible_password], [const
+generic_certificate] or [const domain_extended].
+
+[call [cmd cred_get] [arg TARGET] [opt [arg TYPE]]]
+Returns the credentials identified by [arg TARGET] from the credential set
+associated with the logon session of the curent security token.
+The [arg TYPE] argument is one of [const generic], [const domain_password],
+[const domain_certificate], [const domain_visible_password],
+[const generic_certificate] or [const domain_extended].
+
+The return value is a dictionary with the following keys:
+
+[list_begin opt]
+[opt_def [const attributes]] A list of credential attributes. Each attribute is
+a triplet consisting of a application-specific keyword, an integer flags
+(currently always 0) and a binary string whose format is application-dependent.
+[opt_def [const comment]] Any associated descriptive comment for the credential
+that might be added by the user.
+[opt_def [const lastwritten]] The last time the credentials were written
+as the number of 100ns since Jan 1, 1601
+(see [uri base.html#large_system_time_to_secs_since_1970 [cmd large_system_time_to_secs_since_1970]]).
+[opt_def persist] One of the values [const session], [const local_machine]
+or [const enterprise] depending on whether the credentials are persisted
+for the current logon session only, or are persisted on the local system
+and are visible to future logon session for the user on that system,
+or are persisted on the local system and are visible to logon session
+for that user from other systems.
+[opt_def [const target]] The name of the target for which the credential
+is applicable.
+[opt_def [const targetalias]] An alias for the target.
+[opt_def [const type]] The credential type which is one of
+[const generic], [const domain_password], [const domain_certificate], 
+[const domain_visible_password]
+[const generic_certificate], [const domain_extended.]
+[opt_def [const username]] The user name associated with the target
+credential.
+[list_end]
+The dictionary may contain other elements. These should be ignored
+and are liable to change.
+[nl]
+For more information, see the description of the
+[uri https://docs.microsoft.com/en-us/windows/win32/api/wincred/ns-wincred-credentialw "CREDENTIALS"] structure in the Windows SDK.
+
 [call [cmd credentials] [opt [arg TARGETPATTERN]]]
-Returns a list of current credentials from the user's credential set.
+Returns a list of current credentials from the credential cache.
 If [arg TARGETPATTERN] is not specified, all credentials are returned.
 Otherwise, only those with targets matching [arg TARGETPATTERN] are returned.
 [arg TARGETPATERN] is a name prefix optionally terminating in a wildcard
 [const *] character.
 [nl]
-The returned list elements are dictionaries with the following keys:
+The returned list elements are dictionaries containing credentials with
+keys as described for the
+[uri base.html#cred_get [cmd cred_get]] command.
 
 [list_begin opt]
 [opt_def [const comment]] Any associated descriptive comment for the credential

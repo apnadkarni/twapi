@@ -5136,3 +5136,38 @@ TWAPI_EXTERN TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (
     return TCL_OK;
 }
 
+TWAPI_EXTERN Tcl_Obj *ObjFromCREDENTIAL_ATTRIBUTEW(
+    const CREDENTIAL_ATTRIBUTEW *attrP
+)
+{
+    Tcl_Obj *objs[3];
+    objs[0] = ObjFromWinChars(attrP->Keyword, -1);
+    objs[1] = ObjFromDWORD(attrP->Flags);
+    objs[2] = ObjFromByteArray(attrP->Value, attrP->ValueSize);
+    return ObjNewList(3, objs);
+}
+
+TWAPI_EXTERN Tcl_Obj *ObjFromCREDENTIALW(
+    const CREDENTIALW *credP
+)
+{
+    Tcl_Obj *objs[10];
+    int      i;
+    objs[0] = ObjFromDWORD(credP->Flags);
+    objs[1] = ObjFromDWORD(credP->Type);
+    objs[2] = ObjFromWinChars(credP->TargetName);
+    objs[3] = ObjFromWinChars(credP->Comment);
+    objs[4] = ObjFromFILETIME(&credP->LastWritten);
+    objs[5] = ObjFromByteArray(credP->CredentialBlob,
+                               credP->CredentialBlobSize);
+    objs[6] = ObjFromDWORD(credP->Persist);
+    objs[7] = ObjNewList(0, NULL);
+    for (i = 0; i < credP->AttributeCount; ++i) {
+        ObjAppendElement(NULL,
+                         objs[7],
+                         ObjFromCREDENTIAL_ATTRIBUTEW(&credP->Attributes[i]));
+    }
+    objs[8] = ObjFromWinChars(credP->TargetAlias);
+    objs[9] = ObjFromWinChars(credP->UserName);
+    return ObjNewList(10, objs);
+}
