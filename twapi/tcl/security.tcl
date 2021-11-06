@@ -1969,6 +1969,18 @@ proc twapi::reset_thread_token {} {
     SetThreadToken NULL NULL
 }
 
+proc twapi::_cred_cook {cred} {
+    set rec [twine {flags type target comment lastwritten credblob persist attributes targetalias username} $cred]
+    dict with rec {
+        set type [dict* {
+            1 generic 2 domain_password 3 domain_certificate 4 domain_visible_password 5 generic_certificate 6 domain_extended} $type]
+        set persist [dict* {
+            1 session 2 local_machine 3 enterprise
+        } $persist]
+    }
+    return $rec
+}
+
 proc twapi::credentials {{pattern {}}} {
     trap {
         set raw [CredEnumerate  $pattern 0]
@@ -1977,20 +1989,42 @@ proc twapi::credentials {{pattern {}}} {
         return {}
     }
 
-    set ret {}
-    foreach cred $raw {
-        set rec [twine {flags type target comment lastwritten credblob persist attributes targetalias username} $cred]
-        dict with rec {
-            set type [dict* {
-                1 generic 2 domain_password 3 domain_certificate 4 domain_visible_password 5 generic_certificate 6 domain_extended} $type]
-            set persist [dict* {
-                1 session 2 local_machine 3 enterprise
-            } $persist]
-        }
-        lappend ret $rec
-    }
-    return $ret
+    return [lmap cred $raw { _cred_cook $cred }]
 }
+
+proc twapi::cred_delete {target {type generic}} {
+    if {[string is integer -strict $type]} {
+        set type_flags $type
+    } else {
+        set type_flags [dict get {
+            generic 1
+            domain_password 2
+            domain_certificate 3
+            domain_visible_password 4
+            generic_certificate 5
+            domain_extended 6
+        } $type]
+    }
+    CredDelete $target $type_flags 0
+    return
+}
+
+proc twapi::cred_get {target {type generic}} {
+    if {[string is integer -strict $type]} {
+        set type_flags $type
+    } else {
+        set type_flags [dict get {
+            generic 1
+            domain_password 2
+            domain_certificate 3
+            domain_visible_password 4
+            generic_certificate 5
+            domain_extended 6
+        } $type]
+    }
+    return [_cred_cook [CredRead $target $type_flags 0]]
+}
+
 
 # TBD - document after implementing AuditQuerySystemPolicy and friends
 # for Vista & later

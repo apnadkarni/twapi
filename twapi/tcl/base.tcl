@@ -1122,6 +1122,7 @@ proc twapi::make_logon_identity {username password domain} {
 }
 
 proc twapi::read_credentials {args} {
+    # DEPRECATED
     array set opts [parseargs args {
         target.arg
         winerror.int
@@ -1157,8 +1158,8 @@ proc twapi::read_credentials {args} {
     return [CredUICmdLinePromptForCredentials $opts(target) NULL $opts(winerror) $opts(username) $opts(password) $opts(persist) $flags]
 }
 
-# Prompt for a password at the console
 proc twapi::credentials_dialog {args} {
+    # DEPRECATED
     array set opts [parseargs args {
         target.arg
         winerror.int
@@ -1204,8 +1205,102 @@ proc twapi::credentials_dialog {args} {
     return [CredUIPromptForCredentials [list $opts(parent) $opts(message) $opts(caption) $opts(bitmap)] $opts(target) NULL $opts(winerror) $opts(username) $opts(password) $opts(persist) $flags]
 }
 
-# TBD - test
 proc twapi::confirm_credentials {target valid} {
+    # DEPRECATED
+    return [CredUIConfirmCredentials $target $valid]
+}
+
+
+proc twapi::_make_cred_persist_flags {persist showsave} {
+    # Use cases -
+    #  (1) credentials to be persisted WITHOUT showing save option to user
+    #  (2) credentials to be persisted AFTER showing save option to user
+    #  (3) credentials NOT to be persisted, user not shown save option
+    #  (4) credentials NOT to be persisted, but user shown save option
+    # In case (4), caller has to decide what to do with the credentials if
+    # user selects to save (e.g. save elsewhere)
+    # If credentials are to be persisted, caller MUST call cred_confirm later
+    
+    if {$persist} {
+        # Note CREDUI_FLAGS_EXPECT_CONFIRMATION (0x20000) must be specified
+        # whenever CREDUI_FLAGS_DO_NOT_PERSIST is not specified
+        if {$showsave} {
+            # (2) CREDUI_FLAGS_EXPECT_CONFIRMATION
+            return 0x20000
+        } else {
+            # (1) CREDUI_FLAGS_PERSIST | CREDUI_FLAGS_EXPECT_CONFIRMATION
+            return 0x21000
+        }
+    } else {
+        if {$showsave} {
+            # (4) CREDUI_FLAGS_DO_NOT_PERSIST | CREDUI_FLAGS_SHOW_SAVE_CHECK_BOX
+            return 0x42
+        } else {
+            # (3) CREDUI_FLAGS_DO_NOT_PERSIST
+            return 0x02
+        }
+    }
+}
+
+proc twapi::cred_prompt_console {args} {
+    array set opts [parseargs args {
+        target.arg
+        winerror.int
+        username.arg
+        password.arg
+        persist.bool
+        {type.sym generic {domain 0 generic 0x40000 runas 0x80000}}
+        {forceui.bool 0 0x80}
+        {showsaveoption.bool true}
+    } -maxleftover 0 -nulldefault]
+
+    set flags [_make_cred_persist_flags $opts(persist) $opts(showsaveoption)]
+
+    # 0x8 -> CREDUI_FLAGS_EXCLUDE_CERTIFICATES (needed for console)
+    set flags [expr {0x8 | $flags | $opts(type) | $opts(forceui)}]
+
+    return [CredUICmdLinePromptForCredentials $opts(target) NULL $opts(winerror) $opts(username) $opts(password) $opts(persist) $flags]
+}
+
+proc twapi::cred_prompt_gui {args} {
+    array set opts [parseargs args {
+        target.arg
+        winerror.int
+        username.arg
+        password.arg
+        persist.bool
+        {type.sym generic {domain 0 generic 0x40000 runas 0x80000}}
+        {forceui.bool 0 0x80}
+        {showsaveoption.bool true}
+        {fillusername.bool 0 0x800}
+        {filllocaladmins.bool 0 0x4}
+        {notifyfail.bool 0 0x1}
+        {passwordonly.bool 0 0x200}
+        {requirecertificate.bool 0 0x10}
+        {requiresmartcard.bool 0 0x100}
+        {validateusername.bool 0 0x400}
+        {parent.arg NULL}
+        message.arg
+        caption.arg
+        {bitmap.arg NULL}
+    } -maxleftover 0 -nulldefault]
+
+    # Use cases -
+    #  (1) credentials to be persisted WITHOUT showing save option to user
+    #  (2) credentials to be persisted AFTER showing save option to user
+    #  (3) credentials NOT to be persisted, user not shown save option
+    #  (4) credentials NOT to be persisted, but user shown save option
+    # In case (4), caller has to decide what to do with the credentials if
+    # user selects to save (e.g. save elsewhere)
+    # If credentials are to be persisted, caller MUST call cred_confirm later
+
+    set flags [_make_cred_persist_flags $opts(persist) $opts(showsaveoption)]
+    set flags [expr { $flags | $opts(type) | $opts(forceui) | $opts(notifyfail) | $opts(fillusername) | $opts(filllocaladmins)}]
+
+    return [CredUIPromptForCredentials [list $opts(parent) $opts(message) $opts(caption) $opts(bitmap)] $opts(target) NULL $opts(winerror) $opts(username) $opts(password) $opts(persist) $flags]
+}
+
+proc twapi::cred_confirm {target valid} {
     return [CredUIConfirmCredentials $target $valid]
 }
 

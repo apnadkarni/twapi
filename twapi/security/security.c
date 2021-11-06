@@ -8,7 +8,6 @@
 /* Interface to Windows API related to security and access control functions */
 
 #include "twapi.h"
-#include <wincred.h>
 
 #ifndef TWAPI_SINGLE_MODULE
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */
@@ -171,7 +170,7 @@ static TOKEN_PRIVILEGES *ParseTOKEN_PRIVILEGES(
 
     if (ObjGetElements(interp, tokprivObj, &num_privs, &objv) != TCL_OK)
         return NULL;
-    sz = sizeof(TOKEN_PRIVILEGES) 
+    sz = sizeof(TOKEN_PRIVILEGES)
         + (num_privs*sizeof(tokprivP->Privileges[0]))
         - sizeof(tokprivP->Privileges);
     tokprivP = SWSAlloc(sz, NULL);
@@ -184,10 +183,10 @@ static TOKEN_PRIVILEGES *ParseTOKEN_PRIVILEGES(
         }
     }
 
-    return tokprivP; 
+    return tokprivP;
 }
 
-/* 
+/*
  * Generic routine to retrieve token information. Returns pointer to memory\
  * allocated on SWS. Caller responsible for memory management
  */
@@ -286,7 +285,7 @@ int Twapi_GetTokenInformation(
     case TwapiTokenUIAccess:
     case TwapiTokenVirtualizationAllowed:
     case TwapiTokenVirtualizationEnabled:
-        
+
         sz = sizeof(value);
         if (GetTokenInformation(tokenH, token_class, &value, sz, &sz)) {
             switch (token_class) {
@@ -320,7 +319,7 @@ int Twapi_GetTokenInformation(
                 resultObj = ObjFromDWORD(value.dw);
                 result = TCL_OK;
                 break;
-                
+
             case TokenType:
                 resultObj = ObjFromInt(value.type);
                 result = TCL_OK;
@@ -415,7 +414,7 @@ int Twapi_GetTokenInformation(
             if (obj) {
                 ObjAppendElement(interp, resultObj, obj);
                 obj = ObjFromLUID_AND_ATTRIBUTES_Array(
-                    interp, 
+                    interp,
                     ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->Privileges,
                     ((TOKEN_GROUPS_AND_PRIVILEGES *)infoP)->PrivilegeCount);
                 if (obj) {
@@ -823,6 +822,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
         LSA_UNICODE_STRING lsa_ustr;
         TOKEN_PRIVILEGES *tokprivsP;
         PCREDENTIALW *credsPP;
+        PCREDENTIALW credsP;
         char sid[SECURITY_MAX_SID_SIZE];
     } u;
     LSA_HANDLE lsah;
@@ -851,7 +851,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
 #undef CHECK_NARGS
 #undef CHECK_NARGS_RANGE
 #undef CHECK_INTEGER_OBJ
-    
+
     mark = SWSPushMark();
     if (func < 100) {
         if (objc != 0) {
@@ -952,7 +952,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                            GETINT(dw2), ARGEND);
         if (res != TCL_OK)
             goto vamoose;
-        s = ObjToWinChars(objv[0]);
+        s = ObjToWinChars(objv[0]); /* AFTER parsing ints to avoid shimmer issues */
         switch (func) {
         case 501:
             if (ConvertStringSecurityDescriptorToSecurityDescriptorW(
@@ -979,26 +979,25 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             if (CredEnumerateW(s, 0, &dw2, &u.credsPP)) {
                 result.value.obj = ObjEmptyList();
                 for (dw = 0; dw < dw2; ++dw) {
-                    Tcl_Obj *objs[10];
-                    objs[0] = ObjFromDWORD(u.credsPP[dw]->Flags);
-                    objs[1] = ObjFromDWORD(u.credsPP[dw]->Type);
-                    objs[2] = ObjFromWinChars(u.credsPP[dw]->TargetName);
-                    objs[3] = ObjFromWinChars(u.credsPP[dw]->Comment);
-                    objs[4] = ObjFromFILETIME(&u.credsPP[dw]->LastWritten);
-                    objs[5] = ObjFromByteArray(u.credsPP[dw]->CredentialBlob,
-                                               u.credsPP[dw]->CredentialBlobSize);
-                    objs[6] = ObjFromDWORD(u.credsPP[dw]->Persist);
-                    objs[7] = ObjEmptyList(); /* Place holder for attributes */
-                    objs[8] = ObjFromWinChars(u.credsPP[dw]->TargetAlias);
-                    objs[9] = ObjFromWinChars(u.credsPP[dw]->UserName);
-                    ObjAppendElement(interp, result.value.obj, ObjNewList(ARRAYSIZE(objs), objs));
+                    ObjAppendElement(NULL,
+                                     result.value.obj,
+                                     ObjFromCREDENTIALW(u.credsPP[dw]));
                 }
                 CredFree(u.credsPP);
                 result.type = TRT_OBJ;
             } else
                 result.type = TRT_GETLASTERROR;
             break;
+        case 504: // CredRead
+            if (CredReadW(s, dw, dw2, &u.credsP)) {
+                result.value.obj = ObjFromCREDENTIALW(u.credsP);
+                CredFree(u.credsPP);
+                result.type = TRT_OBJ;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
         }
+
     } else if (func < 2000) {
         /* Args - handle, int, optional int */
         /* TBD - none of these use a SWS. Move them to a separate function */
@@ -1108,8 +1107,8 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
         /* Arbitrary args */
         switch (func) {
         case 10007: // EqualSid
-            res = TwapiGetArgs(interp, objc, objv, 
-                               GETVAR(osidP, ObjToPSIDNonNullSWS), 
+            res = TwapiGetArgs(interp, objc, objv,
+                               GETVAR(osidP, ObjToPSIDNonNullSWS),
                                GETVAR(gsidP, ObjToPSIDNonNullSWS), ARGEND);
             if (res != TCL_OK)
                 goto vamoose;
@@ -1140,7 +1139,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 result.type = TRT_GETLASTERROR;
             break;
         case 10010: // EqualDomainSid
-            res = TwapiGetArgs(interp, objc, objv, GETVAR(osidP, ObjToPSIDSWS), 
+            res = TwapiGetArgs(interp, objc, objv, GETVAR(osidP, ObjToPSIDSWS),
                                GETVAR(gsidP, ObjToPSIDSWS), ARGEND);
             if (res != TCL_OK)
                 goto vamoose;
@@ -1213,7 +1212,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 result.type = TRT_GETLASTERROR;
             SecureZeroMemory(passwordP, ival);
             break;
-            
+
         case 10015:
             res = TwapiGetArgs(interp, objc, objv,
                                GETHANDLE(h), GETVAR(osidP, ObjToPSIDSWS),
@@ -1397,6 +1396,7 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(ConvertStringSecurityDescriptorToSecurityDescriptor, 501),
         DEFINE_FNCODE_CMD(GetNamedSecurityInfo, 502),
         DEFINE_FNCODE_CMD(CredEnumerate, 503),
+        DEFINE_FNCODE_CMD(CredRead, 504),
         DEFINE_FNCODE_CMD(GetSecurityInfo, 1003),
         DEFINE_FNCODE_CMD(OpenThreadToken, 1004),
         DEFINE_FNCODE_CMD(OpenProcessToken, 1005),
@@ -1450,7 +1450,7 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 
 /* Main entry point */
 #ifndef TWAPI_SINGLE_MODULE
-__declspec(dllexport) 
+__declspec(dllexport)
 #endif
 int Twapi_security_Init(Tcl_Interp *interp)
 {

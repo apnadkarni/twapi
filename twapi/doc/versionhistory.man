@@ -16,6 +16,14 @@ Summarizes the list of changes for each version of TWAPI.
 [bullet] Added [uri tls.html#set_socket_command [cmd set_socket_command]] and
 [cmd -socketcmd] option to [cmd tls_socket].
 
+[bullet] Added
+[uri base.html#cred_confirm [cmd cred_confirm]],
+[uri security.html#cred_delete [cmd cred_delete]],
+[uri security.html#cred_get [cmd cred_get]],
+[uri base.html#cred_prompt_gui [cmd cred_prompt_gui]] and
+[uri base.html#cred_prompt_console [cmd cred_prompt_console]].
+Deprecated [cmd credentials_dialog], [cmd read_credentials]
+and [cmd confirm_credentials].
 
 [list_end]
 

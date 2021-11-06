@@ -62,9 +62,11 @@ are in the [uri users.html [package twapi_account]] and
 [uri security.html [package twapi_security]] packages.
 
 [section "Passwords"]
-Commands [uri #read_credentials [cmd read_credentials]],
-[uri #credentials_dialog [cmd credentials_dialog]] and
-[uri #confirm_credentials [cmd confirm_credentials]]
+Commands [uri #cred_prompt_console [cmd cred_prompt_console]],
+[uri #cred_prompt_gui [cmd cred_prompt_gui]],
+[uri #cred_get [cmd cred_get]],
+and
+[uri #cred_confirm [cmd cred_confirm]]
 allow interfacing to the Windows credentials manager and getting
 user credentials such as passwords from the user.
 
@@ -298,9 +300,7 @@ Returns an encrypted binary string corresponding to [arg PLAINTEXT].
 same process. [emph "The returned value should never be used for comparisons as the same [arg PLAINTEXT] may result in different encrypted values on each call."]
 
 [call [cmd confirm_credentials] [arg TARGET] [arg VALIDITY]]
-Informs the Windows Credentials Manager that the previously obtained
-credentials for the specified [arg TARGET] are valid or not. See
-[uri #read_credentials [cmd read_credentials]].
+[emph Deprecated.] Use [uri #credential_confirm [cmd credential_confirm]].
 
 [call [cmd create_file] [arg PATH] [opt [arg options]]]
 This is a thin wrapper around the Win32 [cmd CreateFile] function that returns
@@ -340,8 +340,12 @@ for the file that is being created. Defaults to NULL.
 [list_end]
 Refer to the Windows SDK for additional details.
 
+[call [cmd credential_confirm] [arg TARGET] [arg VALIDITY]]
+Informs the Windows Credentials Manager that the previously obtained
+credentials for the specified [arg TARGET] are valid or not. See
+[uri #credential_prompt [cmd credential_prompt]].
 
-[call [cmd credentials_dialog] [opt [arg options]]]
+[call [cmd credential_dialog] [opt [arg options]]]
 Shows a dialog prompting the user for credentials. Returns a list
 of three elements, the user name, the password, and a boolean indicating
 whether the user selected for the credentials to be saved or not.
@@ -353,35 +357,83 @@ Specifies a hande to a bitmap to be displayed in the dialog.
 [opt_def [cmd -caption] [arg CAPTION]]
 Specifies a caption to be displayed.
 [opt_def [cmd -expectconfirmation] [arg BOOLEAN]]
-See [uri #read_credentials [cmd read_credentials]].
+See [uri #credential_prompt [cmd credential_prompt]].
 [opt_def [cmd -forceui] [arg BOOLEAN]]
-See [uri #read_credentials [cmd read_credentials]].
+See [uri #credential_prompt [cmd credential_prompt]].
 [opt_def [cmd -message] [arg MESSAGE]]
 Specifies a message to be displayed to the user.
 [opt_def [cmd -parent] [arg HWIN]]
 Specifies the handle of a windows to be used as the parent for the dialog.
 [opt_def [cmd -password] [arg PASSWORD]]
-See [uri #read_credentials [cmd read_credentials]].
+See [uri #credential_prompt [cmd credential_prompt]].
 [opt_def [cmd -persist] [arg BOOLEAN]]
-See [uri #read_credentials [cmd read_credentials]].
+See [uri #credential_prompt [cmd credential_prompt]].
 [opt_def [cmd -showsaveoption] [arg BOOLEAN]]
-See [uri #read_credentials [cmd read_credentials]].
+See [uri #credential_prompt [cmd credential_prompt]].
 [opt_def [cmd -target] [arg TARGETNAME]]
-See [uri #read_credentials [cmd read_credentials]].
+See [uri #credential_prompt [cmd credential_prompt]].
 [opt_def [cmd -type] [arg TARGETTYPE]]
-See [uri #read_credentials [cmd read_credentials]].
+See [uri #credential_prompt [cmd credential_prompt]].
 [opt_def [cmd -username] [arg USERNAME]]
-See [uri #read_credentials [cmd read_credentials]].
+See [uri #credential_prompt [cmd credential_prompt]].
 [list_end]
 
-The command [uri #read_credentials [cmd read_credentials]] provides
+The command [uri #credential_prompt [cmd credential_prompt]] provides
 a console version of this command.
+
+[call [cmd credential_prompt] [opt [arg options]]]
+Prompts the user for credentials via the console. Returns a list
+of three elements, the user name, the password, and a boolean indicating
+whether the user selected for the credentials to be saved or not.
+[nl]
+The following options may be specified:
+[list_begin opt]
+[opt_def [cmd -expectconfirmation] [arg BOOLEAN]]
+The credentials manager can persist credentials that are valid so they can be
+returned later without prompting the user. The application needs
+to inform it whether the returned credentials are valid or not by calling
+[uri #credential_confirm [cmd credential_confirm]]. When [const true],
+the option lets the manager know the application
+will call [cmd credential_confirm] after verifying credentials. If
+[const false], the credentials manager will not hold on to the credentials
+and [cmd credential_confirm] need not be called. Generally,
+if [cmd -persist] is specified as true, this option should also
+be specified as [const true] and [cmd credential_confirm] called
+after verifying the credentials.
+[opt_def [cmd -forceui] [arg BOOLEAN]]
+If specified as [const true], the user is prompted even if the credentials
+manager already has the requested credentials. Default is [const false].
+[opt_def [cmd -password] [arg PASSWORD]]
+The password to be used as default. [arg PASSWORD] must be in the
+form accepted by [uri #reveal [cmd reveal]] which is also the form
+returned by this command. Plain text passwords are [emph not]
+supported by this command.
+[opt_def [cmd -persist] [arg BOOLEAN]]
+If [const true], credentials are to be persisted by the credentials
+manager if so desired by the user. Default is [const false].
+[opt_def [cmd -showsaveoption] [arg BOOLEAN]]
+Specifies whether the user should be given the option to save the credentials.
+Defaults to [const true] (meaning user is given the choice). If specified
+as [const false], credentials are persisted depending on the [cmd -persist]
+option.
+[opt_def [cmd -target] [arg TARGETNAME]]
+Name of the target for the credentials, for example the server name.
+This is used as the key when retrieving credentials.
+[opt_def [cmd -type] [arg TARGETTYPE]]
+Specifies the type of credentials. [arg TARGETTYPE] must be
+[const generic] (default) or [const domain].
+[opt_def [cmd -username] [arg USERNAME]]
+The user name to display as the default. Defaults to the empty string.
+[list_end]
+
+The command [uri #credentials_dialog [cmd credential_dialog]] provides
+a GUI version of this command.
 
 [call [cmd debuglog] [opt [arg MESSAGE]]]
 Writes each specified argument as a message to an internal log.
 There is an internal limit on the number of messages stored. Older messages
-are discarded once the log reaches this limit. 
-The command must be enabled with 
+are discarded once the log reaches this limit.
+The command must be enabled with
 [uri #debuglog_enable [cmd debuglog_enable]] for logging to have effect.
 
 [call [cmd debuglog_clear]]
@@ -659,7 +711,7 @@ Returns a descriptor containing credentials to be used for authenticating
 in a form required by several other commands.
 [arg PASSWORD] may be either plaintext or in
 [uri base.html#passwordprotection "encrypted form"] as returned by
-by the [uri base.html#read_credentials [cmd read_credentials]],
+by the [uri base.html#credentials_prompt [cmd credentials_prompt]],
 [uri base.html#credentials_dialog [cmd credentials_dialog]] or
 [uri base.html#conceal [cmd conceal]] commands.
 
@@ -783,52 +835,7 @@ Returns the specified number of random bytes. This is a call into
 the RtlGenRandom Win32 API.
 
 [call [cmd read_credentials] [opt [arg options]]]
-Prompts the user for credentials via the console. Returns a list
-of three elements, the user name, the password, and a boolean indicating
-whether the user selected for the credentials to be saved or not.
-[nl]
-The following options may be specified:
-[list_begin opt]
-[opt_def [cmd -expectconfirmation] [arg BOOLEAN]]
-The credentials manager can persist credentials that are valid so they can be
-returned later without prompting the user. The application needs
-to inform it whether the returned credentials are valid or not by calling
-[uri #confirm_credentials [cmd confirm_credentials]]. When [const true],
-the option lets the manager know the application
-will call [cmd confirm_credentials] after verifying credentials. If
-[const false], the credentials manager will not hold on to the credentials
-and [cmd confirm_credentials] need not be called. Generally,
-if [cmd -persist] is specified as true, this option should also
-be specified as [const true] and [cmd confirm_credentials] called
-after verifying the credentials.
-[opt_def [cmd -forceui] [arg BOOLEAN]]
-If specified as [const true], the user is prompted even if the credentials
-manager already has the requested credentials. Default is [const false].
-[opt_def [cmd -password] [arg PASSWORD]]
-The password to be used as default. [arg PASSWORD] must be in the
-form accepted by [uri #reveal [cmd reveal]] which is also the form
-returned by this command. Plain text passwords are [emph not]
-supported by this command.
-[opt_def [cmd -persist] [arg BOOLEAN]]
-If [const true], credentials are to be persisted by the credentials
-manager if so desired by the user. Default is [const false].
-[opt_def [cmd -showsaveoption] [arg BOOLEAN]]
-Specifies whether the user should be given the option to save the credentials.
-Defaults to [const true] (meaning user is given the choice). If specified
-as [const false], credentials are persisted depending on the [cmd -persist]
-option.
-[opt_def [cmd -target] [arg TARGETNAME]]
-Name of the target for the credentials, for example the server name.
-This is used as the key when retrieving credentials.
-[opt_def [cmd -type] [arg TARGETTYPE]]
-Specifies the type of credentials. [arg TARGETTYPE] must be
-[const generic] (default) or [const domain].
-[opt_def [cmd -username] [arg USERNAME]]
-The user name to display as the default. Defaults to the empty string.
-[list_end]
-
-The command [uri #credentials_dialog [cmd credentials_dialog]] provides
-a GUI version of this command.
+[emph Deprecated.] Use [uri #credentials_prompt [cmd credentials_prompt]].
 
 [call [cmd "recordarray cell"] [arg RECORDARRAY] [arg INDEX] [arg FIELD]]
 Returns the value of the field [arg FIELD] of the record at
