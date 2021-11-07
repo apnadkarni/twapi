@@ -13,12 +13,12 @@ control in Windows operating systems.
 This documentation is reference material that assumes familiarity with
 Windows security terms and concepts.
 For more introductory material and guide, see the [emph "Windows Security"]
-chapter in the 
+chapter in the
 [uri https://www.magicsplat.com/book "Tcl on Windows"] online book.
 
 [section "Security Identifiers"]
-Each trustee (user, group, logon session etc.) is identified by a 
-[emph "security identifier"] (SID). 
+Each trustee (user, group, logon session etc.) is identified by a
+[emph "security identifier"] (SID).
 [uri #equal_sids [cmd equal_sids]] compares two SIDs for equality
 while
 [uri #sids_from_same_domain [cmd sids_from_same_domain]]
@@ -545,8 +545,8 @@ Frees resources associated with an access token.
 Deletes the credentials identified by [arg TARGET] from the credential cache
 associated with the logon session of the curent security token.
 The [arg TYPE] argument is one of [const generic], [const domain_password],
-[const domain_certificate], [const domain_visible_password], [const
-generic_certificate] or [const domain_extended].
+[const domain_certificate], [const domain_visible_password],
+[const generic_certificate] or [const domain_extended].
 
 [call [cmd cred_get] [arg TARGET] [opt [arg TYPE]]]
 Returns the credentials identified by [arg TARGET] from the credential set

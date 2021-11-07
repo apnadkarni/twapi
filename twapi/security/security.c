@@ -31,6 +31,41 @@ Tcl_Obj *ObjFromTOKEN_PRIVILEGES(Tcl_Interp *interp,
                                  const TOKEN_PRIVILEGES *tokprivP);
 void TwapiFreeTOKEN_PRIVILEGES (TOKEN_PRIVILEGES *tokPrivP);
 
+static Tcl_Obj *ObjFromCREDENTIAL_TARGET_INFORMATIONW(CREDENTIAL_TARGET_INFORMATIONW *ctiP)
+{
+    Tcl_Obj *ctiObj;
+    Tcl_Obj *typesObj;
+    int      i;
+
+    ctiObj = ObjNewList(0, NULL);
+#define APPENDNAME_(name_)                                                     \
+    do {                                                                       \
+        if (ctiP->name_) {                                                     \
+            ObjAppendElement(NULL, ctiObj, ObjFromString(#name_));             \
+            ObjAppendElement(NULL, ctiObj, ObjFromWinChars(ctiP->name_));      \
+        }                                                                      \
+    } while (0)
+
+    APPENDNAME_(TargetName);
+    APPENDNAME_(NetbiosServerName);
+    APPENDNAME_(DnsServerName);
+    APPENDNAME_(NetbiosDomainName);
+    APPENDNAME_(DnsDomainName);
+    APPENDNAME_(DnsTreeName);
+    APPENDNAME_(PackageName);
+#undef APPENDNAME_
+
+    ObjAppendElement(NULL, ctiObj, ObjFromString("Flags"));
+    ObjAppendElement(NULL, ctiObj, ObjFromULONG(ctiP->Flags));
+
+    ObjAppendElement(NULL, ctiObj, ObjFromString("CredTypes"));
+    typesObj = ObjNewList(ctiP->CredTypeCount, NULL);
+    for (i = 0; i < ctiP->CredTypeCount; ++i)
+        ObjAppendElement(NULL, typesObj, ObjFromDWORD(ctiP->CredTypes[i]));
+    ObjAppendElement(NULL, ctiObj, typesObj);
+
+    return ctiObj;
+}
 
 /* interp may be NULL */
 Tcl_Obj *ObjFromSID_AND_ATTRIBUTES (
@@ -823,6 +858,9 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
         TOKEN_PRIVILEGES *tokprivsP;
         PCREDENTIALW *credsPP;
         PCREDENTIALW credsP;
+        CREDENTIAL_TARGET_INFORMATIONW *ctiP;
+        CERT_CREDENTIAL_INFO            cert_info;
+        USERNAME_TARGET_CREDENTIAL_INFO user_target_cred_info;
         char sid[SECURITY_MAX_SID_SIZE];
     } u;
     LSA_HANDLE lsah;
@@ -835,8 +873,12 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     int nobjs;
     int i, ival;
     Tcl_Obj *objP;
+    Tcl_Obj *objs[2];
+    char *utf8;
     SWSMark mark = NULL;
     TCL_RESULT res;
+    void *pv;
+    CRED_MARSHAL_TYPE   cred_marshal_type;
 
     daclP = saclP = NULL;
     osidP = gsidP = NULL;
@@ -920,6 +962,28 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             } else
                 result.type = TRT_GETLASTERROR;
             break;
+        case 106: // CredIsMarshaledCredential
+            s = ObjToWinChars(objv[0]);
+            result.type = TRT_BOOL;
+            result.value.bval = CredIsMarshaledCredentialW(s);
+            break;
+        case 107: // CredUIParseUserName
+            s = ObjToWinChars(objv[0]);
+            dw = CREDUI_MAX_USERNAME_LENGTH + 1;
+            s = SWSAlloc(sizeof(WCHAR) * dw, NULL);
+            dw2 = CREDUI_MAX_DOMAIN_TARGET_LENGTH + 1;
+            s2 = SWSAlloc(sizeof(WCHAR) * dw2, NULL);
+            result.value.ival
+                = CredUIParseUserNameW(ObjToWinChars(objv[0]), s, dw, s2, dw2);
+            if (result.value.ival != NO_ERROR)
+                result.type = TRT_EXCEPTION_ON_ERROR;
+            else {
+                result.type = TRT_OBJ;
+                objs[0]          = ObjFromWinChars(s);
+                objs[1]          = ObjFromWinChars(s2);
+                result.value.obj = ObjNewList(2, objs);
+            }
+            break;
         }
     } else if (func < 500) {
         /* Two string args */
@@ -992,6 +1056,15 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             if (CredReadW(s, dw, dw2, &u.credsP)) {
                 result.value.obj = ObjFromCREDENTIALW(u.credsP);
                 CredFree(u.credsPP);
+                result.type = TRT_OBJ;
+            } else
+                result.type = TRT_GETLASTERROR;
+            break;
+        case 505: // CredGetTargetInfo
+            if (CredGetTargetInfoW(s, dw, &u.ctiP)) {
+                result.value.obj
+                    = ObjFromCREDENTIAL_TARGET_INFORMATIONW(u.ctiP);
+                CredFree(u.ctiP);
                 result.type = TRT_OBJ;
             } else
                 result.type = TRT_GETLASTERROR;
@@ -1106,6 +1179,73 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     } else {
         /* Arbitrary args */
         switch (func) {
+        case 10005: // CredUnmarshalCredential
+            res = TwapiGetArgs(
+                interp, objc, objv, GETOBJ(objP), ARGEND);
+            if (res != TCL_OK)
+                goto vamoose;
+            s = ObjToWinChars(objP);
+            if (!CredUnmarshalCredentialW(s, &cred_marshal_type, &pv)) {
+                result.type = TRT_GETLASTERROR;
+                break;
+            }
+            result.type      = TRT_OBJ;
+            if (cred_marshal_type == CertCredential) {
+                objs[0] = STRING_LITERAL_OBJ("certificate");
+                objs[1] = ObjFromByteArray(
+                    ((CERT_CREDENTIAL_INFO *)pv)->rgbHashOfCert,
+                    sizeof(((CERT_CREDENTIAL_INFO *)pv)->rgbHashOfCert));
+                result.value.obj = ObjNewList(2, objs);
+            } else if (cred_marshal_type == UsernameTargetCredential) {
+                objs[0] = STRING_LITERAL_OBJ("user");
+                objs[1] = ObjFromWinChars(
+                    ((USERNAME_TARGET_CREDENTIAL_INFO *)pv)->UserName);
+                result.value.obj = ObjNewList(2, objs);
+            } else {
+                result.type       = TRT_TWAPI_ERROR;
+                result.value.ival = TWAPI_INVALID_ARGS; /* Actuall unsupported */
+                /* Drop thru to free pv */
+            }
+            CredFree(pv);
+            break;
+
+        case 10006: // CredMarshalCredential
+            res = TwapiGetArgs(
+                interp, objc, objv, GETASTR(utf8), GETOBJ(objP), ARGEND);
+            if (res != TCL_OK)
+                goto vamoose;
+            if (STREQ(utf8, "certificate")) {
+                int                  nbytes;
+                unsigned char       *bytes;
+                u.cert_info.cbSize = sizeof(u.cert_info);
+                bytes           = ObjToByteArray(objP, &nbytes);
+                if (nbytes != 20) {
+                    result.type       = TRT_TWAPI_ERROR;
+                    result.value.ival = TWAPI_INVALID_ARGS;
+                    break;
+                }
+                memcpy(u.cert_info.rgbHashOfCert, bytes, nbytes);
+                cred_marshal_type = CertCredential;
+                pv = &u.cert_info;
+            }
+            else if (STREQ(utf8, "user")) {
+                u.user_target_cred_info.UserName = ObjToWinChars(objP);
+                cred_marshal_type                = UsernameTargetCredential;
+                pv = &u.user_target_cred_info;
+            }
+            else {
+                result.type = TRT_TWAPI_ERROR;
+                result.value.ival = TWAPI_INVALID_ARGS;
+                break;
+            }
+            if (CredMarshalCredentialW(cred_marshal_type, pv, &s)) {
+                result.type = TRT_OBJ;
+                result.value.obj = ObjFromWinChars(s);
+                CredFree(s);
+            }
+            else
+                result.type = TRT_GETLASTERROR;
+            break;
         case 10007: // EqualSid
             res = TwapiGetArgs(interp, objc, objv,
                                GETVAR(osidP, ObjToPSIDNonNullSWS),
@@ -1391,12 +1531,18 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(ImpersonateSelf, 103),
         DEFINE_FNCODE_CMD(ImpersonateLoggedOnUser, 104),
         DEFINE_FNCODE_CMD(GetWindowsAccountDomainSid, 105),
+        DEFINE_FNCODE_CMD(cred_is_marshaled, 106),
+        DEFINE_FNCODE_CMD(cred_parse_username, 107),
+
         DEFINE_FNCODE_CMD(LookupPrivilegeDisplayName, 401),
         DEFINE_FNCODE_CMD(LookupPrivilegeValue, 402),
+
         DEFINE_FNCODE_CMD(ConvertStringSecurityDescriptorToSecurityDescriptor, 501),
         DEFINE_FNCODE_CMD(GetNamedSecurityInfo, 502),
         DEFINE_FNCODE_CMD(CredEnumerate, 503),
         DEFINE_FNCODE_CMD(CredRead, 504),
+        DEFINE_FNCODE_CMD(CredGetTargetInfo, 505),
+
         DEFINE_FNCODE_CMD(GetSecurityInfo, 1003),
         DEFINE_FNCODE_CMD(OpenThreadToken, 1004),
         DEFINE_FNCODE_CMD(OpenProcessToken, 1005),
@@ -1404,14 +1550,18 @@ static int TwapiSecurityInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_SetTokenVirtualizationEnabled, 1007),
         DEFINE_FNCODE_CMD(Twapi_SetTokenMandatoryPolicy, 1008),
         DEFINE_FNCODE_CMD(Twapi_SetTokenSessionId, 1009), // TBD - tcl
+
         DEFINE_FNCODE_CMD(SetThreadToken, 3002),
         DEFINE_FNCODE_CMD(Twapi_LsaEnumerateAccountsWithUserRight, 3003),
         DEFINE_FNCODE_CMD(Twapi_SetTokenIntegrityLevel, 3004),
+
         DEFINE_FNCODE_CMD(Twapi_SetTokenPrimaryGroup, 4001),
         DEFINE_FNCODE_CMD(CheckTokenMembership, 4002),
         DEFINE_FNCODE_CMD(Twapi_SetTokenOwner, 4003),
         DEFINE_FNCODE_CMD(Twapi_LsaEnumerateAccountRights, 4004),
 
+        DEFINE_FNCODE_CMD(cred_unmarshal, 10005),
+        DEFINE_FNCODE_CMD(cred_marshal, 10006),
         DEFINE_FNCODE_CMD(equal_sids, 10007),
         DEFINE_FNCODE_CMD(IsWellKnownSid, 10008),
         DEFINE_FNCODE_CMD(get_sid_domain, 10009),
