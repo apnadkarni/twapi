@@ -462,7 +462,12 @@ of the credentials cache.
 The [uri #cred_get [cmd cred_get]] command returns cached
 credentials for a credential target.
 The [uri #cred_delete [cmd cred_delete]] command deletes cached
-credentials.
+credentials. The commands
+[uri #cred_marshal [cmd cred_marshal]],
+[uri #cred_unmarshal [cmd cred_unmarshal]] and
+[uri #cred_is_marshaled [cmd cred_is_marshaled]] can be used for marshaling
+of credentials. The command [uri #cred_parse_username [cmd cred_parse_username]]
+can be used to extract the user and domain names from a fully qualified user name.
 
 [section "User Account Control"]
 
@@ -514,7 +519,7 @@ able to write to resources at higher integrity levels, such as the system
 directory, that were now restricted. To allow these applications to run,
 Windows silently virtualizes protected resources and redirects
 reads and writes to these resources from such applications. The
-[uri #get_token_virtualization [cmd get_token_virtualization]] 
+[uri #get_token_virtualization [cmd get_token_virtualization]]
 can be used to detect if a process is virtualized in this fashion and
 [uri #set_token_virtualization [cmd set_token_virtualization]] can
 be used to enable or disable the state.
@@ -587,6 +592,25 @@ and are liable to change.
 [nl]
 For more information, see the description of the
 [uri https://docs.microsoft.com/en-us/windows/win32/api/wincred/ns-wincred-credentialw "CREDENTIALS"] structure in the Windows SDK.
+
+[call [cmd cred_is_marshaled] [arg STR]]
+Returns a boolean true value if the string [arg STR] represents a credential
+in marshaled form and false otherwise.
+
+[call [cmd cred_marshal] [arg TYPE] [arg CRED]]
+Transforms the passed credential [arg CRED] into text string. [arg TYPE] should
+be either [const certificate] or [const user]. In former case, [arg CRED] should
+be the binary hash of the certificate as returned in the [const sha1_hash] property
+of the [uri certs.html#cert_property [cmd cert_property]] command. In the latter
+case, it should be a string specifying the user name.
+
+[call [cmd cred_parse_username] [arg FQUN]]
+Parses a fully qualified user name [arg FQUN] and returns it as a user name and
+domain pair.
+
+[call [cmd cred_unmarshal] [arg MCRED]]
+Reverts a marshalled credential back to its original form. The return value
+is a pair consisting of the type and value. See [uri #cred_marshal [cmd cred_marshal]].
 
 [call [cmd credentials] [opt [arg TARGETPATTERN]]]
 Returns a list of current credentials from the credential cache.

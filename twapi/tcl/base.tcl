@@ -1242,62 +1242,78 @@ proc twapi::_make_cred_persist_flags {persist showsave} {
     }
 }
 
-proc twapi::cred_prompt_console {args} {
+proc twapi::cred_prompt_console {target args} {
+    # Not documented because Windows seems to ignore on Win10 at least -
+    #  -password, -winerror
     array set opts [parseargs args {
-        target.arg
-        winerror.int
-        username.arg
+        {forceui.bool 0 0x80}
         password.arg
         persist.bool
+        {showsaveoption.bool 0}
         {type.sym generic {domain 0 generic 0x40000 runas 0x80000}}
-        {forceui.bool 0 0x80}
-        {showsaveoption.bool true}
+        username.arg
+        winerror.int
     } -maxleftover 0 -nulldefault]
+
+    if {$target eq ""} {
+        error "Target must not be an empty string."
+    }
 
     set flags [_make_cred_persist_flags $opts(persist) $opts(showsaveoption)]
 
     # 0x8 -> CREDUI_FLAGS_EXCLUDE_CERTIFICATES (needed for console)
     set flags [expr {0x8 | $flags | $opts(type) | $opts(forceui)}]
 
-    return [CredUICmdLinePromptForCredentials $opts(target) NULL $opts(winerror) $opts(username) $opts(password) $opts(persist) $flags]
+    return [CredUICmdLinePromptForCredentials $target NULL $opts(winerror) $opts(username) $opts(password) $opts(persist) $flags]
 }
 
-proc twapi::cred_prompt_gui {args} {
+proc twapi::cred_prompt_gui {target args} {
+    # Not documented because Windows seems to ignore on Win10 at least -
+    #  -passwordonly, -notifyfail, -winerror
     array set opts [parseargs args {
-        target.arg
-        winerror.int
-        username.arg
-        password.arg
-        persist.bool
-        {type.sym generic {domain 0 generic 0x40000 runas 0x80000}}
-        {forceui.bool 0 0x80}
-        {showsaveoption.bool true}
-        {fillusername.bool 0 0x800}
+        {bitmap.arg NULL}
+        caption.arg
+        {excludecertificates.bool 0 0x8}
         {filllocaladmins.bool 0 0x4}
+        {completeusername.bool 0 0x800}
+        {forceui.bool 0 0x80}
+        {keepusername.bool 0 0x100000}
+        message.arg
         {notifyfail.bool 0 0x1}
+        {parent.arg NULL}
+        password.arg
         {passwordonly.bool 0 0x200}
+        persist.bool
         {requirecertificate.bool 0 0x10}
         {requiresmartcard.bool 0 0x100}
+        {showsaveoption.bool 0}
+        {type.sym generic {domain 0 generic 0x40000 runas 0x80000}}
+        username.arg
         {validateusername.bool 0 0x400}
-        {parent.arg NULL}
-        message.arg
-        caption.arg
-        {bitmap.arg NULL}
+        winerror.int
     } -maxleftover 0 -nulldefault]
 
-    # Use cases -
-    #  (1) credentials to be persisted WITHOUT showing save option to user
-    #  (2) credentials to be persisted AFTER showing save option to user
-    #  (3) credentials NOT to be persisted, user not shown save option
-    #  (4) credentials NOT to be persisted, but user shown save option
-    # In case (4), caller has to decide what to do with the credentials if
-    # user selects to save (e.g. save elsewhere)
-    # If credentials are to be persisted, caller MUST call cred_confirm later
+    if {$target eq ""} {
+        error "Target must not be an empty string."
+    }
 
     set flags [_make_cred_persist_flags $opts(persist) $opts(showsaveoption)]
-    set flags [expr { $flags | $opts(type) | $opts(forceui) | $opts(notifyfail) | $opts(fillusername) | $opts(filllocaladmins)}]
+    set flags [expr {
+                     $flags |
+                     $opts(excludecertificates) |
+                     $opts(filllocaladmins) |
+                     $opts(completeusername) |
+                     $opts(forceui) |
+                     $opts(keepusername) |
+                     $opts(notifyfail) |
+                     $opts(passwordonly) |
+                     $opts(requirecertificate) |
+                     $opts(requiresmartcard) |
+                     $opts(type) |
+                     $opts(validateusername)
+                 }]
 
-    return [CredUIPromptForCredentials [list $opts(parent) $opts(message) $opts(caption) $opts(bitmap)] $opts(target) NULL $opts(winerror) $opts(username) $opts(password) $opts(persist) $flags]
+    return [CredUIPromptForCredentials [list $opts(parent) $opts(message) $opts(caption) $opts(bitmap)] $target NULL $opts(winerror) $opts(username) $opts(password) $opts(persist) $flags]
 }
 
 proc twapi::cred_confirm {target valid} {
