@@ -20,9 +20,13 @@ Summarizes the list of changes for each version of TWAPI.
 [uri base.html#cred_confirm [cmd cred_confirm]],
 [uri security.html#cred_delete [cmd cred_delete]],
 [uri security.html#cred_get [cmd cred_get]],
+[uri security.html#cred_marshal [cmd cred_marshal]],
+[uri security.html#cred_unmarshal [cmd cred_unmarshal]],
+[uri security.html#cred_is_marshaled [cmd cred_is_marshaled]],
+[uri security.html#cred_parse_username [cmd cred_parse_username]],
 [uri base.html#cred_prompt_gui [cmd cred_prompt_gui]] and
 [uri base.html#cred_prompt_console [cmd cred_prompt_console]].
-Deprecated [cmd credentials_dialog], [cmd read_credentials]
+[emph Deprecated] [cmd credentials_dialog], [cmd read_credentials]
 and [cmd confirm_credentials].
 
 [list_end]

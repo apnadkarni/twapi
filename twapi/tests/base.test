@@ -3909,49 +3909,116 @@ namespace eval twapi::base::test {
 
     ################################################################
 
-    test credentials_prompt-1.0 {
-        credentials_prompt - no args
+    test cred_prompt_console-1.0 {
+        No options
     } -constraints {
         userInteraction
     } -body {
-        puts "Enter \"tester\" and \"mypass\" and \"N\" at the prompts."
-        lassign [twapi::credentials_prompt] name pass save
-        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y]
-    } -result [list tester mypass 0 1]
+        puts "Enter \"tester\" and \"pass\" at the prompts."
+        lassign [twapi::cred_prompt_console twapi] name pass save
+        # Note: cred_confirm should return code since -persist was defaulted false
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list tester pass 0 0 1168]
 
-    test credentials_prompt-1.1 {
-        credentials_prompt -target
+    test cred_prompt_console-2.0 {
+        -showsaveoption 1
     } -constraints {
         userInteraction
     } -body {
-        puts "Enter \"tester\" and \"mypass\" and \"N\" at the prompts."
-        set target credentials_prompt-1.1
-        lassign [twapi::credentials_prompt -target $target] name pass save
-        list $name [twapi::reveal $pass] $save \
-            [yesno "Was $target displayed as the prompt target?"] \
-            [yesno "Did you see a prompt to remember the password?" Y]
-    } -result [list tester mypass 0 1 1]
+        puts "Enter \"tester\" and \"pass\" and \"N\" at the prompts."
+        lassign [twapi::cred_prompt_console twapi -showsaveoption 1] name pass save
+        # Note: cred_confirm should return code since -persist was defaulted false
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list tester pass 0 1 1168]
 
-    test credentials_prompt-2.0 {
-        credentials_prompt -username
+    test cred_prompt_console-2.1 {
+        -showsaveoption 0
     } -constraints {
         userInteraction
     } -body {
-        puts "Enter \"mypass\" and \"N\" at the prompts."
-        lassign [twapi::credentials_prompt -username tester] name pass save
-        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt for the *username*?" Y] [yesno "Did you see a prompt to remember the password?" Y]
-    } -result [list tester mypass 0 0 1]
+        puts "Enter \"tester\" and \"pass\" at the prompts."
+        lassign [twapi::cred_prompt_console twapi -showsaveoption 0] name pass save
+        # Note: cred_confirm should return code since -persist was defaulted false
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list tester pass 0 0 1168]
 
-    test credentials_prompt-3.0 {
-        credentials_prompt -persist
+    test cred_prompt_console-3.0.0 {
+        -persist 0
     } -constraints {
         userInteraction
     } -body {
-        puts "Enter \"tester\" and \"mypass\" and \"Y\" at the prompts."
-        set target credentials_prompt-3.0
-        lassign [twapi::credentials_prompt -persist 1 -target $target] name pass save
-        
-    } -result [list tester mypass 0 1 1]
+        puts "Enter \"tester\" and \"pass\" at the prompts."
+        lassign [twapi::cred_prompt_console twapi -persist 0] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list tester pass 0 0 1168]
+
+    test cred_prompt_console-3.0.1 {
+        -persist 0 -showsaveoption 1
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" and \"N\" at the prompts."
+        lassign [twapi::cred_prompt_console twapi -persist 0 -showsaveoption 1] name pass save
+        # Note: cred_confirm should return code since -persist was defaulted false
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list tester pass 0 1 1168]
+
+    test cred_prompt_console-3.1.0 {
+        -persist 1 - reject credentials
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\"."
+        lassign [twapi::cred_prompt_console twapi -persist 1] name pass save
+        # Note: cred_confirm should return code since -persist was defaulted false
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass 1 0 0 1 {Element not found.}]
+
+    test cred_prompt_console-3.1.1 {
+        -persist 1 - accept credentials
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\"."
+        lassign [twapi::cred_prompt_console twapi -persist 1] name pass save
+        # Note: cred_confirm should return code since -persist was defaulted false
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass 1 0 0 0 {}]
+
+    test cred_prompt_console-3.1.2 {
+        -persist 1 -showsaveoption 1 (response N)
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" and \"N\" at the prompts."
+        lassign [twapi::cred_prompt_console twapi -persist 1 -showsaveoption 1] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list tester pass 0 1 1168]
+
+    test cred_prompt_console-3.1.3 {
+        -persist 1 -showsaveoption 1 (response Y - reject credentials)
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" and \"Y\" at the prompts."
+        lassign [twapi::cred_prompt_console twapi -persist 1 -showsaveoption 1] name pass save
+        # Note: cred_confirm should return code since -persist was defaulted false
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass 1 1 0 1 {Element not found.}]
+
+    test cred_prompt_console-3.1.4 {
+        -persist 1 -showsaveoption 1 (response Y - accept credentials)
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" and \"Y\" at the prompts."
+        lassign [twapi::cred_prompt_console twapi -persist 1 -showsaveoption 1] name pass save
+        # Note: cred_confirm should return code since -persist was defaulted false
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass 1 1 0 0 {}]
+
+
+    ################################################################
 
     test read_credentials-1.0 {
         read_credentials - alias for credentials_prompt
