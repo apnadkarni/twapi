@@ -12,6 +12,8 @@ eval tcltest::configure $argv
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_base
 load_twapi_package twapi_security; # TBD - needed for open_process_token
+load_twapi_package twapi_resource; # Needed for bitmaps
+load_twapi_package twapi_account; # get_local_group_members
 
 #
 # Set up system-specific constants that are used to match test results
@@ -4002,7 +4004,6 @@ namespace eval twapi::base::test {
     } -body {
         puts "Enter \"tester\" and \"pass\" and \"Y\" at the prompts."
         lassign [twapi::cred_prompt_console twapi -persist 1 -showsaveoption 1] name pass save
-        # Note: cred_confirm should return code since -persist was defaulted false
         list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0] [catch {twapi::cred_delete twapi} result] $result
     } -result [list tester pass 1 1 0 1 {Element not found.}]
 
@@ -4013,9 +4014,522 @@ namespace eval twapi::base::test {
     } -body {
         puts "Enter \"tester\" and \"pass\" and \"Y\" at the prompts."
         lassign [twapi::cred_prompt_console twapi -persist 1 -showsaveoption 1] name pass save
-        # Note: cred_confirm should return code since -persist was defaulted false
         list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
     } -result [list tester pass 1 1 0 0 {}]
+
+    test cred_prompt_console-4.0 {
+        -username
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"pass\" at the password prompt."
+        lassign [twapi::cred_prompt_console twapi -username defaultuser] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt for the username?"] [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list defaultuser pass 0 0 0 1168]
+
+    test cred_prompt_console-5.0 {
+        -type generic
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" at the prompts."
+        lassign [twapi::cred_prompt_console twapi -type generic] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list tester pass 0 0 1168]
+
+    test cred_prompt_console-5.1.0 {
+        -type domain
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" at the prompts."
+        lassign [twapi::cred_prompt_console twapi -type domain] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list twapi\\tester pass 0 0 1168]
+
+    test cred_prompt_console-5.1.1 {
+        -type domain with explicit domain
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"mydomain\\tester\" and \"pass\" at the prompts."
+        lassign [twapi::cred_prompt_console twapi -type domain] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list mydomain\\tester pass 0 0 1168]
+
+    test cred_prompt_console-5.2.0 {
+        -type runas
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"pass\" at the prompt."
+        lassign [twapi::cred_prompt_console twapi -username tester -type runas] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt for a username?" Y] [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list $::env(COMPUTERNAME)\\tester pass 0 0 0 1168]
+
+    test cred_prompt_console-5.2.1 {
+        -type runas with explicit domain in user name
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"pass\" at the prompt."
+        lassign [twapi::cred_prompt_console twapi -username mydomain\\tester -type runas] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt for a username?" Y] [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list mydomain\\tester pass 0 0 0 1168]
+
+    test cred_prompt_console-5.2.2 {
+        -type runas with no user name
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"pass\" at the prompt."
+        twapi::cred_prompt_console twapi -type runas
+    } -result "The -username option must not be an empty string if -type is \"runas\"." -returnCodes error
+
+
+    test cred_prompt_console-6.0 {
+        -forceui unspecified
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\"."
+        twapi::cred_prompt_console twapi -persist 1
+        twapi::cred_confirm twapi 1
+        pause "You MAY see another set of prompts. If so, enter same data as before."
+        lassign [twapi::cred_prompt_console twapi -persist 1] name pass save
+        # Note - although persist is specified, save will be 0 when credentials
+        # are retrieved from cache
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a SECOND set of prompts?" N] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass 0 0 1168 0 {}]
+
+    test cred_prompt_console-6.1 {
+        -forceui 0
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\"."
+        twapi::cred_prompt_console twapi -persist 1
+        twapi::cred_confirm twapi 1
+        pause "You MAY see another set of prompts. If so, enter same data as before."
+        lassign [twapi::cred_prompt_console twapi -persist 1 -forceui 0] name pass save
+        # Note - although persist is specified, save will be 0 when credentials
+        # are retrieved from cache
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a SECOND set of prompts?" N] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass 0 0 1168 0 {}]
+
+    test cred_prompt_console-6.2 {
+        -forceui 1
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\"."
+        twapi::cred_prompt_console twapi -persist 1
+        twapi::cred_confirm twapi 1
+        pause "You MAY see another set of prompts. If so, enter same pass2 as password."
+        lassign [twapi::cred_prompt_console twapi -persist 1 -forceui 1] name pass save
+        # Note - although persist is specified, save will be 0 when credentials
+        # are retrieved from cache
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a SECOND set of prompts?" N] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass2 1 1 0 0 {}]
+
+    test cred_prompt_console-6.3.0 {
+        -forceui 1 -type generic
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\"."
+        twapi::cred_prompt_console twapi -persist 1
+        twapi::cred_confirm twapi 1
+        pause "You MAY see another set of prompts. If so, enter same pass2 as password."
+        lassign [twapi::cred_prompt_console twapi -persist 1 -forceui 1 -type generic] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a SECOND set of prompts?" N] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass1 1 1 0 0 {}]
+
+    test cred_prompt_console-6.3.1 {
+        -forceui 1 -type domain
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::cred_prompt_console twapi -persist 1 -forceui 1 -type domain
+    } -result {The -forceui option can only be set if -type is "generic".} -returnCodes error
+
+    test cred_prompt_console-6.3.2 {
+        -forceui 1 -type runas
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::cred_prompt_console twapi -persist 1 -forceui 1 -type domain
+    } -result {The -forceui option can only be set if -type is "generic".} -returnCodes error
+
+    ################################################################
+
+    test cred_prompt_gui-1.0.0 {
+        No options
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "Enter \"tester\" and \"pass\" in the dialog when shown and click OK."
+        lassign [twapi::cred_prompt_gui twapi] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a checkbox to save the password?" N] [twapi::cred_confirm twapi 0]
+    } -result [list tester pass 0 0 1168]
+
+    test cred_prompt_gui-1.0.1 {
+        No options, Cancel
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "Enter \"tester\" and \"pass\" in the dialog when shown and click Cancel."
+        twapi::cred_prompt_gui twapi
+    } -result {}
+
+    test cred_prompt_gui-2.0 {
+        -bitmap, -message, -caption
+    } -constraints {
+        userInteraction
+    } -setup {
+        set hbitmap [twapi::load_bitmap_from_file rctest/bitmap.bmp]
+    } -cleanup {
+        twapi::free_bitmap $hbitmap
+    } -body {
+        puts "Enter \"tester\" and \"pass\" in the dialog when shown and click OK."
+        pause "Make a note of the bitmap, message and caption"
+        lassign [twapi::cred_prompt_gui twapi -bitmap $hbitmap -message "Twapi message" -caption "TWAPI"] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a Twapi bitmap, the caption \"TWAPI\" and the message \"Twapi message\"?" N]
+    } -result [list tester pass 0 1]
+
+    test cred_prompt_gui-3.0.0 {
+        -completeusername 0 -type generic
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "Enter \"tester\" and \"pass\" in the dialog when shown and click OK."
+        lassign [twapi::cred_prompt_gui twapi -completeusername 0 -type generic] name pass save
+        list $name [twapi::reveal $pass] $save [twapi::cred_confirm twapi 0]
+    } -result [list tester pass 0 1168]
+
+    test cred_prompt_gui-3.0.1 {
+        -completeusername 1
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "Enter \"tester\" and \"pass\" in the dialog when shown and click OK."
+        lassign [twapi::cred_prompt_gui twapi -completeusername 1 -type generic] name pass save
+        list $name [twapi::reveal $pass] $save [twapi::cred_confirm twapi 0]
+    } -result [list twapi\\tester pass 0 1168]
+
+    test cred_prompt_gui-4.0.0 {
+        No options, verify certificates
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "Check if certificates are shown in username dropdown and select one. Cancel if no certificates."
+        lassign [twapi::cred_prompt_gui twapi] cred pin save
+        lassign [twapi::cred_unmarshal $cred] type hash
+        list $type [string length $hash]
+    } -result {certificate 20}
+
+    test cred_prompt_gui-4.0.1 {
+        -excludecertificates 0
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "If certificates are shown in username dropdown, select one and click OK.\nClick Cancel if no certificates shown."
+        lassign [twapi::cred_prompt_gui twapi -excludecertificates 0] cred pin save
+        lassign [twapi::cred_unmarshal $cred] type hash
+        list $type [string length $hash]
+    } -result {certificate 20}
+
+    test cred_prompt_gui-4.0.2 {
+        -excludecertificates 1
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "Check if certificates are shown in username dropdown and then click Cancel."
+        list [twapi::cred_prompt_gui twapi -excludecertificates 1] [yesno "Were any certificates shown?" N]
+    } -result [list {} 0]
+
+    test cred_prompt_gui-5.0.0 {
+        -filllocaladmins
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "Check if only admin accounts shown in credentials dialog dropdown.\nSelect one, enter password \"pass\" and click OK."
+        lassign [twapi::cred_prompt_gui twapi -filllocaladmins 1] user pass save
+        lassign [split $user \\] domain user
+        list [expr {$user in [twapi::get_local_group_members Administrators]}] [twapi::reveal $pass]
+    } -result {1 pass}
+
+    test cred_prompt_gui-6.0 {
+        -forceui unspecified
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\"."
+        twapi::cred_prompt_gui twapi -persist 1
+        twapi::cred_confirm twapi 1
+        pause "You MAY see another dialog. If so, enter same data as before."
+        lassign [twapi::cred_prompt_gui twapi -persist 1] name pass save
+        # Note - although persist is specified, save will be 0 when credentials
+        # are retrieved from cache
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a SECOND set of prompts?" N] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass 0 0 1168 0 {}]
+
+    test cred_prompt_gui-6.1 {
+        -forceui 0
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\"."
+        twapi::cred_prompt_gui twapi -persist 1
+        twapi::cred_confirm twapi 1
+        pause "You MAY see another set of prompts. If so, enter same data as before."
+        lassign [twapi::cred_prompt_gui twapi -persist 1 -forceui 0] name pass save
+        # Note - although persist is specified, save will be 0 when credentials
+        # are retrieved from cache
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a SECOND set of prompts?" N] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass 0 0 1168 0 {}]
+
+    test cred_prompt_gui-6.2 {
+        -forceui 1
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\"."
+        twapi::cred_prompt_gui twapi -persist 1
+        twapi::cred_confirm twapi 1
+        pause "You MAY see another set of prompts. If so, enter same pass2 as password."
+        lassign [twapi::cred_prompt_gui twapi -persist 1 -forceui 1] name pass save
+        # Note - although persist is specified, save will be 0 when credentials
+        # are retrieved from cache
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a SECOND set of prompts?" N] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass2 1 1 0 0 {}]
+
+    test cred_prompt_gui-6.3.0 {
+        -forceui 1 -type generic
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\"."
+        twapi::cred_prompt_gui twapi -persist 1
+        twapi::cred_confirm twapi 1
+        pause "You MAY see another set of prompts. If so, enter same pass2 as password."
+        lassign [twapi::cred_prompt_gui twapi -persist 1 -forceui 1 -type generic] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a SECOND set of prompts?" N] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass2 1 1 0 0 {}]
+
+    test cred_prompt_gui-6.3.1 {
+        -forceui 1 -type domain
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::cred_prompt_gui twapi -persist 1 -forceui 1 -type domain
+    } -result {The -forceui option can only be set if -type is "generic".} -returnCodes error
+
+    test cred_prompt_gui-6.3.2 {
+        -forceui 1 -type runas
+    } -constraints {
+        userInteraction
+    } -body {
+        twapi::cred_prompt_gui twapi -persist 1 -forceui 1 -type domain
+    } -result {The -forceui option can only be set if -type is "generic".} -returnCodes error
+
+    test cred_prompt_gui-7.0 {
+        -keepusername 1
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "Check if you can change the user name. Enter \"pass\" for the password."
+        lassign [twapi::cred_prompt_gui twapi -username tester -keepusername 1] user pass save
+        list [yesno "Was the user name editable?" N] [twapi::reveal $pass]
+    } -result {0 pass}
+
+    test cred_prompt_gui-8.0 {
+        -parent
+    } -constraints {
+        userInteraction TBD
+    } -body {
+        puts "Enter \"tester\" and \"pass\"."
+        lassign [twapi::cred_prompt_gui twapi -parent $hwin] user pass save
+        list $user [twapi::reveal $pass] $save
+    } -result {tester pass 0}
+
+    test cred_prompt_gui-9.0 {
+        -password -username
+    } -constraints {
+        userInteraction
+    } -body {
+        pause "Click OK without changing any fields."
+        lassign [twapi::cred_prompt_gui twapi -username tester -password [twapi::conceal pass]] user pass save
+        list $user [twapi::reveal $pass] $save
+    } -result {tester pass 0}
+
+    test cred_prompt_gui-10.0.0 {
+        -persist 0
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" in the dialog."
+        lassign [twapi::cred_prompt_gui twapi -persist 0] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a checkbox to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list tester pass 0 0 1168]
+
+    test cred_prompt_gui-10.0.1 {
+        -persist 0 -showsaveoption 1
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" in the entries and do not select the save option."
+        lassign [twapi::cred_prompt_gui twapi -persist 0 -showsaveoption 1] name pass save
+        # Note: cred_confirm should return code since -persist was defaulted false
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a checkbox to save the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list tester pass 0 1 1168]
+
+    test cred_prompt_gui-10.1.0 {
+        -persist 1 - reject credentials
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" in the dialog."
+        lassign [twapi::cred_prompt_gui twapi -persist 1] name pass save
+        # Note: cred_confirm should return code since -persist was defaulted false
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass 1 0 0 1 {Element not found.}]
+
+    test cred_prompt_gui-10.1.1 {
+        -persist 1 - accept credentials
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" in the dialog."
+        lassign [twapi::cred_prompt_gui twapi -persist 1] name pass save
+        # Note: cred_confirm should return code since -persist was defaulted false
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass 1 0 0 0 {}]
+
+    test cred_prompt_gui-10.1.2 {
+        -persist 1 -showsaveoption 1 (response N)
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" in the entries and do not select the save option."
+        lassign [twapi::cred_prompt_gui twapi -persist 1 -showsaveoption 1] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to remember the password?" Y] [twapi::cred_confirm twapi 0]
+    } -result [list tester pass 0 1 1168]
+
+    test cred_prompt_gui-10.1.3 {
+        -persist 1 -showsaveoption 1 (response Y - reject credentials)
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" in the entries and SELECT the save option."
+        lassign [twapi::cred_prompt_gui twapi -persist 1 -showsaveoption 1] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a checkbox to save the password?" Y] [twapi::cred_confirm twapi 0] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass 1 1 0 1 {Element not found.}]
+
+    test cred_prompt_gui-10.1.4 {
+        -persist 1 -showsaveoption 1 (response Y - accept credentials)
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" in the entries and SELECT the save option."
+        lassign [twapi::cred_prompt_gui twapi -persist 1 -showsaveoption 1] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a prompt to save the password?" Y] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
+    } -result [list tester pass 1 1 0 0 {}]
+
+    test cred_prompt_gui-11.0 {
+        -requirecertificate
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Check that ONLY certificates are shown in username dropdown and select one. Cancel if no certificates."
+        lassign [twapi::cred_prompt_gui twapi -requirecertificate 1] cred pin save
+        lassign [twapi::cred_unmarshal $cred] type hash
+        list $type [string length $hash] [yesno "Were only certificates listed in the dialog?" Y]
+    } -result {certificate 20 1}
+
+
+    test cred_prompt_gui-12.0 {
+        -requiresmartcard
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Check that ONLY smartcards are shown in username dropdown and select one. Cancel if no smartcards."
+        lassign [twapi::cred_prompt_gui twapi -requiresmartcard 1] cred pin save
+        yesno "Were only certificates listed in the dialog?" Y
+    } -result 1
+
+    test cred_prompt_gui-13.0 {
+        -type generic
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" in the dialog."
+        lassign [twapi::cred_prompt_gui twapi -type generic] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a checkbox to save the password?" N] [twapi::cred_confirm twapi 0]
+    } -result [list tester pass 0 0 1168]
+
+    test cred_prompt_gui-13.1.0 {
+        -type domain
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" in the dialog."
+        lassign [twapi::cred_prompt_gui twapi -type domain] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a checkbox to save the password?" N] [twapi::cred_confirm twapi 0]
+    } -result [list twapi\\tester pass 0 0 1168]
+
+    test cred_prompt_gui-13.1.1 {
+        -type domain with explicit domain
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"mydomain\\tester\" and \"pass\" in the dialog."
+        lassign [twapi::cred_prompt_gui twapi -type domain] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a checkbox to save the password?" N] [twapi::cred_confirm twapi 0]
+    } -result [list mydomain\\tester pass 0 0 1168]
+
+    test cred_prompt_gui-13.2.0 {
+        -type runas
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"pass\" as the password."
+        lassign [twapi::cred_prompt_gui twapi -username tester -type runas] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see a entry widget for a username?" Y] [yesno "Did you see a checkbox to save the password?" N] [twapi::cred_confirm twapi 0]
+    } -result [list $::env(COMPUTERNAME)\\tester pass 0 1 0 1168]
+
+    test cred_prompt_gui-13.2.1 {
+        -type runas with explicit domain in user name
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"pass\" at the prompt."
+        lassign [twapi::cred_prompt_gui twapi -username mydomain\\tester -type runas] name pass save
+        list $name [twapi::reveal $pass] $save [yesno "Did you see an entry widget for a username?" Y] [yesno "Did you see a checkbos to save the password?" N] [twapi::cred_confirm twapi 0]
+    } -result [list mydomain\\tester pass 0 1 0 1168]
+
+    test cred_prompt_gui-13.2.2 {
+        -type runas with no user name
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"pass\" at the prompt."
+        twapi::cred_prompt_gui twapi -type runas
+    } -result "The -username option must not be an empty string if -type is \"runas\"." -returnCodes error
+
+    test cred_prompt_gui-14.0 {
+        -validateusername
+    } -constraints {
+        userInteraction
+    } -body {
+        puts "Enter \"tester\" and \"pass\" in the dialog and click OK."
+        puts "You should see an error popup showing appropriate syntax to use."
+        puts "Enter mysystem\\tester as the user name and click OK."
+        lassign [twapi::cred_prompt_gui twapi -validateusername 1] name pass save
+        list $name [twapi::reveal $pass] $save [twapi::cred_confirm twapi 0]
+    } -result [list mysystem\\tester pass 0  1168]
+
+
 
 
     ################################################################

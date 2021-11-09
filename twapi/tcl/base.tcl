@@ -1259,6 +1259,15 @@ proc twapi::cred_prompt_console {target args} {
         error "Target must not be an empty string."
     }
 
+    if {$opts(forceui) && $opts(type) != 0x40000} {
+        error "The -forceui option can only be set if -type is \"generic\"."
+    }
+
+    if {$opts(type) == 0x80000 && $opts(username) eq ""} {
+        # CredUIPromptForCredentials crashes
+        error "The -username option must not be an empty string if -type is \"runas\"."
+    }
+
     set flags [_make_cred_persist_flags $opts(persist) $opts(showsaveoption)]
 
     # 0x8 -> CREDUI_FLAGS_EXCLUDE_CERTIFICATES (needed for console)
@@ -1295,6 +1304,15 @@ proc twapi::cred_prompt_gui {target args} {
 
     if {$target eq ""} {
         error "Target must not be an empty string."
+    }
+
+    if {$opts(forceui) && $opts(type) != 0x40000} {
+        error "The -forceui option can only be set if -type is \"generic\"."
+    }
+
+    if {$opts(type) == 0x80000 && $opts(username) eq ""} {
+        # CredUIPromptForCredentials crashes
+        error "The -username option must not be an empty string if -type is \"runas\"."
     }
 
     set flags [_make_cred_persist_flags $opts(persist) $opts(showsaveoption)]
