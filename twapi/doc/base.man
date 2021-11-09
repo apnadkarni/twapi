@@ -366,6 +366,7 @@ The following options may be specified:
 [opt_def [cmd -forceui] [arg BOOLEAN]]
 If specified as [const true], the user is prompted even if the credentials
 manager already has the requested credentials. Default is [const false].
+This option may only be used for [const generic] credentials.
 
 [opt_def [cmd -persist] [arg BOOLEAN]]
 If [const true], credentials are to be persisted by the credentials
@@ -380,12 +381,18 @@ Note if specified as [const true] but the options [cmd -persist] is not
 specified or is [const false], it is up to the caller to save credentials
 appropriately by some application-specific means.
 
-[opt_def [cmd -type] [arg TARGETTYPE]]
-Specifies the type of credentials. [arg TARGETTYPE] must be
-[const generic] (default) or [const domain].
+[opt_def [cmd -type] [arg TYPE]]
+Specifies the type of credentials. [arg TYPE] must be
+[const generic] (default), [const domain] or [const runas].
+If [const domain], if the entered user name is not fully qualified, it is
+returned qualified with [arg TARGET] as the domain.
+For [const generic], user names are returned as entered.
+If [const runas], the [cmd -username] option must be specified and if
+unqualified, is qualified with the name of the system in the returned list.
 
 [opt_def [cmd -username] [arg USERNAME]]
-The user name to display as the default. Defaults to the empty string.
+The user name to display. If specified and not empty, the user
+is only prompted for the password.
 
 [list_end]
 
@@ -395,7 +402,9 @@ them in some application-specific (and secure!) manner. In the former case,
 the [cmd -persist] option must be specified as [const true] and when the call
 returns, the credentials must be verified and the validity of the credentials
 [emph must] be communicated to the Windows credentials manager by calling
-[uri #cred_confirm [cmd cred_confirm]]. In the latter case, the manner of
+[uri #cred_confirm [cmd cred_confirm]] [emph iff] the third element of the returned
+list (indicating the save setting) is true. In the latter case where the Windows
+credential manager is not being used, the manner of
 securely saving the credentials is entirely up to the application.
 
 In both cases, the user may be given the choice of saving the credentials or
@@ -415,7 +424,8 @@ The following options may be specified:
 [list_begin opt]
 
 [opt_def [cmd -bitmap] [arg HANDLE]]
-Specifies a hande to a bitmap to be displayed in the dialog.
+Specifies a hande to a bitmap to be displayed in the dialog. The bitmap dimensions
+should be 320x60 pixels.
 
 [opt_def [cmd -caption] [arg CAPTION]]
 Specifies a caption to be displayed in the dialog.
@@ -433,6 +443,7 @@ Fill the user name combobox with local administrator accounts only.
 [opt_def [cmd -forceui] [arg BOOLEAN]]
 If specified as [const true], the user is prompted even if the credentials
 manager already has the requested credentials. Default is [const false].
+This option may only be used for [const generic] credentials.
 
 [opt_def [cmd -keepusername] [arg BOOLEAN]]
 Prefills the user name and does not permit user to change it.
@@ -468,9 +479,13 @@ Note if specified as [const true] but the options [cmd -persist] is not
 specified or is [const false], it is up to the caller to save credentials
 appropriately by some application-specific means.
 
-[opt_def [cmd -type] [arg TARGETTYPE]]
-Specifies the type of credentials. [arg TARGETTYPE] must be
-[const generic] (default) or [const domain].
+[opt_def [cmd -type] [arg TYPE]]
+Specifies the type of credentials. [arg TYPE] must be
+[const generic] (default), [const domain] or [const runas].
+If [const domain], if the entered user name is not fully qualified, it is
+returned qualified with [arg TARGET] as the domain. If [const runas], then
+an unqualified user name is qualified with the name of the system.
+For [const generic], user names are returned as entered.
 
 [opt_def [cmd -username] [arg USERNAME]]
 The user name to display as the default. Defaults to the empty string.
@@ -487,7 +502,9 @@ them in some application-specific (and secure!) manner. In the former case,
 the [cmd -persist] option must be specified as [const true] and when the call
 returns, the credentials must be verified and the validity of the credentials
 [emph must] be communicated to the Windows credentials manager by calling
-[uri #cred_confirm [cmd cred_confirm]]. In the latter case, the manner of
+[uri #cred_confirm [cmd cred_confirm]] [emph iff] the third element of the returned
+list (indicating the save setting) is true. In the latter case where the Windows
+credential manager is not being used, the manner of
 securely saving the credentials is entirely up to the application.
 
 In both cases, the user may be given the choice of saving the credentials or

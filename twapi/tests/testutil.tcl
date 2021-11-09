@@ -1170,7 +1170,7 @@ proc yesno {question {default "Y"}} {
         # tcltest::runAllTests. I believe this is the same 
         # bug Tcl seems to have with pipes and new lines
         # flushing on Windows (SF buf whatever)
-        puts stdout "$question Type Y/N followed by Enter \[$default\] : "
+        puts -nonewline stdout "$question Type Y/N followed by Enter \[$default\] : "
         flush stdout
         set answer [string trim [gets stdin]]
 #        puts $answer
@@ -1190,7 +1190,7 @@ proc pause {message} {
         twapi::set_foreground_window [twapi::get_console_window]
     }
     # Would like -nonewline here but see comments in proc yesno
-    puts "\n$message Hit Return to continue..."
+    puts -nonewline "\n$message\nHit Return to continue..."
     flush stdout
     gets stdin
     return

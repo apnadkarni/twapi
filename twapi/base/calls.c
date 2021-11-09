@@ -59,7 +59,7 @@ TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
 
         if (fmtch == ARGSKIP)
             continue;           /* Jump over objv[argno] */
-            
+
         p = va_arg(ap, void *); /* May be NULL if caller wants type check
                                    but does not care for value */
         switch (fmtch) {
@@ -321,7 +321,7 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
 
         if (fmtch == ARGSKIP)
             continue;           /* Jump over objv[argno] */
-            
+
         p = va_arg(ap, void *); /* May be NULL if caller wants type check
                                    but does not care for value */
         switch (fmtch) {
@@ -1425,7 +1425,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         else if (objc == 2)
             cP = ObjToString(objv[1]);
         else
-            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);        
+            return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         if (ObjToDWORD_PTR(interp, objv[0], &dwp) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_OBJ;
@@ -1538,7 +1538,7 @@ static int Twapi_CallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc,
         result.value.obj = TwapiRandomByteArrayObj(interp, i);
         if (result.value.obj)
             result.type = TRT_OBJ;
-        else 
+        else
             return TCL_ERROR;
         break;
     case 7:
@@ -1590,7 +1590,7 @@ static int Twapi_CallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc,
 #if TWAPI_ENABLE_INSTRUMENTATION
         CHECK_NARGS(interp, objc, 1);
         return TwapiCStructDefDump(interp, objv[0]);
-#endif        
+#endif
         break;
     case 14: // CredDelete
         if (TwapiGetArgsEx(ticP, objc, objv,
@@ -1760,13 +1760,13 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetHandleInformation(h, dw, dw2);
             break;
-        case 2002: 
+        case 2002:
             TwapiResult_SET_PTR(result, void*, MemLifoExpandLast(h, dw, dw2));
             break;
-        case 2003: 
+        case 2003:
             TwapiResult_SET_PTR(result, void*, MemLifoShrinkLast(h, dw, dw2));
             break;
-        case 2004: 
+        case 2004:
             TwapiResult_SET_PTR(result, void*, MemLifoResizeLast(h, dw, dw2));
             break;
         }
@@ -2060,8 +2060,8 @@ static TCL_RESULT Twapi_CredPrompt(ClientData clientdata, Tcl_Obj *uiObj, int ob
     user_buf = NULL;
     password_buf = NULL;
 
-    res = TwapiGetArgsEx(ticP, objc, objv, 
-                       GETWSTR(target), ARGUNUSED, GETINT(autherr), 
+    res = TwapiGetArgsEx(ticP, objc, objv,
+                       GETWSTR(target), ARGUNUSED, GETINT(autherr),
                        GETWSTRN(user, user_len), GETOBJ(passwordObj),
                        GETBOOL(save),
                        GETINT(flags), ARGEND);
@@ -2089,7 +2089,7 @@ static TCL_RESULT Twapi_CredPrompt(ClientData clientdata, Tcl_Obj *uiObj, int ob
                                      GETHWND(cui.hwndParent),
                                      GETEMPTYASNULL(cui.pszMessageText),
                                      GETEMPTYASNULL(cui.pszCaptionText),
-                                     GETHANDLET(cui.hbmBanner, HBITMAP),
+                                     GETHANDLET(cui.hbmBanner, HGDIOBJ),
                                      ARGEND)) != TCL_OK)
                 goto vamoose;
 
@@ -2179,7 +2179,7 @@ static TCL_RESULT Twapi_CredUIPromptObjCmd(
 {
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
-    return Twapi_CredPrompt((TwapiInterpContext*) clientdata, 
+    return Twapi_CredPrompt((TwapiInterpContext*) clientdata,
                             objv[1], objc-2, &objv[2]);
 }
 
@@ -2443,7 +2443,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     TwapiDefineAliasCmds(interp, ARRAYSIZE(AliasDispatch), AliasDispatch, "twapi::Call");
 
     TwapiFfiInit(interp);
-    
+
     return TCL_OK;
 }
 
@@ -2464,9 +2464,9 @@ int Twapi_TclGetChannelHandle(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[
         ObjSetStaticResult(interp, "Unknown channel");
         return TCL_ERROR;
     }
-    
+
     direction = direction ? TCL_WRITABLE : TCL_READABLE;
-    
+
     if (Tcl_GetChannelHandle(chan, direction, &h) == TCL_ERROR) {
         ObjSetStaticResult(interp, "Error getting channel handle");
         return TCL_ERROR;
@@ -2678,7 +2678,7 @@ BOOL CALLBACK Twapi_EnumWindowsCallback(HWND hwnd, LPARAM p_ctx) {
     ObjAppendElement(p_enum_win_ctx->interp,
                              p_enum_win_ctx->objP,
                              ObjFromHWND(hwnd));
-    
+
     return 1;
 }
 
@@ -2689,7 +2689,7 @@ int Twapi_EnumWindows(Tcl_Interp *interp)
 
     enum_win_ctx.interp = interp;
     enum_win_ctx.objP = ObjNewList(0, NULL);
-    
+
     if (EnumWindows(Twapi_EnumWindowsCallback, (LPARAM)&enum_win_ctx) == 0) {
         TwapiReturnSystemError(interp);
         Twapi_FreeNewTclObj(enum_win_ctx.objP);
@@ -2718,7 +2718,7 @@ TCL_RESULT Twapi_LsaQueryInformationPolicy (
         ObjToOpaque(interp, objv[0], (void **) &lsaH, "LSA_HANDLE") != TCL_OK ||
         ObjToInt(interp, objv[1], &infoclass) != TCL_OK) {
         return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
-    }    
+    }
 
     ntstatus = LsaQueryInformationPolicy(lsaH, infoclass, &buf);
     if (ntstatus != STATUS_SUCCESS) {
@@ -2764,7 +2764,7 @@ TCL_RESULT Twapi_LsaQueryInformationPolicy (
         }
         ObjSetResult(interp, ObjNewList(2, objs));
         break;
-        
+
     default:
         ObjSetStaticResult(interp, "Invalid/unsupported information class");
         retval = TCL_ERROR;
