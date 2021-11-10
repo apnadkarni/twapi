@@ -5141,7 +5141,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromCREDENTIAL_ATTRIBUTEW(
 )
 {
     Tcl_Obj *objs[3];
-    objs[0] = ObjFromWinChars(attrP->Keyword, -1);
+    objs[0] = ObjFromWinChars(attrP->Keyword);
     objs[1] = ObjFromDWORD(attrP->Flags);
     objs[2] = ObjFromByteArray(attrP->Value, attrP->ValueSize);
     return ObjNewList(3, objs);
