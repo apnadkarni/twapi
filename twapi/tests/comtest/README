@@ -57,9 +57,8 @@ above as the value (actually it can be any GUID, not necessarily the one above)
 4. Add a new key HKey_Classes_Root\Wow6432Node\AppID\[GUID] where [GUID] is
 the [GUID] from step 3 (may or may not be the TwapiTest GUID)
 5. Add a string Value entry DllSurrogate to this key, leaving its value empty
-6. (This step is optional I think - only necessary if running as admin with
-UAC disabled). Similar to above, add DllSurrogate to
-HKey_Local_Machine\Wow6432Node\Software\Classes\AppID\[GUID]
+6. Similar to above, add DllSurrogate to
+HKey_Local_Machine\Software\Wow6432Node\Classes\AppID\[GUID]
 
 Now when you create your COM object you should see DLLHost.exe*32 show
 up in task manager. Turn on the command-line column in task manager
