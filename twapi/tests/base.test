@@ -41,13 +41,13 @@ namespace eval twapi::base::test {
         Get TWAPI version
     } -body {
         twapi::get_version
-    } -result 4.5
+    } -result 4.6
 
     test get_version-1.1 {
         Get TWAPI version patchlevel
     } -body {
         twapi::get_version -patchlevel
-    } -result 4.5.3
+    } -result 4.6.0
 
     ################################################################
 
@@ -4143,7 +4143,7 @@ namespace eval twapi::base::test {
         pause "You MAY see another set of prompts. If so, enter same pass2 as password."
         lassign [twapi::cred_prompt_console twapi -persist 1 -forceui 1 -type generic] name pass save
         list $name [twapi::reveal $pass] $save [yesno "Did you see a SECOND set of prompts?" N] [twapi::cred_confirm twapi 1] [catch {twapi::cred_delete twapi} result] $result
-    } -result [list tester pass1 1 1 0 0 {}]
+    } -result [list tester pass2 1 1 0 0 {}]
 
     test cred_prompt_console-6.3.1 {
         -forceui 1 -type domain
@@ -4455,7 +4455,7 @@ namespace eval twapi::base::test {
     } -body {
         puts "Check that ONLY smartcards are shown in username dropdown and select one. Cancel if no smartcards."
         lassign [twapi::cred_prompt_gui twapi -requiresmartcard 1] cred pin save
-        yesno "Were only certificates listed in the dialog?" Y
+        yesno "Were only smartcards listed in the dialog?" Y
     } -result 1
 
     test cred_prompt_gui-13.0 {
@@ -4505,7 +4505,7 @@ namespace eval twapi::base::test {
     } -body {
         puts "Enter \"pass\" at the prompt."
         lassign [twapi::cred_prompt_gui twapi -username mydomain\\tester -type runas] name pass save
-        list $name [twapi::reveal $pass] $save [yesno "Did you see an entry widget for a username?" Y] [yesno "Did you see a checkbos to save the password?" N] [twapi::cred_confirm twapi 0]
+        list $name [twapi::reveal $pass] $save [yesno "Did you see an entry widget for a username?" Y] [yesno "Did you see a checkbox to save the password?" N] [twapi::cred_confirm twapi 0]
     } -result [list mydomain\\tester pass 0 1 0 1168]
 
     test cred_prompt_gui-13.2.2 {
