@@ -720,7 +720,7 @@ namespace eval twapi::security::test {
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
-        twapi::get_token_origin $tok]
+        twapi::get_token_origin $tok
     } -cleanup {
         twapi::close_token $tok
     } -result 00000000-000003e7
@@ -6700,12 +6700,33 @@ namespace eval twapi::security::test {
     ################################################################
 
     test credentials-1.0 {
-        credentials TBD
-    } -constraints {
-        TBD
     } -body {
-        TBD
-    } -result TBD
+        set mismatches 0
+        set matches 0
+        set errors {}
+        foreach cred [twapi::credentials] {
+            set target [dict get $cred target]
+            foreach key {comment targetalias username} {
+                if {![dict exists $cred $key]} {
+                    append errors "Target $target does not have key $key.\n"
+                    continue
+                }
+            }
+            if {[dict get $cred persist] ni {session local_machine enterprise}} {
+                append errors "Unexpected value [dict get $cred persist] for target $target."
+            }
+            if {![string is entier -strict [dict get $cred lastwritten]]} {
+                append errors "Key lastwritten is not an integer."
+            }
+            set cred2 [twapi::cred_get $target [dict get $cred type]]
+            if {$cred ne $cred2} {
+                incr mismatches
+            } else {
+                incr matches
+            }
+        }
+        list [expr {$matches > 0}] $mismatches
+    } -result {1 0}
 
     ################################################################
 
@@ -6900,6 +6921,83 @@ namespace eval twapi::security::test {
         set admins [twapi::well_known_sid builtinadministrators]
         list [catch {twapi::equal_sids $admins abc}] [errorcode]
     } -result {1 {TWAPI_WIN32 1337}}
+
+    ################################################################
+
+    test cred_marshal-1.0 {marshal user name} -body {
+        set mcred [twapi::cred_marshal user tester]
+        list [regexp {^@@.*} $mcred] [twapi::cred_unmarshal $mcred]
+    } -result {1 {user tester}}
+
+    test cred_marshal-2.0 {marshal certificate} -body {
+        set mcred [twapi::cred_marshal certificate [binary decode hex [string repeat a 40]]]
+        list [regexp {^@@.*} $mcred] [twapi::cred_unmarshal $mcred]
+    } -result [list 1 [list certificate [binary decode hex [string repeat a 40]]]]
+
+    ################################################################
+
+    test cred_is_marshaled-1.0 {user name} -body {
+        set mcred [twapi::cred_marshal user tester]
+        twapi::cred_is_marshaled $mcred
+    } -result 1
+
+    test cred_is_marshaled-2.0 {certificate} -body {
+        set mcred [twapi::cred_marshal certificate [binary decode hex [string repeat a 40]]]
+        twapi::cred_is_marshaled $mcred
+    } -result 1
+
+    ################################################################
+
+    test cred_parse_username-1.0 {parse qualified user name} -body {
+        twapi::cred_parse_username mysystem\\tester
+    } -result {tester mysystem}
+
+    test cred_parse_username-2.0 {parse qualified dns user name} -body {
+        twapi::cred_parse_username tester@mysystem.com
+    } -result {tester@mysystem.com {}}
+
+    test cred_parse_username-3.0 {parse certificate} -constraints {
+        userInteraction
+    } -setup {
+        pause "Select a certificate from the dialog and click OK."
+        lassign [twapi::cred_prompt_gui twapi -requirecertificate 1] cred pass save
+    } -body {
+        lassign [twapi::cred_parse_username $cred] user domain
+        list [twapi::cred_is_marshaled $user] $domain
+    } -result {1 {}}
+
+    test cred_parse_username-4.0 {parse unqualified user name} -body {
+        twapi::cred_parse_username tester
+    } -result {The name provided is not a properly formed account name.} -returnCodes error
+
+    ################################################################
+
+    test cred_delete-1.0 {delete generic credentials} -constraints {
+        userInteraction
+    } -setup {
+        puts "Enter \"tester\" and \"pass\"."
+        twapi::cred_prompt_console twapi -persist 1
+        twapi::cred_confirm twapi 1
+        # Verify credential was added
+        twapi::cred_get twapi generic
+    } -body {
+        twapi::cred_delete twapi generic
+        list [catch {twapi::cred_get twapi generic} result] $result
+    } -result {1 {Element not found.}}
+
+    test cred_delete-1.1 {delete domain credentials} -constraints {
+        userInteraction
+    } -setup {
+        puts "Enter \"tester\" and \"pass\"."
+        twapi::cred_prompt_console twapi -persist 1 -type domain
+        twapi::cred_confirm twapi 1
+        # Verify credential was added
+        twapi::cred_get twapi domain_password
+    } -body {
+        twapi::cred_delete twapi domain_password
+        list [catch {twapi::cred_get twapi domain_password} result] $result
+    } -result {1 {Element not found.}}
+
 
     ################################################################
 
