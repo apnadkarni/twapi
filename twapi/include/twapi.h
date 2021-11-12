@@ -198,10 +198,25 @@ typedef int TCL_RESULT;
    NULL to the function the second time it is called?
 */
 #ifdef USE_TCL_STUBS
+#if TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION >= 7
+#define TWAPI_INIT_STATIC_PACKAGE(pkg_, init_, safe_init_)                   \
+    do  {                                                                    \
+        /* Note first param NULL else init proc is assumed already called */ \
+        (tclStubsPtr->tcl_StaticLibrary)(NULL, #pkg_, init_, safe_init_);    \
+    } while (0)
+#else
 #define TWAPI_INIT_STATIC_PACKAGE(pkg_, init_, safe_init_)                   \
     do  {                                                                    \
         /* Note first param NULL else init proc is assumed already called */ \
         (tclStubsPtr->tcl_StaticPackage)(NULL, #pkg_, init_, safe_init_);    \
+    } while (0)
+#endif
+#else
+#if TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION >= 7
+#define TWAPI_INIT_STATIC_PACKAGE(pkg_, init_, safe_init_)                   \
+    do  {                                                                    \
+        /* Note first param NULL else init proc is assumed already called */ \
+        Tcl_StaticLibrary(NULL, #pkg_, init_, safe_init_);                   \
     } while (0)
 #else
 #define TWAPI_INIT_STATIC_PACKAGE(pkg_, init_, safe_init_)                   \
@@ -209,6 +224,7 @@ typedef int TCL_RESULT;
         /* Note first param NULL else init proc is assumed already called */ \
         Tcl_StaticPackage(NULL, #pkg_, init_, safe_init_);                   \
     } while (0)
+#endif
 #endif
 #endif
 
