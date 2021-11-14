@@ -1107,6 +1107,15 @@ test tls_socket-client-2.9.1 {
         [string is integer -strict $port]
 } -result [list OPEN 1 1 1]
 
+test tls_socket-client-2.10 {
+    Async connection, negotiation failure with filevent callback (Bug #206)
+} -body {
+    set so [twapi::tls_socket -async expired.badssl.com 443]
+    after 1000 set ::done timeout
+    fileevent $so writable [list apply {{so} {close $so; set ::done success}} $so]
+    vwait ::done
+    set ::done
+} -result success
 
 test tls_socket-client-3.0 {
     Verify event driven client i/o
