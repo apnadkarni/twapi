@@ -1237,8 +1237,9 @@ proc twapi::tls::_post_write_event_callback {chan} {
     variable _channels
     if {[info exists _channels($chan)]} {
         dict unset _channels($chan) WriteEventPosted
-        if {"write" in [dict get $_channels($chan) WatchMask] &&
-            [dict get $_channels($chan) State] in {OPEN SERVERINIT CLIENTINIT NEGOTIATING}} {
+        if {"write" in [dict get $_channels($chan) WatchMask]} {
+            # NOTE: we do not check state here as we should generate an event
+            # even in the CLOSED state - see Bug #206
             chan postevent $chan write
         }
     }
