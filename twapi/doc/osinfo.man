@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "System" n ""]
-[copyright "2003-2009 Ashok P. Nadkarni"]
+[copyright "2003-2021 Ashok P. Nadkarni"]
 [moddesc "System and processor"]
 [titledesc "Operating system and machine configuration and control"]
 [require twapi_os]
@@ -65,7 +65,10 @@ command.
 The commands [uri \#logoff [cmd logoff]]
 and [uri \#lock_workstation [cmd lock_workstation]]
 may be used to log out of a user account and to lock a workstation
-respectively.
+respectively. Notifications regarding user switching, logon, logoff etc.
+can be enabled and disabled with the
+[uri \#start_wts_session_monitor [cmd start_wts_session_monitor]] and
+[uri \#stop_wts_session_monitor [cmd stop_wts_session_monitor]] commands.
 
 [para]
 Various system settings related to the user experience can be retrieved
@@ -551,6 +554,27 @@ is specified, applications are forcible closed resulting in possible data loss.
 [opt_def [cmd -restart]] If specified, the system is restarted after the shut
 down.
 [list_end]
+
+[call [cmd start_wts_session_monitor] [arg COMMAND] [opt [cmd -all]]]
+Starts monitoring state of Windows Terminal services sessions. Any changes will
+result in the command prefix [arg COMMAND] being invoked with two additional
+arguments - the numeric value identifying the change and the session identifier
+of the session whose state changed. See the SDK documentation of the
+[uri https://docs.microsoft.com/en-us/windows/win32/termserv/wm-wtssession-change WM_WTSSESSION_CHANGE]
+Windows message for possible event change values.
+[nl]
+By default, only events for the current session are monitored. Specify the
+[cmd -all] option to monitor events for all sessions.
+[nl]
+The command returns a handle that must be passed to
+[uri #stop_wts_session_monitor [cmd stop_wts_session_monitor]]
+to stop the monitor when no longer required.
+
+[call [cmd stop_wts_session_monitor] [arg WTS_MONITOR_ID]]
+
+Stops monitoring of Windows Terminal services sessions. [arg WTS_MONITOR_ID] must
+be a handle returned by a previous call to
+[uri #start_wts_session_monitor [cmd start_wts_session_monitor]].
 
 [call [cmd suspend_system] [opt [arg options]]]
 Places the system in a stand by or hibernate state. The command takes

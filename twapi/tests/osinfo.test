@@ -1733,6 +1733,33 @@ namespace eval twapi::osinfo::test {
 
     ################################################################
 
+    test start_wts_session_monitor-1.0 "Start WTS monitor" -constraints {
+        userInteraction
+    } -setup {
+        unset -nocomplain tok
+        unset -nocomplain ::twapi::osinfo::test::_wts_result
+    } -body {
+        pause "The Workstation will be locked in a moment. Please unlock it."
+        set tok [twapi::start_wts_session_monitor [list lappend ::twapi::osinfo::test::_wts_result]]
+        twapi::lock_workstation
+        set after_id [after 20000 lappend ::twapi::osinfo::test::_wts_result timeout]
+        vwait ::twapi::osinfo::test::_wts_result
+        if {[lindex $::twapi::osinfo::test::_wts_result end] ne "timeout"} {
+            # Wait again for unlock event
+            vwait ::twapi::osinfo::test::_wts_result
+        }
+        after cancel $after_id
+        # Make sure stop monitor works
+        set after_id [after 10000 lappend ::twapi::osinfo::test::_wts_result timeout]
+        twapi::stop_wts_session_monitor $tok
+        pause "The Workstation will be locked in a moment. Please unlock it."
+        twapi::lock_workstation
+        vwait ::twapi::osinfo::test::_wts_result
+        set ::twapi::osinfo::test::_wts_result
+    } -result {7 1 8 1 timeout}
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 
