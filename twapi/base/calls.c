@@ -16,6 +16,40 @@ static TCL_RESULT Twapi_LsaQueryInformationPolicy (
     );
 static Tcl_Obj *TwapiRandomByteArrayObj(Tcl_Interp *interp, int nbytes);
 
+
+/* TBD - should probably move this function to a WTS module */
+typedef BOOL (WINAPI *WTSRegisterSessionNotification_t)(HWND, DWORD);
+MAKE_DYNLOAD_FUNC(WTSRegisterSessionNotification, wtsapi32, WTSRegisterSessionNotification_t)
+static BOOL Twapi_WTSRegisterSessionNotification(
+    HWND hwnd,
+    DWORD flags
+)
+{
+    WTSRegisterSessionNotification_t fnPtr = Twapi_GetProc_WTSRegisterSessionNotification();
+
+    if (fnPtr == NULL) {
+        SetLastError(ERROR_PROC_NOT_FOUND);
+        return FALSE;
+    }
+
+    return (*fnPtr)(hwnd, flags);
+}
+typedef BOOL (WINAPI *WTSUnRegisterSessionNotification_t)(HWND);
+MAKE_DYNLOAD_FUNC(WTSUnRegisterSessionNotification, wtsapi32, WTSUnRegisterSessionNotification_t)
+static BOOL Twapi_WTSUnRegisterSessionNotification(HWND hwnd)
+{
+    WTSUnRegisterSessionNotification_t fnPtr = Twapi_GetProc_WTSUnRegisterSessionNotification();
+
+    if (fnPtr == NULL) {
+        SetLastError(ERROR_PROC_NOT_FOUND);
+        return FALSE;
+    }
+
+    return (*fnPtr)(hwnd);
+}
+
+
+
 TWAPI_EXTERN_VA
 TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                           int fmtch, va_list ap)
@@ -702,6 +736,7 @@ static int Twapi_CallIntArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         MemLifo *lifoP;
         WCHAR buf[MAX_PATH+1];
     } u;
+    HWND hwnd;
 
     if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -1601,7 +1636,24 @@ static int Twapi_CallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc,
         else
             result.type = TRT_GETLASTERROR;
         break;
-
+    case 15:
+        CHECK_NARGS(interp, objc, 1);
+        if (ObjToDWORD(interp, objv[0], &dw) != TCL_OK)
+            return TCL_ERROR;
+        h  = Twapi_GetNotificationWindow(ticP);
+        if (h == NULL)
+            return TCL_ERROR;
+        result.type       = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = Twapi_WTSRegisterSessionNotification(h, dw);
+        break;
+    case 16:
+        CHECK_NARGS(interp, objc, 0);
+        h  = Twapi_GetNotificationWindow(ticP);
+        if (h == NULL)
+            return TCL_ERROR;
+        result.type       = TRT_EXCEPTION_ON_FALSE;
+        result.value.ival = Twapi_WTSUnRegisterSessionNotification(h);
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -2405,6 +2457,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(cstruct, 12),
         DEFINE_ALIAS_CMD(cstruct_dumpdef, 13),
         DEFINE_ALIAS_CMD(CredDelete, 14),
+        DEFINE_ALIAS_CMD(Twapi_WTSRegisterSessionNotification, 15),
+        DEFINE_ALIAS_CMD(Twapi_WTSUnRegisterSessionNotification, 16),
     };
 
     static struct tcl_dispatch_s TclDispatch[] = {

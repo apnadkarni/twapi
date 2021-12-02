@@ -43,7 +43,7 @@ LRESULT CALLBACK TwapiHiddenWindowProc(
         SetWindowLongPtrW(hwnd, TWAPI_HIDDEN_WINDOW_CLIENTDATA_OFFSET, (LONG_PTR) 0);
         SetWindowLongPtrW(hwnd, TWAPI_HIDDEN_WINDOW_CALLBACK_OFFSET, (LONG_PTR) 0);
         /* Fall thru to call DefWindowProc for WM_DESTROY */
-    } 
+    }
 
     /* Call the default window proc. This will happen during window init
        and destroy
@@ -132,7 +132,7 @@ int Twapi_CreateHiddenWindow(
 }
 
 
-/* Called (indirectly) from the Tcl notifier loop with a new 
+/* Called (indirectly) from the Tcl notifier loop with a new
    windows message callback that is to be handled by the generic
    script level windows message handler.
  * Follows behaviour specified by TwapiCallbackFn typedef.
@@ -155,7 +155,7 @@ static LRESULT TwapiNotificationWindowHandler(
     LONG_PTR clientdata,
     HWND hwnd,
     UINT msg,
-    WPARAM wParam, 
+    WPARAM wParam,
     LPARAM lParam
     )
 {
@@ -181,16 +181,18 @@ static LRESULT TwapiNotificationWindowHandler(
         case WM_CREATE:
             /*
              * On creation, stash the message number windows sends when
-             * the taskbar is (re) created
-             * Not thread safe, but no matter
+             * the taskbar is (re) created.
+             * Not thread safe, but no matter as it will be the same
+             * every time.
              */
             if (wm_taskbar_restart == 0)
                 wm_taskbar_restart = RegisterWindowMessageW(L"TaskbarCreated");
             break;
         default:
-            if (msg == WM_HOTKEY || msg == WM_POWERBROADCAST ||
-                (msg >= TWAPI_WM_SCRIPT_BASE && msg <= TWAPI_WM_SCRIPT_LAST) ||
-                msg == wm_taskbar_restart) {
+            if (msg == WM_HOTKEY || msg == WM_POWERBROADCAST
+                || msg == WM_WTSSESSION_CHANGE
+                || (msg >= TWAPI_WM_SCRIPT_BASE && msg <= TWAPI_WM_SCRIPT_LAST)
+                || msg == wm_taskbar_restart) {
 #ifdef  DO_NOT_USE_WINMSG_DIRECT_CALL
                 TwapiCallback *cbP;
                 DWORD pos;
@@ -214,7 +216,7 @@ static LRESULT TwapiNotificationWindowHandler(
         return DefWindowProc(hwnd, msg, wParam, lParam);
     }
 }
-    
+
 
 /*
  * To minimize number of windows, we have a "common" window that can be shared
@@ -275,7 +277,7 @@ LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, L
     interp_state = Tcl_SaveInterpState(interp, TCL_OK);
 
     lresult = 0;
-    if (Tcl_EvalObjv(interp, ARRAYSIZE(objs), objs, 
+    if (Tcl_EvalObjv(interp, ARRAYSIZE(objs), objs,
                      TCL_EVAL_DIRECT|TCL_EVAL_GLOBAL) == TCL_OK) {
         /* Note if not integer result, lresult stays 0 */
         ObjToLONG_PTR(interp, ObjGetResult(interp), &lresult);
@@ -287,7 +289,7 @@ LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, L
     Tcl_Release(interp);
     TwapiInterpContextUnref(ticP, 1);
 
-    /* 
+    /*
      * Undo the incrref above. This will delete the object unless
      * caller had done an incr-ref on it.
      */

@@ -1,11 +1,19 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Version History" "n" ""]
-[copyright "2003-2020 Ashok P. Nadkarni"]
+[copyright "2003-2021 Ashok P. Nadkarni"]
 [moddesc "TWAPI Version History"]
 [titledesc "Tcl Windows API extension version history"]
 [description]
 [para]
 Summarizes the list of changes for each version of TWAPI.
+
+[section "Version 4.6.1"]
+
+[list_begin bullet]
+[bullet] Added
+[uri system.html#start_wts_session_monitor [cmd start_wts_session_monitor]] and
+[uri system.html#stop_wts_session_monitor [cmd stop_wts_session_monitor]].
+[list_end]
 
 [section "Version 4.6"]
 [list_begin bullet]
