@@ -147,8 +147,8 @@ static TCL_RESULT Twapi_WriteShortcutObjCmd(
     LPCWSTR workingDirectory;
     DWORD runas;
 
-    HRESULT hres; 
-    IShellLinkW* psl; 
+    HRESULT hres;
+    IShellLinkW* psl;
     IPersistFile* ppf;
     IShellLinkDataList* psldl;
     MemLifoMarkHandle mark;
@@ -159,7 +159,7 @@ static TCL_RESULT Twapi_WriteShortcutObjCmd(
     itemIds = NULL;
     ppf = NULL;
     mark = MemLifoPushMark(ticP->memlifoP);
- 
+
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
                          GETWSTR(linkPath), GETEMPTYASNULL(objPath),
                          GETVAR(itemIds, ObjToPIDL),
@@ -182,14 +182,14 @@ static TCL_RESULT Twapi_WriteShortcutObjCmd(
         goto hres_vamoose;
     }
 
-    // Get a pointer to the IShellLink interface. 
-    hres = CoCreateInstance(&CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, 
-                            &IID_IShellLinkW, (LPVOID*)&psl); 
-    if (FAILED(hres)) 
+    // Get a pointer to the IShellLink interface.
+    hres = CoCreateInstance(&CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER,
+                            &IID_IShellLinkW, (LPVOID*)&psl);
+    if (FAILED(hres))
         goto hres_vamoose;
 
     if (objPath)
-        hres = psl->lpVtbl->SetPath(psl,objPath); 
+        hres = psl->lpVtbl->SetPath(psl,objPath);
     if (FAILED(hres))
         goto hres_vamoose;
     if (itemIds)
@@ -201,7 +201,7 @@ static TCL_RESULT Twapi_WriteShortcutObjCmd(
     if (FAILED(hres))
         goto hres_vamoose;
     if (desc)
-        hres = psl->lpVtbl->SetDescription(psl, desc); 
+        hres = psl->lpVtbl->SetDescription(psl, desc);
     if (FAILED(hres))
         goto hres_vamoose;
     if (hotkey)
@@ -227,34 +227,34 @@ static TCL_RESULT Twapi_WriteShortcutObjCmd(
 
     if (runas) {
         hres = psl->lpVtbl->QueryInterface(psl, &TWAPI_IID_IShellLinkDataList,
-                                           (LPVOID*)&psldl); 
+                                           (LPVOID*)&psldl);
         if (FAILED(hres))
             goto hres_vamoose;
 
         hres = psldl->lpVtbl->GetFlags(psldl, &runas);
         if (FAILED(hres))
             goto hres_vamoose;
-        
+
         hres = psldl->lpVtbl->SetFlags(psldl, runas | SLDF_RUNAS_USER);
         if (FAILED(hres))
             goto hres_vamoose;
     }
 
-    hres = psl->lpVtbl->QueryInterface(psl, &IID_IPersistFile, (LPVOID*)&ppf); 
+    hres = psl->lpVtbl->QueryInterface(psl, &IID_IPersistFile, (LPVOID*)&ppf);
     if (FAILED(hres))
         goto hres_vamoose;
- 
+
     /* Save the link  */
-    hres = ppf->lpVtbl->Save(ppf, linkPath, TRUE); 
-    ppf->lpVtbl->Release(ppf); 
-    
+    hres = ppf->lpVtbl->Save(ppf, linkPath, TRUE);
+    ppf->lpVtbl->Release(ppf);
+
  hres_vamoose:
     if (psl)
-        psl->lpVtbl->Release(psl); 
+        psl->lpVtbl->Release(psl);
     if (psldl)
-        psldl->lpVtbl->Release(psldl); 
+        psldl->lpVtbl->Release(psldl);
     TwapiFreePIDL(itemIds);     /* OK if NULL */
-    
+
     if (hres != S_OK) {
         Twapi_AppendSystemError(interp, hres);
         res = TCL_ERROR;
@@ -273,8 +273,8 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     HWND hwnd;
     DWORD resolve_flags;
 
-    HRESULT hres; 
-    IShellLinkW *psl = NULL; 
+    HRESULT hres;
+    IShellLinkW *psl = NULL;
     IPersistFile *ppf = NULL;
     Tcl_Obj *resultObj = NULL;
 #if (INFOTIPSIZE > MAX_PATH)
@@ -289,7 +289,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     IShellLinkDataList* psldl = NULL;
     DWORD runas;
     Tcl_Obj *linkObj;
- 
+
     if (TwapiGetArgs(interp, objc, objv,
                      GETOBJ(linkObj), GETINT(pathFlags),
                      GETHWND(hwnd), GETINT(resolve_flags),
@@ -297,16 +297,16 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         return TCL_ERROR;
 
     /* Get a pointer to the IShellLink interface. */
-    hres = CoCreateInstance(&CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER, 
-                            &IID_IShellLinkW, (LPVOID*)&psl); 
+    hres = CoCreateInstance(&CLSID_ShellLink, NULL, CLSCTX_INPROC_SERVER,
+                            &IID_IShellLinkW, (LPVOID*)&psl);
     if (FAILED(hres))
         goto fail;
 
     /* Load the resource through the IPersist interface */
-    hres = psl->lpVtbl->QueryInterface(psl, &IID_IPersistFile, (LPVOID*)&ppf); 
+    hres = psl->lpVtbl->QueryInterface(psl, &IID_IPersistFile, (LPVOID*)&ppf);
     if (FAILED(hres))
         goto fail;
-    
+
     hres = ppf->lpVtbl->Load(ppf, ObjToWinChars(linkObj), STGM_READ);
     if (FAILED(hres))
         goto fail;
@@ -342,7 +342,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (SUCCEEDED(hres)) {
         ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-hotkey"));
-        ObjAppendElement(interp, resultObj, 
+        ObjAppendElement(interp, resultObj,
                                  ObjFromLong(wordval));
     }
 
@@ -352,7 +352,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (SUCCEEDED(hres)) {
         ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-iconindex"));
-        ObjAppendElement(interp, resultObj, 
+        ObjAppendElement(interp, resultObj,
                                  ObjFromLong(intval));
         ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-iconpath"));
@@ -379,7 +379,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     if (SUCCEEDED(hres)) {
         ObjAppendElement(interp, resultObj,
                                  STRING_LITERAL_OBJ("-showcmd"));
-        ObjAppendElement(interp, resultObj, 
+        ObjAppendElement(interp, resultObj,
                                  ObjFromLong(intval));
     }
 
@@ -389,9 +389,9 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
                                  STRING_LITERAL_OBJ("-workdir"));
         ObjAppendElement(interp, resultObj, ObjFromWinChars(buf));
     }
-    
+
     hres = psl->lpVtbl->QueryInterface(psl, &TWAPI_IID_IShellLinkDataList,
-                                       (LPVOID*)&psldl); 
+                                       (LPVOID*)&psldl);
     if (SUCCEEDED(hres)) {
         hres = psldl->lpVtbl->GetFlags(psldl, &runas);
         if (SUCCEEDED(hres)) {
@@ -406,11 +406,11 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
  vamoose:
     if (psl)
-        psl->lpVtbl->Release(psl); 
+        psl->lpVtbl->Release(psl);
     if (psldl)
-        psldl->lpVtbl->Release(psldl); 
+        psldl->lpVtbl->Release(psldl);
     if (ppf)
-        ppf->lpVtbl->Release(ppf); 
+        ppf->lpVtbl->Release(ppf);
 
     return retval;
 
@@ -425,17 +425,17 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
 // Create a url link
 int Twapi_WriteUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath, LPCWSTR url, DWORD flags)
-{ 
-    HRESULT hres; 
-    IUniformResourceLocatorW *psl = NULL; 
+{
+    HRESULT hres;
+    IUniformResourceLocatorW *psl = NULL;
     IPersistFile* ppf = NULL;
- 
+
     // TBD - can this be done at script level since we have IPersistFile
     // interface ?
-    // Get a pointer to the IShellLink interface. 
+    // Get a pointer to the IShellLink interface.
     hres = CoCreateInstance(&CLSID_InternetShortcut, NULL,
-                            CLSCTX_INPROC_SERVER, 
-                            &IID_IUniformResourceLocatorW, (LPVOID*)&psl); 
+                            CLSCTX_INPROC_SERVER,
+                            &IID_IUniformResourceLocatorW, (LPVOID*)&psl);
 
     if (FAILED(hres)) {
         /* No interface and hence no interface specific error, just return as standard error */
@@ -453,7 +453,7 @@ int Twapi_WriteUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath, LPCWSTR url, DW
             Twapi_AppendSystemError(interp, hres);
         } else {
             /* Save the link  */
-            hres = ppf->lpVtbl->Save(ppf, linkPath, TRUE); 
+            hres = ppf->lpVtbl->Save(ppf, linkPath, TRUE);
             if (FAILED(hres)) {
                 TWAPI_STORE_COM_ERROR(interp, hres, ppf, &IID_IPersistFile);
             }
@@ -461,9 +461,9 @@ int Twapi_WriteUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath, LPCWSTR url, DW
     }
 
     if (ppf)
-        ppf->lpVtbl->Release(ppf); 
+        ppf->lpVtbl->Release(ppf);
     if (psl)
-        psl->lpVtbl->Release(psl); 
+        psl->lpVtbl->Release(psl);
 
     return FAILED(hres) ? TCL_ERROR : TCL_OK;
 }
@@ -471,24 +471,24 @@ int Twapi_WriteUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath, LPCWSTR url, DW
 /* Read a URL shortcut */
 int Twapi_ReadUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath)
 {
-    HRESULT hres; 
-    IUniformResourceLocatorW *psl = NULL; 
+    HRESULT hres;
+    IUniformResourceLocatorW *psl = NULL;
     IPersistFile *ppf = NULL;
     LPWSTR url;
     int   retval = TCL_ERROR;
- 
+
     /* Get a pointer to the IShellLink interface. */
     hres = CoCreateInstance(&CLSID_InternetShortcut, NULL,
-                            CLSCTX_INPROC_SERVER, 
-                            &IID_IUniformResourceLocatorW, (LPVOID*)&psl); 
+                            CLSCTX_INPROC_SERVER,
+                            &IID_IUniformResourceLocatorW, (LPVOID*)&psl);
     if (FAILED(hres))
         goto fail;
 
     /* Load the resource through the IPersist interface */
-    hres = psl->lpVtbl->QueryInterface(psl, &IID_IPersistFile, (LPVOID*)&ppf); 
+    hres = psl->lpVtbl->QueryInterface(psl, &IID_IPersistFile, (LPVOID*)&ppf);
     if (FAILED(hres))
         goto fail;
-    
+
     hres = ppf->lpVtbl->Load(ppf, linkPath, STGM_READ);
     if (FAILED(hres))
         goto fail;
@@ -505,9 +505,9 @@ int Twapi_ReadUrlShortcut(Tcl_Interp *interp, LPCWSTR linkPath)
 
  vamoose:
     if (psl)
-        psl->lpVtbl->Release(psl); 
+        psl->lpVtbl->Release(psl);
     if (ppf)
-        ppf->lpVtbl->Release(ppf); 
+        ppf->lpVtbl->Release(ppf);
 
     return retval;
 
@@ -523,12 +523,12 @@ int Twapi_InvokeUrlShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     DWORD flags;
     HWND hwnd;
 
-    HRESULT hres; 
-    IUniformResourceLocatorW *psl = NULL; 
+    HRESULT hres;
+    IUniformResourceLocatorW *psl = NULL;
     IPersistFile *ppf = NULL;
     URLINVOKECOMMANDINFOW urlcmd;
     Tcl_Obj *linkObj, *verbObj;
- 
+
     if (TwapiGetArgs(interp, objc, objv,
                      GETOBJ(linkObj), GETOBJ(verbObj), GETINT(flags),
                      GETHANDLE(hwnd),
@@ -537,10 +537,10 @@ int Twapi_InvokeUrlShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     /* Get a pointer to the IShellLink interface. */
     hres = CoCreateInstance(&CLSID_InternetShortcut, NULL,
-                            CLSCTX_INPROC_SERVER, 
-                            &IID_IUniformResourceLocatorW, (LPVOID*)&psl); 
+                            CLSCTX_INPROC_SERVER,
+                            &IID_IUniformResourceLocatorW, (LPVOID*)&psl);
     if (SUCCEEDED(hres)) {
-        hres = psl->lpVtbl->QueryInterface(psl, &IID_IPersistFile, (LPVOID*)&ppf); 
+        hres = psl->lpVtbl->QueryInterface(psl, &IID_IPersistFile, (LPVOID*)&ppf);
     }
     if (FAILED(hres)) {
         /* This CoCreateInstance or QueryInterface error so we do not get
@@ -564,9 +564,9 @@ int Twapi_InvokeUrlShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     }
 
     if (ppf)
-        ppf->lpVtbl->Release(ppf); 
+        ppf->lpVtbl->Release(ppf);
     if (psl)
-        psl->lpVtbl->Release(psl); 
+        psl->lpVtbl->Release(psl);
 
     return FAILED(hres) ? TCL_ERROR : TCL_OK;
 }
@@ -581,6 +581,7 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     Tcl_Obj  *titleObj, *fromObj, *toObj;
     SWSMark  mark = NULL;
     TCL_RESULT res;
+    FILEOP_FLAGS flags;
 
     mark = SWSPushMark();
     res = TCL_ERROR;
@@ -595,9 +596,10 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
         ObjToMultiSzSWS(interp, toObj, &sfop.pTo, NULL) != TCL_OK
         )
         goto vamoose;
-     
+
     sfop.lpszProgressTitle = ObjToWinChars(titleObj);
-    sfop.hNameMappings = NULL;
+    sfop.hNameMappings     = NULL;
+    flags                  = sfop.fFlags;
 
     if (SHFileOperationW(&sfop) != 0) {
         // Note GetLastError() is not set by the call
@@ -608,18 +610,24 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     objs[0] = ObjFromBoolean(sfop.fAnyOperationsAborted);
     objs[1] = ObjEmptyList();
 
-    if (sfop.hNameMappings) {
+    if ((flags & FOF_WANTMAPPINGHANDLE) && sfop.hNameMappings) {
         int i;
-        SHNAMEMAPPINGW *mapP = *(SHNAMEMAPPINGW **)(((char *)sfop.hNameMappings) + 4);
-        for (i = 0; i < *(int *) (sfop.hNameMappings); ++i) {
+        struct handlemappings {
+            UINT uNumberOfMappings;
+            LPSHNAMEMAPPINGW nameMapP;
+        }; /* See https://docs.microsoft.com/en-us/windows/win32/api/shellapi/ns-shellapi-shfileopstructa */
+        struct handlemappings *mapP  = sfop.hNameMappings;
+        UINT                   n     = mapP->uNumberOfMappings;
+        LPSHNAMEMAPPINGW       elemP = mapP->nameMapP;
+        for (i = 0; i < n; ++i, ++elemP) {
             ObjAppendElement(interp, objs[1],
                                      ObjFromWinCharsN(
-                                         mapP[i].pszOldPath,
-                                         mapP[i].cchOldPath));
+                                         elemP->pszOldPath,
+                                         elemP->cchOldPath));
             ObjAppendElement(interp, objs[1],
                                      ObjFromWinCharsN(
-                                         mapP[i].pszNewPath,
-                                         mapP[i].cchNewPath));
+                                         elemP->pszNewPath,
+                                         elemP->cchNewPath));
         }
 
         SHFreeNameMappings(sfop.hNameMappings);
@@ -647,7 +655,7 @@ static TCL_RESULT Twapi_ShellExecuteExObjCmd(ClientData clientdata, Tcl_Interp *
     MemLifoMarkHandle mark;
 
     mark = MemLifoPushMark(ticP->memlifoP);
-    
+
     TwapiZeroMemory(&sei, sizeof(sei)); /* Also sets sei.lpIDList = NULL -
                                      Need to track if it needs freeing */
     sei.cbSize = sizeof(sei);
@@ -730,7 +738,7 @@ int Twapi_SHChangeNotify(
         /* Always pass as WCHAR */
         flags = (flags & ~SHCNF_TYPE) | SHCNF_PRINTERW;
         break;
-        
+
     default:
         goto invalid_flags_error;
     }
@@ -812,7 +820,7 @@ int Twapi_SHChangeNotify(
         if (ObjToLong(interp, objv[3], (long *)&dwItem2) != TCL_OK)
             goto vamoose;
         break;
-        
+
     case SHCNE_ALLEVENTS:
     case SHCNE_DISKEVENTS:
     case SHCNE_GLOBALEVENTS:
@@ -1030,7 +1038,7 @@ static int TwapiShellInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(Twapi_GetShellVersion, 5),
         DEFINE_FNCODE_CMD(SHGetFolderPath, 6),
         DEFINE_FNCODE_CMD(SHGetSpecialFolderPath, 7),
-        DEFINE_FNCODE_CMD(SHGetPathFromIDList, 8), // TBD - Tcl 
+        DEFINE_FNCODE_CMD(SHGetPathFromIDList, 8), // TBD - Tcl
         DEFINE_FNCODE_CMD(SHGetSpecialFolderLocation, 9),
         DEFINE_FNCODE_CMD(Shell_NotifyIcon, 10),
         DEFINE_FNCODE_CMD(Twapi_ReadUrlShortcut, 11),
@@ -1060,7 +1068,7 @@ BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 
 /* Main entry point */
 #ifndef TWAPI_SINGLE_MODULE
-__declspec(dllexport) 
+__declspec(dllexport)
 #endif
 int Twapi_shell_Init(Tcl_Interp *interp)
 {
