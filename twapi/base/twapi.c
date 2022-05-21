@@ -507,7 +507,18 @@ static void Twapi_Cleanup(ClientData clientdata)
 #endif
     // TBD - clean up allocated interp context lists, threads etc.
 
-    DeleteCriticalSection(&gTwapiInterpContextsCS);
+    /*
+     * Tcl calls handlers registered by Tcl_CreateExitHandler BEFORE calling
+     * callbacks for interp deletion. So we cannot delete the critical section
+     * here as the interp deletion callbacks still need it.
+
+        DeleteCriticalSection(&gTwapiInterpContextsCS);
+
+     * Note also that we cannot do this in DllMain either as that is not called
+     * for the static library case. No matter as the process is being exited
+     * anyways.
+     */
+
     WSACleanup();
 }
 
