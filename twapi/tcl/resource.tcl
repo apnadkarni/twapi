@@ -9,7 +9,6 @@ package require twapi_nls
 
 # Retrieve version info for a file
 proc twapi::get_file_version_resource {path args} {
-    # TBD add -datetime opt to return date and time from fixed version struct
     array set opts [parseargs args {
         all
         datetime

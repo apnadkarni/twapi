@@ -308,14 +308,13 @@ if {[twapi::min_os_version 6]} {
         } else {
             error "wrong # args: should be \"reg_value_set HKEY ?SUBKEY? VALUENAME TYPE VALUE\""
         }
-    }
-
-    try {
-        RegSetValueEx $hkey $value_name $value_type $value
-    } finally {
-        if {[info exists subkey]} {
-            # We opened hkey
-            reg_close_key $hkey
+        try {
+            RegSetValueEx $hkey $value_name $value_type $value
+        } finally {
+            if {[info exists subkey]} {
+                # We opened hkey
+                reg_close_key $hkey
+            }
         }
     }
 }

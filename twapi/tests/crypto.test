@@ -5509,7 +5509,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $c
     } -result www.google.com
-    
+
     test cert_fetch-1.1 {
         Fetch a server cert (default port)
     } -body {
@@ -5518,7 +5518,23 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $c
     } -result *.www.yahoo.com
-    
+
+    ################################################################
+
+    test cert_ancestors {
+        Get ancestors in the simple chain for a cert
+    } -setup {
+        set hcert [googlecert]
+    } -body {
+        lmap cert [twapi::cert_ancestors $hcert] {
+            set name [twapi::cert_subject_name $cert]
+            twapi::cert_release $cert
+            set name
+        }
+    } -cleanup {
+        twapi::cert_release $hcert
+    } -result {*.google.com {Google Internet Authority G2} {GeoTrust Global CA}}
+
     ################################################################
 
     testtbd crypt_derive_key
