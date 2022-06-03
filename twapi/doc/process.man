@@ -695,7 +695,9 @@ it began execution.
 [call [cmd get_process_modules] [arg PID] [opt [arg options]]]
 This command returns information about the modules loaded in the
 process with id [arg PID]. If no options are specified, the command
-returns a list of handles to the modules.
+returns a list of handles to the modules. The handles returned are a
+snapshot and should [emph not] be freed or used in calls that expect
+a module handle since they may have been freed in the meanwhile.
 [nl]
 If any options are specified, the returned information is a
 [uri base.html#recordarrays "record array"] with one record
