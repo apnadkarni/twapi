@@ -10,9 +10,12 @@ Summarizes the list of changes for each version of TWAPI.
 [section "Version 4.7"]
 
 [list_begin bullet]
+
 [bullet] Added
 [uri system.html#start_wts_session_monitor [cmd start_wts_session_monitor]] and
 [uri system.html#stop_wts_session_monitor [cmd stop_wts_session_monitor]].
+
+[bullet] Added [uri registry.html#reg_walk [cmd reg_walk]].
 
 [bullet] Added [uri certs.html#cert_ancestors [cmd cert_ancestors]].
 

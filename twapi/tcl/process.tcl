@@ -1636,7 +1636,6 @@ proc twapi::process_in_administrators {} {
 }
 
 # Get a module handle
-# TBD - document
 proc twapi::get_module_handle {args} {
     array set opts [parseargs args {
         path.arg
@@ -1647,7 +1646,6 @@ proc twapi::get_module_handle {args} {
 }
 
 # Get a module handle from an address
-# TBD - document
 proc twapi::get_module_handle_from_address {addr args} {
     array set opts [parseargs args {
         pin.bool

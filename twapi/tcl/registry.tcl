@@ -359,7 +359,7 @@ proc twapi::_reg_walker {hkey path callback cbdata} {
                     # return - stop all iteration all up the tree
                     return -code return $cbdata
                 } else {
-                    return $cbdata -options $ropts
+                    return -options $ropts $cbdata
                 }
             }
         } finally {
@@ -370,7 +370,6 @@ proc twapi::_reg_walker {hkey path callback cbdata} {
     return $cbdata
 }
 
-# TBD - document and test
 proc twapi::reg_walk {hkey args} {
     parseargs args {
         {subkey.arg {}}
@@ -387,7 +386,7 @@ proc twapi::reg_walk {hkey args} {
     }
 
     if {![info exists callback]} {
-        set callback [lambda {args} {puts [join $args { }]}]
+        set callback [lambda {cbdata hkey path} {puts [join $path \\]}]
     }
     try {
         set code [catch {_reg_walker $hkey $path $callback $cbdata } result ropts]

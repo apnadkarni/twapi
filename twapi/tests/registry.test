@@ -17,6 +17,8 @@ load_twapi_package twapi_security
 load_twapi_package twapi_process
 load_twapi_package twapi_synch
 
+source ../tcl/registry.tcl
+
 namespace eval twapi::registry::test {
     namespace import ::tcltest::test
     # Constraint x64 is true if we are a 64-bit process
@@ -1210,6 +1212,97 @@ namespace eval twapi::registry::test {
             [string equal [dict get $dict ValueBinary] [lindex [dict get $testStructure Keys Key1 Values ValueBinary] 0]] \
             [string equal [dict get $dict ValueResourceList] [lindex [dict get $testStructure Keys Key1 Values ValueResourceList] 0]]
     } -result {1 1 1 1 1 1 1 1 1}
+
+    ###
+
+    test reg_walk-0 {walk whole tree} -setup {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -body {
+        variable reg_walk0
+        list [twapi::reg_walk $hkey -callback [twapi::lambda {cbdata h path} {
+            variable reg_walk0
+            lappend reg_walk0 $path
+            return $path
+        } [namespace current]]] $reg_walk0
+    } -result [list Key2 [list {} Key1 {Key1 SecKey} {Key1 SubkeyA} {Key1 SubkeyX} Key2]]
+
+    test reg_walk-1 {skip children} -setup {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -body {
+        variable reg_walk1
+        list [twapi::reg_walk $hkey -callback [twapi::lambda {cbdata h path} {
+            variable reg_walk1
+            lappend reg_walk1 $path
+            if {$path ne {}} {
+                return -code continue $path
+            } else {
+                return $path
+            }
+        } [namespace current]]] $reg_walk1
+    } -result [list Key2 [list {} Key1 Key2]]
+
+    test reg_walk-2 {skip siblings and children} -setup {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -body {
+        variable reg_walk2
+        list [twapi::reg_walk $hkey -callback [twapi::lambda {cbdata h path} {
+            variable reg_walk2
+            lappend reg_walk2 $path
+            if {$path ne {}} {
+                return -code break $path
+            } else {
+                return $path
+            }
+        } [namespace current]]] $reg_walk2
+    } -result [list Key1 [list {} Key1]]
+
+    test reg_walk-3 {skip siblings and children} -setup {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -body {
+        twapi::reg_walk $hkey -callback [twapi::lambda {cbdata h path} {
+            if {$path ne {}} {
+                error walkerror
+            } else {
+                return $path
+            }
+        } [namespace current]]
+    } -result walkerror -returnCodes error
+
+    test reg_walk-4 {walk subkey} -setup {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -body {
+        variable reg_walk4
+        list [twapi::reg_walk $hkey -subkey Key1 -callback [twapi::lambda {cbdata h path} {
+            variable reg_walk4
+            lappend reg_walk4 $path
+            return $path
+        } [namespace current]]] $reg_walk4
+    } -result {{Key1 SubkeyX} {Key1 {Key1 SecKey} {Key1 SubkeyA} {Key1 SubkeyX}}}
+
+
+    test reg_walk-5 {walk with cbdata tree} -setup {
+        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey]
+    } -cleanup {
+        twapi::reg_key_close $hkey
+    } -body {
+        variable reg_walk5
+        list [twapi::reg_walk $hkey -cbdata 0 -callback [twapi::lambda {cbdata h path} {
+            variable reg_walk5
+            lappend reg_walk5 $path
+            return [incr cbdata]
+        } [namespace current]]] $reg_walk5
+    } -result [list 6 [list {} Key1 {Key1 SecKey} {Key1 SubkeyA} {Key1 SubkeyX} Key2]]
+
 
 
     ### Clean up

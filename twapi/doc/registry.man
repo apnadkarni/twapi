@@ -82,10 +82,9 @@ process.
 
 [call [cmd reg_iterator] [arg HKEY] [opt [arg SUBKEYPATH]]]
 
-Returns an iterator command that can be invoked to iterate over all keys and
-values under a registry key. The iteration is carried out over [arg HKEY]
-unless a non-empty [arg SUBKEYPATH] argument is specified. In that case,
-it must the path to a subkey under [arg HKEY] and the iteration is
+Returns an iterator command that can be invoked to iterate over all keys in the
+tree rooted at [arg HKEY]. If a non-empty [arg SUBKEYPATH] argument is
+specified, it must a path to a subkey under [arg HKEY] and the iteration is
 carried out over its subtree instead.
 
 [nl]
@@ -119,11 +118,13 @@ the predefined registry handles.
 [call [cmd reg_key_copy] [arg HFROM] [arg HTO] [opt "[cmd -subkey] [arg SUBKEYPATH]"] [opt "[cmd -copysecd] [arg BOOL]"]]
 
 Copies the subtree under a registry key to another registry key. The source key is
-specified by [arg HFROM] which must be a handle to a registry key. If the [cmd -subkey]
-option is specified it must be a path to subkey under [arg HFROM] and the source
-tree is then copied from there. The target key identified by its handle [arg HTO]
-must have been opened with the appropriate access permissions.
+specified by [arg HFROM] which must be a handle to a registry key.
+If the [cmd -subkey] option is specified it must be a path to subkey under
+[arg HFROM] and the source tree is then copied from there. The target key identified
+by its handle [arg HTO] must have been opened with the appropriate access
+permissions.
 
+[nl]
 The [cmd -copysecd] option controls whether the security descriptors in the source
 tree are also to be copied. If [const true], the descriptors are copied as well.
 The default is [const false]. The option must be [const false] on Windows XP
@@ -418,6 +419,46 @@ The value data is in cooked form.
 Returns a dictionary keyed by the value names in the specified registry key
 [arg HKEY] or under its subkey [arg SUBKEYPATH] if specified and non-empty.
 The value data is in raw form as a pair containing the data type and data value.
+
+[call [cmd reg_walk] [arg HKEY] [opt "[cmd -subkey] [arg SUBKEYPATH]"] [opt "[cmd -callback] [arg CMDPREFIX]"] [opt "[cmd -cbdata] [arg CBDATA]"]]
+
+The command iterates over all keys in the tree rooted at [arg HKEY]. If the
+[cmd -subkey] option is specified, it must be a path to a subkey under [arg HKEY]
+and the tree walk begins at that key.
+[nl]
+The [cmd -callback] option specifies a callback to be invoked for each key
+in the tree. If unspecified, the callback defaults to printing the relative path
+of the current key to standard output.
+[nl]
+The [cmd -cbdata] option specifies any context data to be passed
+to the first invocation of the callback and defaults to the empty string.
+[nl]
+The callback is invoked with three arguments. The first argument is the value
+returned on the previous invocation of the callback or the value of the
+[cmd -cbdata] option for the first invocation. The second argument is the handle
+to the current key. The third argument is the path to the current key relative
+to the root as a Tcl list. The callback must not close the passed handle or
+store it for later use.
+[nl]
+The iteration will normally terminate when there are no untraversed keys in
+the tree. The callback can change this behavior by returning a non-0
+return code (not result!) as below.
+
+[list_begin opt]
+[opt_def [cmd return]] This is a normal return. The iteration will continue
+with the next key.
+[opt_def [cmd "return -code continue VALUE"]] The iteration will skip over the key's
+children and continue with its siblings.
+[opt_def [cmd "return -code break VALUE"]] The iteration will skip over the key's
+siblings as well as children and continue with siblings of key's parent.
+[opt_def [cmd "return -code return VALUE"]] The iteration will stop without error
+even though more keys may remain.
+[opt_def [cmd "error MESSAGE"]] The iteration terminates with the same error
+exception that was thrown.
+[list_end]
+
+The command returns the result of the last callback invocation as the
+result of the command.
 
 [list_end]
 
