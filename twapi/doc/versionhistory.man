@@ -7,12 +7,15 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
-[section "Version 4.7a0"]
+[section "Version 4.7"]
 
 [list_begin bullet]
 [bullet] Added
 [uri system.html#start_wts_session_monitor [cmd start_wts_session_monitor]] and
 [uri system.html#stop_wts_session_monitor [cmd stop_wts_session_monitor]].
+
+[bullet] Added [uri certs.html#cert_ancestors [cmd cert_ancestors]].
+
 [list_end]
 
 [section "Version 4.6"]

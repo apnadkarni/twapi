@@ -7,8 +7,6 @@
 [description]
 [para]
 
-[emph "This module is still experimental and liable to change."]
-
 [para]
 This package provides procedures for managing and operating on
 digital certificates.
@@ -36,7 +34,7 @@ A [emph "certificate store"] is a container for certificates.
 The container may be a physical store, for example on disk,
 or a logical store which is a collection of physical stores presented
 to the application as a single store.
-Certificate stores may also be created as in-memory temporary stores 
+Certificate stores may also be created as in-memory temporary stores
 which are not persisted.
 [para]
 Certain certificate stores, called [emph "system stores"]
@@ -328,6 +326,7 @@ The command
 [uri #cert_verify [cmd cert_verify]] verifies certificates as above.
 In addition, the commands
 [uri #cert_chain_build [cmd cert_chain_build]],
+[uri #cert_ancestors [cmd cert_ancestors]],
 [uri #cert_chain_simple_chain [cmd cert_chain_simple_chain]],
 [uri #cert_chain_trust_errors [cmd cert_chain_trust_errors]],
 [uri #cert_chain_trust_info [cmd cert_chain_trust_info]] provide
@@ -362,6 +361,12 @@ The value is a registered OID in string format.
 [section Commands]
 
 [list_begin definitions]
+
+[call [cmd cert_ancestors] [arg HCERT]]
+Returns a list of certificate handles for the ancestors in the simple
+trust chain for [arg HCERT]. No verification or validation is done.
+The returned handles must be released with
+[uri #cert_chain_release [cmd cert_chain_release]].
 
 [call [cmd cert_blob_to_name] [arg ENCODEDBLOB] [opt [arg options]]]
 Converts the encoded X.509 ASN encoded name in [arg ENCODEDBLOB]
@@ -1485,7 +1490,7 @@ Deletes a certificate system store.
 specifies its location which must be one of
 the values listed in [sectref "Certificate stores"].
 
-[call [cmd cert_system_store_locations] [arg LOCATION]]
+[call [cmd cert_system_store_locations]]
 Returns a list of system store locations. See [sectref "Certificate stores"].
 
 [call [cmd cert_system_stores] [arg LOCATION]]

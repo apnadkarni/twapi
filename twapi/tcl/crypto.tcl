@@ -822,7 +822,6 @@ proc twapi::cert_chain_build {hcert args} {
                 [list [list $usage_op $usage]] $flags]
 }
 
-# TBD - document
 proc twapi::cert_ancestors {hcert args} {
     # Note - does not care if certs are valid or not
     set certs {}
