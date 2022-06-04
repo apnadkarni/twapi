@@ -96,12 +96,18 @@ proc twapi::set_process_window_station {hwinsta} {
     SetProcessWindowStation $hwinsta
 }
 
-# TBD - document and test
-proc twapi::get_desktop_user {hdesk} {
+proc twapi::get_desktop_user_sid {hdesk} {
     return [GetUserObjectInformation $hdesk 4]
 }
 
-# TBD - document and test
-proc twapi::get_window_station_user {hwinsta} {
+proc twapi::get_window_station_user_sid {hwinsta} {
     return [GetUserObjectInformation $hwinsta 4]
+}
+
+proc twapi::get_desktop_name {hdesk} {
+    return [GetUserObjectInformation $hdesk 2]
+}
+
+proc twapi::get_window_station_name {hwinsta} {
+    return [GetUserObjectInformation $hwinsta 2]
 }

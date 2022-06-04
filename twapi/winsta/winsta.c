@@ -118,6 +118,7 @@ static int Twapi_GetUserObjectInformation(ClientData clientdata, Tcl_Interp *int
                 objP = NULL;
             else
                 objP = ObjFromSIDNoFail(pv);
+            break;
         default:
             objP = ObjFromByteArray(pv, len);
             break;

@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010, Ashok P. Nadkarni
+# Copyright (c) 2010-2022, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -11,6 +11,7 @@ eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_winsta
+load_twapi_package twapi_process
 
 #
 # Set up system-specific constants that are used to match test results
@@ -24,7 +25,12 @@ namespace eval twapi::desktop::test {
     } -body {
         #NOTE: if not running as admin, this will fail as Winlogon
         # desktop will not be returned
-        setops::diff {Default Winlogon} [twapi::find_desktops]
+        if {[twapi::get_process_elevation] ne "full"} {
+            set expected [list Default]
+        } else {
+            set expected [list Default Winlogon]
+        }
+        setops::diff $expected [twapi::find_desktops]
     } -result {}
 
     test find_desktops-2.0 {
@@ -35,8 +41,45 @@ namespace eval twapi::desktop::test {
 
     } -result ""
 
+    ###
 
-    ################################################################
+    test get_desktop_handle-1.0 {no options} -body {
+        twapi::close_desktop_handle [twapi::get_desktop_handle Default]
+    } -result ""
+
+    test get_desktop_handle-1.1 {-inherit} -body {
+        twapi::close_desktop_handle [twapi::get_desktop_handle Default -inherit 1]
+    } -result ""
+
+    test get_desktop_handle-1.2 {-allowhooks} -body {
+        twapi::close_desktop_handle [twapi::get_desktop_handle Default -allowhooks 1]
+    } -result ""
+
+    test get_desktop_handle-1.3 {-access} -body {
+        twapi::close_desktop_handle [twapi::get_desktop_handle Default -access {desktop_readobjects}]
+    } -result ""
+
+    ###
+
+    test get_desktop_name-1.0 {name of desktop} -setup {
+        set hdesk [twapi::get_desktop_handle Default]
+    } -cleanup {
+        twapi::close_desktop_handle $hdesk
+    } -body {
+        twapi::get_desktop_name $hdesk
+    } -result Default
+
+    ###
+
+    test get_desktop_user_sid-1.0 {user sid of desktop} -setup {
+        set hdesk [twapi::get_desktop_handle Default]
+    } -cleanup {
+        twapi::close_desktop_handle $hdesk
+    } -body {
+        twapi::get_desktop_user_sid $hdesk
+    } -result S-1-5-5-* -match glob
+
+    ###
 
     test find_window_stations-1.0 {
         Find window stations
@@ -44,7 +87,30 @@ namespace eval twapi::desktop::test {
         setops::diff {WinSta0} [twapi::find_window_stations]
     } -result {}
 
-    ################################################################
+    ###
+
+    test get_window_station_handle-1.0 {no options} -body {
+        twapi::close_window_station_handle [twapi::get_window_station_handle WinSta0]
+    } -result ""
+
+    test get_window_station_handle-1.1 {-inherit} -body {
+        twapi::close_window_station_handle [twapi::get_window_station_handle WinSta0 -inherit 1]
+    } -result ""
+
+    test get_window_station_handle-1.2 {-access} -body {
+        twapi::close_window_station_handle [twapi::get_window_station_handle WinSta0 -access {winsta_enumdesktops}]
+    } -result ""
+    ###
+
+    test get_window_station_name-1.0 {name of windows station} -body {
+        twapi::get_window_station_name [twapi::get_current_window_station_handle]
+    } -result {WinSta\d+} -match regexp
+
+    ###
+
+    test get_window_station_user_sid-1.0 {user of windows station} -body {
+        twapi::get_window_station_user_sid [twapi::get_current_window_station_handle]
+    } -result S-1-5-5-* -match glob
 
     #
     # Clean up

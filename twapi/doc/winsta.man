@@ -10,12 +10,6 @@
 This package provides procedures related to desktops and window stations
 on Windows platforms.
 
-[section "Window Stations"]
-TBD
-
-[section "Desktops"]
-TBD
-
 [section Commands]
 
 [list_begin definitions]
@@ -50,8 +44,8 @@ Returns a handle to the specified desktop.
 The [cmd -inherit] option determines whether the returned handle will be
 inherited by child processes. This is [const false] by default.
 [nl]
-The access rights associated with the handle default to 
-[const generic_read] unless the [cmd -access] option is specified. 
+The access rights associated with the handle default to
+[const generic_read] unless the [cmd -access] option is specified.
 [arg ACCESSRIGHTS] specifies the desired access rights and may be
 specified as a list of integer access rights flags or symbols as described in
 [uri security.html\#accessrights "Access Rights"].
@@ -63,12 +57,19 @@ in the calling process.
 When no longer needed, the returned handle should be closed with a call to
 to [uri desktop.html\#close_desktop_handle close_desktop_handle].
 
-[call [cmd get_window_station_handle] [arg WINDOWSTATION] [opt "[cmd -inherit] [arg BOOL]"] [opt "[cmd -access] [arg ACCESSRIGHTS]"]]
+[call [cmd get_desktop_name] [arg HDESK]]
+Returns the name of a desktop. [arg HDESK] should be
+a handle to a desktop.
 
-Returns a handle to the window station identified by WINDOWSTATION. 
+[call [cmd get_desktop_user_sid] [arg HDESK]]
+Returns the SID of the user associated with the desktop. [arg HDESK] should be
+a handle to a desktop.
+
+[call [cmd get_window_station_handle] [arg WINDOWSTATION] [opt "[cmd -inherit] [arg BOOL]"] [opt "[cmd -access] [arg ACCESSRIGHTS]"]]
+Returns a handle to the window station identified by WINDOWSTATION.
 [nl]
-The access rights associated with the handle default to 
-[const generic_read] unless the [cmd -access] option is specified. 
+The access rights associated with the handle default to
+[const generic_read] unless the [cmd -access] option is specified.
 [arg ACCESSRIGHTS] specifies the desired access rights and may be
 specified as a list of integer access rights flags or symbols as described in
 [uri security.html#accessrights "Access Rights"].
@@ -78,6 +79,14 @@ inherited by child processes. This is [const false] by default.
 [nl]
 When no longer needed, the returned handle should be closed with a call to
 to [uri desktop.html\#close_window_station_handle close_window_station_handle].
+
+[call [cmd get_window_station_name] [arg HWINSTA]]
+Returns the name of a window station. [arg HWINSTA] should be
+a handle to a window station.
+
+[call [cmd get_window_station_user_sid] [arg HWINSTA]]
+Returns the SID of the user associated with a window station. [arg HWINSTA] should be
+a handle to a window station.
 
 [call [cmd set_process_window_station] [arg HWINSTA]]
 Assigns the window station identified by [arg HWINSTA] to the calling process.
