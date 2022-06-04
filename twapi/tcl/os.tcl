@@ -873,7 +873,6 @@ proc twapi::get_system_parameters_info {uiaction} {
     # is substituted for it.
     # If modifiers contains "cbsize" the first dword is initialized
     # with malloc_size
-    # TBD - use dict instead
     if {![info exists SystemParametersInfo_uiactions_get]} {
         array set SystemParametersInfo_uiactions_get {
             SPI_GETDESKWALLPAPER {0x0073 2048 unicode 4096}
@@ -960,7 +959,6 @@ proc twapi::get_system_parameters_info {uiaction} {
     set key [string toupper $uiaction]
 
     # TBD -
-    # SPI_GETHIGHCONTRAST {0x0042 }
     # SPI_GETSOUNDSENTRY {0x0040 }
     # SPI_GETICONMETRICS {0x002D }
     # SPI_GETICONTITLELOGFONT {0x001F }
