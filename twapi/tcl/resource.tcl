@@ -309,7 +309,7 @@ proc twapi::extract_resources {hmod {withdata 0}} {
     return $result
 }
 
-# TBD - do we document this?
+# TBD - test
 proc twapi::write_bmp_file {filename bmp} {
     # Assumes $bmp is clipboard content in format 8 (CF_DIB)
 

@@ -47,8 +47,8 @@ commands [uri \#create_service [cmd create_service]],
 [para]
 The commands [uri \#start_service [cmd start_service]],
 [uri \#stop_service [cmd stop_service]], [uri \#pause_service [cmd pause_service]]
-and [uri \#continue_service [cmd continue_service]]
-control the run state of a service.
+[uri \#continue_service [cmd continue_service]] and
+[uri \#notify_service [cmd notify_service]] control the run state of a service.
 
 [section "Writing services in Tcl"]
 The command
@@ -549,6 +549,20 @@ name of the service, not the display name.
 The standard options described in
 [sectref "Standard Options"] may be specified with this command.
 
+[call [cmd notify_service] [arg INTERNAL_SERVICE_NAME] [arg CONTROL] [opt [arg options]]]
+
+This command sends the control code [arg CONTROL] to a service process.
+[arg INTERNAL_SERVICE_NAME] must be the internal
+name of the service, not the display name. [arg CONTROL] must be a user-defined
+control code in the range 128-255 or the special code [const paramchange] which
+notifies the service that its start parameters have been modified.
+[nl]
+The options described in
+[sectref "Standard Options"] may be specified with this command.
+In addition, if the option "[cmd -ignorecodes] [arg CODES]" is specified,
+the command will not raise an error if the call fails with any of the Windows
+error codes included in [arg CODES].
+
 [call [cmd pause_service] [arg INTERNAL_SERVICE_NAME] [opt [arg options]]]
 
 This command pauses the specified service.
@@ -718,7 +732,7 @@ and not sent by the system.
 [opt_def [const hardwareprofilechange]]
 Notifies the application of events related to changes to the system hardware
 profile.  An additional argument provides the specifics
-of the change and may be one of [const configchanged], 
+of the change and may be one of [const configchanged],
 [const configchangecanceled] or [const querychangeconfig].
 In the case of [const querychangeconfig],
 the callback script may return [const allow] or [const deny] to allow
@@ -729,7 +743,7 @@ or deny the request.
 Notifies the application that one of its configuration parameters has
 changed and it should re-read its service information from the Windows
 registry.
-This is only received if [const paramchange] has been specified as an element 
+This is only received if [const paramchange] has been specified as an element
 in the [cmd -controls] option to indicate to the service manager that
 the service can read and change its configuration while running.
 

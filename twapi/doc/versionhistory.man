@@ -27,6 +27,13 @@ Summarizes the list of changes for each version of TWAPI.
 
 [bullet] Added [uri certs.html#cert_ancestors [cmd cert_ancestors]].
 
+[bullet] Added [cmd -seqnum] and [cmd -qop] options to
+[uri sspi.html#sspi_encrypt [cmd sspi_encrypt]],
+[uri sspi.html#sspi_encrypt_stream [cmd sspi_encrypt_stream]],
+[uri sspi.html#sspi_decrypt [cmd sspi_decrypt]].
+
+[bullet] Added [uri services.html#notify_service [cmd notify_service]].
+
 [list_end]
 
 [section "Version 4.6"]

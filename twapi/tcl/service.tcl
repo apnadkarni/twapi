@@ -221,7 +221,7 @@ proc twapi::start_service {name args} {
     return [wait {twapi::get_service_state $name -system $opts(system) -database $opts(database)} running $opts(wait)]
 }
 
-# TBD - document and test
+# TBD - test
 proc twapi::notify_service {name code args} {
     array set opts [parseargs args {
         system.arg
@@ -246,7 +246,7 @@ proc twapi::notify_service {name code args} {
     } finally {
         CloseServiceHandle $scm
     }
-    
+
     trap {
         ControlService $svch $code
     } onerror {TWAPI_WIN32} {
