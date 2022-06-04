@@ -313,6 +313,15 @@ Returns the decrypted data. [arg CONTEXT] is a datagram or connection
 context. The other parameters correspond to the corresponding values
 returned from [uri #sspi_encrypt [cmd sspi_encrypt]].
 
+The following options may be specified:
+
+[list_begin opt]
+[opt_def [cmd -seqnum] [arg SEQNUM]]
+The sequence number expected in the message.
+Must not be specified when [arg CONTEXT] is using the Digest SSP package or
+if the transport does not maintain sequence numbers.
+[list_end]
+
 [call [cmd sspi_decrypt_stream] [arg CONTEXT] [arg ENCRYPTEDDATA]]
 Returns the decrypted data using the specified stream context.
 The return value is a pair consisting of a status and the decrypted
@@ -339,6 +348,20 @@ a list of three elements - the encryption token, the encrypted data
 and padding. These must all be passed to the remote peer for it successfully
 decrypt and verify the data.
 
+The following options may be specified:
+
+[list_begin opt]
+
+[opt_def [cmd -qop] [arg INTEGER]]
+Package specific flags that indicate quality of protection desired. Must be
+unspecified or 0 if the Digest SSP package is used.
+[opt_def [cmd -seqnum] [arg SEQNUM]]
+The sequence number to use for the message.
+Must not be specified when [arg CONTEXT] is using the Digest SSP package or
+if the transport does not maintain sequence numbers.
+
+[list_end]
+
 [call [cmd sspi_encrypt_and_write] [arg CONTEXT] [arg BINDATA] [opt [arg options]]]
 Encrypts binary data [arg BINDATA] based on the specified security context and
 writes it to the specified channel. The channel must be in binary mode.
@@ -346,6 +369,14 @@ writes it to the specified channel. The channel must be in binary mode.
 [call [cmd sspi_encrypt_stream] [arg CONTEXT] [arg BINDATA] [opt [arg options]]]
 Encrypts [arg BINDATA] based on the specified security context and
 returns the encrypted data.
+
+The following options may be specified:
+
+[list_begin opt]
+[opt_def [cmd -qop] [arg INTEGER]]
+Package specific flags that indicate quality of protection desired. Must be
+unspecified or 0 if the Digest SSP package is used.
+[list_end]
 
 [call [cmd sspi_enumerate_packages] [opt [arg options]]]
 If no arguments are specified, 

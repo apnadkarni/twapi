@@ -567,7 +567,6 @@ proc twapi::sspi_verify_signature {ctx sig data args} {
 
 # Encrypts a data as per a context
 # Returns {securitytrailer encrypteddata padding}
-# TBD - docment options
 proc twapi::sspi_encrypt {ctx data args} {
     parseargs args {
         {seqnum.int 0}
@@ -628,7 +627,6 @@ proc twapi::sspi_decrypt {ctx sig data padding args} {
     variable _sspi_state
     _sspi_validate_handle $ctx
 
-    # TBD - document options
     parseargs args {
         {seqnum.int 0}
     } -maxleftover 0 -setvars
