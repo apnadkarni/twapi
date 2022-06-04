@@ -64,6 +64,7 @@ MANFILES= \
 	registry.man \
 	resource.man \
 	msi.man \
+	wmi.man \
 	nls.man \
 	pdh.man \
 	printer.man \

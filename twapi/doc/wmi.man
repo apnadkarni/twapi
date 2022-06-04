@@ -1,0 +1,56 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "WMI" n ""]
+[copyright "2022 Ashok P. Nadkarni"]
+[moddesc "Windows Management Instrumentation"]
+[titledesc "Commands related to Windows Management Instrumentation"]
+[require twapi_wmi]
+[description]
+[para]
+
+This package provides commands related to the Windows Management
+Instrumentation component.
+
+Support for using WMI functionality is provided through the general COM
+interface provided by the [uri com.html [cmd twapi_com]] module. For a detailed
+guide for accessing WMI objects through TWAPI's COM interface, see
+[uri https://www.magicsplat.com/book/wmi.html "Tcl Programming for Windows"].
+
+This page only describes the commands for installing a WMI MOF
+(Managed Object Format) class definition in the system's WMI database.
+
+[section Commands]
+
+[list_begin definitions]
+
+[call [cmd "IMofCompilerProxy new"]]
+Returns an [arg MOFCOMPILER] object that can be used compile and install MOF
+definitions. The returned object must be released when no longer needed by
+calling its [cmd Release] method.
+
+[call "[arg MOFCOMPILER] [cmd CompileBuffer]" [arg MOF] [opt "[arg parameter] ..."]]
+Compiles and installs the MOF definition [arg MOF]. For more details and
+description of the optional parameters, see
+[uri https://docs.microsoft.com/en-us/windows/win32/api/wbemcli/nf-wbemcli-imofcompiler-compilebuffer CompileBuffer]
+in the Microsoft SDK.
+
+[call "[arg MOFCOMPILER] [cmd CompileFile]" [arg MOFFILE] [opt "[arg parameter] ..."]]
+Compiles and installs the MOF definition from the file [arg MOFFILE]. For more
+details and description of the optional parameters, see
+[uri https://docs.microsoft.com/en-us/windows/win32/api/wbemcli/nf-wbemcli-imofcompiler-compilefile CompileFile]
+in the Microsoft SDK.
+
+[call "[arg MOFCOMPILER] [cmd CreateBMOF]" [arg MOFFILE] [arg OUTFILE] [opt "[arg parameter] ..."]]
+Compiles the MOF definition from the file [arg MOFFILE] and writes the compiled
+binary form to the file [arg OUTFILE]. For more
+details and description of the optional parameters, see
+[uri https://docs.microsoft.com/en-us/windows/win32/api/wbemcli/nf-wbemcli-imofcompiler-createbmof]
+in the Microsoft SDK.
+
+[call "[arg MOFCOMPILER] [cmd Release]"]
+Releases a MOF compiler object.
+
+[list_end]
+
+[keywords "WMI"]
+
+[manpage_end]

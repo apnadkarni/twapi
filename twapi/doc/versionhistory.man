@@ -11,6 +11,8 @@ Summarizes the list of changes for each version of TWAPI.
 
 [list_begin bullet]
 
+[bullet] Documented the [uri wmi.html twapi_wmi] module.
+
 [bullet] Added
 [uri system.html#start_wts_session_monitor [cmd start_wts_session_monitor]] and
 [uri system.html#stop_wts_session_monitor [cmd stop_wts_session_monitor]].
