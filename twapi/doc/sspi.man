@@ -379,7 +379,7 @@ unspecified or 0 if the Digest SSP package is used.
 [list_end]
 
 [call [cmd sspi_enumerate_packages] [opt [arg options]]]
-If no arguments are specified, 
+If no arguments are specified,
 returns a list of the names of the security provider packages available
 on the system. If any options are specified, returns a dictionary
 keyed by the package name. The corresponding value is itself a dictionary
