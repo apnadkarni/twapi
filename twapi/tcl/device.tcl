@@ -541,7 +541,7 @@ proc twapi::eject_media device {
 }
 
 # IOCTL_DISK_LOAD_MEDIA
-# Note - should we use IOCTL_DISK_LOAD_MEDIA2 instead (0x2d080c) see
+# TBD - should we use IOCTL_DISK_LOAD_MEDIA2 instead (0x2d080c) see
 # SDK, faster if read / write access not necessary. We are closing
 # the handle right away anyway but would that stop other apps from
 # acessing the file system on the CD ? Need to try (note device

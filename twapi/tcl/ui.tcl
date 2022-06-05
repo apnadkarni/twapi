@@ -853,7 +853,7 @@ proc twapi::arrange_icons {{hwin ""}} {
 
 # Get the window text/caption
 proc twapi::get_window_text {hwin} {
-    # TBD - see http://blogs.msdn.com/oldnewthing/archive/2003/08/21/54675.aspx
+    # TBD - see https://devblogs.microsoft.com/oldnewthing/20030821-00/?p=42833
     twapi::GetWindowText $hwin
 }
 
