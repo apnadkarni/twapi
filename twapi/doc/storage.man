@@ -78,11 +78,15 @@ operating system buffers associated with a Tcl channel to disk.
 
 [para]
 The commands
-[uri \#find_file_open [cmd file_file_open]],
-[uri \#find_file_next [cmd file_file_next]] and
-[uri \#find_file_close [cmd file_file_close]]
+[uri \#find_file_open [cmd find_file_open]],
+[uri \#find_file_next [cmd find_file_next]] and
+[uri \#find_file_close [cmd find_file_close]]
 can be used to incrementally iterate through directory or file system contents
 while retrieving file meta-information.
+
+[para]
+The command [uri #normalize_device_rooted_path [cmd normalize_device_rooted_path]]
+converts a device based path to a normalized Win32 path with drive letters.
 
 [section Commands]
 [list_begin definitions]
@@ -447,6 +451,15 @@ by [arg MOUNTPOINTPATH]. The directory [arg MOUNTPOINTPATH] must be empty.
 
 If any volume is already mounted at [arg MOUNTPOINTPATH], it will be silently
 unmounted before the new mount is performed.
+
+[call [cmd normalize_device_rooted_path] [arg PATH] [opt [arg PATHVAR]]]
+Converts a device based path such as [const \Device\HarddiskVolume5\bin]
+to a Win32 drive-based path like [const C:\bin]. If [arg PATHVAR] is not
+present, the converted path is returned or an exception raised if it cannot
+be converted. If [arg PATHVAR] is present, it is treated as a variable
+in the caller's context. If the conversion is successful, the path is
+stored in the variable and the command returns [const 1]. Otherwise the
+command returns [const 0].
 
 [call [cmd set_drive_label] [arg DRIVE] [arg NAME]]
 

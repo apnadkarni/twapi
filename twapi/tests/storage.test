@@ -1634,6 +1634,34 @@ namespace eval twapi::disk::test {
 
     ################################################################
 
+    test normalize_device_rooted_path-1.0 {normalize device path} -setup {
+        lassign [file split $::env(WINDIR)] drive rel_path
+        set devroot [lindex [dict get [twapi::get_volume_info $drive -device] -device] 0]
+    } -body {
+        set norm_path [twapi::normalize_device_rooted_path "$devroot\\$rel_path"]
+        string equal -nocase [file join $::env(WINDIR)] [file join $norm_path]
+    } -result 1
+
+    test normalize_device_rooted_path-1.1 {normalize path - error} -body {
+        twapi::normalize_device_rooted_path {\Device\HarddiskVolume1000\Windows}
+    } -result {Could not map device based path '\Device\HarddiskVolume1000\Windows'} -returnCodes error
+
+    test normalize_device_rooted_path-2.0 {normalize device path - var} -setup {
+        lassign [file split $::env(WINDIR)] drive rel_path
+        set devroot [lindex [dict get [twapi::get_volume_info $drive -device] -device] 0]
+    } -body {
+        list \
+        [twapi::normalize_device_rooted_path "$devroot\\$rel_path" norm_path] \
+        [string equal -nocase [file join $::env(WINDIR)] [file join $norm_path]]
+    } -result {1 1}
+
+    test normalize_device_rooted_path-2.1 {normalize path - error} -body {
+        twapi::normalize_device_rooted_path {\Device\HarddiskVolume1000\Windows} norm_path
+    } -result 0
+
+
+    ################################################################
+
     ::tcltest::cleanupTests
 }
 

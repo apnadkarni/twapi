@@ -1,26 +1,26 @@
-# Tcl Windows API (TWAPI) 4.6.0
+# Tcl Windows API (TWAPI) 4.7.0
 
-This is the release version of TWAPI 4.6.0.
+This is the release version of TWAPI 4.7.0.
 
   * Project home page is at https://twapi.sourceforge.net
-  * V4.6 documentation is at https://twapi.magicsplat.com/v4.6
+  * V4.7 documentation is at https://twapi.magicsplat.com/v4.7
 
 ## Supported platforms
 
-TWAPI 4.6 requires
+TWAPI 4.7 requires
 
   * Windows XP (32-bit only) or later (32- or 64- bit)
   * Tcl 8.6 (32- or 64-bit)
 
-## Changes since 4.5
+## Changes since 4.6
 
 For a complete list, including INCOMPATIBLE CHANGES, see 
-https://twapi.magicsplat.com/v4.6/versionhistory.html
+https://twapi.magicsplat.com/v4.7/versionhistory.html
 
 ## Distributions
 
 TWAPI is distributed in multiple formats.
-See https://twapi.magicsplat.com/v4.6/installation.html for the details
+See https://twapi.magicsplat.com/v4.7/installation.html for the details
 and the pros and cons of each format.
 
 ## TWAPI Summary

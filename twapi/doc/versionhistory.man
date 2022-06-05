@@ -17,13 +17,13 @@ Summarizes the list of changes for each version of TWAPI.
 [uri system.html#start_wts_session_monitor [cmd start_wts_session_monitor]] and
 [uri system.html#stop_wts_session_monitor [cmd stop_wts_session_monitor]].
 
+[bullet] Added [uri registry.html#reg_walk [cmd reg_walk]].
+
 [bullet] Added
 [uri winsta.html#get_window_station_user_sid [cmd get_window_station_user_sid]],
 [uri winsta.html#get_window_station_name [cmd get_window_station_name]],
 [uri winsta.html#get_desktop_user_sid [cmd get_desktop_user_sid]],
 [uri winsta.html#get_desktop_name [cmd get_desktop_name]].
-
-[bullet] Added [uri registry.html#reg_walk [cmd reg_walk]].
 
 [bullet] Added [uri certs.html#cert_ancestors [cmd cert_ancestors]].
 
@@ -33,6 +33,8 @@ Summarizes the list of changes for each version of TWAPI.
 [uri sspi.html#sspi_decrypt [cmd sspi_decrypt]].
 
 [bullet] Added [uri services.html#notify_service [cmd notify_service]].
+
+[bullet] Added [uri storage.html#normalize_device_rooted_path [cmd normalize_device_rooted_path]]
 
 [list_end]
 
