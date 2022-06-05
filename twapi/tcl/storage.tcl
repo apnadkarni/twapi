@@ -481,7 +481,6 @@ proc twapi::set_file_times {fd args} {
 }
 
 # Convert a device based path to a normalized Win32 path with drive letters
-# TBD - document
 proc twapi::normalize_device_rooted_path {path args} {
     # TBD - keep a cache ?
     # For example, we need to map \Device\HarddiskVolume1 to C:
