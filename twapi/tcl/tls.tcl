@@ -623,12 +623,15 @@ proc twapi::tls::cget {chan opt} {
         }
         -error {
             if {[dict exists $_channels($chan) ErrorResult]} {
-                return "[dict get $_channels($chan) ErrorResult]"
-            } else {
-                # -error should not raise an error but return the error as result
-                catch {chan configure [_chansocket $chan] -error} result
-                return $result
+                set result "[dict get $_channels($chan) ErrorResult]"
+                if {$result ne ""} {
+                    return $result
+                }
             }
+            # Get -error from underlying socket
+            # -error should not raise an error but return the error as result
+            catch {chan configure [_chansocket $chan] -error} result
+            return $result
         }
         default {
             return [chan configure [_chansocket $chan] $opt]
