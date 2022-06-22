@@ -596,9 +596,6 @@ proc twapi::tls::configure {chan opt val} {
         -credentials {
             error "$opt is a read-only option."
         }
-        -error {
-            
-        }
         default {
             chan configure [_chansocket $chan] $opt $val
         }
