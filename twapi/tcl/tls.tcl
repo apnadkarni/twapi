@@ -411,7 +411,7 @@ proc twapi::tls::watch {chan watchmask} {
     }
 
     if {"write" in [dict get $_channels($chan) WatchMask]} {
-        if {[dict get $_channels($chan) State] eq "OPEN"} {
+        if {[dict get $_channels($chan) State] in {OPEN NEGOTIATING CLOSED} } {
             _post_write_event $chan
         }
         # TBD - do we need to turn write handler back on?
@@ -688,6 +688,13 @@ proc twapi::tls::_chansocket {chan} {
     variable _channels
     if {![info exists _channels($chan)]} {
         error "Channel $chan not found."
+    }
+    if {![dict exists $_channels($chan) Socket]} {
+        set error "Socket not connected."
+        if {[dict exists $_channels($chan) ErrorResult]} {
+            append error " [dict get $_channels($chan) ErrorResult]"
+        }
+        error $error
     }
     return [dict get $_channels($chan) Socket]
 }
