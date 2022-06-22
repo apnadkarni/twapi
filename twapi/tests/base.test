@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2007-2014, Ashok P. Nadkarni
+# Copyright (c) 2007-2022, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -47,7 +47,7 @@ namespace eval twapi::base::test {
         Get TWAPI version patchlevel
     } -body {
         twapi::get_version -patchlevel
-    } -result 4.7a0
+    } -result 4.7.2
 
     ################################################################
 

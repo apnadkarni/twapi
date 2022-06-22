@@ -1,6 +1,6 @@
-# Tcl Windows API (TWAPI) 4.7.0
+# Tcl Windows API (TWAPI) 4.7.2
 
-This is the release version of TWAPI 4.7.0.
+This is the release version of TWAPI 4.7.2.
 
   * Project home page is at https://twapi.sourceforge.net
   * V4.7 documentation is at https://twapi.magicsplat.com/v4.7
@@ -14,8 +14,9 @@ TWAPI 4.7 requires
 
 ## Changes since 4.6
 
-For a complete list, including INCOMPATIBLE CHANGES, see 
-https://twapi.magicsplat.com/v4.7/versionhistory.html
+For a complete list of changes in 4.7.1, including INCOMPATIBLE CHANGES, see
+https://twapi.magicsplat.com/v4.7/versionhistory.html. The 4.7.2 patch release
+fixes two bugs in error reporting in TLS.
 
 ## Distributions
 
@@ -57,6 +58,7 @@ Functions in the following areas are implemented:
   * Task scheduling
   * Shell functions 
   * Registry
+  * Windows Management Instrumentation
   * Windows Installer
   * Synchronization
   * Power management
