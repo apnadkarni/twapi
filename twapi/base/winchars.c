@@ -9,13 +9,13 @@
 #include "twapi_base.h"
 
 /* 
- * This implementation is only enabled when TCL_MAX_UTF > 4 resulting in
+ * This implementation is only enabled when TCL_MAX_UTF >= 4 resulting in
  * sizeof(Tcl_UniChar) != sizeof(WCHAR). Otherwise the Obj{To,From}WinChars
  * are inlined as Obj{To,From}TclUniChar in twapi.h
  *
  * TWAPI_FORCE_WINCHARS is used for testing purposes.
  */
-#if (TCL_UTF_MAX > 4) || defined(TWAPI_FORCE_WINCHARS)
+#if (TCL_UTF_MAX >= 4) || defined(TWAPI_FORCE_WINCHARS)
 
 /*
  * Implements a new Tcl_Obj intrep to hold WCHARs.
@@ -173,7 +173,7 @@ TWAPI_EXTERN WCHAR *ObjToWinChars(Tcl_Obj *objP)
 
     WinChars *rep;
     Tcl_DString ds;
-    int nbytes, len;
+    Tcl_Size nbytes, len;
     char *utf8;
     
     if (objP->typePtr == &gWinCharsType)
@@ -192,7 +192,7 @@ TWAPI_EXTERN WCHAR *ObjToWinChars(Tcl_Obj *objP)
     return rep->chars;
 }
 
-TWAPI_EXTERN WCHAR *ObjToWinCharsN(Tcl_Obj *objP, int *lenP)
+TWAPI_EXTERN WCHAR *ObjToWinCharsN(Tcl_Obj *objP, Tcl_Size *lenP)
 {
     WCHAR *wsP;
     wsP = ObjToWinChars(objP); /* Will convert as needed */
@@ -212,7 +212,7 @@ TWAPI_EXTERN WCHAR *ObjToWinCharsDW(Tcl_Obj *objP, DWORD *lenP)
     return wsP;
 }
 
-TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsN(const WCHAR *wsP, int nchars)
+TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsN(const WCHAR *wsP, Tcl_Size nchars)
 {
     Tcl_Obj *objP;
     WinChars *rep;
@@ -235,4 +235,4 @@ TWAPI_EXTERN Tcl_Obj *ObjFromWinChars(const WCHAR *wsP)
     return ObjFromWinCharsN(wsP, -1);
 }
 
-#endif /* TCL_UTF_MAX > 4 */
+#endif /* TCL_UTF_MAX >= 4 */

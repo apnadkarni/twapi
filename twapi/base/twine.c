@@ -17,7 +17,7 @@ int Twapi_TwineObjCmd(
     Tcl_Obj *list1;
     Tcl_Obj *list2;
     Tcl_Obj *resultObj;
-    int n;
+    Tcl_Size n;
 
     if (objc == 2) {
         /* Single argument - must be a nested list of two lists */
@@ -47,7 +47,7 @@ Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
 {
     Tcl_Obj **list1;
     Tcl_Obj **list2;
-    int i, n1, n2, nmin;
+    Tcl_Size i, n1, n2, nmin;
     Tcl_Obj *resultObj;
 
     if (ObjGetElements(interp, first, &n1, &list1) != TCL_OK ||
@@ -84,7 +84,7 @@ Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n)
     int i;
     Tcl_Obj *resultObj;
     Tcl_Obj *objv[2*100];
-    Tcl_Obj **objs;
+    Tcl_Obj **objs = NULL;
 
     if ((2*n) > ARRAYSIZE(objv))
         objs = SWSPushFrame(2 * n * sizeof(*objs), NULL);
@@ -96,7 +96,7 @@ Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n)
         objs[1 + 2*i] = second[i];
     }
 
-    resultObj = ObjNewList(2*n, objs);
+    resultObj = Tcl_NewListObj(2*n, objs);
 
     if (objs != objv)
         SWSPopFrame();

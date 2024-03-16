@@ -22,6 +22,36 @@
 #define MODULEVERSION PACKAGE_VERSION
 #endif
 
+Tcl_PackageInitProc Twapi_account_Init;
+Tcl_PackageInitProc Twapi_apputil_Init;
+Tcl_PackageInitProc Twapi_clipboard_Init;
+Tcl_PackageInitProc Twapi_com_Init;
+Tcl_PackageInitProc Twapi_console_Init;
+Tcl_PackageInitProc Twapi_crypto_Init;
+Tcl_PackageInitProc Twapi_device_Init;
+Tcl_PackageInitProc Twapi_etw_Init;
+Tcl_PackageInitProc Twapi_eventlog_Init;
+Tcl_PackageInitProc Twapi_input_Init;
+Tcl_PackageInitProc Twapi_mstask_Init;
+Tcl_PackageInitProc Twapi_multimedia_Init;
+Tcl_PackageInitProc Twapi_namedpipe_Init;
+Tcl_PackageInitProc Twapi_network_Init;
+Tcl_PackageInitProc Twapi_nls_Init;
+Tcl_PackageInitProc Twapi_os_Init;
+Tcl_PackageInitProc Twapi_pdh_Init;
+Tcl_PackageInitProc Twapi_process_Init;
+Tcl_PackageInitProc Twapi_rds_Init;
+Tcl_PackageInitProc Twapi_resource_Init;
+Tcl_PackageInitProc Twapi_registry_Init;
+Tcl_PackageInitProc Twapi_security_Init;
+Tcl_PackageInitProc Twapi_service_Init;
+Tcl_PackageInitProc Twapi_share_Init;
+Tcl_PackageInitProc Twapi_shell_Init;
+Tcl_PackageInitProc Twapi_storage_Init;
+Tcl_PackageInitProc Twapi_ui_Init;
+Tcl_PackageInitProc Twapi_winsta_Init;
+Tcl_PackageInitProc Twapi_wmi_Init;
+
 /*
  * Struct to keep track of registered pointers.
  *
@@ -166,15 +196,36 @@ TwapiTls *Twapi_GetTls()
 
 int TwapiLoadStaticModules(Tcl_Interp *interp)
 {
-#if defined(TWAPI_SINGLE_MODULE)
-/*
- * These files are generated at build time to call twapi module initializers 
- * Note two separate files needed because all prototypes need to come before
- * the calls.
- */
-#include "twapi_module_static_proto.h"
-#include "twapi_module_static_init.h"
-#endif
+    TWAPI_INIT_MODULE(interp, Twapi_account_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_apputil_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_clipboard_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_com_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_console_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_crypto_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_device_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_etw_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_eventlog_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_input_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_mstask_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_multimedia_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_namedpipe_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_network_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_nls_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_os_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_pdh_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_process_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_rds_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_registry_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_resource_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_security_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_service_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_share_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_shell_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_storage_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_ui_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_winsta_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_wmi_Init);
+
     /* In case any module left over some crap, clean it out. Note
        errors will not get to this point */
     Tcl_ResetResult(interp);

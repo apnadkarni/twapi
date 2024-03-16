@@ -206,7 +206,7 @@ int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
     int result = TCL_ERROR;
     int max_input_records;
     int sent_inputs;
-    
+
     num_chars = Tcl_GetCharLength(input_obj);
 
     /* Now loop through every character adding it to the input event array */
@@ -221,15 +221,15 @@ int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
     input = MemLifoAlloc(ticP->memlifoP, max_input_records * sizeof(*input), NULL);
     for (i = 0, j = 0; i < num_chars; ++i) {
         WCHAR wch;
-#if TCL_UTF_MAX > 4
+#if TCL_UTF_MAX >= 4
 	Tcl_UniChar uch;
 #endif
 
 #ifndef KEYEVENTF_UNICODE
 #define KEYEVENTF_UNICODE     0x0004
 #endif
-            
-#if TCL_UTF_MAX <= 4
+
+#if TCL_UTF_MAX < 4
         wch = Tcl_GetUniChar(input_obj, i);
 #else
         uch = Tcl_GetUniChar(input_obj, i);

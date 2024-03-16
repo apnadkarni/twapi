@@ -486,7 +486,7 @@ static TCL_RESULT ParsePCERT_CONTEXT_Array(
     )
 {
     Tcl_Obj **objs;
-    int nobjs, i;
+    Tcl_Size nobjs, i;
     PCCERT_CONTEXT *certsPP;
     if (ObjGetElements(ticP->interp, certsObj, &nobjs, &objs) != TCL_OK)
         return TCL_ERROR;
@@ -513,7 +513,7 @@ static TCL_RESULT ParsePCRL_CONTEXT_Array(
     )
 {
     Tcl_Obj **objs;
-    int nobjs, i;
+    Tcl_Size nobjs, i;
     PCCRL_CONTEXT *crlsPP;
     if (ObjGetElements(ticP->interp, crlsObj, &nobjs, &objs) != TCL_OK)
         return TCL_ERROR;
@@ -539,7 +539,7 @@ static TCL_RESULT ParseCRYPT_BLOB(
     )
 {
     void *pv;
-    int   len;
+    Tcl_Size   len;
     pv = ObjToByteArray(objP, &len);
     if (len)
         blobP->pbData = MemLifoCopy(ticP->memlifoP, pv, len);
@@ -556,8 +556,8 @@ static TCL_RESULT ParseCRYPT_BIT_BLOB(
     CRYPT_BIT_BLOB *blobP
     )
 {
-    Tcl_Obj **objs;
-    int       nobjs;
+    Tcl_Obj   **objs;
+    Tcl_Size    nobjs;
     Tcl_Interp *interp = ticP->interp;
 
     if (ObjGetElements(NULL, pkObj, &nobjs, &objs) == TCL_OK) {
@@ -584,7 +584,7 @@ static TCL_RESULT ParseCRYPT_ATTRIBUTE(
     )
 {
     Tcl_Obj **objs;
-    int       n, nobjs;
+    Tcl_Size    n, nobjs;
     Tcl_Interp *interp = ticP->interp;
     void *pv;
 
@@ -619,7 +619,7 @@ static TCL_RESULT ParseCRYPT_ATTRIBUTE_Array(
     )
 {
     Tcl_Obj **objs;
-    int nobjs, i;
+    Tcl_Size nobjs, i;
     CRYPT_ATTRIBUTE *attrsP;
     
     if (ObjGetElements(ticP->interp, attrsObj, &nobjs, &objs) != TCL_OK)
@@ -649,9 +649,9 @@ static TCL_RESULT ParseCERT_ALT_NAME_ENTRY(
     )
 {
     Tcl_Obj **objs;
-    int nobjs;
+    Tcl_Size nobjs;
+    Tcl_Size n;
     DWORD name_type;
-    int n;
     Tcl_Obj **otherObjs;
     void *pv;
     
@@ -754,7 +754,7 @@ static TCL_RESULT ParseCERT_ALT_NAME_INFO(
     )
 {
     Tcl_Obj **nameObjs;
-    int       nnames, i;
+    Tcl_Size  nnames, i;
     TCL_RESULT res;
     CERT_ALT_NAME_ENTRY *entriesP;
 
@@ -792,9 +792,8 @@ static TCL_RESULT ParseCERT_ENHKEY_USAGE(
     CERT_ENHKEY_USAGE *cekuP
     )
 {
-    Tcl_Obj **objs;
-    int       nobjs;
-    int       i, n;
+    Tcl_Obj  **objs;
+    Tcl_Size   i, n, nobjs;
     char     *p;
     TCL_RESULT res;
 
@@ -825,8 +824,9 @@ static TCL_RESULT ParseCERT_CHAIN_PARA(
     CERT_CHAIN_PARA *paramP
     )
 {
-    Tcl_Obj **objs;
-    int       i, n;
+    Tcl_Obj   **objs;
+    int         i;
+    Tcl_Size    n;
     Tcl_Interp *interp = ticP->interp;
 
     /*
@@ -865,7 +865,8 @@ static TCL_RESULT ParseCERT_CHAIN_POLICY_PARA(
     )
 {
     Tcl_Obj **objs;
-    int       flags, n;
+    Tcl_Size  n;
+    int       flags;
     CERT_CHAIN_POLICY_PARA *policy_paramP;
     
     /*
@@ -931,7 +932,7 @@ static TCL_RESULT ParseCRYPT_ALGORITHM_IDENTIFIER(
 {
     TCL_RESULT res;
     Tcl_Obj **objs;
-    int       n, nobjs;
+    Tcl_Size  n, nobjs;
     char     *p;
 
     if ((res = ObjGetElements(ticP->interp, algObj, &nobjs, &objs)) != TCL_OK)
@@ -996,7 +997,7 @@ static TCL_RESULT ParseCRYPT_DECRYPT_MESSAGE_PARA(
     CRYPT_DECRYPT_MESSAGE_PARA *cdmP
     )
 {
-    int i, nstores;
+    Tcl_Size i, nstores;
     Tcl_Obj *storesObj;
     Tcl_Obj **stores;
     ZeroMemory(cdmP, sizeof(*cdmP));
@@ -1137,7 +1138,7 @@ static TCL_RESULT ParseCERT_PUBLIC_KEY_INFO(
     )
 {
     Tcl_Obj **objs;
-    int       nobjs;
+    Tcl_Size  nobjs;
 
     if (ObjGetElements(NULL, pkObj, &nobjs, &objs) != TCL_OK || nobjs != 2) {
         ObjSetStaticResult(ticP->interp,
@@ -1163,7 +1164,7 @@ static TCL_RESULT ParseCRYPT_KEY_PROV_INFO(
     )
 {
     Tcl_Obj **objs;
-    int i, nobjs;
+    Tcl_Size i, nobjs;
     CRYPT_KEY_PROV_INFO *kiP;
     Tcl_Obj *provparaObj;
 
@@ -1487,7 +1488,7 @@ static TCL_RESULT TwapiCryptEncodeObject(
     } u;
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj **objs;
-    int       nobjs;
+    Tcl_Size  nobjs;
     LPCSTR oid;
     DWORD_PTR dwoid;
     void *dataP;
@@ -1573,7 +1574,7 @@ static TCL_RESULT TwapiCryptEncodeObject(
     } else if (dwoid == (DWORD_PTR) RSA_CSP_PUBLICKEYBLOB) {
         if (ObjGetElements(NULL, valObj, &nobjs, &objs) == TCL_OK &&
             nobjs == 5) {
-            int n;
+            Tcl_Size n;
             BLOBHEADER *bhdrP = (BLOBHEADER*) ObjToByteArray(objs[4], &n);
             /* Sanity check that it is a public key blob */
             if (bhdrP->bType == PUBLICKEYBLOB &&
@@ -1659,8 +1660,8 @@ static TCL_RESULT ParseCERT_EXTENSION(
     CERT_EXTENSION *extP
     )
 {
-    Tcl_Obj **objs;
-    int       nobjs, n;
+    Tcl_Obj  **objs;
+    Tcl_Size   nobjs, n;
     TCL_RESULT res;
     void      *pv;
     BOOL       bval;
@@ -1705,7 +1706,7 @@ static TCL_RESULT ParseCERT_EXTENSIONS(
 {
     CERT_EXTENSION *extsP;
     Tcl_Obj **objs;
-    int       i, nobjs;
+    Tcl_Size  i, nobjs;
     TCL_RESULT res;
     Tcl_Interp *interp = ticP->interp;
 
@@ -1774,7 +1775,7 @@ static TCL_RESULT ParseCERT_REQUEST_INFO(
     )
 {
     Tcl_Obj **objs;
-    int       nobjs;
+    Tcl_Size nobjs;
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj *pubkeyObj, *attrObj;
 
@@ -1818,7 +1819,7 @@ static TCL_RESULT ParseSYSTEMTIME(
     )
 {
     Tcl_Obj **objs;
-    int       nobjs;
+    Tcl_Size nobjs;
     TCL_RESULT res;
 
     if ((res = ObjGetElements(interp, timeObj, &nobjs, &objs)) != TCL_OK)
@@ -1844,7 +1845,7 @@ static int Twapi_CertCreateSelfSignCertificateObjCmd(ClientData clientdata, Tcl_
     CERT_NAME_BLOB name_blob;
     CRYPT_KEY_PROV_INFO *kiP;
     CRYPT_ALGORITHM_IDENTIFIER algid, *algidP;
-    int       nobjs;
+    Tcl_Size nobjs;
     SYSTEMTIME start, end, *startP, *endP;
     PCERT_CONTEXT certP;
     CERT_EXTENSIONS exts;
@@ -1919,6 +1920,7 @@ static int Twapi_CertGetCertificateContextProperty(Tcl_Interp *interp, PCCERT_CO
     char *s;
     DWORD_PTR dwp;
     TCL_RESULT res;
+    Tcl_Size len;
 
     result.type = TRT_BADFUNCTIONCODE;
     if (cooked) {

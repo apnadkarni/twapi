@@ -23,7 +23,7 @@ static TwapiInterpContext * volatile console_control_ticP;
 static int ObjToCHAR_INFO(Tcl_Interp *interp, Tcl_Obj *obj, CHAR_INFO *ciP)
 {
     Tcl_Obj **objv;
-    int       objc;
+    Tcl_Size objc;
     int i;
 
     if (ObjGetElements(interp, obj, &objc, &objv) != TCL_OK ||
@@ -40,7 +40,8 @@ static int ObjToCHAR_INFO(Tcl_Interp *interp, Tcl_Obj *obj, CHAR_INFO *ciP)
 
 static int ObjToCOORD(Tcl_Interp *interp, Tcl_Obj *coordObj, COORD *coordP)
 {
-    int objc, x, y;
+    int x, y;
+    Tcl_Size  objc;
     Tcl_Obj **objv;
     if (ObjGetElements(interp, coordObj, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
@@ -78,7 +79,7 @@ static Tcl_Obj *ObjFromCOORD(const COORD *coordP)
 static int ObjToSMALL_RECT(Tcl_Interp *interp, Tcl_Obj *obj, SMALL_RECT *rectP)
 {
     Tcl_Obj **objv;
-    int       objc;
+    Tcl_Size  objc;
     int l, t, r, b;
 
     if (ObjGetElements(interp, obj, &objc, &objv) == TCL_ERROR) {
@@ -355,8 +356,8 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     Tcl_Obj *sObj;
     LPWSTR s;
     SWSMark mark = NULL;
-    int i;
-    
+    Tcl_Size len;
+
     --objc;
     ++objv;
 
@@ -517,9 +518,9 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                              GETVAR(coord, ObjToCOORD),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            s = ObjToWinCharsN(sObj, &i);
+            s = ObjToWinCharsN(sObj, &len);
             if (WriteConsoleOutputCharacterW(h, s,
-                                             i, coord, &result.value.uval))
+                                             len, coord, &result.value.uval))
                 result.type = TRT_DWORD;
             else
                 result.type = TRT_GETLASTERROR;    

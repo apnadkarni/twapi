@@ -351,7 +351,7 @@ int Twapi_AppendSystemErrorEx(
         msgObj != NULL) {
         Tcl_Obj *resultObj = ObjDuplicate(ObjGetResult(interp));
         if (ObjCharLength(resultObj)) {
-#if TCL_UTF_MAX <= 4
+#if TCL_UTF_MAX < 4
             Tcl_AppendUnicodeToObj(resultObj, L" ", 1);
 #else
             /* Tcl_UniChar is int. So cannot use AppendUnicode. Have 

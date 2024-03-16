@@ -1130,7 +1130,9 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             result.value.ival = SetThreadToken(h, h2);
             break;
         case 3003:
-            ObjToLSA_UNICODE_STRING(objv[1], &u.lsa_ustr);
+            res = ObjToLSA_UNICODE_STRING(interp, objv[1], &u.lsa_ustr);
+            if (res != TCL_OK)
+                goto vamoose;
             result.value.ival = Twapi_LsaEnumerateAccountsWithUserRight(
                 interp, h,
                 &u.lsa_ustr);

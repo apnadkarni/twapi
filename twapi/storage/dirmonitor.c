@@ -725,7 +725,7 @@ static int TwapiDirectoryMonitorPatternMatch(WCHAR *path, WCHAR *pattern)
     } else
         include = 1;            /* Default is inclusive pattern */
 
-#if TCL_UTF_MAX <= 4
+#if TCL_UTF_MAX < 4
     return Tcl_UniCharCaseMatch(path, pattern, 1) ? include : 0;
 #else
     {

@@ -25,8 +25,8 @@ static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int
     WCHAR *authority;
     int    optflags, classflags, instflags;
     BYTE  *buf;
-    int    buflen;
     HRESULT hr;
+    Tcl_Size  buflen;
     WBEM_COMPILE_STATUS_INFO wcsi;
     Tcl_Obj *server_namespaceObj, *userObj, *authorityObj, *passwordObj;
 

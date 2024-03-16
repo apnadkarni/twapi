@@ -415,7 +415,7 @@ static int Twapi_NetUserAddObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     DWORD          error_parm;
     char          *error_field;
     WCHAR         *decryptedP;
-    int            decrypted_len;
+    Tcl_Size       decrypted_len;
     MemLifoMarkHandle mark = NULL;
     
     CHECK_NARGS(interp, objc, 9);
@@ -555,7 +555,7 @@ int Twapi_NetUserSetInfoObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     DWORD   dw;
     TwapiResult result;
     Tcl_Obj *s1Obj, *s2Obj;
-    int    password_len;
+    Tcl_Size password_len;
     MemLifoMarkHandle mark = NULL;
 
     /* Note: to prevent shimmering issues, we do not extract the internal
@@ -916,7 +916,7 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
     int func;
     int level;
     Tcl_Obj **accts;
-    int naccts;
+    Tcl_Size naccts;
     LPCWSTR servername, groupname;
     DWORD winerr;
     LOCALGROUP_MEMBERS_INFO_0 *lgmi0P = NULL;

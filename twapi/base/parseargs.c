@@ -145,25 +145,23 @@ static void DupParseargsOpt(Tcl_Obj *srcP, Tcl_Obj *dstP)
 
 static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
 {
-    int k, nopts;
+    Tcl_Size k, nopts;
     Tcl_Obj **optObjs;
     struct OptionDescriptor *optsP;
     struct OptionDescriptor *curP;
-    int len;
+    Tcl_Size len;
 
     if (objP->typePtr == &gParseargsOptionType)
         return TCL_OK;          /* Already in correct format */
 
     if (ObjGetElements(interp, objP, &nopts, &optObjs) != TCL_OK)
         return TCL_ERROR;
-    
-    
     optsP = nopts ? (struct OptionDescriptor *) ckalloc(nopts * sizeof(*optsP)) : NULL;
 
     for (k = 0; k < nopts ; ++k) {
-        Tcl_Obj **elems;
-        int       nelems;
-        const char     *type;
+        Tcl_Obj   **elems;
+        Tcl_Size    nelems;
+        const char *type;
         const char *p;
 
         curP = &optsP[k];
@@ -212,7 +210,7 @@ static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
 
             if (nelems > 2) {
                 Tcl_Obj **validObjs;
-                int nvalid;
+                Tcl_Size nvalid;
                 if (ObjGetElements(interp, elems[2], &nvalid, &validObjs) != TCL_OK)
                     goto error_handler;
                 if (nvalid == 0) {
@@ -230,7 +228,7 @@ static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
             }
         }
     }
-    
+
     /* OK, options are in order. Convert the passed object's internal rep */
     if (objP->typePtr && objP->typePtr->freeIntRepProc) {
         objP->typePtr->freeIntRepProc(objP);
@@ -238,17 +236,17 @@ static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
     }
 
 #if 0
-    /* 
+    /*
      * Commented out - as per msofer:
      * First reaction, from memory, is:
      * a literal should ALWAYS have a string rep - the exact string rep it
      * had when stored as a literal. As that string rep is not guaranteed to
      * be regenerated exactly, it should never be cleared.
-     * 
+     *
      * Second reaction: Tcl_InvalidateStringRep must not be called on
      * a shared object, ever. This is because ... because ... why was
      * it?
-     * 
+     *
      * Note that you can shimmer a shared Tcl_Obj, ie, change its
      * internal rep. You can also generate a string rep if there was
      * none to begin with. But a Tcl_Obj that has a string rep must
@@ -258,7 +256,7 @@ static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
      *
      * Since original intent was to just save memory, do not need this.
      */
-    
+
     Tcl_InvalidateStringRep(objP);
 #endif
 
@@ -327,7 +325,7 @@ int Twapi_ParseargsObjCmd(
 {
     TwapiInterpContext *ticP = (TwapiInterpContext *) clientData;
     Tcl_Obj    *argvObj;
-    int         argc, iarg;
+    Tcl_Size    argc, iarg;
     Tcl_Obj   **argv;
     int         nopts;
     int         j, k;
@@ -417,7 +415,7 @@ int Twapi_ParseargsObjCmd(
 
     /* OK, now go through the passed arguments */
     for (iarg = 0; iarg < argc; ++iarg) {
-        int   argp_len;
+        Tcl_Size   argp_len;
         char *argp = ObjToStringN(argv[iarg], &argp_len);
 
         /* Non-option arg or a '-' or a "--" signals end of arguments */
@@ -517,7 +515,7 @@ int Twapi_ParseargsObjCmd(
             /* Check list of allowed values if specified */
             if (opts[k].valid_values) {
                 Tcl_Obj **validObjs;
-                int nvalid, ivalid;
+                Tcl_Size nvalid, ivalid;
                 if (ObjGetElements(interp, opts[k].valid_values, &nvalid, &validObjs) != TCL_OK)
                     goto error_return;
                 for (ivalid = 0; ivalid < nvalid; ++ivalid) {
@@ -552,7 +550,7 @@ int Twapi_ParseargsObjCmd(
             /* Check list of allowed values if specified */
             if (opts[k].valid_values) {
                 Tcl_Obj **validObjs;
-                int nvalid, ivalid;
+                Tcl_Size nvalid, ivalid;
                 char *s;
                 if (ObjGetElements(interp, opts[k].valid_values, &nvalid, &validObjs) != TCL_OK)
                     goto error_return;

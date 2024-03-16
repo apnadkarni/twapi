@@ -335,7 +335,7 @@ int Twapi_IDispatch_InvokeObjCmd(
     DISPID     dispid;
     DISPPARAMS dispparams;
     Tcl_Obj  **params;
-    int        nparams;
+    Tcl_Size   nparams;
     DISPID     named_dispid;
     VARIANT   *dispargP = NULL;
     USHORT    *paramflagsP = NULL;
@@ -346,7 +346,7 @@ int Twapi_IDispatch_InvokeObjCmd(
     HRESULT    hr = S_OK;
     int        status = TCL_ERROR;
     Tcl_Obj  **protov;          // Prototype list
-    int        protoc;          // Prototype element count
+    Tcl_Size   protoc;          // Prototype element count
 
     TWAPI_OBJ_LOG_IF(gModuleDef.log_flags, interp, ObjNewList(objc, objv));
 
@@ -643,7 +643,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                  */
                 ObjSetResult(interp,
                                  Tcl_ObjPrintf(
-                                     "Parameter error. Offending parameter position %d.", nparams-badarg_index));
+                                     "Parameter error. Offending parameter position %" TCL_SIZE_MODIFIER "d.", nparams-badarg_index));
             }
             Twapi_AppendSystemError(interp, hr);
         }
@@ -690,12 +690,12 @@ static int TwapiGetIDsOfNamesHelper(
     )
 {
     Tcl_Interp *interp = ticP->interp;
-    DISPID *ids = NULL;
-    HRESULT hr;
-    int     status = TCL_ERROR;
-    Tcl_Obj **items;
-    int     i, nitems;
-    LPWSTR *names = NULL;
+    DISPID     *ids    = NULL;
+    HRESULT     hr;
+    int         status = TCL_ERROR;
+    Tcl_Obj   **items;
+    Tcl_Size    i, nitems;
+    LPWSTR     *names = NULL;
 
     /* Convert the list object into an array of points to strings */
     if (ObjGetElements(interp, namesObj, &nitems, &items) == TCL_ERROR)
@@ -935,18 +935,18 @@ int TwapiMakeVariantParam(
     )
 {
     Tcl_Obj   **paramv;
-    int         paramc;
+    Tcl_Size    paramc;
     VARTYPE     vt, target_vt;
-    int         len;
+    Tcl_Size    len;
     Tcl_Obj   **typev;
-    int         typec;
+    Tcl_Size    typec;
     Tcl_Obj   **reftypev;
-    int         reftypec;
+    Tcl_Size    reftypec;
     VARIANT    *targetP;         /* Where the actual value is stored */
     int         itemp;
     Tcl_Obj    *paramdefaultObj = NULL;
     Tcl_Obj **paramfields;
-    int       paramfieldsc;
+    Tcl_Size    paramfieldsc;
     int       status = TCL_ERROR;
 
     /*
@@ -1511,7 +1511,7 @@ static TCL_RESULT ParsePCOAUTHINFO(
     )
 {
     Tcl_Obj **objs;
-    int nobjs;
+    Tcl_Size nobjs;
     COAUTHINFO *coauP;
 
     if (ObjGetElements(ticP->interp, objP, &nobjs, &objs) != TCL_OK)
@@ -1550,7 +1550,7 @@ static TCL_RESULT ParsePCOSERVERINFO(
     )
 {
     Tcl_Obj **objs;
-    int nobjs;
+    Tcl_Size nobjs;
     COSERVERINFO *cosiP;
 
     if (ObjGetElements(ticP->interp, objP, &nobjs, &objs) != TCL_OK)
@@ -1586,7 +1586,7 @@ static TCL_RESULT ParsePMULTI_QI(
     )
 {
     Tcl_Obj **objs;
-    int nobjs;
+    Tcl_Size nobjs;
     MULTI_QI *mqiP;
     int i;
 
@@ -1640,7 +1640,7 @@ TCL_RESULT ParsePSOLE_AUTHENTICATION_LIST(TwapiInterpContext *ticP,
     )
 {
     Tcl_Obj **objs;
-    int i, nobjs;
+    Tcl_Size i, nobjs;
     Tcl_Interp *interp = ticP->interp;
     SOLE_AUTHENTICATION_LIST *salP;
 
@@ -1657,7 +1657,7 @@ TCL_RESULT ParsePSOLE_AUTHENTICATION_LIST(TwapiInterpContext *ticP,
     salP->aAuthInfo = MemLifoAlloc(ticP->memlifoP, nobjs*sizeof(SOLE_AUTHENTICATION_INFO), NULL);
     for (i = 0; i < nobjs; ++i) {
         Tcl_Obj **elems;
-        int nelems;
+        Tcl_Size nelems;
         DWORD authn, authz;
         if (ObjGetElements(interp, objs[i], &nelems, &elems) != TCL_OK)
             return TCL_ERROR;
@@ -1956,26 +1956,27 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
     } ifc;
     HRESULT hr;
     TwapiResult result;
-    DWORD dw1,dw2,dw3;
-    BSTR bstr1 = NULL;          /* Initialize for tracking frees! */
-    BSTR bstr2 = NULL;
-    BSTR bstr3 = NULL;
-    int i, tcl_status;
-    void *pv;
-    void *pv2;
-    GUID guid, guid2;
-    TYPEKIND tk;
-    LPWSTR s;
-    WORD w, w2;
-    Tcl_Obj *objs[7];
-    FUNCDESC *funcdesc;
-    VARDESC  *vardesc;
-    char *cP;
-    int func = PtrToInt(clientdata);
-    Tcl_Obj *sObj;
+    DWORD       dw1, dw2, dw3;
+    BSTR        bstr1 = NULL; /* Initialize for tracking frees! */
+    BSTR        bstr2 = NULL;
+    BSTR        bstr3 = NULL;
+    int         tcl_status;
+    void       *pv;
+    void       *pv2;
+    GUID        guid, guid2;
+    TYPEKIND    tk;
+    LPWSTR      s;
+    WORD        w, w2;
+    Tcl_Obj    *objs[7];
+    FUNCDESC   *funcdesc;
+    VARDESC    *vardesc;
+    char       *cP;
+    int         func = PtrToInt(clientdata);
+    Tcl_Obj    *sObj;
+    VARIANT     var, var2;
+    ULONGLONG   ull;
+    Tcl_Size    len;
     struct TwapiBlanket blanket;
-    VARIANT var, var2;
-    ULONGLONG ull;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -2821,7 +2822,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
                              GETOBJ(sObj), ARGSKIP, GETGUID(guid), GETASTR(cP),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (ObjListLength(interp, objv[1], &i) == TCL_ERROR || i != 0) {
+            if (ObjListLength(interp, objv[1], &len) == TCL_ERROR || len != 0) {
                 ObjSetStaticResult(interp, "Bind options are not supported for CoGetOjbect and must be specified as empty."); //TBD
                 goto ret_error;
             }

@@ -105,7 +105,7 @@ enum cstruct_types_enum {
 TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj, int allow_empty)
 {
     Tcl_Obj **fieldObjs;
-    int       i, nfields;
+    Tcl_Size         i, nfields;
     TwapiCStructRep *csP = NULL;
     unsigned int offset, struct_alignment;
     TCL_RESULT res;
@@ -135,7 +135,7 @@ TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj, int
     struct_alignment = 1;
     for (offset = 0, i = 0; i < nfields; ++i, csP->nfields = i) {
         Tcl_Obj **defObjs;      /* Field definition elements */
-        int       ndefs;
+        Tcl_Size          ndefs;
         int       array_size = 0;
         int       deftype;
         int       elem_size;
@@ -252,7 +252,7 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
                                       DWORD size, void *pv)
 {
     Tcl_Obj **objPP;
-    int i, nobjs;
+    Tcl_Size   i, nobjs;
     TCL_RESULT res;
 
     csP->nrefs += 1;            /* So it is not shimmered away underneath us */
@@ -270,9 +270,10 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
         int count = csP->fields[i].count;
         void *pv2 = ADDPTR(pv, csP->fields[i].offset, void*);
         Tcl_Obj **arrayObj;
-        int       nelems;        /* # elements in array */
+        Tcl_Size  nelems; /* # elements in array */
         void *s;
-        int j, elem_size, len;
+        Tcl_Size  len;
+        int       j, elem_size;
 #if 0
         TCL_RESULT (*fn)(Tcl_Interp *, Tcl_Obj *, void *);
 #else
@@ -426,7 +427,7 @@ TCL_RESULT TwapiCStructParse (Tcl_Interp *interp, MemLifo *memlifoP,
                          Tcl_Obj *csvalObj, DWORD flags, DWORD *sizeP, void **ppv)
 {
     Tcl_Obj **objPP;
-    int nobjs;
+    Tcl_Size nobjs;
     TCL_RESULT res;
     TwapiCStructRep *csP = NULL;
     void *pv;
@@ -751,7 +752,7 @@ TCL_RESULT Twapi_FfiCallObjCmd(void *clientdata, Tcl_Interp *interp, int objc, T
     TwapiCStructRep *paramtypesP = NULL;
     Tcl_Obj *paramObj = NULL;
     Tcl_Obj **params;
-    int i, nparams;
+    Tcl_Size i, nparams;
     union {
         int i32; UINT ui32; char i8; unsigned char ui8;
         short i16; unsigned short ui16; Tcl_WideInt i64;
