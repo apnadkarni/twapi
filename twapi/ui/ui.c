@@ -77,7 +77,7 @@ Tcl_Obj *ObjFromLOGFONTW(LOGFONTW *lfP)
 int ObjToFLASHWINFO (Tcl_Interp *interp, Tcl_Obj *obj, FLASHWINFO *fwP)
 {
     Tcl_Obj **objv;
-    int       objc;
+    Tcl_Size  objc;
     HWND      hwnd;
 
     if (ObjGetElements(interp, obj, &objc, &objv) == TCL_ERROR) {
@@ -112,7 +112,7 @@ Tcl_Obj *ObjFromWINDOWPLACEMENT(WINDOWPLACEMENT *wpP)
 int ObjToWINDOWPLACEMENT(Tcl_Interp *interp, Tcl_Obj *objP, WINDOWPLACEMENT *wpP)
 {
     Tcl_Obj **objv;
-    int objc;
+    Tcl_Size objc;
 
     if (ObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
         return TCL_ERROR;

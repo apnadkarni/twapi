@@ -67,9 +67,8 @@ int Twapi_BlockInput(Tcl_Interp *interp, BOOL block)
 }
 
 int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
-    int num_inputs;
+    Tcl_Size i, j, num_inputs;
     struct tagINPUT   *input;
-    int i, j;
     int result = TCL_ERROR;
     Tcl_Interp *interp = ticP->interp;
     
@@ -403,7 +402,7 @@ static int Twapi_InputCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
             result.value.ival = TWAPI_BAD_ARG_COUNT;
         }
         else {
-            int len;
+            Tcl_Size len;
             BYTE *key_stateP = ObjToByteArray(objv[2], &len);
             if (len != 256) {
                 result.type = TRT_TWAPI_ERROR;

@@ -111,7 +111,7 @@ int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP)
 {
     int       i;
     Tcl_Obj **objv;
-    int       objc;
+    Tcl_Size  objc;
     long      dval;
 
     if (ObjGetElements(interp, obj, &objc, &objv) != TCL_OK)
@@ -185,7 +185,7 @@ int ObjToTASK_TRIGGER(Tcl_Interp *interp, Tcl_Obj *obj, TASK_TRIGGER *triggerP)
         }
         else if (STREQ(name, "type")) {
             Tcl_Obj **typeObj;
-            int      ntype;
+            Tcl_Size  ntype;
 
             /* Object should be a list */
             if (ObjGetElements(interp, objv[i+1], &ntype, &typeObj) != TCL_OK) {
@@ -406,8 +406,8 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
     TASK_TRIGGER tasktrigger;
     int func = PtrToInt(clientdata);
     WCHAR *s, *passwordP;
-    int i;
     SWSMark mark = NULL;
+    Tcl_Size len;
 
     hr = S_OK;
     result.type = TRT_BADFUNCTIONCODE;
@@ -705,13 +705,13 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
                 passwordP = NULL;
             else {
                 mark = SWSPushMark();
-                passwordP = ObjDecryptPasswordSWS(objv[2], &i);
+                passwordP = ObjDecryptPasswordSWS(objv[2], &len);
             }
             result.type = TRT_EMPTY;
             hr = ifc.scheduledworkitem->lpVtbl->SetAccountInformation(
                 ifc.scheduledworkitem, s, passwordP);
             if (mark) {
-                SecureZeroMemory(passwordP, i);
+                SecureZeroMemory(passwordP, len);
                 SWSPopMark(mark);
             }
             break;
@@ -771,7 +771,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
         case 5227: // SetWorkItemData
             if (objc != 2)
                 goto badargs;
-            pv = ObjToByteArrayDW(objv[1], &dw1);
+            CHECK_RESULT(ObjToByteArrayDW(interp, objv[1], &dw1, (unsigned char **)&pv));
             if (dw1 > MAXWORD) {
                 ObjSetStaticResult(interp, "Binary data exceeds MAXWORD");
                 return TCL_ERROR;

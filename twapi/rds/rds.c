@@ -134,9 +134,9 @@ static int Twapi_RDSCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     LPWSTR s, s2;
     DWORD dw, dw2, dw3, dw4;
     HANDLE h;
-    int i, i2;
     TwapiResult result;
     int func = PtrToInt(clientdata);
+    Tcl_Size len, len2;
 
     /* At least one arg for every command */
     if (objc < 2)
@@ -158,10 +158,10 @@ static int Twapi_RDSCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          GETINT(dw2), GETINT(dw3), GETBOOL(dw4),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        s = ObjToWinCharsN(objv[2], &i);
-        s2 = ObjToWinCharsN(objv[3], &i2);
-        if (WTSSendMessageW(h, dw, s, sizeof(WCHAR)*i,
-                            s2, sizeof(WCHAR)*i2, dw2,
+        s = ObjToWinCharsN(objv[2], &len);
+        s2 = ObjToWinCharsN(objv[3], &len2);
+        if (WTSSendMessageW(h, dw, s, sizeof(WCHAR)*len,
+                            s2, sizeof(WCHAR)*len2, dw2,
                             dw3, &result.value.uval, dw4))
             result.type = TRT_DWORD;
         else

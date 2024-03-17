@@ -602,9 +602,9 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
 {
     int i, buf_sz;
     Tcl_Obj **objv;
-    int       objc;
-    int       logfile_name_i;
-    int       session_name_i;
+    Tcl_Size  objc;
+    Tcl_Size  logfile_name_i;
+    Tcl_Size  session_name_i;
     WCHAR    *logfile_name = NULL;
     WCHAR    *session_name = NULL;
     EVENT_TRACE_PROPERTIES *etP;
@@ -635,7 +635,6 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
         "-loggerthread",
         NULL,
     };
-
 
     if (ObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
@@ -1047,7 +1046,9 @@ TCL_RESULT Twapi_TraceEvent(ClientData clientdata, Tcl_Interp *interp, int objc,
     event.eth.Class.Level = level;
 
     for (i = 0; i < objc; ++i) {
-        event.mof[i].DataPtr = (ULONG64) ObjToByteArrayDW(objv[i], &event.mof[i].Length);
+        unsigned char *temp;
+        CHECK_RESULT(ObjToByteArrayDW(interp, objv[i], &event.mof[i].Length, &temp));
+        event.mof[i].DataPtr = (ULONG64) temp;
     }
 
     rc = TraceEvent(gETWProviderSessionHandle, &event.eth);
@@ -2419,11 +2420,11 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
     int i;
     FILETIME start, end, *startP, *endP;
     struct TwapiETWContext etwc;
-    int callback_cmdlen;
+    Tcl_Size callback_cmdlen;
     DWORD winerr;
     Tcl_Obj **htraceObjs;
     TRACEHANDLE htraces[8];
-    int       ntraces;
+    Tcl_Size    ntraces;
 
     if (objc != 5)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -2534,11 +2535,11 @@ TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int obj
 
 TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    int       i, eaten, remain;
+    Tcl_Size  i, eaten, remain;
     Tcl_Obj **types;            /* Field types */
-    int       ntypes;           /* Number of fields/types */
     BYTE     *bytesP;
-    int       nbytes;
+    Tcl_Size  ntypes;           /* Number of fields/types */
+    Tcl_Size  nbytes;
     Tcl_Obj  *resultObj = NULL;
     WCHAR     wc;
     GUID      guid;
@@ -2564,7 +2565,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
 
     if (ntypes & 1) {
         return TwapiReturnErrorEx(interp, TWAPI_INVALID_ARGS,
-                           Tcl_ObjPrintf("Field descriptor argument has odd number of elements (%d).", ntypes));
+                           Tcl_ObjPrintf("Field descriptor argument has odd number of elements (%" TCL_SIZE_MODIFIER "d).", ntypes));
     }
 
     if (pointer_size != 4 && pointer_size != 8) {

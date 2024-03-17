@@ -16,7 +16,7 @@ dnl	to configure the system for the local environment.
 # this case) so that we create the export library with the dll.
 #-----------------------------------------------------------------------
 
-AC_INIT([twapi],[4.7.2])
+AC_INIT([twapi],[5.0a0])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -24,7 +24,7 @@ AC_INIT([twapi],[4.7.2])
 # as well as PKG_LIB_FILE and PKG_STUB_LIB_FILE.
 # --------------------------------------------------------------------
 
-TEA_INIT([3.9])
+TEA_INIT([3.13])
 
 AC_CONFIG_AUX_DIR(tclconfig)
 

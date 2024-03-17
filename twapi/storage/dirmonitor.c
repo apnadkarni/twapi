@@ -622,7 +622,7 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
 
     if (notify) {
         /* File or error notification */
-        int objc;
+        Tcl_Size objc;
         Tcl_Obj **objv;
         ObjAppendElement(interp, scriptObj, changesObj);
         ObjGetElements(interp, scriptObj, &objc, &objv);
@@ -714,6 +714,9 @@ int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
 static int TwapiDirectoryMonitorPatternMatch(WCHAR *path, WCHAR *pattern)
 {
     int include;
+    Tcl_Obj *patObj, *pathObj;
+    const char *pathutf, *patutf;
+    int match_result;
 
     /* Pattern can be prefixed with + or - to indicate inclusion/exclusion */
     if (pattern[0] == L'-') {
@@ -725,21 +728,12 @@ static int TwapiDirectoryMonitorPatternMatch(WCHAR *path, WCHAR *pattern)
     } else
         include = 1;            /* Default is inclusive pattern */
 
-#if TCL_UTF_MAX < 4
-    return Tcl_UniCharCaseMatch(path, pattern, 1) ? include : 0;
-#else
-    {
-        Tcl_Obj *patObj, *pathObj;
-        Tcl_UniChar *pathuni, *patuni;
-        int match_result;
-        patObj = ObjFromWinChars(pattern);
-        patuni = Tcl_GetUnicode(patObj);
-        pathObj = ObjFromWinChars(path);
-        pathuni = Tcl_GetUnicode(pathObj);
-        match_result = Tcl_UniCharCaseMatch(pathuni, patuni, 1) ? include : 0;
-        ObjDecrRefs(patObj);
-        ObjDecrRefs(pathObj);
-        return match_result;
-    }
-#endif
+    patObj = ObjFromWinChars(pattern);
+    patutf = Tcl_GetString(patObj);
+    pathObj = ObjFromWinChars(path);
+    pathutf = Tcl_GetString(pathObj);
+    match_result = Tcl_StringCaseMatch(pathutf, patutf, 1) ? include : 0;
+    ObjDecrRefs(patObj);
+    ObjDecrRefs(pathObj);
+    return match_result;
 }

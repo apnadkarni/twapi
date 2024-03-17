@@ -138,7 +138,7 @@ int Twapi_BecomeAService(
     gServiceContexts = TwapiAllocZero(gNumServiceContexts*sizeof(TwapiServiceContext));
     for (i = 0; i < gNumServiceContexts; ++i) {
         Tcl_Obj **objs;
-        int       n;
+        Tcl_Size  n;
         int       ctrls;
         WCHAR    *nameP;
         if (ObjGetElements(interp, objv[i+1], &n, &objs) != TCL_OK ||

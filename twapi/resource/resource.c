@@ -210,7 +210,7 @@ TCL_RESULT Twapi_UpdateResource(
 
     /* Note resP / reslen might be NULL/0 -> delete resource */
     if (resObj)
-        resP = ObjToByteArrayDW(resObj, &reslen);
+        CHECK_RESULT(ObjToByteArrayDW(interp, resObj, &reslen, (unsigned char **)&resP));
     else {
         resP = NULL;
         reslen = 0;
@@ -437,12 +437,12 @@ TCL_RESULT Twapi_SplitStringResource(
     Tcl_Obj *CONST objv[])
 {
     WCHAR *wP;
-    int len;
+    Tcl_Size len;
     Tcl_Obj *objP = ObjEmptyList();
-    
+
     CHECK_NARGS(interp, objc, 1);
     wP = (WCHAR *)ObjToByteArray(objv[0], &len);
-    
+
     while (len >= 2) {
         WORD slen = *wP++;
         if (slen > (sizeof(WCHAR)*len)) {

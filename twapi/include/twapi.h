@@ -430,6 +430,13 @@ typedef int TWAPI_ERROR;
  * Misc utility macros
  **********************/
 
+#define CHECK_RESULT(value_or_fncall)           \
+    do {                                        \
+        int result_ = value_or_fncall;           \
+        if (result_ != TCL_OK)                   \
+            return result_;                      \
+    } while (0)
+
 /* Verify a Tcl_Obj is an integer/long and return error if not */
 #define CHECK_INTEGER_OBJ(interp_, intvar_, objp_)       \
     do {                                                                \
@@ -1534,6 +1541,10 @@ TWAPI_EXTERN Tcl_Obj *ObjFromWinChars(const WCHAR *ws);
 #define ObjFromWinChars ObjFromTclUniChar
 #define ObjFromWinCharsN ObjFromTclUniCharN
 #endif
+TWAPI_EXTERN TCL_RESULT ObjToWinCharsDW(Tcl_Interp *interp,
+                                        Tcl_Obj    *objP,
+                                        DWORD      *lenP,
+                                        WCHAR     **wsPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsLimited(const WCHAR *wstrP, Tcl_Size max, Tcl_Size *remain);
 TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsNoTrailingSpace(const WCHAR *strP);
 
@@ -1541,6 +1552,10 @@ TWAPI_EXTERN Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, Tcl_Size len)
 TWAPI_EXTERN Tcl_Obj *ObjAllocateByteArray(Tcl_Size len, void **);
 TWAPI_EXTERN Tcl_Obj *ObjFromByteArrayHex(const unsigned char *bytes, Tcl_Size len);
 TWAPI_EXTERN unsigned char *ObjToByteArray(Tcl_Obj *objP, Tcl_Size *lenP);
+TWAPI_EXTERN TCL_RESULT     ObjToByteArrayDW(Tcl_Interp     *ip,
+                                             Tcl_Obj        *objP,
+                                             DWORD          *dwP,
+                                             unsigned char **bufPP);
 
 TWAPI_EXTERN TCL_RESULT TwapiEncryptData(Tcl_Interp *, BYTE *, Tcl_Size, BYTE *, Tcl_Size *);
 TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *, BYTE *, Tcl_Size , BYTE *, Tcl_Size *);
@@ -1565,7 +1580,7 @@ TWAPI_EXTERN int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSIDNoFail(SID *sidP);
 
 TWAPI_EXTERN LPWSTR *ObjToMemLifoArgvW(TwapiInterpContext *ticP, Tcl_Obj *objP, int *argcP);
-TWAPI_EXTERN int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *argcP);
+TWAPI_EXTERN int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, Tcl_Size argc, Tcl_Size *argcP);
 TWAPI_EXTERN Tcl_Obj *ObjFromArgvA(int argc, char **argv);
 TWAPI_EXTERN int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *argcP);
 TWAPI_EXTERN LPWSTR ObjToLPWSTR_NULL_IF_EMPTY(Tcl_Obj *objP);

@@ -106,7 +106,7 @@ Tcl_Obj *ObjFromSecHandle(SecHandle *shP)
 
 int ObjToSecHandle(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle *shP)
 {
-    int       objc;
+    Tcl_Size  objc;
     Tcl_Obj **objv;
 
     if (ObjGetElements(interp, obj, &objc, &objv) != TCL_OK)
@@ -122,7 +122,7 @@ int ObjToSecHandle(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle *shP)
 
 int ObjToSecHandle_NULL(Tcl_Interp *interp, Tcl_Obj *obj, SecHandle **shPP)
 {
-    int n;
+    Tcl_Size n;
     if (ObjListLength(interp, obj, &n) != TCL_OK)
         return TCL_ERROR;
     if (n == 0) {
@@ -167,8 +167,7 @@ void TwapiFreeSecBufferDesc(SecBufferDesc *sbdP)
 int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, int readonly)
 {
     Tcl_Obj **objv;
-    int      objc;
-    int      i;
+    Tcl_Size i, objc;
 
     if (ObjGetElements(interp, obj, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
@@ -184,9 +183,9 @@ int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, in
      */
     for (i=0; i < objc; ++i) {
         Tcl_Obj **bufobjv;
-        int       bufobjc;
+        Tcl_Size  bufobjc;
         int       buftype;
-        int       datalen;
+        Tcl_Size  datalen;
         BYTE     *dataP;
         if (ObjGetElements(interp, objv[i], &bufobjc, &bufobjv) != TCL_OK)
             return TCL_ERROR;
@@ -560,7 +559,7 @@ static TCL_RESULT ParseSCHANNEL_CRED (
     )
 {
     Tcl_Obj **objv;
-    int objc;
+    Tcl_Size objc;
     TCL_RESULT res;
     Tcl_Obj *certsObj;
     SCHANNEL_CRED *credP;
@@ -783,13 +782,20 @@ static TCL_RESULT Twapi_MakeSignatureObjCmd(ClientData clientdata, Tcl_Interp *i
 
     objs[0] = ObjFromByteArray(NULL, spc_sizes.cbMaxSignature);
     sbufs[0].BufferType = SECBUFFER_TOKEN;
-    sbufs[0].pvBuffer   = (BYTE*) ObjToByteArray(objs[0], (int *) &sbufs[0].cbBuffer);
+    if (ObjToByteArrayDW(interp, objs[0], &sbufs[0].cbBuffer, (unsigned char **)&sbufs[0].pvBuffer) != TCL_OK) {
+        Tcl_DecrRefCount(objs[0]);
+        return TCL_ERROR;
+    }
 
     objs[1] = ObjDuplicate(dataObj);
     TWAPI_ASSERT(! Tcl_IsShared(objs[1]));
     sbufs[1].BufferType = SECBUFFER_DATA | SECBUFFER_READONLY;
-    sbufs[1].pvBuffer   = (BYTE*) ObjToByteArray(objs[1], (int *) &sbufs[1].cbBuffer);
-    
+    if (ObjToByteArrayDW(interp, objs[1], &sbufs[1].cbBuffer, (unsigned char **)&sbufs[1].pvBuffer) != TCL_OK) {
+        Tcl_DecrRefCount(objs[0]);
+        Tcl_DecrRefCount(objs[1]);
+        return TCL_ERROR;
+    }
+
     sbd.cBuffers = 2;
     sbd.pBuffers = sbufs;
     sbd.ulVersion = SECBUFFER_VERSION;
@@ -838,16 +844,28 @@ static TCL_RESULT Twapi_EncryptMessageObjCmd(ClientData clientdata, Tcl_Interp *
 
     objs[0] = ObjFromByteArray(NULL, spc_sizes.cbSecurityTrailer);
     sbufs[0].BufferType = SECBUFFER_TOKEN;
-    sbufs[0].pvBuffer   = (BYTE *) ObjToByteArray(objs[0], (int *) &sbufs[0].cbBuffer);
+    if (ObjToByteArrayDW(interp, objs[0], &sbufs[0].cbBuffer, (unsigned char **)&sbufs[0].pvBuffer) != TCL_OK) {
+        Tcl_DecrRefCount(objs[0]);
+        return TCL_ERROR;
+    }
 
     objs[1] = ObjDuplicate(dataObj);
     TWAPI_ASSERT(! Tcl_IsShared(objs[1]));
     sbufs[1].BufferType = SECBUFFER_DATA;
-    sbufs[1].pvBuffer   = (BYTE *) ObjToByteArray(objs[1], (int *) &sbufs[1].cbBuffer);
-    
+    if (ObjToByteArrayDW(interp, objs[1], &sbufs[1].cbBuffer, (unsigned char **)&sbufs[1].pvBuffer) != TCL_OK) {
+        Tcl_DecrRefCount(objs[0]);
+        Tcl_DecrRefCount(objs[1]);
+        return TCL_ERROR;
+    }
+
     objs[2] = ObjFromByteArray(NULL, spc_sizes.cbBlockSize);
     sbufs[2].BufferType = SECBUFFER_PADDING;
-    sbufs[2].pvBuffer   = (BYTE *) ObjToByteArray(objs[2], (int *) &sbufs[2].cbBuffer);
+    if (ObjToByteArrayDW(interp, objs[2], &sbufs[2].cbBuffer, (unsigned char **)&sbufs[2].pvBuffer) != TCL_OK) {
+        Tcl_DecrRefCount(objs[0]);
+        Tcl_DecrRefCount(objs[1]);
+        Tcl_DecrRefCount(objs[2]);
+        return TCL_ERROR;
+    }
 
     sbd.cBuffers = 3;
     sbd.pBuffers = sbufs;
@@ -881,7 +899,7 @@ static TCL_RESULT Twapi_EncryptStreamObjCmd(ClientData clientdata, Tcl_Interp *i
     Tcl_Obj *dataObj;
     Tcl_Obj *objs[2];           /* 0 encrypted data, 1 leftover data */
     BYTE  *dataP, *encP;
-    DWORD   datalen;
+    Tcl_Size  datalen;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVAR(sech, ObjToSecHandle),
@@ -894,7 +912,7 @@ static TCL_RESULT Twapi_EncryptStreamObjCmd(ClientData clientdata, Tcl_Interp *i
     if (ss != SEC_E_OK)
         return Twapi_AppendSystemError(interp, ss);
 
-    dataP = ObjToByteArray(dataObj, (int *) &datalen);
+    dataP = ObjToByteArray(dataObj, &datalen);
     if (datalen > sizes.cbMaximumMessage) {
         objs[1] = ObjFromByteArray(dataP+sizes.cbMaximumMessage,
                                        datalen-sizes.cbMaximumMessage);
@@ -952,7 +970,7 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(ClientData clientdata, Tcl_Interp *i
     SecBufferDesc sbd;
     Tcl_Obj *objs[3];           /* 0 status, 1 decrypted data, 2 extra data */
     BYTE *encP, *p;
-    int  i, enclen;
+    DWORD  i, enclen;
     TCL_RESULT res;
 
     CHECK_NARGS_RANGE(interp, objc, 3, INT_MAX);
@@ -961,15 +979,17 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(ClientData clientdata, Tcl_Interp *i
 
     sbufs[0].BufferType = SECBUFFER_DATA;
     sbufs[0].cbBuffer   = 0;
+    /* First just get lengths */
     for (i = 2; i < objc; ++i) {
-        ObjToByteArray(objv[i], &enclen);
+        CHECK_RESULT(ObjToByteArrayDW(interp, objv[i], &enclen, &encP));
         sbufs[0].cbBuffer += enclen;
     }
+    /* Allocate buffer large enough */
     sbufs[0].pvBuffer = MemLifoPushFrame(ticP->memlifoP,
                                          sbufs[0].cbBuffer, NULL);
     p = sbufs[0].pvBuffer;
     for (i = 2; i < objc; ++i) {
-        encP = ObjToByteArray(objv[i], &enclen);
+        CHECK_RESULT(ObjToByteArrayDW(interp, objv[i], &enclen, &encP));
         CopyMemory(p, encP, enclen);
         p += enclen;
     }
@@ -1069,7 +1089,8 @@ static int Twapi_AcquireCredentialsHandleObjCmd(ClientData clientdata, Tcl_Inter
     Tcl_Obj *objs[2];
     MemLifoMarkHandle mark;
     TCL_RESULT res = TCL_ERROR;
-    int is_unisp, n;
+    int is_unisp;
+    Tcl_Size n;
     void *pv;
 
     pv = NULL;

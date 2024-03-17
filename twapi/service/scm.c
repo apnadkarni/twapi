@@ -461,7 +461,7 @@ static TCL_RESULT ParseSERVICE_FAILURE_ACTIONS(
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj **objs;
     Tcl_Obj *actionsObj;
-    int i, nobjs;
+    Tcl_Size i, nobjs;
     TCL_RESULT res;
 
     res = ObjGetElements(interp, sfaObj, &nobjs, &objs);
@@ -500,7 +500,7 @@ static TCL_RESULT ParseSERVICE_FAILURE_ACTIONS(
 
     for (i = 0; i < nobjs; ++i) {
         Tcl_Obj **fields;
-        int nfields;
+        Tcl_Size nfields;
         int sc_type;
 
         res = ObjGetElements(interp, objs[i], &nfields, &fields);
@@ -580,7 +580,7 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     LPWSTR dependencies = NULL;
     TCL_RESULT res;
     LPWSTR path, logrp, start_name, password, display_name;
-    int password_len;
+    Tcl_Size password_len;
     Tcl_Interp *interp = ticP->interp;
     MemLifoMarkHandle mark;
     Tcl_Obj *tagObj, *depObj, *passwordObj;
@@ -653,7 +653,8 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
     DWORD tag_id;
     DWORD *tag_idP;
     LPWSTR dependencies;
-    int res, password_len;
+    int res;
+    Tcl_Size password_len;
     LPWSTR service_name, display_name, path, logrp;
     LPWSTR service_start_name, password;
     Tcl_Interp *interp = ticP->interp;
@@ -722,7 +723,7 @@ int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     SC_HANDLE svcH;
     LPCWSTR args[64];
     Tcl_Obj **argObjs;
-    int     i, nargs;
+    Tcl_Size  i, nargs;
 
     if (objc != 2) {
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);

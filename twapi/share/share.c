@@ -479,7 +479,7 @@ int Twapi_WNetUseConnection(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     HWND          winH;
     LPWSTR  usernameP;
     LPWSTR  passwordP, decrypted_password;
-    int     password_len;
+    Tcl_Size password_len;
     DWORD   ignore_password, flags;
     WCHAR accessname[MAX_PATH];
     DWORD accessname_size;
@@ -612,12 +612,12 @@ static TCL_RESULT Twapi_WNetAddConnection3ObjCmd(ClientData clientdata, Tcl_Inte
 {
     TwapiInterpContext *ticP = clientdata;
     TCL_RESULT res;
-    DWORD       flags, wnet_status, sz;
+    DWORD flags, wnet_status, sz;
     MemLifoMarkHandle mark;
-    LPCWSTR     username;
+    LPCWSTR username;
     HWND hwnd;
-    WCHAR         *decryptedP;
-    int            decrypted_len;
+    WCHAR *decryptedP;
+    Tcl_Size decrypted_len;
     NETRESOURCEW *netresP;
 
     mark = MemLifoPushMark(ticP->memlifoP);

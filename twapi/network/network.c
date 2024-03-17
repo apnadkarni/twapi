@@ -243,9 +243,9 @@ int TwapiStringToSOCKADDR_STORAGE(char *s, SOCKADDR_STORAGE *ssP, int family)
 int ObjToSOCKADDR_STORAGE(Tcl_Interp *interp, Tcl_Obj *objP, SOCKADDR_STORAGE *ssP)
 {
     Tcl_Obj **objv;
-    int       objc;
+    Tcl_Size  objc;
     Tcl_Obj **addrv;
-    int       addrc;
+    Tcl_Size  addrc;
     int       family;
     WORD      port;
 
@@ -320,7 +320,7 @@ error_return:
 int ObjToSOCKADDR_IN(Tcl_Interp *interp, Tcl_Obj *objP, struct sockaddr_in *sinP)
 {
     Tcl_Obj **objv;
-    int       objc;
+    Tcl_Size  objc;
 
     if (ObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
@@ -726,7 +726,7 @@ Tcl_Obj *ObjFromMIB_TCPROW(Tcl_Interp *interp, const MIB_TCPROW *row, int size)
 int ObjToMIB_TCPROW(Tcl_Interp *interp, Tcl_Obj *listObj,
                     MIB_TCPROW *row)
 {
-    int  objc;
+    Tcl_Size objc;
     Tcl_Obj **objv;
 
     if (ObjGetElements(interp, listObj, &objc, &objv) != TCL_OK)

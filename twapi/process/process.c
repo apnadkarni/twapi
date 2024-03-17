@@ -460,7 +460,7 @@ int Twapi_WaitForInputIdle(
    clean up */
 static int ListObjToSTARTUPINFO(TwapiInterpContext *ticP, Tcl_Obj *siObj, STARTUPINFOW *siP)
 {
-    int  objc;
+    Tcl_Size  objc;
     Tcl_Obj **objvP;
     Tcl_Obj *stdhObj;
     Tcl_Interp *interp = ticP->interp;
@@ -931,7 +931,7 @@ static TCL_RESULT Twapi_LoadUserProfileObjCmd(
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     HANDLE  hToken;
     PROFILEINFOW profileinfo;
-    int nobjs;
+    Tcl_Size nobjs;
     Tcl_Obj **objs;
 
     CHECK_NARGS(interp, objc, 2);

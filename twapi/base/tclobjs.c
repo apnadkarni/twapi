@@ -509,7 +509,8 @@ TWAPI_EXTERN Tcl_Obj *ObjDuplicate(Tcl_Obj *objP)
  *   have their memory freed
  *  The return value reflects whether the result was set from an error or not,
  *  NOT whether the result was successfully set (which it always is).
- **/
+ **/
+
 TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
 {
     char *typenameP;
@@ -964,6 +965,25 @@ TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsNoTrailingSpace(const WCHAR *strP)
     if (len && strP[len-1] == L' ')
         --len;
     return ObjFromWinCharsN(strP, len);
+}
+
+TWAPI_EXTERN TCL_RESULT
+ObjToWinCharsDW(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *lenP, WCHAR **wsPP)
+{
+    WCHAR *wsP;
+    Tcl_Size len;
+
+    wsP = ObjToWinCharsN(objP, &len); /* Will convert as needed */
+    if (len > 0xffffffffUL) {
+        return TwapiReturnErrorMsg(
+            interp,
+            TWAPI_OUT_OF_RANGE,
+            "String length does not fit in 32-bits.");
+    }
+    if (lenP)
+        *lenP = (DWORD) len;
+    *wsPP = wsP;
+    return TCL_OK;
 }
 
 /*
@@ -1949,7 +1969,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromArgvA(int argc, char **argv)
     return objP;
 }
 
-TWAPI_EXTERN int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *argcP)
+TWAPI_EXTERN int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, Tcl_Size argc, Tcl_Size *argcP)
 {
     Tcl_Size  objc, i;
     Tcl_Obj **objv;
@@ -1961,7 +1981,7 @@ TWAPI_EXTERN int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, in
             interp,
             TWAPI_INTERNAL_LIMIT,
             Tcl_ObjPrintf("Number of strings (%" TCL_SIZE_MODIFIER
-                          "d) in list exceeds size of argument array (%d).",
+                          "d) in list exceeds size of argument array (%" TCL_SIZE_MODIFIER "d).",
                           objc,
                           argc - 1));
     }
@@ -4639,6 +4659,27 @@ TWAPI_EXTERN Tcl_Obj *ObjFromByteArrayHex(const unsigned char *bytes, Tcl_Size l
 TWAPI_EXTERN unsigned char *ObjToByteArray(Tcl_Obj *objP, Tcl_Size *lenP)
 {
     return Tcl_GetByteArrayFromObj(objP, lenP);
+}
+
+TWAPI_EXTERN TCL_RESULT
+ObjToByteArrayDW(Tcl_Interp     *ip,
+                 Tcl_Obj        *objP,
+                 DWORD          *dwP,
+                 unsigned char **bufPP)
+{
+    Tcl_Size len;
+    unsigned char *p;
+    p = ObjToByteArray(objP, &len);
+    if (len > 0xffffffffUL) {
+        return TwapiReturnErrorMsg(
+            ip,
+            TWAPI_OUT_OF_RANGE,
+            "Byte array length does not fit in 32-bits.");
+    }
+    if (dwP)
+        *dwP = (DWORD)len;
+    *bufPP = p;
+    return TCL_OK;
 }
 
 /*

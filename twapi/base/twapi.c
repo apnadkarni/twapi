@@ -10,9 +10,6 @@
 #include <ntverp.h>             /* Needed for VER_PRODUCTBUILD SDK version */
 #include "tclTomMath.h"
 
-#define TWAPI_TCL_MAJOR 8
-#define TWAPI_MIN_TCL_MINOR 5
-
 /* Following two definitions required for MinGW builds */
 #ifndef MODULENAME
 #define MODULENAME "twapi_base"
@@ -82,7 +79,7 @@ TwapiBaseSettings gBaseSettings = {
 };
 GUID gTwapiNullGuid;             /* Initialized to all zeroes */
 struct TwapiTclVersion gTclVersion;
-static int gTclIsThreaded;
+static int gTclIsThreaded = 1;
 static DWORD gTlsIndex = TLS_OUT_OF_INDEXES; /* As returned by TlsAlloc */
 static LONG volatile gTlsNextSlot;  /* Index into private slots in Tls area. */
 
@@ -300,8 +297,9 @@ int Twapi_base_Init(Tcl_Interp *interp)
 
     /* Allocate a context that will be passed around in all interpreters */
     ticP = TwapiRegisterModule(interp,  gTwapiModuleHandle, &gBaseModule, NEW_TIC);
-    if (ticP == NULL)
+    if (ticP == NULL) {
         return TCL_ERROR;
+    }
 
     ticP->module.data.pval = TwapiAlloc(sizeof(TwapiBaseSpecificContext));
     /* Cache of commonly used objects */
@@ -755,49 +753,49 @@ static int TwapiOneTimeInit(void *pv)
     WORD    ws_ver = MAKEWORD(1,1);
 
     gTlsIndex = TlsAlloc();
-    if (gTlsIndex == TLS_OUT_OF_INDEXES)
+    if (gTlsIndex == TLS_OUT_OF_INDEXES) {
+        Tcl_SetResult(interp, "TLS index allocation failed.", TCL_STATIC);
         return TCL_ERROR;       /* No point storing error message.
                                    Discarded anyways by Tcl */
+    }
 
     InitializeCriticalSection(&gTwapiInterpContextsCS);
     ZLIST_INIT(&gTwapiInterpContexts);
 
+#if TCL_MAJOR_VERSION < 9
     if (Tcl_GetVar2Ex(interp, "tcl_platform", "threaded", TCL_GLOBAL_ONLY))
         gTclIsThreaded = 1;
     else
         gTclIsThreaded = 0;
+#endif
 
     Tcl_GetVersion(&gTclVersion.major,
                    &gTclVersion.minor,
                    &gTclVersion.patchlevel,
                    &gTclVersion.reltype);
 
-    /*
-     * Check if running against an older Tcl version compared to what we 
-     * built against.
-     */
-    if (gTclVersion.major < TCL_MAJOR_VERSION ||
-        (gTclVersion.major == TCL_MAJOR_VERSION && gTclVersion.minor < TCL_MINOR_VERSION)) {
+    /* Check if running against an incompatible Tcl version */
+    if (gTclVersion.major != TCL_MAJOR_VERSION ||
+        gTclVersion.minor < TCL_MINOR_VERSION) {
+        Tcl_SetResult(interp, "Unsupported Tcl version.", TCL_STATIC);
         return TCL_ERROR;
     }
 
-    /* Next check is for minimal supported version. Probably not necessary
-       given above check but ... */
-    if (gTclVersion.major ==  TWAPI_TCL_MAJOR &&
-        gTclVersion.minor >= TWAPI_MIN_TCL_MINOR) {
-        TwapiInitTclTypes();
-        gTwapiOSVersionInfo.dwOSVersionInfoSize =
-            sizeof(gTwapiOSVersionInfo);
-        if (TwapiRtlGetVersion(&gTwapiOSVersionInfo)) {
-            /* Sockets */
-            if (WSAStartup(ws_ver, &ws_data) == 0) {
-                Tcl_CreateExitHandler(Twapi_Cleanup, NULL);
-                return TCL_OK;
-            }
-        }
+    TwapiInitTclTypes();
+    gTwapiOSVersionInfo.dwOSVersionInfoSize =
+        sizeof(gTwapiOSVersionInfo);
+    if (!TwapiRtlGetVersion(&gTwapiOSVersionInfo)) {
+        Tcl_SetResult(interp, "Could not get OS version.", TCL_STATIC);
+        return TCL_ERROR;
     }
 
-    return TCL_ERROR;
+    if (WSAStartup(ws_ver, &ws_data) != 0) {
+        Tcl_SetResult(interp, "Could not initialize Winsock.", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
+    Tcl_CreateExitHandler(Twapi_Cleanup, NULL);
+    return TCL_OK;
 }
 
 TwapiId Twapi_NewId(TwapiInterpContext *ticP)
@@ -842,7 +840,7 @@ TwapiInterpContext *TwapiRegisterModule(
         if (ticP == NULL)
             return NULL;
     } else {
-        
+
         ticP = TwapiGetBaseContext(interp);
 
         /* We do not need to increment the ticP ref count because
@@ -859,9 +857,11 @@ TwapiInterpContext *TwapiRegisterModule(
 
     /* Call SourceResource to either read from a resource or from
        a script file if the resource does not exist. */
-    if ((modP->initializer && modP->initializer(interp, ticP) != TCL_OK) ||
-        Twapi_SourceResource(interp, hmod, modP->name, 1) != TCL_OK ||
-        Tcl_PkgProvide(interp, modP->name, MODULEVERSION) != TCL_OK
+    if ((modP->initializer && modP->initializer(interp, ticP) != TCL_OK)
+#ifdef OBSOLETE
+        || Twapi_SourceResource(interp, hmod, modP->name, 1) != TCL_OK
+        || Tcl_PkgProvide(interp, modP->name, MODULEVERSION) != TCL_OK
+#endif
         ) {
         if (context_type)
             TwapiInterpContextUnref(ticP, 1);

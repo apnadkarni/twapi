@@ -107,7 +107,7 @@ Tcl_Obj *ObjFromSID_AND_ATTRIBUTES_Array (
 int ObjToSID_AND_ATTRIBUTESSWS(Tcl_Interp *interp, Tcl_Obj *obj, SID_AND_ATTRIBUTES *sidattrP)
 {
     Tcl_Obj **objv;
-    int       objc;
+    Tcl_Size objc;
 
     if (ObjGetElements(interp, obj, &objc, &objv) == TCL_OK &&
         objc == 2 &&
@@ -137,7 +137,7 @@ int ObjToLUID_AND_ATTRIBUTES (
     Tcl_Interp *interp, Tcl_Obj *listobj, LUID_AND_ATTRIBUTES *luidattrP
 )
 {
-    int       objc;
+    Tcl_Size objc;
     Tcl_Obj **objv;
 
     if (ObjGetElements(interp, listobj, &objc, &objv) != TCL_OK)
@@ -200,7 +200,7 @@ static TOKEN_PRIVILEGES *ParseTOKEN_PRIVILEGES(
 )
 {
     TOKEN_PRIVILEGES *tokprivP;
-    int       num_privs, sz;
+    Tcl_Size num_privs, sz;
     Tcl_Obj **objv;
 
     if (ObjGetElements(interp, tokprivObj, &num_privs, &objv) != TCL_OK)
@@ -870,7 +870,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     int func = PtrToInt(clientdata);
     WCHAR *passwordP;
     Tcl_Obj **objPP;
-    int nobjs;
+    Tcl_Size nobjs;
     int i, ival;
     Tcl_Obj *objP;
     Tcl_Obj *objs[2];
@@ -879,6 +879,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     TCL_RESULT res;
     void *pv;
     CRED_MARSHAL_TYPE   cred_marshal_type;
+    Tcl_Size len;
 
     daclP = saclP = NULL;
     osidP = gsidP = NULL;
@@ -1217,8 +1218,8 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             if (res != TCL_OK)
                 goto vamoose;
             if (STREQ(utf8, "certificate")) {
-                int                  nbytes;
-                unsigned char       *bytes;
+                Tcl_Size nbytes;
+                unsigned char *bytes;
                 u.cert_info.cbSize = sizeof(u.cert_info);
                 bytes           = ObjToByteArray(objP, &nbytes);
                 if (nbytes != 20) {
@@ -1344,7 +1345,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                                GETINT(dw), GETINT(dw2), ARGEND);
             if (res != TCL_OK)
                 goto vamoose;
-            passwordP = ObjDecryptPasswordSWS(objv[2], &ival);
+            passwordP = ObjDecryptPasswordSWS(objv[2], &len);
             if (LogonUserW(
                     ObjToWinChars(objv[0]),
                     ObjToLPWSTR_NULL_IF_EMPTY(objv[1]),
@@ -1352,7 +1353,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 result.type = TRT_HANDLE;
             else
                 result.type = TRT_GETLASTERROR;
-            SecureZeroMemory(passwordP, ival);
+            SecureZeroMemory(passwordP, len);
             break;
 
         case 10015:

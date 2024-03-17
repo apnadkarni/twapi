@@ -127,7 +127,7 @@ int ObjToSP_DEVINFO_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVINFO_DATA *sdd
     if (objP) {
         /* Initialize based on passed param */
         Tcl_Obj **objs;
-        int  nobjs;
+        Tcl_Size  nobjs;
         if (ObjGetElements(interp, objP, &nobjs, &objs) != TCL_OK ||
             TwapiGetArgs(interp, nobjs, objs,
                          ARGUSEDEFAULT,
@@ -146,7 +146,7 @@ int ObjToSP_DEVINFO_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVINFO_DATA *sdd
 /* sddPP MUST POINT TO VALID MEMORY */
 int ObjToSP_DEVINFO_DATA_NULL(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVINFO_DATA **sddPP)
 {
-    int n;
+    Tcl_Size n;
 
     if (objP && ObjListLength(interp, objP, &n) == TCL_OK && n != 0)
         return ObjToSP_DEVINFO_DATA(interp, objP, *sddPP);
@@ -170,7 +170,7 @@ int ObjToSP_DEVICE_INTERFACE_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVICE_I
     if (objP) {
         /* Initialize based on passed param */
         Tcl_Obj **objs;
-        int  nobjs;
+        Tcl_Size  nobjs;
         if (ObjGetElements(interp, objP, &nobjs, &objs) != TCL_OK ||
             TwapiGetArgs(interp, nobjs, objs,
                          ARGUSEDEFAULT,

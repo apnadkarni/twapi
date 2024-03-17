@@ -815,7 +815,7 @@ static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(ClientData clientdata, Tcl_
 {
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     EVT_HANDLE hevt;
-    int count;
+    Tcl_Size count;
     LPCWSTR *xpathsP = NULL;
     int flags;
     DWORD ret = TCL_ERROR;
@@ -1034,11 +1034,11 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(ClientData clientdata, Tcl_Interp *
     int login_class;
     DWORD timeout, flags;
     Tcl_Obj **loginObjs;
-    int nobjs;
+    Tcl_Size nobjs;
     EVT_RPC_LOGIN erl;
     TCL_RESULT res;
     WCHAR *passwordP;
-    int password_len;
+    Tcl_Size password_len;
     MemLifoMarkHandle mark = NULL;
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(login_class),
