@@ -464,6 +464,15 @@ typedef int TWAPI_ERROR;
             return TwapiReturnError((interp_), TWAPI_BAD_ARG_COUNT);    \
     } while (0)
 
+#define DWORD_LIMIT_CHECK(interp_, len_) \
+    ((len_) <= UINT_MAX ? TCL_OK : TwapiReturnErrorUIntMax(interp_))
+
+#define CHECK_DWORD(interp_, len_) \
+    do { \
+        TCL_RESULT ret_ = DWORD_LIMIT_CHECK((interp_), (len_)); \
+        if (ret_ != TCL_OK) \
+            return ret_; \
+    } while (0)
 
 /* String equality test - check first char before calling strcmp */
 #define STREQ(x, y) ( (((x)[0]) == ((y)[0])) && ! lstrcmpA((x), (y)) )
@@ -839,17 +848,23 @@ typedef struct {
 #define ARGUNUSED ARGSKIP /* For readability when even caller does not care */
 #define ARGUSEDEFAULT '?'
 
+/*
+ * These silly functions are to ensure pointer type safety when
+ * using the varargs argument parsing functions
+ */
+TWAPI_INLINE Tcl_Size *reflectTclSizePtr(Tcl_Size *p) { return p; }
+
 #define GETBOOL(v)    ARGBOOL, &(v)
-#define GETBA(v, n)  ARGBA, &(v), &(n)
+#define GETBA(v, n)  ARGBA, &(v), reflectTclSizePtr(&(n))
 #define GETINT(v)     ARGINT, &(v)
 #define GETWIDE(v)    ARGWIDE, &(v)
 #define GETDOUBLE(v)  ARGDOUBLE, &(v)
 #define GETOBJ(v)     ARGOBJ, &(v)
 #define GETDWORD_PTR(v) ARGDWORD_PTR, &(v)
 #define GETASTR(v)      ARGASTR, &(v)
-#define GETASTRN(v, n)  ARGASTRN, &(v), &(n)
+#define GETASTRN(v, n)  ARGASTRN, &(v), reflectTclSizePtr(&(n))
 #define GETWSTR(v)     ARGWSTR, &(v)
-#define GETWSTRN(v, n) ARGWSTRN, &(v), &(n)
+#define GETWSTRN(v, n) ARGWSTRN, &(v), reflectTclSizePtr(&(n))
 #define GETEMPTYASNULL(v) ARGEMPTYASNULL, &(v)
 #define GETTOKENNULL(v) ARGTOKENNULL, &(v)
 #define GETWORD(v)     ARGWORD, &(v)
@@ -867,8 +882,8 @@ typedef struct {
 #define GETGUID(v)     GETVAR(v, ObjToGUID)
 #define GETUUID(v)     GETVAR(v, ObjToUUID)
 /* For GETARGVA/GETWARGVW, v is of type char **, or WCHAR ** */
-#define GETARGVA(v, n) ARGVA, (&v), &(n)
-#define GETARGVW(v, n) ARGVW, (&v), &(n)
+#define GETARGVA(v, n) ARGVA, (&v), reflectTclSizePtr(&(n))
+#define GETARGVW(v, n) ARGVW, (&v), reflectTclSizePtr(&(n))
 
 typedef int (*TwapiGetArgsFn)(Tcl_Interp *, Tcl_Obj *, void *);
 
@@ -1364,6 +1379,7 @@ TWAPI_EXTERN TCL_RESULT TwapiReturnSystemError(Tcl_Interp *interp);
 TWAPI_EXTERN TCL_RESULT TwapiReturnError(Tcl_Interp *interp, int code);
 TWAPI_EXTERN TCL_RESULT TwapiReturnErrorEx(Tcl_Interp *interp, int code, Tcl_Obj *objP);
 TWAPI_EXTERN TCL_RESULT TwapiReturnErrorMsg(Tcl_Interp *interp, int code, char *msg);
+TWAPI_EXTERN TCL_RESULT TwapiReturnErrorUIntMax(Tcl_Interp *interp);
 
 TWAPI_EXTERN DWORD TwapiNTSTATUSToError(NTSTATUS status);
 TWAPI_EXTERN Tcl_Obj *Twapi_MakeTwapiErrorCodeObj(int err);
@@ -1677,7 +1693,7 @@ TWAPI_EXTERN TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (TwapiInterpContext *, Tcl
 TWAPI_EXTERN void SecureZeroSEC_WINNT_AUTH_IDENTITY(SEC_WINNT_AUTH_IDENTITY_W *);
 int TwapiFormatMessageHelper( Tcl_Interp *interp, DWORD dwFlags,
                               LPCVOID lpSource, DWORD dwMessageId,
-                              DWORD dwLanguageId, int argc, LPCWSTR *argv );
+                              DWORD dwLanguageId, Tcl_Size argc, LPCWSTR *argv );
 TWAPI_EXTERN Tcl_Obj *ObjFromCREDENTIAL_ATTRIBUTEW(const CREDENTIAL_ATTRIBUTEW *attrP);
 TWAPI_EXTERN Tcl_Obj *ObjFromCREDENTIALW(const CREDENTIALW *credsP);
 

@@ -1780,7 +1780,7 @@ static int Twapi_ResolveHostnameAsyncObjCmd(ClientData clientdata, Tcl_Interp *i
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     TwapiId id;
     char *name;
-    int   len;
+    Tcl_Size len;
     TwapiHostnameEvent *theP;
     DWORD winerr;
     int family;
@@ -1906,7 +1906,7 @@ static int Twapi_ResolveAddressAsyncObjCmd(ClientData clientdata, Tcl_Interp *in
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     TwapiId id;
     char *addrstr;
-    int   len;
+    Tcl_Size len;
     TwapiHostnameEvent *theP;
     DWORD winerr;
     int family;

@@ -48,7 +48,7 @@ int TwapiFormatMessageHelper(
     LPCVOID lpSource,
     DWORD   dwMessageId,
     DWORD   dwLanguageId,
-    int     argc,
+    Tcl_Size argc,
     LPCWSTR *argv
 )
 {
@@ -70,6 +70,8 @@ int TwapiFormatMessageHelper(
     */
 
     dwFlags |= FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS;
+    /* TBD - why pass argc, argv if IGNORE_INSERTS is set? */
+    /* TBD - this code seems broken. Why is argc being passed? It is supposed to be buffer size, not argument count! */
     if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId, (LPWSTR) &msgP, argc, (va_list *)argv)) {
         ObjSetResult(interp, ObjFromWinChars(msgP));
         LocalFree(msgP);
@@ -199,6 +201,11 @@ int TwapiReturnErrorMsg(Tcl_Interp *interp, int code, char *msg)
         return TwapiReturnErrorEx(interp, code, ObjFromString(msg));
     else
         return TwapiReturnError(interp, code);
+}
+
+int TwapiReturnErrorUIntMax(Tcl_Interp *interp)
+{
+    return TwapiReturnErrorMsg(interp, TWAPI_OUT_OF_RANGE, "Length does not fit in 32 bits.");
 }
 
 /* Sets the interpreter result to a TWAPI error with addition message */

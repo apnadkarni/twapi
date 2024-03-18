@@ -511,6 +511,7 @@ TWAPI_EXTERN Tcl_Obj *ObjDuplicate(Tcl_Obj *objP)
  *  NOT whether the result was successfully set (which it always is).
  **/
 
+
 TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
 {
     char *typenameP;
@@ -974,12 +975,7 @@ ObjToWinCharsDW(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *lenP, WCHAR **wsPP)
     Tcl_Size len;
 
     wsP = ObjToWinCharsN(objP, &len); /* Will convert as needed */
-    if (len > 0xffffffffUL) {
-        return TwapiReturnErrorMsg(
-            interp,
-            TWAPI_OUT_OF_RANGE,
-            "String length does not fit in 32-bits.");
-    }
+    CHECK_DWORD(interp, len);
     if (lenP)
         *lenP = (DWORD) len;
     *wsPP = wsP;
@@ -4670,12 +4666,7 @@ ObjToByteArrayDW(Tcl_Interp     *ip,
     Tcl_Size len;
     unsigned char *p;
     p = ObjToByteArray(objP, &len);
-    if (len > 0xffffffffUL) {
-        return TwapiReturnErrorMsg(
-            ip,
-            TWAPI_OUT_OF_RANGE,
-            "Byte array length does not fit in 32-bits.");
-    }
+    CHECK_DWORD(ip, len);
     if (dwP)
         *dwP = (DWORD)len;
     *bufPP = p;
@@ -5154,7 +5145,7 @@ TWAPI_EXTERN TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (
     Tcl_Size objc;
     TCL_RESULT res;
     SEC_WINNT_AUTH_IDENTITY_W *swaiP;
-    Tcl_Size i;
+    Tcl_Size i, userLen, domainLen;
 
     if ((res = ObjGetElements(ticP->interp, authObj, &objc, &objv)) != TCL_OK)
         return res;
@@ -5167,12 +5158,18 @@ TWAPI_EXTERN TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (
     swaiP = MemLifoAlloc(ticP->memlifoP, sizeof(*swaiP), NULL);
     swaiP->Flags = SEC_WINNT_AUTH_IDENTITY_UNICODE;
     res = TwapiGetArgsEx(ticP, objc, objv,
-                         GETWSTRN(swaiP->User, swaiP->UserLength),
-                         GETWSTRN(swaiP->Domain, swaiP->DomainLength),
+                         GETWSTRN(swaiP->User, userLen),
+                         GETWSTRN(swaiP->Domain, domainLen),
                          GETOBJ(passwordObj),
                          ARGEND);
     if (res != TCL_OK)
         return res;
+
+    CHECK_DWORD(ticP->interp, userLen);
+    CHECK_DWORD(ticP->interp, domainLen);
+
+    swaiP->UserLength = userLen;
+    swaiP->DomainLength = domainLen;
 
     /* The decrypted password will be on the SWS which should be the same
        as ticP->memlifoP

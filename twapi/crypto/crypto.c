@@ -562,10 +562,17 @@ static TCL_RESULT ParseCRYPT_BIT_BLOB(
 
     if (ObjGetElements(NULL, pkObj, &nobjs, &objs) == TCL_OK) {
         if (nobjs) {
-            if (TwapiGetArgsEx(ticP, nobjs, objs, GETBA(blobP->pbData, blobP->cbData),
+            BYTE *bytesP;
+            Tcl_Size nbytes;
+            if (TwapiGetArgsEx(ticP, nobjs, objs, GETBA(bytesP, nbytes),
                                GETINT(blobP->cUnusedBits), ARGEND) == TCL_OK &&
-                blobP->cUnusedBits <= 7)
-                return TCL_OK;
+                blobP->cUnusedBits <= 7) {
+                if (nbytes <= 0xffffffffUL) {
+                    blobP->pbData = bytesP;
+                    blobP->cbData = (DWORD) nbytes;
+                    return TCL_OK;
+                }
+            }
         } else {
             blobP->pbData = NULL;
             blobP->cbData = 0;
@@ -729,15 +736,17 @@ static TCL_RESULT ParseCERT_NAME_VALUE_WinChars(
     CERT_NAME_VALUE *cnvP
     )
 {
-    int nchars;
+    Tcl_Size nchars;
 
     if (TwapiGetArgsExObj(ticP, namevalObj, GETINT(cnvP->dwValueType),
                           GETWSTRN(cnvP->Value.pbData, nchars), ARGEND)
         ==  TCL_OK) {
-        cnvP->Value.cbData = nchars * sizeof(WCHAR);
-        return TCL_OK;
-    } else
-        return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid CERT_NAME_VALUE.");
+        if (nchars <= 0xffffffffUL) {
+            cnvP->Value.cbData = nchars * sizeof(WCHAR);
+            return TCL_OK;
+        }
+    }
+    return TwapiReturnErrorMsg(ticP->interp, TWAPI_INVALID_ARGS, "Invalid CERT_NAME_VALUE.");
 }
 
 
@@ -1193,6 +1202,7 @@ static TCL_RESULT ParseCRYPT_KEY_PROV_INFO(
         kiP->rgProvParam = NULL;
         kiP->cProvParam = 0;
     } else {
+        Tcl_Size baLen;
         kiP->cProvParam = nobjs;
         kiP->rgProvParam = MemLifoAlloc(ticP->memlifoP,
                                         kiP->cProvParam * sizeof(*kiP->rgProvParam),
@@ -1201,10 +1211,13 @@ static TCL_RESULT ParseCRYPT_KEY_PROV_INFO(
             CRYPT_KEY_PROV_PARAM *parP = &kiP->rgProvParam[i];
             if (TwapiGetArgsExObj(ticP, objs[i],
                                GETINT(parP->dwParam),
-                               GETBA(parP->pbData, parP->cbData),
+                               GETBA(parP->pbData, baLen),
                                GETINT(parP->dwFlags),
                                ARGEND) != TCL_OK)
                 goto error_return;
+            if (baLen > 0xffffffffUL)
+                goto error_return;
+            parP->cbData = (DWORD) baLen;
         }
     }
     *kiPP = kiP;
@@ -1738,30 +1751,36 @@ static TCL_RESULT ParseCERT_INFO(
 {
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj *algObj, *pubkeyObj, *issuerIdObj, *subjectIdObj, *extsObj;
+    Tcl_Size issuerLen, subjectLen, serialLen;
 
     if (TwapiGetArgsExObj(ticP, ciObj,
                        GETINT(ciP->dwVersion),
-                       GETBA(ciP->SerialNumber.pbData, ciP->SerialNumber.cbData),
+                       GETBA(ciP->SerialNumber.pbData, serialLen),
                        GETOBJ(algObj),
-                       GETBA(ciP->Issuer.pbData, ciP->Issuer.cbData),
+                       GETBA(ciP->Issuer.pbData, issuerLen),
                        GETVAR(ciP->NotBefore, ObjToFILETIME),
                        GETVAR(ciP->NotAfter, ObjToFILETIME),
-                       GETBA(ciP->Subject.pbData, ciP->Subject.cbData),
+                       GETBA(ciP->Subject.pbData, subjectLen),
                        GETOBJ(pubkeyObj),
                        GETOBJ(issuerIdObj),
                        GETOBJ(subjectIdObj),
-                       GETOBJ(extsObj), ARGEND) != TCL_OK) {
+                       GETOBJ(extsObj), ARGEND) != TCL_OK
+        || serialLen > 0xffffffffUL
+        || issuerLen > 0xffffffffUL
+        || subjectLen > 0xffffffffUL) {
         Tcl_AppendResult(interp, "Invalid CERT_INFO structure", NULL);
         return TCL_ERROR;
     }
-
+    ciP->SerialNumber.cbData = (DWORD) serialLen;
+    ciP->Issuer.cbData = (DWORD) issuerLen;
+    ciP->Subject.cbData = (DWORD) subjectLen;
     if (ParseCRYPT_ALGORITHM_IDENTIFIER(ticP, algObj, &ciP->SignatureAlgorithm) != TCL_OK ||
         ParseCERT_PUBLIC_KEY_INFO(ticP, pubkeyObj, &ciP->SubjectPublicKeyInfo) != TCL_OK ||
         ParseCRYPT_BIT_BLOB(ticP, issuerIdObj, &ciP->IssuerUniqueId) != TCL_OK ||
         ParseCRYPT_BIT_BLOB(ticP, subjectIdObj, &ciP->SubjectUniqueId) != TCL_OK ||
         ParseCERT_EXTENSIONS(ticP, extsObj, &ciP->cExtension, &ciP->rgExtension) != TCL_OK)
         return TCL_ERROR;
-        
+
     return TCL_OK;
 }
 
@@ -1778,14 +1797,16 @@ static TCL_RESULT ParseCERT_REQUEST_INFO(
     Tcl_Size nobjs;
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj *pubkeyObj, *attrObj;
-
+    Tcl_Size len;
     if (TwapiGetArgsExObj(ticP, criObj,
                           GETINT(criP->dwVersion),
-                          GETBA(criP->Subject.pbData, criP->Subject.cbData),
+                          GETBA(criP->Subject.pbData, len),
                           GETOBJ(pubkeyObj), GETOBJ(attrObj),
                           ARGEND) == TCL_OK &&
+        len <= 0xffffffffUL &&
         ParseCERT_PUBLIC_KEY_INFO(ticP, pubkeyObj, &criP->SubjectPublicKeyInfo) == TCL_OK &&
         ObjGetElements(NULL, attrObj, &nobjs, &objs) == TCL_OK) {
+        criP->Subject.cbData = (DWORD) len;
         if (nobjs == 0) {
             criP->cAttribute = 0;
             criP->rgAttribute = NULL;
@@ -1845,18 +1866,19 @@ static int Twapi_CertCreateSelfSignCertificateObjCmd(ClientData clientdata, Tcl_
     CERT_NAME_BLOB name_blob;
     CRYPT_KEY_PROV_INFO *kiP;
     CRYPT_ALGORITHM_IDENTIFIER algid, *algidP;
-    Tcl_Size nobjs;
     SYSTEMTIME start, end, *startP, *endP;
     PCERT_CONTEXT certP;
     CERT_EXTENSIONS exts;
     Tcl_Obj *algidObj, *startObj, *endObj, *extsObj, *provinfoObj;
     MemLifoMarkHandle mark;
+    Tcl_Size nobjs;
+    Tcl_Size len;
 
     mark = MemLifoPushMark(ticP->memlifoP);
 
     if ((status = TwapiGetArgsEx(ticP, objc-1, objv+1,
                                  GETVERIFIEDPTR(pv, HCRYPTPROV, CryptReleaseContext),
-                                 GETBA(name_blob.pbData, name_blob.cbData),
+                                 GETBA(name_blob.pbData, len),
                                  GETINT(flags),
                                  GETOBJ(provinfoObj),
                                  GETOBJ(algidObj),
@@ -1865,9 +1887,16 @@ static int Twapi_CertCreateSelfSignCertificateObjCmd(ClientData clientdata, Tcl_
                                  GETOBJ(extsObj),
                                  ARGEND)) != TCL_OK)
         goto vamoose;
-    
+
+    if (len > 0xffffffffUL) {
+        Tcl_SetResult(interp, "Length does not fit in 32 bits", TCL_STATIC);
+        status = TCL_ERROR;
+        goto vamoose;
+    }
+    name_blob.cbData = (DWORD) len;
+
     hprov = (HCRYPTPROV) pv;
- 
+
     status = ParseCRYPT_KEY_PROV_INFO(ticP, provinfoObj, &kiP);
     if (status != TCL_OK)
         goto vamoose;
@@ -2474,18 +2503,25 @@ static TCL_RESULT Twapi_PFXImportCertStoreObjCmd(ClientData clientdata, Tcl_Inte
     Tcl_Size password_len;
     Tcl_Obj *passObj;
     CRYPT_DATA_BLOB blob;
+    Tcl_Size blobLen;
     int flags;
     TCL_RESULT res;
     MemLifoMarkHandle mark;
 
     mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
-                         GETBA(blob.pbData, blob.cbData),
+                         GETBA(blob.pbData, blobLen),
                          GETOBJ(passObj),
                          GETINT(flags), ARGEND);
     if (res != TCL_OK)
         goto vamoose;
-    
+
+    res = DWORD_LIMIT_CHECK(interp, blobLen);
+    if (res != TCL_OK)
+        goto vamoose;
+
+    blob.cbData = (DWORD) blobLen;
+
     TWAPI_ASSERT(ticP->memlifoP == SWS());
     password = ObjDecryptWinCharsSWS(interp, passObj, &password_len);
     if (password == NULL) {
@@ -2846,7 +2882,7 @@ static TCL_RESULT Twapi_CryptFormatObjectObjCmd(ClientData clientdata, Tcl_Inter
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     DWORD encoding, flags, buflen;
     void *encP, *bufP;
-    int  enclen;
+    Tcl_Size enclen;
     TCL_RESULT res;
     MemLifoMarkHandle mark;
     char *oid;
@@ -2895,7 +2931,7 @@ static TCL_RESULT Twapi_CryptDecodeObjectExObjCmd(ClientData clientdata, Tcl_Int
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     Tcl_Obj *typeObj;
     void *encP;
-    int  enc_len;
+    Tcl_Size enc_len;
     Tcl_Obj *objP;
     TCL_RESULT res;
     MemLifoMarkHandle mark;
@@ -2904,9 +2940,12 @@ static TCL_RESULT Twapi_CryptDecodeObjectExObjCmd(ClientData clientdata, Tcl_Int
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETOBJ(typeObj),
                          GETBA(encP, enc_len), ARGEND);
     if (res == TCL_OK) {
-        res = TwapiCryptDecodeObject(interp, typeObj, encP, enc_len, &objP);
-        if (res == TCL_OK)
-            ObjSetResult(interp, objP);
+        res = DWORD_LIMIT_CHECK(interp, enc_len);
+        if (res == TCL_OK) {
+            res = TwapiCryptDecodeObject(interp, typeObj, encP, enc_len, &objP);
+            if (res == TCL_OK)
+                ObjSetResult(interp, objP);
+        }
     }
 
     MemLifoPopMark(mark);
@@ -3355,7 +3394,7 @@ static TCL_RESULT Twapi_CryptSetHashParamObjCmd(ClientData clientdata, Tcl_Inter
     HMAC_INFO hmaci;
     MemLifoMarkHandle mark = NULL;
     TCL_RESULT res;
-    
+
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(pv, HCRYPTHASH, CryptDestroyHash),
                      GETINT(param), ARGUSEDEFAULT,
@@ -3370,14 +3409,23 @@ static TCL_RESULT Twapi_CryptSetHashParamObjCmd(ClientData clientdata, Tcl_Inter
         hmaci.pbOuterString = NULL;
         hmaci.cbOuterString = 0;
     } else {
+        Tcl_Size innerLen, outerLen;
         mark = MemLifoPushMark(ticP->memlifoP);
         ZeroMemory(&hmaci, sizeof(hmaci));
         res = TwapiGetArgsExObj(ticP, paramObj, GETINT(hmaci.HashAlgid),
-                             GETBA(hmaci.pbInnerString, hmaci.cbInnerString),
-                             GETBA(hmaci.pbOuterString, hmaci.cbOuterString),
+                             GETBA(hmaci.pbInnerString, innerLen),
+                             GETBA(hmaci.pbOuterString, outerLen),
                              ARGEND);
         if (res != TCL_OK)
             goto vamoose;
+        res = DWORD_LIMIT_CHECK(interp, innerLen);
+        if (res != TCL_OK)
+            goto vamoose;
+        res = DWORD_LIMIT_CHECK(interp, outerLen);
+        if (res != TCL_OK)
+            goto vamoose;
+        hmaci.cbInnerString = innerLen;
+        hmaci.cbOuterString = outerLen;
     }
 
     if (CryptSetHashParam((HCRYPTHASH)pv, param, (BYTE*) &hmaci, 0) == FALSE)
@@ -3398,7 +3446,8 @@ static TCL_RESULT Twapi_CryptCATAdminEnumCatalogFromHashObjCmd(ClientData client
     HCATADMIN hca;
     HCATINFO  hci, prev_hci;
     BYTE *pb;
-    DWORD cb, flags;
+    DWORD flags;
+    Tcl_Size cb;
     MemLifoMarkHandle mark = NULL;
     
     mark = MemLifoPushMark(ticP->memlifoP);
@@ -3408,22 +3457,27 @@ static TCL_RESULT Twapi_CryptCATAdminEnumCatalogFromHashObjCmd(ClientData client
                        ARGUSEDEFAULT,
                        GETVERIFIEDORNULL(prev_hci, HCATINFO, CryptCATAdminReleaseCatalogContext),
                        ARGEND);
-    if (res == TCL_OK) {
-        /* The previous HCATINFO will be freed by this call so unregister it */
-        if (prev_hci)
-            TwapiUnregisterHCATINFO(interp, prev_hci);
-        hci = CryptCATAdminEnumCatalogFromHash(hca, pb, cb, flags, &prev_hci);
-        if (hci) {
-            TwapiRegisterHCATINFO(interp, hci);
-            res = ObjSetResult(interp, ObjFromOpaque(hci, "HCATINFO"));
-        } else {
-            DWORD winerr = GetLastError();
-            if (winerr != ERROR_NOT_FOUND)
-                res = TwapiReturnSystemError(interp);
-            /* else just return empty string */
-        }
+    if (res != TCL_OK)
+        goto vamoose;
+    res = DWORD_LIMIT_CHECK(interp, cb);
+    if (res != TCL_OK)
+        goto vamoose;
+
+    /* The previous HCATINFO will be freed by this call so unregister it */
+    if (prev_hci)
+        TwapiUnregisterHCATINFO(interp, prev_hci);
+    hci = CryptCATAdminEnumCatalogFromHash(hca, pb, cb, flags, &prev_hci);
+    if (hci) {
+        TwapiRegisterHCATINFO(interp, hci);
+        res = ObjSetResult(interp, ObjFromOpaque(hci, "HCATINFO"));
+    } else {
+        DWORD winerr = GetLastError();
+        if (winerr != ERROR_NOT_FOUND)
+            res = TwapiReturnSystemError(interp);
+        /* else just return empty string */
     }
-    
+
+vamoose:
     if (mark)
         MemLifoPopMark(mark);
     return res;
@@ -5447,6 +5501,7 @@ static TCL_RESULT ParseWINTRUST_DATA(TwapiInterpContext *ticP, Tcl_Obj *objP, TW
     Tcl_Obj *trustObj;
     WINTRUST_FILE_INFO *wfiP;
     WINTRUST_CATALOG_INFO *wciP;
+    Tcl_Size len;
 
     ZeroMemory(wtdP, sizeof(*wtdP));
     wtdP->cbStruct = sizeof(*wtdP);
@@ -5486,14 +5541,17 @@ static TCL_RESULT ParseWINTRUST_DATA(TwapiInterpContext *ticP, Tcl_Obj *objP, TW
                                 GETWSTR(wciP->pcwszMemberTag),
                                 GETWSTR(wciP->pcwszMemberFilePath),
                                 GETHANDLE(wciP->hMemberFile),
-                                GETBA(wciP->pbCalculatedFileHash, wciP->cbCalculatedFileHash),
+                                GETBA(wciP->pbCalculatedFileHash, len),
                                 // pcCatalogContext not yet implemented
                                 // hCatAdmin needs Win8 or later
                                 ARGEND);
-        
-        if (ret == TCL_OK)
-            wciP->pcCatalogContext = NULL;
-        
+        if (ret != TCL_OK)
+            break;
+        ret = DWORD_LIMIT_CHECK(ticP->interp, len);
+        if (ret != TCL_OK)
+            break;
+        wciP->cbCalculatedFileHash = len;
+        wciP->pcCatalogContext = NULL;
         break;
     default:
         ret = TwapiReturnErrorMsg(ticP->interp, TWAPI_UNSUPPORTED_TYPE, "Unsupported Wintrust type");
@@ -5536,8 +5594,8 @@ static int Twapi_PBKDF2ObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
 {
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     unsigned char *utfpassP, *saltP, *keyP;
-    int nsalt, niterations, nkeybytes, nkeybits;
-    Tcl_Size nutf;
+    int niterations, nkeybytes, nkeybits;
+    Tcl_Size nutf, nsalt;
     TCL_RESULT res;
     Tcl_Obj *passObj;
     BOOL pbkdf2_status;
@@ -5553,6 +5611,9 @@ static int Twapi_PBKDF2ObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
                          GETBA(saltP, nsalt),
                          GETINT(niterations),
                          ARGEND);
+    if (res != TCL_OK)
+        goto vamoose;
+    res = DWORD_LIMIT_CHECK(interp, nsalt);
     if (res != TCL_OK)
         goto vamoose;
 
@@ -5595,7 +5656,6 @@ static int Twapi_PBKDF2ObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
             res = ObjSetResult(interp, encObj);
         else
             res = TCL_ERROR;
-                                          
         SecureZeroMemory(keyP, nkeybytes);
     }
 

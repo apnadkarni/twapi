@@ -17,8 +17,8 @@
  * Static prototypes
  */
 static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
-    LPWSTR pathP, int path_len, int include_subtree,
-    DWORD  filter, WCHAR **patterns, int npatterns);
+    LPWSTR pathP, Tcl_Size path_len, int include_subtree,
+    DWORD  filter, WCHAR **patterns, Tcl_Size npatterns);
 static void TwapiDirectoryMonitorContextDelete(TwapiDirectoryMonitorContext *);
 static DWORD TwapiDirectoryMonitorInitiateRead(TwapiDirectoryMonitorContext *);
 #define TwapiDirectoryMonitorContextRef(p_, incr_) InterlockedExchangeAdd(&(p_)->nrefs, (incr_))
@@ -35,9 +35,9 @@ TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(ClientData clientdata, Tcl_Inter
     TwapiInterpContext *ticP = clientdata;
     TwapiDirectoryMonitorContext *dmcP;
     LPWSTR pathP;
-    int    path_len;
+    Tcl_Size path_len;
     int    include_subtree;
-    int    npatterns;
+    Tcl_Size npatterns;
     WCHAR  **patterns;
     DWORD  winerr;
     DWORD filter;
@@ -54,12 +54,12 @@ TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(ClientData clientdata, Tcl_Inter
         != TCL_OK) {
         MemLifoPopMark(mark);
         return TCL_ERROR;
-    }        
+    }
     dmcP = TwapiDirectoryMonitorContextNew(pathP, path_len, include_subtree, filter, patterns, npatterns);
 
     MemLifoPopMark(mark);       /* Don't need parsed args any more */
-    
-    /* 
+
+    /*
      * TBD - Should we add FILE_SHARE_DELETE to allow deleting of
      * the directory? For now, no because it causes confusing behaviour.
      * The directory being monitored can be deleted successfully but
@@ -175,17 +175,17 @@ TCL_RESULT Twapi_UnregisterDirectoryMonitorObjCmd(ClientData clientdata, Tcl_Int
 /* Always returns non-NULL, or panics */
 static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
     LPWSTR pathP,                /* May NOT be null terminated if path_len==-1 */
-    int    path_len,            /* -1 -> null terminated */
+    Tcl_Size path_len,            /* -1 -> null terminated */
     int    include_subtree,
     DWORD  filter,
     WCHAR **patterns,
-    int    npatterns
+    Tcl_Size npatterns
     )
 {
-    int sz;
     TwapiDirectoryMonitorContext *dmcP;
-    int i;
-    int bytelengths[MAXPATTERNS];
+    Tcl_Size sz;
+    Tcl_Size i;
+    Tcl_Size bytelengths[MAXPATTERNS];
     char *cP;
 
     if (npatterns > ARRAYSIZE(bytelengths)) {

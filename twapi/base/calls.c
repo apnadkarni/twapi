@@ -278,6 +278,7 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     void      *p;
     Tcl_Obj   *objP = 0;
     char      *typeP;              /* Type of a pointer */
+    Tcl_Size   len;
     Tcl_Size  *lenP;
     int        ival;
     Tcl_WideInt wival;
@@ -286,10 +287,8 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     double     dblval;
     WCHAR     *uval;
     char      *sval;
-    Tcl_Size   len;
     int        use_default = 0;
     HKEY       hkey;
-    int       *iP;
     void      *pv;
     TwapiGetArgsFn converter_fn;
 
@@ -481,7 +480,7 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
 
         case ARGVA:
         case ARGVW:
-            iP = va_arg(ap, int *);
+            lenP = va_arg(ap, Tcl_Size *);
             if (objP) {
                 Tcl_Obj **argvobjs;
                 Tcl_Size  nargvobjs;
@@ -489,8 +488,8 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
 
                 if (ObjGetElements(interp, objP, &nargvobjs, &argvobjs) != TCL_OK)
                     goto argerror;
-                if (iP != NULL)
-                    *iP = nargvobjs;
+                if (lenP != NULL)
+                    *lenP = nargvobjs;
                 if (p) {
                     if (fmtch == ARGVA) {
                         char **argv = MemLifoAlloc(ticP->memlifoP, sizeof(*argv)*(nargvobjs+1), NULL);
@@ -514,8 +513,8 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
                         *(WCHAR ***)p = argv;
                     }
                 }
-            } else if (iP)
-                *iP = 0;
+            } else if (lenP)
+                *lenP = 0;
             break;
         default:
             ObjSetStaticResult(interp, "TwapiGetArgs: unexpected format character.");
@@ -1821,7 +1820,7 @@ static int Twapi_FormatMessageFromStringObjCmd(ClientData clientdata, Tcl_Interp
 {
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     const WCHAR **argv;
-    int     argc;
+    Tcl_Size  argc;
     Tcl_Obj *fmtObj;
     TCL_RESULT res;
     DWORD flags;
@@ -1847,7 +1846,7 @@ static int Twapi_FormatMessageFromModuleObjCmd(ClientData clientdata, Tcl_Interp
 {
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     const WCHAR **argv;
-    int     argc;
+    Tcl_Size argc;
     TCL_RESULT res;
     DWORD flags, msgid, langid;
     MemLifoMarkHandle mark;
@@ -1881,7 +1880,7 @@ static int Twapi_ReportEventObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     Tcl_Obj *dataObj;
     Tcl_Size datalen;
     void *data;
-    int     argc;
+    Tcl_Size argc;
     LPCWSTR *argv;
     MemLifoMarkHandle mark;
     TCL_RESULT res;
@@ -1894,14 +1893,19 @@ static int Twapi_ReportEventObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                          GETARGVW(argv, argc), GETOBJ(dataObj),
                          ARGEND);
     if (res == TCL_OK) {
-        /* Can directly use the byte array pointer. Other objects decoded
-           so no worry about shimmering even if they are same */
-        data = ObjToByteArray(dataObj, &datalen);
-        if (datalen == 0)
-            data = NULL;
-        if (!ReportEventW(hEventLog, wType, wCategory, dwEventID, lpUserSid,
-                          (WORD) argc, datalen, argv, data))
-            res = TwapiReturnSystemError(interp);
+        if (argc > USHRT_MAX) {
+            Tcl_SetResult(interp, "Too many arguments for ReportEvent.", TCL_STATIC);
+            res = TCL_ERROR;
+        } else {
+            /* Can directly use the byte array pointer. Other objects decoded
+               so no worry about shimmering even if they are same */
+            data = ObjToByteArray(dataObj, &datalen);
+            if (datalen == 0)
+                data = NULL;
+            if (!ReportEventW(hEventLog, wType, wCategory, dwEventID, lpUserSid,
+                              (WORD) argc, datalen, argv, data))
+                res = TwapiReturnSystemError(interp);
+        }
     }
     MemLifoPopMark(mark);
     return res;
@@ -2052,7 +2056,7 @@ overrun:
 static TCL_RESULT Twapi_CredPrompt(ClientData clientdata, Tcl_Obj *uiObj, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
-    int                 user_len;
+    Tcl_Size user_len;
     Tcl_Size nobjs, password_len;
     Tcl_Obj **objs;
     LPWSTR target, user;
