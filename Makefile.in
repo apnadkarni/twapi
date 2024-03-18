@@ -189,6 +189,9 @@ all: binaries libraries doc
 binaries: $(BINARIES)
 
 libraries:
+	@list='$(PKG_TCL_SOURCES)'; for i in $$list; do \
+	    cp $(srcdir)/$$i $(top_builddir) ; \
+	done
 
 #========================================================================
 # Your doc target should differentiate from doc builds (by the developer)
@@ -233,12 +236,9 @@ install-doc: doc
 #	done
 
 test: binaries libraries
-	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
+	$(TCLSH) `@CYGPATH@ $(srcdir)/twapi/tests/all.tcl` $(TESTFLAGS)
 
 shell: binaries libraries
-	@list='$(PKG_TCL_SOURCES)'; for i in $$list; do \
-	    cp $(srcdir)/$$i $(top_builddir) ; \
-	done
 	@$(TCLSH) $(SCRIPT)
 
 gdb:
