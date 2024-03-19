@@ -41,13 +41,13 @@ namespace eval twapi::base::test {
         Get TWAPI version
     } -body {
         twapi::get_version
-    } -result 4.7
+    } -result 5.0
 
     test get_version-1.1 {
         Get TWAPI version patchlevel
     } -body {
         twapi::get_version -patchlevel
-    } -result 4.7.2
+    } -result 5.0a0
 
     ################################################################
 
@@ -113,7 +113,7 @@ namespace eval twapi::base::test {
         Get the build configuration (tcl_header_version)
     } -body {
         twapi::get_build_config tcl_header_version
-    } -result {^8\.[5]\..+} -match regexp
+    } -result {^(8\.6)|(9\.\d+)[\.ab].+} -match regexp
 
     test get_build_config-1.8 {
         Get the build configuration (tea)
@@ -1063,7 +1063,7 @@ namespace eval twapi::base::test {
         Expand long embedded environment strings
     } -body {
         twapi::expand_environment_strings [string repeat %PATH% 10]
-    } -result [string repeat $env(PATH) 10]
+    } -result [string repeat $::env(PATH) 10]
 
     test expand_environment_strings-2.0 {
         Verify environment variables that are not defined are not modified

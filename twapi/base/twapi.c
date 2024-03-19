@@ -391,7 +391,7 @@ TCL_RESULT Twapi_SourceResource(Tcl_Interp *interp, HANDLE dllH, const char *nam
      * No resource found. Try loading from twapi script directory if defined
      * or from the twapi dll install directory
      */
-    pathObj = Tcl_GetVar2Ex(interp, "::" TWAPI_TCL_NAMESPACE "::scriptdir",
+    pathObj = Tcl_GetVar2Ex(interp, TWAPI_TCL_NAMESPACE "::scriptdir",
                             NULL, 0);
     if (pathObj != NULL) {
         pathObj = Tcl_DuplicateObj(pathObj);
