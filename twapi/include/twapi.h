@@ -88,10 +88,11 @@
 #  define TWAPI_INLINE __inline  /* Because VC++ 6 only accepts "inline" in C++  */
 #  define TWAPI_STATIC_INLINE static __inline
 # elif __GNUC__ && !__GNUC_STDC_INLINE__
+#  error foo
 #  define TWAPI_INLINE extern inline
 #  define TWAPI_STATIC_INLINE static inline
 # else
-#  define TWAPI_INLINE inline
+#  define TWAPI_INLINE static inline
 #  define TWAPI_STATIC_INLINE static inline
 # endif
 #endif
@@ -1485,6 +1486,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromInt(int val);
 TWAPI_EXTERN TCL_RESULT ObjToInt(Tcl_Interp *interp, Tcl_Obj *objP, int *);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromWideInt(Tcl_WideInt val);
+TWAPI_EXTERN Tcl_Obj *ObjFromWideUInt(Tcl_WideUInt val);
 /* Unsigneds need to be promoted to wide ints when converting to Tcl_Obj*/
 TWAPI_INLINE Tcl_Obj *ObjFromDWORD(DWORD dw) {
     return ObjFromWideInt(dw);
@@ -1496,6 +1498,8 @@ TWAPI_INLINE TCL_RESULT ObjToUINT(Tcl_Interp *ip, Tcl_Obj *objP, UINT *uiP) {
 }
 
 TWAPI_EXTERN TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP);
+TWAPI_EXTERN TCL_RESULT ObjToWideUInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideUInt *wideP);
+TWAPI_EXTERN TCL_RESULT ObjToBits64(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP);
 TWAPI_EXTERN Tcl_Obj *ObjFromDouble(double val);
 TWAPI_EXTERN TCL_RESULT ObjToDouble(Tcl_Interp *interp, Tcl_Obj *objP, double *);
 TWAPI_EXTERN Tcl_Obj *ObjFromFloat(float val);

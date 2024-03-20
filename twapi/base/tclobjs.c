@@ -302,6 +302,12 @@ int TwapiInitTclTypes(void)
             Tcl_GetObjType(gTclTypes[i].typename); /* May be NULL */
     }
 
+    /* int not registered in newer Tcl versions */
+    if (gTclTypes[TWAPI_TCLTYPE_INT].typeptr == NULL) {
+        Tcl_Obj *objP = Tcl_NewIntObj(0);
+        gTclTypes[TWAPI_TCLTYPE_BOOLEANSTRING].typeptr = objP->typePtr;
+    }
+
     /* "booleanString" type is not always registered (if ever). Get it
      *  by hook or by crook
      */
@@ -396,7 +402,10 @@ int Twapi_InternalCastObjCmd(
     /*
      * We special case int because Tcl will convert 0x80000000 to wide int
      * but we want it to be passed as 32-bits in case of some COM calls.
-     * which will barf for VT_I8
+     * which will barf for VT_I8. However, this is only the case for Tcl8.
+     * In Tcl9 there is no distinction between WideInt and Int at the
+     * Tcl_Obj level. However, the int/wideInt types are not registered
+     * so we need to special in Tcl 9 as well.
      *
      * We special case double, because SetAnyFromProc will optimize to lowest
      * compatible type, so for example casting 1 to double will result in an
@@ -412,10 +421,16 @@ int Twapi_InternalCastObjCmd(
      * int Tcl_Obj if the value fits in the 32 bits.
      */
     if (STREQ(typename, "int")) {
+#if TCL_MAJOR_VERSION > 8
+        Tcl_WideInt wide;
+        CHECK_RESULT(ObjToWideInt(interp, objv[2], &wide));
+        objP = ObjFromWideInt(wide);
+#else
         int ival;
-        if (ObjToInt(interp, objv[2], &ival) == TCL_ERROR)
-            return TCL_ERROR;
-        return ObjSetResult(interp, ObjFromInt(ival));
+        CHECK_RESULT(ObjToInt(interp, objv[2], &ival));
+        objP = ObjFromInt(ival);
+#endif
+        return ObjSetResult(interp, objP);
     }
 
     if (STREQ(typename, "double")) {
@@ -461,8 +476,10 @@ int Twapi_InternalCastObjCmd(
                 ObjToString(objP);  /* Make sure string rep exists */
                 objP->typePtr = &gVariantType;
                 VARIANT_REP_VT(objP) = vt;
+                break;
             }
         }
+
     }
 
     if (objP)
@@ -509,7 +526,7 @@ TWAPI_EXTERN Tcl_Obj *ObjDuplicate(Tcl_Obj *objP)
  *   have their memory freed
  *  The return value reflects whether the result was set from an error or not,
  *  NOT whether the result was successfully set (which it always is).
- **/
+ **/
 
 
 TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
@@ -2863,8 +2880,11 @@ static TCL_RESULT ObjToSAFEARRAY(Tcl_Interp *interp, Tcl_Obj *valueObj, SAFEARRA
             break;
 
         case VT_I8:
+            if (ObjToWideInt(interp, objP, (Tcl_WideInt *)valP) != TCL_OK)
+                goto error_handler;
+            break;
         case VT_UI8:
-            if (ObjToWideInt(interp, objP, valP) != TCL_OK)
+            if (ObjToWideUInt(interp, objP, (Tcl_WideUInt *)valP) != TCL_OK)
                 goto error_handler;
             break;
 
@@ -3036,8 +3056,8 @@ static Tcl_Obj *ObjFromSAFEARRAYDimension(SAFEARRAY *saP, int dim,
             case VT_UI2: objP = ObjFromInt(*(unsigned short *)valP); break;
             case VT_UINT: /* FALLTHROUGH */
             case VT_UI4: objP = ObjFromDWORD(*(DWORD *)valP); break;
-            case VT_I8: /* FALLTHRU */
-            case VT_UI8: objP = ObjFromWideInt(*(__int64 *)valP); break;
+            case VT_UI8: objP = ObjFromWideUInt(*(unsigned __int64 *)valP); break;
+            case VT_I8: objP = ObjFromWideInt(*(__int64 *)valP); break;
 
                 /* Dunno how to handle these */
             default:
@@ -4479,6 +4499,95 @@ TWAPI_EXTERN TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_Wide
     return Tcl_GetWideIntFromObj(interp, objP, wideP);
 }
 
+TWAPI_EXTERN TCL_RESULT ObjToBits64(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP)
+{
+#if TCL_MAJOR_VERSION > 8
+    TCL_RESULT ret;
+    /* Try as both unsigned and then signed */
+    ret = ObjToWideInt(NULL, objP, wideP);
+    if (ret != TCL_OK) {
+        Tcl_WideUInt uwide;
+        ret = Tcl_GetWideUIntFromObj(interp, objP, &uwide);
+        if (ret == TCL_OK)
+            *wideP = (Tcl_WideInt) uwide;
+    }
+    return ret;
+#else
+    return ObjToWideInt(interp, objP, (Tcl_WideInt *)wideP);
+#endif
+}
+
+TCL_RESULT
+ObjToWideUInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideUInt *ullP)
+{
+
+#if TCL_MAJOR_VERSION > 8
+    return Tcl_GetWideUIntFromObj(interp, objP, ullP);
+#else
+    int ret;
+    Tcl_WideInt wide;
+
+    TCLH_ASSERT(sizeof(unsigned long long) == sizeof(Tcl_WideInt));
+
+    /* Tcl_GetWideInt will happily return overflows as negative numbers */
+    ret = Tcl_GetWideIntFromObj(interp, objP, &wide);
+    if (ret != TCL_OK)
+        return ret;
+
+    /*
+     * We have to check for two things.
+     *   1. an overflow condition in Tcl_GWIFO where
+     *     (a) a large positive number that fits in the width is returned
+     *         as negative e.g. 18446744073709551615 is returned as -1
+     *     (b) an negative overflow is returned as a positive number,
+     *         e.g. -18446744073709551615 is returned as 1.
+     *   2. Once we have retrieved a valid number, reject it if negative.
+     *
+     * So we check the internal rep. If it is an integer type other than
+     * bignum, fine (no overflow). Otherwise, we check for possibility of
+     * overflow by comparing sign of retrieved wide int with the sign stored
+     * in the bignum representation.
+     */
+
+    if (objP->typePtr == gTclTypes[TWAPI_TCLTYPE_INT].typeptr ||
+        objP->typePtr == gTclTypes[TWAPI_TCLTYPE_WIDEINT].typeptr ||
+        objP->typePtr == gTclBooleanType ||
+        objP->typePtr == gTclDoubleType) {
+        /* No need for an overflow check (1) but still need to check (2) */
+        if (wide < 0)
+            goto negative_error;
+        *ullP = (Tcl_WideUInt)wide;
+    }
+    else {
+        /* Was it an integer overflow */
+        mp_int temp;
+        ret = Tcl_GetBignumFromObj(interp, objP, &temp);
+        if (ret == TCL_OK) {
+            int sign = temp.sign;
+            mp_clear(&temp);
+            if (sign == MP_NEG)
+                goto negative_error;
+            /*
+             * Note Tcl_Tcl_GWIFO already takes care of overflows that do not
+             * fit in Tcl_WideInt width. So we need not worry about that.
+             * The overflow case is where a positive value is returned as
+             * negative by Tcl_GWIFO; that is also taken care of by the
+             * assignment below.
+             */
+            *ullP = (Tcl_WideUInt)wide;
+        }
+    }
+
+    return ret;
+
+negative_error:
+    return TclhRecordError(
+        interp,
+        "RANGE",
+        Tcl_NewStringObj("Negative values are not in range for unsigned types.", -1));
+#endif
+}
+
 TWAPI_EXTERN TCL_RESULT ObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *dwP) {
     long l;
     /* TBD - should we convert to Tcl_WideInt and check the range?
@@ -4582,6 +4691,24 @@ TWAPI_EXTERN Tcl_Obj *ObjFromLong(long val)
 TWAPI_EXTERN Tcl_Obj *ObjFromWideInt(Tcl_WideInt val)
 {
     return Tcl_NewWideIntObj(val);
+}
+
+Tcl_Obj *ObjFromWideUInt(Tcl_WideUInt ull)
+{
+    /* TODO - see how TIP 648 does it */
+    TWAPI_ASSERT(sizeof(Tcl_WideUInt) == sizeof(unsigned long long));
+    if (ull <= LLONG_MAX)
+        return Tcl_NewWideIntObj((Tcl_WideInt) ull);
+    else {
+        /* Cannot use WideInt because that will treat as negative  */
+        char buf[40]; /* Think 21 enough, but not bothered to count */
+#ifdef _WIN32
+        _snprintf_s(buf, sizeof(buf), _TRUNCATE, "%I64u", ull);
+#else
+        snprintf(buf, sizeof(buf), "%llu", ull);
+#endif
+        return Tcl_NewStringObj(buf, -1);
+    }
 }
 
 TWAPI_EXTERN Tcl_Obj *ObjFromDouble(double val)

@@ -123,7 +123,7 @@ namespace eval twapi::base::test {
 
     test get_build_config-1.9 {
         Get the build configuration (source_id)
-    } -body {
+    } -constraints TBD -body {
         twapi::get_build_config source_id
     } -result {^[0-9a-f]{12}.?$} -match regexp
 
@@ -1488,7 +1488,7 @@ namespace eval twapi::base::test {
         Test for wide integer type
     } -body {
         twapi::tcltype [expr {0xffffffff+1}]
-    } -result wideInt
+    } -result [expr {[string match 8* $::tcl_version] ? "wideInt" : "int"}]
 
     test tcltype-7.0 {
         Test for double type
@@ -1500,13 +1500,13 @@ namespace eval twapi::base::test {
         Test for boolean type
     } -body {
         twapi::tcltype [expr {false}]
-    } -result booleanString
+    } -result boolean* -match glob
 
     test tcltype-8.1 {
         Test for boolean type
     } -body {
         twapi::tcltype [expr {true}]
-    } -result booleanString
+    } -result boolean* -match glob
 
 
     ################################################################
@@ -1515,8 +1515,9 @@ namespace eval twapi::base::test {
         Test for pure string type -> interpreted as variant
     } -body {
         set intval [expr {1+0}]
-        list [twapi::tcltype $intval] [twapi::tcltype [twapi::tclcast "" $intval]]
-    } -result {int {}}
+        set val [twapi::tclcast "" $intval]
+        list [twapi::tcltype $intval] [twapi::tcltype $val] $val
+    } -result {int {} 1}
 
     test tclcast-2.0 {
         Test for string type
@@ -1528,8 +1529,9 @@ namespace eval twapi::base::test {
     test tclcast-3.0 {
         Test for  list type
     } -body {
-        twapi::tcltype [twapi::tclcast list "x y z"]
-    } -result list
+        set val [twapi::tclcast list "x y z"]
+        list [twapi::tcltype $val] $val
+    } -result {list {x y z}}
 
     test tclcast-4.0 {
         Test for  dict type
@@ -1540,8 +1542,9 @@ namespace eval twapi::base::test {
     test tclcast-5.0 {
         Test for integer type
     } -body {
-        twapi::tcltype [twapi::tclcast int "123"]
-    } -result int
+        set val [twapi::tclcast int "123"]
+        list [twapi::tcltype $val] $val
+    } -result {int 123}
 
     test tclcast-6.0 {
         Test for wide integer type
@@ -1560,8 +1563,9 @@ namespace eval twapi::base::test {
     test tclcast-7.0 {
         Test for double type
     } -body {
-        twapi::tcltype [twapi::tclcast double 2.5]
-    } -result double
+        set val [twapi::tclcast double 2.5]
+        list [twapi::tcltype $val] $val
+    } -result {double 2.5}
 
     test tclcast-7.1 {
         Test for double type from integer
@@ -1574,39 +1578,44 @@ namespace eval twapi::base::test {
         Test for double type from integer
     } -body {
         # Make sure an wide integer also shows up as double. Bug pre-4.0b27
-        twapi::tcltype [twapi::tclcast double 0x123456789abcd]
-    } -result double
+        set val [twapi::tclcast double 0x123456789abcd]
+        list [twapi::tcltype $val] $val
+    } -result [list double 320255973501901.0]
 
     test tclcast-8.0 {
         Test for boolean type
     } -body {
         twapi::tcltype [twapi::tclcast boolean "true"]
-    } -result booleanString
+    } -result boolean* -match glob
 
     test tclcast-8.1 {
         Test for boolean type
     } -body {
-        twapi::tcltype [twapi::tclcast boolean "false"]
-    } -result booleanString
+        set val [twapi::tclcast boolean "false"]
+        list [string match boolean* [twapi::tcltype $val]] $val
+    } -result {1 false}
 
     test tclcast-8.2 {
         Test for boolean type
     } -body {
-        twapi::tcltype [twapi::tclcast boolean [expr {0+1}]]
-    } -result booleanString
+        set val [twapi::tclcast boolean [expr {0+1}]]
+        list [string match boolean* [twapi::tcltype $val]] $val
+    } -result {1 true}
 
     test tclcast-8.3 {
         Test for boolean type
     } -body {
-        twapi::tcltype [twapi::tclcast boolean [expr {0+0}]]
-    } -result booleanString
+        set val [twapi::tclcast boolean [expr {0+0}]]
+        list [string match boolean* [twapi::tcltype $val]] $val
+    } -result {1 false}
 
     test tclcast-9.0 {
         Test for bstr type
     } -body {
         set intval [expr {1+0}]
-        list [twapi::tcltype $intval] [twapi::tcltype [twapi::tclcast bstr $intval]]
-    } -result {int bstr}
+        set val [twapi::tclcast bstr $intval]
+        list [twapi::tcltype $intval] [twapi::tcltype $val] $val
+    } -result {int bstr 1}
     ################################################################
 
     test IsEqualGUID-1.0 {

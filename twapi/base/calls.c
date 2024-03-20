@@ -778,6 +778,9 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         };
         LSA_OBJECT_ATTRIBUTES lsa_oattr;
         Tcl_WideInt wide;
+#if TCL_MAJOR_VERSION > 8
+        Tcl_WideUInt uwide;
+#endif
         SECURITY_DESCRIPTOR *secdP;
         ACL *aclP;
     } u;
@@ -849,10 +852,9 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
 
     case 1005: // hex64
-        if (ObjToWideInt(interp, objv[0], &u.wide) != TCL_OK)
-            return TCL_ERROR;
+        CHECK_RESULT(ObjToBits64(interp, objv[0], (Tcl_WideInt *)&u.uwide));
         result.type = TRT_OBJ;
-        result.value.obj = ObjFromULONGLONGHex(u.wide);
+        result.value.obj = ObjFromULONGLONGHex(u.uwide);
         break;
 
     case 1006: // reveal
@@ -986,7 +988,7 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         }
         break;
     case 1025: // swap8
-        if (ObjToWideInt(interp, objv[0], &u.wide) != TCL_OK)
+        if (ObjToBits64(interp, objv[0], &u.wide) != TCL_OK)
             return TCL_ERROR;
         result.value.wide=swap8(u.wide);
         result.type = TRT_WIDE;
