@@ -1,0 +1,128 @@
+#------------------------------------------------------------- -*- makefile -*-
+#
+# Nmake makefile for building cffi.
+#
+# Basic build, test and install using libffi
+#   nmake /s /nologo /f makefile.vc INSTALLDIR=c:\path\to\tcl EXTDIR=c:\path\to\libffi
+# Basic build, test and install using dyncall
+#   nmake /s /nologo /f makefile.vc OPTS=dyncall INSTALLDIR=c:\path\to\tcl EXTDIR=c:\path\to\dyncall
+#
+# The EXTDIR directory should contain "include" and "lib" directories for
+# dyncall/libffi depending on the library being used. If undefined, it will default
+# to ../external-libs/win/$(BUILDDIRTOP) where BUILDDIRTOP is defined by rules-ext.vc
+# above based on architecture, compiler version and build mode (debug/release).
+# See the BUILD.md in top level directory for building dyncall and libffi itself.
+#
+# To test and install,
+#   nmake /s /nologo /f makefile.vc INSTALLDIR=c:\path\to\tcl test
+#   nmake /s /nologo /f makefile.vc INSTALLDIR=c:\path\to\tcl install
+#
+# For other build options (debug, static etc.)
+# See TIP 477 (https://core.tcl.tk/tips/doc/trunk/tip/477.md) for
+# detailed documentation.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+#------------------------------------------------------------------------------
+# The name of the package
+PROJECT = twapi
+DOTVERSION = 5.0a0
+
+!include "rules-ext.vc"
+
+!message $(ROOT)
+DYNCALLDIR=$(ROOT)\..\dyncall\dyncall-0.9
+
+# Override shared library installation directory
+!if "$(ARCH)" == "AMD64"
+DLLSUBDIR = win32-x86_64
+DYNCALLLIBDIR = $(DYNCALLDIR)\lib\release_amd64
+!else
+DLLSUBDIR = win32-ix86
+DYNCALLLIBDIR = $(DYNCALLDIR)\lib\release_x86
+!endif
+
+# Define the object files and resource file that make up the extension.
+PRJ_OBJS = $(PRJ_OBJS) \
+	    $(TMP_DIR)\adsi.obj \
+	    $(TMP_DIR)\async.obj \
+	    $(TMP_DIR)\calls.obj \
+	    $(TMP_DIR)\errors.obj \
+	    $(TMP_DIR)\ffi.obj \
+	    $(TMP_DIR)\keylist.obj \
+	    $(TMP_DIR)\lzmadec.obj \
+	    $(TMP_DIR)\lzmainterface.obj \
+	    $(TMP_DIR)\memlifo.obj \
+	    $(TMP_DIR)\mycrt.obj \
+	    $(TMP_DIR)\parseargs.obj \
+	    $(TMP_DIR)\printer.obj \
+	    $(TMP_DIR)\recordarray.obj \
+	    $(TMP_DIR)\tclobjs.obj \
+	    $(TMP_DIR)\threadpool.obj \
+	    $(TMP_DIR)\trap.obj \
+	    $(TMP_DIR)\twapi.obj \
+	    $(TMP_DIR)\twine.obj \
+	    $(TMP_DIR)\util.obj \
+	    $(TMP_DIR)\win.obj \
+	    $(TMP_DIR)\winchars.obj
+
+
+HEADERS = \
+	$(ROOT)\include\twapi.h
+
+PRJ_INCLUDES = -I $(ROOT)\include -I $(DYNCALLDIR)\include
+
+# Windows defines
+PRJ_DEFINES = -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0601 -D_UNICODE
+
+# Tcl defines
+PRJ_DEFINES = $(PRJ_DEFINES) -DTCL_NO_DEPRECATED
+
+PRJ_LIBS = $(DYNCALLLIBDIR)\libdyncall_s.lib $(DYNCALLLIBDIR)\libdynload_s.lib $(DYNCALLLIBDIR)\libdyncallback_s.lib
+
+!if (($(TCL_MAJOR_VERSION) > 8) || (($(TCL_MAJOR_VERSION) == 8) && ($(TCL_MINOR_VERSION) >= 7)))
+PRJ_LIBS = $(PRJ_LIBS) $(INSTALLDIR)\lib\tommath.lib
+!endif
+
+PRJ_LIBS = $(PRJ_LIBS) \
+	kernel32.lib \
+	advapi32.lib \
+	user32.lib \
+	rpcrt4.lib \
+	psapi.lib \
+	netapi32.lib \
+	mpr.lib \
+	ws2_32.lib \
+	ole32.lib \
+	oleaut32.lib \
+	winspool.lib \
+	version.lib \
+	powrprof.lib \
+	secur32.lib \
+	wtsapi32.lib
+
+# Define the standard targets
+# We do not use the standard predefined install targets because we want
+# to load binaries from platform-specific subdirectories of the package
+# directory.
+DISABLE_TARGET_install = 1
+!include "$(_RULESDIR)\targets.vc"
+
+pkgindex: default-pkgindex-tea
+
+# The default install target only installs binaries and scripts so add
+# an additional target for our documentation. Note this *adds* a target
+# since no commands are listed after it. The original targets for
+# install (from targets.vc) will remain.
+# install: $(PRJLIB) default-install-docs-html default-install-scripts
+# 	@echo Installing binaries to '$(LIB_INSTALL_DIR)\$(DLLSUBDIR)'
+# 	@if not exist "$(LIB_INSTALL_DIR)\$(DLLSUBDIR)" mkdir "$(LIB_INSTALL_DIR)\$(DLLSUBDIR)"
+# 	@$(CPY) $(PRJLIB) "$(LIB_INSTALL_DIR)\$(DLLSUBDIR)" >NUL
+
+# TBD $(PRJ_OBJS): $(HEADERS) $(ROOT)\configure.ac
+
+{$(ROOT)\base}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<

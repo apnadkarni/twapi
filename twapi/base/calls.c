@@ -49,10 +49,10 @@ static BOOL Twapi_WTSUnRegisterSessionNotification(HWND hwnd)
 }
 
 TWAPI_EXTERN_VA
-TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
+TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *CONST objv[],
                           int fmtch, va_list ap)
 {
-    int        argno;
+    Tcl_Size   argno;
     void      *p;
     Tcl_Obj   *objP = 0;
     char      *typeP;              /* Type of a pointer */
@@ -256,7 +256,7 @@ argerror:
 }
 
 TWAPI_EXTERN_VA
-TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
+TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *CONST objv[],
                         int fmtch, ...)
 {
     TCL_RESULT ret;
@@ -285,11 +285,11 @@ TCL_RESULT TwapiGetArgsObj(Tcl_Interp *interp, Tcl_Obj *objP, int fmtch,...)
 }
 
 TWAPI_EXTERN_VA
-TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[],
+TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, Tcl_Size objc, Tcl_Obj *CONST objv[],
                  int fmtch, va_list ap)
 {
     Tcl_Interp *interp = ticP->interp;
-    int        argno;
+    Tcl_Size   argno;
     void      *p;
     Tcl_Obj   *objP = 0;
     char      *typeP;              /* Type of a pointer */
@@ -578,7 +578,7 @@ argerror:
 }
 
 TWAPI_EXTERN_VA
-TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[],
+TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, Tcl_Size objc, Tcl_Obj *CONST objv[],
                  int fmtch, ...)
 {
     TCL_RESULT ret;
@@ -1822,10 +1822,11 @@ static int Twapi_TranslateNameObjCmd(ClientData clientdata, Tcl_Interp *interp, 
     TCL_RESULT res;
     Tcl_Obj *nameObj;
     WCHAR *bufP, *nameP;
-    DWORD sz, nbytes, fmt, desired_fmt;
+    DWORD sz, fmt, desired_fmt;
+    MemLifoSize nbytes;
 
     bufP = MemLifoPushFrame(ticP->memlifoP, sizeof(WCHAR)*MAX_PATH, &nbytes);
-    sz = nbytes/sizeof(WCHAR);
+    sz = (DWORD) nbytes/sizeof(WCHAR);
     res = TwapiGetArgs(interp, objc-1, objv+1,
                        GETOBJ(nameObj), GETDWORD(fmt), GETDWORD(desired_fmt),
                        ARGEND);
@@ -1933,11 +1934,16 @@ static int Twapi_ReportEventObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             /* Can directly use the byte array pointer. Other objects decoded
                so no worry about shimmering even if they are same */
             data = ObjToByteArray(dataObj, &datalen);
-            if (datalen == 0)
-                data = NULL;
-            if (!ReportEventW(hEventLog, wType, wCategory, dwEventID, lpUserSid,
-                              (WORD) argc, datalen, argv, data))
-                res = TwapiReturnSystemError(interp);
+            if (datalen > UINT_MAX) {
+                res = TwapiReturnErrorUIntMax(interp);
+            } else {
+                DWORD dw = (DWORD) datalen;
+                if (dw == 0)
+                    data = NULL;
+                if (!ReportEventW(hEventLog, wType, wCategory, dwEventID, lpUserSid,
+                                  (WORD) argc, dw, argv, data))
+                    res = TwapiReturnSystemError(interp);
+            }
         }
     }
     MemLifoPopMark(mark);

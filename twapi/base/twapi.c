@@ -19,35 +19,35 @@
 #define MODULEVERSION PACKAGE_VERSION
 #endif
 
-Tcl_PackageInitProc Twapi_account_Init;
-Tcl_PackageInitProc Twapi_apputil_Init;
-Tcl_PackageInitProc Twapi_clipboard_Init;
-Tcl_PackageInitProc Twapi_com_Init;
-Tcl_PackageInitProc Twapi_console_Init;
-Tcl_PackageInitProc Twapi_crypto_Init;
-Tcl_PackageInitProc Twapi_device_Init;
-Tcl_PackageInitProc Twapi_etw_Init;
-Tcl_PackageInitProc Twapi_eventlog_Init;
-Tcl_PackageInitProc Twapi_input_Init;
-Tcl_PackageInitProc Twapi_mstask_Init;
-Tcl_PackageInitProc Twapi_multimedia_Init;
-Tcl_PackageInitProc Twapi_namedpipe_Init;
-Tcl_PackageInitProc Twapi_network_Init;
-Tcl_PackageInitProc Twapi_nls_Init;
-Tcl_PackageInitProc Twapi_os_Init;
-Tcl_PackageInitProc Twapi_pdh_Init;
-Tcl_PackageInitProc Twapi_process_Init;
-Tcl_PackageInitProc Twapi_rds_Init;
-Tcl_PackageInitProc Twapi_resource_Init;
-Tcl_PackageInitProc Twapi_registry_Init;
-Tcl_PackageInitProc Twapi_security_Init;
-Tcl_PackageInitProc Twapi_service_Init;
-Tcl_PackageInitProc Twapi_share_Init;
-Tcl_PackageInitProc Twapi_shell_Init;
-Tcl_PackageInitProc Twapi_storage_Init;
-Tcl_PackageInitProc Twapi_ui_Init;
-Tcl_PackageInitProc Twapi_winsta_Init;
-Tcl_PackageInitProc Twapi_wmi_Init;
+Tcl_LibraryInitProc Twapi_account_Init;
+Tcl_LibraryInitProc Twapi_apputil_Init;
+Tcl_LibraryInitProc Twapi_clipboard_Init;
+Tcl_LibraryInitProc Twapi_com_Init;
+Tcl_LibraryInitProc Twapi_console_Init;
+Tcl_LibraryInitProc Twapi_crypto_Init;
+Tcl_LibraryInitProc Twapi_device_Init;
+Tcl_LibraryInitProc Twapi_etw_Init;
+Tcl_LibraryInitProc Twapi_eventlog_Init;
+Tcl_LibraryInitProc Twapi_input_Init;
+Tcl_LibraryInitProc Twapi_mstask_Init;
+Tcl_LibraryInitProc Twapi_multimedia_Init;
+Tcl_LibraryInitProc Twapi_namedpipe_Init;
+Tcl_LibraryInitProc Twapi_network_Init;
+Tcl_LibraryInitProc Twapi_nls_Init;
+Tcl_LibraryInitProc Twapi_os_Init;
+Tcl_LibraryInitProc Twapi_pdh_Init;
+Tcl_LibraryInitProc Twapi_process_Init;
+Tcl_LibraryInitProc Twapi_rds_Init;
+Tcl_LibraryInitProc Twapi_resource_Init;
+Tcl_LibraryInitProc Twapi_registry_Init;
+Tcl_LibraryInitProc Twapi_security_Init;
+Tcl_LibraryInitProc Twapi_service_Init;
+Tcl_LibraryInitProc Twapi_share_Init;
+Tcl_LibraryInitProc Twapi_shell_Init;
+Tcl_LibraryInitProc Twapi_storage_Init;
+Tcl_LibraryInitProc Twapi_ui_Init;
+Tcl_LibraryInitProc Twapi_winsta_Init;
+Tcl_LibraryInitProc Twapi_wmi_Init;
 
 /*
  * Struct to keep track of registered pointers.

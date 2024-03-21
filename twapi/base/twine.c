@@ -79,9 +79,9 @@ Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second)
 
 
 /* Twine (merge) objv arrays */
-Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n)
+Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, Tcl_Size n)
 {
-    int i;
+    Tcl_Size i;
     Tcl_Obj *resultObj;
     Tcl_Obj *objv[2*100];
     Tcl_Obj **objs = NULL;

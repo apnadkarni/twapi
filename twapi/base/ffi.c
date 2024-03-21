@@ -105,10 +105,11 @@ enum cstruct_types_enum {
 TWAPI_EXTERN TCL_RESULT ObjCastToCStruct(Tcl_Interp *interp, Tcl_Obj *csObj, int allow_empty)
 {
     Tcl_Obj **fieldObjs;
-    Tcl_Size         i, nfields;
+    Tcl_Size  nfields;
+    int       i;
+    TCL_RESULT res;
     TwapiCStructRep *csP = NULL;
     unsigned int offset, struct_alignment;
-    TCL_RESULT res;
 
     if (csObj->typePtr == &gCStructType)
         return TCL_OK;          /* Already the correct type */
@@ -273,6 +274,7 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
         Tcl_Size  nelems; /* # elements in array */
         void *s;
         Tcl_Size  len;
+        DWORD     dwLen;
         int       j, elem_size;
 #if 0
         TCL_RESULT (*fn)(Tcl_Interp *, Tcl_Obj *, void *);
@@ -316,9 +318,9 @@ aught it */
                     PSID sidP;
                     if (! ConvertStringSidToSidA(ObjToString(arrayObj[j]), &sidP))
                         goto invalid_def;
-                    len = GetLengthSid(sidP);
-                    *(PSID*)pv2 = MemLifoAlloc(memlifoP, len, NULL);
-                    if (! CopySid(len, *(PSID*)pv2, sidP)) {
+                    dwLen = GetLengthSid(sidP);
+                    *(PSID*)pv2 = MemLifoAlloc(memlifoP, dwLen, NULL);
+                    if (! CopySid(dwLen, *(PSID*)pv2, sidP)) {
                         LocalFree(sidP);
                         goto invalid_def;
                     }
@@ -328,9 +330,9 @@ aught it */
                 PSID sidP;
                 if (! ConvertStringSidToSidA(ObjToString(objPP[i]), &sidP))
                     goto invalid_def;
-                len = GetLengthSid(sidP);
-                *(PSID*)pv2 = MemLifoAlloc(memlifoP, len, NULL);
-                if (! CopySid(len, *(PSID*)pv2, sidP)) {
+                dwLen = GetLengthSid(sidP);
+                *(PSID*)pv2 = MemLifoAlloc(memlifoP, dwLen, NULL);
+                if (! CopySid(dwLen, *(PSID*)pv2, sidP)) {
                     LocalFree(sidP);
                     goto invalid_def;
                 }
@@ -821,7 +823,7 @@ TCL_RESULT Twapi_FfiCallObjCmd(void *clientdata, Tcl_Interp *interp, int objc, T
         case CSTRUCT_INT64: STOREARG(ObjToWideInt, dcArgLongLong, u.i64);
         case CSTRUCT_UINT64: STOREARG(ObjToWideInt, dcArgLongLong, u.i64);
         case CSTRUCT_DOUBLE: STOREARG(ObjToDouble, dcArgDouble, u.d);
-        case CSTRUCT_FLOAT: STOREARG(ObjToDouble, dcArgFloat, u.d);
+        case CSTRUCT_FLOAT: STOREARG(ObjToFloat, dcArgFloat, u.f);
         case CSTRUCT_HANDLE: STOREARG(ObjToHANDLE, dcArgPointer, u.pv);
         case CSTRUCT_STRING: dcArgPointer(vmP, ObjToString(params[i])); break;
             /*

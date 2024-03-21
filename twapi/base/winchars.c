@@ -22,8 +22,8 @@
  */
 
 typedef struct WinChars {
-    int nchars; /* Num of characters not counting terminating \0.
-                   Always >=0 (i.e. -1 not used to indicate null termination)*/
+    Tcl_Size nchars; /* Num of characters not counting terminating \0.
+                        Always >=0 (i.e. -1 not used to indicate null termination)*/
     WCHAR chars[1]; /* Variable length array holding the string */
 } WinChars;
 
@@ -42,7 +42,7 @@ struct Tcl_ObjType gWinCharsType = {
  * Allocate a intrep of appropriate size. Note nchars does not include \0
  * but the defined array size of 1 takes care of that.
  */
-TWAPI_INLINE WinChars *WinCharsAlloc(int nchars) {
+TWAPI_INLINE WinChars *WinCharsAlloc(Tcl_Size nchars) {
     return (WinChars *) ckalloc(sizeof(WinChars) + sizeof(WCHAR)*(nchars));
 }
 
@@ -55,14 +55,14 @@ TWAPI_INLINE void WinCharsFree(WinChars *rep) {
 TWAPI_INLINE WinChars *WinCharsGet(Tcl_Obj *objP) {
     return (WinChars *) objP->internalRep.twoPtrValue.ptr1;
 }
-        
+
 /* Set the internal rep for a Tcl_Obj */
 TWAPI_INLINE void WinCharsSet(Tcl_Obj *objP, WinChars *rep) {
     objP->typePtr = &gWinCharsType;
     objP->internalRep.twoPtrValue.ptr1 = (void *) rep ;
 }
 
-static WinChars *WinCharsNew(const WCHAR *wsP, int len)
+static WinChars *WinCharsNew(const WCHAR *wsP, Tcl_Size len)
 {
     WinChars *rep;
     /*
@@ -99,7 +99,7 @@ static void DupWinCharsType(Tcl_Obj *srcP, Tcl_Obj *dstP)
 
 static void UpdateWinCharsTypeString(Tcl_Obj *objP)
 {
-    int nbytes;
+    Tcl_Size nbytes;
     char *utf8;
     WinChars *rep;
     Tcl_DString ds;

@@ -7,7 +7,7 @@
 
 #include "twapi.h"
 
-#define MEMLIFO_MAX_ALLOC INT_MAX
+#define MEMLIFO_MAX_ALLOC TCL_SIZE_MAX
 
 typedef struct _MemLifoChunk MemLifoChunk;
 
@@ -41,6 +41,7 @@ completely restored when popping a mark by simply making the previous
 mark the topmost (current) mark.
 */
 
+
 typedef struct _MemLifoMark {
     int			lm_magic;	/* Only used in debug mode */
 #define MEMLIFO_MARK_MAGIC	0xa0193d4f
@@ -58,11 +59,11 @@ typedef struct _MemLifoMark {
     void *lm_freeptr;           /* Ptr to unused space */
 } MemLifoMark;
 
-static void *MemLifoDefaultAlloc(DWORD sz, HANDLE heap, DWORD *actual)
+static void *MemLifoDefaultAlloc(MemLifoSize sz, HANDLE heap, MemLifoSize *actual)
 {
     void *p = HeapAlloc(heap, 0, sz);
     if (actual)
-        *actual = (DWORD) HeapSize(heap, 0, p);
+        *actual = HeapSize(heap, 0, p);
     return p;
 }
 
@@ -77,13 +78,13 @@ int MemLifoInit(
     void *allocator_data,
     MemLifoChunkAllocFn *allocFunc,
     MemLifoChunkFreeFn *freeFunc,
-    DWORD chunk_sz,
+    MemLifoSize chunk_sz,
     int flags
     )
 {
     MemLifoChunk *c;
     MemLifoMarkHandle m;
-    DWORD actual_chunk_sz;
+    MemLifoSize actual_chunk_sz;
 
     if (allocFunc == 0) {
         allocator_data = HeapCreate(0, 0, 0);
@@ -153,11 +154,11 @@ void MemLifoClose(MemLifo *l)
     TwapiZeroMemory(l, sizeof(*l));
 }
 
-void* MemLifoAlloc(MemLifo *l,  DWORD sz, DWORD *actual_szP)
+void* MemLifoAlloc(MemLifo *l,  MemLifoSize sz, MemLifoSize *actual_szP)
 {
     MemLifoChunk *c;
     MemLifoMarkHandle m;
-    DWORD chunk_sz;
+    MemLifoSize chunk_sz;
     void *p;
 
     if (sz > MEMLIFO_MAX_ALLOC) {
@@ -257,7 +258,7 @@ void* MemLifoAlloc(MemLifo *l,  DWORD sz, DWORD *actual_szP)
     }
     else {
 	/* Allocate a separate big block. */
-        DWORD actual_size;
+        MemLifoSize actual_size;
         chunk_sz = sz + ROUNDUP(sizeof(MemLifoChunk));
 
 	c = (MemLifoChunk *) l->lifo_allocFn(chunk_sz,
@@ -288,7 +289,7 @@ void* MemLifoAlloc(MemLifo *l,  DWORD sz, DWORD *actual_szP)
     return m->lm_last_alloc;
 }
 
-void* MemLifoCopy(MemLifo *l, void *srcP, DWORD nbytes)
+void* MemLifoCopy(MemLifo *l, void *srcP, MemLifoSize nbytes)
 {
     void *dstP = MemLifoAlloc(l, nbytes, NULL);
     if (dstP)
@@ -296,7 +297,7 @@ void* MemLifoCopy(MemLifo *l, void *srcP, DWORD nbytes)
     return dstP;
 }
 
-void* MemLifoZeroes(MemLifo *l, DWORD nbytes)
+void* MemLifoZeroes(MemLifo *l, MemLifoSize nbytes)
 {
     void *dstP = MemLifoAlloc(l, nbytes, NULL);
     if (dstP)
@@ -309,8 +310,8 @@ MemLifoMarkHandle MemLifoPushMark(MemLifo *l)
     MemLifoMarkHandle m;			/* Previous (existing) mark */
     MemLifoMarkHandle n;			/* New mark */
     MemLifoChunk *c;
-    DWORD chunk_sz;
-    DWORD mark_sz;
+    MemLifoSize chunk_sz;
+    MemLifoSize mark_sz;
     void *p;
     
     m = l->lifo_top_mark;
@@ -423,11 +424,11 @@ int MemLifoPopMark(MemLifoMarkHandle m)
 }
 
 
-void *MemLifoPushFrame(MemLifo *l, DWORD sz, DWORD *actual_szP)
+void *MemLifoPushFrame(MemLifo *l, MemLifoSize sz, MemLifoSize *actual_szP)
 {
     void *p;
     MemLifoMarkHandle m, n;
-    DWORD total;
+    MemLifoSize total;
        
     MEMLIFO_ASSERT(l->lifo_magic == MEMLIFO_MAGIC);
     
@@ -492,10 +493,10 @@ void *MemLifoPushFrame(MemLifo *l, DWORD sz, DWORD *actual_szP)
     return NULL;
 }
 
-void *MemLifoExpandLast(MemLifo *l, DWORD incr, int fix)
+void *MemLifoExpandLast(MemLifo *l, MemLifoSize incr, int fix)
 {
     MemLifoMarkHandle m;
-    DWORD old_sz, sz, chunk_sz;
+    MemLifoSize old_sz, sz, chunk_sz;
     void *p, *p2;
     char is_big_block;
 
@@ -541,7 +542,7 @@ void *MemLifoExpandLast(MemLifo *l, DWORD incr, int fix)
 
     if (is_big_block) {
         MemLifoChunk *c;
-        DWORD actual_size;
+        MemLifoSize actual_size;
 	/*
 	 * Unlink the big block from the big block list. 
 	 * TBD - when we call MemLifoAlloc here we have to call it 
@@ -588,10 +589,10 @@ void *MemLifoExpandLast(MemLifo *l, DWORD incr, int fix)
 
 
 void * MemLifoShrinkLast(MemLifo *l, 
-                              DWORD decr,
+                              MemLifoSize decr,
                               int fix)
 {
-    DWORD old_sz;
+    MemLifoSize old_sz;
     char is_big_block;
     MemLifoMarkHandle m;
 
@@ -616,9 +617,9 @@ void * MemLifoShrinkLast(MemLifo *l,
 }
 
 
-void *MemLifoResizeLast(MemLifo *l, DWORD new_sz, int fix)
+void *MemLifoResizeLast(MemLifo *l, MemLifoSize new_sz, int fix)
 {
-    DWORD old_sz;
+    MemLifoSize old_sz;
     char is_big_block;
     MemLifoMarkHandle m;
 

@@ -145,7 +145,7 @@ static void DupParseargsOpt(Tcl_Obj *srcP, Tcl_Obj *dstP)
 
 static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
 {
-    Tcl_Size k, nopts;
+    int k, nopts;
     Tcl_Obj **optObjs;
     struct OptionDescriptor *optsP;
     struct OptionDescriptor *curP;
@@ -154,8 +154,12 @@ static int SetParseargsOptFromAny(Tcl_Interp *interp, Tcl_Obj *objP)
     if (objP->typePtr == &gParseargsOptionType)
         return TCL_OK;          /* Already in correct format */
 
-    if (ObjGetElements(interp, objP, &nopts, &optObjs) != TCL_OK)
+    if (ObjGetElements(interp, objP, &len, &optObjs) != TCL_OK)
         return TCL_ERROR;
+    if (len > INT_MAX)
+        return TwapiReturnErrorUIntMax(interp);
+    nopts = (int) len;
+
     optsP = nopts ? (struct OptionDescriptor *) ckalloc(nopts * sizeof(*optsP)) : NULL;
 
     for (k = 0; k < nopts ; ++k) {

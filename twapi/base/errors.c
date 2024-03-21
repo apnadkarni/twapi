@@ -72,7 +72,7 @@ int TwapiFormatMessageHelper(
     dwFlags |= FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_IGNORE_INSERTS;
     /* TBD - why pass argc, argv if IGNORE_INSERTS is set? */
     /* TBD - this code seems broken. Why is argc being passed? It is supposed to be buffer size, not argument count! */
-    if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId, (LPWSTR) &msgP, argc, (va_list *)argv)) {
+    if (FormatMessageW(dwFlags, lpSource, dwMessageId, dwLanguageId, (LPWSTR) &msgP, (DWORD)argc, (va_list *)argv)) {
         ObjSetResult(interp, ObjFromWinChars(msgP));
         LocalFree(msgP);
         return TCL_OK;
