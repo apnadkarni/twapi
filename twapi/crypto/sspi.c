@@ -297,11 +297,11 @@ static TCL_RESULT Twapi_InitializeSecurityContextObjCmd(
                        GETVAR(credential, ObjToSecHandle),
                        GETVAR(contextP, ObjToSecHandle_NULL),
                        GETEMPTYASNULL(targetP),
-                       GETINT(contextreq),
-                       GETINT(reserved1),
-                       GETINT(targetdatarep),
+                       GETDWORD(contextreq),
+                       GETDWORD(reserved1),
+                       GETDWORD(targetdatarep),
                        GETVAR(sbd_in, ObjToSecBufferDescRW),
-                       GETINT(reserved2),
+                       GETDWORD(reserved2),
                        ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -439,8 +439,8 @@ static int Twapi_AcceptSecurityContextObjCmd(ClientData clientdata, Tcl_Interp *
                        GETVAR(credential, ObjToSecHandle),
                        GETVAR(contextP, ObjToSecHandle_NULL),
                        GETVAR(sbd_in, ObjToSecBufferDescRW),
-                       GETINT(contextreq),
-                       GETINT(targetdatarep),
+                       GETDWORD(contextreq),
+                       GETDWORD(targetdatarep),
                        ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -574,18 +574,18 @@ static TCL_RESULT ParseSCHANNEL_CRED (
 
     credP = MemLifoAlloc(ticP->memlifoP, sizeof(*credP), NULL);
     res = TwapiGetArgsEx(ticP, objc, objv,
-                         GETINT(credP->dwVersion),
+                         GETDWORD(credP->dwVersion),
                          GETOBJ(certsObj),
                          GETVERIFIEDORNULL(credP->hRootStore, HCERTSTORE, CertCloseStore),
                          ARGUSEDEFAULT,
                          ARGUNUSED, /* aphMappers */
                          ARGUNUSED, /* palgSupportedAlgs */
-                         GETINT(credP->grbitEnabledProtocols),
-                         GETINT(credP->dwMinimumCipherStrength),
-                         GETINT(credP->dwMaximumCipherStrength),
-                         GETINT(credP->dwSessionLifespan),
-                         GETINT(credP->dwFlags),
-                         GETINT(credP->dwCredFormat),
+                         GETDWORD(credP->grbitEnabledProtocols),
+                         GETDWORD(credP->dwMinimumCipherStrength),
+                         GETDWORD(credP->dwMaximumCipherStrength),
+                         GETDWORD(credP->dwSessionLifespan),
+                         GETDWORD(credP->dwFlags),
+                         GETDWORD(credP->dwCredFormat),
                          ARGEND);
     if (res != TCL_OK)
         return res;
@@ -769,9 +769,9 @@ static TCL_RESULT Twapi_MakeSignatureObjCmd(ClientData clientdata, Tcl_Interp *i
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVAR(sech, ObjToSecHandle),
-                     GETINT(qop),
+                     GETDWORD(qop),
                      GETOBJ(dataObj),
-                     GETINT(seqnum),
+                     GETDWORD(seqnum),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -832,9 +832,9 @@ static TCL_RESULT Twapi_EncryptMessageObjCmd(ClientData clientdata, Tcl_Interp *
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVAR(sech, ObjToSecHandle),
-                     GETINT(qop),
+                     GETDWORD(qop),
                      GETOBJ(dataObj),
-                     GETINT(seqnum),
+                     GETDWORD(seqnum),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -903,7 +903,7 @@ static TCL_RESULT Twapi_EncryptStreamObjCmd(ClientData clientdata, Tcl_Interp *i
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVAR(sech, ObjToSecHandle),
-                     GETINT(qop),
+                     GETDWORD(qop),
                      GETOBJ(dataObj),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
@@ -1099,7 +1099,7 @@ static int Twapi_AcquireCredentialsHandleObjCmd(ClientData clientdata, Tcl_Inter
     luidP = &luid;
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
                        GETEMPTYASNULL(principalP), GETWSTR(packageP),
-                       GETINT(cred_use), GETVAR(luidP, ObjToLUID_NULL),
+                       GETDWORD(cred_use), GETVAR(luidP, ObjToLUID_NULL),
                        GETOBJ(authObj), ARGEND) != TCL_OK)
         goto vamoose;
 
@@ -1218,7 +1218,7 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         case 10023: // QueryContextAttributes
             if (TwapiGetArgs(interp, objc, objv,
                              GETVAR(sech, ObjToSecHandle),
-                             GETINT(dw),
+                             GETDWORD(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return Twapi_QueryContextAttributes(interp, &sech, dw);
@@ -1227,7 +1227,7 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             if (TwapiGetArgs(interp, objc, objv,
                              GETVAR(sech, ObjToSecHandle),
                              GETVAR(sbd, ObjToSecBufferDescRO),
-                             GETINT(dw),
+                             GETDWORD(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             sbdP = sbd.cBuffers ? &sbd : NULL;
@@ -1245,7 +1245,7 @@ static int Twapi_SspiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
             if (TwapiGetArgs(interp, objc, objv,
                              GETVAR(sech, ObjToSecHandle),
                              GETVAR(sbd, ObjToSecBufferDescRW),
-                             GETINT(dw),
+                             GETDWORD(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             dw2 = DecryptMessage(&sech, &sbd, dw, &result.value.uval);

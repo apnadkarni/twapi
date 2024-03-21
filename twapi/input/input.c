@@ -321,7 +321,7 @@ static int Twapi_InputCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     case 4:
     case 5:
     case 6:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 3:
@@ -339,15 +339,15 @@ static int Twapi_InputCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         }
         break;
     case 7:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETINT(dw2),
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETDWORD(dw), GETDWORD(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_DWORD;
         result.value.uval = MapVirtualKey(dw, dw2);
         break;
     case 8:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETINT(dw2),
-                         GETINT(dw3), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETDWORD(dw), GETDWORD(dw2),
+                         GETDWORD(dw3), ARGEND) != TCL_OK)
             return TCL_ERROR;
         return Twapi_RegisterHotKey(ticP, dw, dw2, dw3);
     case 9:

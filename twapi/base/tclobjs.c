@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2020, Ashok P. Nadkarni
+ * Copyright (c) 2010-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -2321,15 +2321,19 @@ TWAPI_EXTERN TCL_RESULT ObjToTIME_ZONE_INFORMATION(Tcl_Interp *interp,
     Tcl_Obj **objPP;
     Tcl_Size  nobjs;
     Tcl_Obj *stdObj, *daylightObj;
+    int bias, standardBias, daylightBias;
 
     if (ObjGetElements(NULL, tzObj, &nobjs, &objPP) == TCL_OK &&
         TwapiGetArgs(interp, nobjs, objPP,
-                     GETINT(tzP->Bias),
-                     GETOBJ(stdObj), GETVAR(tzP->StandardDate, ObjToSYSTEMTIME), GETINT(tzP->StandardBias),
-                     GETOBJ(daylightObj), GETVAR(tzP->DaylightDate, ObjToSYSTEMTIME), GETINT(tzP->DaylightBias),
+                     GETINT(bias),
+                     GETOBJ(stdObj), GETVAR(tzP->StandardDate, ObjToSYSTEMTIME), GETINT(standardBias),
+                     GETOBJ(daylightObj), GETVAR(tzP->DaylightDate, ObjToSYSTEMTIME), GETINT(daylightBias),
                      ARGEND) == TCL_OK) {
         WCHAR *std_name, *daylight_name;
         Tcl_Size std_len, daylight_len;
+        tzP->Bias = bias;
+        tzP->StandardBias = standardBias;
+        tzP->DaylightBias = daylightBias;
         std_name = ObjToWinCharsN(stdObj, &std_len);
         daylight_name = ObjToWinCharsN(daylightObj, &daylight_len);
         /* Remember we need a terminating \0 */

@@ -829,6 +829,7 @@ typedef struct {
 #define ARGEMPTYASNULL 'E'
 #define ARGINT     'i'
 #define ARGWIDE    'I'
+#define ARGSIZE    'j'
 #define ARGHKEY    'k'
 #define ARGTOKENNULL 'N'
 #define ARGOBJ     'o'
@@ -843,32 +844,48 @@ typedef struct {
 #define ARGVAR     'v'
 #define ARGVARWITHDEFAULT 'V'
 #define ARGWORD     'w'
-#define ARGVERIFIEDPTR 'z'
-#define ARGVERIFIEDORNULL 'Z'
+#define ARGDWORD     'W'
 #define ARGSKIP     'x'   /* Leave arg parsing to caller */
 #define ARGUNUSED ARGSKIP /* For readability when even caller does not care */
+#define ARGVERIFIEDPTR 'z'
+#define ARGVERIFIEDORNULL 'Z'
 #define ARGUSEDEFAULT '?'
 
 /*
  * These silly functions are to ensure pointer type safety when
  * using the varargs argument parsing functions
  */
+TWAPI_INLINE int *reflectIntPtr(int *p) { return p; }
+TWAPI_INLINE unsigned int *reflectUIntPtr(unsigned int *p) { return p; }
+TWAPI_INLINE long *reflectLongPtr(long *p) { return p; }
+TWAPI_INLINE WORD *reflectWordPtr(WORD *p) { return p; }
+TWAPI_INLINE DWORD *reflectDWordPtr(DWORD *p) { return p; }
+TWAPI_INLINE double *reflectDoublePtr(double *p) { return p; }
 TWAPI_INLINE Tcl_Size *reflectTclSizePtr(Tcl_Size *p) { return p; }
+TWAPI_INLINE Tcl_WideInt *reflectTclWidePtr(Tcl_WideInt *p) { return p; }
+TWAPI_INLINE Tcl_Obj **reflectTclObjPtr(Tcl_Obj **p) { return p; }
+TWAPI_INLINE WCHAR **reflectWCharPtr(WCHAR **p) { return p; }
+TWAPI_INLINE char **reflectCharPtr(char **p) { return p; }
 
-#define GETBOOL(v)    ARGBOOL, &(v)
+
+#define GETBOOL(v)    ARGBOOL, reflectIntPtr(&(v))
 #define GETBA(v, n)  ARGBA, &(v), reflectTclSizePtr(&(n))
-#define GETINT(v)     ARGINT, &(v)
-#define GETWIDE(v)    ARGWIDE, &(v)
-#define GETDOUBLE(v)  ARGDOUBLE, &(v)
-#define GETOBJ(v)     ARGOBJ, &(v)
+#define GETINT(v)     ARGINT, reflectIntPtr(&(v))
+#define GETLONG(v)     ARGINT, reflectLongPtr(&(v))
+#define GETDWORD(v)     ARGDWORD, reflectDWordPtr(&(v))
+#define GETUINT(v)     ARGDWORD, reflectUIntPtr(&(v))
+#define GETWIDE(v)    ARGWIDE, reflectTclWidePtr(&(v))
+#define GETSIZE(v)    ARGSIZE, reflectTclSizePtr(&(v))
+#define GETDOUBLE(v)  ARGDOUBLE, reflectDoublePtr(&(v))
+#define GETOBJ(v)     ARGOBJ, reflectTclObjPtr(&(v))
 #define GETDWORD_PTR(v) ARGDWORD_PTR, &(v)
-#define GETASTR(v)      ARGASTR, &(v)
-#define GETASTRN(v, n)  ARGASTRN, &(v), reflectTclSizePtr(&(n))
-#define GETWSTR(v)     ARGWSTR, &(v)
-#define GETWSTRN(v, n) ARGWSTRN, &(v), reflectTclSizePtr(&(n))
+#define GETASTR(v)      ARGASTR, reflectCharPtr(&(v))
+#define GETASTRN(v, n)  ARGASTRN, reflectCharPtr(&(v)), reflectTclSizePtr(&(n))
+#define GETWSTR(v)     ARGWSTR, reflectWCharPtr(&(v))
+#define GETWSTRN(v, n) ARGWSTRN, reflectWCharPtr(&(v)), reflectTclSizePtr(&(n))
 #define GETEMPTYASNULL(v) ARGEMPTYASNULL, &(v)
 #define GETTOKENNULL(v) ARGTOKENNULL, &(v)
-#define GETWORD(v)     ARGWORD, &(v)
+#define GETWORD(v)     ARGWORD, reflectWordPtr(&(v))
 #define GETPTR(v, typesym) ARGPTR, &(v), #typesym
 #define GETVOIDP(v)    ARGPTR, &(v), NULL
 #define GETVERIFIEDPTR(v, typesym, verifier)    ARGVERIFIEDPTR, &(v), #typesym, (verifier)

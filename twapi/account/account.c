@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2012 Ashok P. Nadkarni
+ * Copyright (c) 2012-2024 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -625,7 +625,7 @@ static int Twapi_NetUserModalsGetObjCmd(ClientData clientdata, Tcl_Interp *inter
 
     mark = MemLifoPushMark(memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETEMPTYASNULL(server_name),
-                         GETINT(level), GETOBJ(structObj), ARGEND);
+                         GETDWORD(level), GETOBJ(structObj), ARGEND);
     if (res == TCL_OK) {
         switch (level) {
         case 0: sz = sizeof(USER_MODALS_INFO_0); break;
@@ -665,7 +665,7 @@ static int Twapi_NetUserModalsSetObjCmd(ClientData clientdata, Tcl_Interp *inter
 
     mark = MemLifoPushMark(memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETEMPTYASNULL(server_name),
-                         GETINT(level), GETOBJ(objP), ARGEND);
+                         GETDWORD(level), GETOBJ(objP), ARGEND);
     if (res == TCL_OK) {
         switch (level) {
         case 0: sz = sizeof(USER_MODALS_INFO_0); break;
@@ -741,7 +741,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
     case 4: // NetLocalGroupEnum system level resumehandle
         // Not shared with case 1: because different const qualifier on function
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(netenum.level), GETDWORD_PTR(netenum.hresume),
+                         GETDWORD(netenum.level), GETDWORD_PTR(netenum.hresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
@@ -775,7 +775,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
     case 5:
         // NetUserEnum system level filter resumehandle
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(netenum.level), GETINT(dw), GETINT(dwresume),
+                         GETDWORD(netenum.level), GETDWORD(dw), GETDWORD(dwresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
@@ -798,7 +798,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
 
     case 6:  // NetUserGetGroups server user level
         if (TwapiGetArgs(interp, objc, objv,
-                         GETOBJ(s2Obj), GETINT(netenum.level),
+                         GETOBJ(s2Obj), GETDWORD(netenum.level),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
@@ -817,7 +817,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
     case 7:
         // NetUserGetLocalGroups server user level flags
         if (TwapiGetArgs(interp, objc, objv,
-                         GETOBJ(s2Obj), GETINT(netenum.level), GETINT(dw),
+                         GETOBJ(s2Obj), GETDWORD(netenum.level), GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
@@ -835,7 +835,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
     case 9:
         // NetLocalGroupGetMembers server group level resumehandle
         if (TwapiGetArgs(interp, objc, objv,
-                         GETOBJ(s2Obj), GETINT(netenum.level), GETDWORD_PTR(netenum.hresume),
+                         GETOBJ(s2Obj), GETDWORD(netenum.level), GETDWORD_PTR(netenum.hresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
@@ -917,7 +917,7 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
     int level;
     Tcl_Obj **accts;
     Tcl_Size naccts;
-    LPCWSTR servername, groupname;
+    LPWSTR servername, groupname;
     DWORD winerr;
     LOCALGROUP_MEMBERS_INFO_0 *lgmi0P = NULL;
     LOCALGROUP_MEMBERS_INFO_3 *lgmi3P = NULL;

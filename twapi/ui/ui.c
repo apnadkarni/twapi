@@ -392,9 +392,9 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
          * so arg errors are not quite accurate but that's ok, the
          * Tcl wrappers catch them.
          */
-        if (TwapiGetArgs(interp, objc, objv, GETINT(dw), ARGUSEDEFAULT,
-                         GETINT(dw2), GETINT(dw3), GETINT(dw4),
-                         GETINT(dw5), GETINT(dw6),
+        if (TwapiGetArgs(interp, objc, objv, GETDWORD(dw), ARGUSEDEFAULT,
+                         GETDWORD(dw2), GETDWORD(dw3), GETDWORD(dw4),
+                         GETDWORD(dw5), GETDWORD(dw6),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
@@ -425,7 +425,7 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     } else if (func < 5000) {
         /* First arg is a handle */
         if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),
-                         ARGUSEDEFAULT, GETINT(dw),
+                         ARGUSEDEFAULT, GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
@@ -489,7 +489,7 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
         switch (func) {
         case 10001:
             if (TwapiGetArgs(interp, objc, objv,
-                             GETVAR(u.pt, ObjToPOINT), GETINT(dw),
+                             GETVAR(u.pt, ObjToPOINT), GETDWORD(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_HMONITOR;
@@ -497,7 +497,7 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
             break;
         case 10002:
             if (TwapiGetArgs(interp, objc, objv,
-                             GETVAR(u.rect, ObjToRECT), GETINT(dw),
+                             GETVAR(u.rect, ObjToRECT), GETDWORD(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_HMONITOR;
@@ -509,7 +509,7 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
             return Twapi_GetThemeFont(interp, objc, objv);
         case 10005:
             if (TwapiGetArgs(interp, objc, objv, ARGSKIP,
-                             GETINT(dw), GETINT(dw2),
+                             GETDWORD(dw), GETDWORD(dw2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             u.display_device.cb = sizeof(u.display_device);
@@ -540,7 +540,7 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
         case 10008: // AddFontResourceExW
         case 10009: // RemoveFontResourceExW
             if (TwapiGetArgs(interp, objc, objv, ARGSKIP,
-                             ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
+                             ARGUSEDEFAULT, GETDWORD(dw), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.value.ival =
                 (func == 10008 ? AddFontResourceExW : RemoveFontResourceExW) (ObjToWinChars(objv[0]), dw, NULL);
@@ -556,6 +556,7 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     HWND hwnd, hwnd2;
     TwapiResult result;
     DWORD dw, dw2, dw3, dw4, dw5;
+    BOOL bval;
     int func = PtrToInt(clientdata);
     union {
         WINDOWPLACEMENT winplace;
@@ -670,7 +671,7 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         }
     } else if (func < 1000) {
         /* Exactly one additional int arg */
-        if (TwapiGetArgs(interp, objc, objv, GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 501:
@@ -737,7 +738,7 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         case 1004: // InvalidateRect
             rectP = &u.rect;
             if (TwapiGetArgs(interp, objc, objv,
-                             GETVAR(rectP, ObjToRECT_NULL), GETINT(dw), 
+                             GETVAR(rectP, ObjToRECT_NULL), GETDWORD(dw), 
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -745,8 +746,8 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             break;
         case 1005: // SetWindowPos
             if (TwapiGetArgs(interp, objc, objv,
-                             GETHANDLET(hwnd2, HWND), GETINT(dw), GETINT(dw2),
-                             GETINT(dw3), GETINT(dw4), GETINT(dw5),
+                             GETHANDLET(hwnd2, HWND), GETDWORD(dw), GETDWORD(dw2),
+                             GETDWORD(dw3), GETDWORD(dw4), GETDWORD(dw5),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -754,8 +755,8 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             break;
         case 1006:
             if (TwapiGetArgs(interp, objc, objv,
-                             GETINT(dw), GETINT(dw2), GETINT(dw3),
-                             GETINT(dw4), GETINT(dw5),
+                             GETDWORD(dw), GETDWORD(dw2), GETDWORD(dw3),
+                             GETDWORD(dw4), GETDWORD(dw5),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
@@ -775,11 +776,11 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             break;
         case 1009: // SetWindowRgn
             if (TwapiGetArgs(interp, objc, objv,
-                             GETHANDLET(u.hrgn, HRGN), GETBOOL(dw),
+                             GETHANDLET(u.hrgn, HRGN), GETBOOL(bval),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetWindowRgn(hwnd, u.hrgn, dw);
+            result.value.ival = SetWindowRgn(hwnd, u.hrgn, bval);
             break;
         case 1010: // GetWindowRgn
             if (TwapiGetArgs(interp, objc, objv, 
@@ -791,7 +792,7 @@ int Twapi_UiCallWObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             break;
         case 1011:
             if (TwapiGetArgs(interp, objc, objv,
-                             GETINT(dw), GETINT(dw2), GETINT(dw3),
+                             GETDWORD(dw), GETDWORD(dw2), GETDWORD(dw3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;

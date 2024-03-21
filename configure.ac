@@ -375,5 +375,5 @@ TEA_PROG_TCLSH
 # which require substituting th AC variables in.  Include these here.
 #--------------------------------------------------------------------
 
-AC_CONFIG_FILES([Makefile pkgIndex.tcl twapi_entry.tcl])
+AC_CONFIG_FILES([Makefile pkgIndex.tcl])
 AC_OUTPUT

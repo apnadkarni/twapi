@@ -132,7 +132,7 @@ int ObjToSP_DEVINFO_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVINFO_DATA *sdd
             TwapiGetArgs(interp, nobjs, objs,
                          ARGUSEDEFAULT,
                          GETVARWITHDEFAULT(sddP->ClassGuid, ObjToGUID),
-                         GETINT(sddP->DevInst),
+                         GETDWORD(sddP->DevInst),
                          GETDWORD_PTR(sddP->Reserved), ARGEND) != TCL_OK) {
             return TCL_ERROR;
         }
@@ -175,7 +175,7 @@ int ObjToSP_DEVICE_INTERFACE_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVICE_I
             TwapiGetArgs(interp, nobjs, objs,
                          ARGUSEDEFAULT,
                          GETVARWITHDEFAULT(sdiP->InterfaceClassGuid, ObjToGUID),
-                         GETINT(sdiP->Flags),
+                         GETDWORD(sdiP->Flags),
                          GETDWORD_PTR(sdiP->Reserved), ARGEND) != TCL_OK) {
             return TCL_ERROR;
         }
@@ -200,7 +200,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *ticP, int objc, T
     if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETHANDLET(hdi, HDEVINFO),
                      GETVAR(sdd, ObjToSP_DEVINFO_DATA),
-                     GETINT(regprop),
+                     GETDWORD(regprop),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -855,7 +855,7 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
 
     guidP = &dncP->device.guid;
     if (TwapiGetArgs(ticP->interp, objc, objv,
-                     GETINT(dncP->devtype),
+                     GETDWORD(dncP->devtype),
                      GETVAR(guidP, ObjToGUID_NULL),
                      GETHANDLE(dncP->device.hdev),
                      ARGEND) == TCL_ERROR) {
@@ -1084,9 +1084,9 @@ static int Twapi_DeviceIoControlObjCmd(ClientData clientdata, Tcl_Interp *interp
     TCL_RESULT res;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETHANDLE(hdev), GETINT(ctrl),
+                     GETHANDLE(hdev), GETDWORD(ctrl),
                      ARGUSEDEFAULT, GETOBJ(inputObj),
-                     GETINT(nout),
+                     GETDWORD(nout),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -1152,7 +1152,7 @@ static int Twapi_DeviceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 56: // CM_Reenumerate_DevNode_Ex
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETINT(dw2),
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETDWORD(dw), GETDWORD(dw2),
                          ARGUSEDEFAULT, GETHANDLET(h, HMACHINE),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -1161,7 +1161,7 @@ static int Twapi_DeviceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
         
     case 57: // CM_Locate_DevNode_Ex
-        if (TwapiGetArgs(interp, objc-2, objv+2, ARGSKIP, GETINT(dw),
+        if (TwapiGetArgs(interp, objc-2, objv+2, ARGSKIP, GETDWORD(dw),
                          ARGUSEDEFAULT,
                          GETHANDLET(h, HMACHINE),
                          ARGEND) != TCL_OK)
@@ -1216,7 +1216,7 @@ static int Twapi_DeviceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                          GETVAR(guidP, ObjToGUID_NULL),
                          GETOBJ(sObj),
                          GETHWND(hwnd),
-                         GETINT(dw),
+                         GETDWORD(dw),
                          GETHANDLET(h, HDEVINFO),
                          GETOBJ(s2Obj),
                          ARGUSEDEFAULT,
@@ -1231,7 +1231,7 @@ static int Twapi_DeviceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 62: // SetupDiEnumDeviceInfo
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETHANDLET(h, HDEVINFO),
-                         GETINT(dw),
+                         GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
@@ -1251,7 +1251,7 @@ static int Twapi_DeviceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                          GETHANDLET(h, HDEVINFO),
                          GETVAR(u.dev.sp_devinfo_dataP, ObjToSP_DEVINFO_DATA_NULL),
                          GETGUID(guid),
-                         GETINT(dw),
+                         GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         
@@ -1303,7 +1303,7 @@ static int Twapi_DeviceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 69: // SetupDiOpenDeviceInfo
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETHANDLET(h, HDEVINFO), GETOBJ(sObj),
-                         GETHWND(hwnd), GETINT(dw), ARGEND) != TCL_OK)
+                         GETHWND(hwnd), GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         u.dev.sp_devinfo_data.cbSize = sizeof(u.dev.sp_devinfo_data);
         if (SetupDiOpenDeviceInfoW(h, ObjToWinChars(sObj), hwnd, dw,

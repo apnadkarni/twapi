@@ -53,7 +53,7 @@ static int Twapi_ReadEventLogObjCmd(ClientData clientdata, Tcl_Interp *interp, i
     Tcl_Obj *fields[ARRAYSIZE(fieldnames)];
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETHANDLE(evlH),
-                     GETINT(flags), GETINT(offset), ARGEND) != TCL_OK)
+                     GETDWORD(flags), GETDWORD(offset), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     /* Ask for 1000 bytes alloc, will get more if available. TBD - instrument */

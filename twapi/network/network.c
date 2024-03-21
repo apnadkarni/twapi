@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2016 Ashok P. Nadkarni
+ * Copyright (c) 2004-2024 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -1622,8 +1622,8 @@ Tcl_Obj *TwapiCollectAddrInfo(struct addrinfo *addrP, int family)
 
 static int Twapi_GetAddrInfoObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    const char *hostname;
-    const char *svcname;
+    char *hostname;
+    char *svcname;
     int status;
     struct addrinfo hints;
     struct addrinfo *addrP;
@@ -1960,6 +1960,7 @@ static int Twapi_NetworkCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         SOCKADDR_STORAGE ss;
     } u;
     DWORD dw, dw2, dw3, dw4;
+    BOOL bval;
     LPWSTR s;
     LPVOID pv;
 
@@ -2068,7 +2069,7 @@ static int Twapi_NetworkCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         case 10000: // Twapi_FormatExtendedTcpTable
         case 10001: // Twapi_FormatExtendedUdpTable
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVERIFIEDVOIDP(pv, NULL), GETINT(dw), GETINT(dw2),
+                             GETVERIFIEDVOIDP(pv, NULL), GETDWORD(dw), GETDWORD(dw2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return (func == 10000 ? Twapi_FormatExtendedTcpTable : Twapi_FormatExtendedUdpTable)
@@ -2077,8 +2078,8 @@ static int Twapi_NetworkCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         case 10003: // GetExtendedUdpTable
             /* Note we cannot use GETVERIFIEDVOIDP because it can be NULL */
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVOIDP(pv), GETINT(dw), GETBOOL(dw2),
-                             GETINT(dw3), GETINT(dw4),
+                             GETVOIDP(pv), GETDWORD(dw), GETBOOL(bval),
+                             GETDWORD(dw3), GETDWORD(dw4),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
 
@@ -2086,7 +2087,7 @@ static int Twapi_NetworkCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                 return TwapiReturnError(interp, TWAPI_REGISTERED_POINTER_NOTFOUND);
 
             return (func == 10002 ? Twapi_GetExtendedTcpTable : Twapi_GetExtendedUdpTable)
-                (interp, pv, dw, dw2, dw3, dw4);
+                (interp, pv, dw, bval, dw3, dw4);
         }
     }
 

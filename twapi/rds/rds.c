@@ -132,7 +132,8 @@ int Twapi_WTSQuerySessionInformation(
 static int Twapi_RDSCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     LPWSTR s, s2;
-    DWORD dw, dw2, dw3, dw4;
+    DWORD dw, dw2, dw3;
+    BOOL bval;
     HANDLE h;
     TwapiResult result;
     int func = PtrToInt(clientdata);
@@ -153,23 +154,23 @@ static int Twapi_RDSCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         break;
     case 2:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLE(h), GETINT(dw),
+                         GETHANDLE(h), GETDWORD(dw),
                          ARGSKIP, ARGSKIP,
-                         GETINT(dw2), GETINT(dw3), GETBOOL(dw4),
+                         GETDWORD(dw2), GETDWORD(dw3), GETBOOL(bval),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         s = ObjToWinCharsN(objv[2], &len);
         s2 = ObjToWinCharsN(objv[3], &len2);
         if (WTSSendMessageW(h, dw, s, sizeof(WCHAR)*len,
                             s2, sizeof(WCHAR)*len2, dw2,
-                            dw3, &result.value.uval, dw4))
+                            dw3, &result.value.uval, bval))
             result.type = TRT_DWORD;
         else
             result.type = TRT_GETLASTERROR;    
         break;
     default:
         if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),
-                         ARGUSEDEFAULT, GETINT(dw), GETINT(dw2),
+                         ARGUSEDEFAULT, GETDWORD(dw), GETDWORD(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {

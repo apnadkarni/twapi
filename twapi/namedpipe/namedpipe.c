@@ -1250,9 +1250,9 @@ static int Twapi_NPipeServerObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     TCL_RESULT res;
     
     res = TwapiGetArgs(interp, objc-1, objv+1,
-                       GETOBJ(nameObj), GETINT(open_mode), GETINT(pipe_mode),
-                       GETINT(max_instances), GETINT(outbuf_sz),
-                       GETINT(inbuf_sz), GETINT(timeout),
+                       GETOBJ(nameObj), GETDWORD(open_mode), GETDWORD(pipe_mode),
+                       GETDWORD(max_instances), GETDWORD(outbuf_sz),
+                       GETDWORD(inbuf_sz), GETDWORD(timeout),
                        GETOBJ(secattrObj), ARGEND);
     if (res != TCL_OK)
         return res;
@@ -1377,11 +1377,11 @@ int Twapi_NPipeClientObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc,
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETOBJ(nameObj),
-                     GETINT(desired_access),
-                     GETINT(share_mode),
+                     GETDWORD(desired_access),
+                     GETDWORD(share_mode),
                      GETOBJ(secattrObj),
-                     GETINT(creation_disposition),
-                     GETINT(flags_attr),
+                     GETDWORD(creation_disposition),
+                     GETDWORD(flags_attr),
                      ARGEND) != TCL_OK) {
         return TCL_ERROR;
     }

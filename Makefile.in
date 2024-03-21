@@ -215,12 +215,12 @@ install-binaries: binaries install-lib-binaries install-bin-binaries
 #========================================================================
 
 install-libraries: libraries
-	@mkdir -p $(DESTDIR)$(includedir)
-	@echo "Installing header files in $(DESTDIR)$(includedir)"
-	@list='$(PKG_HEADERS)'; for i in $$list; do \
-	    echo "Installing $(srcdir)/$$i" ; \
-	    $(INSTALL_DATA) $(srcdir)/$$i $(DESTDIR)$(includedir) ; \
-	done;
+#	@mkdir -p $(DESTDIR)$(includedir)
+#	@echo "Installing header files in $(DESTDIR)$(includedir)"
+#	@list='$(PKG_HEADERS)'; for i in $$list; do \
+#	    echo "Installing $(srcdir)/$$i" ; \
+#	    $(INSTALL_DATA) $(srcdir)/$$i $(DESTDIR)$(includedir) ; \
+#	done;
 
 #========================================================================
 # Install documentation.  Unix manpages should go in the $(mandir)
@@ -423,8 +423,6 @@ install-lib-binaries: binaries
 	@if test "x$(SHARED_BUILD)" = "x1"; then \
 	    echo " Install pkgIndex.tcl $(DESTDIR)$(pkglibdir)"; \
 	    $(INSTALL_DATA) pkgIndex.tcl $(DESTDIR)$(pkglibdir); \
-	    echo " Install twapi_entry.tcl $(DESTDIR)$(pkglibdir)"; \
-	    $(INSTALL_DATA) twapi_entry.tcl $(DESTDIR)$(pkglibdir); \
 	fi
 
 #========================================================================

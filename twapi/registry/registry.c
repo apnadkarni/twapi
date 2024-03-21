@@ -347,6 +347,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     HKEY                 hkey, hkey2;
     HANDLE               h;
     DWORD                dw, dw2, dw3, dw4;
+    BOOL                 bval;
     SECURITY_ATTRIBUTES *secattrP;
     SECURITY_DESCRIPTOR *secdP;
     SWSMark              mark = NULL;
@@ -367,7 +368,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     case 1: // RegOpenKeyEx
         if (TwapiGetArgs(interp, objc, objv,
                          GETHKEY(hkey), GETOBJ(subkeyObj),
-                         GETINT(dw), GETINT(dw2),
+                         GETDWORD(dw), GETDWORD(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.ival
@@ -383,8 +384,8 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         mark = SWSPushMark();
         if (TwapiGetArgs(interp, objc, objv,
                          GETHKEY(hkey),
-                         GETOBJ(subkeyObj), GETINT(dw), ARGSKIP, GETINT(dw2),
-                         GETINT(dw3),
+                         GETOBJ(subkeyObj), GETDWORD(dw), ARGSKIP, GETDWORD(dw2),
+                         GETDWORD(dw3),
                          GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
                          ARGEND) != TCL_OK) {
             SWSPopMark(mark);
@@ -440,7 +441,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          GETHKEY(hkey),
                          GETOBJ(subkeyObj),
                          ARGUSEDEFAULT,
-                         GETINT(dw),
+                         GETDWORD(dw),
                          ARGEND)
             != TCL_OK)
             return TCL_ERROR;
@@ -497,7 +498,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 7: // RegEnumKeyEx
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHKEY(hkey), ARGUSEDEFAULT, GETINT(dw),
+                         GETHKEY(hkey), ARGUSEDEFAULT, GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_TCL_RESULT;
@@ -506,7 +507,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 8: // RegEnumValue
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHKEY(hkey), GETINT(dw),
+                         GETHKEY(hkey), GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_TCL_RESULT;
@@ -514,7 +515,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         break;
 
     case 9: // RegOpenCurrentUser
-        if (TwapiGetArgs(interp, objc, objv, GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.ival = RegOpenCurrentUser(dw, &hkey);
         if (result.value.ival == ERROR_SUCCESS) {
@@ -532,7 +533,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 11: // RegGetKeySecurity
         if (TwapiGetArgs(
-                interp, objc, objv, GETHKEY(hkey), GETINT(dw), ARGEND)
+                interp, objc, objv, GETHKEY(hkey), GETDWORD(dw), ARGEND)
             != TCL_OK)
             return TCL_ERROR;
         mark              = SWSPushMark();
@@ -558,12 +559,12 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         if (TwapiGetArgs(interp, objc, objv,
                          GETHKEY(hkey),
                          GETOBJ(objP),
-                         GETBOOL(dw),
+                         GETBOOL(bval),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_TCL_RESULT;
         result.value.ival
-            = TwapiRegQueryValueEx(interp, hkey, ObjToWinChars(objP), dw);
+            = TwapiRegQueryValueEx(interp, hkey, ObjToWinChars(objP), bval);
         break;
 
     case 13: // RegCopyTree
@@ -590,7 +591,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
 
     case 14: // RegOpenUserClassesRoot
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLE(h), GETINT(dw), GETINT(dw2),
+                         GETHANDLE(h), GETDWORD(dw), GETDWORD(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.ival = RegOpenUserClassesRoot(h, dw, dw2, &hkey);
@@ -617,7 +618,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          GETHKEY(hkey),
                          GETOBJ(objP),
                          GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
-                         GETINT(dw),
+                         GETDWORD(dw),
                          ARGEND) != TCL_OK) {
             SWSPopMark(mark);
             return TCL_ERROR;
@@ -667,7 +668,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     case 20: // RegRestoreKey
         if (TwapiGetArgs(interp, objc, objv,
                          GETHKEY(hkey),
-                         GETOBJ(objP), GETINT(dw),
+                         GETOBJ(objP), GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.ival = RegRestoreKeyW(hkey, ObjToWinChars(objP), dw);
@@ -706,15 +707,15 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          objc,
                          objv,
                          GETHKEY(hkey),
-                         GETINT(dw),
-                         GETINT(dw2),
+                         GETDWORD(dw),
+                         GETDWORD(dw2),
                          ARGUSEDEFAULT,
                          GETHANDLE(h),
-                         GETBOOL(dw3),
+                         GETBOOL(bval),
                          ARGEND)
             != TCL_OK)
             return TCL_ERROR;
-        result.value.ival = RegNotifyChangeKeyValue(hkey, dw, dw2, h, dw3);
+        result.value.ival = RegNotifyChangeKeyValue(hkey, dw, dw2, h, bval);
         if (result.value.ival == ERROR_SUCCESS)
             result.type = TRT_EMPTY;
         break;
@@ -724,7 +725,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         mark = SWSPushMark();
         if (TwapiGetArgs(interp, objc, objv,
                          GETHKEY(hkey),
-                         GETINT(dw),
+                         GETDWORD(dw),
                          GETVAR(secdP, ObjToPSECURITY_DESCRIPTORSWS),
                          ARGEND) != TCL_OK) {
             SWSPopMark(mark);
@@ -752,11 +753,11 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     case 25: // RegGetValue
         if (TwapiGetArgs(interp, objc, objv,
                          GETHKEY(hkey), GETOBJ(subkeyObj), GETOBJ(nameObj),
-                         GETINT(dw), GETBOOL(dw2), ARGEND) != TCL_OK)
+                         GETDWORD(dw), GETBOOL(bval), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_TCL_RESULT;
         result.value.ival
-            = TwapiRegGetValue(interp, hkey, ObjToWinChars(subkeyObj), ObjToWinChars(nameObj), dw, dw2);
+            = TwapiRegGetValue(interp, hkey, ObjToWinChars(subkeyObj), ObjToWinChars(nameObj), dw, bval);
         break;
 
     case 26: // RegSetKeyValue

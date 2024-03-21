@@ -59,7 +59,8 @@ TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
     Tcl_Size  *lenP;
     int        ival;
     Tcl_WideInt wival;
-    DWORD_PTR  dwval;
+    DWORD      dw;
+    DWORD_PTR  dwptrval;
     void      *ptrval;
     double     dblval;
 #ifdef UNSAFE
@@ -116,6 +117,20 @@ TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
             if (p)
                 *(int *)p = ival;
             break;
+        case ARGDWORD:
+            dw = 0; // Default
+            if (objP && ObjToDWORD(interp, objP, &dw) != TCL_OK)
+                goto argerror;
+            if (p)
+                *(unsigned int *)p = dw;
+            break;
+        case ARGSIZE:
+            len = 0; // Default
+            if (objP && Tcl_GetSizeIntFromObj(interp, objP, &len) != TCL_OK)
+                goto argerror;
+            if (p)
+                *(Tcl_Size *)p = len;
+            break;
         case ARGWIDE: // 64-bit int
             wival = 0;
             if (objP && ObjToWideInt(interp, objP, &wival) != TCL_OK)
@@ -153,11 +168,11 @@ TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[],
                 *(void **)p = ptrval;
             break;
         case ARGDWORD_PTR: // pointer-size int
-            dwval = 0;
-            if (objP && ObjToDWORD_PTR(interp, objP, &dwval) != TCL_OK)
+            dwptrval = 0;
+            if (objP && ObjToDWORD_PTR(interp, objP, &dwptrval) != TCL_OK)
                 goto argerror;
             if (p)
-                *(DWORD_PTR *)p = dwval;
+                *(DWORD_PTR *)p = dwptrval;
             break;
         case ARGHKEY:
             hkey = NULL; /* TBD - appropriate default ? */
@@ -282,7 +297,8 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     Tcl_Size  *lenP;
     int        ival;
     Tcl_WideInt wival;
-    DWORD_PTR  dwval;
+    DWORD      dw;
+    DWORD_PTR  dwptrval;
     void      *ptrval;
     double     dblval;
     WCHAR     *uval;
@@ -351,6 +367,20 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
             if (p)
                 *(int *)p = ival;
             break;
+        case ARGDWORD:
+            dw = 0; // Default
+            if (objP && ObjToDWORD(interp, objP, &dw) != TCL_OK)
+                goto argerror;
+            if (p)
+                *(unsigned int *)p = dw;
+            break;
+        case ARGSIZE:
+            len = 0; // Default
+            if (objP && Tcl_GetSizeIntFromObj(interp, objP, &len) != TCL_OK)
+                goto argerror;
+            if (p)
+                *(Tcl_Size *)p = len;
+            break;
         case ARGWIDE: // 64-bit int
             wival = 0;
             if (objP && ObjToWideInt(interp, objP, &wival) != TCL_OK)
@@ -388,11 +418,11 @@ TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
                 *(void **)p = ptrval;
             break;
         case ARGDWORD_PTR: // pointer-size int
-            dwval = 0;
-            if (objP && ObjToDWORD_PTR(interp, objP, &dwval) != TCL_OK)
+            dwptrval = 0;
+            if (objP && ObjToDWORD_PTR(interp, objP, &dwptrval) != TCL_OK)
                 goto argerror;
             if (p)
-                *(DWORD_PTR *)p = dwval;
+                *(DWORD_PTR *)p = dwptrval;
             break;
         case ARGHKEY:
             hkey = NULL; /* TBD - appropriate default ? */
@@ -1038,6 +1068,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         FARPROC fn;
     } u;
     DWORD dw, dw2, dw3, dw4;
+    int ival, ival2;
     DWORD_PTR dwp, dwp2;
     LPWSTR s, s2;
     char *cP;
@@ -1058,7 +1089,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     switch (func) {
     case 10001:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), GETINT(dw2), GETVOIDP(pv), GETINT(dw3),
+                         GETDWORD(dw), GETDWORD(dw2), GETVOIDP(pv), GETDWORD(dw3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
@@ -1089,7 +1120,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         break;
     case 10005:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), GETINT(dw2), GETINT(dw3),
+                         GETDWORD(dw), GETDWORD(dw2), GETDWORD(dw3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_BOOL;
@@ -1097,7 +1128,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         break;
     case 10006:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), GETVAR(dwp, ObjToDWORD_PTR),
+                         GETDWORD(dw), GETVAR(dwp, ObjToDWORD_PTR),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HGLOBAL;
@@ -1112,11 +1143,11 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     case 10008:
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLE(h), GETHANDLE(h2),
-                         GETHANDLE(h3), GETINT(dw), GETBOOL(dw2),
-                         GETINT(dw3),
+                         GETHANDLE(h3), GETDWORD(dw), GETBOOL(ival),
+                         GETDWORD(dw3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        if (DuplicateHandle(h, h2, h3, &result.value.hval, dw, dw2, dw3))
+        if (DuplicateHandle(h, h2, h3, &result.value.hval, dw, ival, dw3))
             result.type = TRT_HANDLE;
         else
             result.type = TRT_GETLASTERROR;
@@ -1125,7 +1156,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         return Twapi_TclGetChannelHandle(interp, objc, objv);
     case 10010:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), GETHANDLE(h),
+                         GETDWORD(dw), GETHANDLE(h),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
@@ -1141,9 +1172,9 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         secattrP = NULL;
         mark = SWSPushMark();
         if (TwapiGetArgs(interp, objc, objv,
-                         ARGSKIP, GETINT(dw), GETINT(dw2),
+                         ARGSKIP, GETDWORD(dw), GETDWORD(dw2),
                          GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
-                         GETINT(dw3), GETINT(dw4), GETHANDLE(h),
+                         GETDWORD(dw3), GETDWORD(dw4), GETHANDLE(h),
                          ARGEND) == TCL_OK) {
             result.type = TRT_VALID_HANDLE;
             result.value.hval = CreateFileW(
@@ -1157,7 +1188,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     case 10013:
         if (TwapiGetArgs(interp, objc, objv,
                          GETASTR(cP), ARGUSEDEFAULT,
-                         GETINT(dw), GETHANDLE(h), ARGEND) != TCL_OK)
+                         GETDWORD(dw), GETHANDLE(h), ARGEND) != TCL_OK)
             return TCL_ERROR;
         if (h == NULL)
             h = gTwapiModuleHandle;
@@ -1178,7 +1209,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     case 10015:
         return Twapi_LsaQueryInformationPolicy(interp, objc, objv);
     case 10016: // LsaOpenPolicy
-        if (TwapiGetArgs(interp, objc, objv, ARGSKIP, GETINT(dw), ARGEND)
+        if (TwapiGetArgs(interp, objc, objv, ARGSKIP, GETDWORD(dw), ARGEND)
                 != TCL_OK
             || ObjToLSA_UNICODE_STRING(interp, objv[0], &lsa_ustr) != TCL_OK)
             return TCL_ERROR;
@@ -1193,7 +1224,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         break;
     case 10017:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(u.hwnd, HWND), GETINT(dw),
+                         GETHANDLET(u.hwnd, HWND), GETDWORD(dw),
                          ARGTERM) != TCL_OK)
             return TCL_ERROR;
 
@@ -1209,10 +1240,10 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     case 10020:
         // HWIN UINT WPARAM LPARAM ?ARGS?
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(u.hwnd, HWND), GETINT(dw),
+                         GETHANDLET(u.hwnd, HWND), GETDWORD(dw),
                          GETDWORD_PTR(dwp), GETDWORD_PTR(dwp2),
                          ARGUSEDEFAULT,
-                         GETINT(dw2), GETINT(dw3),
+                         GETDWORD(dw2), GETDWORD(dw3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
@@ -1239,7 +1270,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         break;
     case 10021:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(u.hwnd, HWND), GETINT(dw),
+                         GETHANDLET(u.hwnd, HWND), GETDWORD(dw),
                          GETDWORD_PTR(dwp),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -1250,7 +1281,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         guidP = &guid;
         if (TwapiGetArgs(interp, objc, objv, ARGSKIP, ARGSKIP,
                          GETVAR(guidP, ObjToUUID_NULL), ARGSKIP,
-                         GETINT(dw), ARGEND) != TCL_OK)
+                         GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         return Twapi_DsGetDcName(interp,
                                  ObjToLPWSTR_NULL_IF_EMPTY(objv[0]),
@@ -1265,7 +1296,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
 
     case 10025:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), ARGUSEDEFAULT, GETASTR(cP),
+                         GETDWORD(dw), ARGUSEDEFAULT, GETASTR(cP),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         NULLIFY_EMPTY(cP);
@@ -1275,11 +1306,11 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         mark = SWSPushMark();
         if (TwapiGetArgs(interp, objc, objv,
                          GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
-                         GETBOOL(dw), ARGSKIP,
-                         ARGUSEDEFAULT, GETINT(dw2),
+                         GETBOOL(ival), ARGSKIP,
+                         ARGUSEDEFAULT, GETDWORD(dw2),
                          ARGEND) == TCL_OK) {
             result.type = TRT_HANDLE;
-            result.value.hval = CreateMutexW(secattrP, dw, ObjToLPWSTR_NULL_IF_EMPTY(objv[2]));
+            result.value.hval = CreateMutexW(secattrP, ival, ObjToLPWSTR_NULL_IF_EMPTY(objv[2]));
             if (result.value.hval) {
                 if (dw2 & 1) {
                     /* Caller also wants indicator of whether object
@@ -1300,13 +1331,13 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
     case 10027: // OpenMutex
     case 10028: // OpenSemaphore
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), GETBOOL(dw2), ARGSKIP,
-                         ARGUSEDEFAULT, GETINT(dw3),
+                         GETDWORD(dw), GETBOOL(ival), ARGSKIP,
+                         ARGUSEDEFAULT, GETDWORD(dw3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HANDLE;
         result.value.hval = (func == 10027 ? OpenMutexW : OpenSemaphoreW)
-            (dw, dw2, ObjToWinChars(objv[2]));
+            (dw, ival, ObjToWinChars(objv[2]));
         if (result.value.hval) {
             if (dw3 & 1) {
                 /* Caller also wants indicator of whether object
@@ -1324,7 +1355,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         mark = SWSPushMark();
         if (TwapiGetArgs(interp, objc, objv,
                          GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
-                         GETINT(dw), GETINT(dw2), ARGSKIP,
+                         GETDWORD(dw), GETDWORD(dw2), ARGSKIP,
                          ARGEND) == TCL_OK) {
             result.type = TRT_HANDLE;
             result.value.hval = CreateSemaphoreW(secattrP, dw, dw2, ObjToLPWSTR_NULL_IF_EMPTY(objv[3]));
@@ -1336,7 +1367,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         break;
     case 10030: // malloc
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), ARGUSEDEFAULT, GETASTR(cP),
+                         GETDWORD(dw), ARGUSEDEFAULT, GETASTR(cP),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.ptr.p = TwapiAlloc(dw);
@@ -1379,9 +1410,9 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         mark = SWSPushMark();
         if (TwapiGetArgs(interp, objc, objv,
                          GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
-                         GETBOOL(dw), GETBOOL(dw2), ARGSKIP,
+                         GETBOOL(ival), GETBOOL(ival2), ARGSKIP,
                          ARGEND) == TCL_OK) {
-            h = CreateEventW(secattrP, dw, dw2, ObjToLPWSTR_NULL_IF_EMPTY(objv[3]));
+            h = CreateEventW(secattrP, ival, ival2, ObjToLPWSTR_NULL_IF_EMPTY(objv[3]));
             if (h) {
                 objs[1] = ObjFromBoolean(GetLastError() == ERROR_ALREADY_EXISTS); /* Do this before any other call */
                 objs[0] = ObjFromHANDLE(h);
@@ -1537,7 +1568,7 @@ static int Twapi_CallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc,
         break;
     case 7:
         if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),
-                         GETINT(dw), GETINT(dw2),
+                         GETDWORD(dw), GETDWORD(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         return TwapiThreadPoolRegister(
@@ -1588,7 +1619,7 @@ static int Twapi_CallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc,
         break;
     case 14: // CredDelete
         if (TwapiGetArgsEx(ticP, objc, objv,
-                           GETWSTR(s), GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+                           GETWSTR(s), GETDWORD(dw), GETDWORD(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
         if (CredDeleteW(s, dw, dw2))
             result.type = TRT_EMPTY;
@@ -1762,7 +1793,7 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
 
         // Two additional DWORD args present
         if (TwapiGetArgs(interp, objc-1, objv+1,
-                         GETINT(dw), GETINT(dw2),
+                         GETDWORD(dw), GETDWORD(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
 
@@ -1796,7 +1827,7 @@ static int Twapi_TranslateNameObjCmd(ClientData clientdata, Tcl_Interp *interp, 
     bufP = MemLifoPushFrame(ticP->memlifoP, sizeof(WCHAR)*MAX_PATH, &nbytes);
     sz = nbytes/sizeof(WCHAR);
     res = TwapiGetArgs(interp, objc-1, objv+1,
-                       GETOBJ(nameObj), GETINT(fmt), GETINT(desired_fmt),
+                       GETOBJ(nameObj), GETDWORD(fmt), GETDWORD(desired_fmt),
                        ARGEND);
     if (res == TCL_OK) {
         /* Since other args parsed, we can hold on to nameP without fear
@@ -1829,7 +1860,7 @@ static int Twapi_FormatMessageFromStringObjCmd(ClientData clientdata, Tcl_Interp
     MemLifoMarkHandle mark;
 
     mark = MemLifoPushMark(ticP->memlifoP);
-    res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETINT(flags), GETOBJ(fmtObj),
+    res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETDWORD(flags), GETOBJ(fmtObj),
                          GETARGVW(argv, argc), ARGEND);
     if (res == TCL_OK) {
         /* Only look at select bits from dwFlags as others are used when
@@ -1856,8 +1887,8 @@ static int Twapi_FormatMessageFromModuleObjCmd(ClientData clientdata, Tcl_Interp
 
     mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
-                         GETINT(flags), GETHANDLE(hmod), GETINT(msgid),
-                         GETINT(langid),
+                         GETDWORD(flags), GETHANDLE(hmod), GETDWORD(msgid),
+                         GETDWORD(langid),
                          GETARGVW(argv, argc),
                          ARGEND);
     if (res == TCL_OK) {
@@ -1891,7 +1922,7 @@ static int Twapi_ReportEventObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
                          GETHANDLE(hEventLog), GETWORD(wType), GETWORD(wCategory),
-                         GETINT(dwEventID), GETVAR(lpUserSid, ObjToPSIDSWS),
+                         GETDWORD(dwEventID), GETVAR(lpUserSid, ObjToPSIDSWS),
                          GETARGVW(argv, argc), GETOBJ(dataObj),
                          ARGEND);
     if (res == TCL_OK) {
@@ -1925,7 +1956,7 @@ static TCL_RESULT Twapi_ReadMemoryObjCmd(ClientData clientdata, Tcl_Interp *inte
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETINT(type), GETVOIDP(p), GETINT(offset),
-                     ARGUSEDEFAULT, GETINT(len), GETINT(modifier),
+                     ARGUSEDEFAULT, GETSIZE(len), GETINT(modifier),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -2062,11 +2093,12 @@ static TCL_RESULT Twapi_CredPrompt(ClientData clientdata, Tcl_Obj *uiObj, int ob
     Tcl_Size nobjs, password_len;
     Tcl_Obj **objs;
     LPWSTR target, user;
-    DWORD autherr, save, flags;
+    DWORD autherr, flags;
     TCL_RESULT res;
     CREDUI_INFOW cui, *cuiP;
     WCHAR *user_buf, *password_buf;
     DWORD status;
+    int save;
     BOOL bsave;
     Tcl_Obj *resultObjs[3], *passwordObj;
     Tcl_Interp *interp = ticP->interp;
@@ -2078,10 +2110,10 @@ static TCL_RESULT Twapi_CredPrompt(ClientData clientdata, Tcl_Obj *uiObj, int ob
     password_buf = NULL;
 
     res = TwapiGetArgsEx(ticP, objc, objv,
-                       GETWSTR(target), ARGUNUSED, GETINT(autherr),
+                       GETWSTR(target), ARGUNUSED, GETDWORD(autherr),
                        GETWSTRN(user, user_len), GETOBJ(passwordObj),
                        GETBOOL(save),
-                       GETINT(flags), ARGEND);
+                       GETDWORD(flags), ARGEND);
     if (res != TCL_OK)
         goto vamoose;
 

@@ -1,5 +1,5 @@
-/* 
- * Copyright (c) 2003-2009, Ashok P. Nadkarni
+/*
+ * Copyright (c) 2003-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -583,7 +583,7 @@ static TCL_RESULT Twapi_WNetGetResourceInformationObjCmd(ClientData clientdata, 
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
                          GETEMPTYASNULL(in.lpRemoteName),
                          GETEMPTYASNULL(in.lpProvider),
-                         GETINT(in.dwType),
+                         GETDWORD(in.dwType),
                          ARGEND);
     if (res == TCL_OK) {
         outP = MemLifoAlloc(ticP->memlifoP, 4000, &outsz);
@@ -614,7 +614,7 @@ static TCL_RESULT Twapi_WNetAddConnection3ObjCmd(ClientData clientdata, Tcl_Inte
     TCL_RESULT res;
     DWORD flags, wnet_status, sz;
     MemLifoMarkHandle mark;
-    LPCWSTR username;
+    LPWSTR username;
     HWND hwnd;
     WCHAR *decryptedP;
     Tcl_Size decrypted_len;
@@ -627,7 +627,7 @@ static TCL_RESULT Twapi_WNetAddConnection3ObjCmd(ClientData clientdata, Tcl_Inte
                          ARGSKIP,
                          ARGSKIP,
                          GETWSTR(username),
-                         GETINT(flags),
+                         GETDWORD(flags),
                          ARGEND);
     if (res == TCL_OK) {
         res = TwapiCStructParse(interp, ticP->memlifoP, objv[2],
@@ -780,7 +780,7 @@ static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *inter
     switch (func) {
     case 1: // NetUseEnum system level resumehandle
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(netenum.level), GETINT(dwresume),
+                         GETDWORD(netenum.level), GETDWORD(dwresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (netenum.level) {
@@ -805,7 +805,7 @@ static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *inter
         // qualifier in above cases which results in warnings if 
         // combined with this case.
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(netenum.level), GETINT(dwresume),
+                         GETDWORD(netenum.level), GETDWORD(dwresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (netenum.level) {
@@ -830,7 +830,7 @@ static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *inter
         // qualifier in above cases which results in warnings if 
         // combined with this case.
         if (TwapiGetArgs(interp, objc, objv, ARGSKIP,
-                         GETINT(netenum.level), GETINT(dwresume),
+                         GETDWORD(netenum.level), GETDWORD(dwresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (netenum.level) {
@@ -853,7 +853,7 @@ static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *inter
 
     case 4:
         if (TwapiGetArgs(interp, objc, objv, ARGSKIP, ARGSKIP,
-                         GETINT(netenum.level), GETDWORD_PTR(netenum.hresume),
+                         GETDWORD(netenum.level), GETDWORD_PTR(netenum.hresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (netenum.level) {
@@ -876,7 +876,7 @@ static int Twapi_ShareCallNetEnumObjCmd(ClientData clientdata, Tcl_Interp *inter
 
     case 5:
         if (TwapiGetArgs(interp, objc, objv, ARGSKIP, ARGSKIP,
-                         GETINT(netenum.level), GETINT(dwresume),
+                         GETDWORD(netenum.level), GETDWORD(dwresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
 
@@ -983,7 +983,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         break;
     case 5:
     case 6:
-        if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(dw), GETINT(dw2),
+        if (TwapiGetArgs(interp, objc-1, objv+1, GETDWORD(dw), GETDWORD(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         s = ObjToWinChars(objv[0]);
@@ -1054,7 +1054,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
                                        dw);
     case 14: // WNetOpenEnum
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), GETINT(dw2), GETINT(dw3),
+                         GETDWORD(dw), GETDWORD(dw2), GETDWORD(dw3),
                          ARGSKIP, ARGEND) != TCL_OK)
             return TCL_ERROR;
         mark = SWSPushMark();
@@ -1089,7 +1089,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         break;
 
     case 16: // WNetEnumResource
-        res = TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETINT(dw),
+        res = TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETDWORD(dw),
                            ARGSKIP, ARGEND);
         if (res != TCL_OK)
             return res;

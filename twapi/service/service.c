@@ -86,11 +86,11 @@ int Twapi_SetServiceStatus(
     int service_index;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
-                     ARGSKIP, GETINT(ss.dwCurrentState),
-                     GETINT(ss.dwWin32ExitCode),
-                     GETINT(ss.dwServiceSpecificExitCode),
-                     GETINT(ss.dwCheckPoint),
-                     GETINT(ss.dwWaitHint), GETINT(ss.dwControlsAccepted),
+                     ARGSKIP, GETDWORD(ss.dwCurrentState),
+                     GETDWORD(ss.dwWin32ExitCode),
+                     GETDWORD(ss.dwServiceSpecificExitCode),
+                     GETDWORD(ss.dwCheckPoint),
+                     GETDWORD(ss.dwWaitHint), GETDWORD(ss.dwControlsAccepted),
                      ARGEND
             )
         != TCL_OK)

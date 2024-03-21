@@ -473,11 +473,11 @@ static int ListObjToSTARTUPINFO(TwapiInterpContext *ticP, Tcl_Obj *siObj, STARTU
         TwapiGetArgsEx(ticP, objc, objvP,
                        GETTOKENNULL(siP->lpDesktop),
                        GETWSTR(siP->lpTitle),
-                       GETINT(siP->dwX), GETINT(siP->dwY),
-                       GETINT(siP->dwXSize), GETINT(siP->dwYSize),
-                       GETINT(siP->dwXCountChars), GETINT(siP->dwYCountChars),
-                       GETINT(siP->dwFillAttribute),
-                       GETINT(siP->dwFlags),
+                       GETDWORD(siP->dwX), GETDWORD(siP->dwY),
+                       GETDWORD(siP->dwXSize), GETDWORD(siP->dwYSize),
+                       GETDWORD(siP->dwXCountChars), GETDWORD(siP->dwYCountChars),
+                       GETDWORD(siP->dwFillAttribute),
+                       GETDWORD(siP->dwFlags),
                        GETWORD(siP->wShowWindow),
                        GETOBJ(stdhObj), ARGEND) != TCL_OK) {
         ObjSetStaticResult(interp, "Invalid STARTUPINFO list.");
@@ -734,7 +734,7 @@ static int TwapiCreateProcessHelper(TwapiInterpContext *ticP, int asuser, int ob
                        GETEMPTYASNULL(appname),   GETEMPTYASNULL(cmdline),
                        GETVAR(pattrP, ObjToPSECURITY_ATTRIBUTESSWS),
                        GETVAR(tattrP, ObjToPSECURITY_ATTRIBUTESSWS),
-                       GETINT(inherit), GETINT(flags),
+                       GETINT(inherit), GETDWORD(flags),
                        GETOBJ(envObj),   GETEMPTYASNULL(curdir),
                        GETOBJ(startinfoObj), ARGEND) != TCL_OK)
         goto vamoose;           /* So any allocs/marks can be freed */
@@ -810,9 +810,9 @@ static int TwapiCreateProcessHelper2(TwapiInterpContext *ticP, int have_token, i
 
     mark = MemLifoPushMark(ticP->memlifoP);
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
-                       GETOBJ(authObj), GETINT(logon_flags),
+                       GETOBJ(authObj), GETDWORD(logon_flags),
                        GETEMPTYASNULL(appname),   GETEMPTYASNULL(cmdline),
-                       GETINT(create_flags),
+                       GETDWORD(create_flags),
                        GETOBJ(envObj),   GETEMPTYASNULL(curdir),
                        GETOBJ(startinfoObj), ARGEND) != TCL_OK)
         goto vamoose;           /* So any allocs/marks can be freed */
@@ -941,7 +941,7 @@ static TCL_RESULT Twapi_LoadUserProfileObjCmd(
     TwapiZeroMemory(&profileinfo, sizeof(profileinfo));
     profileinfo.dwSize        = sizeof(profileinfo);
     if (TwapiGetArgsEx(ticP, nobjs, objs, GETHANDLE(hToken),
-                       GETINT(profileinfo.dwFlags),
+                       GETDWORD(profileinfo.dwFlags),
                        GETWSTR(profileinfo.lpUserName),
                        GETEMPTYASNULL(profileinfo.lpProfilePath),
                        GETEMPTYASNULL(profileinfo.lpDefaultPath),
@@ -990,7 +990,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         result.value.ival = UnloadUserProfile(h, h2);
         break;
     case 4: // CreateEnvironmentBlock
-        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETINT(dw), ARGEND)
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETDWORD(dw), ARGEND)
             != TCL_OK)
             return TCL_ERROR;
         if (CreateEnvironmentBlock(&pv, h, dw)) {
@@ -1034,7 +1034,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         if (TwapiGetArgs(interp, objc, objv,
                          GETHANDLE(h), /* Process handle */
                          GETDWORD_PTR(u.dwp), /*  address in target process */
-                         GETINT(dw),          /* Num bytes to read */
+                         GETDWORD(dw),          /* Num bytes to read */
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.obj = ObjAllocateByteArray(dw, &pv);
@@ -1077,7 +1077,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     case 11:
         return Twapi_GetProcessList(interp, objc, objv);
     case 12:
-        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETDWORD(dw), GETDWORD(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
         sz = dw == (DWORD)-1 ? (SIZE_T) -1 : dw;
         sz2 = dw2 == (DWORD)-1 ? (SIZE_T) -1 : dw2;
@@ -1086,7 +1086,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             
     case 13:
     case 14:
-        if (TwapiGetArgs(interp, objc, objv, GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 13:
@@ -1102,7 +1102,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     case 15:
     case 16:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), GETINT(dw2), GETINT(dw3),
+                         GETDWORD(dw), GETDWORD(dw2), GETDWORD(dw3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HANDLE;
@@ -1211,7 +1211,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     case 31:
     case 32:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLE(h), GETINT(dw),
+                         GETHANDLE(h), GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
@@ -1233,7 +1233,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         break;
     case 33: // GetModuleHandleEx
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), ARGSKIP,
+                         GETDWORD(dw), ARGSKIP,
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
 

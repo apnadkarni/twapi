@@ -48,7 +48,7 @@ TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(ClientData clientdata, Tcl_Inter
     mark = MemLifoPushMark(ticP->memlifoP);
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
                      GETWSTRN(pathP, path_len), GETBOOL(include_subtree),
-                     GETINT(filter),
+                     GETDWORD(filter),
                      GETARGVW(patterns, npatterns),
                      ARGEND)
         != TCL_OK) {

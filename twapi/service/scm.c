@@ -306,14 +306,16 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     Tcl_Obj *rec[12];    /* Holds values for each status record */
     DWORD winerr;
     DWORD i;
+    int ival;
     TCL_RESULT status = TCL_ERROR;
 
     if (TwapiGetArgs(interp, objc, objv,
-                     GETPTR(hService, SC_HANDLE), GETINT(infolevel),
-                     GETINT(dwServiceType),
-                     GETINT(dwServiceState), GETOBJ(groupnameObj),
+                     GETPTR(hService, SC_HANDLE), GETINT(ival),
+                     GETDWORD(dwServiceType),
+                     GETDWORD(dwServiceState), GETOBJ(groupnameObj),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
+    infolevel = (SC_ENUM_TYPE) ival;
 
     if (infolevel != SC_ENUM_PROCESS_INFO) {
         ObjSetStaticResult(interp, "Unsupported information level");
@@ -468,7 +470,7 @@ static TCL_RESULT ParseSERVICE_FAILURE_ACTIONS(
     if (res != TCL_OK)
         return res;
     res = TwapiGetArgsEx(ticP, nobjs, objs,
-                         GETINT(sfaP->dwResetPeriod),
+                         GETDWORD(sfaP->dwResetPeriod),
                          GETTOKENNULL(sfaP->lpRebootMsg),
                          GETTOKENNULL(sfaP->lpCommand),
                          ARGUSEDEFAULT,
@@ -535,7 +537,7 @@ static TCL_RESULT Twapi_ChangeServiceConfig2(TwapiInterpContext *ticP, int objc,
 
     mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc, objv,
-                         GETHANDLET(h, SC_HANDLE), GETINT(info_level),
+                         GETHANDLET(h, SC_HANDLE), GETDWORD(info_level),
                          GETOBJ(infoObj), ARGEND);
     if (res != TCL_OK)
         goto vamoose;
@@ -589,8 +591,8 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
 
     res = TwapiGetArgsEx(ticP, objc, objv,
                          GETHANDLET(h, SC_HANDLE),
-                         GETINT(service_type), GETINT(start_type),
-                         GETINT(error_control), GETTOKENNULL(path),
+                         GETDWORD(service_type), GETDWORD(start_type),
+                         GETDWORD(error_control), GETTOKENNULL(path),
                          GETTOKENNULL(logrp), GETOBJ(tagObj), GETOBJ(depObj),
                          GETTOKENNULL(start_name),
                          GETOBJ(passwordObj), GETTOKENNULL(display_name),
@@ -667,8 +669,8 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
     res = TwapiGetArgsEx(ticP, objc, objv,
                          GETHANDLET(scmH, SC_HANDLE),
                          GETWSTR(service_name), GETWSTR(display_name),
-                         GETINT(access), GETINT(service_type),
-                         GETINT(start_type), GETINT(error_control),
+                         GETDWORD(access), GETDWORD(service_type),
+                         GETDWORD(start_type), GETDWORD(error_control),
                          GETWSTR(path), GETWSTR(logrp),
                          GETOBJ(tagObj), GETOBJ(depObj),
                          GETEMPTYASNULL(service_start_name),
@@ -819,7 +821,7 @@ static int Twapi_ServiceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     } else if (func < 200) {
         /* Expect a handle and a int */
         if (TwapiGetArgs(interp, objc-2, objv+2,
-                         GETHANDLE(h), GETINT(dw), ARGEND) != TCL_OK)
+                         GETHANDLE(h), GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 101:
@@ -839,7 +841,7 @@ static int Twapi_ServiceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         /* Handle, string, int */
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETHANDLE(h), GETOBJ(sObj), ARGUSEDEFAULT,
-                         GETINT(dw), ARGEND) != TCL_OK)
+                         GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         s = ObjToWinChars(sObj);
         switch (func) {

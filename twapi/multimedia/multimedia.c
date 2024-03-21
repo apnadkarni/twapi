@@ -31,7 +31,7 @@ static int Twapi_MmCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     switch (func) {
     case 1:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETOBJ(sObj), GETHANDLET(hmod, HMODULE), GETINT(dw),
+                         GETOBJ(sObj), GETHANDLET(hmod, HMODULE), GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_BOOL;
@@ -39,7 +39,7 @@ static int Twapi_MmCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
         break;
     case 2:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw),
+                         GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_BOOL;
@@ -47,7 +47,7 @@ static int Twapi_MmCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
         break;
     case 3:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), GETINT(dw2),
+                         GETDWORD(dw), GETDWORD(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;

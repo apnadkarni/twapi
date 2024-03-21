@@ -1092,14 +1092,17 @@ TCL_RESULT Twapi_StartTrace(ClientData clientdata, Tcl_Interp *interp, int objc,
 TCL_RESULT Twapi_ControlTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TRACEHANDLE htrace;
+    Tcl_Obj *traceObj;
     EVENT_TRACE_PROPERTIES *etP;
     WCHAR *session_name;
     ULONG code;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(code), GETWIDE(htrace), ARGSKIP,
+                     GETDWORD(code), GETOBJ(traceObj), ARGSKIP,
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
+
+    CHECK_RESULT(ObjToTRACEHANDLE(interp, traceObj, &htrace));
 
     if (ObjToPEVENT_TRACE_PROPERTIES(interp, objv[3], &etP) != TCL_OK)
         return TCL_ERROR;
@@ -1127,14 +1130,16 @@ TCL_RESULT Twapi_EnableTrace(ClientData clientdata, Tcl_Interp *interp, int objc
 {
     GUID guid;
     TRACEHANDLE htrace;
+    Tcl_Obj *traceObj;
     ULONG enable, flags, level;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETINT(enable), GETINT(flags), GETINT(level),
-                     GETUUID(guid), GETWIDE(htrace),
+                     GETDWORD(enable), GETDWORD(flags), GETDWORD(level),
+                     GETUUID(guid), GETOBJ(traceObj),
                      ARGEND) != TCL_OK) {
         return TCL_ERROR;
     }
+    CHECK_RESULT(ObjToTRACEHANDLE(interp, traceObj, &htrace));
 
     if (EnableTrace(enable, flags, level, &guid, htrace) != ERROR_SUCCESS)
         return TwapiReturnSystemError(interp);

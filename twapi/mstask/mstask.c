@@ -573,7 +573,7 @@ int Twapi_MstaskCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, 
             break;
         case 5203: // EditWorkItem
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETHANDLET(h, HWND), GETINT(dw1),
+                             GETHANDLET(h, HWND), GETDWORD(dw1),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EMPTY;
