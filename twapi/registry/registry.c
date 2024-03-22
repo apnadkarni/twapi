@@ -81,7 +81,7 @@ static int TwapiRegEnumValue(Tcl_Interp *interp, HKEY hkey, DWORD flags)
     if (flags & 1) {
         /* Caller wants data as well. */
         DWORD nb_value_data;
-        Tcl_Size len = 256;;
+        MemLifoSize len = 256;;
         LPBYTE value_data;
         DWORD  value_type;
         int    max_loop; /* Safety measure if buf size keeps changing */
@@ -194,7 +194,7 @@ TwapiRegGetValue(Tcl_Interp *interp,
     LPBYTE   value_data;
     DWORD    value_type, nb_value_data;
     int      max_loop; /* Safety measure if buf size keeps changing */
-    Tcl_Size len;
+    MemLifoSize len;
 
     mark = SWSPushMark();
     resultObj = ObjNewList(0, NULL);
@@ -261,7 +261,7 @@ TwapiRegQueryValueEx(Tcl_Interp *interp,
     LPBYTE   value_data;
     DWORD    value_type, nb_value_data;
     int      max_loop; /* Safety measure if buf size keeps changing */
-    Tcl_Size len;
+    MemLifoSize len;
 
     mark = SWSPushMark();
     resultObj = ObjNewList(0, NULL);
@@ -330,7 +330,7 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     Tcl_Obj *            objs[2];
     TwapiResult          result;
     int                  func_code = PtrToInt(clientdata);
-    Tcl_Size             len;
+    MemLifoSize          len;
 
     --objc;
     ++objv;

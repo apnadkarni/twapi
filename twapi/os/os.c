@@ -250,7 +250,7 @@ TCL_RESULT Twapi_GetLogicalProcessorInformationEx(
     FARPROC fn;
     DWORD sz = 0, winerr;
     TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiexP;
-    Tcl_Size len;
+    MemLifoSize len;
 
     fn = Twapi_GetProc_GetLogicalProcessorInformationEx();
     if (fn == NULL)
@@ -294,7 +294,7 @@ TCL_RESULT Twapi_GetLogicalProcessorInformation(Tcl_Interp *interp)
     FARPROC fn;
     DWORD sz = 0, winerr;
     TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION *slpiP;
-    Tcl_Size len;
+    MemLifoSize len;
 
     fn = Twapi_GetProc_GetLogicalProcessorInformation();
     if (fn == NULL)

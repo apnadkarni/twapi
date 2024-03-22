@@ -150,11 +150,7 @@
 # include <ntsecapi.h>
 #include <wtsapi32.h>
 #include <uxtheme.h>
-#if _MSC_VER <= 1400
-# include <tmschema.h>
-#else
-# include <vssym32.h>
-#endif
+#include <vssym32.h>
 #include <intshcut.h>
 #include <dispex.h>
 #include <ocidl.h>

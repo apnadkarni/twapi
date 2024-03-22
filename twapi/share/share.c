@@ -534,7 +534,7 @@ static TCL_RESULT Twapi_WNetGetUniversalNameObjCmd(ClientData clientdata, Tcl_In
     DWORD buf_sz;
     void *buf;
     LPCWSTR localpathP;
-    Tcl_Size len;
+    MemLifoSize len;
 
     if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -578,7 +578,7 @@ static TCL_RESULT Twapi_WNetGetResourceInformationObjCmd(ClientData clientdata, 
     Tcl_Obj    *objs[2];
     MemLifoMarkHandle mark;
     TCL_RESULT res;
-    Tcl_Size len;
+    MemLifoSize len;
 
     mark = MemLifoPushMark(ticP->memlifoP);
 
@@ -963,7 +963,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     TCL_RESULT res;
     Tcl_Obj *objP;
     NETINFOSTRUCT netinfo;
-    Tcl_Size len;
+    MemLifoSize len;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);

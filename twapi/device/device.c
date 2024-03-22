@@ -196,7 +196,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *ticP, int objc, T
     DWORD buf_sz;
     int tcl_status = TCL_ERROR;
     Tcl_Obj *objP;
-    Tcl_Size len;
+    MemLifoSize len;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETHANDLET(hdi, HDEVINFO),
@@ -250,7 +250,7 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tc
     int success;
     DWORD winerr;
     int   i;
-    Tcl_Size len;
+    MemLifoSize len;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETHANDLET(hdi, HDEVINFO),
@@ -296,7 +296,7 @@ int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Ob
     DWORD  i;
     DWORD buf_sz;
     MemLifoMarkHandle mark;
-    Tcl_Size len;
+    MemLifoSize len;
 
     mark = MemLifoPushMark(ticP->memlifoP);
 
@@ -1109,7 +1109,7 @@ static int Twapi_DeviceIoControlObjCmd(ClientData clientdata, Tcl_Interp *interp
 
     if (res == TCL_OK) {
         if (nout) {
-            Tcl_Size len;
+            MemLifoSize len;
             outP = MemLifoAlloc(memlifoP, nout, &len);
             nout = len > UINT_MAX ? UINT_MAX : (DWORD) len;
         }

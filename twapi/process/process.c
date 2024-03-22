@@ -337,7 +337,7 @@ static int Twapi_EnumProcessesModulesObjCmd(
     BOOL   status;
     int type;
     HANDLE phandle;
-    Tcl_Size len;
+    MemLifoSize len;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETINT(type), ARGUSEDEFAULT, GETHANDLE(phandle),
@@ -975,7 +975,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     int func = PtrToInt(clientdata);
     Tcl_Obj *objs[10];
     SIZE_T sz, sz2;
-    Tcl_Size len;
+    MemLifoSize len;
 
     --objc;
     ++objv;

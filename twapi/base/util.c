@@ -49,9 +49,13 @@ BOOL TwapiRtlGetVersion(LPOSVERSIONINFOW verP)
     }
 
     /* Either function was not found or it failed. Use documented one */
+#ifdef _MSC_VER
 #pragma warning(disable:4996) /* Disable deprecated warning */
+#endif
     return GetVersionExW(verP);
+#ifdef _MSC_VER
 #pragma warning(default:4996)
+#endif
 }
 
 int TwapiMinOSVersion(DWORD major, DWORD minor)

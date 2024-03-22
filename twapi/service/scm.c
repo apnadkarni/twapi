@@ -308,7 +308,7 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     DWORD i;
     int ival;
     TCL_RESULT status = TCL_ERROR;
-    Tcl_Size len;
+    MemLifoSize len;
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETPTR(hService, SC_HANDLE), GETINT(ival),
@@ -400,7 +400,7 @@ int Twapi_EnumDependentServices(
     DWORD i;
     TCL_RESULT status = TCL_ERROR;
     Tcl_Obj *resultObj;
-    Tcl_Size len;
+    MemLifoSize len;
 
     sbuf = MemLifoPushFrame(ticP->memlifoP, 4000, &len);
     buf_sz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;

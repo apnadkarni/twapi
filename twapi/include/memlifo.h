@@ -24,7 +24,12 @@ typedef struct _MemLifo MemLifo;
 typedef struct _MemLifoMark MemLifoMark;
 typedef MemLifoMark *MemLifoMarkHandle;
 
+#if TCL_MAJOR_VERSION > 8
 typedef SIZE_T MemLifoSize;
+#else
+typedef unsigned int MemLifoSize;
+#endif
+
 
 typedef void *MemLifoChunkAllocFn(MemLifoSize sz, void *alloc_data, MemLifoSize *actual_szP);
 typedef void MemLifoChunkFreeFn(void *p, void *alloc_data);

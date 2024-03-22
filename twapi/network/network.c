@@ -1158,7 +1158,7 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
     void *bufP;
     ULONG bufsz;
     int  tries;
-    Tcl_Size len;
+    MemLifoSize len;
 
     if (fn == NULL) {
         return Twapi_AppendSystemError(ticP->interp, ERROR_PROC_NOT_FOUND);
@@ -1208,7 +1208,7 @@ int Twapi_GetNetworkParams(TwapiInterpContext *ticP)
     ULONG netinfo_size;
     DWORD error;
     Tcl_Obj *objv[8];
-    Tcl_Size len;
+    MemLifoSize len;
 
     /* TBD - maybe allocate bigger space to start with ? */
     netinfoP = MemLifoPushFrame(ticP->memlifoP, sizeof(*netinfoP), &len);
@@ -1251,7 +1251,7 @@ int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
     DWORD error;
     int   tries;
     Tcl_Obj *resultObj;
-    Tcl_Size len;
+    MemLifoSize len;
 
     /*
      * Keep looping as long as we are told we need a bigger buffer. For
@@ -1269,7 +1269,7 @@ int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
             /* Either success or error unrelated to buffer size */
             break;
         }
-        
+ 
         /* realloc - bufsz contains required size as returned by the functions */
         MemLifoPopFrame(ticP->memlifoP);
         iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(ticP->memlifoP,
@@ -1301,7 +1301,7 @@ int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index)
     ULONG                ainfo_size;
     DWORD                error;
     Tcl_Obj             *objv[3];
-    Tcl_Size             len;
+    MemLifoSize          len;
 
     /* Make first allocation assuming two ip addresses */
     ainfoP = MemLifoPushFrame(ticP->memlifoP,

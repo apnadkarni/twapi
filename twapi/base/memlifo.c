@@ -163,20 +163,20 @@ void* MemLifoAlloc(MemLifo *l,  MemLifoSize sz, MemLifoSize *actual_szP)
 
     if (sz > MEMLIFO_MAX_ALLOC) {
         if (l->lifo_flags & MEMLIFO_F_PANIC_ON_FAIL)
-            Tcl_Panic("Attempt to allocate %lu bytes for memlifo", sz);
+            Tcl_Panic("Attempt to allocate %" TCL_SIZE_MODIFIER "u bytes for memlifo", sz);
         return NULL;
     }
 
-    /* 
-     * NOTE: note that when called from MemLifoExpandLast(), on entry the 
-     * lm_last_alloc field may not be set correctly since that function 
-     * may remove the last allocation from the big block list under 
+    /*
+     * NOTE: note that when called from MemLifoExpandLast(), on entry the
+     * lm_last_alloc field may not be set correctly since that function
+     * may remove the last allocation from the big block list under
      * some circumstances. We do not use that field here, only set it.
      */
 
     MEMLIFO_ASSERT(l->lifo_magic == MEMLIFO_MAGIC);
     MEMLIFO_ASSERT(l->lifo_bot_mark);
-    
+
     m = l->lifo_top_mark;
     MEMLIFO_ASSERT(m);
     MEMLIFO_ASSERT(ALIGNED(m->lm_freeptr));
@@ -195,26 +195,26 @@ void* MemLifoAlloc(MemLifo *l,  MemLifoSize sz, MemLifoSize *actual_szP)
         if (actual_szP) {
             m->lm_freeptr = m->lm_chunks->lc_end;
             *actual_szP = PTRDIFF32(m->lm_freeptr, m->lm_last_alloc);
-        } else 
+        } else
             m->lm_freeptr = p;
 	return 	m->lm_last_alloc;
     }
 
-    /* 
+    /*
      * Insufficient space in current chunk.
-     * Decide whether to allocate a new chunk or allocate a separate 
+     * Decide whether to allocate a new chunk or allocate a separate
      * block for the request. We allocate a chunk if
      * if there is little space available in the current chunk,
-     * `little' being defined as less than 1/8th chunk size. Note 
-     * this also ensures we will not allocate separate blocks that 
+     * `little' being defined as less than 1/8th chunk size. Note
+     * this also ensures we will not allocate separate blocks that
      * are smaller than 1/8th the chunk size.
-     * Otherwise, we satisfy the request by allocating a separate 
+     * Otherwise, we satisfy the request by allocating a separate
      * block.
-     * 
-     * This strategy is intended to balance conflicting goals: on one 
-     * hand, we do not want to allocate a new chunk aggressively as 
-     * this will result in too much wasted space in the current chunk. 
-     * On the other hand, allocating a separate block results in wasted 
+     *
+     * This strategy is intended to balance conflicting goals: on one
+     * hand, we do not want to allocate a new chunk aggressively as
+     * this will result in too much wasted space in the current chunk.
+     * On the other hand, allocating a separate block results in wasted
      * space due to external fragmentation as well slower execution.
      *
      * TBD - if using our default windows based heap, try and HeapReAlloc
@@ -224,8 +224,8 @@ void* MemLifoAlloc(MemLifo *l,  MemLifoSize sz, MemLifoSize *actual_szP)
     if (PTRDIFF32(m->lm_chunks->lc_end, m->lm_freeptr) < (int) l->lifo_chunk_size/8) {
         /* Little space in the current chunk
          * Allocate a new chunk and suballocate from it.
-         * 
-	 * As a heuristic, we will allocate extra space in the chunk 
+         *
+	 * As a heuristic, we will allocate extra space in the chunk
 	 * if the requested size is greater than half the default chunk size.
 	 */
 	if (sz > (l->lifo_chunk_size/2))
@@ -239,7 +239,7 @@ void* MemLifoAlloc(MemLifo *l,  MemLifoSize sz, MemLifoSize *actual_szP)
 	c = l->lifo_allocFn(chunk_sz, l->lifo_allocator_data, &chunk_sz);
 	if (c == 0) {
             if (l->lifo_flags & MEMLIFO_F_PANIC_ON_FAIL)
-                Tcl_Panic("Attempt to allocate %lu bytes for memlifo", chunk_sz);
+                Tcl_Panic("Attempt to allocate %" TCL_SIZE_MODIFIER "u bytes for memlifo", chunk_sz);
 	    return 0;
         }
 
@@ -266,7 +266,7 @@ void* MemLifoAlloc(MemLifo *l,  MemLifoSize sz, MemLifoSize *actual_szP)
                                                   &actual_size);
 	if (c == 0) {
             if (l->lifo_flags & MEMLIFO_F_PANIC_ON_FAIL)
-                Tcl_Panic("Attempt to allocate %lu bytes for memlifo", chunk_sz);
+                Tcl_Panic("Attempt to allocate %" TCL_SIZE_MODIFIER "u bytes for memlifo", chunk_sz);
 	    return 0;
         }
 	c->lc_end = ADDPTR(c, actual_size, void*);
@@ -342,7 +342,7 @@ MemLifoMarkHandle MemLifoPushMark(MemLifo *l)
                             &chunk_sz);
 	if (c == 0) {
             if (l->lifo_flags & MEMLIFO_F_PANIC_ON_FAIL)
-                Tcl_Panic("Attempt to allocate %lu bytes for memlifo", l->lifo_chunk_size);
+                Tcl_Panic("Attempt to allocate %" TCL_SIZE_MODIFIER "u bytes for memlifo", l->lifo_chunk_size);
 	    return 0;
         }	
 	c->lc_end = ADDPTR(c, chunk_sz, void*);	
@@ -406,7 +406,7 @@ int MemLifoPopMark(MemLifoMarkHandle m)
 	    l->lifo_freeFn(c1, l->lifo_allocator_data);
 	    c1 = c2;
 	}
-	
+
 	/* Free up chunks. Once chunks are freed up, do NOT access m since
 	 * it might have been freed as well.
 	 */
@@ -429,12 +429,12 @@ void *MemLifoPushFrame(MemLifo *l, MemLifoSize sz, MemLifoSize *actual_szP)
     void *p;
     MemLifoMarkHandle m, n;
     MemLifoSize total;
-       
+
     MEMLIFO_ASSERT(l->lifo_magic == MEMLIFO_MAGIC);
-    
+
     if (sz > MEMLIFO_MAX_ALLOC) {
         if (l->lifo_flags & MEMLIFO_F_PANIC_ON_FAIL)
-            Tcl_Panic("Attempt to allocate %lu bytes for memlifo", sz);
+            Tcl_Panic("Attempt to allocate %" TCL_SIZE_MODIFIER "u bytes for memlifo", sz);
         return NULL;
     }
 
@@ -489,7 +489,7 @@ void *MemLifoPushFrame(MemLifo *l, MemLifoSize sz, MemLifoSize *actual_szP)
         MemLifoPopMark(n);
     }
     if (l->lifo_flags & MEMLIFO_F_PANIC_ON_FAIL)
-        Tcl_Panic("Attempt to allocate %lu bytes for memlifo", sz);
+        Tcl_Panic("Attempt to allocate %" TCL_SIZE_MODIFIER "u bytes for memlifo", sz);
     return NULL;
 }
 

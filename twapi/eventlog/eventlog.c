@@ -44,7 +44,7 @@ static int Twapi_ReadEventLogObjCmd(ClientData clientdata, Tcl_Interp *interp, i
     EVENTLOGRECORD *evlP;
     Tcl_Obj *resultObj = NULL;
     DWORD winerr = ERROR_SUCCESS;
-    Tcl_Size len;
+    MemLifoSize len;
     static const char *fieldnames[] = {
         "-source", "-system", "-reserved", "-recordnum", "-timegenerated",
         "-timewritten", "-eventid", "-level", "-category", "-reservedflags",

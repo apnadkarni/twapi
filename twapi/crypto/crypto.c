@@ -1510,10 +1510,11 @@ static TCL_RESULT TwapiCryptEncodeObject(
     } u;
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj **objs;
-    Tcl_Size  nobjs, len;
+    Tcl_Size  nobjs;
     LPCSTR oid;
     DWORD_PTR dwoid;
     void *dataP;
+    MemLifoSize len;
 
     /* TBD - add other unimplemented types */
     /*
@@ -2896,7 +2897,7 @@ static TCL_RESULT Twapi_CryptFormatObjectObjCmd(ClientData clientdata, Tcl_Inter
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     DWORD encoding, flags, buflen;
     void *encP, *bufP;
-    Tcl_Size len, enclen;
+    Tcl_Size enclen;
     TCL_RESULT res;
     MemLifoMarkHandle mark;
     char *oid;
@@ -2909,6 +2910,7 @@ static TCL_RESULT Twapi_CryptFormatObjectObjCmd(ClientData clientdata, Tcl_Inter
         res = DWORD_LIMIT_CHECK(ticP->interp, enclen);
         if (res == TCL_OK) {
             /* First try a buffer size guess */
+            MemLifoSize len;
             bufP = MemLifoAlloc(ticP->memlifoP, enclen, &len);
             res = DWORD_LIMIT_CHECK(ticP->interp, len);
             if (res == TCL_OK) {
@@ -4159,7 +4161,7 @@ static TCL_RESULT Twapi_CryptExportKeyObjCmd(ClientData clientdata, Tcl_Interp *
     DWORD blob_type, flags, nbytes;
     BLOBHEADER *blobP;
     TCL_RESULT res;
-    Tcl_Size len;
+    MemLifoSize len;
     
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVERIFIEDPTR(hkey, HCRYPTKEY, CryptDestroyKey),

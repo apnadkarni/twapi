@@ -89,7 +89,7 @@ static int Twapi_GetUserObjectInformation(ClientData clientdata, Tcl_Interp *int
 
     /* If no SID, len can be 0 */
     if (len != 0) {
-        Tcl_Size temp;
+        MemLifoSize temp;
         pv = MemLifoPushFrame(ticP->memlifoP, len, &temp);
         len = temp > ULONG_MAX ? ULONG_MAX : (ULONG) temp;
     }

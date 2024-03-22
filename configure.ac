@@ -90,7 +90,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 
     TEA_ADD_INCLUDES([-I. -I\"$(${CYGPATH} ${srcdir}/twapi/include)\" -I\"${srcdir}/dyncall/dyncall-0.9/include\"])
 
-    TEA_ADD_CFLAGS([-DUNICODE -D_UNICODE -DWINVER=0x0501 -D_WIN32_WINNT=0x0501 -DPSAPI_VERSION=1])
+    TEA_ADD_CFLAGS([-DUNICODE -D_UNICODE -DWINVER=0x0601 -D_WIN32_WINNT=0x0601 -DPSAPI_VERSION=1])
 
     TEA_ADD_SOURCES([
 	    twapi/base/adsi.c
@@ -193,11 +193,11 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 		    kernel32.lib advapi32.lib user32.lib
 		    rpcrt4.lib gdi32.lib psapi.lib netapi32.lib
 		    pdh.lib winmm.lib mpr.lib ws2_32.lib uuid.lib
-		    ole32.lib oleaut32.lib shell32.lib
+		    ole32.lib oleaut32.lib shell32.lib shlwapi.lib
 		    winspool.lib version.lib iphlpapi.lib
 		    powrprof.lib secur32.lib userenv.lib
 		    wtsapi32.lib setupapi.lib uxtheme.lib
-		    credui.lib crypt32.lib wintrust.lib
+		    credui.lib crypt32.lib wintrust.lib tdh.lib
 		])
 
     TEA_ADD_TCL_SOURCES([
@@ -230,8 +230,6 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 	    twapi/tcl/winlog.tcl
 
 	    twapi/tcl/input.tcl
-
-	    twapi/tcl/metoo.tcl
 
 	    twapi/tcl/msi.tcl
 

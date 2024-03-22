@@ -646,7 +646,7 @@ int Twapi_IDispatch_InvokeObjCmd(
                  */
                 ObjSetResult(interp,
                                  Tcl_ObjPrintf(
-                                     "Parameter error. Offending parameter position %" TCL_SIZE_MODIFIER "d.", nparams-badarg_index));
+                                     "Parameter error. Offending parameter position %d.", nparams-badarg_index));
             }
             Twapi_AppendSystemError(interp, hr);
         }

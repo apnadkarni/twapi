@@ -680,7 +680,7 @@ static TCL_RESULT Twapi_EvtRenderUnicodeObjCmd(ClientData clientdata, Tcl_Interp
     DWORD flags, sz, count, status;
     void *bufP;
     Tcl_Obj *objP;
-    Tcl_Size len;
+    MemLifoSize len;
     if (TwapiGetArgs(interp, objc-1, objv+1, GETEVTH(hevt),
                      GETHANDLET(hevt2, EVT_HANDLE), GETDWORD(flags),
                      ARGEND) != TCL_OK)
@@ -977,7 +977,7 @@ static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(ClientData clientdata, Tcl_Inter
     int func;
     DWORD sz, dw, dw2, dw3;
     DWORD status;
-    Tcl_Size len;
+    MemLifoSize len;
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(func), GETEVTH(hevt),
                      GETDWORD(dw), ARGUSEDEFAULT, GETDWORD(dw2),
