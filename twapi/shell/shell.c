@@ -611,7 +611,7 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     objs[1] = ObjEmptyList();
 
     if ((flags & FOF_WANTMAPPINGHANDLE) && sfop.hNameMappings) {
-        int i;
+        UINT i;
         struct handlemappings {
             UINT uNumberOfMappings;
             LPSHNAMEMAPPINGW nameMapP;

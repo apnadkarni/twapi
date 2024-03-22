@@ -177,7 +177,7 @@ int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, in
                                    how many to free in case of errors */
 
     sbdP->pBuffers = TwapiAlloc(objc*sizeof(SecBuffer));
-    
+
     /* Each element of the list is a SecBuffer consisting of the
      * integer type and optionally the data itself
      */
@@ -185,7 +185,7 @@ int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, in
         Tcl_Obj **bufobjv;
         Tcl_Size  bufobjc;
         int       buftype;
-        Tcl_Size  datalen;
+        DWORD  datalen;
         BYTE     *dataP;
         if (ObjGetElements(interp, objv[i], &bufobjc, &bufobjv) != TCL_OK)
             return TCL_ERROR;
@@ -195,7 +195,8 @@ int ObjToSecBufferDesc(Tcl_Interp *interp, Tcl_Obj *obj, SecBufferDesc *sbdP, in
             goto handle_error;
         }
         if (bufobjc == 2) {
-            dataP = ObjToByteArray(bufobjv[1], &datalen);
+            if (ObjToByteArrayDW(interp, bufobjv[1], &datalen, &dataP) != TCL_OK)
+                goto handle_error;
             sbdP->pBuffers[i].pvBuffer = TwapiAlloc(datalen);
             sbdP->pBuffers[i].cbBuffer = datalen;
             CopyMemory(sbdP->pBuffers[i].pvBuffer, dataP, datalen);
@@ -596,7 +597,8 @@ static TCL_RESULT ParseSCHANNEL_CRED (
     }
 
     res = ObjGetElements(ticP->interp, certsObj, &objc, &objv);
-    credP->cCreds = objc;
+    CHECK_DWORD(ticP->interp, objc);
+    credP->cCreds = (DWORD)objc;
     credP->paCred = MemLifoAlloc(ticP->memlifoP, objc * sizeof(*credP->paCred), NULL);
     while (objc--) {
         res = ObjToVerifiedPointer(ticP->interp, objv[objc],
@@ -899,7 +901,8 @@ static TCL_RESULT Twapi_EncryptStreamObjCmd(ClientData clientdata, Tcl_Interp *i
     Tcl_Obj *dataObj;
     Tcl_Obj *objs[2];           /* 0 encrypted data, 1 leftover data */
     BYTE  *dataP, *encP;
-    Tcl_Size  datalen;
+    DWORD  datalen;
+    Tcl_Size len;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETVAR(sech, ObjToSecHandle),
@@ -912,7 +915,9 @@ static TCL_RESULT Twapi_EncryptStreamObjCmd(ClientData clientdata, Tcl_Interp *i
     if (ss != SEC_E_OK)
         return Twapi_AppendSystemError(interp, ss);
 
-    dataP = ObjToByteArray(dataObj, &datalen);
+    dataP = ObjToByteArray(dataObj, &len);
+    CHECK_DWORD(interp, len);
+    datalen = (DWORD)len;
     if (datalen > sizes.cbMaximumMessage) {
         objs[1] = ObjFromByteArray(dataP+sizes.cbMaximumMessage,
                                        datalen-sizes.cbMaximumMessage);
@@ -970,8 +975,9 @@ static TCL_RESULT Twapi_DecryptStreamObjCmd(ClientData clientdata, Tcl_Interp *i
     SecBufferDesc sbd;
     Tcl_Obj *objs[3];           /* 0 status, 1 decrypted data, 2 extra data */
     BYTE *encP, *p;
-    DWORD  i, enclen;
+    DWORD  enclen;
     TCL_RESULT res;
+    int i;
 
     CHECK_NARGS_RANGE(interp, objc, 3, INT_MAX);
     if (ObjToSecHandle(interp, objv[1], &sech) != TCL_OK)

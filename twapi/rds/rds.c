@@ -161,12 +161,14 @@ static int Twapi_RDSCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
             return TCL_ERROR;
         s = ObjToWinCharsN(objv[2], &len);
         s2 = ObjToWinCharsN(objv[3], &len2);
-        if (WTSSendMessageW(h, dw, s, sizeof(WCHAR)*len,
-                            s2, sizeof(WCHAR)*len2, dw2,
+        CHECK_DWORD(interp, len*sizeof(WCHAR));
+        CHECK_DWORD(interp, len2*sizeof(WCHAR));
+        if (WTSSendMessageW(h, dw, s, (DWORD) (sizeof(WCHAR)*len),
+                            s2, (DWORD) (sizeof(WCHAR)*len2), dw2,
                             dw3, &result.value.uval, bval))
             result.type = TRT_DWORD;
         else
-            result.type = TRT_GETLASTERROR;    
+            result.type = TRT_GETLASTERROR;
         break;
     default:
         if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),

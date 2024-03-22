@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2020, Ashok P. Nadkarni
+ * Copyright (c) 2012-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -28,392 +28,18 @@
 */
 
 #include "twapi.h"
-#include <evntrace.h>
 
 #include <ntverp.h>             /* Needed for VER_PRODUCTBUILD SDK version */
 
-#if (VER_PRODUCTBUILD < 7600) || (_WIN32_WINNT <= 0x600)
-# define RUNTIME_TDH_LOAD 1
-#else
 #define INITGUID // To get EventTraceGuid defined
-# include <tdh.h>
+#include <evntrace.h>
+#include <tdh.h>
 #pragma comment(lib, "delayimp.lib") /* Prevents TDH from loading unless necessary */
 #pragma comment(lib, "tdh.lib")	 /* New TDH library for Vista and beyond */
-#endif
-
-#if !defined(ETW_BUFFER_CONTEXT_DEF) && !defined(__GNUC__)
-/* TBD - note this struct has changed in the post-Win7 SDKs */
-typedef struct _ETW_BUFFER_CONTEXT {
-    UCHAR ProcessorNumber;
-    UCHAR Alignment;
-    USHORT LoggerId;
-} ETW_BUFFER_CONTEXT, *PETW_BUFFER_CONTEXT;
-#endif
-
-#ifdef RUNTIME_TDH_LOAD
-
-#define INITGUID // To get EventTraceGuid defined
-#include <guiddef.h>
-DEFINE_GUID ( /* 68fdd900-4a3e-11d1-84f4-0000f80464e3 */
-    EventTraceGuid,
-    0x68fdd900,
-    0x4a3e,
-    0x11d1,
-    0x84, 0xf4, 0x00, 0x00, 0xf8, 0x04, 0x64, 0xe3
-  );
-
-#define EVENT_HEADER_PROPERTY_XML               0x0001
-#define EVENT_HEADER_PROPERTY_FORWARDED_XML     0x0002
-#define EVENT_HEADER_PROPERTY_LEGACY_EVENTLOG   0x0004
-
-#define EVENT_HEADER_FLAG_EXTENDED_INFO         0x0001
-#define EVENT_HEADER_FLAG_PRIVATE_SESSION       0x0002
-#define EVENT_HEADER_FLAG_STRING_ONLY           0x0004
-#define EVENT_HEADER_FLAG_TRACE_MESSAGE         0x0008
-#define EVENT_HEADER_FLAG_NO_CPUTIME            0x0010
-#define EVENT_HEADER_FLAG_32_BIT_HEADER         0x0020
-#define EVENT_HEADER_FLAG_64_BIT_HEADER         0x0040
-#define EVENT_HEADER_FLAG_CLASSIC_HEADER        0x0100
-
-#define EVENT_HEADER_EXT_TYPE_RELATED_ACTIVITYID   0x0001
-#define EVENT_HEADER_EXT_TYPE_SID                  0x0002
-#define EVENT_HEADER_EXT_TYPE_TS_ID                0x0003
-#define EVENT_HEADER_EXT_TYPE_INSTANCE_INFO        0x0004
-#define EVENT_HEADER_EXT_TYPE_STACK_TRACE32        0x0005
-#define EVENT_HEADER_EXT_TYPE_STACK_TRACE64        0x0006
-#define EVENT_HEADER_EXT_TYPE_MAX                  0x0007
-
-typedef struct _EVENT_DESCRIPTOR {
-
-    USHORT      Id;
-    UCHAR       Version;
-    UCHAR       Channel;
-    UCHAR       Level;
-    UCHAR       Opcode;
-    USHORT      Task;
-    ULONGLONG   Keyword;
-
-} EVENT_DESCRIPTOR, *PEVENT_DESCRIPTOR;
-
-typedef const EVENT_DESCRIPTOR *PCEVENT_DESCRIPTOR;
-
-typedef struct _EVENT_HEADER {
-    USHORT Size;
-    USHORT HeaderType;
-    USHORT Flags;
-    USHORT EventProperty;
-    ULONG ThreadId;
-    ULONG ProcessId;
-    LARGE_INTEGER TimeStamp;
-    GUID ProviderId;
-    EVENT_DESCRIPTOR EventDescriptor;
-    union {
-        struct {
-            ULONG KernelTime;
-            ULONG UserTime;
-        };
-        ULONG64 ProcessorTime;
-    };
-    GUID ActivityId;
-
-} EVENT_HEADER, *PEVENT_HEADER;
-
-typedef struct _EVENT_EXTENDED_ITEM_TS_ID {
-  ULONG SessionId;
-} EVENT_EXTENDED_ITEM_TS_ID, *PEVENT_EXTENDED_ITEM_TS_ID;
-
-typedef struct _EVENT_EXTENDED_ITEM_RELATED_ACTIVITYID {
-  GUID RelatedActivityId;
-} EVENT_EXTENDED_ITEM_RELATED_ACTIVITYID, *PEVENT_EXTENDED_ITEM_RELATED_ACTIVITYID;
-
-typedef struct _EVENT_EXTENDED_ITEM_INSTANCE {
-  ULONG InstanceId;
-  ULONG ParentInstanceId;
-  GUID  ParentGuid;
-} EVENT_EXTENDED_ITEM_INSTANCE, *PEVENT_EXTENDED_ITEM_INSTANCE;
-
-typedef struct _EVENT_HEADER_EXTENDED_DATA_ITEM {
-    USHORT Reserved1;
-    USHORT ExtType;
-    struct {
-        USHORT Linkage :  1;
-        USHORT Reserved2 : 15;
-    };
-    USHORT DataSize;
-    ULONGLONG  DataPtr;
-
-} EVENT_HEADER_EXTENDED_DATA_ITEM, *PEVENT_HEADER_EXTENDED_DATA_ITEM;
-
-typedef struct _EVENT_RECORD {
-
-    EVENT_HEADER EventHeader;
-    ETW_BUFFER_CONTEXT BufferContext;
-    USHORT ExtendedDataCount;
-    USHORT UserDataLength;
-    PEVENT_HEADER_EXTENDED_DATA_ITEM ExtendedData;
-    PVOID UserData;
-    PVOID UserContext;
-} EVENT_RECORD, *PEVENT_RECORD;
-
-#define EVENT_ENABLE_PROPERTY_SID                   0x00000001
-#define EVENT_ENABLE_PROPERTY_TS_ID                 0x00000002
-#define EVENT_ENABLE_PROPERTY_STACK_TRACE           0x00000004
-
-#define PROCESS_TRACE_MODE_REAL_TIME                0x00000100
-#define PROCESS_TRACE_MODE_RAW_TIMESTAMP            0x00001000
-#define PROCESS_TRACE_MODE_EVENT_RECORD             0x10000000
-
-typedef enum _TDH_CONTEXT_TYPE {
-    TDH_CONTEXT_WPP_TMFFILE = 0,
-    TDH_CONTEXT_WPP_TMFSEARCHPATH = 1,
-    TDH_CONTEXT_WPP_GMT = 2,
-    TDH_CONTEXT_POINTERSIZE = 3,
-    TDH_CONTEXT_PDB_PATH = 4,
-    TDH_CONTEXT_MAXIMUM = 5
-} TDH_CONTEXT_TYPE;
-
-typedef struct _TDH_CONTEXT {
-    ULONGLONG ParameterValue;
-    TDH_CONTEXT_TYPE ParameterType;
-    ULONG ParameterSize;
-} TDH_CONTEXT;
-
-typedef enum _DECODING_SOURCE {
-  DecodingSourceXMLFile  = 0,
-  DecodingSourceWbem     = 1,
-  DecodingSourceWPP      = 2,
-  DecodingSourceTlg      = 3
-} DECODING_SOURCE;
-
-typedef enum _TEMPLATE_FLAGS
-{
-    TEMPLATE_EVENT_DATA = 1,
-    TEMPLATE_USER_DATA = 2
-} TEMPLATE_FLAGS;
-
-
-typedef enum _PROPERTY_FLAGS
-{
-   PropertyStruct        = 0x1,      // Type is struct.
-   PropertyParamLength   = 0x2,      // Length field is index of param with length.
-   PropertyParamCount    = 0x4,      // Count file is index of param with count.
-   PropertyWBEMXmlFragment = 0x8,    // WBEM extension flag for property.
-   PropertyParamFixedLength = 0x10   // Length of the parameter is fixed.
-} PROPERTY_FLAGS;
-
-typedef struct _EVENT_PROPERTY_INFO {
-    PROPERTY_FLAGS Flags;
-    ULONG NameOffset;
-    union {
-        struct _nonStructType {
-            USHORT InType;
-            USHORT OutType;
-            ULONG MapNameOffset;
-        } nonStructType;
-        struct _structType {
-            USHORT StructStartIndex;
-            USHORT NumOfStructMembers;
-            ULONG padding;
-        } structType;
-    };
-    union {
-        USHORT count;
-        USHORT countPropertyIndex;
-    };
-    union {
-        USHORT length;
-        USHORT lengthPropertyIndex;
-    };
-    ULONG Reserved;
-} EVENT_PROPERTY_INFO;
-typedef EVENT_PROPERTY_INFO *PEVENT_PROPERTY_INFO;
-
-typedef struct _TRACE_EVENT_INFO {
-  GUID ProviderGuid;
-  GUID EventGuid;
-  EVENT_DESCRIPTOR EventDescriptor;
-  DECODING_SOURCE DecodingSource;
-  ULONG ProviderNameOffset;
-  ULONG LevelNameOffset;
-  ULONG ChannelNameOffset;
-  ULONG KeywordsNameOffset;
-  ULONG TaskNameOffset;
-  ULONG OpcodeNameOffset;
-  ULONG EventMessageOffset;
-  ULONG ProviderMessageOffset;
-  ULONG BinaryXMLOffset;
-  ULONG BinaryXMLSize;
-  ULONG ActivityIDNameOffset;
-  ULONG RelatedActivityIDNameOffset;
-  ULONG PropertyCount;
-  ULONG TopLevelPropertyCount;
-  TEMPLATE_FLAGS Flags;
-  EVENT_PROPERTY_INFO EventPropertyInfoArray[ANYSIZE_ARRAY];
-} TRACE_EVENT_INFO;
-
-typedef struct _PROPERTY_DATA_DESCRIPTOR {
-    ULONGLONG PropertyName;
-    ULONG ArrayIndex;
-    ULONG Reserved;
-} PROPERTY_DATA_DESCRIPTOR;
-typedef PROPERTY_DATA_DESCRIPTOR *PPROPERTY_DATA_DESCRIPTOR;
-
-typedef struct _EVENT_MAP_ENTRY {
-    ULONG OutputOffset;
-    union {
-        ULONG Value;
-        ULONG InputOffset;
-    };
-} EVENT_MAP_ENTRY;
-typedef EVENT_MAP_ENTRY *PEVENT_MAP_ENTRY;
-
-typedef enum _MAP_FLAGS {
-    EVENTMAP_INFO_FLAG_MANIFEST_VALUEMAP   = 0x1,
-    EVENTMAP_INFO_FLAG_MANIFEST_BITMAP     = 0x2,
-    EVENTMAP_INFO_FLAG_MANIFEST_PATTERNMAP = 0x4,
-    EVENTMAP_INFO_FLAG_WBEM_VALUEMAP       = 0x8,
-    EVENTMAP_INFO_FLAG_WBEM_BITMAP         = 0x10,
-    EVENTMAP_INFO_FLAG_WBEM_FLAG           = 0x20,
-    EVENTMAP_INFO_FLAG_WBEM_NO_MAP         = 0x40
-} MAP_FLAGS;
-
-typedef enum _MAP_VALUETYPE {
-    EVENTMAP_ENTRY_VALUETYPE_ULONG,
-    EVENTMAP_ENTRY_VALUETYPE_STRING
-}  MAP_VALUETYPE;
-
-typedef struct _EVENT_MAP_INFO {
-    ULONG NameOffset;
-    MAP_FLAGS Flag;
-    ULONG EntryCount;
-    union {
-        MAP_VALUETYPE MapEntryValueType;
-        ULONG FormatStringOffset;
-    };
-    EVENT_MAP_ENTRY MapEntryArray[ANYSIZE_ARRAY];
-} EVENT_MAP_INFO;
-typedef EVENT_MAP_INFO *PEVENT_MAP_INFO;
-
-enum _TDH_IN_TYPE {
-    TDH_INTYPE_NULL,
-    TDH_INTYPE_UNICODESTRING,
-    TDH_INTYPE_ANSISTRING,
-    TDH_INTYPE_INT8,
-    TDH_INTYPE_UINT8,
-    TDH_INTYPE_INT16,
-    TDH_INTYPE_UINT16,
-    TDH_INTYPE_INT32,
-    TDH_INTYPE_UINT32,
-    TDH_INTYPE_INT64,
-    TDH_INTYPE_UINT64,
-    TDH_INTYPE_FLOAT,
-    TDH_INTYPE_DOUBLE,
-    TDH_INTYPE_BOOLEAN,
-    TDH_INTYPE_BINARY,
-    TDH_INTYPE_GUID,
-    TDH_INTYPE_POINTER,
-    TDH_INTYPE_FILETIME,
-    TDH_INTYPE_SYSTEMTIME,
-    TDH_INTYPE_SID,
-    TDH_INTYPE_HEXINT32,
-    TDH_INTYPE_HEXINT64,                    // End of winmeta intypes.
-    TDH_INTYPE_COUNTEDSTRING = 300,         // Start of TDH intypes for WBEM.
-    TDH_INTYPE_COUNTEDANSISTRING,
-    TDH_INTYPE_REVERSEDCOUNTEDSTRING,
-    TDH_INTYPE_REVERSEDCOUNTEDANSISTRING,
-    TDH_INTYPE_NONNULLTERMINATEDSTRING,
-    TDH_INTYPE_NONNULLTERMINATEDANSISTRING,
-    TDH_INTYPE_UNICODECHAR,
-    TDH_INTYPE_ANSICHAR,
-    TDH_INTYPE_SIZET,
-    TDH_INTYPE_HEXDUMP,
-    TDH_INTYPE_WBEMSID
-};
-
-enum _TDH_OUT_TYPE {
-    TDH_OUTTYPE_NULL,
-    TDH_OUTTYPE_STRING,
-    TDH_OUTTYPE_DATETIME,
-    TDH_OUTTYPE_BYTE,
-    TDH_OUTTYPE_UNSIGNEDBYTE,
-    TDH_OUTTYPE_SHORT,
-    TDH_OUTTYPE_UNSIGNEDSHORT,
-    TDH_OUTTYPE_INT,
-    TDH_OUTTYPE_UNSIGNEDINT,
-    TDH_OUTTYPE_LONG,
-    TDH_OUTTYPE_UNSIGNEDLONG,
-    TDH_OUTTYPE_FLOAT,
-    TDH_OUTTYPE_DOUBLE,
-    TDH_OUTTYPE_BOOLEAN,
-    TDH_OUTTYPE_GUID,
-    TDH_OUTTYPE_HEXBINARY,
-    TDH_OUTTYPE_HEXINT8,
-    TDH_OUTTYPE_HEXINT16,
-    TDH_OUTTYPE_HEXINT32,
-    TDH_OUTTYPE_HEXINT64,
-    TDH_OUTTYPE_PID,
-    TDH_OUTTYPE_TID,
-    TDH_OUTTYPE_PORT,
-    TDH_OUTTYPE_IPV4,
-    TDH_OUTTYPE_IPV6,
-    TDH_OUTTYPE_SOCKETADDRESS,
-    TDH_OUTTYPE_CIMDATETIME,
-    TDH_OUTTYPE_ETWTIME,
-    TDH_OUTTYPE_XML,
-    TDH_OUTTYPE_ERRORCODE,
-    TDH_OUTTYPE_WIN32ERROR,
-    TDH_OUTTYPE_NTSTATUS,
-    TDH_OUTTYPE_HRESULT,             // End of winmeta outtypes.
-    TDH_OUTTYPE_CULTURE_INSENSITIVE_DATETIME, //Culture neutral datetime string.
-    TDH_OUTTYPE_REDUCEDSTRING = 300, // Start of TDH outtypes for WBEM.
-    TDH_OUTTYPE_NOPRINT
-};
-
-typedef struct _TRACE_PROVIDER_INFO {
-  GUID  ProviderGuid;
-  ULONG SchemaSource;
-  ULONG ProviderNameOffset;
-} TRACE_PROVIDER_INFO;
-
-typedef struct _PROVIDER_ENUMERATION_INFO {
-  ULONG               NumberOfProviders;
-  ULONG               Padding;
-  TRACE_PROVIDER_INFO TraceProviderInfoArray[ANYSIZE_ARRAY];
-} PROVIDER_ENUMERATION_INFO;
-
-/*
- * Stubs for TDH functions
- */
-typedef ULONG __stdcall TdhGetEventInformation_T(PEVENT_RECORD, ULONG, TDH_CONTEXT *, TRACE_EVENT_INFO *, ULONG *);
-typedef ULONG __stdcall TdhGetProperty_T(PEVENT_RECORD pEvent, ULONG TdhContextCount, TDH_CONTEXT *pTdhContext, ULONG PropertyDataCount, PPROPERTY_DATA_DESCRIPTOR pPropertyData, ULONG BufferSize, PBYTE pBuffer);
-typedef ULONG __stdcall TdhGetPropertySize_T(PEVENT_RECORD pEvent, ULONG TdhContextCount, TDH_CONTEXT *pTdhContext, ULONG PropertyDataCount, PPROPERTY_DATA_DESCRIPTOR pPropertyData, ULONG *pPropertySize);
-typedef ULONG __stdcall TdhGetEventMapInformation_T(PEVENT_RECORD pEvent, LPWSTR pMapName, PEVENT_MAP_INFO pBuffer, ULONG *pBufferSize);
-typedef ULONG __stdcall TdhEnumerateProviders_T(PROVIDER_ENUMERATION_INFO *pBuffer, ULONG *pBufferSize);
-
-
-static struct {
-    TdhGetEventInformation_T  *_TdhGetEventInformation;
-    TdhGetProperty_T *_TdhGetProperty;
-    TdhGetPropertySize_T *_TdhGetPropertySize;
-    TdhGetEventMapInformation_T *_TdhGetEventMapInformation;
-    TdhEnumerateProviders_T *_TdhEnumerateProviders;
-} gTdhStubs;
-
-#define TdhGetEventInformation gTdhStubs._TdhGetEventInformation
-#define TdhGetProperty gTdhStubs._TdhGetProperty
-#define TdhGetPropertySize gTdhStubs._TdhGetPropertySize
-#define TdhGetEventMapInformation gTdhStubs._TdhGetEventMapInformation
-#define TdhEnumerateProviders gTdhStubs._TdhEnumerateProviders
-
-int gTdhStatus;                 /* 0 - init, 1 - available, -1 - unavailable  */
-HANDLE gTdhDllHandle;
-
-#endif
 
 #ifndef EVENT_HEADER_FLAG_PROCESSOR_INDEX
 # define EVENT_HEADER_FLAG_PROCESSOR_INDEX 0x0200 /* Win 8, not in older SDKs */
 #endif
-
 
 /* Windows allows max 64 sessions */
 #define MAX_SESSIONS 64
@@ -453,8 +79,8 @@ struct TwapiETWContext {
      */
     union {
         struct {
-            Tcl_Obj *cmdObj;    /* Callback command (list) */
-            int      cmdlen;    /* Number of elements in cmdObj. */
+            Tcl_Obj   *cmdObj;    /* Callback command (list) */
+            Tcl_Size   cmdlen;    /* Number of elements in cmdObj. */
             TCL_RESULT return_code; /* Return code from callback */
         } callback;
         Tcl_Obj     *listObj;   /* List of buffer descriptor, event list pairs */
@@ -603,8 +229,8 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     int i, buf_sz;
     Tcl_Obj **objv;
     Tcl_Size  objc;
-    Tcl_Size  logfile_name_i;
-    Tcl_Size  session_name_i;
+    int       logfile_name_i;
+    int       session_name_i;
     WCHAR    *logfile_name = NULL;
     WCHAR    *session_name = NULL;
     EVENT_TRACE_PROPERTIES *etP;
@@ -661,13 +287,13 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
     }
 
     if (session_name_i >= 0) {
-        session_name = ObjToWinCharsN(objv[session_name_i+1], &session_name_i);
+        CHECK_RESULT(ObjToWinCharsDW(interp, objv[session_name_i], &session_name_i, &session_name));
     } else {
         session_name_i = 0;
     }
 
     if (logfile_name_i >= 0) {
-        logfile_name = ObjToWinCharsN(objv[logfile_name_i+1], &logfile_name_i);
+        CHECK_RESULT(ObjToWinCharsDW(interp, objv[logfile_name_i], &logfile_name_i, &logfile_name));
     } else {
         logfile_name_i = 0;
     }
@@ -1941,9 +1567,11 @@ static WIN32_ERROR TwapiTdhGetEventInformation(TwapiInterpContext *ticP, EVENT_R
     TDH_CONTEXT tdhctx;
     int i, classic;
     Tcl_Obj *emptyObj;
+    Tcl_Size len;
 
     /* TBD - instrument how much to try for initially */
-    teiP = MemLifoAlloc(ticP->memlifoP, 1000, &sz);
+    teiP = MemLifoAlloc(ticP->memlifoP, 1000, &len);
+    sz = len > UINT_MAX ? UINT_MAX : (DWORD)len;
 
     tdhctx.ParameterValue = TwapiCalcPointerSize(evrP);
     tdhctx.ParameterType = TDH_CONTEXT_POINTERSIZE;
@@ -2257,22 +1885,23 @@ TCL_RESULT Twapi_TdhEnumerateProvidersObjCmd(ClientData clientdata, Tcl_Interp *
     DWORD status;
     TCL_RESULT res;
     DWORD i;
+    Tcl_Size len;
 
     CHECK_NARGS_RANGE(interp, objc, 1, 2);
 
-    if (gTdhStatus <= 0)
-        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
-
     /* Windows 7/8 have a LOT of providers */
     buf_sz =  TwapiMinOSVersion(6, 2) ? 100000 : 30000;
-    peiP = MemLifoPushFrame(memlifoP, buf_sz, &buf_sz);
+    peiP = MemLifoPushFrame(memlifoP, buf_sz, &len);
+    buf_sz = len > UINT_MAX ? UINT_MAX : (DWORD)len;
+
     /* The sizes may keep changing so keep looping but no more than 10 times */
     for (i = 0; i < 10; ++i) {
         status = TdhEnumerateProviders(peiP, &buf_sz);
         if (status != ERROR_INSUFFICIENT_BUFFER)
             break;
         MemLifoPopFrame(memlifoP);
-        peiP = MemLifoPushFrame(memlifoP, buf_sz, &buf_sz);
+        peiP = MemLifoPushFrame(memlifoP, buf_sz, &len);
+        buf_sz = len > UINT_MAX ? UINT_MAX : (DWORD)len;
     }
 
     if (status == ERROR_SUCCESS) {
@@ -2328,26 +1957,14 @@ TCL_RESULT Twapi_OpenTrace(ClientData clientdata, Tcl_Interp *interp, int objc, 
     s = ObjToWinChars(objv[1]);
     ZeroMemory(&etl, sizeof(etl));
     etl.BufferCallback = TwapiETWBufferCallback;
-    /*
-     * To support older compilers/SDK's, we use
-     *   EventCallback instead of EventRecordCallback
-     *   LogFileMode instead of ProcessTraceMode
-     *   EVENT_TRACE_REAL_TIME_MODE instead of PROCESS_TRACE_MODE_REAL_TIME
-     * They are either the same field in the union, or have the same #define value
-     * The gForceMofAPI setting is primarily to test old APIs on newer OS'es
-     */
-    if (gTdhStatus > 0 && ! gForceMofAPI) {
-        etl.LogFileMode = PROCESS_TRACE_MODE_EVENT_RECORD; /* Actually etl.ProcessTraceMode */
-        etl.EventCallback = (PEVENT_CALLBACK) TwapiETWEventRecordCallback;   /* Actually etl.EventRecordCallback */
-    } else
-        etl.EventCallback = TwapiETWEventCallback;
+    etl.ProcessTraceMode = PROCESS_TRACE_MODE_EVENT_RECORD;
+    etl.EventRecordCallback = TwapiETWEventRecordCallback;
 
     if (real_time) {
         etl.LoggerName = s;
-        etl.LogFileMode |= EVENT_TRACE_REAL_TIME_MODE; /* or etl.ProcessTraceMode |= PROCESS_TRACE_MODE_REAL_TIME */
+        etl.ProcessTraceMode |= PROCESS_TRACE_MODE_REAL_TIME;
     } else
         etl.LogFileName = s;
-
 
     htrace = OpenTraceW(&etl);
     if (INVALID_SESSIONTRACE_HANDLE(htrace))
@@ -2422,20 +2039,22 @@ TCL_RESULT Twapi_CloseTrace(ClientData clientdata, Tcl_Interp *interp, int objc,
 TCL_RESULT Twapi_ProcessTrace(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
-    int i;
     FILETIME start, end, *startP, *endP;
     struct TwapiETWContext etwc;
     Tcl_Size callback_cmdlen;
     DWORD winerr;
     Tcl_Obj **htraceObjs;
     TRACEHANDLE htraces[8];
-    Tcl_Size    ntraces;
+    Tcl_Size    len;
+    DWORD       i, ntraces;
 
     if (objc != 5)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
-    if (ObjGetElements(interp, objv[1], &ntraces, &htraceObjs) != TCL_OK)
+    if (ObjGetElements(interp, objv[1], &len, &htraceObjs) != TCL_OK)
         return TCL_ERROR;
+    CHECK_DWORD(interp, len);
+    ntraces = (DWORD) len;
 
     for (i = 0; i < ntraces; ++i) {
         if (ObjToTRACEHANDLE(interp, htraceObjs[i], &htraces[i]) != TCL_OK)
@@ -2652,7 +2271,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
                For now leave as is
             */
 
-            if ((remain-2) < (sizeof(WCHAR)*eaten)) {
+            if ((remain-2) < (Tcl_Size)(sizeof(WCHAR)*eaten)) {
                 /* truncated */
                 objP = ObjFromWinCharsN((WCHAR *)(bytesP+2), (remain-2)/sizeof(WCHAR));
                 eaten = remain; /* We used up all */
@@ -2796,7 +2415,7 @@ TCL_RESULT Twapi_ParseEventMofData(ClientData clientdata, Tcl_Interp *interp, in
 
         case 32: // objectvariant
             eaten = *(ULONG UNALIGNED *)bytesP;
-            if (remain < (eaten + sizeof(ULONG)))
+            if (remain < (eaten + (Tcl_Size)sizeof(ULONG)))
                 goto done;      /* Data truncation */
             objP = ObjFromByteArray(sizeof(ULONG)+bytesP, eaten);
             eaten += sizeof(ULONG);
@@ -3036,7 +2655,6 @@ void TwapiInitTdhStubs(Tcl_Interp *interp)
 
 #endif
 
-    gTdhStatus = 1;
 }
 
 static int ETWModuleOneTimeInit(void *arg)

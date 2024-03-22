@@ -1158,6 +1158,7 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
     void *bufP;
     ULONG bufsz;
     int  tries;
+    Tcl_Size len;
 
     if (fn == NULL) {
         return Twapi_AppendSystemError(ticP->interp, ERROR_PROC_NOT_FOUND);
@@ -1169,7 +1170,8 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
      * size can keep changing so we try multiple times.
      */
     bufsz = 4000;
-    bufP = MemLifoPushFrame(ticP->memlifoP, bufsz, &bufsz);
+    bufP = MemLifoPushFrame(ticP->memlifoP, bufsz, &len);
+    bufsz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     for (tries=0; tries < 10 ; ++tries) {
         if (sortable)
             error = (*fn)(bufP, &bufsz, sort);
@@ -1180,11 +1182,12 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
             /* Either success or error unrelated to buffer size */
             break;
         }
-        
+
         /* Retry with bigger buffer */
         /* bufsz contains required size as returned by the functions */
         MemLifoPopFrame(ticP->memlifoP);
-        bufP = MemLifoPushFrame(ticP->memlifoP, bufsz, &bufsz);
+        bufP = MemLifoPushFrame(ticP->memlifoP, bufsz, &len);
+        bufsz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     }
 
     if (error == NO_ERROR) {
@@ -1205,9 +1208,11 @@ int Twapi_GetNetworkParams(TwapiInterpContext *ticP)
     ULONG netinfo_size;
     DWORD error;
     Tcl_Obj *objv[8];
+    Tcl_Size len;
 
     /* TBD - maybe allocate bigger space to start with ? */
-    netinfoP = MemLifoPushFrame(ticP->memlifoP, sizeof(*netinfoP), &netinfo_size);
+    netinfoP = MemLifoPushFrame(ticP->memlifoP, sizeof(*netinfoP), &len);
+    netinfo_size = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     error = GetNetworkParams(netinfoP, &netinfo_size);
     if (error == ERROR_BUFFER_OVERFLOW) {
         /* Allocate a bigger buffer of the required size. */
@@ -1246,6 +1251,7 @@ int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
     DWORD error;
     int   tries;
     Tcl_Obj *resultObj;
+    Tcl_Size len;
 
     /*
      * Keep looping as long as we are told we need a bigger buffer. For
@@ -1255,7 +1261,8 @@ int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
      */
     bufsz = 16000;
     iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(ticP->memlifoP,
-                                                     bufsz, &bufsz);
+                                                     bufsz, &len);
+    bufsz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     for (tries=0; tries < 10 ; ++tries) {
         error = GetAdaptersAddresses(family, flags, NULL, iaaP, &bufsz);
         if (error != ERROR_BUFFER_OVERFLOW) {
@@ -1266,7 +1273,8 @@ int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
         /* realloc - bufsz contains required size as returned by the functions */
         MemLifoPopFrame(ticP->memlifoP);
         iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(ticP->memlifoP,
-                                                         bufsz, &bufsz);
+                                                         bufsz, &len);
+        bufsz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     }
 
     if (error != ERROR_SUCCESS) {
@@ -1293,11 +1301,13 @@ int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index)
     ULONG                ainfo_size;
     DWORD                error;
     Tcl_Obj             *objv[3];
+    Tcl_Size             len;
 
     /* Make first allocation assuming two ip addresses */
     ainfoP = MemLifoPushFrame(ticP->memlifoP,
                               sizeof(*ainfoP)+2*sizeof(IP_ADDR_STRING),
-                              &ainfo_size);
+                              &len);
+    ainfo_size = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     error = GetPerAdapterInfo(adapter_index, ainfoP, &ainfo_size);
     if (error == ERROR_BUFFER_OVERFLOW) {
         /* Retry with indicated size */

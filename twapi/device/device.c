@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2012, Ashok P. Nadkarni
+ * Copyright (c) 2007-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -196,6 +196,7 @@ int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *ticP, int objc, T
     DWORD buf_sz;
     int tcl_status = TCL_ERROR;
     Tcl_Obj *objP;
+    Tcl_Size len;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETHANDLET(hdi, HDEVINFO),
@@ -204,7 +205,8 @@ int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *ticP, int objc, T
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    bufP = MemLifoPushFrame(ticP->memlifoP, 256, &buf_sz);
+    bufP = MemLifoPushFrame(ticP->memlifoP, 256, &len);
+    buf_sz = len > UINT_MAX ? UINT_MAX : (DWORD)len;
     if (! SetupDiGetDeviceRegistryPropertyW(
             hdi, &sdd, regprop, &regtype, bufP, buf_sz, &buf_sz)) {
         /* Unsuccessful call. See if we need a larger buffer */
@@ -248,6 +250,7 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tc
     int success;
     DWORD winerr;
     int   i;
+    Tcl_Size len;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETHANDLET(hdi, HDEVINFO),
@@ -256,7 +259,8 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tc
                      ARGEND) != TCL_OK)
             return TCL_ERROR;
 
-    sdiddP = MemLifoPushFrame(ticP->memlifoP, sizeof(*sdiddP)+MAX_PATH, &buf_sz);
+    sdiddP = MemLifoPushFrame(ticP->memlifoP, sizeof(*sdiddP)+MAX_PATH, &len);
+    buf_sz = len > UINT_MAX ? UINT_MAX : (DWORD)len;
     /* To be safe against bugs, ours or the driver's limit to 5 attempts */
     for (i = 0; i < 5; ++i) {
         sdiddP->cbSize = sizeof(*sdiddP); /* NOT size of entire buffer */
@@ -292,6 +296,7 @@ int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Ob
     DWORD  i;
     DWORD buf_sz;
     MemLifoMarkHandle mark;
+    Tcl_Size len;
 
     mark = MemLifoPushMark(ticP->memlifoP);
 
@@ -303,7 +308,8 @@ int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Ob
                        GETVOIDP(reserved),
                        ARGEND) == TCL_OK) {
 
-        guidP = MemLifoAlloc(ticP->memlifoP, 10 * sizeof(*guidP), &buf_sz);
+        guidP = MemLifoAlloc(ticP->memlifoP, 10 * sizeof(*guidP), &len);
+        buf_sz = len > UINT_MAX ? UINT_MAX : (DWORD)len;
         allocated = buf_sz / sizeof(*guidP);
 
         /*
@@ -1102,8 +1108,11 @@ static int Twapi_DeviceIoControlObjCmd(ClientData clientdata, Tcl_Interp *interp
     }
 
     if (res == TCL_OK) {
-        if (nout)
-            outP = MemLifoAlloc(memlifoP, nout, &nout);
+        if (nout) {
+            Tcl_Size len;
+            outP = MemLifoAlloc(memlifoP, nout, &len);
+            nout = len > UINT_MAX ? UINT_MAX : (DWORD) len;
+        }
         else
             outP = NULL;
 

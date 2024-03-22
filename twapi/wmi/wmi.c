@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2012, Ashok P. Nadkarni
+ * Copyright (c) 2012-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -29,6 +29,7 @@ static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int
     Tcl_Size  buflen;
     WBEM_COMPILE_STATUS_INFO wcsi;
     Tcl_Obj *server_namespaceObj, *userObj, *authorityObj, *passwordObj;
+    DWORD dwLen;
 
     if (type == 2) {
         if (TwapiGetArgs(interp, objc, objv,
@@ -54,7 +55,7 @@ static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int
         authority = authorityObj ? ObjToLPWSTR_NULL_IF_EMPTY(authorityObj) : NULL;
         /* TBD - password should be in concealed form ? */
         password = passwordObj ? ObjToLPWSTR_NULL_IF_EMPTY(passwordObj) : NULL;
-    }            
+    }
 
     server_namespace = server_namespaceObj ? ObjToLPWSTR_NULL_IF_EMPTY(server_namespaceObj) : NULL;
 
@@ -63,7 +64,9 @@ static TCL_RESULT Twapi_IMofCompiler_CompileFileOrBuffer(Tcl_Interp *interp, int
     switch (type) {
     case 0:
         buf = (BYTE *) ObjToStringN(objv[1], &buflen);
-        hr = ifc->lpVtbl->CompileBuffer(ifc, buflen, buf, server_namespace,
+        CHECK_DWORD(interp, buflen);
+        dwLen = (DWORD) buflen;
+        hr = ifc->lpVtbl->CompileBuffer(ifc, dwLen, buf, server_namespace,
                                          user, authority, password,
                                          optflags, classflags, instflags,
                                          &wcsi);

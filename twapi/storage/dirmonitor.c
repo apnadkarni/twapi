@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Ashok P. Nadkarni
+ * Copyright (c) 2010-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -213,7 +213,7 @@ static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
     dmcP->nrefs = 0;
     dmcP->filter = filter;
     dmcP->include_subtree = include_subtree;
-    dmcP->npatterns = npatterns;
+    dmcP->npatterns = (int)npatterns;
     cP = sizeof(TwapiDirectoryMonitorContext) +
         (npatterns*sizeof(dmcP->patterns[0])) +
         (char *)dmcP;
@@ -626,7 +626,7 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
         Tcl_Obj **objv;
         ObjAppendElement(interp, scriptObj, changesObj);
         ObjGetElements(interp, scriptObj, &objc, &objv);
-        tcl_status = TwapiEvalAndUpdateCallback(cbP, objc, objv, TRT_EMPTY);
+        tcl_status = TwapiEvalAndUpdateCallback(cbP, (DWORD) objc, objv, TRT_EMPTY);
         if (tcl_status != TCL_OK)
             Twapi_AppendLog(interp, L"CALLBACK FAIL");
     } else {

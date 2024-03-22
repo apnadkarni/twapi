@@ -1,5 +1,5 @@
-/* 
- * Copyright (c) 2003-2015, Ashok P. Nadkarni
+/*
+ * Copyright (c) 2003-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -337,22 +337,24 @@ static int Twapi_EnumProcessesModulesObjCmd(
     BOOL   status;
     int type;
     HANDLE phandle;
+    Tcl_Size len;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETINT(type), ARGUSEDEFAULT, GETHANDLE(phandle),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
-    
+
     /*
-     * EnumProcesses/EnumProcessModules do not return error if the 
+     * EnumProcesses/EnumProcessModules do not return error if the
      * buffer is too small
      * so we keep looping until the "required bytes" or "returned bytes"
      * is less than what
      * we supplied at which point we know the buffer was large enough
      */
-    
+
     /* TBD - instrument buffer size */
-    bufP = MemLifoPushFrame(ticP->memlifoP, 2000, &buf_size);
+    bufP = MemLifoPushFrame(ticP->memlifoP, 2000, &len);
+    buf_size = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     result = TCL_ERROR;
     do {
         switch (type) {
@@ -973,6 +975,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     int func = PtrToInt(clientdata);
     Tcl_Obj *objs[10];
     SIZE_T sz, sz2;
+    Tcl_Size len;
 
     --objc;
     ++objv;
@@ -1007,7 +1010,8 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         dw = 2048;
         s =  ObjToWinChars(objv[1]);
         while (1) {
-            bufP = SWSPushFrame(dw, &dw);
+            bufP = SWSPushFrame(dw, &len);
+            dw = len > ULONG_MAX ? ULONG_MAX : (DWORD) len;
             if (ExpandEnvironmentStringsForUserW(h, s, bufP, dw/sizeof(WCHAR))) {
                 result.value.obj = ObjFromWinChars(bufP);
                 result.type = TRT_OBJ;

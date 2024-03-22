@@ -912,11 +912,11 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
     Tcl_Obj *CONST objv[])
 {
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
-    int i;
     int func;
     int level;
     Tcl_Obj **accts;
-    Tcl_Size naccts;
+    Tcl_Size len;
+    DWORD i, naccts;
     LPWSTR servername, groupname;
     DWORD winerr;
     LOCALGROUP_MEMBERS_INFO_0 *lgmi0P = NULL;
@@ -932,10 +932,15 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
                          GETWSTR(groupname), GETINT(level),
                          GETOBJ(acctsObj), ARGEND);
     if (res == TCL_OK)
-        res = ObjGetElements(interp, acctsObj, &naccts, &accts);
+        res = ObjGetElements(interp, acctsObj, &len, &accts);
 
-    if (res != TCL_OK || naccts == 0)
+    if (res != TCL_OK || len == 0)
         goto vamoose;
+
+    res = DWORD_LIMIT_CHECK(interp, len);
+    if (res != TCL_OK)
+        goto vamoose;
+    naccts = (DWORD) len;
 
     if (level == 0) {
         lgmi0P = MemLifoAlloc(ticP->memlifoP, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_0), NULL);
@@ -956,7 +961,7 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
         res = TwapiReturnError(interp, TWAPI_INVALID_ARGS);
         goto vamoose;
     }
-    
+
     if (func == 0) {
         winerr = NetLocalGroupAddMembers(servername, groupname, level, 
                                          level == 0 ? (LPBYTE) lgmi0P : (LPBYTE) lgmi3P, naccts);

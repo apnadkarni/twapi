@@ -2229,9 +2229,22 @@ Tcl_Obj *ObjFromSYSTEM_POWER_STATUS(SYSTEM_POWER_STATUS *spsP)
    On error returns -1. Detail about error should be retrieved with
    GetLastError()
 */
-TWAPI_EXTERN int TwapiWinCharsToUtf8(CONST WCHAR *wsP, int nchars, char *buf, int buf_sz)
+TWAPI_EXTERN int TwapiWinCharsToUtf8(CONST WCHAR *wsP, Tcl_Size numChars, char *buf, Tcl_Size outBufSize)
 {
     int nbytes;
+    int nchars;
+    int buf_sz;
+
+    if (numChars > INT_MAX || numChars < INT_MIN || outBufSize > INT_MAX) {
+        SetLastError(ERROR_IMPLEMENTATION_LIMIT);
+        return -1;
+    }
+    if (outBufSize < 0) {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        return -1;
+    }
+    nchars = (int) numChars;
+    buf_sz = (int) outBufSize;
 
     if (buf_sz < 1)
         buf = NULL;
@@ -3669,7 +3682,7 @@ TWAPI_EXTERN int ObjToLSASTRINGARRAYSWS(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UN
     if (ObjGetElements(interp, obj, &nitems, &listobjv) == TCL_ERROR) {
         return TCL_ERROR;
     }
-    CHECK_DWORD(interp, nitems);
+    CHECK_ULONG(interp, nitems);
 
     /* Allocate the array of structures */
     sz = nitems * sizeof(LSA_UNICODE_STRING);
@@ -3689,7 +3702,7 @@ TWAPI_EXTERN int ObjToLSASTRINGARRAYSWS(Tcl_Interp *interp, Tcl_Obj *obj, LSA_UN
     }
 
     *arrayP = ustrP;
-    *countP = (DWORD) nitems;
+    *countP = (ULONG) nitems;
 
     return TCL_OK;
 }
@@ -4887,7 +4900,7 @@ TwapiEncryptData(Tcl_Interp *interp,
 /* Return a bytearray Tcl_Obj containing ciphertext of given source bytes */
 TWAPI_EXTERN Tcl_Obj *ObjEncryptBytes(Tcl_Interp *interp, void *pv, Tcl_Size nbytes)
 {
-    int nenc, nalloc;
+    Tcl_Size nenc, nalloc;
     Tcl_Obj *objP = NULL;
     unsigned char *bytes = pv;
     WCHAR *wsP;
@@ -4916,7 +4929,7 @@ static TCL_RESULT TwapiDecryptPadLengthError(Tcl_Interp *interp, int pad_len)
 
 TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *interp, BYTE *encP, ULONG nenc, BYTE *outP, ULONG *noutP)
 {
-    int pad_len;
+    ULONG pad_len;
     NTSTATUS status;
     SystemFunction041_t fnP = Twapi_GetProc_SystemFunction041();
 
@@ -4988,7 +5001,8 @@ TWAPI_EXTERN Tcl_Obj *ObjEncryptWinChars(Tcl_Interp *interp, WCHAR *uniP, Tcl_Si
 
     if (numChars < 0)
         numChars = lstrlenW(uniP);
-    CHECK_DWORD(interp, numChars*sizeof(WCHAR));
+    if (DWORD_LIMIT_CHECK(interp, numChars*sizeof(WCHAR)) != TCL_OK)
+        return NULL;
     nchars = (DWORD) numChars;
     res = TwapiEncryptData(interp, (BYTE *) uniP, nchars*sizeof(WCHAR), NULL, &nenc);
     if (res == TCL_OK) {
@@ -5023,7 +5037,8 @@ TWAPI_EXTERN WCHAR * ObjDecryptWinCharsSWS(Tcl_Interp *interp,
     Tcl_Size len;
 
     enc = ObjToByteArray(objP, &len);
-    CHECK_ULONG(interp, len);
+    if (ULONG_LIMIT_CHECK(interp, len) != TCL_OK)
+        return NULL;
     nenc = (ULONG) len;
 
     res = TwapiDecryptData(interp, enc, nenc, NULL, &ndec);
@@ -5225,7 +5240,8 @@ TWAPI_EXTERN TCL_RESULT ObjToEnum(Tcl_Interp *interp, Tcl_Obj *enumsObj, Tcl_Obj
     if (nameObj->typePtr != &gEnumType ||
         enumsObj != nameObj->internalRep.ptrAndLongRep.ptr) {
         Tcl_Obj **objs;
-        Tcl_Size i, nobjs;
+        Tcl_Size nobjs;
+        int i;
         char *nameP;
 
         if ((res = ObjGetElements(interp, enumsObj, &nobjs, &objs)) != TCL_OK)
@@ -5304,15 +5320,16 @@ TWAPI_EXTERN TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (
     CHECK_DWORD(ticP->interp, userLen);
     CHECK_DWORD(ticP->interp, domainLen);
 
-    swaiP->UserLength = userLen;
-    swaiP->DomainLength = domainLen;
+    swaiP->UserLength = (DWORD)userLen;
+    swaiP->DomainLength = (DWORD)domainLen;
 
     /* The decrypted password will be on the SWS which should be the same
        as ticP->memlifoP
     */
     TWAPI_ASSERT(SWS() == ticP->memlifoP);
     swaiP->Password = ObjDecryptPasswordSWS(passwordObj, &i);
-    swaiP->PasswordLength = i; /* Using temp i to keep gcc happy */
+    CHECK_DWORD(ticP->interp, i);
+    swaiP->PasswordLength = (DWORD)i; /* Using temp i to keep gcc happy */
 
     *swaiPP = swaiP;
     return TCL_OK;
@@ -5334,7 +5351,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromCREDENTIALW(
 )
 {
     Tcl_Obj *objs[10];
-    int      i;
+    DWORD      i;
     objs[0] = ObjFromDWORD(credP->Flags);
     objs[1] = ObjFromDWORD(credP->Type);
     objs[2] = ObjFromWinChars(credP->TargetName);

@@ -65,7 +65,43 @@ PRJ_OBJS = $(PRJ_OBJS) \
 	    $(TMP_DIR)\twine.obj \
 	    $(TMP_DIR)\util.obj \
 	    $(TMP_DIR)\win.obj \
-	    $(TMP_DIR)\winchars.obj
+	    $(TMP_DIR)\winchars.obj \
+	    $(TMP_DIR)\account.obj \
+	    $(TMP_DIR)\apputil.obj \
+	    $(TMP_DIR)\clipboard.obj \
+	    $(TMP_DIR)\console.obj \
+	    $(TMP_DIR)\com.obj \
+	    $(TMP_DIR)\comserver.obj \
+	    $(TMP_DIR)\crypto.obj \
+	    $(TMP_DIR)\pbkdf2.obj \
+	    $(TMP_DIR)\sspi.obj \
+	    $(TMP_DIR)\device.obj \
+	    $(TMP_DIR)\etw.obj \
+	    $(TMP_DIR)\eventlog.obj \
+	    $(TMP_DIR)\evt.obj \
+	    $(TMP_DIR)\input.obj \
+	    $(TMP_DIR)\mstask.obj \
+	    $(TMP_DIR)\multimedia.obj \
+	    $(TMP_DIR)\namedpipe.obj \
+	    $(TMP_DIR)\network.obj \
+	    $(TMP_DIR)\nls.obj \
+	    $(TMP_DIR)\os.obj \
+	    $(TMP_DIR)\pdh.obj \
+	    $(TMP_DIR)\process.obj \
+	    $(TMP_DIR)\rds.obj \
+	    $(TMP_DIR)\registry.obj \
+	    $(TMP_DIR)\resource.obj \
+	    $(TMP_DIR)\security.obj \
+	    $(TMP_DIR)\service.obj \
+	    $(TMP_DIR)\scm.obj \
+	    $(TMP_DIR)\share.obj \
+	    $(TMP_DIR)\shell.obj \
+	    $(TMP_DIR)\storage.obj \
+	    $(TMP_DIR)\dirmonitor.obj \
+	    $(TMP_DIR)\ui.obj \
+	    $(TMP_DIR)\gdi.obj \
+	    $(TMP_DIR)\winsta.obj \
+	    $(TMP_DIR)\wmi.obj
 
 
 HEADERS = \
@@ -74,10 +110,13 @@ HEADERS = \
 PRJ_INCLUDES = -I $(ROOT)\include -I $(DYNCALLDIR)\include
 
 # Windows defines
-PRJ_DEFINES = -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0601 -D_UNICODE
+PRJ_DEFINES = -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0601 -D_UNICODE -DUNICODE
 
 # Tcl defines
 PRJ_DEFINES = $(PRJ_DEFINES) -DTCL_NO_DEPRECATED
+
+# TWAPI defines
+PRJ_DEFINES = $(PRJ_DEFINES) -DTWAPI_SINGLE_MODULE
 
 PRJ_LIBS = $(DYNCALLLIBDIR)\libdyncall_s.lib $(DYNCALLLIBDIR)\libdynload_s.lib $(DYNCALLLIBDIR)\libdyncallback_s.lib
 
@@ -86,20 +125,33 @@ PRJ_LIBS = $(PRJ_LIBS) $(INSTALLDIR)\lib\tommath.lib
 !endif
 
 PRJ_LIBS = $(PRJ_LIBS) \
-	kernel32.lib \
 	advapi32.lib \
-	user32.lib \
-	rpcrt4.lib \
-	psapi.lib \
-	netapi32.lib \
+	cfgmgr32.lib \
+	credui.lib \
+	crypt32.lib \
+	gdi32.lib \
+	iphlpapi.lib \
+	kernel32.lib \
 	mpr.lib \
-	ws2_32.lib \
+	netapi32.lib \
 	ole32.lib \
 	oleaut32.lib \
-	winspool.lib \
-	version.lib \
+	pdh.lib \
 	powrprof.lib \
+	psapi.lib \
+	rpcrt4.lib \
 	secur32.lib \
+	setupapi.lib \
+	shell32.lib \
+	shlwapi.lib \
+	user32.lib \
+	userenv.lib \
+	uxtheme.lib \
+	version.lib \
+	winmm.lib \
+	winspool.lib \
+	wintrust.lib \
+	ws2_32.lib \
 	wtsapi32.lib
 
 # Define the standard targets
@@ -123,6 +175,151 @@ pkgindex: default-pkgindex-tea
 # TBD $(PRJ_OBJS): $(HEADERS) $(ROOT)\configure.ac
 
 {$(ROOT)\base}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\account}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\apputil}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\clipboard}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\console}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\com}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\crypto}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\device}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\etw}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\eventlog}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\input}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\mstask}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\multimedia}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\namedpipe}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\network}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\nls}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\os}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\pdh}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\process}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\rds}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\registry}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\resource}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\security}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\service}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\share}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\shell}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\storage}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\ui}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\winsta}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\wmi}.c{$(TMP_DIR)}.obj::
 	$(CCPKGCMD) @<<
 $<
 <<

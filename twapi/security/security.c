@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2012, Ashok P. Nadkarni
+ * Copyright (c) 2003-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -35,7 +35,7 @@ static Tcl_Obj *ObjFromCREDENTIAL_TARGET_INFORMATIONW(CREDENTIAL_TARGET_INFORMAT
 {
     Tcl_Obj *ctiObj;
     Tcl_Obj *typesObj;
-    int      i;
+    DWORD      i;
 
     ctiObj = ObjNewList(0, NULL);
 #define APPENDNAME_(name_)                                                     \
@@ -205,11 +205,13 @@ static TOKEN_PRIVILEGES *ParseTOKEN_PRIVILEGES(
 
     if (ObjGetElements(interp, tokprivObj, &num_privs, &objv) != TCL_OK)
         return NULL;
+    if (DWORD_LIMIT_CHECK(interp, num_privs) != TCL_OK)
+        return NULL;
     sz = sizeof(TOKEN_PRIVILEGES)
         + (num_privs*sizeof(tokprivP->Privileges[0]))
         - sizeof(tokprivP->Privileges);
     tokprivP = SWSAlloc(sz, NULL);
-    tokprivP->PrivilegeCount = num_privs;
+    tokprivP->PrivilegeCount = (DWORD) num_privs;
     while (num_privs--) {
         if (ObjToLUID_AND_ATTRIBUTES(interp, objv[num_privs],
                                          &tokprivP->Privileges[num_privs])
@@ -1330,7 +1332,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 POLICY_AUDIT_EVENTS_INFO paei;
                 paei.AuditingMode = ival ? TRUE : FALSE;
                 paei.EventAuditingOptions = dwP;
-                paei.MaximumAuditEventCount = nobjs;
+                paei.MaximumAuditEventCount = (ULONG) nobjs;
                 result.type = TRT_NTSTATUS;
                 result.value.ival = LsaSetInformationPolicy(lsah,
                                                             PolicyAuditEventsInformation,

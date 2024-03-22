@@ -1,5 +1,5 @@
-/* 
- * Copyright (c) 2012-2014, Ashok P. Nadkarni
+/*
+ * Copyright (c) 2012-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -680,7 +680,7 @@ static TCL_RESULT Twapi_EvtRenderUnicodeObjCmd(ClientData clientdata, Tcl_Interp
     DWORD flags, sz, count, status;
     void *bufP;
     Tcl_Obj *objP;
-
+    Tcl_Size len;
     if (TwapiGetArgs(interp, objc-1, objv+1, GETEVTH(hevt),
                      GETHANDLET(hevt2, EVT_HANDLE), GETDWORD(flags),
                      ARGEND) != TCL_OK)
@@ -693,13 +693,15 @@ static TCL_RESULT Twapi_EvtRenderUnicodeObjCmd(ClientData clientdata, Tcl_Interp
 
     /* TBD - instrument reallocation needs */
     sz = 256;
-    bufP = MemLifoPushFrame(ticP->memlifoP, sz, &sz);
+    bufP = MemLifoPushFrame(ticP->memlifoP, sz, &len);
+    sz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     status = ERROR_SUCCESS;
     if (EvtRender(hevt, hevt2, flags, sz, bufP, &sz, &count) == FALSE) {
         status = GetLastError();
         if (status == ERROR_INSUFFICIENT_BUFFER) {
             /* Note no need to MemlifoPopFrame before allocating more */
-            bufP = MemLifoAlloc(ticP->memlifoP, sz, &sz);
+            bufP = MemLifoAlloc(ticP->memlifoP, sz, &len);
+            sz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
             if (EvtRender(hevt, hevt2, flags, sz, bufP, &sz, &count) == FALSE)
                 status = GetLastError();
             else
@@ -829,16 +831,20 @@ static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(ClientData clientdata, Tcl_
     } else {
         /* Note ObjToArgvW needs an extra entry for terminating NULL */
         xpathsP = MemLifoPushFrame(ticP->memlifoP, (count+1) * sizeof(xpathsP[0]), NULL);
-        if (ObjToArgvW(interp, objv[1], xpathsP, count+1, &count) != TCL_OK)
+        ret = ObjToArgvW(interp, objv[1], xpathsP, count+1, &count);
+        if (ret != TCL_OK)
+            goto vamoose;
+        ret = DWORD_LIMIT_CHECK(interp, count);
+        if (ret != TCL_OK)
             goto vamoose;
     }
-    
-    hevt = EvtCreateRenderContext(count, xpathsP, flags);
+
+    hevt = EvtCreateRenderContext((DWORD)count, xpathsP, flags);
     if (hevt == NULL) {
-        TwapiReturnSystemError(interp);
+        ret = TwapiReturnSystemError(interp);
         goto vamoose;
     }
-        
+
     ObjSetResult(interp, ObjFromEVT_HANDLE(hevt));
     ret = TCL_OK;
 
@@ -971,45 +977,42 @@ static TCL_RESULT Twapi_EvtGetEVT_VARIANTObjCmd(ClientData clientdata, Tcl_Inter
     int func;
     DWORD sz, dw, dw2, dw3;
     DWORD status;
-    BOOL (WINAPI *fn3args)(HANDLE,int,DWORD,DWORD,EVT_VARIANT *, PDWORD);
-    BOOL (WINAPI *fn2args)(HANDLE,int,DWORD,EVT_VARIANT *, PDWORD);
+    Tcl_Size len;
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(func), GETEVTH(hevt),
                      GETDWORD(dw), ARGUSEDEFAULT, GETDWORD(dw2),
                      GETDWORD(dw3), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    varP = MemLifoPushFrame(ticP->memlifoP, sizeof(EVT_VARIANT), &sz);
+    varP = MemLifoPushFrame(ticP->memlifoP, sizeof(EVT_VARIANT), &len);
+    sz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     while (1) {
         switch (func) {
         case 2:
+            status = EvtGetChannelConfigProperty(hevt, dw, dw2, sz, varP, &sz);
+            break;
         case 3:
+            status = EvtGetPublisherMetadataProperty(hevt, dw, dw2, sz, varP, &sz);
+            break;
         case 4:
-            switch (func) {
-            case 2: fn3args = EvtGetChannelConfigProperty; break;
-            case 3: fn3args = EvtGetPublisherMetadataProperty; break;
-            case 4: fn3args = EvtGetEventMetadataProperty; break;
-            }
-            status = fn3args(hevt, dw, dw2, sz, varP, &sz);
+            status = EvtGetEventMetadataProperty(hevt, dw, dw2, sz, varP, &sz);
             break;
         case 5:
             status = EvtGetObjectArrayProperty(hevt, dw, dw2, dw3, sz, varP, &sz);
             break;
         case 6:
-        case 7:
-        case 8:
-            switch (func) {
-            case 6: fn2args = EvtGetQueryInfo; break;
-            case 7: fn2args = EvtGetEventInfo; break;
-            case 8: fn2args = EvtGetLogInfo; break;
-            }                
-            status = fn2args(hevt, dw, sz, varP, &sz);
+            status = EvtGetQueryInfo(hevt, dw, sz, varP, &sz);
             break;
-
+        case 7:
+            status = EvtGetEventInfo(hevt, dw, sz, varP, &sz);
+            break;
+        case 8:
+            status = EvtGetLogInfo(hevt, dw, sz, varP, &sz);
+            break;
         default:
             MemLifoPopFrame(ticP->memlifoP);
             return TwapiReturnError(interp, TWAPI_INVALID_FUNCTION_CODE);
-        }        
+        }
         if (status != FALSE || GetLastError() != ERROR_INSUFFICIENT_BUFFER)
             break;
         /* Loop to retry larger buffer. No need to free previous alloc first */
@@ -1380,24 +1383,6 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(EvtNextPublisherId, 109),
         DEFINE_FNCODE_CMD(EvtGetObjectArraySize, 110),
     };
-
-#if !defined(RUNTIME_EVT_LOAD)
-    /* We are delay loading a dynamically linked winevt.dll. On XP/2k3
-       this does not exist and must not be invoked, else crash will
-       result
-    */
-    {
-        OSVERSIONINFO osver;
-        osver.dwOSVersionInfoSize = sizeof(osver);
-        if (! TwapiRtlGetVersion(&osver))
-            return TwapiReturnSystemError(interp);
-        if (osver.dwMajorVersion < 6) {
-            /* Do not initialize evt_* commands */
-            /* Not TCL_ERROR since other eventlog commands will still work */
-            return TCL_OK;
-        }
-    }
-#endif
 
     TwapiDefineTclCmds(interp, ARRAYSIZE(EvtTclDispatch), EvtTclDispatch, ticP);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(EvtFnDispatch), EvtFnDispatch, Twapi_EvtCallObjCmd);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2012, Ashok P. Nadkarni
+ * Copyright (c) 2003-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -308,6 +308,7 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     DWORD i;
     int ival;
     TCL_RESULT status = TCL_ERROR;
+    Tcl_Size len;
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETPTR(hService, SC_HANDLE), GETINT(ival),
@@ -323,7 +324,8 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     }
 
     /* 32000 - Initial estimate based on my system - TBD */
-    sbuf = MemLifoPushFrame(ticP->memlifoP, 32000, &buf_sz);
+    sbuf = MemLifoPushFrame(ticP->memlifoP, 32000, &len);
+    buf_sz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
 
     resultObj = ObjNewList(200, NULL);
     resume_handle = 0;
@@ -398,10 +400,10 @@ int Twapi_EnumDependentServices(
     DWORD i;
     TCL_RESULT status = TCL_ERROR;
     Tcl_Obj *resultObj;
+    Tcl_Size len;
 
-
-    sbuf = MemLifoPushFrame(ticP->memlifoP, 4000, &buf_sz);
-
+    sbuf = MemLifoPushFrame(ticP->memlifoP, 4000, &len);
+    buf_sz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     do {
         success = EnumDependentServicesW(hService,
                                          dwServiceState,
@@ -488,8 +490,8 @@ static TCL_RESULT ParseSERVICE_FAILURE_ACTIONS(
     res = ObjGetElements(interp, actionsObj, &nobjs, &objs);
     if (res != TCL_OK)
         return res;
-
-    sfaP->cActions = nobjs;
+    CHECK_DWORD(interp, nobjs);
+    sfaP->cActions = (DWORD)nobjs;
     sfaP->lpsaActions = MemLifoAlloc(ticP->memlifoP,
                                      (nobjs ? nobjs : 1) * sizeof(SC_ACTION),
                                      NULL);
@@ -736,7 +738,6 @@ int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     if (ObjGetElements(interp, objv[1], &nargs, &argObjs) == TCL_ERROR)
         return TCL_ERROR;
-
     if (nargs > ARRAYSIZE(args)) {
         ObjSetStaticResult(interp, "Exceeded limit on number of service arguments.");
         return TCL_ERROR;
@@ -745,7 +746,7 @@ int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     for (i = 0; i < nargs; i++) {
         args[i] = ObjToWinChars(argObjs[i]);
     }
-    if (StartServiceW(svcH, nargs, args))
+    if (StartServiceW(svcH, (DWORD)nargs, args))
         return TCL_OK;
     else
         return TwapiReturnSystemError(interp);

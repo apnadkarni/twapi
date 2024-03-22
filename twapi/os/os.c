@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012, Ashok P. Nadkarni
+ * Copyright (c) 2010-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -250,12 +250,15 @@ TCL_RESULT Twapi_GetLogicalProcessorInformationEx(
     FARPROC fn;
     DWORD sz = 0, winerr;
     TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiexP;
+    Tcl_Size len;
 
     fn = Twapi_GetProc_GetLogicalProcessorInformationEx();
     if (fn == NULL)
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
 
-    slpiexP = SWSPushFrame(1000, &sz);
+    slpiexP = SWSPushFrame(1000, &len);
+    sz = len > ULONG_MAX ? ULONG_MAX : (DWORD) len;
+
     winerr = ERROR_SUCCESS;
     if (fn(rel, slpiexP, &sz) == 0) {
         winerr = GetLastError();
@@ -291,12 +294,14 @@ TCL_RESULT Twapi_GetLogicalProcessorInformation(Tcl_Interp *interp)
     FARPROC fn;
     DWORD sz = 0, winerr;
     TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION *slpiP;
+    Tcl_Size len;
 
     fn = Twapi_GetProc_GetLogicalProcessorInformation();
     if (fn == NULL)
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
 
-    slpiP = SWSPushFrame(1000, &sz);
+    slpiP = SWSPushFrame(1000, &len);
+    sz = len > ULONG_MAX ? ULONG_MAX : (DWORD) len;
     winerr = ERROR_SUCCESS;
     if (fn(slpiP, &sz) == 0) {
         winerr = GetLastError();

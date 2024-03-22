@@ -520,8 +520,9 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             s = ObjToWinCharsN(sObj, &len);
+            CHECK_DWORD(interp, len);
             if (WriteConsoleOutputCharacterW(h, s,
-                                             len, coord, &result.value.uval))
+                                             (DWORD)len, coord, &result.value.uval))
                 result.type = TRT_DWORD;
             else
                 result.type = TRT_GETLASTERROR;    

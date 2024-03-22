@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2006-2014, Ashok P. Nadkarni
+ * Copyright (c) 2006-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -331,11 +331,10 @@ int Twapi_IDispatch_InvokeObjCmd(
     IDispatch *idispP;
     LCID       lcid;
     WORD       flags;
-    int        i, j;
     DISPID     dispid;
     DISPPARAMS dispparams;
     Tcl_Obj  **params;
-    Tcl_Size   nparams;
+    int        nparams;
     DISPID     named_dispid;
     VARIANT   *dispargP = NULL;
     USHORT    *paramflagsP = NULL;
@@ -347,6 +346,7 @@ int Twapi_IDispatch_InvokeObjCmd(
     int        status = TCL_ERROR;
     Tcl_Obj  **protov;          // Prototype list
     Tcl_Size   protoc;          // Prototype element count
+    int        i, j;
 
     TWAPI_OBJ_LOG_IF(gModuleDef.log_flags, interp, ObjNewList(objc, objv));
 
@@ -392,8 +392,11 @@ int Twapi_IDispatch_InvokeObjCmd(
 
     if (protoc >= 5) {
         /* Extract the parameter information */
-        if (ObjGetElements(interp, protov[4], &nparams, &params) != TCL_OK)
+        Tcl_Size len;
+        if (ObjGetElements(interp, protov[4], &len, &params) != TCL_OK ||
+            DWORD_LIMIT_CHECK(interp, len))
             return TCL_ERROR;
+        nparams = (DWORD) len;
     } else {
         /* No parameter information available. Base count on number of
          * arguments provided
@@ -694,12 +697,15 @@ static int TwapiGetIDsOfNamesHelper(
     HRESULT     hr;
     int         status = TCL_ERROR;
     Tcl_Obj   **items;
-    Tcl_Size    i, nitems;
+    DWORD       i, nitems;
+    Tcl_Size    len;
     LPWSTR     *names = NULL;
 
     /* Convert the list object into an array of points to strings */
-    if (ObjGetElements(interp, namesObj, &nitems, &items) == TCL_ERROR)
+    if (ObjGetElements(interp, namesObj, &len, &items) == TCL_ERROR)
         return TCL_ERROR;
+    CHECK_DWORD(interp, len);
+    nitems = (DWORD) len;
 
     names = MemLifoPushFrame(ticP->memlifoP, nitems*sizeof(*names), NULL);
 
@@ -725,7 +731,6 @@ static int TwapiGetIDsOfNamesHelper(
 
     if (SUCCEEDED(hr)) {
         Tcl_Obj *resultObj;
-        int      i;
 
         resultObj = ObjNewList(0, NULL);
         for (i = 0; i < nitems; ++i) {
@@ -1598,6 +1603,7 @@ static TCL_RESULT ParsePMULTI_QI(
         *mqiPP = NULL;
         return TCL_OK;
     }
+    CHECK_DWORD(ticP->interp, nobjs);
 
     mqiP = MemLifoZeroes(ticP->memlifoP, nobjs * sizeof(*mqiP));
     for (i = 0; i < nobjs; ++i) {
@@ -1606,7 +1612,7 @@ static TCL_RESULT ParsePMULTI_QI(
             return TCL_ERROR;
     }
 
-    *nmqiP = nobjs;
+    *nmqiP = (DWORD)nobjs;
     *mqiPP = mqiP;
     return TCL_OK;
 }
@@ -1651,9 +1657,10 @@ TCL_RESULT ParsePSOLE_AUTHENTICATION_LIST(TwapiInterpContext *ticP,
         *salPP = NULL;
         return TCL_OK;
     }
+    CHECK_DWORD(interp, nobjs);
 
     salP = MemLifoAlloc(ticP->memlifoP, sizeof(*salP), NULL);
-    salP->cAuthInfo = nobjs;
+    salP->cAuthInfo = (DWORD) nobjs;
     salP->aAuthInfo = MemLifoAlloc(ticP->memlifoP, nobjs*sizeof(SOLE_AUTHENTICATION_INFO), NULL);
     for (i = 0; i < nobjs; ++i) {
         Tcl_Obj **elems;

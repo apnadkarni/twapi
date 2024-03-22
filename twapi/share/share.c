@@ -533,14 +533,16 @@ static TCL_RESULT Twapi_WNetGetUniversalNameObjCmd(ClientData clientdata, Tcl_In
     DWORD error;
     DWORD buf_sz;
     void *buf;
-    LPCWSTR      localpathP;
+    LPCWSTR localpathP;
+    Tcl_Size len;
 
     if (objc != 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
 
     localpathP = ObjToWinChars(objv[1]);
 
-    buf = MemLifoPushFrame(ticP->memlifoP, MAX_PATH+1, &buf_sz);
+    buf = MemLifoPushFrame(ticP->memlifoP, MAX_PATH+1, &len);
+    buf_sz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     error = WNetGetUniversalNameW(localpathP, REMOTE_NAME_INFO_LEVEL,
                                   buf, &buf_sz);
     if (error == ERROR_MORE_DATA) {
@@ -576,6 +578,7 @@ static TCL_RESULT Twapi_WNetGetResourceInformationObjCmd(ClientData clientdata, 
     Tcl_Obj    *objs[2];
     MemLifoMarkHandle mark;
     TCL_RESULT res;
+    Tcl_Size len;
 
     mark = MemLifoPushMark(ticP->memlifoP);
 
@@ -586,7 +589,8 @@ static TCL_RESULT Twapi_WNetGetResourceInformationObjCmd(ClientData clientdata, 
                          GETDWORD(in.dwType),
                          ARGEND);
     if (res == TCL_OK) {
-        outP = MemLifoAlloc(ticP->memlifoP, 4000, &outsz);
+        outP = MemLifoAlloc(ticP->memlifoP, 4000, &len);
+        outsz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
         error = WNetGetResourceInformationW(&in, outP, &outsz, &systempart);
         if (error == ERROR_MORE_DATA) {
             /* Retry with larger buffer */
@@ -959,6 +963,7 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     TCL_RESULT res;
     Tcl_Obj *objP;
     NETINFOSTRUCT netinfo;
+    Tcl_Size len;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -1095,7 +1100,8 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
             return res;
 
         mark = SWSPushMark();
-        netresP = SWSAlloc(1024, &dw2); /* 16K per MSDN */
+        netresP = SWSAlloc(1024, &len); /* 16K per MSDN */
+        dw2 = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
         result.value.ival = WNetEnumResourceW(h, &dw, netresP, &dw2);
         switch (result.value.ival) {
         case NO_ERROR:
@@ -1126,8 +1132,8 @@ static int Twapi_ShareCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     case 17: // WNetGetConnection
         CHECK_NARGS(interp, objc, 1);
         mark = SWSPushMark();
-        s = SWSAlloc(sizeof(WCHAR)*MAX_PATH, &dw2);
-        dw2 /= sizeof(WCHAR);
+        s = SWSAlloc(sizeof(WCHAR)*MAX_PATH, &len);
+        dw2 = (DWORD) (len / sizeof(WCHAR));
         result.value.ival = WNetGetConnectionW(ObjToWinChars(objv[0]), s, &dw2);
         if (result.value.ival == NO_ERROR) {
             result.type = TRT_OBJ;

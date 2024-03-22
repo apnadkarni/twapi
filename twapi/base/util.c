@@ -49,7 +49,9 @@ BOOL TwapiRtlGetVersion(LPOSVERSIONINFOW verP)
     }
 
     /* Either function was not found or it failed. Use documented one */
+#pragma warning(disable:4996) /* Disable deprecated warning */
     return GetVersionExW(verP);
+#pragma warning(default:4996)
 }
 
 int TwapiMinOSVersion(DWORD major, DWORD minor)

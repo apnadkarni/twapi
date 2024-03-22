@@ -2,13 +2,13 @@
 #define TWAPI_H
 
 /*
- * Copyright (c) 2010-2012, Ashok P. Nadkarni
+ * Copyright (c) 2010-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
  */
 
-#if _WIN32_WINNT < 0x0501
+#if _WIN32_WINNT < 0x0601
 #error _WIN32_WINNT too low
 #endif
 
@@ -475,18 +475,20 @@ typedef int TWAPI_ERROR;
             return TwapiReturnError((interp_), TWAPI_BAD_ARG_COUNT);    \
     } while (0)
 
+/* Below are NOT an integer overflow check. Rather it only checks that
+   a Tcl_Size value first in a DWORD. The len_ Tcl_Size expr itself may
+   overflow! */
 #define DWORD_LIMIT_CHECK(interp_, len_) \
     ((len_) <= UINT_MAX ? TCL_OK : TwapiReturnErrorUIntMax(interp_))
 
-/* This is NOT an integer overflow check. Rather it only checks that
-   a Tcl_Size value first in a DWORD. The len_ Tcl_Size expr itself may
-   overflow! */
 #define CHECK_DWORD(interp_, len_) \
     do { \
         TCL_RESULT ret_ = DWORD_LIMIT_CHECK((interp_), (len_)); \
         if (ret_ != TCL_OK) \
             return ret_; \
     } while (0)
+
+#define ULONG_LIMIT_CHECK DWORD_LIMIT_CHECK
 #define CHECK_ULONG CHECK_DWORD
 
 /* String equality test - check first char before calling strcmp */
@@ -1563,7 +1565,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUSHORTHex(USHORT);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGHex(ULONG ull);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONGHex(ULONGLONG ull);
 
-TWAPI_EXTERN int TwapiWinCharsToUtf8(CONST WCHAR *wsP, int nchars, char *buf, int buf_sz);
+TWAPI_EXTERN int TwapiWinCharsToUtf8(CONST WCHAR *wsP, Tcl_Size nchars, char *buf, Tcl_Size buf_sz);
 TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromWinChars(CONST WCHAR *p, int len);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromEmptyString();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2020 Ashok P. Nadkarni
+ * Copyright (c) 2004-2024 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -67,14 +67,17 @@ int Twapi_BlockInput(Tcl_Interp *interp, BOOL block)
 }
 
 int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
-    Tcl_Size i, j, num_inputs;
+    Tcl_Size len;
+    DWORD i, j, num_inputs;
     struct tagINPUT   *input;
     int result = TCL_ERROR;
     Tcl_Interp *interp = ticP->interp;
     
-    if (ObjListLength(interp, input_obj, &num_inputs) != TCL_OK) {
+    if (ObjListLength(interp, input_obj, &len) != TCL_OK) {
         return TCL_ERROR;
     }
+    CHECK_DWORD(interp, len);
+    num_inputs = (DWORD) len;
 
     input = MemLifoPushFrame(ticP->memlifoP, num_inputs * sizeof(*input), NULL);
     /* Loop through each element, parsing it and storing its descriptor */
@@ -95,7 +98,7 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
         /* This element is itself a list, parse it to get input type etc. */
         if (ObjListIndex(interp, event_obj, 0, &field_obj[0]) != TCL_OK)
             goto  done;
-        
+
         if (field_obj[0] == NULL)
             break;
 
@@ -151,7 +154,7 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
                 if (ObjToLong(interp, field_obj[j], &value[j]) != TCL_OK)
                     goto done;
             }
-            
+
             input[i].type           = INPUT_MOUSE;
             input[i].mi.dx          = value[1];
             input[i].mi.dy          = value[2];
@@ -169,7 +172,6 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
 
     }
 
-    
     /* i is actual number of elements found */
     if (i != num_inputs) {
         ObjSetStaticResult(interp, "Invalid or empty element in input event list");
@@ -199,14 +201,16 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
 
 
 int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
-    int num_chars;
+    Tcl_Size len;
     struct tagINPUT   *input = NULL;
-    int i, j;
+    DWORD i, j, num_chars;
     int result = TCL_ERROR;
     int max_input_records;
     int sent_inputs;
 
-    num_chars = Tcl_GetCharLength(input_obj);
+    len = Tcl_GetCharLength(input_obj);
+    CHECK_DWORD(ticP->interp, len);
+    num_chars = (DWORD) len;
 
     /* Now loop through every character adding it to the input event array */
     /* Win2K and up, accepts unicode characters */

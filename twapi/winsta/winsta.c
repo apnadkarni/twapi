@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2012 Ashok P. Nadkarni
+ * Copyright (c) 2012-2024 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -88,8 +88,11 @@ static int Twapi_GetUserObjectInformation(ClientData clientdata, Tcl_Interp *int
         return TwapiReturnSystemError(interp);
 
     /* If no SID, len can be 0 */
-    if (len != 0)
-        pv = MemLifoPushFrame(ticP->memlifoP, len, &len);
+    if (len != 0) {
+        Tcl_Size temp;
+        pv = MemLifoPushFrame(ticP->memlifoP, len, &temp);
+        len = temp > ULONG_MAX ? ULONG_MAX : (ULONG) temp;
+    }
     else
         pv = NULL;
 
