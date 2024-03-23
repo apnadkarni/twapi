@@ -297,7 +297,7 @@ int Twapi_base_Init(Tcl_Interp *interp)
 
     /* Create the name space and some variables. Not sure if this is explicitly needed */
     Tcl_CreateNamespace(interp, "::twapi", NULL, NULL);
-    Tcl_SetVar2(interp, "::twapi::version", MODULENAME, MODULEVERSION, 0);
+    Tcl_SetVar2(interp, "::twapi::version", NULL, MODULEVERSION, 0);
     Tcl_SetVar2(interp, "::twapi::settings", "log_limit", "100", 0);
     Tcl_LinkVar(interp, "::twapi::settings(use_unicode_obj)", (char *)&gBaseSettings.use_unicode_obj, TCL_LINK_ULONG);
 

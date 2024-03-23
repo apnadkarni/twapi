@@ -1,20 +1,37 @@
 :: Builds release versions twapi using the "official" twapi compiler
-:: See BUILD_INSTRUCTIONS for more information
-
-:: release1.cmd manipulates env and paths so call in child shell.
 
 setlocal
 
-SET target=%1
-IF ".%target%" == "." SET target=all 
+set dir90x64=d:\Tcl\90\x64-debug
+set dir90x86=d:\Tcl\90\x86-debug
+set dir86x64=d:\Tcl\86\x64-debug
+set dir86x86=d:\Tcl\86\x86-debug
 
-cmd /c release1.cmd amd64 %target% 
+powershell .\release.ps1 %dir90x64% %~dp0\dist\latest x64
 @if ERRORLEVEL 1 goto error_exit
 
-:: Note MAKEDIST=1 has to be in quotes else cmd passes it as two params
-:: "MAKEDIST" and "1". Arghh!
-cmd /c release1.cmd x86 %target% "MAKEDIST=1"
-@if NOT ERRORLEVEL 1 goto vamoose
+powershell .\release.ps1 %dir90x86% %~dp0\dist\latest x86
+@if ERRORLEVEL 1 goto error_exit
+
+powershell .\release.ps1 %dir86x64% %~dp0\dist\latest x64
+@if ERRORLEVEL 1 goto error_exit
+
+powershell .\release.ps1 %dir86x86% %~dp0\dist\latest x86
+@if ERRORLEVEL 1 goto error_exit
+
+echo lappend auto_path dist/latest; puts [package require twapi] ; exit | %dir90x64%\bin\tclsh90.exe
+@if ERRORLEVEL 1 goto error_exit
+
+echo lappend auto_path dist/latest; puts [package require twapi] ; exit | %dir90x86%\bin\tclsh90.exe
+@if ERRORLEVEL 1 goto error_exit
+
+echo lappend auto_path dist/latest; puts [package require twapi] ; exit | %dir86x64%\bin\tclsh86t.exe
+@if ERRORLEVEL 1 goto error_exit
+
+echo lappend auto_path dist/latest; puts [package require twapi] ; exit | %dir86x86%\bin\tclsh86t.exe
+@if ERRORLEVEL 1 goto error_exit
+
+goto vamoose
 
 :error_exit
 @echo "ERROR: Build failed"

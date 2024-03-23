@@ -5,9 +5,14 @@ if {$::tcl_platform(platform) ne "windows"} {
 package ifneeded twapi_base @PACKAGE_VERSION@ \
     [list apply [list {dir} {
         package require platform
-        set dllname "@PKG_LIB_FILE@"
+        if {[package vsatisfies [info tclversion] 9]} {
+            set dllname tcl9twapi50a0.dll
+        } else {
+            set dllname twapi50a0t.dll
+        }
         set package "@PACKAGE_NAME@"
         set package_ns ::$package
+        namespace eval $package_ns {}
         set package_init_name [string totitle $package]
         # Try to load from current directory and if that fails try from
         # platform-specific directories. Note on failure to load when the DLL
@@ -20,12 +25,17 @@ package ifneeded twapi_base @PACKAGE_VERSION@ \
                 error $result
             }
         } else {
+            set dllFound 0
             foreach platform [::platform::patterns [platform::identify]] {
                 if {$platform eq "tcl"} continue
                 set path [file join $dir $platform $dllname]
                 if {[file exists $path]} {
                     uplevel #0 [list load $path $package_init_name]
+                    set dllFound 1
                 }
+            }
+            if {!$dllFound} {
+                error "Could not locate TWAPI dll"
             }
         }
         # Load was successful

@@ -2,21 +2,26 @@
 :: environment, paths etc. so should not be generally invoked within
 :: the interactive command shell directly. The master release file
 :: invokes it in a separate command shell.
-:: See the BUILD_INSTRUCTIONS file for more details.
 
-setlocal
+
+
+:: @echo off
+
+for /f "usebackq tokens=*" %%i in (`vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do (
+set InstallDir=%%i
+)
+
+if exist "%InstallDir%\Common7\Tools\vsdevcmd.bat" (
+echo EXISTS
+"%InstallDir%\Common7\Tools\vsdevcmd.bat" %*
+)
+echo %PATH% > t.t
+echo %VSCMD_ARG_TGT_ARCH% >> t.t
+
+exit /B
 
 :: Make output directories if they do not exist
-mkdir build
 mkdir dist
-
-:: Generate the mercurial ID. Need to do this before resetting PATH below
-:: The first echo is a hack to write to a file without a terminating newline
-:: We do it this way and not through the makefile because the compiler
-:: build env is pristine and does not have a path to hg
-if exist build\hgid.tmp goto init
-echo|set /P=HGID=>build\hgid.tmp
-hg identify -i >>build\hgid.tmp
 
 :init
 set arch=%1

@@ -1,34 +1,24 @@
-# Tcl Windows API (TWAPI) 4.7.2
+# Tcl Windows API (TWAPI) extension
+
+The Tcl Windows API (TWAPI) extension provides access to the Windows API from
+within the Tcl scripting language.
 
 This is the release version of TWAPI 4.7.2.
 
-  * Project home page is at https://twapi.sourceforge.net
-  * V4.7 documentation is at https://twapi.magicsplat.com/v4.7
+  * Project source repository is at https://github.com/apnadkarni/twapi
+  * Documentation is at https://twapi.magicsplat.com
 
 ## Supported platforms
 
-TWAPI 4.7 requires
+TWAPI 5.0 requires
 
-  * Windows XP (32-bit only) or later (32- or 64- bit)
-  * Tcl 8.6 (32- or 64-bit)
-
-## Changes since 4.6
-
-For a complete list of changes in 4.7.1, including INCOMPATIBLE CHANGES, see
-https://twapi.magicsplat.com/v4.7/versionhistory.html. The 4.7.2 patch release
-fixes two bugs in error reporting in TLS.
-
-## Distributions
-
-TWAPI is distributed in multiple formats.
-See https://twapi.magicsplat.com/v4.7/installation.html for the details
-and the pros and cons of each format.
+  * Windows 7 or later
+  * Tcl 8.6 or Tcl 9.x
 
 ## TWAPI Summary
 
-The Tcl Windows API (TWAPI) extension provides
-access to over 600 functions in the Windows API
-from within the Tcl scripting language.
+The Tcl Windows API (TWAPI) extension provides access to the Windows API from
+within the Tcl scripting language.
 
 Functions in the following areas are implemented:
 
@@ -56,7 +46,7 @@ Functions in the following areas are implemented:
   * Window stations and desktops
   * Internationalization
   * Task scheduling
-  * Shell functions 
+  * Shell functions
   * Registry
   * Windows Management Instrumentation
   * Windows Installer

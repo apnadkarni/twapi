@@ -129,9 +129,6 @@ namespace eval twapi {
     }
 }
 
-# Make twapi versions the same as the base module versions
-set twapi::version(twapi) $::twapi::version(twapi_base)
-
 #
 # log for tracing / debug messages.
 proc twapi::debuglog_clear {} {
@@ -258,11 +255,11 @@ proc twapi::get_version {args} {
     variable version
     array set opts [parseargs args {patchlevel}]
     if {$opts(patchlevel)} {
-        return $version(twapi)
+        return $version
     } else {
         # Only return major, minor
-        set ver $version(twapi)
-        regexp {^([[:digit:]]+\.[[:digit:]]+)[.ab]} $version(twapi) - ver
+        set ver $version
+        regexp {^([[:digit:]]+\.[[:digit:]]+)[.ab]} $version - ver
         return $ver
     }
 }

@@ -1,129 +1,48 @@
-NOTE: Build instructions for TWAPI 4.0 have changed significantly from
+# Build Instructions for TWAPI
+
+NOTE: Build instructions for TWAPI 5.0 have changed significantly from
 previous versions.
 
-NOTE: This file primarily describes building TWAPI with the Microsoft
-toolchain. A section at the end briefly discusses building with the
-GNU MinGW tools.
+This file primarily describes building TWAPI with the Microsoft and
+MingW64 tool chains.
 
+## What you need (or the official build environment):
 
-What you need (or the official build environment):
---------------------------------------------------
+- A relatively recent Visual Studio environment. Currently tested with
+Visual Studio 2022 but VS 2015 and later should suffice.
 
-- To compile the 32-bit version of TWAPI, you need Visual C++ 6.0. The 64-bit
-version is built with the compiler that ships with the SDK. The primary
-reason for not moving to later versions of Visual Studio is that these
-compilers use C runtime libraries that are present on every version
-of Windows. Later versions would require to ship the Microsoft runtime
-redistributable package.
+or
 
-- Microsoft Platform SDK for Windows Server 2003 SP1. Earlier versions
-will not do. Later versions will but you may need to do some tweaking.
-It is unfortunate that you need to install a 350MB package just for
-some headers and libraries but that's life. When installing, make sure
-you include the AMD64 build environment if you want to do 64-bit
-builds. Also ensure you include the Web Workshop component as some
-Windows Shell headers are included there.
+- A relatively recent MingW64 distribution.
 
-- Some version of Mercurial to check out code from the SourceForge repository.
+Also, Microsoft Help Workshop to build the documentation.
 
-Here is the step-by-step procedure for compiling twapi on a PC:
+## Source code checkout
 
-Source code checkout
---------------------
+Fork https://github.com/apnadkarni/twapi on Github or clone the repository
+locally as
 
-Clone the twapi repository from SourceForge.
+    git clone https://github.com/apnadkarni/twapi.git
 
-If you are using the command line Mercurial client, the command would be
+## Building the extension with Visual C++
 
-    hg clone http://hg.code.sf.net/p/twapi/code my_twapi
+Building and installing follows the standard pattern for building
+Tcl extensions with nmake.
 
-This will create a my_twapi/ subdirectory in your current working
-directory.
+Start a Visual Studio command shell (32- or 64-bit as desired).
+The starting from the top directory of repository
 
-For more detail about using Mercurial, you might want to
-start with the SourceForge Mercurial instructions at
-http://sourceforge.net/apps/trac/sourceforge/wiki/Mercurial.
+    cd twapi\twapi\win
+    nmake /s /f makefile.vc INSTALLDIR=c:\path\to\your\tcl\installation
+    nmake /s /f makefile.vc INSTALLDIR=c:\path\to\your\tcl\installation test
+    nmake /s /f makefile.vc INSTALLDIR=c:\path\to\your\tcl\installation install
 
+This will build, test and install the extension.
 
-Customize for your environment
-------------------------------
+Make sure the Tcl installation is the same architecture (32- or 64-bit)
+as the Visual Studio command shell.
 
-Edit the files twapi/include/tooldefs.inc to fix up paths
-specific to your environment. This is generally not required.
-
-
-Set up 32-bit environment (only for 32-bit builds)
--------------------------
-
-NOTE: This assumes the VC++ 6 compiler. For newer compilers, run the
-appropriate batch file that comes with the compiler to set up the
-environment.
-
-In a DOS command window, set up the build environment by typing the commands
-
-     "%ProgramFiles%\Microsoft Visual Studio\vc98\bin\vcvars32"
-     "%ProgramFiles%\Microsoft Platform SDK\setenv.cmd" /XP32 /RETAIL
-
-Note the locations of the Visual Studio and SDK directories may be different
-on your system.
-
-
-Set up 64-bit environment (only for 64-bit builds)
--------------------------
-
-NOTE: This assumes the SDK 2003 64-bit compiler. For newer compilers, run the
-appropriate batch file that comes with the compiler to set up the
-environment.
-
-In a DOS command window, set up the build environment by typing the command
-
-     "%ProgramFiles%\Microsoft Platform SDK\setenv.cmd" /XP64 /RETAIL
-
-NOTE: /XP64 and /RETAIL MUST BE IN UPPER CASE.
-
-The locations of the Visual Studio and SDK directories may be different
-on your system.
-
-
-Building the extension
-----------------------
-
-There are several different variations of the extensions These are
-described in the documentation in detail. To build a specific variation,
-first cd to the twapi directory and set up the appropriate
-build environment as described above. Then run one of the following
-commands:
-
-	nmake twapi MAKEDIST=1
-
-This will build the standard distribution with a single DLL and external
-Tcl scripts.
-
-    nmake twapi-bin MAKEDIST=1
-
-This will build a single DLL with all scripts embedded as resources in it.
-
-     nmake twapi-modular MAKEDIST=1
-
-This will build separate DLL's for each component, each with the associated
-script embedded.
-
-     nmake twapi-lib MAKEDIST=1
-
-This will build the static library version of TWAPI.
-
-By default, the builds will be the twapi/build directory and the
-distributions in the twapi/dist directory.
-
-If you leave off the MAKEDIST=1 parameter, only the build will be done
-but not the zipped distribution.
-
-Note building the extension or distribution only builds either the 32-bit
-or 64-bit versions. Each has to be built separately in their respective
-build environments.
-
-Building a full distribution
-----------------------------
+## Building a full distribution
 
 The above steps are combined into the release.cmd batch file.
 Run this file from a DOS prompt WITHOUT setting up the environment as
@@ -134,26 +53,23 @@ The release1.cmd file is invoked by the release.cmd file to build
 binaries for a single architecture (x86 or amd64).
 
 
-Building for debugging
-----------------------
-
-For debugging, build a version with the NOOPTIMIZE option as follows:
-
-    nmake twapi NOOPTIMIZE=1 MAKEDIST=1
-
-Building with MinGW-W64
+## Building with MinGW-W64
 -----------------------
 
-To build with the MinGW toolchain, do something along the lines of
+To build with the MinGW toolchain, start a MINGW64 shell.
+Then do something along the lines of (64-bit)
 
     cd <BUILDDIR>
-    c:/src/twapi/configure --prefix=c:/tcl/mingw --enable-threads --enable-64bit --with-tcl=c:/tcl/mingw/lib
-    make clean
-    make 2> errors.log
+    TCLDIR=/path/to/target/tcl
+    /path/to/twapi/configure --enable-threads --enable-64bit --with-tcl=$TCLDIR/lib --with-tclinclude=$TCLDIR/include --prefix=$TCLDIR
+    make
     make install
 
-That's for the 64-bit build within the mingw 64-bit build shell. For a
-32-bit build, do something similar from a 32-bit mingw shell.
+Note the --with-tclinclude and --prefix are necessary in the presence of a config.site file
+when TCLDIR points to a private installation.
+
+For a 32-bit build, do something similar from a 32-bit MINGW32 shell, leaving
+off the --enable-64bit option.
 
 IMPORTANT: In this case, the Tcl binaries must also have been built
-with the MinGW-W64 toolchain.
+with the same MinGW-W64 toolchain.

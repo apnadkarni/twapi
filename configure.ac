@@ -81,7 +81,8 @@ TEA_ADD_STUB_SOURCES([])
 # TEA_ADD_* any platform specific compiler/build info here.
 #--------------------------------------------------------------------
 
-CLEANFILES="$CLEANFILES twapi_entry.tcl"
+# CLEANFILES="$CLEANFILES yourfile ..."
+
 if test "${TEA_PLATFORM}" = "windows" ; then
 
     AC_CHECK_MEMBER([struct _SYSTEM_POWER_STATUS.SystemStatusFlag], [

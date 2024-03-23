@@ -19,7 +19,7 @@ syntax: glob
 *.aps
 *.zip
 temp
-build
+**/build
 dist
 releases
 doc/chm-build
@@ -32,10 +32,9 @@ TAGS
 *.vfs
 Thumbs.db
 SyncToy*
-Release*/*
+**/Release*/
 
 
 # TEA based intermediate files
 autom4te.cache/*
 config.status
-twapi_entry.tcl

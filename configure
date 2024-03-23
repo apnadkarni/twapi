@@ -5450,7 +5450,8 @@ printf "%s\n" "$ac_cv_c_bigendian" >&6; }
 # TEA_ADD_* any platform specific compiler/build info here.
 #--------------------------------------------------------------------
 
-CLEANFILES="$CLEANFILES twapi_entry.tcl"
+# CLEANFILES="$CLEANFILES yourfile ..."
+
 if test "${TEA_PLATFORM}" = "windows" ; then
 
     ac_fn_c_check_member "$LINENO" "struct _SYSTEM_POWER_STATUS" "SystemStatusFlag" "ac_cv_member_struct__SYSTEM_POWER_STATUS_SystemStatusFlag" "#include <windows.h>
