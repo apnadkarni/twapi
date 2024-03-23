@@ -229,9 +229,9 @@ int Twapi_PdhMakeCounterPath (TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
                             GETWSTR(pdh_elements.szObjectName),
                             GETEMPTYASNULL(pdh_elements.szInstanceName),
                             GETEMPTYASNULL(pdh_elements.szParentInstance),
-                            GETINT(pdh_elements.dwInstanceIndex),
+                            GETDWORD(pdh_elements.dwInstanceIndex),
                             GETWSTR(pdh_elements.szCounterName),
-                            GETINT(dwFlags),
+                            GETDWORD(dwFlags),
                             ARGEND);
     if (result == TCL_OK) {
         path_buf_size = 0;
@@ -528,6 +528,7 @@ int Twapi_CallPdhObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     int func;
     LPWSTR s;
     DWORD   dw, dw2;
+    BOOL bval;
     HANDLE h;
     TwapiResult result;
 
@@ -623,13 +624,13 @@ int Twapi_CallPdhObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         case 1001:
         case 1006:
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), GETINT(dw),
+                             GETHANDLE(h), GETDWORD(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return (func == 1001 ? Twapi_PdhGetFormattedCounterValue : Twapi_PdhGetFormattedCounterArray)(interp, h, dw);
         case 1002:
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETHANDLE(h), ARGSKIP, GETINT(dw),
+                             GETHANDLE(h), ARGSKIP, GETDWORD(dw),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             dw = PdhAddCounterW(h, ObjToWinChars(objv[3]), dw, &result.value.hval);
@@ -645,7 +646,7 @@ int Twapi_CallPdhObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         case 1004:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              ARGSKIP, ARGSKIP, ARGSKIP,
-                             GETINT(dw), GETINT(dw2),
+                             GETDWORD(dw), GETDWORD(dw2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return Twapi_PdhEnumObjectItems(
@@ -657,14 +658,14 @@ int Twapi_CallPdhObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         case 1005:
             if (TwapiGetArgs(interp, objc-2, objv+2,
                              ARGSKIP, ARGSKIP,
-                             GETINT(dw), GETBOOL(dw2),
+                             GETDWORD(dw), GETBOOL(bval),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return Twapi_PdhEnumObjects(
                 ticP,
                 ObjToLPWSTR_NULL_IF_EMPTY(objv[2]),
                 ObjToLPWSTR_NULL_IF_EMPTY(objv[3]),
-                dw, dw2);
+                dw, bval);
         }
     }
 

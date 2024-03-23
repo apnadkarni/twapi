@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Ashok P. Nadkarni
+ * Copyright (c) 2010-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -124,7 +124,7 @@ int Twapi_VerQueryValue_STRING(
     Tcl_Obj *CONST objv[])
 {
     TWAPI_FILEVERINFO* verP;
-    LPCSTR lang_and_cp;
+    LPSTR lang_and_cp;
     LPSTR name;
     Tcl_Obj *objP;
     WCHAR *valueP;
@@ -210,7 +210,7 @@ TCL_RESULT Twapi_UpdateResource(
 
     /* Note resP / reslen might be NULL/0 -> delete resource */
     if (resObj)
-        resP = ObjToByteArrayDW(resObj, &reslen);
+        CHECK_RESULT(ObjToByteArrayDW(interp, resObj, &reslen, (unsigned char **)&resP));
     else {
         resP = NULL;
         reslen = 0;
@@ -437,12 +437,12 @@ TCL_RESULT Twapi_SplitStringResource(
     Tcl_Obj *CONST objv[])
 {
     WCHAR *wP;
-    int len;
+    Tcl_Size len;
     Tcl_Obj *objP = ObjEmptyList();
-    
+
     CHECK_NARGS(interp, objc, 1);
     wP = (WCHAR *)ObjToByteArray(objv[0], &len);
-    
+
     while (len >= 2) {
         WORD slen = *wP++;
         if (slen > (sizeof(WCHAR)*len)) {
@@ -473,9 +473,9 @@ TCL_RESULT Twapi_LoadImage(
     if (TwapiGetArgs(interp, objc, objv,
                      GETHANDLE(h),
                      GETOBJ(resnameObj),
-                     GETINT(image_type),
-                     ARGUSEDEFAULT, GETINT(cx), GETINT(cy),
-                     GETINT(flags),
+                     GETDWORD(image_type),
+                     ARGUSEDEFAULT, GETDWORD(cx), GETDWORD(cy),
+                     GETDWORD(flags),
                      ARGEND) != TCL_OK) {
         return TCL_ERROR;
     }
@@ -494,6 +494,7 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
 {
     LPWSTR s;
     DWORD dw;
+    BOOL bval;
     HANDLE h;
     TwapiResult result;
     void *pv;
@@ -563,7 +564,7 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
         break;
     case 15: // AddFontResourceEx
     case 16: // BeginUpdateResource
-        if (TwapiGetArgs(interp, objc, objv, ARGSKIP, GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, ARGSKIP, GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         s = ObjToWinChars(objv[0]);
         if (func == 15) {
@@ -579,10 +580,10 @@ static int Twapi_ResourceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, i
             return TCL_ERROR;
         return Twapi_EnumResourceTypes(interp, h);
     case 18: // EndUpdateResource
-        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETBOOL(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h), GETBOOL(bval), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = EndUpdateResourceW(h, dw);
+        result.value.ival = EndUpdateResourceW(h, bval);
         break;
     case 19:
         CHECK_NARGS(interp, objc, 4);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2016 Ashok P. Nadkarni
+ * Copyright (c) 2004-2024 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -243,9 +243,9 @@ int TwapiStringToSOCKADDR_STORAGE(char *s, SOCKADDR_STORAGE *ssP, int family)
 int ObjToSOCKADDR_STORAGE(Tcl_Interp *interp, Tcl_Obj *objP, SOCKADDR_STORAGE *ssP)
 {
     Tcl_Obj **objv;
-    int       objc;
+    Tcl_Size  objc;
     Tcl_Obj **addrv;
-    int       addrc;
+    Tcl_Size  addrc;
     int       family;
     WORD      port;
 
@@ -320,7 +320,7 @@ error_return:
 int ObjToSOCKADDR_IN(Tcl_Interp *interp, Tcl_Obj *objP, struct sockaddr_in *sinP)
 {
     Tcl_Obj **objv;
-    int       objc;
+    Tcl_Size  objc;
 
     if (ObjGetElements(interp, objP, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
@@ -726,7 +726,7 @@ Tcl_Obj *ObjFromMIB_TCPROW(Tcl_Interp *interp, const MIB_TCPROW *row, int size)
 int ObjToMIB_TCPROW(Tcl_Interp *interp, Tcl_Obj *listObj,
                     MIB_TCPROW *row)
 {
-    int  objc;
+    Tcl_Size objc;
     Tcl_Obj **objv;
 
     if (ObjGetElements(interp, listObj, &objc, &objv) != TCL_OK)
@@ -1158,6 +1158,7 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
     void *bufP;
     ULONG bufsz;
     int  tries;
+    MemLifoSize len;
 
     if (fn == NULL) {
         return Twapi_AppendSystemError(ticP->interp, ERROR_PROC_NOT_FOUND);
@@ -1169,7 +1170,8 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
      * size can keep changing so we try multiple times.
      */
     bufsz = 4000;
-    bufP = MemLifoPushFrame(ticP->memlifoP, bufsz, &bufsz);
+    bufP = MemLifoPushFrame(ticP->memlifoP, bufsz, &len);
+    bufsz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     for (tries=0; tries < 10 ; ++tries) {
         if (sortable)
             error = (*fn)(bufP, &bufsz, sort);
@@ -1180,11 +1182,12 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
             /* Either success or error unrelated to buffer size */
             break;
         }
-        
+
         /* Retry with bigger buffer */
         /* bufsz contains required size as returned by the functions */
         MemLifoPopFrame(ticP->memlifoP);
-        bufP = MemLifoPushFrame(ticP->memlifoP, bufsz, &bufsz);
+        bufP = MemLifoPushFrame(ticP->memlifoP, bufsz, &len);
+        bufsz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     }
 
     if (error == NO_ERROR) {
@@ -1205,9 +1208,11 @@ int Twapi_GetNetworkParams(TwapiInterpContext *ticP)
     ULONG netinfo_size;
     DWORD error;
     Tcl_Obj *objv[8];
+    MemLifoSize len;
 
     /* TBD - maybe allocate bigger space to start with ? */
-    netinfoP = MemLifoPushFrame(ticP->memlifoP, sizeof(*netinfoP), &netinfo_size);
+    netinfoP = MemLifoPushFrame(ticP->memlifoP, sizeof(*netinfoP), &len);
+    netinfo_size = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     error = GetNetworkParams(netinfoP, &netinfo_size);
     if (error == ERROR_BUFFER_OVERFLOW) {
         /* Allocate a bigger buffer of the required size. */
@@ -1246,6 +1251,7 @@ int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
     DWORD error;
     int   tries;
     Tcl_Obj *resultObj;
+    MemLifoSize len;
 
     /*
      * Keep looping as long as we are told we need a bigger buffer. For
@@ -1255,18 +1261,20 @@ int Twapi_GetAdaptersAddresses(TwapiInterpContext *ticP, ULONG family,
      */
     bufsz = 16000;
     iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(ticP->memlifoP,
-                                                     bufsz, &bufsz);
+                                                     bufsz, &len);
+    bufsz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     for (tries=0; tries < 10 ; ++tries) {
         error = GetAdaptersAddresses(family, flags, NULL, iaaP, &bufsz);
         if (error != ERROR_BUFFER_OVERFLOW) {
             /* Either success or error unrelated to buffer size */
             break;
         }
-        
+ 
         /* realloc - bufsz contains required size as returned by the functions */
         MemLifoPopFrame(ticP->memlifoP);
         iaaP = (IP_ADAPTER_ADDRESSES *) MemLifoPushFrame(ticP->memlifoP,
-                                                         bufsz, &bufsz);
+                                                         bufsz, &len);
+        bufsz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     }
 
     if (error != ERROR_SUCCESS) {
@@ -1293,11 +1301,13 @@ int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index)
     ULONG                ainfo_size;
     DWORD                error;
     Tcl_Obj             *objv[3];
+    MemLifoSize          len;
 
     /* Make first allocation assuming two ip addresses */
     ainfoP = MemLifoPushFrame(ticP->memlifoP,
                               sizeof(*ainfoP)+2*sizeof(IP_ADDR_STRING),
-                              &ainfo_size);
+                              &len);
+    ainfo_size = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     error = GetPerAdapterInfo(adapter_index, ainfoP, &ainfo_size);
     if (error == ERROR_BUFFER_OVERFLOW) {
         /* Retry with indicated size */
@@ -1622,8 +1632,8 @@ Tcl_Obj *TwapiCollectAddrInfo(struct addrinfo *addrP, int family)
 
 static int Twapi_GetAddrInfoObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    const char *hostname;
-    const char *svcname;
+    char *hostname;
+    char *svcname;
     int status;
     struct addrinfo hints;
     struct addrinfo *addrP;
@@ -1780,7 +1790,7 @@ static int Twapi_ResolveHostnameAsyncObjCmd(ClientData clientdata, Tcl_Interp *i
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     TwapiId id;
     char *name;
-    int   len;
+    Tcl_Size len;
     TwapiHostnameEvent *theP;
     DWORD winerr;
     int family;
@@ -1906,7 +1916,7 @@ static int Twapi_ResolveAddressAsyncObjCmd(ClientData clientdata, Tcl_Interp *in
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     TwapiId id;
     char *addrstr;
-    int   len;
+    Tcl_Size len;
     TwapiHostnameEvent *theP;
     DWORD winerr;
     int family;
@@ -1960,6 +1970,7 @@ static int Twapi_NetworkCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         SOCKADDR_STORAGE ss;
     } u;
     DWORD dw, dw2, dw3, dw4;
+    BOOL bval;
     LPWSTR s;
     LPVOID pv;
 
@@ -2068,7 +2079,7 @@ static int Twapi_NetworkCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         case 10000: // Twapi_FormatExtendedTcpTable
         case 10001: // Twapi_FormatExtendedUdpTable
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVERIFIEDVOIDP(pv, NULL), GETINT(dw), GETINT(dw2),
+                             GETVERIFIEDVOIDP(pv, NULL), GETDWORD(dw), GETDWORD(dw2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             return (func == 10000 ? Twapi_FormatExtendedTcpTable : Twapi_FormatExtendedUdpTable)
@@ -2077,8 +2088,8 @@ static int Twapi_NetworkCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         case 10003: // GetExtendedUdpTable
             /* Note we cannot use GETVERIFIEDVOIDP because it can be NULL */
             if (TwapiGetArgs(interp, objc-2, objv+2,
-                             GETVOIDP(pv), GETINT(dw), GETBOOL(dw2),
-                             GETINT(dw3), GETINT(dw4),
+                             GETVOIDP(pv), GETDWORD(dw), GETBOOL(bval),
+                             GETDWORD(dw3), GETDWORD(dw4),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
 
@@ -2086,7 +2097,7 @@ static int Twapi_NetworkCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                 return TwapiReturnError(interp, TWAPI_REGISTERED_POINTER_NOTFOUND);
 
             return (func == 10002 ? Twapi_GetExtendedTcpTable : Twapi_GetExtendedUdpTable)
-                (interp, pv, dw, dw2, dw3, dw4);
+                (interp, pv, dw, bval, dw3, dw4);
         }
     }
 

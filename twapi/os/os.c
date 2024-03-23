@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012, Ashok P. Nadkarni
+ * Copyright (c) 2010-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -250,12 +250,15 @@ TCL_RESULT Twapi_GetLogicalProcessorInformationEx(
     FARPROC fn;
     DWORD sz = 0, winerr;
     TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiexP;
+    MemLifoSize len;
 
     fn = Twapi_GetProc_GetLogicalProcessorInformationEx();
     if (fn == NULL)
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
 
-    slpiexP = SWSPushFrame(1000, &sz);
+    slpiexP = SWSPushFrame(1000, &len);
+    sz = len > ULONG_MAX ? ULONG_MAX : (DWORD) len;
+
     winerr = ERROR_SUCCESS;
     if (fn(rel, slpiexP, &sz) == 0) {
         winerr = GetLastError();
@@ -291,12 +294,14 @@ TCL_RESULT Twapi_GetLogicalProcessorInformation(Tcl_Interp *interp)
     FARPROC fn;
     DWORD sz = 0, winerr;
     TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION *slpiP;
+    MemLifoSize len;
 
     fn = Twapi_GetProc_GetLogicalProcessorInformation();
     if (fn == NULL)
         return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
 
-    slpiP = SWSPushFrame(1000, &sz);
+    slpiP = SWSPushFrame(1000, &len);
+    sz = len > ULONG_MAX ? ULONG_MAX : (DWORD) len;
     winerr = ERROR_SUCCESS;
     if (fn(slpiP, &sz) == 0) {
         winerr = GetLastError();
@@ -540,7 +545,8 @@ int Twapi_GetSystemWow64Directory(Tcl_Interp *interp)
 
 static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
-    DWORD dw, dw2, dw3;
+    DWORD dw, dw2;
+    BOOL bval, bval2, bval3;
     TwapiResult result;
     union {
         WCHAR buf[MAX_PATH+1];
@@ -627,7 +633,7 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
         switch (func) {
         case 1001:
             if (TwapiGetArgs(interp, objc, objv,
-                             GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+                             GETDWORD(dw), GETDWORD(dw2), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = ExitWindowsEx(dw, dw2);
@@ -641,19 +647,19 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
         case 1003:
             if (TwapiGetArgs(interp, objc, objv,
                              GETOBJ(sObj), GETOBJ(s2Obj),
-                             GETINT(dw), GETBOOL(dw2), GETBOOL(dw3),
+                             GETDWORD(dw), GETBOOL(bval), GETBOOL(bval2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = InitiateSystemShutdownW(ObjToLPWSTR_NULL_IF_EMPTY(sObj), ObjToLPWSTR_NULL_IF_EMPTY(s2Obj), dw, dw2, dw3);
+            result.value.ival = InitiateSystemShutdownW(ObjToLPWSTR_NULL_IF_EMPTY(sObj), ObjToLPWSTR_NULL_IF_EMPTY(s2Obj), dw, bval, bval2);
             break;
         case 1004:
             if (TwapiGetArgs(interp, objc, objv,
-                             GETBOOL(dw), GETBOOL(dw2), GETBOOL(dw3),
+                             GETBOOL(bval), GETBOOL(bval2), GETBOOL(bval3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetSuspendState((BOOLEAN) dw, (BOOLEAN) dw2, (BOOLEAN) dw3);
+            result.value.ival = SetSuspendState((BOOLEAN) bval, (BOOLEAN) bval2, (BOOLEAN) bval3);
             break;
         case 1005: // TzLocalSpecificTimeToSystemTime
         case 1006: // SystemTimeToTzSpecificLocalTime

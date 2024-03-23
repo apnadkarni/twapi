@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2004-2012, Ashok P. Nadkarni
+ * Copyright (c) 2004-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -18,7 +18,6 @@ static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 
 static TwapiOneTimeInitState TwapiEventlogOneTimeInitialized;
 
-    
 BOOL Twapi_IsEventLogFull(HANDLE hEventLog, int *fullP)
 {
     EVENTLOG_FULL_INFORMATION evlinfo;
@@ -45,6 +44,7 @@ static int Twapi_ReadEventLogObjCmd(ClientData clientdata, Tcl_Interp *interp, i
     EVENTLOGRECORD *evlP;
     Tcl_Obj *resultObj = NULL;
     DWORD winerr = ERROR_SUCCESS;
+    MemLifoSize len;
     static const char *fieldnames[] = {
         "-source", "-system", "-reserved", "-recordnum", "-timegenerated",
         "-timewritten", "-eventid", "-level", "-category", "-reservedflags",
@@ -53,11 +53,12 @@ static int Twapi_ReadEventLogObjCmd(ClientData clientdata, Tcl_Interp *interp, i
     Tcl_Obj *fields[ARRAYSIZE(fieldnames)];
 
     if (TwapiGetArgs(interp, objc-1, objv+1, GETHANDLE(evlH),
-                     GETINT(flags), GETINT(offset), ARGEND) != TCL_OK)
+                     GETDWORD(flags), GETDWORD(offset), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     /* Ask for 1000 bytes alloc, will get more if available. TBD - instrument */
-    bufP = MemLifoPushFrame(ticP->memlifoP, 1000, &buf_sz);
+    bufP = MemLifoPushFrame(ticP->memlifoP, 1000, &len);
+    buf_sz = len > UINT_MAX ? UINT_MAX : (DWORD) len;
 
     if (! ReadEventLogW(evlH, flags, offset,
                         bufP, buf_sz, &num_read, &buf_sz)) {

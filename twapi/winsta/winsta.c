@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2012 Ashok P. Nadkarni
+ * Copyright (c) 2012-2024 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -88,8 +88,11 @@ static int Twapi_GetUserObjectInformation(ClientData clientdata, Tcl_Interp *int
         return TwapiReturnSystemError(interp);
 
     /* If no SID, len can be 0 */
-    if (len != 0)
-        pv = MemLifoPushFrame(ticP->memlifoP, len, &len);
+    if (len != 0) {
+        MemLifoSize temp;
+        pv = MemLifoPushFrame(ticP->memlifoP, len, &temp);
+        len = temp > ULONG_MAX ? ULONG_MAX : (ULONG) temp;
+    }
     else
         pv = NULL;
 
@@ -157,7 +160,7 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 3:
         mark = SWSPushMark();
         res = TwapiGetArgs(interp, objc, objv, ARGSKIP,
-                           GETINT(dw), GETINT(dw2),
+                           GETDWORD(dw), GETDWORD(dw2),
                            GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
                            ARGEND);
         if (res != TCL_OK)
@@ -167,21 +170,21 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
     case 4:
         if (TwapiGetArgs(interp, objc, objv,
-                         ARGSKIP, GETINT(dw), GETINT(dw2), GETINT(dw3),
+                         ARGSKIP, GETDWORD(dw), GETDWORD(dw2), GETDWORD(dw3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HDESK;
         result.value.hval = OpenDesktopW(ObjToWinChars(objv[0]), dw, dw2, dw3);
         break;
     case 5:
-        if (TwapiGetArgs(interp, objc, objv, GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.value.hval = GetThreadDesktop(dw);
         result.type = TRT_HDESK;
         break;
     case 6:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), GETINT(dw2), GETINT(dw3),
+                         GETDWORD(dw), GETDWORD(dw2), GETDWORD(dw3),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HDESK;
@@ -189,7 +192,7 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
     case 7:
         if (TwapiGetArgs(interp, objc, objv,
-                         ARGSKIP, GETINT(dw), GETINT(dw2), ARGEND) != TCL_OK)
+                         ARGSKIP, GETDWORD(dw), GETDWORD(dw2), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HWINSTA;
         result.value.hval = OpenWindowStationW(ObjToWinChars(objv[0]), dw, dw2);
@@ -198,8 +201,8 @@ static int Twapi_WinstaCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         /* Note second, third args are ignored and are reserved as NULL */
         mark = SWSPushMark();
         res = TwapiGetArgs(interp, objc, objv,
-                           ARGSKIP, ARGUNUSED, ARGUNUSED, GETINT(dw),
-                           GETINT(dw2),
+                           ARGSKIP, ARGUNUSED, ARGUNUSED, GETDWORD(dw),
+                           GETDWORD(dw2),
                            GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
                            ARGEND);
         if (res != TCL_OK)

@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2012 Ashok P. Nadkarni
+ * Copyright (c) 2012-2024 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -415,7 +415,7 @@ static int Twapi_NetUserAddObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     DWORD          error_parm;
     char          *error_field;
     WCHAR         *decryptedP;
-    int            decrypted_len;
+    Tcl_Size       decrypted_len;
     MemLifoMarkHandle mark = NULL;
     
     CHECK_NARGS(interp, objc, 9);
@@ -555,7 +555,7 @@ int Twapi_NetUserSetInfoObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     DWORD   dw;
     TwapiResult result;
     Tcl_Obj *s1Obj, *s2Obj;
-    int    password_len;
+    Tcl_Size password_len;
     MemLifoMarkHandle mark = NULL;
 
     /* Note: to prevent shimmering issues, we do not extract the internal
@@ -625,7 +625,7 @@ static int Twapi_NetUserModalsGetObjCmd(ClientData clientdata, Tcl_Interp *inter
 
     mark = MemLifoPushMark(memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETEMPTYASNULL(server_name),
-                         GETINT(level), GETOBJ(structObj), ARGEND);
+                         GETDWORD(level), GETOBJ(structObj), ARGEND);
     if (res == TCL_OK) {
         switch (level) {
         case 0: sz = sizeof(USER_MODALS_INFO_0); break;
@@ -665,7 +665,7 @@ static int Twapi_NetUserModalsSetObjCmd(ClientData clientdata, Tcl_Interp *inter
 
     mark = MemLifoPushMark(memlifoP);
     res = TwapiGetArgsEx(ticP, objc-1, objv+1, GETEMPTYASNULL(server_name),
-                         GETINT(level), GETOBJ(objP), ARGEND);
+                         GETDWORD(level), GETOBJ(objP), ARGEND);
     if (res == TCL_OK) {
         switch (level) {
         case 0: sz = sizeof(USER_MODALS_INFO_0); break;
@@ -741,7 +741,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
     case 4: // NetLocalGroupEnum system level resumehandle
         // Not shared with case 1: because different const qualifier on function
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(netenum.level), GETDWORD_PTR(netenum.hresume),
+                         GETDWORD(netenum.level), GETDWORD_PTR(netenum.hresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
@@ -775,7 +775,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
     case 5:
         // NetUserEnum system level filter resumehandle
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(netenum.level), GETINT(dw), GETINT(dwresume),
+                         GETDWORD(netenum.level), GETDWORD(dw), GETDWORD(dwresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
@@ -798,7 +798,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
 
     case 6:  // NetUserGetGroups server user level
         if (TwapiGetArgs(interp, objc, objv,
-                         GETOBJ(s2Obj), GETINT(netenum.level),
+                         GETOBJ(s2Obj), GETDWORD(netenum.level),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
@@ -817,7 +817,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
     case 7:
         // NetUserGetLocalGroups server user level flags
         if (TwapiGetArgs(interp, objc, objv,
-                         GETOBJ(s2Obj), GETINT(netenum.level), GETINT(dw),
+                         GETOBJ(s2Obj), GETDWORD(netenum.level), GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
@@ -835,7 +835,7 @@ static int Twapi_AcctCallNetEnumGetObjCmd(ClientData clientdata, Tcl_Interp *int
     case 9:
         // NetLocalGroupGetMembers server group level resumehandle
         if (TwapiGetArgs(interp, objc, objv,
-                         GETOBJ(s2Obj), GETINT(netenum.level), GETDWORD_PTR(netenum.hresume),
+                         GETOBJ(s2Obj), GETDWORD(netenum.level), GETDWORD_PTR(netenum.hresume),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         s1 = ObjToLPWSTR_NULL_IF_EMPTY(s1Obj);
@@ -912,12 +912,12 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
     Tcl_Obj *CONST objv[])
 {
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
-    int i;
     int func;
     int level;
     Tcl_Obj **accts;
-    int naccts;
-    LPCWSTR servername, groupname;
+    Tcl_Size len;
+    DWORD i, naccts;
+    LPWSTR servername, groupname;
     DWORD winerr;
     LOCALGROUP_MEMBERS_INFO_0 *lgmi0P = NULL;
     LOCALGROUP_MEMBERS_INFO_3 *lgmi3P = NULL;
@@ -932,10 +932,15 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
                          GETWSTR(groupname), GETINT(level),
                          GETOBJ(acctsObj), ARGEND);
     if (res == TCL_OK)
-        res = ObjGetElements(interp, acctsObj, &naccts, &accts);
+        res = ObjGetElements(interp, acctsObj, &len, &accts);
 
-    if (res != TCL_OK || naccts == 0)
+    if (res != TCL_OK || len == 0)
         goto vamoose;
+
+    res = DWORD_LIMIT_CHECK(interp, len);
+    if (res != TCL_OK)
+        goto vamoose;
+    naccts = (DWORD) len;
 
     if (level == 0) {
         lgmi0P = MemLifoAlloc(ticP->memlifoP, naccts * sizeof(LOCALGROUP_MEMBERS_INFO_0), NULL);
@@ -956,7 +961,7 @@ static TCL_RESULT Twapi_NetLocalGroupMembersObjCmd(
         res = TwapiReturnError(interp, TWAPI_INVALID_ARGS);
         goto vamoose;
     }
-    
+
     if (func == 0) {
         winerr = NetLocalGroupAddMembers(servername, groupname, level, 
                                          level == 0 ? (LPBYTE) lgmi0P : (LPBYTE) lgmi3P, naccts);

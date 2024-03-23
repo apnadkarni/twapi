@@ -1211,7 +1211,7 @@ proc twapi::_resolve_iid {name_or_iid} {
 namespace eval twapi {
     # Enable use of TclOO for new Tcl versions. To override setting
     # applications should define and set before sourcing this file.
-    variable use_tcloo_for_com 
+    variable use_tcloo_for_com  1
     if {![info exists use_tcloo_for_com]} {
         set use_tcloo_for_com [package vsatisfies [package require Tcl] 8.6b2]
     }

@@ -372,7 +372,7 @@ static int Twapi_StorageCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         CHECK_NARGS(interp, objc, 3);
         CHECK_DWORD_OBJ(interp, dw, objv[0]);
         if (TwapiGetArgs(interp, objc, objv,
-                         GETINT(dw), ARGSKIP, ARGSKIP, ARGEND) != TCL_OK)
+                         GETDWORD(dw), ARGSKIP, ARGSKIP, ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival =

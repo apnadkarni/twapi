@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2006-2014, Ashok P. Nadkarni
+ * Copyright (c) 2006-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -331,7 +331,6 @@ int Twapi_IDispatch_InvokeObjCmd(
     IDispatch *idispP;
     LCID       lcid;
     WORD       flags;
-    int        i, j;
     DISPID     dispid;
     DISPPARAMS dispparams;
     Tcl_Obj  **params;
@@ -346,7 +345,8 @@ int Twapi_IDispatch_InvokeObjCmd(
     HRESULT    hr = S_OK;
     int        status = TCL_ERROR;
     Tcl_Obj  **protov;          // Prototype list
-    int        protoc;          // Prototype element count
+    Tcl_Size   protoc;          // Prototype element count
+    int        i, j;
 
     TWAPI_OBJ_LOG_IF(gModuleDef.log_flags, interp, ObjNewList(objc, objv));
 
@@ -383,7 +383,7 @@ int Twapi_IDispatch_InvokeObjCmd(
 
     /* Extract prototype information */
     if (TwapiGetArgs(interp, protoc, protov,
-                     GETINT(dispid), GETINT(lcid),
+                     GETLONG(dispid), GETDWORD(lcid),
                      GETWORD(flags), GETVAR(retvar_vt, ObjToVT),
                      ARGTERM) != TCL_OK) {
         ObjSetStaticResult(interp, "Invalid IDispatch prototype - must contain DISPID LCID FLAGS RETTYPE ?PARAMTYPES?");
@@ -392,8 +392,11 @@ int Twapi_IDispatch_InvokeObjCmd(
 
     if (protoc >= 5) {
         /* Extract the parameter information */
-        if (ObjGetElements(interp, protov[4], &nparams, &params) != TCL_OK)
+        Tcl_Size len;
+        if (ObjGetElements(interp, protov[4], &len, &params) != TCL_OK ||
+            DWORD_LIMIT_CHECK(interp, len))
             return TCL_ERROR;
+        nparams = (DWORD) len;
     } else {
         /* No parameter information available. Base count on number of
          * arguments provided
@@ -690,16 +693,19 @@ static int TwapiGetIDsOfNamesHelper(
     )
 {
     Tcl_Interp *interp = ticP->interp;
-    DISPID *ids = NULL;
-    HRESULT hr;
-    int     status = TCL_ERROR;
-    Tcl_Obj **items;
-    int     i, nitems;
-    LPWSTR *names = NULL;
+    DISPID     *ids    = NULL;
+    HRESULT     hr;
+    int         status = TCL_ERROR;
+    Tcl_Obj   **items;
+    DWORD       i, nitems;
+    Tcl_Size    len;
+    LPWSTR     *names = NULL;
 
     /* Convert the list object into an array of points to strings */
-    if (ObjGetElements(interp, namesObj, &nitems, &items) == TCL_ERROR)
+    if (ObjGetElements(interp, namesObj, &len, &items) == TCL_ERROR)
         return TCL_ERROR;
+    CHECK_DWORD(interp, len);
+    nitems = (DWORD) len;
 
     names = MemLifoPushFrame(ticP->memlifoP, nitems*sizeof(*names), NULL);
 
@@ -725,7 +731,6 @@ static int TwapiGetIDsOfNamesHelper(
 
     if (SUCCEEDED(hr)) {
         Tcl_Obj *resultObj;
-        int      i;
 
         resultObj = ObjNewList(0, NULL);
         for (i = 0; i < nitems; ++i) {
@@ -935,18 +940,18 @@ int TwapiMakeVariantParam(
     )
 {
     Tcl_Obj   **paramv;
-    int         paramc;
+    Tcl_Size    paramc;
     VARTYPE     vt, target_vt;
-    int         len;
+    Tcl_Size    len;
     Tcl_Obj   **typev;
-    int         typec;
+    Tcl_Size    typec;
     Tcl_Obj   **reftypev;
-    int         reftypec;
+    Tcl_Size    reftypec;
     VARIANT    *targetP;         /* Where the actual value is stored */
     int         itemp;
     Tcl_Obj    *paramdefaultObj = NULL;
     Tcl_Obj **paramfields;
-    int       paramfieldsc;
+    Tcl_Size    paramfieldsc;
     int       status = TCL_ERROR;
 
     /*
@@ -1511,7 +1516,7 @@ static TCL_RESULT ParsePCOAUTHINFO(
     )
 {
     Tcl_Obj **objs;
-    int nobjs;
+    Tcl_Size nobjs;
     COAUTHINFO *coauP;
 
     if (ObjGetElements(ticP->interp, objP, &nobjs, &objs) != TCL_OK)
@@ -1524,13 +1529,13 @@ static TCL_RESULT ParsePCOAUTHINFO(
 
     coauP = MemLifoAlloc(ticP->memlifoP, sizeof(*coauP), NULL);
     if (TwapiGetArgsEx(ticP, nobjs, objs,
-                       GETINT(coauP->dwAuthnSvc),
-                       GETINT(coauP->dwAuthzSvc),
+                       GETDWORD(coauP->dwAuthnSvc),
+                       GETDWORD(coauP->dwAuthzSvc),
                        GETEMPTYASNULL(coauP->pwszServerPrincName),
-                       GETINT(coauP->dwAuthnLevel),
-                       GETINT(coauP->dwImpersonationLevel),
+                       GETDWORD(coauP->dwAuthnLevel),
+                       GETDWORD(coauP->dwImpersonationLevel),
                        ARGSKIP,
-                       GETINT(coauP->dwCapabilities), ARGEND) != TCL_OK)
+                       GETDWORD(coauP->dwCapabilities), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     if (ParsePCOAUTHIDENTITY(ticP, objs[5], &coauP->pAuthIdentityData) != TCL_OK)
@@ -1550,7 +1555,7 @@ static TCL_RESULT ParsePCOSERVERINFO(
     )
 {
     Tcl_Obj **objs;
-    int nobjs;
+    Tcl_Size nobjs;
     COSERVERINFO *cosiP;
 
     if (ObjGetElements(ticP->interp, objP, &nobjs, &objs) != TCL_OK)
@@ -1563,10 +1568,10 @@ static TCL_RESULT ParsePCOSERVERINFO(
 
     cosiP = MemLifoAlloc(ticP->memlifoP, sizeof(*cosiP), NULL);
     if (TwapiGetArgsEx(ticP, nobjs, objs,
-                       GETINT(cosiP->dwReserved1),
+                       GETDWORD(cosiP->dwReserved1),
                        GETWSTR(cosiP->pwszName),
                        ARGSKIP,
-                       GETINT(cosiP->dwReserved2), ARGEND) != TCL_OK)
+                       GETDWORD(cosiP->dwReserved2), ARGEND) != TCL_OK)
         return TCL_ERROR;
 
     if (ParsePCOAUTHINFO(ticP, objs[2], &cosiP->pAuthInfo) != TCL_OK)
@@ -1586,7 +1591,7 @@ static TCL_RESULT ParsePMULTI_QI(
     )
 {
     Tcl_Obj **objs;
-    int nobjs;
+    Tcl_Size nobjs;
     MULTI_QI *mqiP;
     int i;
 
@@ -1598,6 +1603,7 @@ static TCL_RESULT ParsePMULTI_QI(
         *mqiPP = NULL;
         return TCL_OK;
     }
+    CHECK_DWORD(ticP->interp, nobjs);
 
     mqiP = MemLifoZeroes(ticP->memlifoP, nobjs * sizeof(*mqiP));
     for (i = 0; i < nobjs; ++i) {
@@ -1606,7 +1612,7 @@ static TCL_RESULT ParsePMULTI_QI(
             return TCL_ERROR;
     }
 
-    *nmqiP = nobjs;
+    *nmqiP = (DWORD)nobjs;
     *mqiPP = mqiP;
     return TCL_OK;
 }
@@ -1640,7 +1646,7 @@ TCL_RESULT ParsePSOLE_AUTHENTICATION_LIST(TwapiInterpContext *ticP,
     )
 {
     Tcl_Obj **objs;
-    int i, nobjs;
+    Tcl_Size i, nobjs;
     Tcl_Interp *interp = ticP->interp;
     SOLE_AUTHENTICATION_LIST *salP;
 
@@ -1651,13 +1657,14 @@ TCL_RESULT ParsePSOLE_AUTHENTICATION_LIST(TwapiInterpContext *ticP,
         *salPP = NULL;
         return TCL_OK;
     }
+    CHECK_DWORD(interp, nobjs);
 
     salP = MemLifoAlloc(ticP->memlifoP, sizeof(*salP), NULL);
-    salP->cAuthInfo = nobjs;
+    salP->cAuthInfo = (DWORD) nobjs;
     salP->aAuthInfo = MemLifoAlloc(ticP->memlifoP, nobjs*sizeof(SOLE_AUTHENTICATION_INFO), NULL);
     for (i = 0; i < nobjs; ++i) {
         Tcl_Obj **elems;
-        int nelems;
+        Tcl_Size nelems;
         DWORD authn, authz;
         if (ObjGetElements(interp, objs[i], &nelems, &elems) != TCL_OK)
             return TCL_ERROR;
@@ -1699,7 +1706,7 @@ static TCL_RESULT Twapi_CoCreateInstanceExObjCmd(ClientData clientdata, Tcl_Inte
 
     mark = MemLifoPushMark(ticP->memlifoP);
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
-                       GETGUID(clsid), ARGSKIP, GETINT(dwClsCtx),
+                       GETGUID(clsid), ARGSKIP, GETDWORD(dwClsCtx),
                        ARGSKIP, ARGSKIP, ARGEND) == TCL_OK &&
         ObjToIUnknown(interp, objv[2], (void **)&ifc_outer) == TCL_OK &&
         ParsePCOSERVERINFO(ticP, objv[4], &cosiP) == TCL_OK &&
@@ -1740,15 +1747,15 @@ static TCL_RESULT Twapi_CoSetProxyBlanketObjCmd(ClientData clientdata, Tcl_Inter
     mark = MemLifoPushMark(ticP->memlifoP);
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
                        GETOBJ(proxyObj),
-                       GETINT(authn),
-                       GETINT(authz),
+                       GETDWORD(authn),
+                       GETDWORD(authz),
                        GETINT(principal_name_tag),
                        GETEMPTYASNULL(principal_name),
-                       GETINT(authn_level),
-                       GETINT(impersonation_level),
+                       GETDWORD(authn_level),
+                       GETDWORD(impersonation_level),
                        GETINT(creds_tag),
                        GETOBJ(credsObj),
-                       GETINT(capabilities), ARGEND) == TCL_OK &&
+                       GETDWORD(capabilities), ARGEND) == TCL_OK &&
         ObjToLPVOID(interp, objv[1], (void **)&ifc) == TCL_OK &&
         ParsePSEC_WINNT_AUTH_IDENTITY(ticP, credsObj, &swaiP) == TCL_OK) {
 
@@ -1806,10 +1813,10 @@ static TCL_RESULT Twapi_CoInitializeSecurityObjCmd(ClientData clientdata, Tcl_In
                        ARGSKIP, /* Security descriptor/AppID */
                        ARGSKIP, /* Auth services, ignored, let COM choose */
                        ARGSKIP, /* Reserved, not used */
-                       GETINT(authn_level),
-                       GETINT(impersonation_level),
+                       GETDWORD(authn_level),
+                       GETDWORD(impersonation_level),
                        GETOBJ(authListObj),
-                       GETINT(capabilities),
+                       GETDWORD(capabilities),
                        ARGSKIP, /* Reserved, not used */
                        ARGEND) == TCL_OK) {
         if (capabilities & EOAC_ACCESS_CONTROL) {
@@ -1956,26 +1963,27 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
     } ifc;
     HRESULT hr;
     TwapiResult result;
-    DWORD dw1,dw2,dw3;
-    BSTR bstr1 = NULL;          /* Initialize for tracking frees! */
-    BSTR bstr2 = NULL;
-    BSTR bstr3 = NULL;
-    int i, tcl_status;
-    void *pv;
-    void *pv2;
-    GUID guid, guid2;
-    TYPEKIND tk;
-    LPWSTR s;
-    WORD w, w2;
-    Tcl_Obj *objs[7];
-    FUNCDESC *funcdesc;
-    VARDESC  *vardesc;
-    char *cP;
-    int func = PtrToInt(clientdata);
-    Tcl_Obj *sObj;
+    DWORD       dw1, dw2, dw3;
+    BSTR        bstr1 = NULL; /* Initialize for tracking frees! */
+    BSTR        bstr2 = NULL;
+    BSTR        bstr3 = NULL;
+    int         tcl_status;
+    void       *pv;
+    void       *pv2;
+    GUID        guid, guid2;
+    TYPEKIND    tk;
+    LPWSTR      s;
+    WORD        w, w2;
+    Tcl_Obj    *objs[7];
+    FUNCDESC   *funcdesc;
+    VARDESC    *vardesc;
+    char       *cP;
+    int         func = PtrToInt(clientdata);
+    Tcl_Obj    *sObj;
+    VARIANT     var, var2;
+    ULONGLONG   ull;
+    Tcl_Size    len;
     struct TwapiBlanket blanket;
-    VARIANT var, var2;
-    ULONGLONG ull;
 
     if (objc < 2)
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -2067,7 +2075,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             break;
         case 102:
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETINT(dw1), GETINT(dw2),
+                             GETDWORD(dw1), GETDWORD(dw2),
                              ARGEND) != TCL_OK)
                 goto ret_error;
 
@@ -2085,7 +2093,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         switch (func) {
         case 201: // GetDispID
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETVAR(bstr1, ObjToBSTR), GETINT(dw1),
+                             GETVAR(bstr1, ObjToBSTR), GETDWORD(dw1),
                              ARGEND) != TCL_OK)
                 goto ret_error;
             result.type = TRT_LONG;
@@ -2107,7 +2115,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case 203: // GetMemberProperties
         case 204: // GetNextDispID
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETINT(dw1), GETINT(dw2),
+                             GETDWORD(dw1), GETDWORD(dw2),
                              ARGEND) != TCL_OK)
                 goto ret_error;
             if (func == 203) {
@@ -2128,7 +2136,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             break;
         case 206: // DeleteMemberByName
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETVAR(bstr1, ObjToBSTR), GETINT(dw1),
+                             GETVAR(bstr1, ObjToBSTR), GETDWORD(dw1),
                              ARGEND) != TCL_OK)
                 goto ret_error;
             // hr = S_OK; -> Already set at top of function
@@ -2137,7 +2145,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 ifc.dispatchex, bstr1, dw1) == S_OK ? 1 : 0;
             break;
         case 207: // DeleteMemberByDispID
-            if (TwapiGetArgs(interp, objc-1, objv+1, GETINT(dw1), ARGEND)
+            if (TwapiGetArgs(interp, objc-1, objv+1, GETDWORD(dw1), ARGEND)
                 != TCL_OK)
                 goto ret_error;
             // hr = S_OK; -> Already set at top of function
@@ -2651,7 +2659,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         switch (func) {
         case 1401:
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETOBJ(sObj), GETINT(dw1), GETWORD(w),
+                             GETOBJ(sObj), GETDWORD(dw1), GETWORD(w),
                              ARGEND) != TCL_OK)
                 goto ret_error;
             return Twapi_ITypeComp_Bind(interp, ifc.typecomp,
@@ -2686,7 +2694,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             break;
         case 5503: // Load
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETOBJ(sObj), GETINT(dw1),
+                             GETOBJ(sObj), GETDWORD(dw1),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EMPTY;
@@ -2695,7 +2703,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             break;
         case 5504: // Save
             if (TwapiGetArgs(interp, objc-1, objv+1,
-                             GETOBJ(sObj), GETINT(dw1),
+                             GETOBJ(sObj), GETDWORD(dw1),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EMPTY;
@@ -2765,8 +2773,8 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             break;
         case 10003: // GetRecordInfoFromGuids
             if (TwapiGetArgs(interp, objc, objv,
-                             GETGUID(guid), GETINT(dw1), GETINT(dw2),
-                             GETINT(dw3), GETGUID(guid2),
+                             GETGUID(guid), GETDWORD(dw1), GETDWORD(dw2),
+                             GETDWORD(dw3), GETGUID(guid2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_INTERFACE;
@@ -2777,7 +2785,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case 10004: // QueryPathOfRegTypeLib
             if (TwapiGetArgs(interp, objc, objv,
                              GETGUID(guid), GETWORD(w), GETWORD(w2),
-                             GETINT(dw3),
+                             GETDWORD(dw3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.value.var.bstrVal = NULL;
@@ -2790,7 +2798,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case 10005: // UnRegisterTypeLib
             if (TwapiGetArgs(interp, objc, objv,
                              GETGUID(guid), GETWORD(w), GETWORD(w2),
-                             GETINT(dw3),
+                             GETDWORD(dw3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EMPTY;
@@ -2799,7 +2807,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case 10006: // LoadRegTypeLib
             if (TwapiGetArgs(interp, objc, objv,
                              GETGUID(guid), GETWORD(w), GETWORD(w2),
-                             GETINT(dw3),
+                             GETDWORD(dw3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_INTERFACE;
@@ -2821,7 +2829,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
                              GETOBJ(sObj), ARGSKIP, GETGUID(guid), GETASTR(cP),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            if (ObjListLength(interp, objv[1], &i) == TCL_ERROR || i != 0) {
+            if (ObjListLength(interp, objv[1], &len) == TCL_ERROR || len != 0) {
                 ObjSetStaticResult(interp, "Bind options are not supported for CoGetOjbect and must be specified as empty."); //TBD
                 goto ret_error;
             }
@@ -2876,7 +2884,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case 10014: // CoRegisterClassObject
             if (TwapiGetArgs(interp, objc, objv,
                              GETGUID(guid), GETVOIDP(pv),
-                             GETINT(dw1), GETINT(dw2),
+                             GETDWORD(dw1), GETDWORD(dw2),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_DWORD;
@@ -2884,7 +2892,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             break;
         case 10015: // CoRevokeClassObject
             if (TwapiGetArgs(interp, objc, objv,
-                             GETINT(dw1), ARGEND) != TCL_OK)
+                             GETDWORD(dw1), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EMPTY;
             hr = CoRevokeClassObject(dw1);

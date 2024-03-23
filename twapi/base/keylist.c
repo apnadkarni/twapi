@@ -15,7 +15,7 @@ int Twapi_KlGetObjCmd(
     Tcl_Obj *CONST objv[])
 {
     Tcl_Obj **klObj;
-    int       count;
+    Tcl_Size  count;
     int       i;
     char     *key;
 

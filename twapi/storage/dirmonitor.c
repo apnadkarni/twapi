@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, Ashok P. Nadkarni
+ * Copyright (c) 2010-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -17,8 +17,8 @@
  * Static prototypes
  */
 static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
-    LPWSTR pathP, int path_len, int include_subtree,
-    DWORD  filter, WCHAR **patterns, int npatterns);
+    LPWSTR pathP, Tcl_Size path_len, int include_subtree,
+    DWORD  filter, WCHAR **patterns, Tcl_Size npatterns);
 static void TwapiDirectoryMonitorContextDelete(TwapiDirectoryMonitorContext *);
 static DWORD TwapiDirectoryMonitorInitiateRead(TwapiDirectoryMonitorContext *);
 #define TwapiDirectoryMonitorContextRef(p_, incr_) InterlockedExchangeAdd(&(p_)->nrefs, (incr_))
@@ -35,9 +35,9 @@ TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(ClientData clientdata, Tcl_Inter
     TwapiInterpContext *ticP = clientdata;
     TwapiDirectoryMonitorContext *dmcP;
     LPWSTR pathP;
-    int    path_len;
+    Tcl_Size path_len;
     int    include_subtree;
-    int    npatterns;
+    Tcl_Size npatterns;
     WCHAR  **patterns;
     DWORD  winerr;
     DWORD filter;
@@ -48,18 +48,18 @@ TCL_RESULT Twapi_RegisterDirectoryMonitorObjCmd(ClientData clientdata, Tcl_Inter
     mark = MemLifoPushMark(ticP->memlifoP);
     if (TwapiGetArgsEx(ticP, objc-1, objv+1,
                      GETWSTRN(pathP, path_len), GETBOOL(include_subtree),
-                     GETINT(filter),
+                     GETDWORD(filter),
                      GETARGVW(patterns, npatterns),
                      ARGEND)
         != TCL_OK) {
         MemLifoPopMark(mark);
         return TCL_ERROR;
-    }        
+    }
     dmcP = TwapiDirectoryMonitorContextNew(pathP, path_len, include_subtree, filter, patterns, npatterns);
 
     MemLifoPopMark(mark);       /* Don't need parsed args any more */
-    
-    /* 
+
+    /*
      * TBD - Should we add FILE_SHARE_DELETE to allow deleting of
      * the directory? For now, no because it causes confusing behaviour.
      * The directory being monitored can be deleted successfully but
@@ -175,17 +175,17 @@ TCL_RESULT Twapi_UnregisterDirectoryMonitorObjCmd(ClientData clientdata, Tcl_Int
 /* Always returns non-NULL, or panics */
 static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
     LPWSTR pathP,                /* May NOT be null terminated if path_len==-1 */
-    int    path_len,            /* -1 -> null terminated */
+    Tcl_Size path_len,            /* -1 -> null terminated */
     int    include_subtree,
     DWORD  filter,
     WCHAR **patterns,
-    int    npatterns
+    Tcl_Size npatterns
     )
 {
-    int sz;
     TwapiDirectoryMonitorContext *dmcP;
-    int i;
-    int bytelengths[MAXPATTERNS];
+    Tcl_Size sz;
+    Tcl_Size i;
+    Tcl_Size bytelengths[MAXPATTERNS];
     char *cP;
 
     if (npatterns > ARRAYSIZE(bytelengths)) {
@@ -213,7 +213,7 @@ static TwapiDirectoryMonitorContext *TwapiDirectoryMonitorContextNew(
     dmcP->nrefs = 0;
     dmcP->filter = filter;
     dmcP->include_subtree = include_subtree;
-    dmcP->npatterns = npatterns;
+    dmcP->npatterns = (int)npatterns;
     cP = sizeof(TwapiDirectoryMonitorContext) +
         (npatterns*sizeof(dmcP->patterns[0])) +
         (char *)dmcP;
@@ -622,11 +622,11 @@ static int TwapiDirectoryMonitorCallbackFn(TwapiCallback *cbP)
 
     if (notify) {
         /* File or error notification */
-        int objc;
+        Tcl_Size objc;
         Tcl_Obj **objv;
         ObjAppendElement(interp, scriptObj, changesObj);
         ObjGetElements(interp, scriptObj, &objc, &objv);
-        tcl_status = TwapiEvalAndUpdateCallback(cbP, objc, objv, TRT_EMPTY);
+        tcl_status = TwapiEvalAndUpdateCallback(cbP, (DWORD) objc, objv, TRT_EMPTY);
         if (tcl_status != TCL_OK)
             Twapi_AppendLog(interp, L"CALLBACK FAIL");
     } else {
@@ -714,6 +714,9 @@ int TwapiShutdownDirectoryMonitor(TwapiDirectoryMonitorContext *dmcP)
 static int TwapiDirectoryMonitorPatternMatch(WCHAR *path, WCHAR *pattern)
 {
     int include;
+    Tcl_Obj *patObj, *pathObj;
+    const char *pathutf, *patutf;
+    int match_result;
 
     /* Pattern can be prefixed with + or - to indicate inclusion/exclusion */
     if (pattern[0] == L'-') {
@@ -725,21 +728,12 @@ static int TwapiDirectoryMonitorPatternMatch(WCHAR *path, WCHAR *pattern)
     } else
         include = 1;            /* Default is inclusive pattern */
 
-#if TCL_UTF_MAX <= 4
-    return Tcl_UniCharCaseMatch(path, pattern, 1) ? include : 0;
-#else
-    {
-        Tcl_Obj *patObj, *pathObj;
-        Tcl_UniChar *pathuni, *patuni;
-        int match_result;
-        patObj = ObjFromWinChars(pattern);
-        patuni = Tcl_GetUnicode(patObj);
-        pathObj = ObjFromWinChars(path);
-        pathuni = Tcl_GetUnicode(pathObj);
-        match_result = Tcl_UniCharCaseMatch(pathuni, patuni, 1) ? include : 0;
-        ObjDecrRefs(patObj);
-        ObjDecrRefs(pathObj);
-        return match_result;
-    }
-#endif
+    patObj = ObjFromWinChars(pattern);
+    patutf = Tcl_GetString(patObj);
+    pathObj = ObjFromWinChars(path);
+    pathutf = Tcl_GetString(pathObj);
+    match_result = Tcl_StringCaseMatch(pathutf, patutf, 1) ? include : 0;
+    ObjDecrRefs(patObj);
+    ObjDecrRefs(pathObj);
+    return match_result;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2020 Ashok P. Nadkarni
+ * Copyright (c) 2004-2024 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -67,15 +67,17 @@ int Twapi_BlockInput(Tcl_Interp *interp, BOOL block)
 }
 
 int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
-    int num_inputs;
+    Tcl_Size len;
+    DWORD i, j, num_inputs;
     struct tagINPUT   *input;
-    int i, j;
     int result = TCL_ERROR;
     Tcl_Interp *interp = ticP->interp;
     
-    if (ObjListLength(interp, input_obj, &num_inputs) != TCL_OK) {
+    if (ObjListLength(interp, input_obj, &len) != TCL_OK) {
         return TCL_ERROR;
     }
+    CHECK_DWORD(interp, len);
+    num_inputs = (DWORD) len;
 
     input = MemLifoPushFrame(ticP->memlifoP, num_inputs * sizeof(*input), NULL);
     /* Loop through each element, parsing it and storing its descriptor */
@@ -96,7 +98,7 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
         /* This element is itself a list, parse it to get input type etc. */
         if (ObjListIndex(interp, event_obj, 0, &field_obj[0]) != TCL_OK)
             goto  done;
-        
+
         if (field_obj[0] == NULL)
             break;
 
@@ -152,7 +154,7 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
                 if (ObjToLong(interp, field_obj[j], &value[j]) != TCL_OK)
                     goto done;
             }
-            
+
             input[i].type           = INPUT_MOUSE;
             input[i].mi.dx          = value[1];
             input[i].mi.dy          = value[2];
@@ -170,7 +172,6 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
 
     }
 
-    
     /* i is actual number of elements found */
     if (i != num_inputs) {
         ObjSetStaticResult(interp, "Invalid or empty element in input event list");
@@ -200,14 +201,16 @@ int Twapi_SendInput(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
 
 
 int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
-    int num_chars;
+    Tcl_Size len;
     struct tagINPUT   *input = NULL;
-    int i, j;
+    DWORD i, j, num_chars;
     int result = TCL_ERROR;
     int max_input_records;
     int sent_inputs;
-    
-    num_chars = Tcl_GetCharLength(input_obj);
+
+    len = Tcl_GetCharLength(input_obj);
+    CHECK_DWORD(ticP->interp, len);
+    num_chars = (DWORD) len;
 
     /* Now loop through every character adding it to the input event array */
     /* Win2K and up, accepts unicode characters */
@@ -221,15 +224,15 @@ int Twapi_SendUnicode(TwapiInterpContext *ticP, Tcl_Obj *input_obj) {
     input = MemLifoAlloc(ticP->memlifoP, max_input_records * sizeof(*input), NULL);
     for (i = 0, j = 0; i < num_chars; ++i) {
         WCHAR wch;
-#if TCL_UTF_MAX > 4
+#if TCL_UTF_MAX >= 4
 	Tcl_UniChar uch;
 #endif
 
 #ifndef KEYEVENTF_UNICODE
 #define KEYEVENTF_UNICODE     0x0004
 #endif
-            
-#if TCL_UTF_MAX <= 4
+
+#if TCL_UTF_MAX < 4
         wch = Tcl_GetUniChar(input_obj, i);
 #else
         uch = Tcl_GetUniChar(input_obj, i);
@@ -322,7 +325,7 @@ static int Twapi_InputCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     case 4:
     case 5:
     case 6:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 3:
@@ -340,15 +343,15 @@ static int Twapi_InputCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         }
         break;
     case 7:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETINT(dw2),
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETDWORD(dw), GETDWORD(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_DWORD;
         result.value.uval = MapVirtualKey(dw, dw2);
         break;
     case 8:
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETINT(dw2),
-                         GETINT(dw3), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETDWORD(dw), GETDWORD(dw2),
+                         GETDWORD(dw3), ARGEND) != TCL_OK)
             return TCL_ERROR;
         return Twapi_RegisterHotKey(ticP, dw, dw2, dw3);
     case 9:
@@ -403,7 +406,7 @@ static int Twapi_InputCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
             result.value.ival = TWAPI_BAD_ARG_COUNT;
         }
         else {
-            int len;
+            Tcl_Size len;
             BYTE *key_stateP = ObjToByteArray(objv[2], &len);
             if (len != 256) {
                 result.type = TRT_TWAPI_ERROR;

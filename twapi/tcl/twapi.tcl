@@ -6,7 +6,7 @@
 
 # General definitions and procs used by all TWAPI modules
 
-package require Tcl 8.5
+package require Tcl 8.6-
 package require registry
 
 namespace eval twapi {

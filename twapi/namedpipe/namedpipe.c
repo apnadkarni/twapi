@@ -145,7 +145,10 @@ static TwapiOneTimeInitState gNPipeModuleInitialized;
 /* Prototypes */
 static int NPipeEventProc(Tcl_Event *, int flags);
 
+#if TCL_MAJOR_VERSION < 9
 static Tcl_DriverCloseProc NPipeCloseProc;
+#endif
+static Tcl_DriverClose2Proc NPipeClose2Proc;
 static Tcl_DriverInputProc NPipeInputProc;
 static Tcl_DriverOutputProc NPipeOutputProc;
 static Tcl_DriverWatchProc NPipeWatchProc;
@@ -155,8 +158,12 @@ static Tcl_DriverThreadActionProc NPipeThreadActionProc;
 
 static Tcl_ChannelType gNPipeChannelDispatch = {
     "namedpipe",
-    (Tcl_ChannelTypeVersion)TCL_CHANNEL_VERSION_4,
+    (Tcl_ChannelTypeVersion)TCL_CHANNEL_VERSION_5,
+#if TCL_MAJOR_VERSION < 9
     NPipeCloseProc,
+#else
+    NULL,
+#endif
     NPipeInputProc,
     NPipeOutputProc,
     NULL /* ChannelSeek */,
@@ -164,12 +171,13 @@ static Tcl_ChannelType gNPipeChannelDispatch = {
     NULL /* ChannelGetOption */,
     NPipeWatchProc,
     NPipeGetHandleProc,
-    NULL /* ChannelClose2 */,
+    NPipeClose2Proc,
     NPipeBlockProc,
     NULL /* ChannelFlush */,
     NULL /* ChannelHandler */,
-    NULL /* ChannelWideSeek if VERSION_2, Truncate if VERSION_5 */,
+    NULL /* ChannelWideSeek */,
     NPipeThreadActionProc,       /* Unused for VERSION_2 */
+    NULL /* Truncate */
 };
 
 static NPipeChannel *NPipeChannelNew(void);
@@ -701,6 +709,16 @@ static TCL_RESULT NPipeCloseProc(ClientData clientdata, Tcl_Interp *interp)
     return TCL_OK;
 }
 
+static int NPipeClose2Proc(
+    ClientData clientdata,
+    Tcl_Interp *interp,
+    int flags)
+{
+    if ((flags&(TCL_CLOSE_READ|TCL_CLOSE_WRITE))==0) {
+        return NPipeCloseProc(clientdata, interp);
+    }
+    return EINVAL;
+}
 
 static int NPipeGetHandleProc(
     ClientData clientdata,
@@ -1232,9 +1250,9 @@ static int Twapi_NPipeServerObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     TCL_RESULT res;
     
     res = TwapiGetArgs(interp, objc-1, objv+1,
-                       GETOBJ(nameObj), GETINT(open_mode), GETINT(pipe_mode),
-                       GETINT(max_instances), GETINT(outbuf_sz),
-                       GETINT(inbuf_sz), GETINT(timeout),
+                       GETOBJ(nameObj), GETDWORD(open_mode), GETDWORD(pipe_mode),
+                       GETDWORD(max_instances), GETDWORD(outbuf_sz),
+                       GETDWORD(inbuf_sz), GETDWORD(timeout),
                        GETOBJ(secattrObj), ARGEND);
     if (res != TCL_OK)
         return res;
@@ -1359,11 +1377,11 @@ int Twapi_NPipeClientObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc,
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
                      GETOBJ(nameObj),
-                     GETINT(desired_access),
-                     GETINT(share_mode),
+                     GETDWORD(desired_access),
+                     GETDWORD(share_mode),
                      GETOBJ(secattrObj),
-                     GETINT(creation_disposition),
-                     GETINT(flags_attr),
+                     GETDWORD(creation_disposition),
+                     GETDWORD(flags_attr),
                      ARGEND) != TCL_OK) {
         return TCL_ERROR;
     }

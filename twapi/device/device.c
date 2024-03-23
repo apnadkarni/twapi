@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007-2012, Ashok P. Nadkarni
+ * Copyright (c) 2007-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -127,12 +127,12 @@ int ObjToSP_DEVINFO_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVINFO_DATA *sdd
     if (objP) {
         /* Initialize based on passed param */
         Tcl_Obj **objs;
-        int  nobjs;
+        Tcl_Size  nobjs;
         if (ObjGetElements(interp, objP, &nobjs, &objs) != TCL_OK ||
             TwapiGetArgs(interp, nobjs, objs,
                          ARGUSEDEFAULT,
                          GETVARWITHDEFAULT(sddP->ClassGuid, ObjToGUID),
-                         GETINT(sddP->DevInst),
+                         GETDWORD(sddP->DevInst),
                          GETDWORD_PTR(sddP->Reserved), ARGEND) != TCL_OK) {
             return TCL_ERROR;
         }
@@ -146,7 +146,7 @@ int ObjToSP_DEVINFO_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVINFO_DATA *sdd
 /* sddPP MUST POINT TO VALID MEMORY */
 int ObjToSP_DEVINFO_DATA_NULL(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVINFO_DATA **sddPP)
 {
-    int n;
+    Tcl_Size n;
 
     if (objP && ObjListLength(interp, objP, &n) == TCL_OK && n != 0)
         return ObjToSP_DEVINFO_DATA(interp, objP, *sddPP);
@@ -170,12 +170,12 @@ int ObjToSP_DEVICE_INTERFACE_DATA(Tcl_Interp *interp, Tcl_Obj *objP, SP_DEVICE_I
     if (objP) {
         /* Initialize based on passed param */
         Tcl_Obj **objs;
-        int  nobjs;
+        Tcl_Size  nobjs;
         if (ObjGetElements(interp, objP, &nobjs, &objs) != TCL_OK ||
             TwapiGetArgs(interp, nobjs, objs,
                          ARGUSEDEFAULT,
                          GETVARWITHDEFAULT(sdiP->InterfaceClassGuid, ObjToGUID),
-                         GETINT(sdiP->Flags),
+                         GETDWORD(sdiP->Flags),
                          GETDWORD_PTR(sdiP->Reserved), ARGEND) != TCL_OK) {
             return TCL_ERROR;
         }
@@ -196,15 +196,17 @@ int Twapi_SetupDiGetDeviceRegistryProperty(TwapiInterpContext *ticP, int objc, T
     DWORD buf_sz;
     int tcl_status = TCL_ERROR;
     Tcl_Obj *objP;
+    MemLifoSize len;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETHANDLET(hdi, HDEVINFO),
                      GETVAR(sdd, ObjToSP_DEVINFO_DATA),
-                     GETINT(regprop),
+                     GETDWORD(regprop),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    bufP = MemLifoPushFrame(ticP->memlifoP, 256, &buf_sz);
+    bufP = MemLifoPushFrame(ticP->memlifoP, 256, &len);
+    buf_sz = len > UINT_MAX ? UINT_MAX : (DWORD)len;
     if (! SetupDiGetDeviceRegistryPropertyW(
             hdi, &sdd, regprop, &regtype, bufP, buf_sz, &buf_sz)) {
         /* Unsuccessful call. See if we need a larger buffer */
@@ -248,6 +250,7 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tc
     int success;
     DWORD winerr;
     int   i;
+    MemLifoSize len;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
                      GETHANDLET(hdi, HDEVINFO),
@@ -256,7 +259,8 @@ int Twapi_SetupDiGetDeviceInterfaceDetail(TwapiInterpContext *ticP, int objc, Tc
                      ARGEND) != TCL_OK)
             return TCL_ERROR;
 
-    sdiddP = MemLifoPushFrame(ticP->memlifoP, sizeof(*sdiddP)+MAX_PATH, &buf_sz);
+    sdiddP = MemLifoPushFrame(ticP->memlifoP, sizeof(*sdiddP)+MAX_PATH, &len);
+    buf_sz = len > UINT_MAX ? UINT_MAX : (DWORD)len;
     /* To be safe against bugs, ours or the driver's limit to 5 attempts */
     for (i = 0; i < 5; ++i) {
         sdiddP->cbSize = sizeof(*sdiddP); /* NOT size of entire buffer */
@@ -292,6 +296,7 @@ int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Ob
     DWORD  i;
     DWORD buf_sz;
     MemLifoMarkHandle mark;
+    MemLifoSize len;
 
     mark = MemLifoPushMark(ticP->memlifoP);
 
@@ -303,7 +308,8 @@ int Twapi_SetupDiClassGuidsFromNameEx(TwapiInterpContext *ticP, int objc, Tcl_Ob
                        GETVOIDP(reserved),
                        ARGEND) == TCL_OK) {
 
-        guidP = MemLifoAlloc(ticP->memlifoP, 10 * sizeof(*guidP), &buf_sz);
+        guidP = MemLifoAlloc(ticP->memlifoP, 10 * sizeof(*guidP), &len);
+        buf_sz = len > UINT_MAX ? UINT_MAX : (DWORD)len;
         allocated = buf_sz / sizeof(*guidP);
 
         /*
@@ -855,7 +861,7 @@ int Twapi_RegisterDeviceNotification(TwapiInterpContext *ticP, int objc, Tcl_Obj
 
     guidP = &dncP->device.guid;
     if (TwapiGetArgs(ticP->interp, objc, objv,
-                     GETINT(dncP->devtype),
+                     GETDWORD(dncP->devtype),
                      GETVAR(guidP, ObjToGUID_NULL),
                      GETHANDLE(dncP->device.hdev),
                      ARGEND) == TCL_ERROR) {
@@ -1084,9 +1090,9 @@ static int Twapi_DeviceIoControlObjCmd(ClientData clientdata, Tcl_Interp *interp
     TCL_RESULT res;
 
     if (TwapiGetArgs(interp, objc-1, objv+1,
-                     GETHANDLE(hdev), GETINT(ctrl),
+                     GETHANDLE(hdev), GETDWORD(ctrl),
                      ARGUSEDEFAULT, GETOBJ(inputObj),
-                     GETINT(nout),
+                     GETDWORD(nout),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -1102,8 +1108,11 @@ static int Twapi_DeviceIoControlObjCmd(ClientData clientdata, Tcl_Interp *interp
     }
 
     if (res == TCL_OK) {
-        if (nout)
-            outP = MemLifoAlloc(memlifoP, nout, &nout);
+        if (nout) {
+            MemLifoSize len;
+            outP = MemLifoAlloc(memlifoP, nout, &len);
+            nout = len > UINT_MAX ? UINT_MAX : (DWORD) len;
+        }
         else
             outP = NULL;
 
@@ -1152,7 +1161,7 @@ static int Twapi_DeviceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     result.type = TRT_BADFUNCTIONCODE;
     switch (func) {
     case 56: // CM_Reenumerate_DevNode_Ex
-        if (TwapiGetArgs(interp, objc-2, objv+2, GETINT(dw), GETINT(dw2),
+        if (TwapiGetArgs(interp, objc-2, objv+2, GETDWORD(dw), GETDWORD(dw2),
                          ARGUSEDEFAULT, GETHANDLET(h, HMACHINE),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -1161,7 +1170,7 @@ static int Twapi_DeviceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
         
     case 57: // CM_Locate_DevNode_Ex
-        if (TwapiGetArgs(interp, objc-2, objv+2, ARGSKIP, GETINT(dw),
+        if (TwapiGetArgs(interp, objc-2, objv+2, ARGSKIP, GETDWORD(dw),
                          ARGUSEDEFAULT,
                          GETHANDLET(h, HMACHINE),
                          ARGEND) != TCL_OK)
@@ -1216,7 +1225,7 @@ static int Twapi_DeviceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                          GETVAR(guidP, ObjToGUID_NULL),
                          GETOBJ(sObj),
                          GETHWND(hwnd),
-                         GETINT(dw),
+                         GETDWORD(dw),
                          GETHANDLET(h, HDEVINFO),
                          GETOBJ(s2Obj),
                          ARGUSEDEFAULT,
@@ -1231,7 +1240,7 @@ static int Twapi_DeviceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 62: // SetupDiEnumDeviceInfo
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETHANDLET(h, HDEVINFO),
-                         GETINT(dw),
+                         GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
@@ -1251,7 +1260,7 @@ static int Twapi_DeviceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
                          GETHANDLET(h, HDEVINFO),
                          GETVAR(u.dev.sp_devinfo_dataP, ObjToSP_DEVINFO_DATA_NULL),
                          GETGUID(guid),
-                         GETINT(dw),
+                         GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         
@@ -1303,7 +1312,7 @@ static int Twapi_DeviceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 69: // SetupDiOpenDeviceInfo
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETHANDLET(h, HDEVINFO), GETOBJ(sObj),
-                         GETHWND(hwnd), GETINT(dw), ARGEND) != TCL_OK)
+                         GETHWND(hwnd), GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         u.dev.sp_devinfo_data.cbSize = sizeof(u.dev.sp_devinfo_data);
         if (SetupDiOpenDeviceInfoW(h, ObjToWinChars(sObj), hwnd, dw,

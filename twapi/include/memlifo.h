@@ -24,7 +24,14 @@ typedef struct _MemLifo MemLifo;
 typedef struct _MemLifoMark MemLifoMark;
 typedef MemLifoMark *MemLifoMarkHandle;
 
-typedef void *MemLifoChunkAllocFn(DWORD sz, void *alloc_data, DWORD *actual_szP);
+#if TCL_MAJOR_VERSION > 8
+typedef SIZE_T MemLifoSize;
+#else
+typedef unsigned int MemLifoSize;
+#endif
+
+
+typedef void *MemLifoChunkAllocFn(MemLifoSize sz, void *alloc_data, MemLifoSize *actual_szP);
 typedef void MemLifoChunkFreeFn(void *p, void *alloc_data);
 
 struct _MemLifo {
@@ -34,7 +41,7 @@ struct _MemLifo {
     MemLifoChunkFreeFn *lifo_freeFn;
     MemLifoMarkHandle lifo_top_mark;  /* Topmost mark */
     MemLifoMarkHandle lifo_bot_mark; /* Bottommost mark */
-    DWORD	lifo_chunk_size;   /* Size of each chunk to allocate.
+    MemLifoSize	lifo_chunk_size;   /* Size of each chunk to allocate.
                                       Note this size might not be a multiple
                                       of the alignment size */
     int                 lifo_flags;
@@ -81,7 +88,7 @@ MEMLIFO_EXTERN int MemLifoInit
 				   freed. This routine must be specified
 				   unless allocFunc is 0. If allocFunc is 0,
 				   the value of this parameter is ignored. */
-    DWORD chunkSz,             /* Default unit size for allocating memory
+    MemLifoSize chunkSz,             /* Default unit size for allocating memory
 				   from (*allocFunc) as needed. This does
 				   not include space for descriptor at start
 				   of each allocation. The implementation
@@ -111,9 +118,9 @@ Returns pointer to allocated memory on success, a null pointer on failure.
 MEMLIFO_EXTERN void* MemLifoAlloc
     (
      MemLifo *lifoP,    /* LIFO pool to allocate from */
-     DWORD sz,         /* Number of bytes to allocate */
-     DWORD *actual_szP /* If non-NULL, allocates max possible in chunk
-                           and returns the value here*/
+     MemLifoSize sz,         /* Number of bytes to allocate */
+     MemLifoSize *actual_szP /* If non-NULL, allocates max possible in chunk
+                                and returns the value here*/
     );
 
 /*f
@@ -130,7 +137,7 @@ MEMLIFO_EXTERN void* MemLifoCopy
     (
      MemLifo *lifoP,    /* LIFO pool to allocate from */
      void *srcP,        /* Source to copy from */
-     DWORD nbytes      /* Number of bytes to copy */
+     MemLifoSize nbytes      /* Number of bytes to copy */
     );
 
 
@@ -143,7 +150,7 @@ is set for the pool, in which case it panics.
 
 Returns pointer to allocated memory on success, a null pointer on failure.
 */
-MEMLIFO_EXTERN void* MemLifoZeroes(MemLifo *l, DWORD nbytes);
+MEMLIFO_EXTERN void* MemLifoZeroes(MemLifo *l, MemLifoSize nbytes);
 
 /*f
 Allocate a software stack frame in a LIFO memory pool
@@ -169,8 +176,8 @@ Returns pointer to allocated memory on success, a null pointer on failure.
 MEMLIFO_EXTERN void *MemLifoPushFrame
 (
     MemLifo *lifoP,		/* LIFO pool to allocate from */
-    DWORD sz,			/* Number of bytes to allocate */
-    DWORD *actual_szP          /* If non-NULL, allocates max possible in chunk
+    MemLifoSize sz,		/* Number of bytes to allocate */
+    MemLifoSize *actual_szP     /* If non-NULL, allocates max possible in chunk
                                    and returns the value here*/
     );
 
@@ -246,12 +253,12 @@ MEMLIFO_EXTERN void * MemLifoExpandLast
     (
      MemLifo *lifoP,		/* Lifo pool from which alllocation
 					   was made */
-     DWORD incr,			/* The amount by which the
-					   block is to be expanded. */
-     int dontMove			/* If 0, block may be moved if
-					   necessary to expand. If non-0, the
-					   function will fail if the block
-					   cannot be expanded in place. */
+     MemLifoSize incr,		/* The amount by which the
+				   block is to be expanded. */
+     int dontMove		/* If 0, block may be moved if
+				   necessary to expand. If non-0, the
+				   function will fail if the block
+				   cannot be expanded in place. */
     );
 
 
@@ -278,7 +285,7 @@ MEMLIFO_EXTERN void *MemLifoShrinkLast
     (
      MemLifo *lifoP,       /* Lifo pool from which alllocation
                                    was made */
-     DWORD decr,               /* The amount by which the
+     MemLifoSize decr,         /* The amount by which the
                                    block is to be shrunk. */
      int dontMove              /* If 0, block may be moved in order
                                    to reduce memory fragmentation.
@@ -309,7 +316,7 @@ is set for the pool.
 MEMLIFO_EXTERN void * MemLifoResizeLast
 (
     MemLifo *lifoP,        /* Lifo pool from which allocation was made */
-    DWORD newSz,		/* New size of the block */
+    MemLifoSize newSz,		/* New size of the block */
     int dontMove                /* If 0, block may be moved if
                                    necessary to expand. If non-0, the
                                    function will fail if the block

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003-2012, Ashok P. Nadkarni
+ * Copyright (c) 2003-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -306,14 +306,17 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     Tcl_Obj *rec[12];    /* Holds values for each status record */
     DWORD winerr;
     DWORD i;
+    int ival;
     TCL_RESULT status = TCL_ERROR;
+    MemLifoSize len;
 
     if (TwapiGetArgs(interp, objc, objv,
-                     GETPTR(hService, SC_HANDLE), GETINT(infolevel),
-                     GETINT(dwServiceType),
-                     GETINT(dwServiceState), GETOBJ(groupnameObj),
+                     GETPTR(hService, SC_HANDLE), GETINT(ival),
+                     GETDWORD(dwServiceType),
+                     GETDWORD(dwServiceState), GETOBJ(groupnameObj),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
+    infolevel = (SC_ENUM_TYPE) ival;
 
     if (infolevel != SC_ENUM_PROCESS_INFO) {
         ObjSetStaticResult(interp, "Unsupported information level");
@@ -321,7 +324,8 @@ int Twapi_EnumServicesStatusEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONS
     }
 
     /* 32000 - Initial estimate based on my system - TBD */
-    sbuf = MemLifoPushFrame(ticP->memlifoP, 32000, &buf_sz);
+    sbuf = MemLifoPushFrame(ticP->memlifoP, 32000, &len);
+    buf_sz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
 
     resultObj = ObjNewList(200, NULL);
     resume_handle = 0;
@@ -396,10 +400,10 @@ int Twapi_EnumDependentServices(
     DWORD i;
     TCL_RESULT status = TCL_ERROR;
     Tcl_Obj *resultObj;
+    MemLifoSize len;
 
-
-    sbuf = MemLifoPushFrame(ticP->memlifoP, 4000, &buf_sz);
-
+    sbuf = MemLifoPushFrame(ticP->memlifoP, 4000, &len);
+    buf_sz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     do {
         success = EnumDependentServicesW(hService,
                                          dwServiceState,
@@ -461,14 +465,14 @@ static TCL_RESULT ParseSERVICE_FAILURE_ACTIONS(
     Tcl_Interp *interp = ticP->interp;
     Tcl_Obj **objs;
     Tcl_Obj *actionsObj;
-    int i, nobjs;
+    Tcl_Size i, nobjs;
     TCL_RESULT res;
 
     res = ObjGetElements(interp, sfaObj, &nobjs, &objs);
     if (res != TCL_OK)
         return res;
     res = TwapiGetArgsEx(ticP, nobjs, objs,
-                         GETINT(sfaP->dwResetPeriod),
+                         GETDWORD(sfaP->dwResetPeriod),
                          GETTOKENNULL(sfaP->lpRebootMsg),
                          GETTOKENNULL(sfaP->lpCommand),
                          ARGUSEDEFAULT,
@@ -486,8 +490,8 @@ static TCL_RESULT ParseSERVICE_FAILURE_ACTIONS(
     res = ObjGetElements(interp, actionsObj, &nobjs, &objs);
     if (res != TCL_OK)
         return res;
-
-    sfaP->cActions = nobjs;
+    CHECK_DWORD(interp, nobjs);
+    sfaP->cActions = (DWORD)nobjs;
     sfaP->lpsaActions = MemLifoAlloc(ticP->memlifoP,
                                      (nobjs ? nobjs : 1) * sizeof(SC_ACTION),
                                      NULL);
@@ -500,7 +504,7 @@ static TCL_RESULT ParseSERVICE_FAILURE_ACTIONS(
 
     for (i = 0; i < nobjs; ++i) {
         Tcl_Obj **fields;
-        int nfields;
+        Tcl_Size nfields;
         int sc_type;
 
         res = ObjGetElements(interp, objs[i], &nfields, &fields);
@@ -535,7 +539,7 @@ static TCL_RESULT Twapi_ChangeServiceConfig2(TwapiInterpContext *ticP, int objc,
 
     mark = MemLifoPushMark(ticP->memlifoP);
     res = TwapiGetArgsEx(ticP, objc, objv,
-                         GETHANDLET(h, SC_HANDLE), GETINT(info_level),
+                         GETHANDLET(h, SC_HANDLE), GETDWORD(info_level),
                          GETOBJ(infoObj), ARGEND);
     if (res != TCL_OK)
         goto vamoose;
@@ -580,7 +584,7 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
     LPWSTR dependencies = NULL;
     TCL_RESULT res;
     LPWSTR path, logrp, start_name, password, display_name;
-    int password_len;
+    Tcl_Size password_len;
     Tcl_Interp *interp = ticP->interp;
     MemLifoMarkHandle mark;
     Tcl_Obj *tagObj, *depObj, *passwordObj;
@@ -589,8 +593,8 @@ int Twapi_ChangeServiceConfig(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST
 
     res = TwapiGetArgsEx(ticP, objc, objv,
                          GETHANDLET(h, SC_HANDLE),
-                         GETINT(service_type), GETINT(start_type),
-                         GETINT(error_control), GETTOKENNULL(path),
+                         GETDWORD(service_type), GETDWORD(start_type),
+                         GETDWORD(error_control), GETTOKENNULL(path),
                          GETTOKENNULL(logrp), GETOBJ(tagObj), GETOBJ(depObj),
                          GETTOKENNULL(start_name),
                          GETOBJ(passwordObj), GETTOKENNULL(display_name),
@@ -653,7 +657,8 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
     DWORD tag_id;
     DWORD *tag_idP;
     LPWSTR dependencies;
-    int res, password_len;
+    int res;
+    Tcl_Size password_len;
     LPWSTR service_name, display_name, path, logrp;
     LPWSTR service_start_name, password;
     Tcl_Interp *interp = ticP->interp;
@@ -666,8 +671,8 @@ Twapi_CreateService(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[]) {
     res = TwapiGetArgsEx(ticP, objc, objv,
                          GETHANDLET(scmH, SC_HANDLE),
                          GETWSTR(service_name), GETWSTR(display_name),
-                         GETINT(access), GETINT(service_type),
-                         GETINT(start_type), GETINT(error_control),
+                         GETDWORD(access), GETDWORD(service_type),
+                         GETDWORD(start_type), GETDWORD(error_control),
                          GETWSTR(path), GETWSTR(logrp),
                          GETOBJ(tagObj), GETOBJ(depObj),
                          GETEMPTYASNULL(service_start_name),
@@ -722,7 +727,7 @@ int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     SC_HANDLE svcH;
     LPCWSTR args[64];
     Tcl_Obj **argObjs;
-    int     i, nargs;
+    Tcl_Size  i, nargs;
 
     if (objc != 2) {
         return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
@@ -733,7 +738,6 @@ int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     if (ObjGetElements(interp, objv[1], &nargs, &argObjs) == TCL_ERROR)
         return TCL_ERROR;
-
     if (nargs > ARRAYSIZE(args)) {
         ObjSetStaticResult(interp, "Exceeded limit on number of service arguments.");
         return TCL_ERROR;
@@ -742,7 +746,7 @@ int Twapi_StartService(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     for (i = 0; i < nargs; i++) {
         args[i] = ObjToWinChars(argObjs[i]);
     }
-    if (StartServiceW(svcH, nargs, args))
+    if (StartServiceW(svcH, (DWORD)nargs, args))
         return TCL_OK;
     else
         return TwapiReturnSystemError(interp);
@@ -818,7 +822,7 @@ static int Twapi_ServiceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     } else if (func < 200) {
         /* Expect a handle and a int */
         if (TwapiGetArgs(interp, objc-2, objv+2,
-                         GETHANDLE(h), GETINT(dw), ARGEND) != TCL_OK)
+                         GETHANDLE(h), GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {
         case 101:
@@ -838,7 +842,7 @@ static int Twapi_ServiceCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         /* Handle, string, int */
         if (TwapiGetArgs(interp, objc-2, objv+2,
                          GETHANDLE(h), GETOBJ(sObj), ARGUSEDEFAULT,
-                         GETINT(dw), ARGEND) != TCL_OK)
+                         GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
         s = ObjToWinChars(sObj);
         switch (func) {

@@ -1,0 +1,338 @@
+#------------------------------------------------------------- -*- makefile -*-
+#
+# Nmake makefile for building cffi.
+#
+# Basic build, test and install using libffi
+#   nmake /s /nologo /f makefile.vc INSTALLDIR=c:\path\to\tcl EXTDIR=c:\path\to\libffi
+# Basic build, test and install using dyncall
+#   nmake /s /nologo /f makefile.vc OPTS=dyncall INSTALLDIR=c:\path\to\tcl EXTDIR=c:\path\to\dyncall
+#
+# The EXTDIR directory should contain "include" and "lib" directories for
+# dyncall/libffi depending on the library being used. If undefined, it will default
+# to ../external-libs/win/$(BUILDDIRTOP) where BUILDDIRTOP is defined by rules-ext.vc
+# above based on architecture, compiler version and build mode (debug/release).
+# See the BUILD.md in top level directory for building dyncall and libffi itself.
+#
+# To test and install,
+#   nmake /s /nologo /f makefile.vc INSTALLDIR=c:\path\to\tcl test
+#   nmake /s /nologo /f makefile.vc INSTALLDIR=c:\path\to\tcl install
+#
+# For other build options (debug, static etc.)
+# See TIP 477 (https://core.tcl.tk/tips/doc/trunk/tip/477.md) for
+# detailed documentation.
+#
+# See the file "license.terms" for information on usage and redistribution
+# of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+#
+#------------------------------------------------------------------------------
+# The name of the package
+PROJECT = twapi
+DOTVERSION = 5.0a0
+
+MULTIPLATFORM_INSTALL = 1
+LIBDIR = $(ROOT)\tcl
+
+!include "rules-ext.vc"
+
+!message $(ROOT)
+DYNCALLDIR=$(ROOT)\..\dyncall\dyncall-0.9
+
+# Override shared library installation directory
+!if "$(ARCH)" == "AMD64"
+DLLSUBDIR = win32-x86_64
+DYNCALLLIBDIR = $(DYNCALLDIR)\lib\release_amd64
+!else
+DLLSUBDIR = win32-ix86
+DYNCALLLIBDIR = $(DYNCALLDIR)\lib\release_x86
+!endif
+BIN_INSTALL_DIR = $(SCRIPT_INSTALL_DIR)\$(DLLSUBDIR)
+
+# Define the object files and resource file that make up the extension.
+PRJ_OBJS = $(PRJ_OBJS) \
+	    $(TMP_DIR)\adsi.obj \
+	    $(TMP_DIR)\async.obj \
+	    $(TMP_DIR)\calls.obj \
+	    $(TMP_DIR)\errors.obj \
+	    $(TMP_DIR)\ffi.obj \
+	    $(TMP_DIR)\keylist.obj \
+	    $(TMP_DIR)\lzmadec.obj \
+	    $(TMP_DIR)\lzmainterface.obj \
+	    $(TMP_DIR)\memlifo.obj \
+	    $(TMP_DIR)\mycrt.obj \
+	    $(TMP_DIR)\parseargs.obj \
+	    $(TMP_DIR)\printer.obj \
+	    $(TMP_DIR)\recordarray.obj \
+	    $(TMP_DIR)\tclobjs.obj \
+	    $(TMP_DIR)\threadpool.obj \
+	    $(TMP_DIR)\trap.obj \
+	    $(TMP_DIR)\twapi.obj \
+	    $(TMP_DIR)\twine.obj \
+	    $(TMP_DIR)\util.obj \
+	    $(TMP_DIR)\win.obj \
+	    $(TMP_DIR)\winchars.obj \
+	    $(TMP_DIR)\account.obj \
+	    $(TMP_DIR)\apputil.obj \
+	    $(TMP_DIR)\clipboard.obj \
+	    $(TMP_DIR)\console.obj \
+	    $(TMP_DIR)\com.obj \
+	    $(TMP_DIR)\comserver.obj \
+	    $(TMP_DIR)\crypto.obj \
+	    $(TMP_DIR)\pbkdf2.obj \
+	    $(TMP_DIR)\sspi.obj \
+	    $(TMP_DIR)\device.obj \
+	    $(TMP_DIR)\etw.obj \
+	    $(TMP_DIR)\eventlog.obj \
+	    $(TMP_DIR)\evt.obj \
+	    $(TMP_DIR)\input.obj \
+	    $(TMP_DIR)\mstask.obj \
+	    $(TMP_DIR)\multimedia.obj \
+	    $(TMP_DIR)\namedpipe.obj \
+	    $(TMP_DIR)\network.obj \
+	    $(TMP_DIR)\nls.obj \
+	    $(TMP_DIR)\os.obj \
+	    $(TMP_DIR)\pdh.obj \
+	    $(TMP_DIR)\process.obj \
+	    $(TMP_DIR)\rds.obj \
+	    $(TMP_DIR)\registry.obj \
+	    $(TMP_DIR)\resource.obj \
+	    $(TMP_DIR)\security.obj \
+	    $(TMP_DIR)\service.obj \
+	    $(TMP_DIR)\scm.obj \
+	    $(TMP_DIR)\share.obj \
+	    $(TMP_DIR)\shell.obj \
+	    $(TMP_DIR)\storage.obj \
+	    $(TMP_DIR)\dirmonitor.obj \
+	    $(TMP_DIR)\ui.obj \
+	    $(TMP_DIR)\gdi.obj \
+	    $(TMP_DIR)\winsta.obj \
+	    $(TMP_DIR)\wmi.obj
+
+
+HEADERS = \
+	$(ROOT)\include\twapi.h
+
+PRJ_INCLUDES = -I $(ROOT)\include -I $(DYNCALLDIR)\include
+
+# Windows defines
+PRJ_DEFINES = -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0601 -DWINVER=0x0601 -D_UNICODE -DUNICODE
+
+# Tcl defines
+PRJ_DEFINES = $(PRJ_DEFINES) -DTCL_NO_DEPRECATED
+
+# TWAPI defines
+PRJ_DEFINES = $(PRJ_DEFINES) -DTWAPI_SINGLE_MODULE
+
+PRJ_LIBS = $(DYNCALLLIBDIR)\libdyncall_s.lib $(DYNCALLLIBDIR)\libdynload_s.lib $(DYNCALLLIBDIR)\libdyncallback_s.lib
+
+!if (($(TCL_MAJOR_VERSION) > 8) || (($(TCL_MAJOR_VERSION) == 8) && ($(TCL_MINOR_VERSION) >= 7)))
+PRJ_LIBS = $(PRJ_LIBS) $(INSTALLDIR)\lib\tommath.lib
+!endif
+
+PRJ_LIBS = $(PRJ_LIBS) \
+	advapi32.lib \
+	cfgmgr32.lib \
+	credui.lib \
+	crypt32.lib \
+	gdi32.lib \
+	iphlpapi.lib \
+	kernel32.lib \
+	mpr.lib \
+	netapi32.lib \
+	ole32.lib \
+	oleaut32.lib \
+	pdh.lib \
+	powrprof.lib \
+	psapi.lib \
+	rpcrt4.lib \
+	secur32.lib \
+	setupapi.lib \
+	shell32.lib \
+	shlwapi.lib \
+	user32.lib \
+	userenv.lib \
+	uxtheme.lib \
+	version.lib \
+	winmm.lib \
+	winspool.lib \
+	wintrust.lib \
+	ws2_32.lib \
+	wtsapi32.lib
+
+# Define the standard targets
+# We do not use the standard predefined install targets because we want
+# to load binaries from platform-specific subdirectories of the package
+# directory.
+DISABLE_TARGET_install = 1
+!include "$(_RULESDIR)\targets.vc"
+
+pkgindex:
+	@nmakehlp -s << $(ROOT)\..\pkgIndex.tcl.in > $(OUT_DIR)\pkgIndex.tcl
+@PACKAGE_VERSION@    $(DOTVERSION)
+@PACKAGE_NAME@       $(PRJ_PACKAGE_TCLNAME)
+@PACKAGE_TCLNAME@    $(PRJ_PACKAGE_TCLNAME)
+@PKG_LIB_FILE@       $(PRJLIBNAME)
+@PKG_LIB_FILE8@      $(PRJLIBNAME8)
+@PKG_LIB_FILE9@      $(PRJLIBNAME9)
+<<
+
+install: pkgindex $(PRJLIB) default-install-docs-html default-install-scripts
+	@echo Installing to '$(SCRIPT_INSTALL_DIR)'
+	@if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
+	@if not exist "$(BIN_INSTALL_DIR)" mkdir "$(BIN_INSTALL_DIR)"
+	@$(CPY) $(PRJLIB) "$(BIN_INSTALL_DIR)" >NUL
+	@$(CPY) $(LIBDIR)\*.tcl "$(SCRIPT_INSTALL_DIR)"
+	@$(CPY) $(OUT_DIR)\pkgIndex.tcl "$(SCRIPT_INSTALL_DIR)"
+	@$(CPY) $(ROOT)\LICENSE "$(SCRIPT_INSTALL_DIR)"
+	@$(CPY) $(ROOT)\license.terms "$(SCRIPT_INSTALL_DIR)"
+
+$(PRJ_OBJS): $(HEADERS) $(ROOT)\..\configure.ac
+
+{$(ROOT)\base}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\account}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\apputil}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\clipboard}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\console}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\com}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\crypto}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\device}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\etw}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\eventlog}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\input}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\mstask}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\multimedia}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\namedpipe}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\network}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\nls}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\os}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\pdh}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\process}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\rds}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\registry}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\resource}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\security}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\service}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\share}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\shell}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\storage}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\ui}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\winsta}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<
+
+{$(ROOT)\wmi}.c{$(TMP_DIR)}.obj::
+	$(CCPKGCMD) @<<
+$<
+<<

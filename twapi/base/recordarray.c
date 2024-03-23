@@ -15,7 +15,7 @@ int Twapi_RecordArrayHelperObjCmd(
     Tcl_Obj *CONST objv[])
 {
     TwapiInterpContext *ticP = (TwapiInterpContext *) clientData;
-    int i, j;
+    Tcl_Size i, j;
     Tcl_Obj **raObj;
     static const char *opts[] = {
         "-format",              /* FORMAT */
@@ -44,11 +44,11 @@ int Twapi_RecordArrayHelperObjCmd(
     Tcl_Obj **filterElems = NULL;
     Tcl_Obj *recsObj = NULL;     /* Dup of records passed in */
     Tcl_Obj **recs;              /* Contents of recsObj */
-    int      nrecs;              /* Number records */
+    Tcl_Size nrecs;              /* Number records */
     Tcl_Obj *fieldsObj = NULL;   /* Dup of record definition passed in */
     Tcl_Obj **fields;            /* Contents of recsObj */
-    int      nfields;            /* Number of fields in record */
-    int keyfield_pos;            /* Position of the key field */
+    Tcl_Size  nfields;            /* Number of fields in record */
+    int       keyfield_pos;            /* Position of the key field */
     int first = 0;               /* If true, only first match returned */
     struct {
         union {
@@ -61,7 +61,7 @@ int Twapi_RecordArrayHelperObjCmd(
         int nocase;
         int negate;
     } *filters = NULL;
-    int nfilters;
+    Tcl_Size nfilters;
     TCL_RESULT res;
 
     Tcl_Obj *new_rec[2];        /* 2 because we may need one for the key */
@@ -70,7 +70,7 @@ int Twapi_RecordArrayHelperObjCmd(
 
     Tcl_Obj **slice_fields = NULL;   /* Names of the fields to retrieve */
     int       *slice_fieldindices = NULL; /* Positions of the fields to retrieve */
-    int      nslice_fields;   /* Count of above */
+    Tcl_Size   nslice_fields;   /* Count of above */
     Tcl_Obj  **slice_values = NULL;
     Tcl_Obj  *newfieldsObj = NULL;
 
@@ -361,7 +361,7 @@ int Twapi_RecordArrayHelperObjCmd(
                records to be picked up.
             */
             Tcl_Obj **values;
-            int nvalues;
+            Tcl_Size nvalues;
             res = ObjGetElements(interp, recs[i], &nvalues, &values);
             if (res != TCL_OK)
                 break;
@@ -464,7 +464,8 @@ static TCL_RESULT RecordInstanceObjCmd(
     Tcl_Obj **fields;
     Tcl_Obj *objP;
     int field_index;
-    int i, j, cmd;
+    int cmd;
+    Tcl_Size i, j;
     static const char *cmds[] = {
         "get",
         "set",
@@ -570,7 +571,7 @@ TCL_RESULT Twapi_RecordObjCmd(
     int objc,
     Tcl_Obj *CONST objv[])
 {
-    int len;
+    Tcl_Size len;
     TCL_RESULT res;
     Tcl_Obj *nameObj, *fieldsObj;
     Tcl_Namespace *nsP;

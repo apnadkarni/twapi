@@ -34,11 +34,11 @@ int Twapi_GetNumberFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST obj
     Tcl_Obj *number_stringObj, *decimal_sepObj, *thousand_sepObj;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
-                     GETINT(opts), GETINT(loc), GETINT(flags),
-                     GETOBJ(number_stringObj), GETINT(ndigits),
-                     GETINT(leading_zero),
-                     GETINT(grouping), GETOBJ(decimal_sepObj),
-                     GETOBJ(thousand_sepObj), GETINT(negative_order),
+                     GETDWORD(opts), GETDWORD(loc), GETDWORD(flags),
+                     GETOBJ(number_stringObj), GETUINT(ndigits),
+                     GETUINT(leading_zero),
+                     GETUINT(grouping), GETOBJ(decimal_sepObj),
+                     GETOBJ(thousand_sepObj), GETUINT(negative_order),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -96,12 +96,12 @@ int Twapi_GetCurrencyFormat(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST o
     Tcl_Obj *number_stringObj, *decimal_sepObj, *thousand_sepObj, *currency_symObj;
 
     if (TwapiGetArgs(ticP->interp, objc, objv,
-                     GETINT(opts), GETINT(loc), GETINT(flags),
-                     GETOBJ(number_stringObj), GETINT(ndigits),
-                     GETINT(leading_zero),
-                     GETINT(grouping), GETOBJ(decimal_sepObj),
-                     GETOBJ(thousand_sepObj), GETINT(negative_order),
-                     GETINT(positive_order), GETOBJ(currency_symObj),
+                     GETDWORD(opts), GETDWORD(loc), GETDWORD(flags),
+                     GETOBJ(number_stringObj), GETUINT(ndigits),
+                     GETUINT(leading_zero),
+                     GETUINT(grouping), GETOBJ(decimal_sepObj),
+                     GETOBJ(thousand_sepObj), GETUINT(negative_order),
+                     GETUINT(positive_order), GETOBJ(currency_symObj),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 

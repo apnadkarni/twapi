@@ -1,0 +1,44 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "debug",
+            "type": "shell",
+            "command": "twapi\\win\\build.bat INSTALLDIR=D:\\tcl\\90\\x64-debug cdebug=\"-Zi -Od -DTCLH_ASSERT_LEVEL=1\" OPTS=pdbs",
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "group": "build"
+        },
+        {
+            "label": "debug-install",
+            "type": "shell",
+            "command": "twapi\\win\\build.bat INSTALLDIR=D:\\tcl\\90\\x64-debug cdebug=\"-Zi -Od\" OPTS=pdbs install",
+            "problemMatcher": [
+                "$msCompile"
+            ],
+            "group": "build"
+        },
+        {
+            "label": "clean",
+            "type": "shell",
+            "command": "twapi\\win\\build.bat INSTALLDIR=D:\\tcl\\90\\x64-debug clean",
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "type": "shell",
+            "label": "mingw64",
+            "command": "${workspaceFolder}\\buildmingw64.bat",
+            "options": {
+                "cwd": "${workspaceFolder}\\build\\mingw-x64-tcl90"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": "build",
+        }
+    ]
+}
