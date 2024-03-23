@@ -29,6 +29,9 @@
 PROJECT = twapi
 DOTVERSION = 5.0a0
 
+MULTIPLATFORM_INSTALL = 1
+LIBDIR = $(ROOT)\tcl
+
 !include "rules-ext.vc"
 
 !message $(ROOT)
@@ -42,6 +45,7 @@ DYNCALLLIBDIR = $(DYNCALLDIR)\lib\release_amd64
 DLLSUBDIR = win32-ix86
 DYNCALLLIBDIR = $(DYNCALLDIR)\lib\release_x86
 !endif
+BIN_INSTALL_DIR = $(SCRIPT_INSTALL_DIR)\$(DLLSUBDIR)
 
 # Define the object files and resource file that make up the extension.
 PRJ_OBJS = $(PRJ_OBJS) \
@@ -161,18 +165,27 @@ PRJ_LIBS = $(PRJ_LIBS) \
 DISABLE_TARGET_install = 1
 !include "$(_RULESDIR)\targets.vc"
 
-pkgindex: default-pkgindex-tea
+pkgindex:
+	@nmakehlp -s << $(ROOT)\..\pkgIndex.tcl.in > $(OUT_DIR)\pkgIndex.tcl
+@PACKAGE_VERSION@    $(DOTVERSION)
+@PACKAGE_NAME@       $(PRJ_PACKAGE_TCLNAME)
+@PACKAGE_TCLNAME@    $(PRJ_PACKAGE_TCLNAME)
+@PKG_LIB_FILE@       $(PRJLIBNAME)
+@PKG_LIB_FILE8@      $(PRJLIBNAME8)
+@PKG_LIB_FILE9@      $(PRJLIBNAME9)
+<<
 
-# The default install target only installs binaries and scripts so add
-# an additional target for our documentation. Note this *adds* a target
-# since no commands are listed after it. The original targets for
-# install (from targets.vc) will remain.
-# install: $(PRJLIB) default-install-docs-html default-install-scripts
-# 	@echo Installing binaries to '$(LIB_INSTALL_DIR)\$(DLLSUBDIR)'
-# 	@if not exist "$(LIB_INSTALL_DIR)\$(DLLSUBDIR)" mkdir "$(LIB_INSTALL_DIR)\$(DLLSUBDIR)"
-# 	@$(CPY) $(PRJLIB) "$(LIB_INSTALL_DIR)\$(DLLSUBDIR)" >NUL
+install: pkgindex $(PRJLIB) default-install-docs-html default-install-scripts
+	@echo Installing to '$(SCRIPT_INSTALL_DIR)'
+	@if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
+	@if not exist "$(BIN_INSTALL_DIR)" mkdir "$(BIN_INSTALL_DIR)"
+	@$(CPY) $(PRJLIB) "$(BIN_INSTALL_DIR)" >NUL
+	@$(CPY) $(LIBDIR)\*.tcl "$(SCRIPT_INSTALL_DIR)"
+	@$(CPY) $(OUT_DIR)\pkgIndex.tcl "$(SCRIPT_INSTALL_DIR)"
+	@$(CPY) $(ROOT)\LICENSE "$(SCRIPT_INSTALL_DIR)"
+	@$(CPY) $(ROOT)\license.terms "$(SCRIPT_INSTALL_DIR)"
 
-# TBD $(PRJ_OBJS): $(HEADERS) $(ROOT)\configure.ac
+$(PRJ_OBJS): $(HEADERS) $(ROOT)\..\configure.ac
 
 {$(ROOT)\base}.c{$(TMP_DIR)}.obj::
 	$(CCPKGCMD) @<<
