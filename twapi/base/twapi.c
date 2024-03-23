@@ -19,35 +19,41 @@
 #define MODULEVERSION PACKAGE_VERSION
 #endif
 
-Tcl_LibraryInitProc Twapi_account_Init;
-Tcl_LibraryInitProc Twapi_apputil_Init;
-Tcl_LibraryInitProc Twapi_clipboard_Init;
-Tcl_LibraryInitProc Twapi_com_Init;
-Tcl_LibraryInitProc Twapi_console_Init;
-Tcl_LibraryInitProc Twapi_crypto_Init;
-Tcl_LibraryInitProc Twapi_device_Init;
-Tcl_LibraryInitProc Twapi_etw_Init;
-Tcl_LibraryInitProc Twapi_eventlog_Init;
-Tcl_LibraryInitProc Twapi_input_Init;
-Tcl_LibraryInitProc Twapi_mstask_Init;
-Tcl_LibraryInitProc Twapi_multimedia_Init;
-Tcl_LibraryInitProc Twapi_namedpipe_Init;
-Tcl_LibraryInitProc Twapi_network_Init;
-Tcl_LibraryInitProc Twapi_nls_Init;
-Tcl_LibraryInitProc Twapi_os_Init;
-Tcl_LibraryInitProc Twapi_pdh_Init;
-Tcl_LibraryInitProc Twapi_process_Init;
-Tcl_LibraryInitProc Twapi_rds_Init;
-Tcl_LibraryInitProc Twapi_resource_Init;
-Tcl_LibraryInitProc Twapi_registry_Init;
-Tcl_LibraryInitProc Twapi_security_Init;
-Tcl_LibraryInitProc Twapi_service_Init;
-Tcl_LibraryInitProc Twapi_share_Init;
-Tcl_LibraryInitProc Twapi_shell_Init;
-Tcl_LibraryInitProc Twapi_storage_Init;
-Tcl_LibraryInitProc Twapi_ui_Init;
-Tcl_LibraryInitProc Twapi_winsta_Init;
-Tcl_LibraryInitProc Twapi_wmi_Init;
+#if TCL_MAJOR_VERSION > 8
+typedef Tcl_LibraryInitProc TwapiModuleInitProc;
+#else
+typedef Tcl_PackageInitProc TwapiModuleInitProc;
+#endif
+
+TwapiModuleInitProc Twapi_account_Init;
+TwapiModuleInitProc Twapi_apputil_Init;
+TwapiModuleInitProc Twapi_clipboard_Init;
+TwapiModuleInitProc Twapi_com_Init;
+TwapiModuleInitProc Twapi_console_Init;
+TwapiModuleInitProc Twapi_crypto_Init;
+TwapiModuleInitProc Twapi_device_Init;
+TwapiModuleInitProc Twapi_etw_Init;
+TwapiModuleInitProc Twapi_eventlog_Init;
+TwapiModuleInitProc Twapi_input_Init;
+TwapiModuleInitProc Twapi_mstask_Init;
+TwapiModuleInitProc Twapi_multimedia_Init;
+TwapiModuleInitProc Twapi_namedpipe_Init;
+TwapiModuleInitProc Twapi_network_Init;
+TwapiModuleInitProc Twapi_nls_Init;
+TwapiModuleInitProc Twapi_os_Init;
+TwapiModuleInitProc Twapi_pdh_Init;
+TwapiModuleInitProc Twapi_process_Init;
+TwapiModuleInitProc Twapi_rds_Init;
+TwapiModuleInitProc Twapi_resource_Init;
+TwapiModuleInitProc Twapi_registry_Init;
+TwapiModuleInitProc Twapi_security_Init;
+TwapiModuleInitProc Twapi_service_Init;
+TwapiModuleInitProc Twapi_share_Init;
+TwapiModuleInitProc Twapi_shell_Init;
+TwapiModuleInitProc Twapi_storage_Init;
+TwapiModuleInitProc Twapi_ui_Init;
+TwapiModuleInitProc Twapi_winsta_Init;
+TwapiModuleInitProc Twapi_wmi_Init;
 
 /*
  * Struct to keep track of registered pointers.

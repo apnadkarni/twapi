@@ -810,6 +810,8 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         Tcl_WideInt wide;
 #if TCL_MAJOR_VERSION > 8
         Tcl_WideUInt uwide;
+#else
+        ULONGLONG uwide;
 #endif
         SECURITY_DESCRIPTOR *secdP;
         ACL *aclP;
@@ -882,7 +884,11 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         break;
 
     case 1005: // hex64
+#if TCL_MAJOR_VERSION > 8
         CHECK_RESULT(ObjToBits64(interp, objv[0], (Tcl_WideInt *)&u.uwide));
+#else
+        CHECK_RESULT(Tcl_GetWideIntFromObj(interp, objv[0], (Tcl_WideInt *)&u.uwide));
+#endif
         result.type = TRT_OBJ;
         result.value.obj = ObjFromULONGLONGHex(u.uwide);
         break;

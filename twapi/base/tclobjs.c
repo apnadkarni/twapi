@@ -854,7 +854,7 @@ Tcl_Obj *TwapiAppendObjArray(Tcl_Obj *resultObj, Tcl_Size objc, Tcl_Obj **objv,
     Tcl_Size i;
     Tcl_Size len;
     char *s;
-    Tcl_Size joinlen = strlen(joiner);
+    Tcl_Size joinlen = (Tcl_Size) strlen(joiner);
 
     for (i = 0;  i < objc;  ++i) {
         s = ObjToStringN(objv[i], &len);
@@ -4552,7 +4552,7 @@ ObjToWideUInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideUInt *ullP)
     int ret;
     Tcl_WideInt wide;
 
-    TCLH_ASSERT(sizeof(unsigned long long) == sizeof(Tcl_WideInt));
+    TWAPI_ASSERT(sizeof(unsigned long long) == sizeof(Tcl_WideInt));
 
     /* Tcl_GetWideInt will happily return overflows as negative numbers */
     ret = Tcl_GetWideIntFromObj(interp, objP, &wide);
@@ -4576,8 +4576,9 @@ ObjToWideUInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideUInt *ullP)
 
     if (objP->typePtr == gTclTypes[TWAPI_TCLTYPE_INT].typeptr ||
         objP->typePtr == gTclTypes[TWAPI_TCLTYPE_WIDEINT].typeptr ||
-        objP->typePtr == gTclBooleanType ||
-        objP->typePtr == gTclDoubleType) {
+        objP->typePtr == gTclTypes[TWAPI_TCLTYPE_BOOLEAN].typeptr ||
+        objP->typePtr == gTclTypes[TWAPI_TCLTYPE_BOOLEANSTRING].typeptr ||
+        objP->typePtr == gTclTypes[TWAPI_TCLTYPE_DOUBLE].typeptr ) {
         /* No need for an overflow check (1) but still need to check (2) */
         if (wide < 0)
             goto negative_error;
@@ -4606,10 +4607,7 @@ ObjToWideUInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideUInt *ullP)
     return ret;
 
 negative_error:
-    return TclhRecordError(
-        interp,
-        "RANGE",
-        Tcl_NewStringObj("Negative values are not in range for unsigned types.", -1));
+    return TwapiReturnErrorMsg(interp, TWAPI_OUT_OF_RANGE, "Value is negative.");
 #endif
 }
 

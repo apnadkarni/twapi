@@ -63,7 +63,7 @@ static void *MemLifoDefaultAlloc(MemLifoSize sz, HANDLE heap, MemLifoSize *actua
 {
     void *p = HeapAlloc(heap, 0, sz);
     if (actual)
-        *actual = HeapSize(heap, 0, p);
+        *actual = (MemLifoSize)HeapSize(heap, 0, p);
     return p;
 }
 
@@ -96,7 +96,7 @@ int MemLifoInit(
         MEMLIFO_ASSERT(freeFunc);	/* If allocFunc was not 0, freeFunc
 					   should not be either */
     }
-	
+
     if (chunk_sz < 1000)
         chunk_sz = 1000;
 
@@ -123,7 +123,7 @@ int MemLifoInit(
 
     m->lm_magic = MEMLIFO_MARK_MAGIC;
     m->lm_seq = 1;
-    
+
     m->lm_freeptr = ALIGNPTR(m, sizeof(*m), void*);
     m->lm_lifo = l;
     m->lm_prev = m;/* Point back to itself. Effectively will never be popped */
