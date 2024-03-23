@@ -23,7 +23,7 @@ static TwapiInterpContext * volatile console_control_ticP;
 static int ObjToCHAR_INFO(Tcl_Interp *interp, Tcl_Obj *obj, CHAR_INFO *ciP)
 {
     Tcl_Obj **objv;
-    int       objc;
+    Tcl_Size objc;
     int i;
 
     if (ObjGetElements(interp, obj, &objc, &objv) != TCL_OK ||
@@ -40,7 +40,8 @@ static int ObjToCHAR_INFO(Tcl_Interp *interp, Tcl_Obj *obj, CHAR_INFO *ciP)
 
 static int ObjToCOORD(Tcl_Interp *interp, Tcl_Obj *coordObj, COORD *coordP)
 {
-    int objc, x, y;
+    int x, y;
+    Tcl_Size  objc;
     Tcl_Obj **objv;
     if (ObjGetElements(interp, coordObj, &objc, &objv) != TCL_OK)
         return TCL_ERROR;
@@ -78,7 +79,7 @@ static Tcl_Obj *ObjFromCOORD(const COORD *coordP)
 static int ObjToSMALL_RECT(Tcl_Interp *interp, Tcl_Obj *obj, SMALL_RECT *rectP)
 {
     Tcl_Obj **objv;
-    int       objc;
+    Tcl_Size  objc;
     int l, t, r, b;
 
     if (ObjGetElements(interp, obj, &objc, &objv) == TCL_ERROR) {
@@ -347,6 +348,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     COORD coord;
     CHAR_INFO chinfo;
     DWORD dw, dw2, dw3;
+    int ival;
     SECURITY_ATTRIBUTES *secattrP;
     HANDLE h;
     WORD w;
@@ -355,8 +357,8 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
     Tcl_Obj *sObj;
     LPWSTR s;
     SWSMark mark = NULL;
-    int i;
-    
+    Tcl_Size len;
+
     --objc;
     ++objv;
 
@@ -479,15 +481,15 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         switch (func) {
         case 1001: // SetConsoleWindowInfo
             if (TwapiGetArgs(interp, objc, objv,
-                             GETHANDLE(h), GETBOOL(dw), GETVAR(u.srect[0], ObjToSMALL_RECT),
+                             GETHANDLE(h), GETBOOL(ival), GETVAR(u.srect[0], ObjToSMALL_RECT),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_EXCEPTION_ON_FALSE;
-            result.value.ival = SetConsoleWindowInfo(h, dw, &u.srect[0]);
+            result.value.ival = SetConsoleWindowInfo(h, ival, &u.srect[0]);
             break;
         case 1002: // FillConsoleOutputAttribute
             if (TwapiGetArgs(interp, objc, objv,
-                             GETHANDLE(h), GETWORD(w), GETINT(dw),
+                             GETHANDLE(h), GETWORD(w), GETDWORD(dw),
                              GETVAR(coord, ObjToCOORD),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
@@ -517,9 +519,10 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
                              GETVAR(coord, ObjToCOORD),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
-            s = ObjToWinCharsN(sObj, &i);
+            s = ObjToWinCharsN(sObj, &len);
+            CHECK_DWORD(interp, len);
             if (WriteConsoleOutputCharacterW(h, s,
-                                             i, coord, &result.value.uval))
+                                             (DWORD)len, coord, &result.value.uval))
                 result.type = TRT_DWORD;
             else
                 result.type = TRT_GETLASTERROR;    
@@ -538,10 +541,10 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         case 1007: // CreateConsoleScreenBuffer
             mark = SWSPushMark();
             if (TwapiGetArgs(interp, objc, objv,
-                             GETINT(dw),
-                             GETINT(dw2),
+                             GETDWORD(dw),
+                             GETDWORD(dw2),
                              GETVAR(secattrP, ObjToPSECURITY_ATTRIBUTESSWS),
-                             GETINT(dw3),
+                             GETDWORD(dw3),
                              ARGEND) != TCL_OK)
                 return TCL_ERROR;
             result.type = TRT_HANDLE;
@@ -555,7 +558,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         case 1010:
         case 1011:
             if (TwapiGetArgs(interp, objc, objv,
-                             GETHANDLE(h), GETINT(dw), ARGEND) != TCL_OK)
+                             GETHANDLE(h), GETDWORD(dw), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             if (func == 1011)
                 return Twapi_ReadConsole(interp, h, dw);
@@ -566,7 +569,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         case 1012:
             if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETOBJ(sObj),
-                             ARGUSEDEFAULT, GETINT(dw), ARGEND) != TCL_OK)
+                             ARGUSEDEFAULT, GETDWORD(dw), ARGEND) != TCL_OK)
                 return TCL_ERROR;
             if (WriteConsoleW(h, ObjToWinChars(sObj),
                               dw, &result.value.uval, NULL))
@@ -577,7 +580,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         case 1013:
             if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h), GETOBJ(sObj),
-                             GETINT(dw), ARGSKIP, ARGEND) != TCL_OK)
+                             GETDWORD(dw), ARGSKIP, ARGEND) != TCL_OK)
                 return TCL_ERROR;
             if (ObjToCOORD(interp, objv[3], &coord) != TCL_OK)
                 return TCL_ERROR;
@@ -590,7 +593,7 @@ static int Twapi_ConsoleCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         case 1015:
             if (TwapiGetArgs(interp, objc, objv,
                              GETHANDLE(h),
-                             GETINT(dw), ARGEND) != TCL_OK)
+                             GETDWORD(dw), ARGEND) != TCL_OK)
                 return TCL_ERROR;
 
             mark = SWSPushMark();

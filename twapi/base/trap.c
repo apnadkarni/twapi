@@ -18,7 +18,7 @@ TCL_RESULT Twapi_TrapObjCmd(
     int       i, final;
     Tcl_Obj *errorCodeVar;
     Tcl_Obj **errorCodeObjv;
-    int      errorCodeObjc;
+    Tcl_Size errorCodeObjc;
     char    *facilityP;
     char    *codeP;
     TCL_RESULT result = TCL_ERROR;
@@ -90,7 +90,7 @@ TCL_RESULT Twapi_TrapObjCmd(
     /* Check if any error conditions match */
     for (i = 2; i < (objc-2); i+= 3) {
         Tcl_Obj **codeObjv;
-        int       codeObjc;
+        Tcl_Size  codeObjc;
         int       match;
 
         if (i == final) {
@@ -171,7 +171,7 @@ badargs:
 pop_and_return:
     if (trapstackpushed) {
         Tcl_Obj *objP;
-        int n = 0;
+        Tcl_Size n = 0;
         objP = BASE_CONTEXT(ticP)->trapstack;
         ObjListLength(NULL, objP, &n);
         TWAPI_ASSERT(n >= 2);
@@ -180,7 +180,7 @@ pop_and_return:
             ObjIncrRefs(objP);
             ObjDecrRefs(BASE_CONTEXT(ticP)->trapstack);
             BASE_CONTEXT(ticP)->trapstack = objP;
-        }        
+        }
         Tcl_ListObjReplace(interp, objP, n-2, 2, 0, NULL);
     }
 

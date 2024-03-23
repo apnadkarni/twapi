@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2014, Ashok P. Nadkarni
+ * Copyright (c) 2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -140,8 +140,7 @@ static void TwapiComServerShutdown(Tcl_Interp *interp) {
 static Tcl_Obj *TwapiComServerMemIdToName(Twapi_ComServer *me, DISPID dispid)
 {
     Tcl_Obj **objs;
-    int nobjs;
-    int i;
+    Tcl_Size i, nobjs;
 
     if (ObjGetElements(NULL, me->memids, &nobjs, &objs) != TCL_OK ||
         (nobjs & 1) != 0)
@@ -161,8 +160,7 @@ static Tcl_Obj *TwapiComServerMemIdToName(Twapi_ComServer *me, DISPID dispid)
 static HRESULT TwapiComServerNameToMemId(Twapi_ComServer *me, LPCWSTR name, DISPID *idP)
 {
     Tcl_Obj **objs;
-    int nobjs;
-    int i;
+    Tcl_Size i, nobjs;
 
     if (ObjGetElements(NULL, me->memids, &nobjs, &objs) != TCL_OK ||
         (nobjs & 1) != 0)
@@ -296,11 +294,10 @@ static HRESULT STDMETHODCALLTYPE Twapi_ComServer_Invoke(
     UINT *argErrP)
 {
     Twapi_ComServer *me = (Twapi_ComServer *) this;
-    int     i;
     HRESULT hr;
     Tcl_Obj **cmdobjv = NULL;
     Tcl_Obj **cmdprefixv;
-    int     cmdobjc;
+    Tcl_Size  i, cmdobjc;
     Tcl_InterpState savedState;
     Tcl_Interp *interp;
     Tcl_Obj *memberNameObj;
@@ -347,7 +344,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_ComServer_Invoke(
     if (dispparamsP)
         i += dispparamsP->cArgs;
     cmdobjv = MemLifoPushFrame(me->ticP->memlifoP, i * sizeof(*cmdobjv), NULL);
-    
+
     for (i = 0; i < cmdobjc; ++i) {
         cmdobjv[i] = cmdprefixv[i];
         ObjIncrRefs(cmdobjv[i]);
@@ -374,7 +371,7 @@ static HRESULT STDMETHODCALLTYPE Twapi_ComServer_Invoke(
             ++cmdobjc;
         }
     }
-                 
+
     /* TBD - is this safe as we are being called from the message dispatch
        loop? Or should we queue to pending callback queue ? But in that
        case we cannot get results back as we can't block in this thread
@@ -467,7 +464,7 @@ int Twapi_ComServerObjCmd(
     IID iid;
     HRESULT hr;
     Tcl_Obj **memidObjs;
-    int i, nmemids;
+    Tcl_Size i, nmemids;
 
     TWAPI_ASSERT(ticP->interp == interp);
 
@@ -573,11 +570,10 @@ static HRESULT STDMETHODCALLTYPE Twapi_ClassFactory_CreateInstance (
     LPVOID* ppv)
 {
     Twapi_ClassFactory *me = (Twapi_ClassFactory *)this;
-    int     i;
     HRESULT hr;
     Tcl_Obj **cmdobjv = NULL;
     Tcl_Obj **cmdprefixv;
-    int     cmdobjc;
+    Tcl_Size  i, cmdobjc;
     Tcl_InterpState savedState;
     Tcl_Interp *interp;
 

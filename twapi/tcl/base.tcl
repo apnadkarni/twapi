@@ -803,8 +803,9 @@ proc twapi::lookup_account_name {name args} {
         lappend result -domain $domain
     }
     if {$opts(all) || $opts(type)} {
-        if {[info exists twapi::sid_type_names($type)]} {
-            lappend result -type $twapi::sid_type_names($type)
+        variable sid_type_names
+        if {[info exists sid_type_names($type)]} {
+            lappend result -type $sid_type_names($type)
         } else {
             # Could be the "logonid" dummy type we added above
             lappend result -type $type
@@ -869,8 +870,9 @@ proc twapi::lookup_account_sid {sid args} {
         lappend result -domain $domain
     }
     if {$opts(all) || $opts(type)} {
-        if {[info exists twapi::sid_type_names($type)]} {
-            lappend result -type $twapi::sid_type_names($type)
+        variable sid_type_names
+        if {[info exists sid_type_names($type)]} {
+            lappend result -type $sid_type_names($type)
         } else {
             lappend result -type $type
         }

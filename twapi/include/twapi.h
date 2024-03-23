@@ -2,13 +2,13 @@
 #define TWAPI_H
 
 /*
- * Copyright (c) 2010-2012, Ashok P. Nadkarni
+ * Copyright (c) 2010-2024, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
  */
 
-#if _WIN32_WINNT < 0x0501
+#if _WIN32_WINNT < 0x0601
 #error _WIN32_WINNT too low
 #endif
 
@@ -78,6 +78,16 @@
 #   endif
 #endif
 
+/* TBD - how to define TWAPI_EXTERN */
+#undef TWAPI_EXTERN
+#undef TWAPI_EXTERN_VA
+#undef TWAPI_EXPORT
+#undef TWAPI_IMPORT
+#define TWAPI_EXTERN
+#define TWAPI_EXTERN_VA
+#define TWAPI_EXPORT
+#define TWAPI_IMPORT
+
 /*
  * TWAPI_INLINE should be used for defining inline functions that are
  * used across multiple files. TWAPI_STATIC_INLINE should be used for
@@ -88,10 +98,11 @@
 #  define TWAPI_INLINE __inline  /* Because VC++ 6 only accepts "inline" in C++  */
 #  define TWAPI_STATIC_INLINE static __inline
 # elif __GNUC__ && !__GNUC_STDC_INLINE__
+#  error foo
 #  define TWAPI_INLINE extern inline
 #  define TWAPI_STATIC_INLINE static inline
 # else
-#  define TWAPI_INLINE inline
+#  define TWAPI_INLINE static inline
 #  define TWAPI_STATIC_INLINE static inline
 # endif
 #endif
@@ -139,11 +150,7 @@
 # include <ntsecapi.h>
 #include <wtsapi32.h>
 #include <uxtheme.h>
-#if _MSC_VER <= 1400
-# include <tmschema.h>
-#else
-# include <vssym32.h>
-#endif
+#include <vssym32.h>
 #include <intshcut.h>
 #include <dispex.h>
 #include <ocidl.h>
@@ -160,6 +167,15 @@
 #include <wincred.h>
 
 #include "tcl.h"
+
+#ifndef TCL_SIZE_MAX
+# define Tcl_GetSizeIntFromObj Tcl_GetIntFromObj
+# define TCL_SIZE_MAX      INT_MAX
+# define TCL_SIZE_MODIFIER ""
+# ifndef Tcl_Size
+typedef int Tcl_Size;
+# endif
+#endif
 
 #include "twapi_sdkdefs.h"
 #include "twapi_ddkdefs.h"
@@ -181,14 +197,13 @@
 typedef DWORD WIN32_ERROR;
 typedef int TCL_RESULT;
 
-#define TWAPI_TCL_NAMESPACE "twapi"
+#define TWAPI_TCL_NAMESPACE "::twapi"
 #define TWAPI_SCRIPT_RESOURCE_TYPE "tclscript"
 #define TWAPI_SCRIPT_RESOURCE_TYPE_LZMA "tclscriptlzma"
 #define TWAPI_SETTINGS_VAR  TWAPI_TCL_NAMESPACE "::settings"
 #define TWAPI_LOG_VAR TWAPI_TCL_NAMESPACE "::log_messages"
 #define TWAPI_LOG_CONFIG_VAR TWAPI_TCL_NAMESPACE "::log_config"
 
-#ifdef TWAPI_SINGLE_MODULE
 /* Note:
  * when calling that pkg_ must be title-ized as documented in Tcl_StaticPackage
  */
@@ -197,36 +212,12 @@ typedef int TCL_RESULT;
    TBD - if twapi gets loaded into multiple interps, is it ok to pass
    NULL to the function the second time it is called?
 */
-#ifdef USE_TCL_STUBS
-#if TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION >= 7
-#define TWAPI_INIT_STATIC_PACKAGE(pkg_, init_, safe_init_)                   \
-    do  {                                                                    \
-        /* Note first param NULL else init proc is assumed already called */ \
-        (tclStubsPtr->tcl_StaticLibrary)(NULL, #pkg_, init_, safe_init_);    \
+#define TWAPI_INIT_MODULE(ip_, initfn_)                                        \
+    do {                                                                       \
+        TCL_RESULT ret = initfn_(ip_);                                         \
+        if (ret != TCL_OK)                                                     \
+            return ret;                                                        \
     } while (0)
-#else
-#define TWAPI_INIT_STATIC_PACKAGE(pkg_, init_, safe_init_)                   \
-    do  {                                                                    \
-        /* Note first param NULL else init proc is assumed already called */ \
-        (tclStubsPtr->tcl_StaticPackage)(NULL, #pkg_, init_, safe_init_);    \
-    } while (0)
-#endif
-#else
-#if TCL_MAJOR_VERSION >= 8 && TCL_MINOR_VERSION >= 7
-#define TWAPI_INIT_STATIC_PACKAGE(pkg_, init_, safe_init_)                   \
-    do  {                                                                    \
-        /* Note first param NULL else init proc is assumed already called */ \
-        Tcl_StaticLibrary(NULL, #pkg_, init_, safe_init_);                   \
-    } while (0)
-#else
-#define TWAPI_INIT_STATIC_PACKAGE(pkg_, init_, safe_init_)                   \
-    do  {                                                                    \
-        /* Note first param NULL else init proc is assumed already called */ \
-        Tcl_StaticPackage(NULL, #pkg_, init_, safe_init_);                   \
-    } while (0)
-#endif
-#endif
-#endif
 
 #define MAKESTRINGLITERAL(s_) # s_
  /*
@@ -408,6 +399,7 @@ typedef volatile LONG TwapiOneTimeInitState;
 #define TWAPI_ERRORCODE_TOKEN       "TWAPI"        /* For TWAPI errors */
 
 /* TWAPI error codes - used with the Tcl error facility */
+typedef int TWAPI_ERROR;
 #define TWAPI_NO_ERROR       0
 #define TWAPI_INVALID_ARGS   1
 #define TWAPI_BUFFER_OVERRUN 2
@@ -445,6 +437,13 @@ typedef volatile LONG TwapiOneTimeInitState;
  * Misc utility macros
  **********************/
 
+#define CHECK_RESULT(value_or_fncall)           \
+    do {                                        \
+        int result_ = value_or_fncall;           \
+        if (result_ != TCL_OK)                   \
+            return result_;                      \
+    } while (0)
+
 /* Verify a Tcl_Obj is an integer/long and return error if not */
 #define CHECK_INTEGER_OBJ(interp_, intvar_, objp_)       \
     do {                                                                \
@@ -472,6 +471,21 @@ typedef volatile LONG TwapiOneTimeInitState;
             return TwapiReturnError((interp_), TWAPI_BAD_ARG_COUNT);    \
     } while (0)
 
+/* Below are NOT an integer overflow check. Rather it only checks that
+   a Tcl_Size value first in a DWORD. The len_ Tcl_Size expr itself may
+   overflow! */
+#define DWORD_LIMIT_CHECK(interp_, len_) \
+    ((len_) <= UINT_MAX ? TCL_OK : TwapiReturnErrorUIntMax(interp_))
+
+#define CHECK_DWORD(interp_, len_) \
+    do { \
+        TCL_RESULT ret_ = DWORD_LIMIT_CHECK((interp_), (len_)); \
+        if (ret_ != TCL_OK) \
+            return ret_; \
+    } while (0)
+
+#define ULONG_LIMIT_CHECK DWORD_LIMIT_CHECK
+#define CHECK_ULONG CHECK_DWORD
 
 /* String equality test - check first char before calling strcmp */
 #define STREQ(x, y) ( (((x)[0]) == ((y)[0])) && ! lstrcmpA((x), (y)) )
@@ -759,19 +773,19 @@ typedef struct {
         HKEY hkey;
         struct {
             WCHAR *str;
-            int    len;         /* len == -1 if str is null terminated */
+            Tcl_Size len;         /* len == -1 if str is null terminated */
         } unicode;
         struct {
             char *str;
-            int    len;         /* len == -1 if str is null terminated */
+            Tcl_Size len;         /* len == -1 if str is null terminated */
         } chars;
         struct {
             unsigned char  *p;
-            int    len;
+            Tcl_Size len;
         } binary;
         Tcl_Obj *obj;
         struct {
-            int nobj;
+            Tcl_Size nobj;
             Tcl_Obj **objPP;
         } objv;
         RECT rect;
@@ -827,6 +841,7 @@ typedef struct {
 #define ARGEMPTYASNULL 'E'
 #define ARGINT     'i'
 #define ARGWIDE    'I'
+#define ARGSIZE    'j'
 #define ARGHKEY    'k'
 #define ARGTOKENNULL 'N'
 #define ARGOBJ     'o'
@@ -841,26 +856,48 @@ typedef struct {
 #define ARGVAR     'v'
 #define ARGVARWITHDEFAULT 'V'
 #define ARGWORD     'w'
-#define ARGVERIFIEDPTR 'z'
-#define ARGVERIFIEDORNULL 'Z'
+#define ARGDWORD     'W'
 #define ARGSKIP     'x'   /* Leave arg parsing to caller */
 #define ARGUNUSED ARGSKIP /* For readability when even caller does not care */
+#define ARGVERIFIEDPTR 'z'
+#define ARGVERIFIEDORNULL 'Z'
 #define ARGUSEDEFAULT '?'
 
-#define GETBOOL(v)    ARGBOOL, &(v)
-#define GETBA(v, n)  ARGBA, &(v), &(n)
-#define GETINT(v)     ARGINT, &(v)
-#define GETWIDE(v)    ARGWIDE, &(v)
-#define GETDOUBLE(v)  ARGDOUBLE, &(v)
-#define GETOBJ(v)     ARGOBJ, &(v)
+/*
+ * These silly functions are to ensure pointer type safety when
+ * using the varargs argument parsing functions
+ */
+TWAPI_INLINE int *reflectIntPtr(int *p) { return p; }
+TWAPI_INLINE unsigned int *reflectUIntPtr(unsigned int *p) { return p; }
+TWAPI_INLINE long *reflectLongPtr(long *p) { return p; }
+TWAPI_INLINE WORD *reflectWordPtr(WORD *p) { return p; }
+TWAPI_INLINE DWORD *reflectDWordPtr(DWORD *p) { return p; }
+TWAPI_INLINE double *reflectDoublePtr(double *p) { return p; }
+TWAPI_INLINE Tcl_Size *reflectTclSizePtr(Tcl_Size *p) { return p; }
+TWAPI_INLINE Tcl_WideInt *reflectTclWidePtr(Tcl_WideInt *p) { return p; }
+TWAPI_INLINE Tcl_Obj **reflectTclObjPtr(Tcl_Obj **p) { return p; }
+TWAPI_INLINE WCHAR **reflectWCharPtr(WCHAR **p) { return p; }
+TWAPI_INLINE char **reflectCharPtr(char **p) { return p; }
+
+
+#define GETBOOL(v)    ARGBOOL, reflectIntPtr(&(v))
+#define GETBA(v, n)  ARGBA, &(v), reflectTclSizePtr(&(n))
+#define GETINT(v)     ARGINT, reflectIntPtr(&(v))
+#define GETLONG(v)     ARGINT, reflectLongPtr(&(v))
+#define GETDWORD(v)     ARGDWORD, reflectDWordPtr(&(v))
+#define GETUINT(v)     ARGDWORD, reflectUIntPtr(&(v))
+#define GETWIDE(v)    ARGWIDE, reflectTclWidePtr(&(v))
+#define GETSIZE(v)    ARGSIZE, reflectTclSizePtr(&(v))
+#define GETDOUBLE(v)  ARGDOUBLE, reflectDoublePtr(&(v))
+#define GETOBJ(v)     ARGOBJ, reflectTclObjPtr(&(v))
 #define GETDWORD_PTR(v) ARGDWORD_PTR, &(v)
-#define GETASTR(v)      ARGASTR, &(v)
-#define GETASTRN(v, n)  ARGASTRN, &(v), &(n)
-#define GETWSTR(v)     ARGWSTR, &(v)
-#define GETWSTRN(v, n) ARGWSTRN, &(v), &(n)
+#define GETASTR(v)      ARGASTR, reflectCharPtr(&(v))
+#define GETASTRN(v, n)  ARGASTRN, reflectCharPtr(&(v)), reflectTclSizePtr(&(n))
+#define GETWSTR(v)     ARGWSTR, reflectWCharPtr(&(v))
+#define GETWSTRN(v, n) ARGWSTRN, reflectWCharPtr(&(v)), reflectTclSizePtr(&(n))
 #define GETEMPTYASNULL(v) ARGEMPTYASNULL, &(v)
 #define GETTOKENNULL(v) ARGTOKENNULL, &(v)
-#define GETWORD(v)     ARGWORD, &(v)
+#define GETWORD(v)     ARGWORD, reflectWordPtr(&(v))
 #define GETPTR(v, typesym) ARGPTR, &(v), #typesym
 #define GETVOIDP(v)    ARGPTR, &(v), NULL
 #define GETVERIFIEDPTR(v, typesym, verifier)    ARGVERIFIEDPTR, &(v), #typesym, (verifier)
@@ -875,8 +912,8 @@ typedef struct {
 #define GETGUID(v)     GETVAR(v, ObjToGUID)
 #define GETUUID(v)     GETVAR(v, ObjToUUID)
 /* For GETARGVA/GETWARGVW, v is of type char **, or WCHAR ** */
-#define GETARGVA(v, n) ARGVA, (&v), &(n)
-#define GETARGVW(v, n) ARGVW, (&v), &(n)
+#define GETARGVA(v, n) ARGVA, (&v), reflectTclSizePtr(&(n))
+#define GETARGVW(v, n) ARGVW, (&v), reflectTclSizePtr(&(n))
 
 typedef int (*TwapiGetArgsFn)(Tcl_Interp *, Tcl_Obj *, void *);
 
@@ -1235,14 +1272,14 @@ LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, L
 
 /* Tcl_Obj manipulation and conversion - basic Windows types */
 
-TWAPI_EXTERN Tcl_Obj *ObjNewList(int objc, Tcl_Obj * const objv[]);
+TWAPI_EXTERN Tcl_Obj *ObjNewList(Tcl_Size objc, Tcl_Obj * const objv[]);
 TWAPI_EXTERN Tcl_Obj *ObjEmptyList(void);
-TWAPI_EXTERN TCL_RESULT ObjListLength(Tcl_Interp *interp, Tcl_Obj *l, int *lenP);
-TWAPI_EXTERN TCL_RESULT ObjListIndex(Tcl_Interp *interp, Tcl_Obj *l, int ix, Tcl_Obj **);
+TWAPI_EXTERN TCL_RESULT ObjListLength(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Size *lenP);
+TWAPI_EXTERN TCL_RESULT ObjListIndex(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Size ix, Tcl_Obj **);
 
 TWAPI_EXTERN TCL_RESULT ObjAppendElement(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Obj *e);
-TWAPI_EXTERN TCL_RESULT ObjGetElements(Tcl_Interp *interp, Tcl_Obj *l, int *objcP, Tcl_Obj ***objvP);
-TWAPI_EXTERN TCL_RESULT ObjListReplace(Tcl_Interp *interp, Tcl_Obj *l, int first, int count, int objc, Tcl_Obj *const objv[]);
+TWAPI_EXTERN TCL_RESULT ObjGetElements(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Size *objcP, Tcl_Obj ***objvP);
+TWAPI_EXTERN TCL_RESULT ObjListReplace(Tcl_Interp *interp, Tcl_Obj *l, Tcl_Size first, Tcl_Size count, Tcl_Size objc, Tcl_Obj *const objv[]);
 
 TWAPI_EXTERN Tcl_Obj *ObjNewDict(void);
 TWAPI_EXTERN TCL_RESULT ObjDictGet(Tcl_Interp *interp, Tcl_Obj *dictObj, Tcl_Obj *keyObj, Tcl_Obj **valueObjP);
@@ -1251,7 +1288,7 @@ TWAPI_EXTERN TCL_RESULT ObjDictPut(Tcl_Interp *interp, Tcl_Obj *dictObj, Tcl_Obj
 
 #define Twapi_FreeNewTclObj(o_) do { if (o_) { ObjDecrRefs(o_); } } while (0)
 
-Tcl_Obj *TwapiAppendObjArray(Tcl_Obj *resultObj, int objc, Tcl_Obj **objv,
+Tcl_Obj *TwapiAppendObjArray(Tcl_Obj *resultObj, Tcl_Size objc, Tcl_Obj **objv,
                          char *join_string);
 Tcl_Obj *ObjFromPOINTS(POINTS *ptP);
 int ObjToFLASHWINFO (Tcl_Interp *interp, Tcl_Obj *obj, FLASHWINFO *fwP);
@@ -1341,10 +1378,10 @@ TWAPI_EXTERN void *TwapiAlloc(size_t sz);
 TWAPI_EXTERN void *TwapiAllocSize(size_t sz, size_t *);
 TWAPI_EXTERN void *TwapiAllocZero(size_t sz);
 TWAPI_EXTERN void TwapiFree(void *p);
-TWAPI_EXTERN WCHAR *TwapiAllocWString(WCHAR *, int len);
-TWAPI_EXTERN WCHAR *TwapiAllocWStringFromObj(Tcl_Obj *, int *lenP);
-TWAPI_EXTERN char *TwapiAllocAString(char *, int len);
-TWAPI_EXTERN char *TwapiAllocAStringFromObj(Tcl_Obj *, int *lenP);
+TWAPI_EXTERN WCHAR *TwapiAllocWString(WCHAR *, Tcl_Size len);
+TWAPI_EXTERN WCHAR *TwapiAllocWStringFromObj(Tcl_Obj *, Tcl_Size *lenP);
+TWAPI_EXTERN char *TwapiAllocAString(char *, Tcl_Size len);
+TWAPI_EXTERN char *TwapiAllocAStringFromObj(Tcl_Obj *, Tcl_Size *lenP);
 TWAPI_EXTERN void *TwapiReallocTry(void *p, size_t sz);
 TWAPI_EXTERN void *TwapiAllocRegisteredPointer(Tcl_Interp *, size_t, void *tag);
 TWAPI_EXTERN void TwapiFreeRegisteredPointer(Tcl_Interp *, void *, void *tag);
@@ -1354,11 +1391,11 @@ TWAPI_EXTERN void TwapiFreeRegisteredPointer(Tcl_Interp *, void *, void *tag);
 TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *result);
 TWAPI_EXTERN void TwapiClearResult(TwapiResult *resultP);
 /* TBD - TwapiGetArgs* could also obe used to parse lists into C structs */
-TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], int fmt, va_list ap);
-TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], int fmt, ...);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *CONST objv[], int fmt, va_list ap);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgs(Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *CONST objv[], int fmt, ...);
 TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsObj(Tcl_Interp *interp, Tcl_Obj *, int fmt, ...);
-TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], int fmt, va_list ap);
-TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, int objc, Tcl_Obj *CONST objv[], int fmt, ...);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsExVA(TwapiInterpContext *ticP, Tcl_Size objc, Tcl_Obj *CONST objv[], int fmt, va_list ap);
+TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsEx(TwapiInterpContext *ticP, Tcl_Size objc, Tcl_Obj *CONST objv[], int fmt, ...);
 TWAPI_EXTERN_VA TCL_RESULT TwapiGetArgsExObj(TwapiInterpContext *ticP, Tcl_Obj *, int fmt, ...);
 TWAPI_EXTERN void ObjSetStaticResult(Tcl_Interp *interp, CONST char s[]);
 #define TwapiSetStaticResult ObjSetStaticResult
@@ -1372,6 +1409,7 @@ TWAPI_EXTERN TCL_RESULT TwapiReturnSystemError(Tcl_Interp *interp);
 TWAPI_EXTERN TCL_RESULT TwapiReturnError(Tcl_Interp *interp, int code);
 TWAPI_EXTERN TCL_RESULT TwapiReturnErrorEx(Tcl_Interp *interp, int code, Tcl_Obj *objP);
 TWAPI_EXTERN TCL_RESULT TwapiReturnErrorMsg(Tcl_Interp *interp, int code, char *msg);
+TWAPI_EXTERN TCL_RESULT TwapiReturnErrorUIntMax(Tcl_Interp *interp);
 
 TWAPI_EXTERN DWORD TwapiNTSTATUSToError(NTSTATUS status);
 TWAPI_EXTERN Tcl_Obj *Twapi_MakeTwapiErrorCodeObj(int err);
@@ -1477,6 +1515,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromInt(int val);
 TWAPI_EXTERN TCL_RESULT ObjToInt(Tcl_Interp *interp, Tcl_Obj *objP, int *);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromWideInt(Tcl_WideInt val);
+TWAPI_EXTERN Tcl_Obj *ObjFromWideUInt(Tcl_WideUInt val);
 /* Unsigneds need to be promoted to wide ints when converting to Tcl_Obj*/
 TWAPI_INLINE Tcl_Obj *ObjFromDWORD(DWORD dw) {
     return ObjFromWideInt(dw);
@@ -1488,6 +1527,8 @@ TWAPI_INLINE TCL_RESULT ObjToUINT(Tcl_Interp *ip, Tcl_Obj *objP, UINT *uiP) {
 }
 
 TWAPI_EXTERN TCL_RESULT ObjToWideInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP);
+TWAPI_EXTERN TCL_RESULT ObjToWideUInt(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideUInt *wideP);
+TWAPI_EXTERN TCL_RESULT ObjToBits64(Tcl_Interp *interp, Tcl_Obj *objP, Tcl_WideInt *wideP);
 TWAPI_EXTERN Tcl_Obj *ObjFromDouble(double val);
 TWAPI_EXTERN TCL_RESULT ObjToDouble(Tcl_Interp *interp, Tcl_Obj *objP, double *);
 TWAPI_EXTERN Tcl_Obj *ObjFromFloat(float val);
@@ -1520,29 +1561,27 @@ TWAPI_EXTERN Tcl_Obj *ObjFromUSHORTHex(USHORT);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGHex(ULONG ull);
 TWAPI_EXTERN Tcl_Obj *ObjFromULONGLONGHex(ULONGLONG ull);
 
-TWAPI_EXTERN int TwapiWinCharsToUtf8(CONST WCHAR *wsP, int nchars, char *buf, int buf_sz);
+TWAPI_EXTERN int TwapiWinCharsToUtf8(CONST WCHAR *wsP, Tcl_Size nchars, char *buf, Tcl_Size buf_sz);
 TWAPI_EXTERN Tcl_Obj *TwapiUtf8ObjFromWinChars(CONST WCHAR *p, int len);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromEmptyString();
-TWAPI_EXTERN int ObjCharLength(Tcl_Obj *);
+TWAPI_EXTERN Tcl_Size ObjCharLength(Tcl_Obj *);
 
 TWAPI_EXTERN char *ObjToString(Tcl_Obj *objP);
-TWAPI_EXTERN char *ObjToStringN(Tcl_Obj *objP, int *lenP);
-TWAPI_EXTERN Tcl_Obj *ObjFromStringN(const char *s, int len);
+TWAPI_EXTERN char *ObjToStringN(Tcl_Obj *objP, Tcl_Size *lenP);
+TWAPI_EXTERN Tcl_Obj *ObjFromStringN(const char *s, Tcl_Size len);
 TWAPI_EXTERN Tcl_Obj *ObjFromString(const char *s);
-TWAPI_EXTERN Tcl_Obj *ObjFromStringLimited(const char *strP, int max, int *remain);
+TWAPI_EXTERN Tcl_Obj *ObjFromStringLimited(const char *strP, Tcl_Size max, Tcl_Size *remain);
 
 TWAPI_EXTERN Tcl_UniChar *ObjToTclUniChar(Tcl_Obj *objP);
-TWAPI_EXTERN Tcl_UniChar *ObjToTclUniCharN(Tcl_Obj *objP, int *lenP);
-TWAPI_EXTERN Tcl_UniChar *ObjToTclUniCharDW(Tcl_Obj *objP, DWORD *lenP);
-TWAPI_EXTERN Tcl_Obj *ObjFromTclUniCharN(const Tcl_UniChar *ws, int len);
+TWAPI_EXTERN Tcl_UniChar *ObjToTclUniCharN(Tcl_Obj *objP, Tcl_Size *lenP);
+TWAPI_EXTERN Tcl_Obj *ObjFromTclUniCharN(const Tcl_UniChar *ws, Tcl_Size len);
 TWAPI_EXTERN Tcl_Obj *ObjFromTclUniChar(const Tcl_UniChar *ws);
 
-#if (TCL_UTF_MAX > 4) || defined(TWAPI_FORCE_WINCHARS)
+#if (TCL_UTF_MAX >= 4) || defined(TWAPI_FORCE_WINCHARS)
 TWAPI_EXTERN WCHAR *ObjToWinChars(Tcl_Obj *objP);
-TWAPI_EXTERN WCHAR *ObjToWinCharsN(Tcl_Obj *objP, int *lenP);
-TWAPI_EXTERN WCHAR *ObjToWinCharsDW(Tcl_Obj *objP, DWORD *lenP);
-TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsN(const WCHAR *ws, int len);
+TWAPI_EXTERN WCHAR *ObjToWinCharsN(Tcl_Obj *objP, Tcl_Size *lenP);
+TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsN(const WCHAR *ws, Tcl_Size len);
 TWAPI_EXTERN Tcl_Obj *ObjFromWinChars(const WCHAR *ws);
 #else
 #define ObjToWinChars ObjToTclUniChar
@@ -1551,27 +1590,36 @@ TWAPI_EXTERN Tcl_Obj *ObjFromWinChars(const WCHAR *ws);
 #define ObjFromWinChars ObjFromTclUniChar
 #define ObjFromWinCharsN ObjFromTclUniCharN
 #endif
-TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsLimited(const WCHAR *wstrP, int max, int *remain);
+TWAPI_EXTERN TCL_RESULT ObjToWinCharsDW(Tcl_Interp *interp,
+                                        Tcl_Obj    *objP,
+                                        DWORD      *lenP,
+                                        WCHAR     **wsPP);
+TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsLimited(const WCHAR *wstrP, Tcl_Size max, Tcl_Size *remain);
 TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsNoTrailingSpace(const WCHAR *strP);
 
-TWAPI_EXTERN Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, int len);
-TWAPI_EXTERN Tcl_Obj *ObjAllocateByteArray(int len, void **);
-TWAPI_EXTERN Tcl_Obj *ObjFromByteArrayHex(const unsigned char *bytes, int len);
-TWAPI_EXTERN unsigned char *ObjToByteArray(Tcl_Obj *objP, int *lenP);
-TWAPI_EXTERN unsigned char *ObjToByteArrayDW(Tcl_Obj *objP, DWORD *lenP);
+TWAPI_EXTERN Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, Tcl_Size len);
+TWAPI_EXTERN Tcl_Obj *ObjAllocateByteArray(Tcl_Size len, void **);
+TWAPI_EXTERN Tcl_Obj *ObjFromByteArrayHex(const unsigned char *bytes, Tcl_Size len);
+TWAPI_EXTERN unsigned char *ObjToByteArray(Tcl_Obj *objP, Tcl_Size *lenP);
+TWAPI_EXTERN TCL_RESULT     ObjToByteArrayDW(Tcl_Interp     *ip,
+                                             Tcl_Obj        *objP,
+                                             DWORD          *dwP,
+                                             unsigned char **bufPP);
 
-TWAPI_EXTERN TCL_RESULT TwapiEncryptData(Tcl_Interp *, BYTE *, int, BYTE *, int *);
-TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *, BYTE *, int , BYTE *, int *);
-TWAPI_EXTERN BYTE *TwapiDecryptDataSWS(Tcl_Interp *, BYTE *, int , int *);
-TWAPI_EXTERN Tcl_Obj *ObjEncryptBytes(Tcl_Interp *, void *, int);
-TWAPI_EXTERN void *ObjDecryptBytesExSWS(Tcl_Interp *, Tcl_Obj *, int, int *);
-TWAPI_EXTERN Tcl_Obj *ObjEncryptWinChars(Tcl_Interp *, WCHAR *, int);
-TWAPI_EXTERN WCHAR * ObjDecryptWinCharsSWS(Tcl_Interp *, Tcl_Obj *, int *);
-TWAPI_EXTERN char * ObjDecryptUtf8SWS(Tcl_Interp *, Tcl_Obj *, int *);
-TWAPI_EXTERN WCHAR * ObjDecryptPasswordSWS(Tcl_Obj *objP, int *ncharsP);
+TWAPI_EXTERN TCL_RESULT TwapiEncryptData(Tcl_Interp *, BYTE *, ULONG, BYTE *, ULONG *);
+TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *, BYTE *, ULONG , BYTE *, ULONG *);
+TWAPI_EXTERN BYTE *TwapiDecryptDataSWS(Tcl_Interp *, BYTE *, ULONG, ULONG *);
+TWAPI_EXTERN Tcl_Obj *ObjEncryptBytes(Tcl_Interp *, void *, Tcl_Size);
+TWAPI_EXTERN void *ObjDecryptBytesExSWS(Tcl_Interp *, Tcl_Obj *, Tcl_Size, Tcl_Size *);
+TWAPI_EXTERN Tcl_Obj *ObjEncryptWinChars(Tcl_Interp *, WCHAR *, Tcl_Size);
+TWAPI_EXTERN WCHAR * ObjDecryptWinCharsSWS(Tcl_Interp *, Tcl_Obj *, Tcl_Size *);
+TWAPI_EXTERN char * ObjDecryptUtf8SWS(Tcl_Interp *, Tcl_Obj *, Tcl_Size *);
+TWAPI_EXTERN WCHAR * ObjDecryptPasswordSWS(Tcl_Obj *objP, Tcl_Size *ncharsP);
 
 TWAPI_EXTERN Tcl_Obj *ObjFromLSA_UNICODE_STRING(const LSA_UNICODE_STRING *lsauniP);
-TWAPI_EXTERN void ObjToLSA_UNICODE_STRING(Tcl_Obj *objP, LSA_UNICODE_STRING *lsauniP);
+TWAPI_EXTERN TCL_RESULT ObjToLSA_UNICODE_STRING(Tcl_Interp         *ip,
+                                                Tcl_Obj            *objP,
+                                                LSA_UNICODE_STRING *lsauniP);
 TWAPI_EXTERN int ObjToLSASTRINGARRAYSWS(Tcl_Interp *interp, Tcl_Obj *obj,
                         LSA_UNICODE_STRING **arrayP, ULONG *countP);
 TWAPI_EXTERN PSID TwapiSidFromStringSWS(char *strP);
@@ -1580,10 +1628,10 @@ TWAPI_EXTERN TCL_RESULT ObjToPSIDNonNullSWS(Tcl_Interp *, Tcl_Obj *, PSID *sidPP
 TWAPI_EXTERN int ObjFromSID (Tcl_Interp *interp, SID *sidP, Tcl_Obj **objPP);
 TWAPI_EXTERN Tcl_Obj *ObjFromSIDNoFail(SID *sidP);
 
-TWAPI_EXTERN LPWSTR *ObjToMemLifoArgvW(TwapiInterpContext *ticP, Tcl_Obj *objP, int *argcP);
-TWAPI_EXTERN int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, int argc, int *argcP);
-TWAPI_EXTERN Tcl_Obj *ObjFromArgvA(int argc, char **argv);
-TWAPI_EXTERN int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, int argc, int *argcP);
+TWAPI_EXTERN LPWSTR *ObjToMemLifoArgvW(TwapiInterpContext *ticP, Tcl_Obj *objP, Tcl_Size *argcP);
+TWAPI_EXTERN int ObjToArgvW(Tcl_Interp *interp, Tcl_Obj *objP, LPCWSTR *argv, Tcl_Size argc, Tcl_Size *argcP);
+TWAPI_EXTERN Tcl_Obj *ObjFromArgvA(Tcl_Size argc, char **argv);
+TWAPI_EXTERN int ObjToArgvA(Tcl_Interp *interp, Tcl_Obj *objP, char **argv, Tcl_Size argc, Tcl_Size *argcP);
 TWAPI_EXTERN LPWSTR ObjToLPWSTR_NULL_IF_EMPTY(Tcl_Obj *objP);
 
 #define NULL_TOKEN "__null__"
@@ -1622,20 +1670,20 @@ TWAPI_EXTERN TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT 
 TWAPI_EXTERN int ObjToMultiSzEx(Tcl_Interp *interp,
                                 Tcl_Obj *   listPtr,
                                 LPCWSTR *   multiszPP,
-                                int *,
+                                Tcl_Size *,
                                 MemLifo *lifoP);
 TWAPI_EXTERN int ObjToMultiSzSWS(Tcl_Interp *interp,
                                  Tcl_Obj *   listPtr,
                                  LPCWSTR *   multiszPP,
-                                 int *);
-TWAPI_EXTERN Tcl_Obj *ObjFromMultiSz (LPCWSTR lpcw, int maxlen);
-#define ObjFromMultiSz_MAX(lpcw) ObjFromMultiSz(lpcw, INT_MAX)
+                                 Tcl_Size *);
+TWAPI_EXTERN Tcl_Obj *ObjFromMultiSz (LPCWSTR lpcw, Tcl_Size maxlen);
+#define ObjFromMultiSz_MAX(lpcw) ObjFromMultiSz(lpcw, TCL_SIZE_MAX)
 TWAPI_EXTERN Tcl_Obj *ObjFromEXPAND_SZW(WCHAR *ws);
 TWAPI_EXTERN Tcl_Obj *ObjFromRegType(int regtype);
 TWAPI_EXTERN Tcl_Obj *ObjFromRegValue(Tcl_Interp *interp, int regtype,
-                         BYTE *bufP, int count);
+                         BYTE *bufP, Tcl_Size count);
 TWAPI_EXTERN Tcl_Obj *ObjFromRegValueCooked(Tcl_Interp *interp, int regtype,
-                               BYTE *bufP, int count);
+                               BYTE *bufP, Tcl_Size count);
 TWAPI_EXTERN TCL_RESULT ObjToRegValueSWS(Tcl_Interp *   interp,
                                          Tcl_Obj *      typeObj,
                                          Tcl_Obj *      objP,
@@ -1678,7 +1726,7 @@ TWAPI_EXTERN TCL_RESULT ParsePSEC_WINNT_AUTH_IDENTITY (TwapiInterpContext *, Tcl
 TWAPI_EXTERN void SecureZeroSEC_WINNT_AUTH_IDENTITY(SEC_WINNT_AUTH_IDENTITY_W *);
 int TwapiFormatMessageHelper( Tcl_Interp *interp, DWORD dwFlags,
                               LPCVOID lpSource, DWORD dwMessageId,
-                              DWORD dwLanguageId, int argc, LPCWSTR *argv );
+                              DWORD dwLanguageId, Tcl_Size argc, LPCWSTR *argv );
 TWAPI_EXTERN Tcl_Obj *ObjFromCREDENTIAL_ATTRIBUTEW(const CREDENTIAL_ATTRIBUTEW *attrP);
 TWAPI_EXTERN Tcl_Obj *ObjFromCREDENTIALW(const CREDENTIALW *credsP);
 
@@ -1704,7 +1752,7 @@ TWAPI_EXTERN HWND Twapi_GetNotificationWindow(TwapiInterpContext *ticP);
 /* General utility */
 TWAPI_EXTERN TCL_RESULT Twapi_SourceResource(Tcl_Interp *interp, HANDLE dllH, const char *name, int try_file);
 TWAPI_EXTERN Tcl_Obj *TwapiTwine(Tcl_Interp *interp, Tcl_Obj *first, Tcl_Obj *second);
-TWAPI_EXTERN Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, int n);
+TWAPI_EXTERN Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, Tcl_Size n);
 
 TWAPI_EXTERN void TwapiDebugOutputObj(Tcl_Obj *);
 TWAPI_EXTERN void TwapiDebugOutput(char *s);
@@ -1751,11 +1799,11 @@ TWAPI_STATIC_INLINE SWStack SWS(void) {
 
 TWAPI_STATIC_INLINE SWSMark SWSPushMark(void) { return MemLifoPushMark(SWS()); }
 TWAPI_STATIC_INLINE void SWSPopMark(SWSMark mark) { MemLifoPopMark(mark); }
-TWAPI_STATIC_INLINE void *SWSPushFrame(DWORD sz, DWORD *szP) {
+TWAPI_STATIC_INLINE void *SWSPushFrame(MemLifoSize sz, MemLifoSize *szP) {
     return MemLifoPushFrame(SWS(), sz, szP);
 }
 TWAPI_STATIC_INLINE void SWSPopFrame(void) { MemLifoPopFrame(SWS()); }
-TWAPI_STATIC_INLINE void *SWSAlloc(DWORD sz, DWORD *actual_szP) {
+TWAPI_STATIC_INLINE void *SWSAlloc(MemLifoSize sz, MemLifoSize *actual_szP) {
     return MemLifoAlloc(SWS(), sz, actual_szP);
 }
 

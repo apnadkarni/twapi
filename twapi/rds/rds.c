@@ -132,11 +132,12 @@ int Twapi_WTSQuerySessionInformation(
 static int Twapi_RDSCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     LPWSTR s, s2;
-    DWORD dw, dw2, dw3, dw4;
+    DWORD dw, dw2, dw3;
+    BOOL bval;
     HANDLE h;
-    int i, i2;
     TwapiResult result;
     int func = PtrToInt(clientdata);
+    Tcl_Size len, len2;
 
     /* At least one arg for every command */
     if (objc < 2)
@@ -153,23 +154,25 @@ static int Twapi_RDSCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         break;
     case 2:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLE(h), GETINT(dw),
+                         GETHANDLE(h), GETDWORD(dw),
                          ARGSKIP, ARGSKIP,
-                         GETINT(dw2), GETINT(dw3), GETBOOL(dw4),
+                         GETDWORD(dw2), GETDWORD(dw3), GETBOOL(bval),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
-        s = ObjToWinCharsN(objv[2], &i);
-        s2 = ObjToWinCharsN(objv[3], &i2);
-        if (WTSSendMessageW(h, dw, s, sizeof(WCHAR)*i,
-                            s2, sizeof(WCHAR)*i2, dw2,
-                            dw3, &result.value.uval, dw4))
+        s = ObjToWinCharsN(objv[2], &len);
+        s2 = ObjToWinCharsN(objv[3], &len2);
+        CHECK_DWORD(interp, len*sizeof(WCHAR));
+        CHECK_DWORD(interp, len2*sizeof(WCHAR));
+        if (WTSSendMessageW(h, dw, s, (DWORD) (sizeof(WCHAR)*len),
+                            s2, (DWORD) (sizeof(WCHAR)*len2), dw2,
+                            dw3, &result.value.uval, bval))
             result.type = TRT_DWORD;
         else
-            result.type = TRT_GETLASTERROR;    
+            result.type = TRT_GETLASTERROR;
         break;
     default:
         if (TwapiGetArgs(interp, objc, objv, GETHANDLE(h),
-                         ARGUSEDEFAULT, GETINT(dw), GETINT(dw2),
+                         ARGUSEDEFAULT, GETDWORD(dw), GETDWORD(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         switch (func) {

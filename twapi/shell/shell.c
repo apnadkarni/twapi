@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2012 Ashok P. Nadkarni
+ * Copyright (c) 2004-2024 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -134,17 +134,17 @@ static TCL_RESULT Twapi_WriteShortcutObjCmd(
     Tcl_Obj *CONST objv[])
 {
     TwapiInterpContext *ticP = clientdata;
-    LPCWSTR linkPath;
-    LPCWSTR objPath;
+    LPWSTR linkPath;
+    LPWSTR objPath;
     LPITEMIDLIST itemIds;
-    LPCWSTR commandArgs;
-    LPCWSTR desc;
+    LPWSTR commandArgs;
+    LPWSTR desc;
     WORD    hotkey;
-    LPCWSTR iconPath;
+    LPWSTR iconPath;
     int     iconIndex;
-    LPCWSTR relativePath;
+    LPWSTR relativePath;
     int     showCommand;
-    LPCWSTR workingDirectory;
+    LPWSTR workingDirectory;
     DWORD runas;
 
     HRESULT hres;
@@ -172,7 +172,7 @@ static TCL_RESULT Twapi_WriteShortcutObjCmd(
                          GETINT(showCommand),
                          GETEMPTYASNULL(workingDirectory),
                          ARGUSEDEFAULT,
-                         GETINT(runas),
+                         GETDWORD(runas),
                          ARGEND);
     if (res != TCL_OK)
         goto vamoose;
@@ -292,7 +292,7 @@ int Twapi_ReadShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 
     if (TwapiGetArgs(interp, objc, objv,
                      GETOBJ(linkObj), GETINT(pathFlags),
-                     GETHWND(hwnd), GETINT(resolve_flags),
+                     GETHWND(hwnd), GETDWORD(resolve_flags),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
@@ -530,7 +530,7 @@ int Twapi_InvokeUrlShortcut(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     Tcl_Obj *linkObj, *verbObj;
 
     if (TwapiGetArgs(interp, objc, objv,
-                     GETOBJ(linkObj), GETOBJ(verbObj), GETINT(flags),
+                     GETOBJ(linkObj), GETOBJ(verbObj), GETDWORD(flags),
                      GETHANDLE(hwnd),
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
@@ -586,7 +586,7 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     mark = SWSPushMark();
     res = TCL_ERROR;
     if (TwapiGetArgs(interp, objc, objv,
-                       GETHANDLE(sfop.hwnd), GETINT(sfop.wFunc),
+                       GETHANDLE(sfop.hwnd), GETUINT(sfop.wFunc),
                        GETOBJ(fromObj), GETOBJ(toObj),
                        GETWORD(sfop.fFlags), GETOBJ(titleObj),
                        ARGEND) != TCL_OK
@@ -611,7 +611,7 @@ int Twapi_SHFileOperation (Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
     objs[1] = ObjEmptyList();
 
     if ((flags & FOF_WANTMAPPINGHANDLE) && sfop.hNameMappings) {
-        int i;
+        UINT i;
         struct handlemappings {
             UINT uNumberOfMappings;
             LPSHNAMEMAPPINGW nameMapP;
@@ -661,7 +661,7 @@ static TCL_RESULT Twapi_ShellExecuteExObjCmd(ClientData clientdata, Tcl_Interp *
     sei.cbSize = sizeof(sei);
 
     res = TwapiGetArgsEx(ticP, objc-1, objv+1,
-                         GETINT(sei.fMask), GETHANDLE(sei.hwnd),
+                         GETDWORD(sei.fMask), GETHANDLE(sei.hwnd),
                          GETEMPTYASNULL(sei.lpVerb),
                          GETEMPTYASNULL(sei.lpFile),
                          GETEMPTYASNULL(sei.lpParameters),
@@ -670,7 +670,7 @@ static TCL_RESULT Twapi_ShellExecuteExObjCmd(ClientData clientdata, Tcl_Interp *
                          GETVAR(sei.lpIDList, ObjToPIDL),
                          GETEMPTYASNULL(lpClass),
                          GETHANDLE(hkeyClass),
-                         GETINT(dwHotKey),
+                         GETDWORD(dwHotKey),
                          GETHANDLE(hIconOrMonitor),
                          ARGEND);
     if (res == TCL_OK) {
@@ -719,7 +719,7 @@ int Twapi_SHChangeNotify(
     LPITEMIDLIST idl2P = NULL;
     int status = TCL_ERROR;
 
-    if (TwapiGetArgs(interp, objc, objv, GETINT(event_id), GETINT(flags),
+    if (TwapiGetArgs(interp, objc, objv, GETLONG(event_id), GETUINT(flags),
                      ARGTERM) != TCL_OK)
         return TCL_ERROR;
 
@@ -895,6 +895,7 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
 {
     HWND   hwnd;
     DWORD dw, dw2;
+    BOOL  bval;
     union {
         NOTIFYICONDATAW *niP;
         WCHAR buf[MAX_PATH+1];
@@ -915,20 +916,20 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         return Twapi_InvokeUrlShortcut(interp, objc, objv);
     case 4: // SHInvokePrinterCommand
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLE(hwnd), GETINT(dw),
-                         GETOBJ(sObj), GETOBJ(s2Obj), GETBOOL(dw2),
+                         GETHANDLE(hwnd), GETDWORD(dw),
+                         GETOBJ(sObj), GETOBJ(s2Obj), GETBOOL(bval),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = SHInvokePrinterCommandW(
-            hwnd, dw, ObjToWinChars(sObj), ObjToWinChars(s2Obj), dw2);
+            hwnd, dw, ObjToWinChars(sObj), ObjToWinChars(s2Obj), bval);
         break;
     case 5:
         return Twapi_GetShellVersion(interp);
     case 6: // SHGetFolderPath - TBD Tcl wrapper
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHWND(hwnd), GETINT(dw),
-                         GETHANDLE(h), GETINT(dw2),
+                         GETHWND(hwnd), GETDWORD(dw),
+                         GETHANDLE(h), GETDWORD(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         dw = Twapi_SHGetFolderPath(hwnd, dw, h, dw2, u.buf);
@@ -943,8 +944,8 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         break;
     case 7:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHWND(hwnd), GETINT(dw),
-                         GETINT(dw2),
+                         GETHWND(hwnd), GETDWORD(dw),
+                         GETDWORD(dw2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         if (SHGetSpecialFolderPathW(hwnd, u.buf, dw, dw2)) {
@@ -972,7 +973,7 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         break;
     case 9:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hwnd, HWND), GETINT(dw),
+                         GETHANDLET(hwnd, HWND), GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         dw = SHGetSpecialFolderLocation(hwnd, dw, &result.value.pidl);
@@ -987,7 +988,7 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
     case 10: // Shell_NotifyIcon
         CHECK_NARGS(interp, objc, 2);
         CHECK_DWORD_OBJ(interp, dw, objv[0]);
-        u.niP = (NOTIFYICONDATAW *) ObjToByteArrayDW(objv[1], &dw2);
+        CHECK_RESULT(ObjToByteArrayDW(interp, objv[1], &dw2, (unsigned char **)&u.niP));
         if (dw2 != sizeof(NOTIFYICONDATAW) || dw2 != u.niP->cbSize) {
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Inconsistent size of NOTIFYICONDATAW structure.");
         }
@@ -1006,7 +1007,7 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         return Twapi_SHChangeNotify(interp, objc, objv);
     case 14:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETHANDLET(hwnd, HWND), GETINT(dw),
+                         GETHANDLET(hwnd, HWND), GETDWORD(dw),
                          GETOBJ(sObj), GETOBJ(s2Obj),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -1018,7 +1019,7 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         break;
     case 15:
         if (TwapiGetArgs(interp, objc, objv,
-                         GETOBJ(sObj), GETOBJ(s2Obj), GETINT(dw),
+                         GETOBJ(sObj), GETOBJ(s2Obj), GETDWORD(dw),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         return Twapi_WriteUrlShortcut(interp,

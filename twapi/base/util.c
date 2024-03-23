@@ -24,7 +24,7 @@ Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP)
 {
     Tcl_Obj *resultObj;
     char *cP;
-    int len;
+    Tcl_Size len;
 
     /* TBD - verify this code is correct. Does UtfToLower guarantee to be no longer than passed in string ? */
     cP = ObjToStringN(objP, &len);
@@ -49,7 +49,13 @@ BOOL TwapiRtlGetVersion(LPOSVERSIONINFOW verP)
     }
 
     /* Either function was not found or it failed. Use documented one */
+#ifdef _MSC_VER
+#pragma warning(disable:4996) /* Disable deprecated warning */
+#endif
     return GetVersionExW(verP);
+#ifdef _MSC_VER
+#pragma warning(default:4996)
+#endif
 }
 
 int TwapiMinOSVersion(DWORD major, DWORD minor)
@@ -113,7 +119,7 @@ void TwapiDebugOutput(char *s) {
 }
 
 
-WCHAR *TwapiAllocWString(WCHAR *src, int len)
+WCHAR *TwapiAllocWString(WCHAR *src, Tcl_Size len)
 {
     WCHAR *dst;
     if (len < 0) {
@@ -125,16 +131,16 @@ WCHAR *TwapiAllocWString(WCHAR *src, int len)
     return dst;
 }
 
-WCHAR *TwapiAllocWStringFromObj(Tcl_Obj *objP, int *lenP) {
+WCHAR *TwapiAllocWStringFromObj(Tcl_Obj *objP, Tcl_Size *lenP) {
     WCHAR *wP;
-    int len;
+    Tcl_Size len;
     if (lenP == NULL)
         lenP = &len;
     wP = ObjToWinCharsN(objP, lenP);
     return TwapiAllocWString(wP, *lenP);
 }
 
-char *TwapiAllocAString(char *src, int len)
+char *TwapiAllocAString(char *src, Tcl_Size len)
 {
     char *dst;
     if (len < 0) {
@@ -146,9 +152,9 @@ char *TwapiAllocAString(char *src, int len)
     return dst;
 }
 
-char *TwapiAllocAStringFromObj(Tcl_Obj *objP, int *lenP) {
+char *TwapiAllocAStringFromObj(Tcl_Obj *objP, Tcl_Size *lenP) {
     char *cP;
-    int len;
+    Tcl_Size len;
     if (lenP == NULL)
         lenP = &len;
     cP = ObjToStringN(objP, lenP);
@@ -421,7 +427,8 @@ void TwapiEnqueueTclEvent(TwapiInterpContext *ticP, Tcl_Event *evP)
 int Twapi_AppendObjLog(Tcl_Interp *interp, Tcl_Obj *msgObj)
 {
     Tcl_Obj *var;
-    int limit, len;
+    Tcl_Size len;
+    int      limit;
 
     /* Note we always incr/decr ref counts in this function. That
        way the cases where we enter with msgObj.ref == 0, > 0 both

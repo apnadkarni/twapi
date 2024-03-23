@@ -128,7 +128,7 @@ TCL_SRC_DIR	= @TCL_SRC_DIR@
 EXTRA_PATH	= $(top_builddir):$(TCL_BIN_DIR)
 #EXTRA_PATH	= $(top_builddir):$(TCL_BIN_DIR):$(TK_BIN_DIR)
 TCLLIBPATH	= $(top_builddir)
-TCLSH_ENV	= TCL_LIBRARY=`@CYGPATH@ $(TCL_SRC_DIR)/library`
+#TCLSH_ENV	= TCL_LIBRARY=`@CYGPATH@ $(TCL_SRC_DIR)/library`
 PKG_ENV		= @LD_LIBRARY_PATH_VAR@="$(EXTRA_PATH):$(@LD_LIBRARY_PATH_VAR@)" \
 		  PATH="$(EXTRA_PATH):$(PATH)" \
 		  TCLLIBPATH="$(TCLLIBPATH)"
@@ -189,6 +189,9 @@ all: binaries libraries doc
 binaries: $(BINARIES)
 
 libraries:
+	@list='$(PKG_TCL_SOURCES)'; for i in $$list; do \
+	    cp $(srcdir)/$$i $(top_builddir) ; \
+	done
 
 #========================================================================
 # Your doc target should differentiate from doc builds (by the developer)
@@ -212,12 +215,12 @@ install-binaries: binaries install-lib-binaries install-bin-binaries
 #========================================================================
 
 install-libraries: libraries
-	@mkdir -p $(DESTDIR)$(includedir)
-	@echo "Installing header files in $(DESTDIR)$(includedir)"
-	@list='$(PKG_HEADERS)'; for i in $$list; do \
-	    echo "Installing $(srcdir)/$$i" ; \
-	    $(INSTALL_DATA) $(srcdir)/$$i $(DESTDIR)$(includedir) ; \
-	done;
+#	@mkdir -p $(DESTDIR)$(includedir)
+#	@echo "Installing header files in $(DESTDIR)$(includedir)"
+#	@list='$(PKG_HEADERS)'; for i in $$list; do \
+#	    echo "Installing $(srcdir)/$$i" ; \
+#	    $(INSTALL_DATA) $(srcdir)/$$i $(DESTDIR)$(includedir) ; \
+#	done;
 
 #========================================================================
 # Install documentation.  Unix manpages should go in the $(mandir)
@@ -233,7 +236,7 @@ install-doc: doc
 #	done
 
 test: binaries libraries
-	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
+	$(TCLSH) `@CYGPATH@ $(srcdir)/twapi/tests/all.tcl` $(TESTFLAGS)
 
 shell: binaries libraries
 	@$(TCLSH) $(SCRIPT)
@@ -420,8 +423,6 @@ install-lib-binaries: binaries
 	@if test "x$(SHARED_BUILD)" = "x1"; then \
 	    echo " Install pkgIndex.tcl $(DESTDIR)$(pkglibdir)"; \
 	    $(INSTALL_DATA) pkgIndex.tcl $(DESTDIR)$(pkglibdir); \
-	    echo " Install twapi_entry.tcl $(DESTDIR)$(pkglibdir)"; \
-	    $(INSTALL_DATA) twapi_entry.tcl $(DESTDIR)$(pkglibdir); \
 	fi
 
 #========================================================================

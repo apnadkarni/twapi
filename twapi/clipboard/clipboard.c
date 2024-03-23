@@ -214,7 +214,7 @@ static TCL_RESULT Twapi_ClipboardCallObjCmd(ClientData clientdata, Tcl_Interp *i
         }
         break;
     case 11:
-        if (TwapiGetArgs(interp, objc, objv, GETINT(dw), GETHANDLE(h), ARGEND) != TCL_OK)
+        if (TwapiGetArgs(interp, objc, objv, GETDWORD(dw), GETHANDLE(h), ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_HANDLE;
         result.value.hval = SetClipboardData(dw, h);
