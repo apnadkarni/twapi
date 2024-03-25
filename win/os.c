@@ -5,7 +5,7 @@
  * See the file LICENSE for license
  */
 
-#include <twapi.h>
+#include "twapi.h"
 
 #ifndef TWAPI_SINGLE_MODULE
 static HMODULE gModuleHandle;     /* DLL handle to ourselves */

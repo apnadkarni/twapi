@@ -94,100 +94,71 @@ if test "${TEA_PLATFORM}" = "windows" ; then
     TEA_ADD_CFLAGS([-DUNICODE -D_UNICODE -DWINVER=0x0601 -D_WIN32_WINNT=0x0601 -DPSAPI_VERSION=1])
 
     TEA_ADD_SOURCES([
-	    twapi/base/adsi.c
-	    twapi/base/async.c
-	    twapi/base/calls.c
-	    twapi/base/errors.c
-	    twapi/base/ffi.c
-	    twapi/base/keylist.c
-	    twapi/base/lzmadec.c
-	    twapi/base/lzmainterface.c
-	    twapi/base/memlifo.c
-	    twapi/base/mycrt.c
-	    twapi/base/parseargs.c
-	    twapi/base/printer.c
-	    twapi/base/recordarray.c
-	    twapi/base/tclobjs.c
-	    twapi/base/threadpool.c
-	    twapi/base/trap.c
-	    twapi/base/twapi.c
-	    twapi/base/twine.c
-	    twapi/base/util.c
-	    twapi/base/win.c
-	    twapi/base/winchars.c
-
-	    twapi/account/account.c
-
-	    twapi/apputil/apputil.c
-
-	    twapi/clipboard/clipboard.c
-
-	    twapi/com/com.c
-	    twapi/com/comserver.c
-
-	    twapi/console/console.c
-
-	    twapi/crypto/crypto.c
-	    twapi/crypto/sspi.c
-	    twapi/crypto/pbkdf2.c
-
-	    twapi/device/device.c
-
-	    twapi/etw/etw.c
-
-	    twapi/eventlog/eventlog.c
-	    twapi/eventlog/evt.c
-
-	    twapi/input/input.c
-
-	    twapi/mstask/mstask.c
-
-	    twapi/multimedia/multimedia.c
-
-	    twapi/namedpipe/namedpipe.c
-
-	    twapi/network/network.c
-
-	    twapi/nls/nls.c
-
-	    twapi/os/os.c
-
-	    twapi/pdh/pdh.c
-
-	    twapi/process/process.c
-
-	    twapi/rds/rds.c
-
-            twapi/registry/registry.c
-
-	    twapi/resource/resource.c
-
-	    twapi/security/security.c
-
-	    twapi/service/service.c
-	    twapi/service/scm.c
-
-	    twapi/share/share.c
-
-	    twapi/shell/shell.c
-
-	    twapi/storage/storage.c
-	    twapi/storage/dirmonitor.c
-
-	    twapi/ui/ui.c
-	    twapi/ui/gdi.c
-
-	    twapi/winsta/winsta.c
-
-	    twapi/wmi/wmi.c
+	    win/adsi.c
+	    win/async.c
+	    win/calls.c
+	    win/errors.c
+	    win/ffi.c
+	    win/keylist.c
+	    win/lzmadec.c
+	    win/lzmainterface.c
+	    win/memlifo.c
+	    win/mycrt.c
+	    win/parseargs.c
+	    win/printer.c
+	    win/recordarray.c
+	    win/tclobjs.c
+	    win/threadpool.c
+	    win/trap.c
+	    win/twapi.c
+	    win/twine.c
+	    win/util.c
+	    win/win.c
+	    win/winchars.c
+	    win/account.c
+	    win/apputil.c
+	    win/clipboard.c
+	    win/com.c
+	    win/comserver.c
+	    win/console.c
+	    win/crypto.c
+	    win/sspi.c
+	    win/pbkdf2.c
+	    win/device.c
+	    win/etw.c
+	    win/eventlog.c
+	    win/evt.c
+	    win/input.c
+	    win/mstask.c
+	    win/multimedia.c
+	    win/namedpipe.c
+	    win/network.c
+	    win/nls.c
+	    win/os.c
+	    win/pdh.c
+	    win/process.c
+	    win/rds.c
+            win/registry.c
+	    win/resource.c
+	    win/security.c
+	    win/service.c
+	    win/scm.c
+	    win/share.c
+	    win/shell.c
+	    win/storage.c
+	    win/dirmonitor.c
+	    win/ui.c
+	    win/gdi.c
+	    win/winsta.c
+	    win/wmi.c
     ])
 
     TEA_ADD_HEADERS([
-	    twapi/include/twapi.h
-	    twapi/include/twapi_ddkdefs.h
-	    twapi/include/twapi_sdkdefs.h
-	    twapi/include/zlist.h
-	    twapi/include/memlifo.h
+            win/twapi.h
+	    win/twapi_ddkdefs.h
+	    win/twapi_sdkdefs.h
+	    win/zlist.h
+	    win/memlifo.h
     ])
 
     TEA_ADD_LIBS([
@@ -202,83 +173,50 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 		])
 
     TEA_ADD_TCL_SOURCES([
-	    twapi/tcl/twapi.tcl
-	    twapi/tcl/base.tcl
-	    twapi/tcl/handle.tcl
-	    twapi/tcl/win.tcl
-	    twapi/tcl/adsi.tcl
-
-	    twapi/tcl/account.tcl
-
-	    twapi/tcl/apputil.tcl
-
-	    twapi/tcl/clipboard.tcl
-
-	    twapi/tcl/com.tcl
-
-	    twapi/tcl/console.tcl
-
-	    twapi/tcl/crypto.tcl
-	    twapi/tcl/sspi.tcl
-	    twapi/tcl/tls.tcl
-
-	    twapi/tcl/device.tcl
-
-	    twapi/tcl/etw.tcl
-
-	    twapi/tcl/eventlog.tcl
-	    twapi/tcl/evt.tcl
-	    twapi/tcl/winlog.tcl
-
-	    twapi/tcl/input.tcl
-
-	    twapi/tcl/msi.tcl
-
-	    twapi/tcl/mstask.tcl
-
-	    twapi/tcl/multimedia.tcl
-
-	    twapi/tcl/namedpipe.tcl
-
-	    twapi/tcl/network.tcl
-
-	    twapi/tcl/nls.tcl
-
-	    twapi/tcl/os.tcl
-
-	    twapi/tcl/pdh.tcl
-
-	    twapi/tcl/power.tcl
-
-	    twapi/tcl/printer.tcl
-
-	    twapi/tcl/process.tcl
-
-	    twapi/tcl/rds.tcl
-
-	    twapi/tcl/registry.tcl
-
-	    twapi/tcl/resource.tcl
-
-	    twapi/tcl/security.tcl
-
-	    twapi/tcl/service.tcl
-
-	    twapi/tcl/share.tcl
-
-	    twapi/tcl/shell.tcl
-
-	    twapi/tcl/storage.tcl
-
-	    twapi/tcl/synch.tcl
-
-	    twapi/tcl/ui.tcl
-
-	    twapi/tcl/winsta.tcl
-
-	    twapi/tcl/wmi.tcl
-
-	    twapi/LICENSE
+	    library/twapi.tcl
+	    library/base.tcl
+	    library/handle.tcl
+	    library/win.tcl
+	    library/adsi.tcl
+	    library/account.tcl
+	    library/apputil.tcl
+	    library/clipboard.tcl
+	    library/com.tcl
+	    library/console.tcl
+	    library/crypto.tcl
+	    library/sspi.tcl
+	    library/tls.tcl
+	    library/device.tcl
+	    library/etw.tcl
+	    library/eventlog.tcl
+	    library/evt.tcl
+	    library/winlog.tcl
+	    library/input.tcl
+	    library/msi.tcl
+	    library/mstask.tcl
+	    library/multimedia.tcl
+	    library/namedpipe.tcl
+	    library/network.tcl
+	    library/nls.tcl
+	    library/os.tcl
+	    library/pdh.tcl
+	    library/power.tcl
+	    library/printer.tcl
+	    library/process.tcl
+	    library/rds.tcl
+	    library/registry.tcl
+	    library/resource.tcl
+	    library/security.tcl
+	    library/service.tcl
+	    library/share.tcl
+	    library/shell.tcl
+	    library/storage.tcl
+	    library/synch.tcl
+	    library/ui.tcl
+	    library/winsta.tcl
+	    library/wmi.tcl
+	    LICENSE
+            README.md
     ])
 
 else

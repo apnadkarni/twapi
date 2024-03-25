@@ -50,7 +50,7 @@ PKG_HEADERS	= @PKG_HEADERS@
 # This is a list of generated header files.
 #========================================================================
 
-GEN_HEADERS	= twapi_module_static_proto.h twapi_module_static_init.h
+GEN_HEADERS	=
 
 #========================================================================
 # "PKG_LIB_FILE" refers to the library (dynamic or static as per
@@ -236,7 +236,7 @@ install-doc: doc
 #	done
 
 test: binaries libraries
-	$(TCLSH) `@CYGPATH@ $(srcdir)/twapi/tests/all.tcl` $(TESTFLAGS)
+	$(TCLSH) `@CYGPATH@ $(srcdir)/tests/all.tcl` $(TESTFLAGS)
 
 shell: binaries libraries
 	@$(TCLSH) $(SCRIPT)
@@ -281,37 +281,7 @@ $(PKG_STUB_LIB_FILE): $(PKG_STUB_OBJECTS)
 # As necessary, add $(srcdir):$(srcdir)/compat:....
 #========================================================================
 
-VPATH = $(srcdir):$(srcdir)/twapi/base
-VPATH += :$(srcdir)/twapi/account
-VPATH += :$(srcdir)/twapi/apputil
-VPATH += :$(srcdir)/twapi/clipboard
-VPATH += :$(srcdir)/twapi/com
-VPATH += :$(srcdir)/twapi/console
-VPATH += :$(srcdir)/twapi/crypto
-VPATH += :$(srcdir)/twapi/device
-VPATH += :$(srcdir)/twapi/etw
-VPATH += :$(srcdir)/twapi/eventlog
-VPATH += :$(srcdir)/twapi/input
-VPATH += :$(srcdir)/twapi/eventlog
-VPATH += :$(srcdir)/twapi/mstask
-VPATH += :$(srcdir)/twapi/multimedia
-VPATH += :$(srcdir)/twapi/namedpipe
-VPATH += :$(srcdir)/twapi/network
-VPATH += :$(srcdir)/twapi/nls
-VPATH += :$(srcdir)/twapi/os
-VPATH += :$(srcdir)/twapi/pdh
-VPATH += :$(srcdir)/twapi/process
-VPATH += :$(srcdir)/twapi/rds
-VPATH += :$(srcdir)/twapi/registry
-VPATH += :$(srcdir)/twapi/resource
-VPATH += :$(srcdir)/twapi/security
-VPATH += :$(srcdir)/twapi/service
-VPATH += :$(srcdir)/twapi/share
-VPATH += :$(srcdir)/twapi/shell
-VPATH += :$(srcdir)/twapi/storage
-VPATH += :$(srcdir)/twapi/ui
-VPATH += :$(srcdir)/twapi/winsta
-VPATH += :$(srcdir)/twapi/wmi
+VPATH = $(srcdir):$(srcdir)/win
 
 .c.@OBJEXT@:
 	$(COMPILE) -c `@CYGPATH@ $<` -o $@
