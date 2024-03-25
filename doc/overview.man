@@ -1,8 +1,8 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Overview" n ""]
-[copyright "2003-2021 Ashok P. Nadkarni"]
-[moddesc "TWAPI Version 4.7 Overview"]
-[titledesc "Tcl Windows API V4.7 overview"]
+[copyright "2003-2024 Ashok P. Nadkarni"]
+[moddesc "TWAPI Overview"]
+[titledesc "Tcl Windows API overview"]
 [description]
 [para]
 

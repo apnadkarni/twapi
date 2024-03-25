@@ -1,25 +1,14 @@
 <h2>Introduction</h2>
 <p>
-  The Tcl Windows API (TWAPI) extension
-  provides Tcl bindings to over 600 functions in the
+  The Tcl Windows API (TWAPI) extension provides Tcl bindings to a subset of the
   Windows API.
 </p>
 <p>
-  The extension provides access to the Windows API at two levels.
-  A direct interface to the supported Windows API is provided where the
-  Tcl commands directly map to Windows functions as described in
-  Microsoft Windows
-  SDK. The recommended interface is a higher level interface
-  that is more convenient, powerful and much easier to use
-  than the raw Windows API.
-</p>
-<p>
-  In combination with the built-in facilities in
-  <a href="https://www.tcl.tk">Tcl</a>, TWAPI makes it possible
-  to write a wide variety of Windows applications ranging from
-  desktop applications to web servers running as Windows services.
-  See <a href="https://windowstoolset.magicsplat.com">Windows
-  Inspection Tool Set</a> for an example of Tcl/TWAPI based application.
+  The extension provides access to the Windows API at two levels. A direct
+  interface to the supported Windows API is provided where the Tcl commands
+  directly map to Windows functions as described in Microsoft Windows SDK. The
+  recommended interface is a higher level interface that is more convenient,
+  powerful and much easier to use than the raw Windows API.
 </p>
 <p>
   TWAPI is open source and hosted on <a href="https://www.sourceforge.net">Sourceforge</a>.
@@ -31,6 +20,8 @@
   <li>Browse the <a href="https://sourceforge.net/p/twapi/code/">source repository</a></li>
   <li>Documentation for older versions: 
     <!-- NOTE: Explicit HTTP links because older doc versions do not support https due to http links to yahoo yui css -->
+    <a href="http://twapi.magicsplat.com/v4.7/index.html">4.7</a>
+    <a href="http://twapi.magicsplat.com/v4.6/index.html">4.6</a>
     <a href="http://twapi.magicsplat.com/v4.5/index.html">4.5</a>
     <a href="http://twapi.magicsplat.com/v4.4/index.html">4.4</a>
     <a href="http://twapi.magicsplat.com/v4.3/index.html">4.3</a>

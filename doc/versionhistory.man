@@ -7,6 +7,14 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
+[section "Version 5.0"]
+
+[list_begin bullet]
+[bullet] Adds support for Tcl 9.
+[bullet] Drops support for Windows versions prior to Windows 7 SP1.
+[bullet] Drops the "modular" and "binary" build configurations.
+[list_end]
+
 [section "Version 4.7"]
 
 [list_begin bullet]

@@ -15,8 +15,6 @@ or
 
 - A relatively recent MingW64 distribution.
 
-Also, Microsoft Help Workshop to build the documentation.
-
 ## Source code checkout
 
 Fork https://github.com/apnadkarni/twapi on Github or clone the repository
@@ -44,14 +42,10 @@ as the Visual Studio command shell.
 
 ## Building a full distribution
 
-The above steps are combined into the release.cmd batch file.
-Run this file from a DOS prompt WITHOUT setting up the environment as
-described above. It will then build all the above distributions
-for both 32- and 64-bit versions.
-
-The release1.cmd file is invoked by the release.cmd file to build
-binaries for a single architecture (x86 or amd64).
-
+The above steps are combined into the release.cmd batch file. Edit this file to
+match your Tcl installations for Tcl 8.6 and Tcl 9. Running this will build x86
+and x64 for both Tcl 8.6 and Tcl 9 as a single distributable directory under
+dist/latest.
 
 ## Building with MinGW-W64
 -----------------------
@@ -65,11 +59,11 @@ Then do something along the lines of (64-bit)
     make
     make install
 
-Note the --with-tclinclude and --prefix are necessary in the presence of a config.site file
-when TCLDIR points to a private installation.
+Note the --with-tclinclude and --prefix are necessary in the presence of a
+config.site file when TCLDIR points to a private installation.
 
 For a 32-bit build, do something similar from a 32-bit MINGW32 shell, leaving
 off the --enable-64bit option.
 
-IMPORTANT: In this case, the Tcl binaries must also have been built
-with the same MinGW-W64 toolchain.
+IMPORTANT: In this case, the Tcl binaries must also have been built with the
+same MinGW-W64 toolchain.

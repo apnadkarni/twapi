@@ -6,9 +6,19 @@
 # To build website
 #   nmake ADFILE=google-ads.js ADFILE2=google-ads-horizontal-link-unit.js website
 
-!include ../include/version.inc
+TWAPI_VERSION = 5.0a0
+
 SRCROOT=$(MAKEDIR)\..
-!include ../include/tooldefs.inc
+TOOLDIR=$(SRCROOT)\tools
+TCLSH         = "$(TOOLDIR)\tclkits\tclkit-cli-8.6.4-x64.exe"
+ZIP           = "$(TOOLDIR)\zip.exe"
+TIDY="$(TOOLDIR)\tidy.exe"
+DTP="$(TOOLDIR)\twapi-dtp.kit"
+!ifndef HHC
+HHC="C:\Program Files (x86)\HTML Help Workshop\hhc.exe"
+!endif
+!message "Using Help compiler $(HHC)"
+
 
 # Comment line below to see command lines being executed
 # Or just invoke nmake with SILENT=
@@ -17,16 +27,6 @@ SILENT=@
 DTPQUIET = -quiet
 !endif
 
-!ifndef TOOLDIR
-TOOLDIR= $(SRCROOT)\..\tools
-!endif
-
-TIDY="$(TOOLDIR)\tidy.exe"
-DTP="$(TOOLDIR)\twapi-dtp.kit"
-!ifndef HHC
-HHC="C:\Program Files (x86)\HTML Help Workshop\hhc.exe"
-!endif
-!message "Using Help compiler $(HHC)"
 # Documentation input files. Note this also specifies the order in the ToC
 !ifndef MANFILES
 MANFILES= \
