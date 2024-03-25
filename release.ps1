@@ -79,7 +79,7 @@ foreach ($name in $envNames) {
     }
 }
 
-$path = ..\tools\vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+$path = tools\vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
 # Run vsdevmd to set up environment variabls
 if ($path) {
     $path = join-path $path 'Common7\Tools\vsdevcmd.bat'

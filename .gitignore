@@ -38,3 +38,7 @@ SyncToy*
 # TEA based intermediate files
 autom4te.cache/*
 config.status
+versions.vc
+nmakehlp.exe
+nmakehlp.obj
+nmakehlp.out

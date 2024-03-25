@@ -27,16 +27,14 @@
 #------------------------------------------------------------------------------
 # The name of the package
 PROJECT = twapi
-DOTVERSION = 5.0a0
 
 MULTIPLATFORM_INSTALL = 1
-LIBDIR = $(ROOT)\tcl
 RCFILE = common.rc
 
 !include "rules-ext.vc"
 
 !message $(ROOT)
-DYNCALLDIR=$(ROOT)\..\dyncall\dyncall-0.9
+DYNCALLDIR=$(ROOT)\dyncall\dyncall-0.9
 
 # Override shared library installation directory
 !if "$(ARCH)" == "AMD64"
@@ -110,7 +108,7 @@ PRJ_OBJS = $(PRJ_OBJS) \
 
 
 HEADERS = \
-	$(ROOT)\include\twapi.h
+	$(ROOT)\win\twapi.h
 
 PRJ_INCLUDES = -I $(ROOT)\include -I $(DYNCALLDIR)\include
 
@@ -166,7 +164,9 @@ PRJ_LIBS = $(PRJ_LIBS) \
 DISABLE_TARGET_install = 1
 !include "$(_RULESDIR)\targets.vc"
 
-pkgindex:
+pkgindex: default-pkgindex-tea
+
+xpkgindex:
 	@nmakehlp -s << $(ROOT)\..\pkgIndex.tcl.in > $(OUT_DIR)\pkgIndex.tcl
 @PACKAGE_VERSION@    $(DOTVERSION)
 @PACKAGE_NAME@       $(PRJ_PACKAGE_TCLNAME)
@@ -185,154 +185,5 @@ install: pkgindex $(PRJLIB) default-install-scripts
 	@$(CPY) $(OUT_DIR)\pkgIndex.tcl "$(SCRIPT_INSTALL_DIR)"
 	@$(CPY) $(ROOT)\LICENSE "$(SCRIPT_INSTALL_DIR)"
 
-$(PRJ_OBJS): $(HEADERS) $(ROOT)\..\configure.ac
+$(PRJ_OBJS): $(HEADERS) $(ROOT)\configure.ac
 
-{$(ROOT)\base}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\account}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\apputil}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\clipboard}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\console}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\com}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\crypto}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\device}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\etw}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\eventlog}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\input}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\mstask}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\multimedia}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\namedpipe}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\network}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\nls}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\os}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\pdh}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\process}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\rds}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\registry}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\resource}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\security}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\service}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\share}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\shell}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\storage}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\ui}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\winsta}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
-
-{$(ROOT)\wmi}.c{$(TMP_DIR)}.obj::
-	$(CCPKGCMD) @<<
-$<
-<<
