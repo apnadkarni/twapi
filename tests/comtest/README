@@ -43,20 +43,30 @@ Not possible.
 Running outproc on 64-bit Tcl
 -----------------------------
 This will run comtest.dll inside of dllhost. Since comtest is a 32-bit
-component, the 32-bit registry must be used. Note the *paths* below
+component, the 32-bit registry must be used. The script comtestsetup.tcl
+can be used for the purpose. Note it must be run as administrator.
+
+Alternatively, the following manual steps can be done:
+
+(Note the *paths* below)
 
 Run
   c:\windows\syswow64\regsvr32 comtest.dll
 
 1. Start the 32-bit regedit (c:\windows\syswow64\regedit)
+
 2. Locate the key HKey_Classes_Root\Wow6432Node\CLSID\[GUID] where [GUID]
 is the TwapiTest coclass guid (currently {310FEA61-BC62-4944-84BE-D9DB986701DC})
 NOTE presence of Wow6432Node in the path.
+
 3. Add a new REG_SZ (string) value called AppID to the key with [GUID] from
 above as the value (actually it can be any GUID, not necessarily the one above)
+
 4. Add a new key HKey_Classes_Root\Wow6432Node\AppID\[GUID] where [GUID] is
 the [GUID] from step 3 (may or may not be the TwapiTest GUID)
+
 5. Add a string Value entry DllSurrogate to this key, leaving its value empty
+
 6. Similar to above, add DllSurrogate to
 HKey_Local_Machine\Software\Wow6432Node\Classes\AppID\[GUID]
 
@@ -64,4 +74,5 @@ Now when you create your COM object you should see DLLHost.exe*32 show
 up in task manager. Turn on the command-line column in task manager
 and you should see 
 C:\windows\syswow64\dllhost.exe /processid:{YourCOMGUIDHere}
+
 

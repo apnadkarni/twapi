@@ -305,7 +305,7 @@ int TwapiInitTclTypes(void)
     /* int not registered in newer Tcl versions */
     if (gTclTypes[TWAPI_TCLTYPE_INT].typeptr == NULL) {
         Tcl_Obj *objP = Tcl_NewIntObj(0);
-        gTclTypes[TWAPI_TCLTYPE_BOOLEANSTRING].typeptr = objP->typePtr;
+        gTclTypes[TWAPI_TCLTYPE_INT].typeptr = objP->typePtr;
     }
 
     /* "booleanString" type is not always registered (if ever). Get it
