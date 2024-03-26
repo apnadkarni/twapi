@@ -3304,8 +3304,7 @@ proc twapi::_pem_decode {pem_or_der enc {pemtype 6}} {
     if {$enc eq "der"} {
         return $pem_or_der
     }
-    if {$enc eq "pem" || 
-        [regexp -nocase {^\s*-----\s*BEGIN\s+} $pem_or_der]} {
+    if {$enc eq "pem" || [_is_pem $pem_or_der]} {
         return [CryptStringToBinary $pem_or_der $pemtype]
     }
     return $pem_or_der

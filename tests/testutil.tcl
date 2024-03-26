@@ -1532,7 +1532,9 @@ proc storewithkeys {} {
 
 # Returns revoked cert. Must be released by caller
 proc revokedcert {} {
-    set enc [read_file [file join [tcltest::testsDirectory] certs grcrevoked.pem] r]
+    set enc [read_file [file join [tcltest::testsDirectory] certs revoked-rsa-dv.ssl.com.pem] r]
+    #set enc [read_file [file join [tcltest::testsDirectory] certs revoked.badssl.com.pem] r]
+    #set enc [read_file [file join [tcltest::testsDirectory] certs grcrevoked.pem] r]
     return [twapi::cert_import $enc]
 }
 
@@ -1541,6 +1543,14 @@ proc yahoocert {} {
     set enc [read_file [file join [tcltest::testsDirectory] certs www.yahoo.com.pem] r]
     return [twapi::cert_import $enc -encoding pem]
 }
+
+# Returns valid cert. Must be released by caller
+proc validcert {} {
+    set enc [read_file [file join [tcltest::testsDirectory] certs test-ev-ecc.ssl.com.pem] r]
+    return [twapi::cert_import $enc -encoding pem]
+}
+
+
 
 # Returns google cert. Must be released by caller
 proc googlecert {} {
@@ -1555,7 +1565,8 @@ proc googleencodedcert {} {
 }
 
 proc expiredcert {} {
-    set enc [read_file [file join [tcltest::testsDirectory] certs www.google.com-expired.pem] r]
+    set enc [read_file [file join [tcltest::testsDirectory] certs expired-rsa-ev.ssl.com.pem] r]
+    # set enc [read_file [file join [tcltest::testsDirectory] certs www.google.com-expired.pem] r]
     return [twapi::cert_import $enc -encoding pem]
 }
 
@@ -1569,7 +1580,8 @@ proc samplecert {{which full}} {
 proc sampleencodedcert {{which full}} {
     variable _sampleencodedcert
     if {![info exists _sampleencodedcert($which)]} {
-        set _sampleencodedcert($which) [read_file [file join [tcltest::testsDirectory] certs twapitest${which}.cer] rb]
+        set bin [read_file [file join [tcltest::testsDirectory] certs twapitest${which}.cer] rb]
+        set _sampleencodedcert($which) [twapi::_pem_decode $bin ""]
     }
     return $_sampleencodedcert($which)
 }
@@ -1649,7 +1661,7 @@ proc openssl_store_path {args} {
         # Try from the source pool. We do it this way because 
         # of problems loading in VmWare virtual machines from the
         # host's drive share
-        set path [list ../../tools/openssl/bin/openssl.exe]
+        set path [list ../tools/openssl/bin/openssl.exe]
         if {![file exists $path]} {
             error "Could not locate openssl.exe"
         }
@@ -1661,7 +1673,10 @@ proc openssl_exe_path {} {
     if {[info exists ::env(OPENSSL_EXEPATH)]} {
         set path $::env(OPENSSL_EXEPATH)
     } {
-        set path {C:\msys64\mingw32\bin\openssl.exe}
+        # mingw latest versions do not support des-cfb etc.
+        #set path {C:\msys64\mingw32\bin\openssl.exe}
+
+        set path [file join [testdir] .. tools openssl bin openssl.exe]
     }
     return [file normalize $path]
 }
