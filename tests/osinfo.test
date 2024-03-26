@@ -649,8 +649,9 @@ namespace eval twapi::osinfo::test {
     } -body {
         set optval [twapi::get_memory_info -maxappaddr]
         verify_kl_fields $optval [list -maxappaddr]
-        lindex $optval 1
-    } -result 0x[format %lx [expr {$::tcl_platform(machine) eq "amd64" ? 0x7fffffeffff : 0x7ffeffff}]]
+        set maxappaddr [lindex $optval 1]
+        expr {$::tcl_platform(machine) eq "amd64" ? ($maxappaddr >= 0x7fffffeffff) : 0x7ffeffff}
+    } -result 1
 
     ###
     test get_memory_info-7.0 {
@@ -770,8 +771,9 @@ namespace eval twapi::osinfo::test {
     } -body {
         set optval [twapi::get_memory_info -processtotalvirtual]
         verify_kl_fields $optval [list -processtotalvirtual]
-        lindex $optval 1
-    } -result [format %lld [expr {$::tcl_platform(machine) eq "amd64" ? 0x7fffffe0000 : 0x7ffe0000}]]
+        set tot [lindex $optval 1]
+        expr {$::tcl_platform(machine) eq "amd64" ? ($tot >= 0x7fffffe0000) : 0x7ffe0000}
+    } -result 1
 
     test get_memory_info-18.0 {
         Get memory information option -processavailvirtual

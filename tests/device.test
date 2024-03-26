@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2008-2012, Ashok P. Nadkarni
+# Copyright (c) 2008-2024, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -27,6 +27,7 @@ namespace eval twapi::device::test {
         }
         error "No cdrom found"
     }
+    ::tcltest::testConstraint cdrom [expr {![catch {find_cdrom}]}]
 
     proc fill_physical_disks {{force 0}} {
         variable physical_disks
@@ -310,7 +311,7 @@ namespace eval twapi::device::test {
     test start_device_notifier-2.2 {
         Start a device notifier for volumes (CD mediachange)
     } -constraints {
-        userInteraction
+        userInteraction cdrom
     } -body {
         pause "Please make sure CD-ROM tray is empty"
         set ::device_test_notifications {}
@@ -505,7 +506,7 @@ namespace eval twapi::device::test {
     test eject-1.0 {
         Eject and load cdrom (eject_media)
     } -constraints {
-        userInteraction
+        userInteraction cdrom
     } -body {
         pause "Please make sure the CD-ROM is closed."
         twapi::eject_media cdrom
@@ -528,7 +529,7 @@ namespace eval twapi::device::test {
     test eject-1.1 {
         Eject and load using drive letter (eject, and also verifies eject unlocks if necessary)
     } -constraints {
-        userInteraction
+        userInteraction cdrom
     } -setup {
         set drive [find_cdrom]
     } -body {
@@ -554,7 +555,7 @@ namespace eval twapi::device::test {
     test eject-1.2 {
         Eject and load using volume
     } -constraints {
-        userInteraction
+        userInteraction cdrom
     } -setup {
         set drive [find_cdrom]
         set vol [twapi::get_mounted_volume_name $drive]
@@ -606,7 +607,7 @@ namespace eval twapi::device::test {
     test lock_media-1.0 {
         Lock/unlock cdrom
     } -constraints {
-        userInteraction
+        userInteraction cdrom
     } -setup {
         # Make sure cdrom is not already locked. [eject] will unlock it
         twapi::eject cdrom
@@ -623,7 +624,7 @@ namespace eval twapi::device::test {
     test lock_media-1.1 {
         Lock/unlock cdrom (drive letter)
     } -constraints {
-        userInteraction
+        userInteraction cdrom
     } -setup {
         # Make sure cdrom is not already locked. [eject] will unlock it
         set drive [find_cdrom]
@@ -641,7 +642,7 @@ namespace eval twapi::device::test {
     test lock_media-1.2 {
         Lock/unlock cdrom (volume)
     } -constraints {
-        userInteraction
+        userInteraction cdrom
     } -setup {
         # Make sure cdrom is not already locked. [eject] will unlock it
         set drive [find_cdrom]

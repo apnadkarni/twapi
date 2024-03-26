@@ -17,8 +17,6 @@ load_twapi_package twapi_security
 load_twapi_package twapi_process
 load_twapi_package twapi_synch
 
-source ../tcl/registry.tcl
-
 namespace eval twapi::registry::test {
     namespace import ::tcltest::test
     # Constraint x64 is true if we are a 64-bit process
@@ -91,6 +89,13 @@ namespace eval twapi::registry::test {
     proc makeSecd {} {
         set dacl [twapi::new_restricted_dacl [list $::env(username)] KEY_ALL_ACCESS]
         return [twapi::new_security_descriptor -dacl $dacl]
+    }
+
+    proc makeFileSecd {} {
+        set dacl [twapi::new_restricted_dacl [list $::env(username)] FILE_ALL_ACCESS]
+        set secd [twapi::new_security_descriptor -dacl $dacl]
+        #set secd [twapi::protect_security_descriptor_dacl $secd]
+        return $secd
     }
 
     proc initKey {key_path subtree} {
@@ -618,15 +623,17 @@ namespace eval twapi::registry::test {
         set tokey RestoreKey-4
         set filepath [tcltest::makeFile "" $tokey.reg]
         file delete $filepath
-        set secd [makeSecd]
+        set secd [makeFileSecd]
         set dacl [twapi::get_security_descriptor_dacl $secd]
     } -body {
         set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
-        twapi::reg_key_export $hkey [file nativename $filepath]
+        twapi::reg_key_export $hkey [file nativename $filepath] -secd $secd
         set to_hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\$tokey -access maximum_allowed]
-        twapi::reg_key_import $to_hkey $filepath -secd $secd
+        twapi::reg_key_import $to_hkey $filepath
         set secd2 [twapi::get_resource_security_descriptor file $filepath -dacl]
         set dacl2 [twapi::get_security_descriptor_dacl $secd2]
+        puts dacl:[twapi::get_acl_text $dacl]
+        puts dacl:[twapi::get_acl_text $dacl2]
         list \
             [compare_registry HKEY_CURRENT_USER\\$rootKey\\$tokey HKEY_CURRENT_USER\\$rootKey\\Key1] \
             [string equal $dacl $dacl2]

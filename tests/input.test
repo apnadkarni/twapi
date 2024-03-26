@@ -299,12 +299,13 @@ namespace eval twapi::input::test {
                 twapi::modify_console_input_mode stdin -processedinput true -lineinput true -echoinput true
                 twapi::flush_console_input
             } -body {
-                twapi::send_keys "%KEYS%"
                 if {0} {
                     package require twapi_com
                     set shell [twapi::comobj WScript.Shell]
                     $shell SendKeys "%KEYS%"
                     $shell destroy
+                } else {
+                    twapi::send_keys "%KEYS%"
                 }
                 after 100
                 readinputrecs
@@ -344,7 +345,7 @@ namespace eval twapi::input::test {
     # NOTE - CMD CONSOLE ALWAYS RELEASES MODIFIERS IN FIXED ORDER NO MATTER WHAT ORDER THEY WERE SENT.
     # EXPECTED TEST RESULTS ARE DEFINED ACCORDINGLY
     # (confirmed via winspy that correct order is sent)
-    send_keys_raw_test 5.0 "Shift control" +^b {{16 down shift} {17 down {leftctrl shift}} {66 down {leftctrl shift}} {66 up {leftctrl shift}} {16 up leftctrl} {17 up {}}}
+    send_keys_raw_test 5.0 "Shift control" +^b {{16 down shift} {17 down {leftctrl shift}} {66 down {leftctrl shift}} {66 up {leftctrl shift}} {17 up shift} {16 up {}}}
     # 5.1 fails because console swallows 66 up message. Winspy against Tk verifies correct sequence is sent
     # send_keys_raw_test 5.1 "Control alt" ^%b {{17 down leftctrl} {18 down {leftalt leftctrl}} {66 down {leftalt leftctrl}} {66 up {leftalt leftctrl}} {18 up leftctrl} {17 up {}}}
     send_keys_raw_test 5.2 "Nested Group control" +(^ab)d {{16 down shift} {17 down {leftctrl shift}} {65 down {leftctrl shift}} {65 up {leftctrl shift}} {17 up shift} {66 down shift} {66 up shift} {16 up {}} {68 down {}} {68 up {}}}

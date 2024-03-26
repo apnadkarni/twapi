@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2010, Ashok P. Nadkarni
+# Copyright (c) 2010-2024, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -128,7 +128,7 @@ namespace eval twapi::handle::test {
         set evh [new_event]
         twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 100
         after 250
-        update idletasks
+        update
         expr {
               [llength $::wait_completed] == 4 &&
               [twapi::pointer_equal? $evh [lindex $::wait_completed 0]] &&
@@ -150,7 +150,7 @@ namespace eval twapi::handle::test {
         twapi::wait_on_handle $evh -async "lappend ::wait_completed" -wait 100
         twapi::SetEvent $evh
         after 50;              # Wait for twice the wait interval
-        update idletasks
+        update
         expr {
               [llength $::wait_completed] == 2 &&
               [twapi::pointer_equal? $evh [lindex $::wait_completed 0]] &&
@@ -221,7 +221,7 @@ namespace eval twapi::handle::test {
         set evh [new_event]
         twapi::wait_on_handle $evh -async "lappend ::wait_completedx" -wait 100 -executeonce 1
         after 250
-        update idletasks
+        update
         expr {
               [llength $::wait_completedx] == 2 &&
               [twapi::pointer_equal? $evh [lindex $::wait_completedx 0]] &&
@@ -289,7 +289,7 @@ namespace eval twapi::handle::test {
         flush $fd
     } -cleanup {
         catch {close $fd}
-    } -returnCodes error -result "*bad file number" -match glob
+    } -returnCodes error -result "*bad file*" -match glob
 
     test get_tcl_channel_handle-2.0 {
         Get the read OS handle for a channel
@@ -302,7 +302,7 @@ namespace eval twapi::handle::test {
         gets $fd
     } -cleanup {
         catch {close $fd}
-    } -returnCodes error -result "*bad file number" -match glob
+    } -returnCodes error -result "*bad file*" -match glob
 
 
     ################################################################
@@ -318,7 +318,7 @@ namespace eval twapi::handle::test {
         gets $fd
     } -cleanup {
         catch {close $fd}
-    } -returnCodes error -result "*bad file number" -match glob
+    } -returnCodes error -result "*bad file*" -match glob
 
     test close_handle-1.1 {
         Close a process handle

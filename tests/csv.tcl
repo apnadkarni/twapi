@@ -10,7 +10,7 @@
 # 
 # RCS: @(#) $Id: csv.tcl,v 1.28 2011/11/23 02:22:10 andreas_kupries Exp $
 
-package require Tcl 8.3
+#package require Tcl 8.3
 package provide csv 0.7.3
 
 namespace eval ::csv {

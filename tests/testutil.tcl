@@ -1391,6 +1391,17 @@ proc wish_path {} {
     return $path
 }
 
+proc print_events_in_wish {} {
+    bind . <KeyPress> {
+        puts stdout [list <KeyPress> %k %K]
+    }
+    bind . <KeyRelease> {
+        puts stdout [list <KeyRelease> %k %K]
+    }
+    after 1000 [list exit 0]
+    vwait forever
+}
+
 # Intended to be called as a separate wish process else allocate_console
 # will fail.
 proc allocate_console_in_wish {{title "wish dos console"}} {

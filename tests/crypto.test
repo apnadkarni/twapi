@@ -1245,11 +1245,15 @@ namespace eval twapi::crypto::test {
         set count 0
         set matches 0
         set cert NULL
-        while {1} {
-            set cert [twapi::cert_store_find_certificate $hstore subject_substring microsoft $cert]
-            if {$cert eq ""} break
-            incr count
-            incr matches [string match -nocase *microsoft* [twapi::cert_subject_name $cert -name rdn]]
+        foreach substring {microsoft GTS SSL.com} {
+            puts "Trying $substring"
+            while {1} {
+                set cert [twapi::cert_store_find_certificate $hstore subject_substring $substring $cert]
+                if {$cert eq ""} break
+                incr count
+                incr matches [string match -nocase *$substring* [twapi::cert_subject_name $cert -name rdn]]
+            }
+            if {$count > 0} break
         }
         list [expr {$count > 1}] [expr {$count == $matches}]
     } -cleanup {

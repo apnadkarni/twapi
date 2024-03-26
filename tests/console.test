@@ -1089,10 +1089,10 @@ namespace eval twapi::console::test {
     } -body {
         puts "Testing wrapping of console output"
         set prevmode [twapi::modify_console_output_mode stdout -wrapoutput false]
-        puts [string repeat X 100]
+        puts [string repeat X 200]
         twapi::modify_console_output_mode stdout -wrapoutput true
         set unwrapped [yesno "\nDid the previous row of X wrap around?"]
-        puts [string repeat Y 100]
+        puts [string repeat Y 200]
         set wrapped [yesno "\nDid the previous line of Y's wrap around ?"]
         list [twapi::kl_equal $orig $prevmode] $unwrapped $wrapped
     } -cleanup {
@@ -1262,11 +1262,11 @@ namespace eval twapi::console::test {
     } -setup {
         set sz [lindex [twapi::get_console_screen_buffer_info stdout -size] 1]
     } -body {
-        twapi::set_console_screen_buffer_size stdout {85 305}
+        twapi::set_console_screen_buffer_size stdout {1000 500}
         lindex [twapi::get_console_screen_buffer_info stdout -size] 1
     } -cleanup {
         twapi::set_console_screen_buffer_size stdout $sz
-    } -result {85 305}
+    } -result {1000 500}
 
     test set_console_screen_buffer_size-1.1 {
         Set screen buffer size with explicit handle
@@ -1274,12 +1274,12 @@ namespace eval twapi::console::test {
         set conh [twapi::get_console_handle stdout]
         set sz [lindex [twapi::get_console_screen_buffer_info $conh -size] 1]
     } -body {
-        twapi::set_console_screen_buffer_size $conh {90 310}
+        twapi::set_console_screen_buffer_size $conh {1000 500}
         lindex [twapi::get_console_screen_buffer_info $conh -size] 1
     } -cleanup {
         twapi::set_console_screen_buffer_size $conh $sz
         twapi::close_handle $conh
-    } -result {90 310}
+    } -result {1000 500}
 
     ################################################################
 

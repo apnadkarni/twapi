@@ -1294,6 +1294,12 @@ proc twapi::set_security_descriptor_dacl {secd acl {defaulted 0}} {
     return [list $control $owner $group $acl $sacl]
 }
 
+proc twapi::protect_security_descriptor_dacl {secd} {
+    lassign $secd control owner group dacl sacl
+    set control [expr {$control | 0x1000}]; # SE_DACL_PROTECTED
+    return [list $control $owner $group $dacl $sacl]
+}
+
 # Return the SACL in a security descriptor
 proc twapi::get_security_descriptor_sacl {secd} {
     if {[_null_secd $secd]} {

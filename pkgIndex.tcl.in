@@ -69,6 +69,7 @@ set __twapimods {
     pdh
     process
     rds
+    registry
     resource
     service
     share
