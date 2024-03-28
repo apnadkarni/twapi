@@ -398,6 +398,7 @@ proc twapi::tls::watch {chan watchmask} {
     dict set _channels($chan) WatchMask $watchmask
 
     if {"read" in $watchmask} {
+        debuglog "[info level 0]: read"
         # Post a read even if we already have input or if the
         # underlying socket has gone away.
         # TBD - do we have a mechanism for continuously posting
@@ -411,6 +412,7 @@ proc twapi::tls::watch {chan watchmask} {
     }
 
     if {"write" in [dict get $_channels($chan) WatchMask]} {
+        debuglog "[info level 0]: write"
         if {[dict get $_channels($chan) State] in {OPEN NEGOTIATING CLOSED} } {
             _post_write_event $chan
         }
@@ -870,6 +872,7 @@ proc twapi::tls::_so_write_handler {chan} {
     variable _channels
 
     if {[info exists _channels($chan)]} {
+        debuglog "[info level 0]: channel exists"
         dict with _channels($chan) {}
 
         # If we are not actually asked to generate write events,
@@ -877,23 +880,30 @@ proc twapi::tls::_so_write_handler {chan} {
         # Once it runs, we never want it again else it will keep triggering
         # as sockets are always writable
         if {"write" ni $WatchMask} {
+            debuglog "[info level 0]: write not in writemask"
             if {[info exists Socket]} {
                 chan event $Socket writable {}
             }
         }
 
         if {$State in {SERVERINIT CLIENTINIT NEGOTIATING}} {
+            debuglog "[info level 0]: Calling _negotiate_from_handler, State=$State"
             if {![_negotiate_from_handler $chan]} {
                 # TBD - should we throw so bgerror gets run?
+                debuglog "[info level 0]: _negotiate_from_handler returned non-zero."
                 return
             }
         }
-
+        debuglog "[info level 0]: State = $State, newstate=[dict get $_channels($chan) State]"
         # Do not use local var $State because _negotiate might have updated it
         if {"write" in $WatchMask && [dict get $_channels($chan) State] eq "OPEN"} {
+            debuglog "[info level 0]: posting write event"
             _post_write_event $chan
+        } else {
+            debuglog "[info level 0]: NOT posting write event"
         }
     }
+    debuglog "[info level 0]: returning"
     return
 }
 
@@ -929,16 +939,19 @@ proc twapi::tls::_negotiate2 {chan} {
         
     dict with _channels($chan) {}; # dict -> local vars
 
-    debuglog [info level 0]
+    debuglog "[info level 0]: State=$State"
     switch $State {
         NEGOTIATING {
             if {$Blocking && ![info exists AcceptCallback]} {
+                debuglog "[info level 0]: Blocking"
                 return [_blocking_negotiate_loop $chan]
             }
 
             set data [chan read $Socket]
             if {[string length $data] == 0} {
+                debuglog "[info level 0]: No data from socket"
                 if {[chan eof $Socket]} {
+                    debuglog "[info level 0]: EOF on socket"
                     throw {TWAPI TLS NEGOTIATE EOF} "Unexpected EOF during TLS negotiation (NEGOTIATING)"
                 } else {
                     # No data yet, just keep waiting
@@ -946,7 +959,9 @@ proc twapi::tls::_negotiate2 {chan} {
                     return
                 }
             } else {
+                debuglog "[info level 0]: Read data from socket"
                 lassign [sspi_step $SspiContext $data] status outdata leftover
+                debuglog "[info level 0]: sspi_step returned $status"
                 debuglog "sspi_step returned status $status with [string length $outdata] bytes"
                 if {[string length $outdata]} {
                     chan puts -nonewline $Socket $outdata
@@ -976,12 +991,14 @@ proc twapi::tls::_negotiate2 {chan} {
 
         CLIENTINIT {
             if {$Blocking} {
+                debuglog "[info level 0]: CLIENTINIT - blocking negotiate"
                 _client_blocking_negotiate $chan
             } else {
                 dict set _channels($chan) State NEGOTIATING
                 set SspiContext [sspi_client_context $Credentials -usesuppliedcreds $UseSuppliedCreds -stream 1 -target $PeerSubject -manualvalidation [expr {[llength $Verifier] > 0}]]
                 dict set _channels($chan) SspiContext $SspiContext
                 lassign [sspi_step $SspiContext] status outdata
+                debuglog "[info level 0]: sspi_step returned $status"
                 if {[string length $outdata]} {
                     chan puts -nonewline $Socket $outdata
                     chan flush $Socket
@@ -991,7 +1008,7 @@ proc twapi::tls::_negotiate2 {chan} {
                 }
             }
         }
-        
+
         SERVERINIT {
             # For server sockets created from tls_socket, we
             # always take the non-blocking path as we set the socket
@@ -1051,7 +1068,7 @@ proc twapi::tls::_negotiate2 {chan} {
             error "Internal error: _negotiate called in state [dict get $_channels($chan) State]"
         }
     }
-
+    debuglog "[info level 0]: returning with state [dict get $_channels($chan) State]"
     return
 }
 

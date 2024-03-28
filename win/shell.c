@@ -989,7 +989,7 @@ static int Twapi_ShellCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int 
         CHECK_NARGS(interp, objc, 2);
         CHECK_DWORD_OBJ(interp, dw, objv[0]);
         CHECK_RESULT(ObjToByteArrayDW(interp, objv[1], &dw2, (unsigned char **)&u.niP));
-        if (dw2 != sizeof(NOTIFYICONDATAW) || dw2 != u.niP->cbSize) {
+        if (dw2 != u.niP->cbSize) {
             return TwapiReturnErrorMsg(interp, TWAPI_INVALID_ARGS, "Inconsistent size of NOTIFYICONDATAW structure.");
         }
         result.type = TRT_EMPTY;

@@ -531,7 +531,7 @@ proc twapi::set_service_configuration {name args} {
 
     foreach opt {command loadordergroup dependencies account password displayname} {
         if {![info exists opts($opt)]} {
-            set winparams($opt) $twapi::nullptr
+            set winparams($opt) $::twapi::nullptr
         }
     }
 

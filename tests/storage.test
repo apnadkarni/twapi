@@ -630,7 +630,7 @@ namespace eval twapi::disk::test {
     } -constraints {
         nt
     } -body {
-        set fn $tcltest::temporaryDirectory
+        set fn $::tcltest::temporaryDirectory
         set times [twapi::get_file_times $fn -all]
         verify_file_times $fn $times {-mtime -ctime -atime}
     } -result 1
@@ -643,7 +643,7 @@ namespace eval twapi::disk::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join $tcltest::temporaryDirectory set_file_times-1.0-[clock clicks]]
+        set fn [file join $::tcltest::temporaryDirectory set_file_times-1.0-[clock clicks]]
         tcltest::makeFile "" [file tail $fn] [file dirname $fn]
     } -body {
         set ctime [twapi::secs_since_1970_to_large_system_time 0]
@@ -661,7 +661,7 @@ namespace eval twapi::disk::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join $tcltest::temporaryDirectory set_file_times-2.0-[clock clicks]]
+        set fn [file join $::tcltest::temporaryDirectory set_file_times-2.0-[clock clicks]]
         tcltest::makeFile "" [file tail $fn] [file dirname $fn]
         set fd [open $fn a+]
     } -body {
@@ -682,7 +682,7 @@ namespace eval twapi::disk::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join $tcltest::temporaryDirectory set_file_times-3.0-[clock clicks]]
+        set fn [file join $::tcltest::temporaryDirectory set_file_times-3.0-[clock clicks]]
         tcltest::makeFile "" [file tail $fn] [file dirname $fn]
         set fd [open $fn a+]
         set fh [twapi::get_tcl_channel_handle $fd write]
@@ -704,7 +704,7 @@ namespace eval twapi::disk::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join $tcltest::temporaryDirectory set_file_times-4.0-[clock clicks]]
+        set fn [file join $::tcltest::temporaryDirectory set_file_times-4.0-[clock clicks]]
         tcltest::makeFile "" [file tail $fn] [file dirname $fn]
     } -body {
         set now [clock seconds]
@@ -721,7 +721,7 @@ namespace eval twapi::disk::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join $tcltest::temporaryDirectory set_file_times-5.0-[clock clicks]]
+        set fn [file join $::tcltest::temporaryDirectory set_file_times-5.0-[clock clicks]]
         tcltest::makeFile "" [file tail $fn] [file dirname $fn]
         set fd [open $fn a+]
     } -body {
@@ -741,7 +741,7 @@ namespace eval twapi::disk::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join $tcltest::temporaryDirectory set_file_times-6.0-[clock clicks]]
+        set fn [file join $::tcltest::temporaryDirectory set_file_times-6.0-[clock clicks]]
         tcltest::makeFile "" [file tail $fn] [file dirname $fn]
         set fd [open $fn a+]
         set fh [twapi::get_tcl_channel_handle $fd write]
@@ -762,7 +762,7 @@ namespace eval twapi::disk::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join $tcltest::temporaryDirectory set_file_times-7.0-[clock clicks]]
+        set fn [file join $::tcltest::temporaryDirectory set_file_times-7.0-[clock clicks]]
         tcltest::makeFile "" [file tail $fn] [file dirname $fn]
         # Set some old file access time
         set atime [twapi::secs_since_1970_to_large_system_time 6000]
@@ -786,7 +786,7 @@ namespace eval twapi::disk::test {
     } -constraints {
         nt
     } -setup {
-        set fn [file join $tcltest::temporaryDirectory set_file_times-8.0-[clock clicks]]
+        set fn [file join $::tcltest::temporaryDirectory set_file_times-8.0-[clock clicks]]
         file mkdir $fn
     } -body {
         set ctime [twapi::secs_since_1970_to_large_system_time 0]
@@ -1552,12 +1552,18 @@ namespace eval twapi::disk::test {
         while {[twapi::find_file_next $tok finfo]} {
             set path [file join c:/ [dict get $finfo name]]
             if {"directory" in [twapi::decode_file_attributes [dict get $finfo attrs]]} {
-               set expected_size 0
+                # Under WSB do not check dir sizes since mounted directories
+                # do not return 0 size.
+                if {$::env(USERNAME) ne "WDAGUtilityAccount"} {
+                    if {[dict get $finfo size] != 0} {
+                        append mismatch "File size mismatch for $path. Got [dict get $finfo size], expected $expected_size.\n"
+                    }
+                }
             } else {
                 set expected_size [file size $path]
-            }
-            if {[dict get $finfo size] != $expected_size} {
-                append mismatch "File size mismatch for $path.\n"
+                if {[dict get $finfo size] != $expected_size} {
+                    append mismatch "File size mismatch for $path. Got [dict get $finfo size], expected $expected_size.\n"
+                }
             }
         }
         twapi::find_file_close $tok
@@ -1607,7 +1613,10 @@ namespace eval twapi::disk::test {
         set tok [twapi::find_file_open $::env(programfiles) -detail full]
         twapi::find_file_next $tok finfo
         twapi::find_file_close $tok
-        list [dict get $finfo name] [dict get $finfo altname]
+        set name [dict get $finfo name]
+        set altname [dict get $finfo altname]
+        if {$altname eq ""} {set altname $name}
+        list $name $altname
     } -result [list [file tail [file attributes $::env(programfiles) -longname]] [file tail [file attributes $::env(programfiles) -shortname]]]
 
     test find_file-1.4.0 {

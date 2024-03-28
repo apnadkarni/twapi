@@ -516,11 +516,8 @@ test starttlsIO-2.1.1 {Validate server -verifier: name mismatch} {socket stdio} 
 } {{SSL/TLS negotiation failed. Verifier callback returned false.} EOF}
 
 test tlsIO-2.1.2 {Validate server altname -verifier: success} {socket stdio} {
-    removeFile script
-    set f [open script w]
-    puts $f [basicServerScript 8828 altserverCreds]
-    close $f
-    set f [open "|[list $::tcltest::tcltest script]" r]
+    set script [::tcltest::makeFile [basicServerScript 8828 altserverCreds] tlsscript]
+    set f [open "|[list $::tcltest::tcltest $script]" r]
     gets $f x
     if {[catch {
         twapi::tls_socket -credentials $::clientCreds \
@@ -539,11 +536,8 @@ test tlsIO-2.1.2 {Validate server altname -verifier: success} {socket stdio} {
 } {ready enod done}
 
 test starttlsIO-2.1.2 {Validate server altname -verifier: success} {socket stdio} {
-    removeFile script
-    set f [open script w]
-    puts $f [starttlsBasicServerScript 8828 altserverCreds]
-    close $f
-    set f [open "|[list $::tcltest::tcltest script]" r]
+    set script [::tcltest::makeFile [starttlsBasicServerScript 8828 altserverCreds] tlsscript]
+    set f [open "|[list $::tcltest::tcltest $script]" r]
     gets $f x
     if {[catch {
         set so [socket 127.0.0.1 8828]
@@ -563,11 +557,8 @@ test starttlsIO-2.1.2 {Validate server altname -verifier: success} {socket stdio
 } {ready enod done}
 
 test tlsIO-2.1.3 {Validate server altname -verifier: name mismatch} {socket stdio} {
-    removeFile script
-    set f [open script w]
-    puts $f [basicServerScript 8828 altserverCreds]
-    close $f
-    set f [open "|[list $::tcltest::tcltest script]" r]
+    set script [::tcltest::makeFile [basicServerScript 8828 altserverCreds] tlsscript]
+    set f [open "|[list $::tcltest::tcltest $script]" r]
     gets $f x
     if {[catch {twapi::tls_socket -credentials $::clientCreds \
                     -verifier [list verify twapitestserver.twapitest.com] \
@@ -584,11 +575,8 @@ test tlsIO-2.1.3 {Validate server altname -verifier: name mismatch} {socket stdi
 } {{SSL/TLS negotiation failed. Verifier callback returned false.} EOF}
 
 test starttlsIO-2.1.3 {Validate server altname -verifier: name mismatch} {socket stdio} {
-    removeFile script
-    set f [open script w]
-    puts $f [starttlsBasicServerScript 8828 altserverCreds]
-    close $f
-    set f [open "|[list $::tcltest::tcltest script]" r]
+    set script [::tcltest::makeFile [starttlsBasicServerScript 8828 altserverCreds] tlsscript]
+    set f [open "|[list $::tcltest:tcltest $script]" r]
     gets $f x
     if {[catch {twapi::starttls [socket 127.0.0.1 8828] -credentials $::clientCreds \
                     -verifier [list verify twapitestserver.twapitest.com] \
@@ -607,11 +595,8 @@ test starttlsIO-2.1.3 {Validate server altname -verifier: name mismatch} {socket
 incr Port
 
 test tlsIO-2.2 {Validate option -myport -myaddr: success} {socket stdio vista} {
-    removeFile script
-    set f [open script w]
-    puts $f [basicServerScript 8828]
-    close $f
-    set f [open "|[list $::tcltest::tcltest script]" r]
+    set script [::tcltest::makeFile [basicServerScript 8828] tlsscript]
+    set f [open "|[list $::tcltest::tcltest $script]" r]
     gets $f x
     if {[catch {twapi::tls_socket -credentials $::clientCreds \
                     -myport $Port -myaddr 127.0.0.2 \
@@ -671,11 +656,8 @@ test tlsIO-2.10 {close on accept, accepted socket lives} {socket} {
 
 
 test tlsIO-3.0 {Validate server non-blocking -verifier: success} {socket stdio} {
-    removeFile script
-    set f [open script w]
-    puts $f [asyncServerScript 8828]
-    close $f
-    set f [open "|[list $::tcltest::tcltest script]" r]
+    set script [::tcltest::makeFile [asyncServerScript 8828] tlsscript]
+    set f [open "|[list $::tcltest::tcltest $script]" r]
     gets $f response
     if {[catch {twapi::tls_socket -credentials $::clientCreds \
                     -verifier [list verify twapitestserver] \
@@ -693,11 +675,8 @@ test tlsIO-3.0 {Validate server non-blocking -verifier: success} {socket stdio} 
 } {ready enod {done EOF}}
 
 test starttlsIO-3.0 {Validate server non-blocking -verifier: success} {socket stdio} {
-    removeFile script
-    set f [open script w]
-    puts $f [starttlsAsyncServerScript 8828]
-    close $f
-    set f [open "|[list $::tcltest::tcltest script]" r]
+    set script [::tcltest::makeFile [starttlsAsyncServerScript 8828] tlsscript]
+    set f [open "|[list $::tcltest::tcltest $script]" r]
     gets $f response
     if {[catch {
         set client_so [socket 127.0.0.1 8828]
@@ -718,11 +697,8 @@ test starttlsIO-3.0 {Validate server non-blocking -verifier: success} {socket st
 
 
 test starttlsIO-3.0.1 {Validate server non-blocking -verifier: success, loop} {socket stdio} {
-    removeFile script
-    set f [open script w]
-    puts $f [starttlsAsyncServerScript 8828]
-    close $f
-    set f [open "|[list $::tcltest::tcltest script]" r]
+    set script [::tcltest::makeFile [starttlsAsyncServerScript 8828] tlsscript]
+    set f [open "|[list $::tcltest::tcltest $script]" r]
     gets $f;                    # Discard
     set so [twapi::starttls [socket 127.0.0.1 8828] \
                 -credentials $::clientCreds \
@@ -743,11 +719,8 @@ test starttlsIO-3.0.1 {Validate server non-blocking -verifier: success, loop} {s
 } 5000
 
 test tlsIO-3.1 {Validate server non-blocking -verifier: name mismatch} {socket stdio} {
-    removeFile script
-    set f [open script w]
-    puts $f [asyncServerScript 8828]
-    close $f
-    set f [open "|[list $::tcltest::tcltest script]" r]
+    set script [::tcltest::makeFile [asyncServerScript 8828] tlsscript]
+    set f [open "|[list $::tcltest::tcltest $script]" r]
     gets $f x
     if {[catch {twapi::tls_socket -credentials $::clientCreds \
                     -verifier [list verify twapitestserverx] \
@@ -764,11 +737,8 @@ test tlsIO-3.1 {Validate server non-blocking -verifier: name mismatch} {socket s
 } {{SSL/TLS negotiation failed. Verifier callback returned false.} EOF}
 
 test starttlsIO-3.1 {Validate server non-blocking -verifier: name mismatch} {socket stdio} {
-    removeFile script
-    set f [open script w]
-    puts $f [starttlsAsyncServerScript 8828]
-    close $f
-    set f [open "|[list $::tcltest::tcltest script]" r]
+    set script [::tcltest::makeFile [starttlsAsyncServerScript 8828] tlsscript]
+    set f [open "|[list $::tcltest::tcltest $script]" r]
     gets $f x
     if {[catch {
         twapi::starttls [socket 127.0.0.1 8828] \
@@ -788,11 +758,8 @@ test starttlsIO-3.1 {Validate server non-blocking -verifier: name mismatch} {soc
 
 incr Port
 test tlsIO-3.2 {Validate server non-blocking -verifier altname: success} {socket stdio vista} {
-    removeFile script
-    set f [open script w]
-    puts $f [asyncServerScript 8828 altserverCreds]
-    close $f
-    set f [open "|[list $::tcltest::tcltest script]" r]
+    set script [::tcltest::makeFile [asyncServerScript 8828 altserverCreds] tlsscript]
+    set f [open "|[list $::tcltest::tcltest $script]" r]
     gets $f response
     if {[catch {twapi::tls_socket -credentials $::clientCreds \
                     -verifier [list verify altserver.twapitest.com] \
@@ -811,11 +778,8 @@ test tlsIO-3.2 {Validate server non-blocking -verifier altname: success} {socket
 } [list ready 321 [list [list 127.0.0.2 $Port] [list 127.0.0.1 [string tolower $::twapi::test::localhost_name] 8828] [list 127.0.0.2 127.0.0.2 $Port]] [list 123 conninfo quit]]
 
 test tlsIO-3.3 {Validate server -verifier: name mismatch} {socket stdio} {
-    removeFile script
-    set f [open script w]
-    puts $f [asyncServerScript 8828]
-    close $f
-    set f [open "|[list $::tcltest::tcltest script]" r]
+    set script [::tcltest::makeFile [asyncServerScript 8828] tlsscript]
+    set f [open "|[list $::tcltest::tcltest $script]" r]
     gets $f x
     if {[catch {twapi::tls_socket -credentials $::clientCreds \
                     -verifier [list verify twapitestserverx] \
@@ -1090,11 +1054,19 @@ test tls_socket-client-2.9 {
 
 test tls_socket-client-2.9.1 {
     Async connection callback only after negotiation done. Bug #202. Non-blocking case.
+} -setup {
+    ::twapi::debuglog_enable
+} -cleanup {
+    puts [join [::twapi::debuglog_get] \n]
+    ::twapi::debuglog_disable
+    ::twapi::debuglog_clear
 } -body {
     set so [twapi::tls_socket -async www.example.com 443]
     fconfigure $so -blocking 0
     fileevent $so writable [list apply {{chan} {
+        ::twapi::DebugBreak
         set state [twapi::tls_state $chan]
+        ::twapi::debuglog "filevent: $state"
         set sockname [fconfigure $chan -sockname]
         close $chan
         set ::twapi::test::results(tls_socket-client-2.9) [list $state {*}$sockname]

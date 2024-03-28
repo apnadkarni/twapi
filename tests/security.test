@@ -819,10 +819,11 @@ namespace eval twapi::security::test {
 
     ################################################################
 
+    # TBD - Need to create a restricted token withon non-empty
     test get_token_restricted_groups_and_attrs-1.0 {
         Get the restricted group sids and attributes for a token
     } -constraints {
-        nt
+        nt TBD
     } -setup {
         set tok [twapi::open_process_token]
     } -body {
@@ -1689,9 +1690,10 @@ namespace eval twapi::security::test {
     } -result 1
 
 
+    # TBD - Need to create a restricted token withon non-empty
     test get_token_info-12.0 {
         get_token_info -restrictedgroupattrs
-    } -setup {
+    } -constraints TBD -setup {
         set tok [twapi::open_process_token]
     } -body {
         lassign [twapi::get_token_info $tok -restrictedgroupattrs] opt sidattrs
@@ -1717,6 +1719,7 @@ namespace eval twapi::security::test {
         twapi::close_token $tok
     } -result {-restrictedgroupattrs 1}
 
+    # TBD - Need to create a restricted token withon non-empty 
     test get_token_info-13.0 {
         get_token_info -restrictedgroups
     } -setup {
@@ -6331,7 +6334,7 @@ namespace eval twapi::security::test {
         set sess [twapi::get_logon_session_info [current_logon_session] -authpackage]
         verify_kl_fields $sess [list -authpackage]
         lindex $sess 1
-    } -match oneof -result {NTLM Kerberos|CloudAP} -match regexp
+    } -match oneof -result {NTLM Kerberos CloudAP}
 
     ###
 

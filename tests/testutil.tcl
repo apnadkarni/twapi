@@ -26,6 +26,10 @@ proc getenv {envvar {default ""}} {
     }
 }
 
+proc tcl9 {} {
+    return [package vsatisfies [package require Tcl] 9]
+}
+
 # Returns if current system is part of domain
 proc indomain {} {
     if {[info exists ::env(USERDNSDOMAIN)] ||

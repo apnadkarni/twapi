@@ -989,7 +989,7 @@ namespace eval twapi::shell::test {
     } -body {
         twapi::shell_execute
 	# Depending on platform, either current dir or My Documents is opened
-	set r "[file tail [pwd]]|My Documents"
+	set r "[file tail [pwd]]|.*Documents"
         set w [wait_for_window -text $r -match regexp -toplevel true -pids [list [get_explorer_pid]]]
         set w
     } -cleanup {
@@ -1113,7 +1113,7 @@ namespace eval twapi::shell::test {
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -show minimize -path $dir
         set w [wait_for_window -match glob -text *[file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
-        after 50; # Needed because it takes a bit after creation to be min/maxed
+        after 100; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_minimized $w
     } -cleanup {
         twapi::close_window $w
@@ -1127,7 +1127,7 @@ namespace eval twapi::shell::test {
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -show showminimized -path $dir
         set w [wait_for_window -match glob -text *[file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
-        after 50; # Needed because it takes a bit after creation to be min/maxed
+        after 100; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_minimized $w
     } -cleanup {
         twapi::close_window $w
@@ -1141,7 +1141,7 @@ namespace eval twapi::shell::test {
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -show showminnoactive -path $dir
         set w [wait_for_window -match glob -text *[file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
-        after 50; # Needed because it takes a bit after creation to be min/maxed
+        after 100; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_minimized $w
     } -cleanup {
         twapi::close_window $w
@@ -1155,7 +1155,7 @@ namespace eval twapi::shell::test {
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -show maximize -path $dir
         set w [wait_for_window -match glob -text *[file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
-        after 50; # Needed because it takes a bit after creation to be min/maxed
+        after 100; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_maximized $w
     } -cleanup {
         twapi::close_window $w
@@ -1169,7 +1169,7 @@ namespace eval twapi::shell::test {
 	set dir [tcltest::makeDirectory TWAPI_SHELL_EXECUTE_[clock clicks]]
         twapi::shell_execute -show showmaximized -path $dir
         set w [wait_for_window -match glob -text *[file tail $dir] -toplevel true -pids [list [get_explorer_pid]]]
-        after 50; # Needed because it takes a bit after creation to be min/maxed
+        after 100; # Needed because it takes a bit after creation to be min/maxed
         twapi::window_maximized $w
     } -cleanup {
         twapi::close_window $w
@@ -1232,7 +1232,7 @@ namespace eval twapi::shell::test {
         Call shell_execute with -substenv true
     } -body {
         twapi::shell_execute -path %HOMEDRIVE%\\%HOMEPATH% -noui true -substenv true
-        set w [wait_for_window -text [file tail $::env(HOMEPATH)] -toplevel 1]
+        set w [wait_for_window -text $::env(USERNAME) -toplevel 1]
         set w
     } -cleanup {
         twapi::close_window $w

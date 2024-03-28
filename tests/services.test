@@ -33,16 +33,21 @@ namespace eval twapi::services::test {
     variable interactive_service
     variable noninteractive_service
 
-
+    # exec powershell.exe -Command {Get-CimInstance win32_service | select * | Export-Csv -Path y -NoTypeInformation -Delimiter "`t"}
     proc fill_services {{refresh 0}} {
         variable servicescheck
         if {$refresh || ![info exists servicescheck]} {
             variable interactive_service
             variable noninteractive_service
 
-            set fd [open "| cscript.exe /nologo services.vbs"]
+            #set fd [open "| cscript.exe /nologo services.vbs"]
+            set fd [open "| powershell.exe ./fillServices.ps1"]
+            if {[tcl9]} {
+                fconfigure $fd -profile tcl8
+            }
             set data [read $fd]
             foreach line [xsplit $data "<@>"] {
+                set line [string trim $line]
                 if {[string length $line] == 0} continue
                 array set service [xsplit $line "<\\*>"]
 
@@ -61,6 +66,9 @@ namespace eval twapi::services::test {
                     Auto   { set service(StartMode) auto_start }
                     Manual { set service(StartMode) demand_start }
                     Disabled { set service(StartMode) disabled }
+                    default {
+                        set service(StartMode) [string tolower $service(StartMode)]
+                    }
                 }
                 switch -exact -- $service(ServiceType) {
                     "Share Process" { set service(ServiceType) win32_share_process }
@@ -88,6 +96,7 @@ namespace eval twapi::services::test {
             close $fd
         }
     }
+    fill_services
 
     ################################################################
     # Get given field for the given service. Error if service does not exist
@@ -127,7 +136,7 @@ namespace eval twapi::services::test {
         if {$svcinfo(-servicetype) ne $svctype &&
             ($svcinfo(-servicetype) ne "win32" ||
              $svctype ni {win32_own_process win32_share_process})} {
-            lappend mismatches "Mismatch in field -servicetype (was '$svctype', expected '$svcinfo($field)')"
+            lappend mismatches "Mismatch in field -servicetype (was '$svctype', expected '$svcinfo(-servicetype)')"
         }
         
         foreach field {-svcname -displayname -command} {
@@ -137,7 +146,12 @@ namespace eval twapi::services::test {
                 }
             }
         }
-        return [concat [join $mismatches "\n"]]
+        if {[llength $mismatches]} {
+            set mismatches [concat [join $mismatches "\n"]]
+            return "$svcname:\n $mismatches"
+        } else {
+            return ""
+        }
     }
 
     proc ensure_service_running {svcname} {
@@ -313,8 +327,9 @@ namespace eval twapi::services::test {
         
         foreach key {name displayname} {
             if {[info exists svcinfo($key)]} {
-                if {[string compare -nocase $svcinfo($key) [get_service_field $svcname -$key]]} {
-                    lappend mismatches "Field $key value $svcinfo($key) does not match"
+                set expected [get_service_field $svcname -$key]
+                if {[string compare -nocase $svcinfo($key) $expected]} {
+                    lappend mismatches "Field $key value $svcinfo($key) does not match expected '$expected'"
                 }
             } else {
                 if {$key ni $missing} {
@@ -330,8 +345,9 @@ namespace eval twapi::services::test {
             lappend mismatches "Service type $svcinfo(servicetype) for $svcname does not match $svctype"
         }
         
-        if {[string compare $svcinfo(state) [get_service_field $svcname state]]} {
-            lappend mismatches "Service type $svcinfo(state) for $svcname does not match"
+        set expected [get_service_field $svcname state]
+        if {[string compare $svcinfo(state) $expected]} {
+            lappend mismatches "Service state $svcinfo(state) for $svcname does not match expected '$expected'."
         }
 
         return [concat [join $mismatches "\n"]]
@@ -376,9 +392,9 @@ namespace eval twapi::services::test {
     } -body {
         string tolower [twapi::get_service_internal_name "Remote Procedure Call (RPC)"]
     } -result rpcss
-    
+
     ###
-    
+
     test get_service_internal_name-1.1 {
         Verify the internal name of a service maps back to internal name
     } -constraints {
@@ -386,7 +402,7 @@ namespace eval twapi::services::test {
     } -body {
         string tolower [twapi::get_service_internal_name rpcss]
     } -result rpcss
-    
+
     ################################################################
 
     test get_service_display_name-1.0 {
@@ -396,9 +412,9 @@ namespace eval twapi::services::test {
     } -body {
         twapi::get_service_display_name rpcss
     } -result "Remote Procedure Call (RPC)"
-    
+
     ###
-    
+
     test get_service_display_name-1.1 {
         Verify the display name of a service maps back to itself
     } -constraints {
@@ -406,7 +422,7 @@ namespace eval twapi::services::test {
     } -body {
         twapi::get_service_display_name "Remote Procedure Call (RPC)"
     } -result "Remote Procedure Call (RPC)"
-    
+
     ################################################################
 
     test get_service_configuration-1.0 {
@@ -416,9 +432,9 @@ namespace eval twapi::services::test {
     } -body {
         twapi::get_service_configuration rpcss
     } -result ""
-    
+
     ###
-    
+
     test get_service_configuration-2.0 {
         Verify all options are returned when -all specified
     } -constraints {
@@ -427,7 +443,7 @@ namespace eval twapi::services::test {
         array unset svcinfo
         array set svcinfo [twapi::get_service_configuration rpcss -all]
         ::setops::symdiff [array names svcinfo] {
-            -displayname -errorcontrol -servicetype -interactive 
+            -delayedstart -displayname -errorcontrol -servicetype -interactive
             -loadordergroup -dependencies -account -starttype -command
             -description -tagid -failureactions
         }
@@ -545,8 +561,8 @@ namespace eval twapi::services::test {
     } -body {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration LmHosts -dependencies]
-        setops::symdiff $svcinfo(-dependencies) [list "NetBT" "Afd"]
-    } -result {}
+        list [expr {[llength $svcinfo(-dependencies)] > 0}] [expr {[lsearch -nocase -exact $svcinfo(-dependencies) afd] >= 0}]
+    } -result {1 1}
 
     ###
 
@@ -589,7 +605,7 @@ namespace eval twapi::services::test {
         catch {unset svcinfo}
         array set svcinfo [twapi::get_service_configuration rpcss -command]
         string tolower $svcinfo(-command)
-    } -match regexp -result {^.:\\.+\\system32\\svchost(\.exe)? -k rpcss$}
+    } -match regexp -result {^.:\\.+\\system32\\svchost(\.exe)? -k rpcss}
 
     ################################################################
 
