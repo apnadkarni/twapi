@@ -3,15 +3,37 @@
 The Tcl Windows API (TWAPI) extension provides access to the Windows API from
 within the Tcl scripting language.
 
+Version 5.0 Alpha 0 is the first release supporting Tcl 9.
+
   * Project source repository is at https://github.com/apnadkarni/twapi
   * Documentation is at https://twapi.magicsplat.com
+  * Binary distribution is at https://sourceforge.net/projects/twapi/files/Current%20Releases/Tcl%20Windows%20API/
+
+V5.0a0 API is unchanged from 4.7.2. Use the documentation for that release
+for now.
 
 ## Supported platforms
 
 TWAPI 5.0 requires
 
-  * Windows 7 or later
+  * Windows 7 SP1 or later
   * Tcl 8.6 or Tcl 9.x
+
+### Binary distribution
+
+The single binary distribution supports Tcl 8.6 and Tcl 9 for both 32- and
+64-bit platforms.
+
+It requires the VC++ runtime to already be installed
+on the system. Download from https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist if necessary.
+
+Windows 7 and 8.x also require UCRT to be installed if not present. Download
+from https://support.microsoft.com/en-gb/topic/update-for-universal-c-runtime-in-windows-c0514201-7fe6-95a3-b0a5-287930f3560c.
+
+In most cases, both the above should already be present on the system.
+
+Note that the *modular* and single file *bin* in 4.x distributions are no longer
+available and will not be supported in 5.0.
 
 ## TWAPI Summary
 
