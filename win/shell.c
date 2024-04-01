@@ -747,8 +747,7 @@ int Twapi_SHChangeNotify(
     switch (event_id) {
     case SHCNE_ASSOCCHANGED:
         /* Both dwItem1 and dwItem2 must be NULL (already set) */
-        if (! (flags & SHCNF_IDLIST)) {
-            /* SDK says this should be set */
+        if ((flags & SHCNF_TYPE) != SHCNF_IDLIST) {
             goto invalid_flags_error;
         }
         break;
@@ -883,7 +882,7 @@ vamoose:
     return status;
 
 invalid_flags_error:
-    ObjSetStaticResult(interp, "Unknown SHChangeNotify flags type");
+    ObjSetStaticResult(interp, "SHChangeNotify flags unknown or invalid for event type.");
     goto vamoose;
 
 wrong_nargs_error:
