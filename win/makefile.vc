@@ -166,16 +166,6 @@ DISABLE_TARGET_install = 1
 
 pkgindex: default-pkgindex-tea
 
-xpkgindex:
-	@nmakehlp -s << $(ROOT)\..\pkgIndex.tcl.in > $(OUT_DIR)\pkgIndex.tcl
-@PACKAGE_VERSION@    $(DOTVERSION)
-@PACKAGE_NAME@       $(PRJ_PACKAGE_TCLNAME)
-@PACKAGE_TCLNAME@    $(PRJ_PACKAGE_TCLNAME)
-@PKG_LIB_FILE@       $(PRJLIBNAME)
-@PKG_LIB_FILE8@      $(PRJLIBNAME8)
-@PKG_LIB_FILE9@      $(PRJLIBNAME9)
-<<
-
 install: pkgindex $(PRJLIB) default-install-scripts
 	@echo Installing to '$(SCRIPT_INSTALL_DIR)'
 	@if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
@@ -183,6 +173,7 @@ install: pkgindex $(PRJLIB) default-install-scripts
 	@$(CPY) $(PRJLIB) "$(BIN_INSTALL_DIR)" >NUL
 	@$(CPY) $(LIBDIR)\*.tcl "$(SCRIPT_INSTALL_DIR)"
 	@$(CPY) $(OUT_DIR)\pkgIndex.tcl "$(SCRIPT_INSTALL_DIR)"
+	@$(CPY) $(ROOT)\README.md "$(SCRIPT_INSTALL_DIR)"
 	@$(CPY) $(ROOT)\LICENSE "$(SCRIPT_INSTALL_DIR)"
 
 $(PRJ_OBJS): $(HEADERS) $(ROOT)\configure.ac

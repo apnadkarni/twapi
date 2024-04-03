@@ -206,6 +206,8 @@ doc:
 #	@echo "        xml2html sample.xml > sample.html"
 
 install: all install-binaries install-libraries install-doc
+	cp -p $(srcdir)/README* $(srcdir)/LICENSE* \
+		$(DESTDIR)$(pkglibdir)/
 
 install-binaries: binaries install-lib-binaries install-bin-binaries
 
@@ -301,7 +303,7 @@ dist-clean:
 
 dist: dist-clean
 	mkdir -p $(DIST_DIR)
-	cp -p $(srcdir)/ChangeLog $(srcdir)/README* $(srcdir)/license* \
+	cp -p $(srcdir)/ChangeLog $(srcdir)/README* $(srcdir)/LICENSE* \
 		$(srcdir)/aclocal.m4 $(srcdir)/configure $(srcdir)/*.in \
 		$(DIST_DIR)/
 	chmod 664 $(DIST_DIR)/Makefile.in $(DIST_DIR)/aclocal.m4

@@ -1,3 +1,5 @@
+#ifndef TWAPI_SDKDEFS_H
+#define TWAPI_SDKDEFS_H
 
 /* 
  * Depending on compiler / platform, ZeroMemory translates a call to memset.
@@ -66,7 +68,7 @@ typedef struct _TWAPI_TOKEN_ELEVATION {
     DWORD TokenIsElevated;
 } TWAPI_TOKEN_ELEVATION;
 
-typedef struct _TWAPI_TOKEN_LINKED_TOKEN {  
+typedef struct _TWAPI_TOKEN_LINKED_TOKEN {
     HANDLE LinkedToken;
 } TWAPI_TOKEN_LINKED_TOKEN;
 
@@ -78,6 +80,15 @@ typedef struct _TWAPI_TOKEN_MANDATORY_POLICY {
   DWORD Policy;
 } TWAPI_TOKEN_MANDATORY_POLICY;
 
+/*
+ * Potentially missing SDK definitions
+ */
+#ifndef ERROR_IMPLEMENTATION_LIMIT
+#define ERROR_IMPLEMENTATION_LIMIT 1292
+#endif
+
 #ifndef SYSTEM_MANDATORY_LABEL_ACE_TYPE
 #define SYSTEM_MANDATORY_LABEL_ACE_TYPE (0x11)
+#endif
+
 #endif

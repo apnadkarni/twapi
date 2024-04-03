@@ -5,41 +5,47 @@ if {$::tcl_platform(platform) ne "windows"} {
 package ifneeded twapi_base @PACKAGE_VERSION@ \
     [list apply [list {dir} {
         package require platform
+        set packageVer [string map {. {}} @PACKAGE_VERSION@]
         if {[package vsatisfies [info tclversion] 9]} {
-            set dllname tcl9twapi50a0.dll
+            set baseDllNames tcl9twapi$packageVer
         } else {
-            set dllname twapi50a0t.dll
+            # In 8.6, nmake adds a "t" suffix, autoconf does not
+            set baseDllNames [list twapi${packageVer}t twapi$packageVer]
         }
         set package "@PACKAGE_NAME@"
         set package_ns ::$package
         namespace eval $package_ns {}
         set package_init_name [string totitle $package]
+
         # Try to load from current directory and if that fails try from
         # platform-specific directories. Note on failure to load when the DLL
         # exists, we do not try to load from other locations as twapi modules
         # may have been partially set up.
 
-        set path [file join $dir $dllname]
-        if {[file exists $path]} {
-            if {[catch {uplevel #0 [list load $path $package_init_name]} result]} {
-                error $result
-            }
-        } else {
-            set dllFound 0
-            foreach platform [::platform::patterns [platform::identify]] {
+        set dllFound false
+        if {!$dllFound} {
+            foreach platform [linsert [::platform::patterns [platform::identify]] 0 .] {
                 if {$platform eq "tcl"} continue
-                set path [file join $dir $platform $dllname]
-                if {[file exists $path]} {
-                    uplevel #0 [list load $path $package_init_name]
-                    set dllFound 1
+                foreach baseDllName $baseDllNames {
+                    set path [file join $dir $platform $baseDllName.dll]
+                    if {[file exists $path]} {
+                        uplevel #0 [list load $path $package_init_name]
+                        set dllFound true
+                        break
+                    }
+                }
+                if {$dllFound} {
+                    break
                 }
             }
-            if {!$dllFound} {
-                error "Could not locate TWAPI dll"
-            }
         }
+
+        if {!$dllFound} {
+            error "Could not locate TWAPI dll."
+        }
+
         # Load was successful
-        set ${package_ns}::dllPath $path
+        set ${package_ns}::dllPath [file normalize $path]
         set ${package_ns}::packageDir $dir
         source [file join $dir twapi.tcl]
         package provide twapi_base @PACKAGE_VERSION@

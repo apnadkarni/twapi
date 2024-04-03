@@ -16,7 +16,7 @@ dnl	to configure the system for the local environment.
 # this case) so that we create the export library with the dll.
 #-----------------------------------------------------------------------
 
-AC_INIT([twapi],[5.0a0])
+AC_INIT([twapi],[5.0a1])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -215,8 +215,6 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 	    library/ui.tcl
 	    library/winsta.tcl
 	    library/wmi.tcl
-	    LICENSE
-            README.md
     ])
 
 else
