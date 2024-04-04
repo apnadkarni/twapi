@@ -400,6 +400,24 @@ int Twapi_InternalCastObjCmd(
     }
 
     /*
+     * Special case empty list that has a string representation
+     * because else it will get interpreted as an empty string.
+     */
+    if (objv[2]->bytes && objv[2]->bytes[0] == '\0'
+        && STREQ(typename, "list")) {
+        /*
+         * Just doing ObjNewList(0, NULL) return Tcl_NewObj which has
+         * a string representation of empty string. We need to create an
+         * empty list without a string rep.
+         * TBD - this is a hack like all hacks dealing with Tcl's type
+         * shimmering.
+         */
+        objP = ObjNewList(1, &objv[0]); /* objv[0] immaterial */
+        Tcl_ListObjReplace(interp, objP, 0, 1, 0, NULL);
+        return ObjSetResult(interp, objP);
+    }
+
+    /*
      * We special case int because Tcl will convert 0x80000000 to wide int
      * but we want it to be passed as 32-bits in case of some COM calls.
      * which will barf for VT_I8. However, this is only the case for Tcl8.
@@ -526,7 +544,9 @@ TWAPI_EXTERN Tcl_Obj *ObjDuplicate(Tcl_Obj *objP)
  *   have their memory freed
  *  The return value reflects whether the result was set from an error or not,
  *  NOT whether the result was successfully set (which it always is).
- **/
+ **/
+
+
 
 
 TWAPI_EXTERN TCL_RESULT TwapiSetResult(Tcl_Interp *interp, TwapiResult *resultP)
@@ -3157,7 +3177,11 @@ TWAPI_EXTERN VARTYPE ObjTypeToVT(Tcl_Obj *objP)
     case TWAPI_TCLTYPE_BOOLEANSTRING:
         return VT_BOOL;
     case TWAPI_TCLTYPE_INT:
+#if TCL_MAJOR_VERSION < 9
         return VT_I4;
+#else
+        /* FALLTHRU Tcl9 does not distinguish between int and wideint */
+#endif
     case TWAPI_TCLTYPE_WIDEINT:
         /* For compatibility with some COM types, we want to return VT_I4
            if value fits in 32-bits irrespective of sign */
@@ -3191,7 +3215,14 @@ TWAPI_EXTERN VARTYPE ObjTypeToVT(Tcl_Obj *objP)
         vt = VT_VARIANT;   /* In case we cannot tell */
         if (ObjGetElements(NULL, objP, &nobjs, &objs) != TCL_OK)
             return vt;          /* Should not really happen */
-        if (nobjs) {
+        if (nobjs == 0) {
+            /* Assume empty string, not empty array. */
+            if (objP->bytes && objP->bytes[0] == '\0')
+                return VT_BSTR;
+            else
+                return VT_ARRAY | VT_VARIANT;
+        }
+        else {
             /* Base our guess on the first type. Note we don't coerce it
                since we might want to pass "1" as a string, not int.
                If *remaining* elements do not match that type after coercion,
@@ -3210,20 +3241,22 @@ TWAPI_EXTERN VARTYPE ObjTypeToVT(Tcl_Obj *objP)
                 }
                 break;
             case TWAPI_TCLTYPE_INT:
+            case TWAPI_TCLTYPE_WIDEINT:
                 vt = VT_I4;
-                for (i = 1; i < nobjs; ++ i) {
+                for (i = 1; i < nobjs; ++i) {
                     int ival;
                     if (ObjToInt(NULL, objs[i], &ival) != TCL_OK) {
-                        vt = VT_VARIANT;
                         break;
                     }
                 }
-                break;
-            case TWAPI_TCLTYPE_WIDEINT:
+                if (i == nobjs)
+                    break; /* All elements could be processed as I4 */
+                /* Retry remaining as wideints */
                 vt = VT_I8;
-                for (i = 1; i < nobjs; ++ i) {
+                for (; i < nobjs; ++i) {
                     Tcl_WideInt wide;
                     if (ObjToWideInt(NULL, objs[i], &wide) != TCL_OK) {
+                        /* Nope, at least one element not int/wideint */
                         vt = VT_VARIANT;
                         break;
                     }
@@ -3243,8 +3276,8 @@ TWAPI_EXTERN VARTYPE ObjTypeToVT(Tcl_Obj *objP)
                 vt = VT_BSTR;
                 break;
             }
+            return vt | VT_ARRAY;
         }
-        return vt | VT_ARRAY;
 
     case TWAPI_TCLTYPE_DICT:
         /* Something that is constructed like a dictionary cannot
