@@ -3176,12 +3176,9 @@ TWAPI_EXTERN VARTYPE ObjTypeToVT(Tcl_Obj *objP)
     case TWAPI_TCLTYPE_BOOLEAN: /* Fallthru */
     case TWAPI_TCLTYPE_BOOLEANSTRING:
         return VT_BOOL;
-    case TWAPI_TCLTYPE_INT:
 #if TCL_MAJOR_VERSION < 9
+    case TWAPI_TCLTYPE_INT:
         return VT_I4;
-#else
-        /* FALLTHRU Tcl9 does not distinguish between int and wideint */
-#endif
     case TWAPI_TCLTYPE_WIDEINT:
         /* For compatibility with some COM types, we want to return VT_I4
            if value fits in 32-bits irrespective of sign */
@@ -3190,6 +3187,26 @@ TWAPI_EXTERN VARTYPE ObjTypeToVT(Tcl_Obj *objP)
             return VT_I4;
         else
             return VT_I8;
+#else
+        /* Tcl9 does not distinguish between int and wideint */
+    case TWAPI_TCLTYPE_INT:
+    case TWAPI_TCLTYPE_WIDEINT:
+        if (ObjToWideInt(NULL, objP, &wide) == TCL_OK) {
+            if (wide <= INT_MAX && wide >= INT_MIN)
+                return VT_I4;
+            else if (wide <= UINT_MAX && wide >= 0)
+                return VT_UI4;
+            else
+                return VT_I8;
+        }
+        else {
+            Tcl_WideUInt uwide;
+            if (Tcl_GetWideUIntFromObj(NULL, objP, &uwide) == TCL_OK)
+                return VT_UI8;
+            else
+                return VT_VARIANT; /* Should not really happen */
+        }
+#endif
     case TWAPI_TCLTYPE_DOUBLE:
         return VT_R8;
     case TWAPI_TCLTYPE_BYTEARRAY:
@@ -3261,6 +3278,7 @@ TWAPI_EXTERN VARTYPE ObjTypeToVT(Tcl_Obj *objP)
                         break;
                     }
                 }
+
                 break;
             case TWAPI_TCLTYPE_DOUBLE:
                 vt = VT_R8;
@@ -3308,9 +3326,53 @@ TWAPI_EXTERN VARTYPE ObjTypeToVT(Tcl_Obj *objP)
         return VT_BSTR;
     case TWAPI_TCLTYPE_NONE: /* Completely untyped */
     default:
-        /* Caller has to use value-based heuristics to determine type */
-        return VT_VARIANT;
+        break;
     }
+    /* Caller has to use value-based heuristics to determine type */
+    return VT_VARIANT;
+}
+
+/* On error leaves variant in VT_EMPTY state */
+static TCL_RESULT
+ObjToIntVARIANT(Tcl_Obj *objP, VARIANT *varP)
+{
+    Tcl_WideUInt uwide;
+    TCL_RESULT res;
+
+    res = ObjToWideUInt(NULL, objP, &uwide);
+    if (res == TCL_OK) {
+        if (uwide <= INT_MAX) {
+            V_I4(varP) = (int)uwide;
+            varP->vt    = VT_I4;
+        }
+        else if (uwide <= UINT_MAX) {
+            V_UI4(varP) = (unsigned int)uwide;
+            varP->vt     = VT_UI4;
+        }
+        else {
+            V_UI8(varP) = uwide;
+            varP->vt   = VT_UI8;
+        }
+    }
+    else {
+        Tcl_WideInt wide;
+        res = ObjToWideInt(NULL, objP, &wide);
+        /* Note only need check negative since positive dealt with above */
+        TWAPI_ASSERT(wide < 0);
+        if (res == TCL_OK) {
+            if (wide >= INT_MIN) {
+                V_I4(varP) = (int)wide;
+                varP->vt    = VT_I4;
+            }
+            else
+            {
+                V_I8(varP) = wide;
+                varP->vt   = VT_I8;
+            }
+        }
+    }
+
+    return res;
 }
 
 /* On error leaves variant in VT_EMPTY state */
@@ -3399,8 +3461,8 @@ TWAPI_EXTERN TCL_RESULT ObjToVARIANT(Tcl_Interp *interp, Tcl_Obj *objP, VARIANT 
          * from Tcl_Obj.typePtr should have been considered by the caller.
          */
         res = TCL_OK;
-        if (ObjToLong(NULL, objP, &varP->lVal) == TCL_OK) {
-            vt = VT_I4;
+        if (ObjToIntVARIANT(objP, varP) == TCL_OK) {
+            vt = varP->vt;
         } else if (ObjToDouble(NULL, objP, &varP->dblVal) == TCL_OK) {
             vt = VT_R8;
         } else if (ObjToIDispatch(NULL, objP, (void **)&varP->pdispVal) == TCL_OK) {
