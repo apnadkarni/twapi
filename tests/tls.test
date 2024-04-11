@@ -1064,7 +1064,6 @@ test tls_socket-client-2.9.1 {
     set so [twapi::tls_socket -async www.example.com 443]
     fconfigure $so -blocking 0
     fileevent $so writable [list apply {{chan} {
-        ::twapi::DebugBreak
         set state [twapi::tls_state $chan]
         ::twapi::debuglog "filevent: $state"
         set sockname [fconfigure $chan -sockname]
