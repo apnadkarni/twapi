@@ -6,12 +6,7 @@ package ifneeded twapi_base @PACKAGE_VERSION@ \
     [list apply [list {dir} {
         package require platform
         set packageVer [string map {. {}} @PACKAGE_VERSION@]
-        if {[package vsatisfies [info tclversion] 9]} {
-            set baseDllNames tcl9twapi$packageVer
-        } else {
-            # In 8.6, nmake adds a "t" suffix, autoconf does not
-            set baseDllNames [list twapi${packageVer}t twapi$packageVer]
-        }
+        set baseDllName @PKG_LIB_FILE@
         set package "@PACKAGE_NAME@"
         set package_ns ::$package
         namespace eval $package_ns {}
@@ -23,20 +18,13 @@ package ifneeded twapi_base @PACKAGE_VERSION@ \
         # may have been partially set up.
 
         set dllFound false
-        if {!$dllFound} {
-            foreach platform [linsert [::platform::patterns [platform::identify]] 0 .] {
-                if {$platform eq "tcl"} continue
-                foreach baseDllName $baseDllNames {
-                    set path [file join $dir $platform $baseDllName.dll]
-                    if {[file exists $path]} {
-                        uplevel #0 [list load $path $package_init_name]
-                        set dllFound true
-                        break
-                    }
-                }
-                if {$dllFound} {
-                    break
-                }
+        foreach platform [linsert [::platform::patterns [platform::identify]] 0 .] {
+            if {$platform eq "tcl"} continue
+            set path [file join $dir $platform $baseDllName]
+            if {[file exists $path]} {
+                uplevel #0 [list load $path $package_init_name]
+                set dllFound true
+                break
             }
         }
 

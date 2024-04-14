@@ -351,7 +351,7 @@ proc asyncServerScript {server_port {creds_varname serverCreds} {verifier verify
 proc starttlsBasicServerScript {server_port {creds_varname serverCreds} {verifier verifytrue}} {
     return [format {
         %1$s
-        twapi::debuglog_enable
+        #twapi::debuglog_enable
         set ::log_fd [open server.log w]
         proc twapi::debuglog msg {
             puts $::log_fd $msg ; flush $::log_fd
@@ -576,7 +576,7 @@ test tlsIO-2.1.3 {Validate server altname -verifier: name mismatch} {socket stdi
 
 test starttlsIO-2.1.3 {Validate server altname -verifier: name mismatch} {socket stdio} {
     set script [::tcltest::makeFile [starttlsBasicServerScript 8828 altserverCreds] tlsscript]
-    set f [open "|[list $::tcltest:tcltest $script]" r]
+    set f [open "|[list $::tcltest::tcltest $script]" r]
     gets $f x
     if {[catch {twapi::starttls [socket 127.0.0.1 8828] -credentials $::clientCreds \
                     -verifier [list verify twapitestserver.twapitest.com] \
@@ -1055,7 +1055,7 @@ test tls_socket-client-2.9 {
 test tls_socket-client-2.9.1 {
     Async connection callback only after negotiation done. Bug #202. Non-blocking case.
 } -setup {
-    ::twapi::debuglog_enable
+    #::twapi::debuglog_enable
 } -cleanup {
     puts [join [::twapi::debuglog_get] \n]
     ::twapi::debuglog_disable
