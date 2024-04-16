@@ -1082,9 +1082,10 @@ test tls_socket-client-2.10 {
     Async connection, negotiation failure with filevent callback (Bug #206)
 } -body {
     set so [twapi::tls_socket -async expired.badssl.com 443]
-    after 1000 set ::done timeout
+    set after_id [after 1000 set ::done timeout]
     fileevent $so writable [list apply {{so} {close $so; set ::done success}} $so]
     vwait ::done
+    after cancel $after_id
     set ::done
 } -result success
 
@@ -1151,6 +1152,7 @@ test tls_socket-client-3.1 {
         fileevent $so readable "$reader $so"
         vwait ::done
     }
+    after cancel $after_id
     list $::done [regexp $http_response $response]
 } -result {eof 1}
 
@@ -1203,6 +1205,7 @@ test tls_socket-client-3.1.2 {
         fileevent $so readable "$reader $so"
         vwait ::done
     }
+    after cancel $after_id
     list $::done [regexp $http_response $response]
 } -result {eof 1}
 
@@ -1228,6 +1231,7 @@ test tls_socket-client-3.2 {
         fileevent $so readable "$reader $so"
         vwait ::done
     }
+    after cancel $after_id
     list $::done [regexp $http_response $response]
 } -result {eof 1}
 
@@ -1253,6 +1257,7 @@ test starttls-client-3.2 {
         fileevent $so readable "$reader $so"
         vwait ::done
     }
+    after cancel $after_id
     list $::done [regexp $http_response $response]
 } -result {eof 1}
 
@@ -1638,10 +1643,11 @@ test tls-server-openssl-1.0 {
     close $fd
     close $listener
 } -body {
-    after 5000 [list set ::done timeout]
+    set after_id [after 5000 [list set ::done timeout]]
     set listener [twapi::tls_socket -server $acceptor -credentials $::serverCreds -requestclientcert -verifier [list openssl_verify ""] 8828]
     set fd [openssl& s_client -connect 127.0.0.1:8828  -cert [openssl_store_path certs simpleuser.crt] -key [openssl_store_path certs simpleuser.key]]
     vwait ::done
+    after cancel $after_id
     set ::done
 } -result {Simple User}
 
@@ -1666,11 +1672,12 @@ test tls-server-openssl-1.1 {
     interp bgerror {} $bgproc
     close $fd
 } -body {
-    after 5000 [list set ::done timeout]
+    set after_id [after 5000 [list set ::done timeout]]
     set listener [twapi::tls_socket -server $acceptor -credentials $::serverCreds -requestclientcert -verifier [list openssl_verify ""] 8828]
     # Call openssl client without providing it a cert
     set fd [openssl& s_client -connect 127.0.0.1:8828]
     vwait ::done
+    after cancel $after_id
     set ::done
     close $listener
     # Verify the accept socket is also closed. There should be no rc* channels
