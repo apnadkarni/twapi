@@ -634,6 +634,7 @@ struct TwapiTclVersion {
 };
 
 
+#if TCL_MAJOR_VERSION < 9
 /*
  * We need to access platform-dependent internal stubs. For
  * example, the Tcl channel system relies on specific values to be used
@@ -649,7 +650,7 @@ struct TwapiTcl85IntPlatStubs {
 };
 extern struct TwapiTcl85IntPlatStubs *tclIntPlatStubsPtr;
 #define TWAPI_TCL85_INT_PLAT_STUB(fn_) (((struct TwapiTcl85IntPlatStubs *)tclIntPlatStubsPtr)->fn_)
-
+#endif
 
 
 /*******************

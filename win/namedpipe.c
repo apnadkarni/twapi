@@ -194,7 +194,11 @@ static void NPipeShutdown(Tcl_Interp *interp, NPipeChannel *pcP, int unrefs);
  */
 static int NPipeSetTclErrnoFromWin32Error(WIN32_ERROR winerr)
 {
+#if TCL_MAJOR_VERSION < 9
     TWAPI_TCL85_INT_PLAT_STUB(tclWinConvertError) (winerr);
+#else
+    Tcl_WinConvertError(winerr);
+#endif
     return Tcl_GetErrno();
 }
 
