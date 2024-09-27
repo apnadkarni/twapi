@@ -2192,7 +2192,17 @@ namespace eval twapi::ui::test {
     test get_display_monitors-3.0 {
         Get display monitors for a display device
     } -setup {
-        set devicename [twapi::kl_get [lindex [twapi::get_display_devices] 0] -name]
+        unset -nocomplain devicename
+        foreach device [twapi::get_display_devices] {
+            set name [dict get $device -name]
+            if {[llength [twapi::get_display_monitors -device $name]]} {
+                set devicename $name
+                break
+            }
+        }
+        if {![info exists devicename]} {
+            error "Could not get display device with monitors."
+        }
     } -body {
         set monitors [twapi::get_display_monitors -device $devicename]
         set allmatch true
@@ -2207,6 +2217,7 @@ namespace eval twapi::ui::test {
                 -attached
             }
             if {![string match -nocase [string map {\\ \\\\} ${devicename}]* [twapi::kl_get $monitor -name]]} {
+                
                 set allmatch false
             }
         }
