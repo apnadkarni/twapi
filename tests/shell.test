@@ -16,9 +16,12 @@ package require twapi_process;  # TBD - required for get_pid_from_handle
 package require twapi_resource; # TBD - required for load_icon_from_system
 namespace eval twapi::shell::test {
     namespace import ::tcltest::test ::tcltest::makeFile
+    variable testnum
+    variable opt
 
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
+    variable wmic_printers
     if {![catch {set wmic_printers [wmic_values Win32_Printer name]}]} {
         ::tcltest::testConstraint haveprinter [llength $wmic_printers]
     }

@@ -21,7 +21,10 @@ namespace eval twapi::base::test {
     namespace import ::tcltest::test
 
     ::tcltest::testConstraint win6 [twapi::min_os_version 6]
-
+    variable testnum
+    variable opt
+    variable rctest_dll
+    variable type
     variable nosuchvar_error "can't read \"nosuchvar\": no such variable"
 
     variable guest_account_name Guest
@@ -47,7 +50,7 @@ namespace eval twapi::base::test {
         Get TWAPI version patchlevel
     } -body {
         twapi::get_version -patchlevel
-    } -result 5.0a0
+    } -result 5.0b1
 
     ################################################################
 

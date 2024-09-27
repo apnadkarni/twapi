@@ -59,6 +59,9 @@ namespace eval twapi::eventlog::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
     ::tcltest::testConstraint win6 [twapi::min_os_version 6]
+    variable testnum
+    variable source
+    variable type
 
     # Read the last entry from the specified event log
     proc get_last_event {source} {

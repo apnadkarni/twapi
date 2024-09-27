@@ -18,6 +18,10 @@ package require twapi_ui
 # General definitions and procs used in the tests
 namespace eval ::twapi::process::test {
     namespace import ::tcltest::test
+    variable field
+    variable testnum
+    variable type
+
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
     # Constraint wow64 is true if we are a 32-bit process on a 64-bit system
     ::tcltest::testConstraint wow64 [expr {$::tcl_platform(machine) eq "intel" && [info exists ::env(ProgramW6432)]}]
@@ -2862,7 +2866,7 @@ namespace eval ::twapi::process::test {
         Expand long embedded environment strings
     } -body {
         twapi::expand_environment_vars [string repeat %PATH% 10]
-    } -result [string repeat $env(PATH) 10]
+    } -result [string repeat $::env(PATH) 10]
 
     test expand_environment_vars-2.0 {
         Verify environment variables that are not defined are not modified

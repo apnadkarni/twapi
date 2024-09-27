@@ -16,6 +16,9 @@ load_twapi_package twapi_storage
 
 namespace eval twapi::share::test {
     namespace import ::tcltest::test
+    variable testnum
+    variable opt
+
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
     #

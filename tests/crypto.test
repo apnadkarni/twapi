@@ -35,6 +35,22 @@ load_twapi_package twapi_crypto
 namespace eval twapi::crypto::test {
     namespace import ::tcltest::test
 
+    variable mode
+    variable len
+    variable plaintext
+    variable plaintexts
+    variable data
+    variable key
+    variable testnum
+    variable hmac
+    variable algo
+    variable alg
+    variable prf
+    variable prop
+    variable blocklen
+    variable loc
+    variable pkg
+
     variable hash_bin_operand
     variable hash_str_operand
     set hash_bin_operand [string repeat "\x00\x01\x02\x80\xff" 100]

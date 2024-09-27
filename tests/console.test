@@ -17,6 +17,7 @@ load_twapi_package;             # Unfortunately we need other packages for testi
 namespace eval twapi::console::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
+    variable textattr_fields
 
     # Some tests that generate and trap ^C 
     ::tcltest::testConstraint singleproc [tcltest::configure -singleproc]

@@ -16,6 +16,9 @@ load_twapi_package twapi_resource
 # Set up system-specific constants that are used to match test results
 namespace eval twapi::resource::test {
     namespace import ::tcltest::test
+    variable testnum
+    variable builtin
+
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
     ::tcltest::testConstraint vista [twapi::min_os_version 6]
 
@@ -43,7 +46,7 @@ namespace eval twapi::resource::test {
         return [file join rctest $name]
     }
 
-
+    variable rctest_dll
     if {$::tcl_platform(machine) eq "amd64"} {
         set rctest_dll "rctest64.dll"
     } else {

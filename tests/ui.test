@@ -19,7 +19,8 @@ namespace eval twapi::ui::test {
     namespace import ::tcltest::test
 
     # Timeout when ending processes
-    set end_process_timeout 5000
+    variable end_process_timeout 5000
+    variable button_edge_offset
 
     # Offset from window edge to system menu or close buttons
     if {[twapi::min_os_version 6]} {

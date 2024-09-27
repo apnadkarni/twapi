@@ -14,13 +14,21 @@ load_twapi_package twapi_network
 
 namespace eval twapi::network::test {
     namespace import ::tcltest::test
+    variable opt
+    variable matchopt
+    variable val
+    variable testnum
+    variable dummy
+    variable field
+    variable state
+    variable validation
 
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
     ::tcltest::testConstraint ipv6  [expr {! [catch {exec netsh interface ipv6 show address}]}]
     ::tcltest::testConstraint tclipv6 [package vsatisfies [package require Tcl] 8.6b1.2]
 
     variable udp_system_port;   # A port we know will be open. We cannot use 137/138 for reasons I don't remember (maybe they are owned by a process we cannot open)
-    regexp {\d+\.\d+\.\d+\.\d+:(1900|5355)\s} [exec netstat -anp udp] -> udp_system_port
+    regexp {\d+\.\d+\.\d+\.\d+:(1900|5355)\s} [exec netstat -anp udp] dummy udp_system_port
 
     variable get_tcp_connections_fields {
         -state

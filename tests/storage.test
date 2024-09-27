@@ -19,6 +19,7 @@ namespace eval twapi::disk::test {
 
     # Required attributes based on file system type
     # List of must haves and list of must not haves
+    variable fs_attrs
     array set fs_attrs {
         NTFS {
             {case_preserved_names unicode_on_disk persistent_acls}
@@ -140,6 +141,8 @@ namespace eval twapi::disk::test {
         return ""
     }
 
+    variable field
+    variable fieldindex
     foreach {
         field fieldindex
     } {

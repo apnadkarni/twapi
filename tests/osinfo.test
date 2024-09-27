@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003-2012, Ashok P. Nadkarni
+# Copyright (c) 2003-2024, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -17,6 +17,9 @@ load_twapi_package twapi_os
 # Set up system-specific constants that are used to match test results
 namespace eval twapi::osinfo::test {
     namespace import ::tcltest::test
+    variable testnum
+    variable spi
+    variable type
 
     variable get_processor_info_fields {
         -processormodel -processorname -processorspeed

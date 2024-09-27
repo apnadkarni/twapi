@@ -19,12 +19,18 @@ load_twapi_package twapi_synch
 
 namespace eval twapi::registry::test {
     namespace import ::tcltest::test
+    variable testnum
+    variable value
+    variable value_name
+    variable type
+
     # Constraint x64 is true if we are a 64-bit process
     ::tcltest::testConstraint x64 [expr {$::tcl_platform(machine) eq "amd64"}]
     ::tcltest::testConstraint elevated [expr {[twapi::get_process_elevation] eq "full"}]
     ::tcltest::testConstraint notelevated [expr {[twapi::get_process_elevation] ne "full"}]
 
     variable computer_name [info hostname]
+    variable root
     variable rootKey TwapiTestRoot
     variable rootPath HKEY_CURRENT_USER\\$rootKey
 

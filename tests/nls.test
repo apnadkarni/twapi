@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2005, Ashok P. Nadkarni
+# Copyright (c) 2005-2024, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -16,6 +16,9 @@ load_twapi_package twapi_nls
 # Set up system-specific constants that are used to match test results
 namespace eval twapi::nls::test {
     namespace import ::tcltest::test
+    variable opt
+    variable i
+
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
     ################################################################
