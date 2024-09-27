@@ -2,10 +2,10 @@
 
 setlocal
 
-set dir90x64=d:\Tcl\90\x64-debug
-set dir90x86=d:\Tcl\90\x86-debug
-set dir86x64=d:\Tcl\86\x64-debug
-set dir86x86=d:\Tcl\86\x86-debug
+set dir90x64=c:\Tcl\9.0.0\x64
+set dir90x86=c:\Tcl\9.0.0\x86
+set dir86x64=c:\Tcl\8.6.10\x64
+set dir86x86=c:\Tcl\8.6.10\x86
 
 powershell .\release.ps1 %dir90x64% %~dp0\dist\latest x64
 @if ERRORLEVEL 1 goto error_exit
