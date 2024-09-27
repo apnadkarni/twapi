@@ -10,6 +10,7 @@
 
 namespace eval twapi {
     # Map privilege level mnemonics to priv level
+    variable priv_level_map
     array set priv_level_map {guest 0 user 1 admin 2}
 
     # TBD - the following are not used, enhancements needed ?
@@ -969,7 +970,7 @@ proc twapi::sort_aces {aces} {
 
     _init_ace_type_symbol_to_code_map
 
-    foreach type [array names twapi::_ace_type_symbol_to_code_map] {
+    foreach type [array names ::twapi::_ace_type_symbol_to_code_map] {
         set direct_aces($type) [list ]
         set inherited_aces($type) [list ]
     }
@@ -1840,7 +1841,7 @@ proc twapi::_init_ace_type_symbol_to_code_map {} {
 
 # Map a resource symbol type to value
 proc twapi::_map_resource_symbol_to_type {sym {named true}} {
-    if {[string is integer $sym]} {
+    if {[string is integer -strict $sym]} {
         return $sym
     }
 

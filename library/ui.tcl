@@ -1162,7 +1162,7 @@ proc twapi::_get_gui_thread_info {tid args} {
 # if $hwin corresponds to a null window handle, returns an empty string
 proc twapi::_return_window {hwin} {
     if {[pointer_null? $hwin HWND]} {
-        return $twapi::null_hwin
+        return $::twapi::null_hwin
     }
     return $hwin
 }

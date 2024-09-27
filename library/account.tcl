@@ -39,7 +39,7 @@ proc twapi::new_user {username args} {
                                         system.arg \
                                         password.arg \
                                         comment.arg \
-                                        [list priv.arg "user" [array names twapi::priv_level_map]] \
+                                        [list priv.arg "user" [array names ::twapi::priv_level_map]] \
                                         home_dir.arg \
                                         script_path.arg \
                                        ] \

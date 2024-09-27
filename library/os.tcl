@@ -707,7 +707,7 @@ proc twapi::find_domain_controller {args} {
 
     # Set preferred bits.
     foreach req $opts(prefer) {
-        if {[string is integer $req]} {
+        if {[string is integer -strict $req]} {
             setbits flags $req
         } else {
             switch -exact -- $req {

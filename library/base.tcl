@@ -8,6 +8,7 @@
 
 namespace eval twapi {
     # Map of Sid integer type to Sid type name
+    variable sid_type_names
     array set sid_type_names {
         1 user 
         2 group

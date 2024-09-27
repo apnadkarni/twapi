@@ -1732,7 +1732,7 @@ proc twapi::_get_process_name_path_helper {pid {type name} args} {
         {noaccess.arg "(unknown)"}
     } -maxleftover 0]
 
-    if {![string is integer $pid]} {
+    if {![string is integer -strict $pid]} {
         error "Invalid non-numeric pid $pid"
     }
     if {[is_system_pid $pid]} {

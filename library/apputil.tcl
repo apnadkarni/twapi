@@ -63,9 +63,9 @@ proc twapi::delete_inifile_key {section key args} {
     } -maxleftover 0]
 
     if {[info exists opts(inifile)]} {
-        WritePrivateProfileString $section $key $twapi::nullptr $opts(inifile)
+        WritePrivateProfileString $section $key $::twapi::nullptr $opts(inifile)
     } else {
-        WriteProfileString $section $key $twapi::nullptr
+        WriteProfileString $section $key $::twapi::nullptr
     }
 }
 

@@ -60,7 +60,7 @@ proc twapi::get_shell_folder {csidl args} {
         }
     }
 
-    if {![string is integer $csidl]} {
+    if {![string is integer -strict $csidl]} {
         set csidl_key [string toupper $csidl]
         if {![info exists csidl_lookup($csidl_key)]} {
             # Try by adding a CSIDL prefix
