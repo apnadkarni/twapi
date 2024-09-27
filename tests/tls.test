@@ -56,9 +56,10 @@ set Port 8048
 
 # This sequence is used in spawned processes as well.
 # So store it in a var so it can be easily invoked in children
+set ::env(TWAPI_TLS_TESTUTIL) [file join [file dirname [info script]] testutil.tcl]
 set initScript {
     if {[llength [info commands load_twapi_package]] == 0} {
-        source [file join [file dirname [info script]] testutil.tcl]
+        source $::env(TWAPI_TLS_TESTUTIL)
     }
     load_twapi_package twapi_crypto
 
@@ -80,7 +81,8 @@ set initScript {
     } 
 
     # Where the certificates are
-    set pfxFile [file join [file dirname [info script]] certs twapitest.pfx]
+    set pfxFile [file join [file dirname $::env(TWAPI_TLS_TESTUTIL)] certs twapitest.pfx]
+    #set pfxFile [file join [file dirname [info script]] certs twapitest.pfx]
     # Set up the store containing the certificates
     set certStore [twapi::cert_temporary_store -pfx [read_file $pfxFile rb]]
     # Set up the client and server credentials
@@ -1421,7 +1423,7 @@ test starttls-optscheck-1.1 {
     Verify starttls preserves options
 } -body {
     set so [socket www.google.com 443]
-    chan configure $so -blocking 0 -buffering none -buffersize 10000 -encoding binary -eofchar X -translation binary
+    chan configure $so -blocking 0 -buffering none -buffersize 10000 -eofchar X -translation binary
     set so_opts [chan configure $so]
     set chan [twapi::starttls $so -peersubject www.google.com]
     set chan_opts [chan configure $chan]
