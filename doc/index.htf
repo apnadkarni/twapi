@@ -11,13 +11,12 @@
   powerful and much easier to use than the raw Windows API.
 </p>
 <p>
-  TWAPI is open source and hosted on <a href="https://www.sourceforge.net">Sourceforge</a>.
+  TWAPI is open source with a BSD license.
 </p>
 <ul>
   <li>Follow the links on the left for the <a href="overview.html">documentation</a></li>
   <li>Go to the <a href="https://sourceforge.net/project/showfiles.php?group_id=90123">download page</a></li>
-  <li>Visit the <a href="https://sourceforge.net/projects/twapi">SourceForge</a> project</li>
-  <li>Browse the <a href="https://sourceforge.net/p/twapi/code/">source repository</a></li>
+  <li>Browse the <a href="https://github.com/apnadkarni/twapi">SourceForge</a>source repository</li>
   <li>Documentation for older versions: 
     <!-- NOTE: Explicit HTTP links because older doc versions do not support https due to http links to yahoo yui css -->
     <a href="http://twapi.magicsplat.com/v4.7/index.html">4.7</a>
