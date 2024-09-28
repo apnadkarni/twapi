@@ -6,7 +6,11 @@ package ifneeded twapi_base @PACKAGE_VERSION@ \
     [list apply [list {dir} {
         package require platform
         set packageVer [string map {. {}} @PACKAGE_VERSION@]
-        set baseDllName @PKG_LIB_FILE@
+        if {[package vsatisfies [package require Tcl] 9]} {
+            set baseDllName "@PKG_LIB_FILE9@"
+        } else {
+            set baseDllName "@PKG_LIB_FILE8@"
+        }
         set package "@PACKAGE_NAME@"
         set package_ns ::$package
         namespace eval $package_ns {}
