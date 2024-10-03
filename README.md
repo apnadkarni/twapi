@@ -1,7 +1,7 @@
 # Tcl Windows API (TWAPI) extension
 
-The Tcl Windows API (TWAPI) extension provides access to the Windows API from
-within the Tcl scripting language.
+The Tcl Windows API (TWAPI) extension provides access to the Windows API
+from within the Tcl scripting language.
 
   * Project source repository is at https://github.com/apnadkarni/twapi
   * Documentation is at https://twapi.magicsplat.com
@@ -16,24 +16,27 @@ TWAPI 5.0 requires
 
 ### Binary distribution
 
-The single binary distribution supports Tcl 8.6 and Tcl 9 for both 32- and
-64-bit platforms.
+The single binary distribution supports Tcl 8.6 and Tcl 9 for both 32-
+and 64-bit platforms.
 
-It requires the VC++ runtime to already be installed
-on the system. Download from https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist if necessary.
+It requires the VC++ runtime to already be installed on the system.
+Download from
+https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist
+if necessary.
 
-Windows 7 and 8.x also require the Windows UCRT runtime to be installed if not
-present. Download from https://support.microsoft.com/en-gb/topic/update-for-universal-c-runtime-in-windows-c0514201-7fe6-95a3-b0a5-287930f3560c.
+Windows 7 and 8.x also require the Windows UCRT runtime to be installed
+if not present. Download from
+https://support.microsoft.com/en-gb/topic/update-for-universal-c-runtime-in-windows-c0514201-7fe6-95a3-b0a5-287930f3560c.
 
 In most cases, both the above should already be present on the system.
 
-Note that the *modular* and single file *bin* in 4.x distributions are no longer
-available and will not be supported in 5.0.
+Note that the *modular* and single file *bin* in 4.x distributions are
+no longer available and will not be supported in 5.0.
 
 ## TWAPI Summary
 
-The Tcl Windows API (TWAPI) extension provides access to the Windows API from
-within the Tcl scripting language.
+The Tcl Windows API (TWAPI) extension provides access to the Windows API
+from within the Tcl scripting language.
 
 Functions in the following areas are implemented:
 
