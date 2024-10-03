@@ -1671,17 +1671,7 @@ proc pick_cert {hstore {n 4}} {
 }
 
 proc openssl_store_path {args} {
-    set path [file join [pwd] .. openssl bin openssl.exe]
-    if {![file exists $path]} {
-        # Try from the source pool. We do it this way because 
-        # of problems loading in VmWare virtual machines from the
-        # host's drive share
-        set path [list ../tools/openssl/bin/openssl.exe]
-        if {![file exists $path]} {
-            error "Could not locate openssl.exe"
-        }
-    }
-    return [file normalize [file join [file dirname [file dirname $path]] {*}$args]]
+    return [file normalize [file join [file dirname [file dirname [openssl_exe_path]]] {*}$args]]
 }
 
 proc openssl_exe_path {} {
