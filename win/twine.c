@@ -86,6 +86,8 @@ Tcl_Obj *TwapiTwineObjv(Tcl_Obj **first, Tcl_Obj **second, Tcl_Size n)
     Tcl_Obj *objv[2*100];
     Tcl_Obj **objs = NULL;
 
+    objv[0] = NULL; /* Suppress gcc bogus uninitialized warning */
+
     if ((2*n) > ARRAYSIZE(objv))
         objs = SWSPushFrame(2 * n * sizeof(*objs), NULL);
     else
