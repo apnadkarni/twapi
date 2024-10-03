@@ -10,6 +10,8 @@
 
 /* TBD - what if allocation of size 0 is requested ? */
 
+#include <stddef.h>
+#include <stdint.h>
 #include <windows.h>
 #include <stdlib.h>
 
@@ -20,12 +22,23 @@
 # define MEMLIFO_EXTERN
 #endif
 
+#if defined(_WIN32) && defined(__GNUC__)
+/* MSVCRT does not support "z". Issue when building with MingW+msvcrt (not ucrt) */
+# if INTPTR_MAX == INT32_MAX
+#  define MEMLIFO_SIZE_MODIFIER ""
+# else
+#  define MEMLIFO_SIZE_MODIFIER "ll"
+# endif
+#else
+#define MEMLIFO_SIZE_MODIFIER "z"
+#endif
+
 typedef struct _MemLifo MemLifo;
 typedef struct _MemLifoMark MemLifoMark;
 typedef MemLifoMark *MemLifoMarkHandle;
 
 #if TCL_MAJOR_VERSION > 8
-typedef SIZE_T MemLifoSize;
+typedef size_t MemLifoSize;
 #else
 typedef unsigned int MemLifoSize;
 #endif
