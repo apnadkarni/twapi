@@ -502,7 +502,7 @@ st */
         case 18: // -loggerthread
             if (ObjToWideInt(interp, objv[i+1], &wide) != TCL_OK)
                 goto error_handler;
-            etP->LoggerThreadId = (HANDLE) wide;
+            etP->LoggerThreadId = (HANDLE) (DWORD_PTR)wide;
             break;
         default:
             ObjSetStaticResult(interp, "Internal error: Unexpected field index.");
@@ -556,7 +556,7 @@ static Tcl_Obj *ObjFromEVENT_TRACE_PROPERTIES(EVENT_TRACE_PROPERTIES *etP)
     objs[15] = ObjFromLong(etP->BuffersWritten);
     objs[16] = ObjFromLong(etP->LogBuffersLost);
     objs[17] = ObjFromLong(etP->RealTimeBuffersLost);
-    objs[18] = ObjFromWideInt((Tcl_WideInt) etP->LoggerThreadId);
+    objs[18] = ObjFromWideInt((DWORD_PTR) etP->LoggerThreadId);
 
     return ObjNewList(ARRAYSIZE(objs), objs);
 }
@@ -752,14 +752,14 @@ TCL_RESULT Twapi_TraceEvent(ClientData clientdata, Tcl_Interp *interp, int objc,
     event.eth.Size = (USHORT) (sizeof(EVENT_TRACE_HEADER) + objc*sizeof(MOF_FIELD));
     event.eth.Flags = WNODE_FLAG_TRACED_GUID |
         WNODE_FLAG_USE_GUID_PTR | WNODE_FLAG_USE_MOF_PTR;
-    event.eth.GuidPtr = (ULONGLONG) &gETWProviderEventClassGuid;
+    event.eth.GuidPtr = (ULONGLONG) (DWORD_PTR)&gETWProviderEventClassGuid;
     event.eth.Class.Type = type;
     event.eth.Class.Level = level;
 
     for (i = 0; i < objc; ++i) {
         unsigned char *temp;
         CHECK_RESULT(ObjToByteArrayDW(interp, objv[i], &event.mof[i].Length, &temp));
-        event.mof[i].DataPtr = (ULONG64) temp;
+        event.mof[i].DataPtr = (DWORD_PTR) temp;
     }
 
     rc = TraceEvent(gETWProviderSessionHandle, &event.eth);
@@ -993,7 +993,7 @@ static WIN32_ERROR TwapiTdhPropertyArraySize(TwapiInterpContext *ticP,
     TWAPI_ASSERT(epiP->NameOffset != 0);
 
     ref_index = epiP->countPropertyIndex;
-    pdd.PropertyName = (ULONGLONG)(teiP->EventPropertyInfoArray[ref_index].NameOffset + (char*) teiP);
+    pdd.PropertyName = (DWORD_PTR)(teiP->EventPropertyInfoArray[ref_index].NameOffset + (char*) teiP);
     pdd.ArrayIndex = ULONG_MAX; /* Since index property is not an array */
     pdd.Reserved = 0;
     winerr = TdhGetPropertySize(evrP, 1, &tdhctx, 1, &pdd, &ref_value_size);
@@ -1516,7 +1516,7 @@ static WIN32_ERROR TwapiDecodeEVENT_PROPERTY_INFO(
     if (winerr != ERROR_SUCCESS)
         return winerr;
 
-    prop_name = (ULONGLONG)(epiP->NameOffset + (char*) teiP);
+    prop_name = (DWORD_PTR)(epiP->NameOffset + (char*) teiP);
 
     /* Special case arrays of UNICHAR and ANSICHAR. These are actually strings*/
     if ((epiP->Flags & PropertyStruct) == 0 &&
@@ -1533,7 +1533,7 @@ static WIN32_ERROR TwapiDecodeEVENT_PROPERTY_INFO(
             winerr = TdhGetProperty(evrP, 1, &tdhctx, 1, pdd, prop_size, pv);
             if (winerr == ERROR_SUCCESS) {
                 *propvalObjP  = ObjNewList(1, NULL);
-                *propnameObjP = ObjFromWinChars((WCHAR *)(prop_name));
+                *propnameObjP = ObjFromWinChars((WCHAR *)(DWORD_PTR)(prop_name));
                 if (epiP->nonStructType.InType == TDH_INTYPE_UNICODECHAR)
                     ObjAppendElement(NULL, *propvalObjP,
                                      ObjFromWinCharsLimited(pv, prop_size/sizeof(WCHAR), NULL));
@@ -1574,7 +1574,7 @@ static WIN32_ERROR TwapiDecodeEVENT_PROPERTY_INFO(
             /* Property is a scalar */
             if (struct_name) {
                 pdd_count = 2;
-                pdd[0].PropertyName = (ULONGLONG)struct_name;
+                pdd[0].PropertyName = (DWORD_PTR)struct_name;
                 pdd[0].ArrayIndex = struct_index;
                 pdd[0].Reserved = 0;
                 pdd[1].PropertyName = prop_name;
@@ -1831,21 +1831,21 @@ static VOID WINAPI TwapiETWEventRecordCallback(PEVENT_RECORD evrP)
         switch (ehdrP->ExtType) {
         case EVENT_HEADER_EXT_TYPE_RELATED_ACTIVITYID:
             ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("relatedactivity"));
-            ObjAppendElement(NULL, recObjs[2], ObjFromGUID(&((PEVENT_EXTENDED_ITEM_RELATED_ACTIVITYID)ehdrP->DataPtr)->RelatedActivityId));
+            ObjAppendElement(NULL, recObjs[2], ObjFromGUID(&((PEVENT_EXTENDED_ITEM_RELATED_ACTIVITYID)(DWORD_PTR)ehdrP->DataPtr)->RelatedActivityId));
             break;
         case EVENT_HEADER_EXT_TYPE_SID:
             ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("sid"));
-            ObjAppendElement(NULL, recObjs[2], ObjFromSIDNoFail((SID *)(ehdrP->DataPtr)));
+            ObjAppendElement(NULL, recObjs[2], ObjFromSIDNoFail((SID *)(DWORD_PTR)(ehdrP->DataPtr)));
             break;
         case EVENT_HEADER_EXT_TYPE_TS_ID:
             ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("tssession"));
-            ObjAppendElement(NULL, recObjs[2], ObjFromULONG(((PEVENT_EXTENDED_ITEM_TS_ID)ehdrP->DataPtr)->SessionId));
+            ObjAppendElement(NULL, recObjs[2], ObjFromULONG(((PEVENT_EXTENDED_ITEM_TS_ID)(DWORD_PTR)ehdrP->DataPtr)->SessionId));
             break;
         case EVENT_HEADER_EXT_TYPE_INSTANCE_INFO:
             ObjAppendElement(NULL, recObjs[2], STRING_LITERAL_OBJ("iteminstance"));
-            objs[0] = ObjFromULONG(((PEVENT_EXTENDED_ITEM_INSTANCE)ehdrP->DataPtr)->InstanceId);
-            objs[1] = ObjFromULONG(((PEVENT_EXTENDED_ITEM_INSTANCE)ehdrP->DataPtr)->ParentInstanceId);
-            objs[2] = ObjFromGUID(&((PEVENT_EXTENDED_ITEM_INSTANCE)ehdrP->DataPtr)->ParentGuid);
+            objs[0] = ObjFromULONG(((PEVENT_EXTENDED_ITEM_INSTANCE)(DWORD_PTR)ehdrP->DataPtr)->InstanceId);
+            objs[1] = ObjFromULONG(((PEVENT_EXTENDED_ITEM_INSTANCE)(DWORD_PTR)ehdrP->DataPtr)->ParentInstanceId);
+            objs[2] = ObjFromGUID(&((PEVENT_EXTENDED_ITEM_INSTANCE)(DWORD_PTR)ehdrP->DataPtr)->ParentGuid);
             ObjAppendElement(NULL, recObjs[2], ObjNewList(3, objs));
             break;
 
