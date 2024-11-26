@@ -16,7 +16,8 @@ dnl	to configure the system for the local environment.
 # this case) so that we create the export library with the dll.
 #-----------------------------------------------------------------------
 
-AC_INIT([twapi],[5.0b1])
+# Leave a space after the comma for release.cmd to parse
+AC_INIT([twapi], [5.0.2])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.

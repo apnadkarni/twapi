@@ -115,8 +115,13 @@ TCL_SRC_DIR	= @TCL_SRC_DIR@
 #TK_BIN_DIR	= @TK_BIN_DIR@
 #TK_SRC_DIR	= @TK_SRC_DIR@
 
+TCL_TOMMATH_LIB = @TCL_TOMMATH_LIB@
+
 # Not used, but retained for reference of what libs Tcl required
 #TCL_LIBS	= @TCL_LIBS@
+
+# Non-standard - added so DLL can go into arch-specific subdir (Windows-only)
+MACHINE         = @MACHINE@
 
 #========================================================================
 # TCLLIBPATH seeds the auto_path in Tcl's init.tcl so we can test our
@@ -208,6 +213,10 @@ doc:
 install: all install-binaries install-libraries install-doc
 	cp -p $(srcdir)/README* $(srcdir)/LICENSE* \
 		$(DESTDIR)$(pkglibdir)/
+install-strip:
+	$(MAKE) install \
+		INSTALL_PROGRAM="STRIPPROG='${INSTALL_STRIP_PROGRAM}' $(INSTALL_PROGRAM) -s" \
+		INSTALL_LIBRARY="STRIPPROG='${INSTALL_STRIP_LIBRARY}' $(INSTALL_LIBRARY) -s"
 
 install-binaries: binaries install-lib-binaries install-bin-binaries
 
@@ -362,25 +371,28 @@ distclean: clean
 #========================================================================
 
 install-lib-binaries: binaries
-	@mkdir -p $(DESTDIR)$(pkglibdir)
+	@mkdir -p "$(DESTDIR)$(pkglibdir)"
+	@$(INSTALL_DATA) $(srcdir)/LICENSE "$(DESTDIR)$(pkglibdir)"
+	@$(INSTALL_DATA) $(srcdir)/README.md "$(DESTDIR)$(pkglibdir)"
 	@list='$(lib_BINARIES)'; for p in $$list; do \
 	  if test -f $$p; then \
-	    echo " $(INSTALL_LIBRARY) $$p $(DESTDIR)$(pkglibdir)/$$p"; \
-	    $(INSTALL_LIBRARY) $$p $(DESTDIR)$(pkglibdir)/$$p; \
-	    stub=`echo $$p|sed -e "s/.*\(stub\).*/\1/"`; \
-	    if test "x$$stub" = "xstub"; then \
-		echo " $(RANLIB_STUB) $(DESTDIR)$(pkglibdir)/$$p"; \
-		$(RANLIB_STUB) $(DESTDIR)$(pkglibdir)/$$p; \
-	    else \
-		echo " $(RANLIB) $(DESTDIR)$(pkglibdir)/$$p"; \
-		$(RANLIB) $(DESTDIR)$(pkglibdir)/$$p; \
-	    fi; \
 	    ext=`echo $$p|sed -e "s/.*\.//"`; \
+	    if test "x$(MACHINE)" = "x"; then \
+	        todir="$(DESTDIR)$(pkglibdir)"; \
+	    elif test "x$(MACHINE)" = "xAMD64"; then \
+		todir="$(DESTDIR)$(pkglibdir)/win32-x86_64"; \
+	    elif test "x$(MACHINE)" = "xX86"; then \
+		todir="$(DESTDIR)$(pkglibdir)/win32-ix86"; \
+	    else \
+		todir="$(DESTDIR)$(pkglibdir)/$(MACHINE)"; \
+	    fi; \
+	    echo " $(INSTALL_LIBRARY) $$p $$todir/$$p"; \
+	    $(INSTALL_LIBRARY) $$p "$$todir/$$p"; \
 	    if test "x$$ext" = "xdll"; then \
 		lib=`basename $$p|sed -e 's/.[^.]*$$//'`.lib; \
 		if test -f $$lib; then \
-		    echo " $(INSTALL_DATA) $$lib $(DESTDIR)$(pkglibdir)/$$lib"; \
-	            $(INSTALL_DATA) $$lib $(DESTDIR)$(pkglibdir)/$$lib; \
+		    echo " $(INSTALL_DATA) $$lib $$todir/$$lib"; \
+	            $(INSTALL_DATA) $$lib "$$todir/$$lib"; \
 		fi; \
 	    fi; \
 	  fi; \
