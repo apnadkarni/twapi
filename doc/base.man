@@ -17,9 +17,9 @@ and some functionality commonly required in all Windows application.
 [uri #import_commands [cmd import_commands]] enable export and import
 of commands defined in the TWAPI namespace.
 
-[section "Handles"]
-Several Win32 and TWAPI commands return operating system
-handles to various types of resources. The following commands allow
+[section "Handles and pointers"]
+Several Win32 and TWAPI commands return operating system handles or pointers
+to various types of resources. The following commands allow
 manipulation and retrieval of information regarding handles.
 
 [para]
@@ -44,6 +44,10 @@ An application can wait on a handle to be signalled using the
 [uri #wait_on_handle [cmd wait_on_handle]] command. The wait can be
 cancelled by calling
 [uri #cancel_wait_on_handle [cmd cancel_wait_on_handle]] command.
+
+[para]
+The [uri #pointer_null? [cmd pointer_null?]] command checks
+if a handle or pointer is NULL.
 
 [section "User Accounts"]
 The [package twapi_base] package includes some commonly used commands related to
@@ -914,6 +918,11 @@ in [arg OPTLIST]). If the [cmd -ignoreunknown] option is specified to
 the command, unknown options in [arg ARGLISTVAR] are ignored instead
 of an error being generated and are not removed from [arg ARGLISTVAR].
 
+[call [cmd pointer_null?] [arg POINTER]]
+If 
+If the passed argument is interpretable as a pointer or handle, returns
+[const 1] if it is a NULL pointer and [const 0] otherwise. Raises an
+error if [arg POINTER] cannot represent a pointer.
 
 [call [cmd random_bytes] [arg NUMBER]]
 Returns the specified number of random bytes. This is a call into

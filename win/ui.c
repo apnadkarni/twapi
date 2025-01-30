@@ -1,5 +1,5 @@
 /* 
- * Copyright (c) 2003-2024, Ashok P. Nadkarni
+ * Copyright (c) 2003-2025, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -464,24 +464,27 @@ static int Twapi_UiCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
                 result.type = TRT_EXCEPTION_ON_ERROR;
             break;
         case 4006:
+            result.type = TRT_LONG;
+            result.value.ival = GetDeviceCaps(h, dw);
+            break;
+        case 4007: /* GetObjectW */
+        case 4008: /* GetEnhMetaFileBits */
             /* Find the required buffer size */
-            dw = GetObjectW(h, 0, NULL);
+            dw = (func == 4007 ? GetObjectW(h, 0, NULL)
+                               : GetEnhMetaFileBits(h, 0, NULL));
             if (dw == 0) {
                 result.type = TRT_GETLASTERROR; /* TBD - is GetLastError set? */
                 break;
             }
             result.value.obj = ObjAllocateByteArray(dw, &pv);
-            dw = GetObjectW(h, dw, pv);
+            dw = (func == 4007 ? GetObjectW(h, dw, pv)
+                               : GetEnhMetaFileBits(h, dw, pv));
             if (dw == 0)
                 result.type = TRT_GETLASTERROR;
             else {
                 Tcl_SetByteArrayLength(result.value.obj, dw);
                 result.type = TRT_OBJ;
             }
-            break;
-        case 4007:
-            result.type = TRT_LONG;
-            result.value.ival = GetDeviceCaps(h, dw);
             break;
         }
     } else {
@@ -896,8 +899,9 @@ static int TwapiUiInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(GetMonitorInfo, 4003),
         DEFINE_FNCODE_CMD(GetThemeSysColor, 4004), // TBD - tcl
         DEFINE_FNCODE_CMD(GetThemeSysFont, 4005),  // TBD - tcl
-        DEFINE_FNCODE_CMD(GetObject, 4006), // TBD - tcl
-        DEFINE_FNCODE_CMD(GetDeviceCaps, 4007),
+        DEFINE_FNCODE_CMD(GetDeviceCaps, 4006),
+        DEFINE_FNCODE_CMD(GetObject, 4007), // TBD - tcl
+        DEFINE_FNCODE_CMD(GetEnhMetaFileBits, 4008), // TBD - tcl
         DEFINE_FNCODE_CMD(MonitorFromPoint, 10001),
         DEFINE_FNCODE_CMD(MonitorFromRect, 10002),
         DEFINE_FNCODE_CMD(GetThemeColor, 10003),

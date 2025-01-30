@@ -25,13 +25,46 @@ proc twapi::empty_clipboard {} {
     EmptyClipboard
 }
 
+proc twapi::_check_if_global_memory_format {fmt} {
+    # The following types are known to return global handles to memory
+    # 1 - CF_TEXT
+    # 7 - CF_OEMTEXT
+    # 8 - CF_DIB
+    # 13 - CF_UNICODE
+    # 15 - CF_HDROP
+    # 16 - CF_LOCALE
+    # 17 - CF_DIBV5
+    # Non-Standard formats "HTML Format", "PNG", "GIF"
+    switch $fmt {
+        1 -
+        7 -
+        8 -
+        13 -
+        15 -
+        16 -
+        17 {}
+        default {
+            if {[catch {get_registered_clipboard_format_name $fmt} fmt_name] ||
+                $fmt_name ni {{HTML Format} PNG GIF image/svg+xml}} {
+                error "Unsupported format $fmt."
+            }
+        }
+    }
+}
+
 proc twapi::_read_clipboard {fmt} {
     # Always catch errors and close clipboard before passing exception on
     # Also ensure memory unlocked
     trap {
         set h [GetClipboardData $fmt]
-        set p [GlobalLock $h]
-        set data [Twapi_ReadMemory 1 $p 0 [GlobalSize $h]]
+        if {$fmt == 14} {
+            # CF_ENHMETAFILE
+            set data [GetEnhMetaFileBits $h]
+        } else {
+            _check_if_global_memory_format $fmt
+            set p [GlobalLock $h]
+            set data [Twapi_ReadMemory 1 $p 0 [GlobalSize $h]]
+        }
     } onerror {} {
         catch {close_clipboard}
         rethrow
@@ -79,6 +112,8 @@ proc twapi::_write_clipboard {fmt data} {
     # Always catch errors and close
     # clipboard before passing exception on
     trap {
+        _check_if_global_memory_format $fmt
+
         # For byte arrays, string length does return correct size
         # (DO NOT USE string bytelength - see Tcl docs!)
         set len [string length $data]
@@ -161,40 +196,40 @@ proc twapi::clipboard_format_available {fmt} {
     return [IsClipboardFormatAvailable $fmt]
 }
 
-proc twapi::read_clipboard_paths {} { 
+proc twapi::read_clipboard_paths {} {
     set bin [read_clipboard 15]
-    # Extract the DROPFILES header 
-    if {[binary scan $bin iiiii offset - - - unicode] != 5} { 
-        error "Invalid or unsupported clipboard CF_DROP data." 
-    } 
-    # Sanity check 
-    if {$offset >= [string length $bin]} { 
-        error "Truncated clipboard data." 
-    } 
-    if {$unicode} { 
-        set paths [encoding convertfrom unicode [string range $bin $offset end]] 
-    } else { 
-        set paths [encoding convertfrom ascii [string range $bin $offset end]] 
-    } 
+    # Extract the DROPFILES header
+    if {[binary scan $bin iiiii offset - - - unicode] != 5} {
+        error "Invalid or unsupported clipboard CF_DROP data."
+    }
+    # Sanity check
+    if {$offset >= [string length $bin]} {
+        error "Truncated clipboard data."
+    }
+    if {$unicode} {
+        set paths [encoding convertfrom unicode [string range $bin $offset end]]
+    } else {
+        set paths [encoding convertfrom ascii [string range $bin $offset end]]
+    }
     set ret {}
-    foreach path [split $paths \0] { 
-        if {[string length $path] == 0} break; # Empty string -> end of list 
+    foreach path [split $paths \0] {
+        if {[string length $path] == 0} break; # Empty string -> end of list
         lappend ret [file join $path]
     }
     return $ret
-} 
+}
 
-proc twapi::write_clipboard_paths {paths} { 
-    # The header for a DROPFILES path list in hex 
-    set fheader "1400000000000000000000000000000001000000" 
-    set bin [binary format H* $fheader] 
-    foreach path $paths { 
-        # Note explicit \0 so the encoded binary includes the null terminator 
-        append bin [encoding convertto unicode "[file nativename [file normalize $path]]\0"] 
-    } 
-    # A Unicode null char to terminate the list of paths 
-    append bin [encoding convertto unicode \0] 
-    write_clipboard 15 $bin 
+proc twapi::write_clipboard_paths {paths} {
+    # The header for a DROPFILES path list in hex
+    set fheader "1400000000000000000000000000000001000000"
+    set bin [binary format H* $fheader]
+    foreach path $paths {
+        # Note explicit \0 so the encoded binary includes the null terminator
+        append bin [encoding convertto unicode "[file nativename [file normalize $path]]\0"]
+    }
+    # A Unicode null char to terminate the list of paths
+    append bin [encoding convertto unicode \0]
+    write_clipboard 15 $bin
 }
 
 # Start monitoring of the clipboard

@@ -65,14 +65,45 @@ currently stored in the clipboard may be obtained through the
 [uri \#get_clipboard_formats [cmd get_clipboard_formats]] command.
 
 [para]
-When reading or writing data, the application is responsible for formatting
-data appropriately, possibly through the use of Tcl's [cmd binary] command.
-The exceptions to this are the
-[uri \#read_clipboard_text [cmd read_clipboard_text]],
-[uri \#write_clipboard_text [cmd write_clipboard_text]]
-[uri \#read_clipboard_paths [cmd read_clipboard_paths]],
+When reading or writing data
+[uri \#read_clipboard [cmd read_clipboard]],
+[uri \#write_clipboard [cmd write_clipboard]],
+the application is responsible for formatting
+data appropriately. These commands support the following clipboard formats:
+
+[list_begin opt]
+[opt_def 1]
+ANSI text (CF_TEXT).
+[opt_def 7]
+OEM text (CF_OEMTEXT).
+[opt_def 8]
+Device independent bitmap (CF_DIB).
+[opt_def 13]
+Unicode text (CF_UNICODE).
+[opt_def 14]
+Enhanced meta file (CF_ENHMETAFILE). Only reads supported.
+[opt_def 15]
+File path list (CF_HDROP).
+[opt_def 16]
+Locale for the clipboard data (CF_LOCALE).
+[opt_def 17]
+Device independent bitmap V5 (CF_DIBV5).
+[opt_def "HTML Format"]
+HTML format. The numeric code should be obtained with [cmd register_clipboard_format].
+[opt_def "PNG"]
+PNG image. The numeric code should be obtained with [cmd register_clipboard_format].
+[opt_def "GIF"]
+GIF image. The numeric code should be obtained with [cmd register_clipboard_format].
+[list_end]
+
+The
+[uri \#read_clipboard_text [cmd read_clipboard_text]] and
+[uri \#write_clipboard_text [cmd write_clipboard_text]] commands are more
+convenient to use for any text format. Likewise the
+[uri \#read_clipboard_paths [cmd read_clipboard_paths]] and
 [uri \#write_clipboard_paths [cmd write_clipboard_paths]]
-commands which assume the data is text and file paths respectively.
+are an easier alternative to use of the generic clipboard functions for
+CF_HDROP format.
 
 [section "Writing Data"]
 
@@ -176,6 +207,7 @@ the command returns.
 [sectref "Clipboard formats"]. The content is an exact copy of the
 contents of the clipboard in binary format. Callers will need to
 use Tcl commands such as [cmd binary] and [cmd encoding] to parse the data.
+The command will raise an exception for unsupported clipboard formats.
 
 [call [cmd read_clipboard_paths]]
 
@@ -255,6 +287,7 @@ are not locked out of the clipboard on errors.
 [sectref "Clipboard formats"]. The content is an exact copy of the
 contents of the clipboard in binary format. Callers will need to
 use Tcl commands such as [cmd binary] and [cmd encoding] to parse the data.
+The command will raise an exception for unsupported clipboard formats.
 [nl]
 Multiple [cmd write_clipboard] commands may be executed between
 a [uri \#open_clipboard [cmd open_clipboard]]

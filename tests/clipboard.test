@@ -185,17 +185,14 @@ namespace eval twapi::clipboard::test {
         twapi::open_clipboard
         twapi::empty_clipboard
         # Write data using our own format 23456 (arbitrary format number)
-        set data [binary format c* {0 1 2 3 4}]
-        puts "writing data"
-        twapi::write_clipboard 23456 $data
-        puts "wrote data"
+        set png_fmt [twapi::register_clipboard_format PNG]
+        set data [read_binary [file join [testdir] clipboard-test.png]]
+        twapi::write_clipboard $png_fmt $data
         twapi::close_clipboard
         # Now read it back
         twapi::open_clipboard
-        puts "reading data"
-        set clip_data [twapi::read_clipboard 23456]
+        set clip_data [twapi::read_clipboard $png_fmt]
         twapi::close_clipboard
-        puts "read data"
 
         string equal $data $clip_data
     } -result 1
@@ -217,10 +214,10 @@ namespace eval twapi::clipboard::test {
     } -body {
         twapi::open_clipboard
         twapi::write_clipboard_text "This is plain text"
-        twapi::write_clipboard_paths [list {C:/temp/foo bar} {C:\xxx\yyy.zzz}]
+        twapi::write_clipboard_paths [list {c:/temp/foo bar} {c:\xxx\yyy.zzz}]
         twapi::close_clipboard
-        list [twapi::read_clipboard_text] [twapi::read_clipboard_paths]
-    } -result [list "This is plain text" [list "C:/temp/foo bar" "C:/xxx/yyy.zzz"]]
+        list [twapi::read_clipboard_text] [string tolower [twapi::read_clipboard_paths]]
+    } -result [list "This is plain text" [list "c:/temp/foo bar" "c:/xxx/yyy.zzz"]]
 
     test write_clipboard-2.1 {
         Write multiple formats to the clipboard - fail

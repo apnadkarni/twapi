@@ -1692,21 +1692,38 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
             result.value.hval = h;
             break;
         case 5:
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            /* GlobalFree will return a HANDLE on failure. */
-            result.value.ival = GlobalFree(h) ? GetLastError() : 0;
+            if (GlobalFlags(h) == GMEM_INVALID_HANDLE) {
+                result.type = TRT_GETLASTERROR;
+            } else {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                /* GlobalFree will return a HANDLE on failure. */
+                result.value.ival = GlobalFree(h) ? GetLastError() : 0;
+            }
             break;
         case 6:
-            result.type = TRT_EXCEPTION_ON_ERROR;
-            /* GlobalUnlock is an error if it returns 0 AND GetLastError is non-0 */
-            result.value.ival = GlobalUnlock(h) ? 0 : GetLastError();
+            if (GlobalFlags(h) == GMEM_INVALID_HANDLE) {
+                result.type = TRT_GETLASTERROR;
+            } else {
+                result.type = TRT_EXCEPTION_ON_ERROR;
+                /* GlobalUnlock is an error if it returns 0 AND GetLastError is
+                 * non-0 */
+                result.value.ival = GlobalUnlock(h) ? 0 : GetLastError();
+            }
             break;
         case 7:
-            result.type = TRT_DWORD_PTR;
-            result.value.dwp = GlobalSize(h);
+            if (GlobalFlags(h) == GMEM_INVALID_HANDLE) {
+                result.type = TRT_GETLASTERROR;
+            } else {
+                result.type      = TRT_DWORD_PTR;
+                result.value.dwp = GlobalSize(h);
+            }
             break;
         case 8:
-            TwapiResult_SET_NONNULL_PTR(result, void*, GlobalLock(h));
+            if (GlobalFlags(h) == GMEM_INVALID_HANDLE) {
+                result.type = TRT_GETLASTERROR;
+            } else {
+                TwapiResult_SET_NONNULL_PTR(result, void *, GlobalLock(h));
+            }
             break;
         case 9:
             MemLifoClose(h);
@@ -1766,6 +1783,10 @@ static int Twapi_CallHObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc
         case 23:              /* DeleteObject */
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = DeleteObject(h);
+            break;
+        case 24:
+            result.type = TRT_DWORD;
+            result.value.uval = GlobalFlags(h);
             break;
         }
     } else if (func < 2000) {
@@ -2330,6 +2351,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(CloseEventLog, 21),
         DEFINE_FNCODE_CMD(DeregisterEventSource, 22),
         DEFINE_FNCODE_CMD(DeleteObject, 23),
+        DEFINE_FNCODE_CMD(GlobalFlags, 24),
         DEFINE_FNCODE_CMD(ReleaseSemaphore, 1001),
         DEFINE_FNCODE_CMD(WaitForSingleObject, 1002),
         DEFINE_FNCODE_CMD(Twapi_MemLifoAlloc, 1003),

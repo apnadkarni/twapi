@@ -17,7 +17,7 @@ dnl	to configure the system for the local environment.
 #-----------------------------------------------------------------------
 
 # Leave a space after the comma for release.cmd to parse
-AC_INIT([twapi], [5.0.2])
+AC_INIT([twapi], [5.0.3])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
