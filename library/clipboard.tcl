@@ -25,7 +25,8 @@ proc twapi::empty_clipboard {} {
     EmptyClipboard
 }
 
-proc twapi::_check_if_global_memory_format {fmt} {
+proc twapi::_init_global_heap_formats {} {
+    variable _clipboard_global_heap_formats
     # The following types are known to return global handles to memory
     # 1 - CF_TEXT
     # 7 - CF_OEMTEXT
@@ -35,21 +36,44 @@ proc twapi::_check_if_global_memory_format {fmt} {
     # 16 - CF_LOCALE
     # 17 - CF_DIBV5
     # Non-Standard formats "HTML Format", "PNG", "GIF"
-    switch $fmt {
-        1 -
-        7 -
-        8 -
-        13 -
-        15 -
-        16 -
-        17 {}
-        default {
-            if {[catch {get_registered_clipboard_format_name $fmt} fmt_name] ||
-                $fmt_name ni {{HTML Format} PNG GIF image/svg+xml}} {
-                error "Unsupported format $fmt."
-            }
-        }
+    array set _clipboard_global_heap_formats {
+        1 {} 7 {} 8 {} 13 {} 15 {} 16 {} 17 {}
     }
+    foreach fmt [list "HTML Format" PNG GIF] {
+        set fmt [format %u [register_clipboard_format $fmt]]
+        set _clipboard_global_heap_formats($fmt) ""
+    }
+    proc _init_global_heap_formats {} {}
+}
+
+proc twapi::clipboard_format_uses_global_heap {args} {
+    _init_global_heap_formats
+    variable _clipboard_global_heap_formats
+    set fmts [lmap fmt $args {
+        if {[string is integer $fmt]} {
+            if {$fmt < 0 || $fmt > 0x7fffffff} {
+                error "Clipboard format $fmt out of range."
+            }
+        } else {
+            set fmt [register_clipboard_format $fmt]
+        }
+        format %u $fmt
+    }]
+
+    # All formats verified, now add them
+    foreach fmt $fmts {
+        set _clipboard_global_heap_formats($fmt) ""
+    }
+}
+
+proc twapi::_check_if_global_memory_format {fmt} {
+    _init_global_heap_formats
+    variable _clipboard_global_heap_formats
+    set fmt [format %u $fmt]
+    if {[info exists _clipboard_global_heap_formats($fmt)]} {
+        return
+    }
+    error "Unsupported format $fmt."
 }
 
 proc twapi::_read_clipboard {fmt} {

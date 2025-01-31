@@ -1194,7 +1194,7 @@ proc pause {message} {
         twapi::set_foreground_window [twapi::get_console_window]
     }
     # Would like -nonewline here but see comments in proc yesno
-    puts -nonewline "\n$message\nHit Return to continue..."
+    puts "\n$message\nHit Return to continue..."
     flush stdout
     gets stdin
     return

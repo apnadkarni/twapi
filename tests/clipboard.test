@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004-2012, Ashok P. Nadkarni
+# Copyright (c) 2004-2015, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -11,12 +11,22 @@ eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_clipboard
+load_twapi_package twapi_com
+
+if {![catch {
+    set ppt [twapi::comobj PowerPoint.Application]
+}]} {
+    $ppt Quit
+    $ppt destroy
+    tcltest::testConstraint havePpt 1
+}
 
 namespace eval twapi::clipboard::test {
     namespace import ::tcltest::test
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
 
     proc copy2clip {args} {
+        puts ""
         puts [join $args \n]
         pause "Copy the above [llength $args] lines to the clipboard."
     }
@@ -78,12 +88,12 @@ namespace eval twapi::clipboard::test {
     } -constraints {
         userInteraction
     } -body {
-        copy2clip line1 line2
+        copy2clip line3 line4
         set clip_text [twapi::read_clipboard 1]; # ANSI format
         # We should see clipboard results read as characters
         # "line1\r\nline2\0" followed potentially by junk
         string range $clip_text 0 [string first \0 $clip_text]-1
-    } -result "line1\r\nline2"
+    } -result "line3\r\nline4"
 
     ################################################################
 
@@ -143,7 +153,7 @@ namespace eval twapi::clipboard::test {
     } -constraints {
         userInteraction
     } -body {
-        copy2clip "Some random text"
+        copy2clip "Some more random text"
         twapi::open_clipboard
         set clip_fmts [twapi::get_clipboard_formats]
         twapi::close_clipboard
@@ -184,18 +194,18 @@ namespace eval twapi::clipboard::test {
     } -body {
         twapi::open_clipboard
         twapi::empty_clipboard
+        set data [binary format c* {0 1 2 3 4}]
+        set result [list ]
         # Write data using our own format 23456 (arbitrary format number)
-        set png_fmt [twapi::register_clipboard_format PNG]
-        set data [read_binary [file join [testdir] clipboard-test.png]]
-        twapi::write_clipboard $png_fmt $data
+        lappend result [catch {twapi::write_clipboard 23456 $data}]
+        twapi::clipboard_format_uses_global_heap 23456
+        twapi::write_clipboard 23456 $data
         twapi::close_clipboard
-        # Now read it back
         twapi::open_clipboard
-        set clip_data [twapi::read_clipboard $png_fmt]
+        set clip_data [twapi::read_clipboard 23456]
         twapi::close_clipboard
-
-        string equal $data $clip_data
-    } -result 1
+        lappend result [string equal $data $clip_data]
+    } -result {1 1}
 
     test write_clipboard-1.1 {
         Write Unicode data to the clipboard without opening clipboard
@@ -205,6 +215,23 @@ namespace eval twapi::clipboard::test {
         twapi::write_clipboard 13 $data
         # Now read it back
         set clip_data [twapi::read_clipboard 13]
+
+        string equal $data $clip_data
+    } -result 1
+
+    test write_clipboard-1.2 {
+        Write PNG to the clipboard
+    } -body {
+        twapi::open_clipboard
+        twapi::empty_clipboard
+        set png_fmt [twapi::register_clipboard_format PNG]
+        set data [read_binary [file join [testdir] clipboard-test.png]]
+        twapi::write_clipboard $png_fmt $data
+        twapi::close_clipboard
+        # Now read it back
+        twapi::open_clipboard
+        set clip_data [twapi::read_clipboard $png_fmt]
+        twapi::close_clipboard
 
         string equal $data $clip_data
     } -result 1
@@ -349,6 +376,69 @@ namespace eval twapi::clipboard::test {
     } -body {
         twapi::get_clipboard_owner
     } -match handle -result HWND
+
+    ################################################################
+
+    test clipboard_format_uses_global_heap-1.0 {
+        Register clipboard formats
+    } -body {
+        set data1 [binary format c* {0 1 2 3 4}]
+        set data2 [binary format c* {4 3 2 1 0}]
+
+        set fmt1 [twapi::register_clipboard_format TwapiTestFmt1]
+        set fmt2 [twapi::register_clipboard_format TwapiTestFmt2]
+
+        twapi::open_clipboard
+        twapi::empty_clipboard
+
+        # both numeric and symbolic
+        twapi::clipboard_format_uses_global_heap $fmt1 TwapiTestFmt2
+
+        twapi::write_clipboard $fmt1 $data1
+        twapi::write_clipboard $fmt2 $data2
+        twapi::close_clipboard
+        twapi::open_clipboard
+        set clip1 [twapi::read_clipboard $fmt1]
+        set clip2 [twapi::read_clipboard $fmt2]
+        twapi::close_clipboard
+        list [string equal $data1 $clip1] [string equal $data2 $clip2]
+    } -result {1 1}
+
+    ################################################################
+
+    test clipboard-bug-github-16 "Crash on clipboard" -setup {
+        set app [twapi::comobj PowerPoint.Application]
+        $app Visible 1
+        set f [file normalize [file join [testdir] ClipboardTest.pptx]]
+        set presentations [$app Presentations]
+        set ppt [$presentations Open $f]
+        set slides [$ppt Slides]
+        set slide [$slides Item 1]
+        $slide Copy
+    } -body {
+        twapi::open_clipboard
+        set fmts [twapi::get_clipboard_formats]
+        set fails {}
+        set ok {}
+        foreach fmt $fmts {
+            if {[catch {twapi::read_clipboard $fmt}]} {
+                lappend fails $fmt
+            } else {
+                lappend ok $fmt
+            }
+        }
+        set expected [list 8 14 17]
+        lappend expected [twapi::register_clipboard_format PNG]
+        lappend expected [twapi::register_clipboard_format GIF]
+        equal_lists [lsort -integer $ok] [lsort -integer $expected]
+    } -cleanup {
+        $slide destroy
+        $slides destroy
+        $ppt destroy
+        $presentations destroy
+        $app Quit
+        $app destroy
+    } -constraints {havePpt} -result 1
 
     ################################################################
 
