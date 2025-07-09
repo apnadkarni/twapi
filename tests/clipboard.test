@@ -201,6 +201,7 @@ namespace eval twapi::clipboard::test {
         twapi::clipboard_format_uses_global_heap 23456
         twapi::write_clipboard 23456 $data
         twapi::close_clipboard
+        after 50
         twapi::open_clipboard
         set clip_data [twapi::read_clipboard 23456]
         twapi::close_clipboard
@@ -213,6 +214,7 @@ namespace eval twapi::clipboard::test {
         # We have to format the data with a trailing null char
         set data [encoding convertto unicode "unicode text\0"]
         twapi::write_clipboard 13 $data
+        after 50
         # Now read it back
         set clip_data [twapi::read_clipboard 13]
 
@@ -228,6 +230,7 @@ namespace eval twapi::clipboard::test {
         set data [read_binary [file join [testdir] clipboard-test.png]]
         twapi::write_clipboard $png_fmt $data
         twapi::close_clipboard
+        after 50
         # Now read it back
         twapi::open_clipboard
         set clip_data [twapi::read_clipboard $png_fmt]
@@ -243,6 +246,7 @@ namespace eval twapi::clipboard::test {
         twapi::write_clipboard_text "This is plain text"
         twapi::write_clipboard_paths [list {c:/temp/foo bar} {c:\xxx\yyy.zzz}]
         twapi::close_clipboard
+        after 50
         list [twapi::read_clipboard_text] [string tolower [twapi::read_clipboard_paths]]
     } -result [list "This is plain text" [list "c:/temp/foo bar" "c:/xxx/yyy.zzz"]]
 
@@ -251,6 +255,7 @@ namespace eval twapi::clipboard::test {
     } -body {
         twapi::write_clipboard_paths [list {C:/temp/foo bar} {C:\xxx\yyy.zzz}]
         twapi::write_clipboard_text "This is plain text"
+        after 50
         # If clipboard not already open, the write* calls clear it first
         # so there will be no file paths stored in clipboard
         list [twapi::read_clipboard_text] [catch {twapi::read_clipboard_paths}]
@@ -266,6 +271,7 @@ namespace eval twapi::clipboard::test {
         twapi::empty_clipboard
         twapi::write_clipboard_text $data
         twapi::close_clipboard
+        after 50
         # Now read it back
         twapi::open_clipboard
         set clip_data [twapi::read_clipboard_text -raw 1]
@@ -278,6 +284,7 @@ namespace eval twapi::clipboard::test {
     } -body {
         set data "write_clipboard_text-1.0\nSecond line"
         twapi::write_clipboard_text $data -raw 0
+        after 50
         # Now read it back
         twapi::read_clipboard_text -raw 1
         # Note expect additional \r in result
@@ -291,6 +298,7 @@ namespace eval twapi::clipboard::test {
         twapi::empty_clipboard
         twapi::write_clipboard_text $data -raw 1
         twapi::close_clipboard
+        after 50
         # Now read it back
         twapi::open_clipboard
         set clip_data [twapi::read_clipboard_text -raw 1]
@@ -305,6 +313,7 @@ namespace eval twapi::clipboard::test {
     } -body {
         set paths [list foo [file nativename [info nameofexecutable]]]
         twapi::write_clipboard_paths $paths
+        after 50
         twapi::read_clipboard_paths
     } -result [list [file normalize foo] [file normalize [info nameofexecutable]]]
 
@@ -421,6 +430,7 @@ namespace eval twapi::clipboard::test {
         set fails {}
         set ok {}
         foreach fmt $fmts {
+            after 50
             if {[catch {twapi::read_clipboard $fmt}]} {
                 lappend fails $fmt
             } else {
@@ -430,6 +440,7 @@ namespace eval twapi::clipboard::test {
         set expected [list 8 14 17]
         lappend expected [twapi::register_clipboard_format PNG]
         lappend expected [twapi::register_clipboard_format GIF]
+        puts $ok,$expected
         equal_lists [lsort -integer $ok] [lsort -integer $expected]
     } -cleanup {
         $slide destroy

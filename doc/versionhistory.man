@@ -1,11 +1,17 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Version History" "n" ""]
-[copyright "2003-2021 Ashok P. Nadkarni"]
+[copyright "2003-2025 Ashok P. Nadkarni"]
 [moddesc "TWAPI Version History"]
 [titledesc "Tcl Windows API extension version history"]
 [description]
 [para]
 Summarizes the list of changes for each version of TWAPI.
+
+[section "Version 5.1"]
+
+[bullet] Added
+[uri clipboard.html#clipboard_format_uses_global_heap [cmd clipboard_format_uses_global_heap]]
+[bullet] Fix crash in [cmd read_clipboard] reading unsupported formats.
 
 [section "Version 5.0"]
 

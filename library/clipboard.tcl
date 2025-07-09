@@ -29,6 +29,7 @@ proc twapi::_init_global_heap_formats {} {
     variable _clipboard_global_heap_formats
     # The following types are known to return global handles to memory
     # 1 - CF_TEXT
+    # 6 - CF_TIFF
     # 7 - CF_OEMTEXT
     # 8 - CF_DIB
     # 13 - CF_UNICODE
@@ -37,7 +38,7 @@ proc twapi::_init_global_heap_formats {} {
     # 17 - CF_DIBV5
     # Non-Standard formats "HTML Format", "PNG", "GIF"
     array set _clipboard_global_heap_formats {
-        1 {} 7 {} 8 {} 13 {} 15 {} 16 {} 17 {}
+        1 {} 6 {} 7 {} 8 {} 13 {} 15 {} 16 {} 17 {}
     }
     foreach fmt [list "HTML Format" PNG GIF] {
         set fmt [format %u [register_clipboard_format $fmt]]

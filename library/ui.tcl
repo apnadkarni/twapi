@@ -493,7 +493,7 @@ proc twapi::get_active_window_for_thread {tid} {
 
 # Get focus window for an application
 proc twapi::get_focus_window_for_thread {tid} {
-    return [_get_gui_thread_info $tid hwndFocus]
+    return [_return_window [_get_gui_thread_info $tid hwndFocus]]
 }
 
 # Get active window for current thread

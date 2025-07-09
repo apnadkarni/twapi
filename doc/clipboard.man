@@ -74,6 +74,8 @@ data appropriately. These commands support the following clipboard formats:
 [list_begin opt]
 [opt_def 1]
 ANSI text (CF_TEXT).
+[opt_def 6]
+TIFF image (CF_TIFF).
 [opt_def 7]
 OEM text (CF_OEMTEXT).
 [opt_def 8]
