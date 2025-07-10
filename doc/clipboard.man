@@ -101,8 +101,8 @@ GIF image. The numeric code should be obtained with [cmd register_clipboard_form
 Additionally, applications may call the
 [uri \#clipboard_format_uses_global_heap [cmd clipboard_format_uses_global_heap]]
 command to register formats that are known to use the global memory heap. These
-can then be read and written with the [cmd read_clipboard] and [cmd
-write_clipboard] commands.
+can then be read and written with the [cmd read_clipboard] and [cmd write_clipboard]
+commands.
 
 The
 [uri \#read_clipboard_text [cmd read_clipboard_text]] and

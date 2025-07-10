@@ -9,9 +9,11 @@ Summarizes the list of changes for each version of TWAPI.
 
 [section "Version 5.1"]
 
+[list_begin bullet]
 [bullet] Added
 [uri clipboard.html#clipboard_format_uses_global_heap [cmd clipboard_format_uses_global_heap]]
 [bullet] Fix crash in [cmd read_clipboard] reading unsupported formats.
+[list_end]
 
 [section "Version 5.0"]
 
