@@ -440,7 +440,6 @@ namespace eval twapi::clipboard::test {
         set expected [list 8 14 17]
         lappend expected [twapi::register_clipboard_format PNG]
         lappend expected [twapi::register_clipboard_format GIF]
-        puts $ok,$expected
         equal_lists [lsort -integer $ok] [lsort -integer $expected]
     } -cleanup {
         $slide destroy
