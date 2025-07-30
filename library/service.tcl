@@ -1040,7 +1040,7 @@ proc twapi::_report_service_status {name} {
     # it back within that period of time, so schedule ourselves.
     if {$waithint} {
         set delay [expr {($waithint*3)/4}]
-        after $delay ::twapi::_call_scm_within_waithint $name $current_state $service_state($name,checkpoint)
+        after $delay [list ::twapi::_call_scm_within_waithint $name $current_state $service_state($name,checkpoint)]
     }
 
     return
