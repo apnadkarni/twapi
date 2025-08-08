@@ -33,7 +33,10 @@ package ifneeded twapi_base @PACKAGE_VERSION@ \
         }
 
         if {!$dllFound} {
-            error "Could not locate TWAPI dll."
+            if {[catch {uplevel #0 [list load {} $package_init_name]}]} {
+                error "Could not locate TWAPI dll."
+            }
+            set path {}
         }
 
         # Load was successful
