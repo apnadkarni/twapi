@@ -564,7 +564,16 @@ namespace eval twapi::input::test {
         Turn the mouse wheel
     } -body {
         # TBD Need some better test than just syntax
-        twapi::turn_mouse_wheel 2
+        twapi::turn_mouse_wheel 120
+    } -result ""
+
+    ################################################################
+
+    test turn_mouse_hwheel-1.0 {
+        Turn the mouse wheel
+    } -body {
+        # TBD Need some better test than just syntax
+        twapi::turn_mouse_hwheel 120
     } -result ""
 
     ################################################################

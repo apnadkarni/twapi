@@ -34,6 +34,7 @@ proc twapi::send_input {inputlist} {
         MOUSEEVENTF_XDOWN       0x0080
         MOUSEEVENTF_XUP         0x0100
         MOUSEEVENTF_WHEEL       0x0800
+        MOUSEEVENTF_HWHEEL       0x1000
         MOUSEEVENTF_VIRTUALDESK 0x4000
         MOUSEEVENTF_ABSOLUTE    0x8000
         
@@ -55,19 +56,27 @@ proc twapi::send_input {inputlist} {
             array set opts [parseargs mouseopts {
                 relative moved
                 ldown lup rdown rup mdown mup x1down x1up x2down x2up
-                wheel.int
+                wheel.int hwheel.int
             }]
             set flags 0
             if {! $opts(relative)} {
                 set flags $input_defs(MOUSEEVENTF_ABSOLUTE)
             }
 
-            if {[info exists opts(wheel)]} {
+            if {[info exists opts(wheel)] || [info exists opts(hwheel)]} {
                 if {($opts(x1down) || $opts(x1up) || $opts(x2down) || $opts(x2up))} {
-                    error "The -wheel input event attribute may not be specified with -x1up, -x1down, -x2up or -x2down events"
+                    error "The -wheel or -hwheel input events attribute may not be specified with -x1up, -x1down, -x2up or -x2down events"
                 }
-                set mousedata $opts(wheel)
-                set flags $input_defs(MOUSEEVENTF_WHEEL)
+                if {[info exists opts(wheel)]} {
+                    if {[info exists opts(hwheel)]} {
+                        error "The -wheel and -hwheel cannot be specified together."
+                    }
+                    set mousedata $opts(wheel)
+                    set flags $input_defs(MOUSEEVENTF_WHEEL)
+                } else {
+                    set mousedata $opts(hwheel)
+                    set flags $input_defs(MOUSEEVENTF_HWHEEL)
+                }
             } else {
                 if {$opts(x1down) || $opts(x1up)} {
                     if {$opts(x2down) || $opts(x2up)} {
@@ -300,6 +309,11 @@ proc twapi::move_mouse {xpos ypos {mode ""}} {
 # Simulate turning of the mouse wheel
 proc twapi::turn_mouse_wheel {wheelunits} {
     send_input [list [list mouse 0 0 -relative -wheel $wheelunits]]
+    return
+}
+
+proc twapi::turn_mouse_hwheel {wheelunits} {
+    send_input [list [list mouse 0 0 -relative -hwheel $wheelunits]]
     return
 }
 

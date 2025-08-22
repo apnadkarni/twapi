@@ -14,8 +14,9 @@ The commands [uri \#send_input [cmd send_input]],
 [uri \#send_keys [cmd send_keys]],
 [uri \#send_input_text [cmd send_input_text]],
 [uri \#move_mouse [cmd move_mouse]],
-[uri \#click_mouse_button [cmd click_mouse_button]]
-and [uri \#turn_mouse_wheel [cmd turn_mouse_wheel]] can be used
+[uri \#click_mouse_button [cmd click_mouse_button]],
+[uri \#turn_mouse_wheel [cmd turn_mouse_wheel]]
+and [uri \#turn_mouse_hwheel [cmd turn_mouse_hwheel]] can be used
 to simulate user input. The mouse position can be retrieved using
 [uri \#get_mouse_location [cmd get_mouse_location]].
 The commands [uri \#block_input [cmd block_input]] and
@@ -200,13 +201,18 @@ reported event.
 rotated by [arg WHEELUNITS]. This may be a positive integer for
 forward rotation, or a negative integer for backward rotation. This option
 may not be used with any of the X button options.
+[opt_def "[cmd -hwheel] [arg WHEELUNITS]"] Indicates that the horizonstal mouse
+wheel was rotated by [arg WHEELUNITS]. This may be a positive integer for
+forward rotation, or a negative integer for backward rotation. This option
+may not be used with any of the X button options.
 [list_end]
 For more detailed information, refer the the documentation of the
 [cmd MOUSEINPUT] structure in the Windows SDK.
 [nl]
 The commands [uri \#move_mouse [cmd move_mouse]],
-[uri \#click_mouse_button [cmd click_mouse_button]] and
-[uri \#turn_mouse_wheel [cmd turn_mouse_wheel]]
+[uri \#click_mouse_button [cmd click_mouse_button]],
+[uri \#turn_mouse_wheel [cmd turn_mouse_wheel]] and
+[uri \#turn_mouse_hwheel [cmd turn_mouse_hwheel]]
 may be more convenient for common cases.
 
 [call [cmd send_input_text] [arg TEXT]]
@@ -403,8 +409,14 @@ the [const a] is pressed and released.
 
 [call [cmd turn_mouse_wheel] [arg WHEELUNITS]]
 
-Generates input to simulate turning the wheel. A positive value of
+Generates input to simulate turning the mouse wheel. A positive value of
 [arg WHEELUNITS] simulates forward rotation by the specified number
+of units, a negative value simulates backward rotation.
+
+[call [cmd turn_mouse_hwheel] [arg WHEELUNITS]]
+
+Generates input to simulate turning the mouse horizontal wheel. A positive value
+of [arg WHEELUNITS] simulates forward rotation by the specified number
 of units, a negative value simulates backward rotation.
 
 [call [cmd unblock_input]]
