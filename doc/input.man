@@ -74,9 +74,8 @@ X and Y screen coordinates in pixels.
 
 [call [cmd move_mouse] [arg XPOS] [arg YPOS] [opt [cmd -relative]]]
 
-Generates input to simulate mouse movement. Movement is in absolute mouse
-coordinates unless the option [cmd -relative] is specified. See description
-of [uri \#send_input [cmd send_input]] for more details.
+Generates input to simulate mouse movement. The [arg XPOS] and [arg YPOS]
+values are in screen coordinates.
 
 [call [cmd register_hotkey] [arg HOTKEY] [arg SCRIPT] [opt [cmd -append]]]
 
