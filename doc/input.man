@@ -55,6 +55,9 @@ be called to renable input.
 [nl]The return value of [cmd block_input] is 1 if the input was previously
 unblocked and 0 if the input was already blocked.
 
+On newer Windows platforms with UAC enabled, the command may raise an
+access denied exception if not running under the administrator account.
+
 [call [cmd click_mouse_button] [arg BUTTON]]
 
 Generates input to simulate clicking the specified mouse button. [arg BUTTON]
