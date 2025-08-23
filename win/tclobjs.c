@@ -1277,7 +1277,7 @@ TWAPI_EXTERN Tcl_Obj *ObjFromGUID(const GUID *guidP)
 
 
     if (guidP == NULL || StringFromGUID2(guidP, str, sizeof(str)/sizeof(str[0])) == 0)
-        return ObjFromEmptyString("", 0);
+        return ObjFromEmptyString();
 
     obj = ObjFromWinChars(str);
     return obj;
