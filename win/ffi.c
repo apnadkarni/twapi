@@ -279,7 +279,8 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
 #if 0
         TCL_RESULT (*fn)(Tcl_Interp *, Tcl_Obj *, void *);
 #else
-        TCL_RESULT (*fn)();
+	typedef TCL_RESULT (*ObjToFn)();
+        ObjToFn fn;
 #endif
         /* count > 0 => array and source obj is a list (even if count == 1) */
         if (count) {
@@ -300,18 +301,18 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
         case CSTRUCT_VOID: /* Should not happen. Script level code should have c
 aught it */
             goto invalid_def;
-        case CSTRUCT_BOOLEAN: fn = ObjToBoolean; break;
-        case CSTRUCT_CHAR: fn = ObjToCHAR; break;
-        case CSTRUCT_UCHAR: fn = ObjToUCHAR; break;
-        case CSTRUCT_SHORT: fn = ObjToSHORT; break;
-        case CSTRUCT_USHORT: fn = ObjToUSHORT; break;
-        case CSTRUCT_INT: fn = ObjToLong; break;
-        case CSTRUCT_UINT: fn = ObjToLong; break; // TBD - handles unsigned ?
-        case CSTRUCT_INT64: fn = ObjToWideInt; break;
-        case CSTRUCT_UINT64: fn = ObjToWideInt; break; // TBD-handles unsigned ?
-        case CSTRUCT_FLOAT: fn = ObjToFloat; break;
-        case CSTRUCT_DOUBLE: fn = ObjToDouble; break;
-        case CSTRUCT_HANDLE: fn = ObjToHANDLE; break;
+        case CSTRUCT_BOOLEAN: fn = (ObjToFn)ObjToBoolean; break;
+        case CSTRUCT_CHAR: fn =  (ObjToFn)ObjToCHAR; break;
+        case CSTRUCT_UCHAR: fn = (ObjToFn)ObjToUCHAR; break;
+        case CSTRUCT_SHORT: fn = (ObjToFn)ObjToSHORT; break;
+        case CSTRUCT_USHORT: fn = (ObjToFn)ObjToUSHORT; break;
+        case CSTRUCT_INT: fn = (ObjToFn)ObjToLong; break;
+        case CSTRUCT_UINT: fn = (ObjToFn)ObjToLong; break; // TBD - handles unsigned ?
+        case CSTRUCT_INT64: fn = (ObjToFn)ObjToWideInt; break;
+        case CSTRUCT_UINT64: fn = (ObjToFn)ObjToWideInt; break; // TBD-handles unsigned ?
+        case CSTRUCT_FLOAT: fn = (ObjToFn)ObjToFloat; break;
+        case CSTRUCT_DOUBLE: fn = (ObjToFn)ObjToDouble; break;
+        case CSTRUCT_HANDLE: fn = (ObjToFn)ObjToHANDLE; break;
         case CSTRUCT_PSID: 
             if (count) {
                 for (j = 0; j < count; j++, pv2 = ADDPTR(pv2, elem_size, void*)) {
@@ -367,7 +368,7 @@ aught it */
 
         case CSTRUCT_CBSIZE:
             TWAPI_ASSERT(count == 0);
-            fn = ObjToInt;
+            fn = (ObjToFn)ObjToInt;
             break;
 
         case CSTRUCT_STRUCT:
