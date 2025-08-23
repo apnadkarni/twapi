@@ -25,10 +25,8 @@ typedef NTSTATUS (WINAPI *NtQueryInformationProcess_t)(HANDLE, int, PVOID, ULONG
 static MAKE_DYNLOAD_FUNC(NtQueryInformationProcess, ntdll, NtQueryInformationProcess_t)
 typedef NTSTATUS (WINAPI *NtQueryInformationThread_t)(HANDLE, int, PVOID, ULONG, PULONG);
 static MAKE_DYNLOAD_FUNC(NtQueryInformationThread, ntdll, NtQueryInformationThread_t)
-static MAKE_DYNLOAD_FUNC(IsWow64Process, kernel32, FARPROC)
 
 static MAKE_DYNLOAD_FUNC(NtQuerySystemInformation, ntdll, NtQuerySystemInformation_t)
-static MAKE_DYNLOAD_FUNC(CreateProcessWithTokenW, advapi32, FARPROC)
 
 /* Processes and threads */
 int Twapi_NtQueryInformationProcessBasicInformation(Tcl_Interp *interp,
@@ -650,23 +648,6 @@ int Twapi_NtQueryInformationThreadBasicInformation(Tcl_Interp *interp, HANDLE th
 #endif // TWAPI_LEAN
 
 
-BOOL Twapi_IsWow64Process(HANDLE h, BOOL *is_wow64P)
-{
-    FARPROC IsWow64ProcessPtr = Twapi_GetProc_IsWow64Process();
-
-    if (IsWow64ProcessPtr == NULL) {
-        /* If IsWow64Process not available, could not be running on 64 bits */
-        *is_wow64P = 0;
-        return TRUE;
-    }
-    
-    if (IsWow64ProcessPtr(h, is_wow64P)) {
-        return TRUE;
-    }
-    
-    return FALSE;               /* Some error */
-}
-
 #ifdef FRAGILE
 /* Emulates the rundll32.exe interface */
 int Twapi_Rundll(Tcl_Interp *interp, LPCSTR dll, LPCSTR function, HWND hwnd, LPCWSTR cmdline, int cmdshow)
@@ -839,12 +820,7 @@ static int TwapiCreateProcessHelper2(TwapiInterpContext *ticP, int have_token, i
         goto vamoose;
 
     if (have_token) {
-        FARPROC CreateProcessWithTokenPtr = Twapi_GetProc_CreateProcessWithTokenW();
-        if (CreateProcessWithTokenPtr == NULL) {
-            Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
-            goto vamoose;
-        }
-        status = (BOOL) CreateProcessWithTokenPtr(
+        status = (BOOL) CreateProcessWithTokenW(
             tokH,
             logon_flags,
             appname,
@@ -1157,7 +1133,7 @@ static int Twapi_ProcessCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             result.type = TRT_OBJV;
             break;
         case 18:
-            result.type = Twapi_IsWow64Process(h, &result.value.bval)
+            result.type = IsWow64Process(h, &result.value.bval)
                 ? TRT_BOOL : TRT_GETLASTERROR;
             break;
         case 19:

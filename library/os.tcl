@@ -296,23 +296,16 @@ proc twapi::get_os_description {} {
 }
 
 proc twapi::get_processor_group_config {} {
-    trap {
-        set info [GetLogicalProcessorInformationEx 4]
-        if {[llength $info]} {
-            set maxgroupcount [lindex $info 0 1 0]
-            set groups {}
-            set num -1
-            foreach group [lindex $info 0 1 1] {
-                lappend groups [incr num] [twine {-maxprocessorcount -activeprocessorcount -processormask} $group]
-            }
+    set info [GetLogicalProcessorInformationEx 4]
+    if {[llength $info]} {
+        set maxgroupcount [lindex $info 0 1 0]
+        set groups {}
+        set num -1
+        foreach group [lindex $info 0 1 1] {
+            lappend groups [incr num] [twine {-maxprocessorcount -activeprocessorcount -processormask} $group]
         }
-        return [list -maxgroupcount $maxgroupcount -activegroups $groups]
-    } onerror {TWAPI_WIN32 127} {
-        # Just try older APIs
-        set processor_count [lindex [GetSystemInfo] 5]
-        return [list -maxgroupcount 1 -activegroups [list 0 [list -maxprocessorcount $processor_count -activeprocessorcount $processor_count -processormask [expr {(1 << $processor_count) - 1}]]]]
     }
-
+    return [list -maxgroupcount $maxgroupcount -activegroups $groups]
 }
 
 proc twapi::get_numa_config {} {

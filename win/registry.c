@@ -752,19 +752,19 @@ static int Twapi_RegCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
                          GETHKEY(hkey), ARGEND) != TCL_OK)
             return TCL_ERROR;
         else {
-            FARPROC func;
+            LSTATUS (WINAPI *func)(HKEY);
             switch (func_code) {
             case 28:
-                func = (FARPROC) RegFlushKey;
+                func = RegFlushKey;
                 break;
             case 29:
-                func = (FARPROC) RegCloseKey;
+                func = RegCloseKey;
                 break;
             case 30:
-                func = (FARPROC)RegDisableReflectionKey;
+                func = RegDisableReflectionKey;
                 break;
             case 31:
-                func = (FARPROC) RegEnableReflectionKey;
+                func = RegEnableReflectionKey;
                 break;
             }
             result.value.ival = (LONG) func(hkey);

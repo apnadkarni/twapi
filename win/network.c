@@ -168,6 +168,9 @@ MAKE_DYNLOAD_FUNC(GetOwnerModuleFromUdp6Entry, iphlpapi, GetOwnerModuleFromUdp6E
 typedef DWORD (WINAPI *GetBestInterfaceEx_t)(struct sockaddr*, DWORD *);
 MAKE_DYNLOAD_FUNC(GetBestInterfaceEx, iphlpapi, GetBestInterfaceEx_t)
 
+typedef DWORD (WINAPI *TwapiGetIpTableFnPtr)(void *, PULONG, BOOL);
+typedef Tcl_Obj * (WINAPI *TwapiIpEntryToObjFnPtr)(Tcl_Interp *, void *);
+
 #ifndef TWAPI_SINGLE_MODULE
 HMODULE gModuleHandle;
 #endif
@@ -1152,7 +1155,11 @@ Tcl_Obj *ObjFromIP_ADAPTER_INFO_table(Tcl_Interp *interp, IP_ADAPTER_INFO *ainfo
 
 
 /* Helper function - common to all table retrieval functions */
-static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI *fn)(), Tcl_Obj *(*objbuilder)(), BOOL sortable, BOOL sort)
+static int
+TwapiIpConfigTableHelper(TwapiInterpContext *ticP,
+                         TwapiGetIpTableFnPtr fn,
+                         TwapiIpEntryToObjFnPtr objbuilder,
+                         BOOL sort)
 {
     int error;
     void *bufP;
@@ -1173,10 +1180,7 @@ static int TwapiIpConfigTableHelper(TwapiInterpContext *ticP, DWORD (FAR WINAPI 
     bufP = MemLifoPushFrame(ticP->memlifoP, bufsz, &len);
     bufsz = len > ULONG_MAX ? ULONG_MAX : (ULONG) len;
     for (tries=0; tries < 10 ; ++tries) {
-        if (sortable)
-            error = (*fn)(bufP, &bufsz, sort);
-        else
-            error = (*fn)(bufP, &bufsz);
+        error = (*fn)(bufP, &bufsz, sort);
         if (error != ERROR_INSUFFICIENT_BUFFER &&
             error != ERROR_BUFFER_OVERFLOW) {
             /* Either success or error unrelated to buffer size */
@@ -1362,9 +1366,8 @@ int Twapi_GetIpNetTable(TwapiInterpContext *ticP, int sort)
 {
     return TwapiIpConfigTableHelper(
         ticP,
-        GetIpNetTable,
-        ObjFromMIB_IPNETTABLE,
-        1,
+        (TwapiGetIpTableFnPtr) GetIpNetTable,
+        (TwapiIpEntryToObjFnPtr) ObjFromMIB_IPNETTABLE,
         sort
         );
 }
@@ -1373,9 +1376,8 @@ int Twapi_GetIpForwardTable(TwapiInterpContext *ticP, int sort)
 {
     return TwapiIpConfigTableHelper(
         ticP,
-        GetIpForwardTable,
-        ObjFromMIB_IPFORWARDTABLE,
-        1,
+        (TwapiGetIpTableFnPtr) GetIpForwardTable,
+        (TwapiIpEntryToObjFnPtr) ObjFromMIB_IPFORWARDTABLE,
         sort
         );
 }
