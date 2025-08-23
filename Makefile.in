@@ -404,10 +404,8 @@ install-lib-binaries: binaries
 	    $(INSTALL_DATA) $(srcdir)/$$p $(DESTDIR)$(pkglibdir)/$$destp; \
 	  fi; \
 	done
-	@if test "x$(SHARED_BUILD)" = "x1"; then \
-	    echo " Install pkgIndex.tcl $(DESTDIR)$(pkglibdir)"; \
-	    $(INSTALL_DATA) pkgIndex.tcl $(DESTDIR)$(pkglibdir); \
-	fi
+	@echo " Install pkgIndex.tcl $(DESTDIR)$(pkglibdir)";
+	@$(INSTALL_DATA) pkgIndex.tcl $(DESTDIR)$(pkglibdir);
 
 #========================================================================
 # Install binary executables (e.g. .exe files and dependent .dll files)
