@@ -23,7 +23,6 @@ int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP);
 int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
 
 static MAKE_DYNLOAD_FUNC(NtQuerySystemInformation, ntdll, NtQuerySystemInformation_t)
-static MAKE_DYNLOAD_FUNC(GetProductInfo, kernel32, FARPROC)
 
 /*
  * Different SDK's have different versions of the following structures.
@@ -464,7 +463,6 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     TIME_ZONE_INFORMATION *tzinfoP;
     int func = PtrToInt(clientdata);
     Tcl_Obj *sObj, *s2Obj;
-    FARPROC fn;
 
     --objc;
     ++objv;
@@ -588,7 +586,7 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
         case 1007: // GetProductInfo
             result.value.ival = 0;
             result.type = TRT_DWORD;
-            GetProductInfo(6,0,0,0, &result.value.ival);
+            GetProductInfo(6,0,0,0, &result.value.uval);
             break;
         }
     }

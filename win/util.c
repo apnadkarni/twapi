@@ -42,7 +42,7 @@ Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP)
 MAKE_DYNLOAD_FUNC(RtlGetVersion, ntdll, FARPROC)
 BOOL TwapiRtlGetVersion(LPOSVERSIONINFOW verP)
 {
-    typedef NTSTATUS (* RTLGETVERSIONPROC)(LPOSVERSIONINFOW);
+    typedef NTSTATUS (WINAPI * RTLGETVERSIONPROC)(LPOSVERSIONINFOW);
     RTLGETVERSIONPROC func = (RTLGETVERSIONPROC) Twapi_GetProc_RtlGetVersion();
     if (func) {
         if ((*func)(verP) == STATUS_SUCCESS)
