@@ -999,6 +999,9 @@ not imply user can actually see the window (it may be obscured or clipped).
 [call [cmd window_unicode_enabled] [arg HWIN]]
 Returns 1 if the specified window is a native Unicode window, else 0.
 
+[call [cmd virtual_screen_dims]]
+Returns the dimensions of the virtual screen as a list of four integers
+comprising the left edge coordinate, top edge coordinate, width and height.
 
 [list_end]
 

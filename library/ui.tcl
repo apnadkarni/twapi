@@ -1128,6 +1128,15 @@ proc twapi::high_contrast_on {} {
     return [expr {$hc & 1}]
 }
 
+proc twapi::virtual_screen_dims {} {
+    return [list \
+                [GetSystemMetrics 76] \
+                [GetSystemMetrics 77] \
+                [GetSystemMetrics 78] \
+                [GetSystemMetrics 79] \
+               ]
+}
+
 ################################################################
 # Utility routines
 

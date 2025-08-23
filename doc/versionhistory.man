@@ -7,6 +7,14 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
+[section "Version 5.2"]
+[list_begin bullet]
+[bullet] Added
+[uri ui.html#virtual_screen_dims [cmd virtual_screen_dims]]
+[bullet] Added [cmd -virtualdesk] option to [cmd send_input].
+[bullet] Fix error in services with spaces in service name.
+[list_end]
+
 [section "Version 5.1"]
 
 [list_begin bullet]

@@ -2415,6 +2415,14 @@ namespace eval twapi::ui::test {
 
 
     ################################################################
+    test virtual_screen_dims-1.0 {
+        Get Virtual screen dimensions
+    } -body {
+        twapi::virtual_screen_dims
+    } -result {0 0 1920 1080}
+
+    ################################################################
+
 
     ::tcltest::cleanupTests
 }

@@ -57,12 +57,12 @@ proc twapi::send_input {inputlist} {
                 relative moved
                 ldown lup rdown rup mdown mup x1down x1up x2down x2up
                 wheel.int hwheel.int
+                virtualdesk
             }]
             set flags 0
             if {! $opts(relative)} {
                 set flags $input_defs(MOUSEEVENTF_ABSOLUTE)
             }
-
             if {[info exists opts(wheel)] || [info exists opts(hwheel)]} {
                 if {($opts(x1down) || $opts(x1up) || $opts(x2down) || $opts(x2up))} {
                     error "The -wheel or -hwheel input events attribute may not be specified with -x1up, -x1down, -x2up or -x2down events"
@@ -99,6 +99,7 @@ proc twapi::send_input {inputlist} {
                 rup   RIGHTUP
                 mdown MIDDLEDOWN
                 mup   MIDDLEUP
+                virtualdesk VIRTUALDESK
                 x1down XDOWN
                 x1up   XUP
                 x2down XDOWN

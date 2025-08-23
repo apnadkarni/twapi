@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Keyboard and mouse input" n ""]
-[copyright "2003, 2004, Ashok P. Nadkarni"]
+[copyright "2003-2025 Ashok P. Nadkarni"]
 [moddesc "Keyboard and mouse input"]
 [titledesc "Simulation of user input and support for system-wide hotkeys"]
 [require twapi_input]
@@ -36,7 +36,7 @@ event can be obtained through
 [uri \#get_input_idle_time [cmd get_input_idle_time]].
 
 [para]
-The name of the current keyboard layout can be retrieved with 
+The name of the current keyboard layout can be retrieved with
 [uri #get_keyboard_layout_name [cmd get_keyboard_layout_name]].
 
 [section Commands]
@@ -164,9 +164,11 @@ A mouse input specification takes the form
 "[const mouse] [arg XPOS] [arg YPOS] [opt [arg mouseopts]]".
 [nl]
 Arguments [arg XPOS] and [arg YPOS] specify the position of the mouse in
-absolute (default) or relative coordinates. In the former case, the values
-range from 0 to 65535 and are in mouse coordinates. In the latter case,
-the values are in pixels. Note when relative mode is used, the system will
+absolute (default) or relative coordinates.
+Relative coordinates are in pixels and may be negative where
+the positive direction is considered right or down.
+Absolute coordinates are in mouse coordinates and range from 0 to 65535.
+Note when relative mode is used, the system will
 take into account the mouse speed and acceleration settings. The command
 [cmd move_mouse] is much simpler to use unless you have a need to
 send complex mouse input sequences.
@@ -177,6 +179,8 @@ one or more of the following options:
 [opt_def [cmd -relative]] Indicates that [arg XPOS] and [arg YPOS] should
 be treated as relative to the last reported position, and not as absolute
 coordinates.
+[opt_def [cmd -virtualdesk]] Indicates that coordinates map to the entire
+virtual desktop.
 [opt_def [cmd -ldown]] Indicates that the left mouse button has been
 pressed since the last reported event.
 [opt_def [cmd -lup]] Indicates that the left mouse button has been
@@ -426,6 +430,9 @@ This command reverses the effect of a previous call to
 [uri \#block_input [cmd block_input]].
 [nl]The return value of [cmd unblock_input] is 1 if the input was previously
 blocked and 0 if the input was already unblocked.
+
+On newer Windows platforms with UAC enabled, the command may raise an
+access denied exception if not running under the administrator account.
 
 [call [cmd unregister_hotkey] [arg HOTKEY_ID]]
 Unregisters a hot key that was previously registered. [arg HOTKEY_ID] should
