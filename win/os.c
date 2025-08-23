@@ -586,13 +586,9 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
                 result.type = TRT_GETLASTERROR;
             break;
         case 1007: // GetProductInfo
-            fn = Twapi_GetProc_GetProductInfo();
-            if (fn == NULL) {
-                return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
-            }
             result.value.ival = 0;
             result.type = TRT_DWORD;
-            (*fn)(6,0,0,0, &result.value.ival);
+            GetProductInfo(6,0,0,0, &result.value.ival);
             break;
         }
     }
