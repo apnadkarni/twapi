@@ -1,0 +1,88 @@
+name: Mingw
+
+on:
+  workflow_dispatch:
+    inputs:
+      tcl-tags:  # User input for selecting Tcl tag
+        description: 'Tcl version'
+        required: true
+        type: choice
+        options:
+          - '["core-9-0-0"]'
+          - '["core-9-0-2"]'
+          - '["core-8-6-10"]'
+          - '["core-8-6-17"]'
+          - '["main"]'
+          - '["core-8-6-branch"]'
+          - '["core-8-6-10", "core-9-0-0"]'
+          - '["core-8-6-10", "core-8-6-17", "core-9-0-0", "core-9-0-2"]'
+        default: '["core-8-6-10", "core-9-0-0"]'
+      runners:  # User input for selecting OS
+        description: 'OS version'
+        required: true
+        type: choice
+        options:
+          - '["windows-latest"]'
+          - '["windows-2022"]'
+          - '["windows-2019"]'
+          - '["windows-2019", "windows-2022"]'
+        default: '["windows-latest"]'
+      msystems:
+        description: 'mingw32 and/or mingw64'
+        required: false
+        type: choice
+        options:
+          - '["mingw64"]'
+          - '["mingw32"]'
+          - '["mingw64", "mingw32"]'
+        default: '["mingw64", "mingw32"]'
+      run-tests: # Whether tests should be run
+        description: 'Run tests as well'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        runner-os: ${{ fromJSON(github.event.inputs.runners) }}
+        tcl-tag: ${{ fromJSON(github.event.inputs.tcl-tags) }}
+        msystem: ${{ fromJSON(github.event.inputs.msystems) }}
+    runs-on: ${{ matrix.runner-os }}
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+
+    - name: Set up msys2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{ matrix.msystem }}
+        pacboy: "git: make: gcc:p"
+        path-type: minimal
+        release: true
+        update: false
+        cache: true
+
+    - name: Verify toolchain
+      run: |
+        gcc -v
+        make -v
+
+    - name: Setup Tcl
+      id: tcl-setup-step
+      uses: apnadkarni/tcl-setup@v1
+      with:
+        tcl-tag: ${{ matrix.tcl-tag }}
+        toolchain: 'msys2'
+        target-arch: ${{ matrix.msystem }}
+
+    - name: Build extension
+      id: tcl-build-step
+      uses: apnadkarni/tcl-build-extension@v1
+      with:
+        toolchain: 'msys2'
+        run-tests: ${{ inputs.run-tests }}
+

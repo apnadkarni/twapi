@@ -1,0 +1,73 @@
+name: Visual C++
+
+on:
+  workflow_dispatch:
+    inputs:
+      tcl-tags:  # User input for selecting Tcl tag
+        description: 'Tcl version'
+        required: true
+        type: choice
+        options:
+          - '["core-9-0-0"]'
+          - '["core-9-0-2"]'
+          - '["core-8-6-10"]'
+          - '["core-8-6-17"]'
+          - '["main"]'
+          - '["core-8-6-branch"]'
+          - '["core-8-6-10", "core-9-0-0"]'
+          - '["core-8-6-10", "core-8-6-17", "core-9-0-0", "core-9-0-2"]'
+        default: '["core-8-6-10", "core-9-0-0"]'
+      runners:  # User input for selecting OS
+        description: 'OS version'
+        required: true
+        type: choice
+        options:
+          - '["windows-latest"]'
+          - '["windows-2022"]'
+          - '["windows-2019"]'
+          - '["windows-2019", "windows-2022"]'
+        default: '["windows-latest"]'
+      target-architectures:
+        description: 'x86 and/or x64'
+        required: false
+        type: choice
+        options:
+          - '["x64"]'
+          - '["x86"]'
+          - '["x64", "x86"]'
+        default: '["x64", "x86"]'
+      run-tests: # Whether tests should be run
+        description: 'Run tests as well'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        runner-os: ${{ fromJSON(github.event.inputs.runners) }}
+        tcl-tag: ${{ fromJSON(github.event.inputs.tcl-tags) }}
+        target-arch: ${{ fromJSON(github.event.inputs.target-architectures) }}
+    runs-on: ${{ matrix.runner-os }}
+    steps:
+    # Note msvc defaults to 64-bit
+    - name: Init MSVC
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: ${{ matrix.target-arch }}
+
+    - name: Setup Tcl
+      id: tcl-setup-step
+      uses: apnadkarni/tcl-setup@v1
+      with:
+        tcl-tag: ${{ matrix.tcl-tag }}
+        target-arch: ${{ matrix.target-arch }}
+        toolchain: 'vc'
+
+    - name: Build extension
+      id: tcl-build-step
+      uses: apnadkarni/tcl-build-extension@v1
+      with:
+        toolchain: 'vc'
+        run-tests: ${{ inputs.run-tests }}
