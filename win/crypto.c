@@ -46,6 +46,9 @@ HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #define MODULENAME "twapi_crypto"
 #endif
 
+typedef TCL_RESULT (*TwapiUnregisterFnPtr)(Tcl_Interp *, void *);
+typedef BOOL (WINAPI *TwapiFreeFnPtr)(void *);
+
 static Tcl_Obj *ObjFromCERT_EXTENSIONS(int nexts, CERT_EXTENSION *extP);
 static TCL_RESULT ParseCERT_EXTENSIONS(
     TwapiInterpContext *ticP,
@@ -1359,7 +1362,8 @@ static TCL_RESULT TwapiCryptDecodeObject(
     DWORD n;
     LPCSTR oid;
     DWORD_PTR dwoid;
-    Tcl_Obj * (*fnP)() = NULL;
+    typedef Tcl_Obj * (*ObjFn)(void *);
+    ObjFn fnP = NULL;
 
     /* TBD - add other unimplemented types */
 
@@ -1425,12 +1429,12 @@ static TCL_RESULT TwapiCryptDecodeObject(
     objP = NULL;
     /* GCC does not like a switch statement over addresses. */
     if (dwoid == (DWORD_PTR) X509_KEY_USAGE) {
-        fnP = ObjFromCRYPT_BIT_BLOB;
+        fnP = (ObjFn) ObjFromCRYPT_BIT_BLOB;
     } else if (dwoid == (DWORD_PTR) X509_ENHANCED_KEY_USAGE) {
         objP = ObjFromArgvA(u.enhkeyP->cUsageIdentifier,
                             u.enhkeyP->rgpszUsageIdentifier);
     } else if (dwoid == (DWORD_PTR) X509_ALTERNATE_NAME) {
-        fnP = ObjFromCERT_ALT_NAME_INFO;
+        fnP = (ObjFn) ObjFromCERT_ALT_NAME_INFO;
     } else if (dwoid == (DWORD_PTR) X509_BASIC_CONSTRAINTS2) {
         objs[0] = ObjFromBoolean(u.basicP->fCA);
         objs[1] = ObjFromBoolean(u.basicP->fPathLenConstraint);
@@ -1442,29 +1446,29 @@ static TCL_RESULT TwapiCryptDecodeObject(
         objs[2] = ObjFromCRYPT_BLOB(&u.akeyidP->AuthorityCertSerialNumber);
         objP = ObjNewList(3, objs);
     } else if (dwoid == (DWORD_PTR) X509_ALGORITHM_IDENTIFIER) {
-        fnP = ObjFromCRYPT_ALGORITHM_IDENTIFIER;
+        fnP = (ObjFn) ObjFromCRYPT_ALGORITHM_IDENTIFIER;
     } else if (dwoid == (DWORD_PTR) X509_CERT_REQUEST_TO_BE_SIGNED) {
-        fnP = ObjFromCERT_REQUEST_INFO;
+        fnP = (ObjFn) ObjFromCERT_REQUEST_INFO;
     } else if (dwoid == (DWORD_PTR) X509_CERT_POLICIES) {
-        fnP = ObjFromCERT_POLICIES_INFO;
+        fnP = (ObjFn) ObjFromCERT_POLICIES_INFO;
     } else if (dwoid == (DWORD_PTR) X509_POLICY_CONSTRAINTS) {
-        fnP = ObjFromCERT_POLICY_CONSTRAINTS_INFO;
+        fnP = (ObjFn) ObjFromCERT_POLICY_CONSTRAINTS_INFO;
     } else if (dwoid == (DWORD_PTR) X509_POLICY_MAPPINGS) {
-        fnP = ObjFromCERT_POLICY_MAPPINGS_INFO;
+        fnP = (ObjFn) ObjFromCERT_POLICY_MAPPINGS_INFO;
     } else if (dwoid == (DWORD_PTR) X509_EXTENSIONS) {
         objP = ObjFromCERT_EXTENSIONS(u.cextsP->cExtension, u.cextsP->rgExtension);
     } else if (dwoid == (DWORD_PTR) X509_CRL_DIST_POINTS) {
-        fnP = ObjFromCRL_DIST_POINTS_INFO;
+        fnP = (ObjFn)  ObjFromCRL_DIST_POINTS_INFO;
     } else if (dwoid == (DWORD_PTR) X509_AUTHORITY_INFO_ACCESS) {
-        fnP = ObjFromCERT_AUTHORITY_INFO_ACCESS;
+        fnP = (ObjFn) ObjFromCERT_AUTHORITY_INFO_ACCESS;
     } else if (dwoid == (DWORD_PTR) X509_UNICODE_ANY_STRING) {
-        fnP = ObjFromCERT_NAME_VALUE_WinChars;
+        fnP = (ObjFn) ObjFromCERT_NAME_VALUE_WinChars;
     } else if (dwoid == (DWORD_PTR) X509_PUBLIC_KEY_INFO) {
-        fnP = ObjFromCERT_PUBLIC_KEY_INFO;
+        fnP = (ObjFn) ObjFromCERT_PUBLIC_KEY_INFO;
     } else if (dwoid == (DWORD_PTR) RSA_CSP_PUBLICKEYBLOB) {
         objP = ObjFromBLOBHEADER(u.pv, n);
     } else if (dwoid == (DWORD_PTR) (65535-1)) { // szOID_SUBJECT_KEY_IDENTIFIER
-        fnP = ObjFromCRYPT_BLOB;
+        fnP = (ObjFn) ObjFromCRYPT_BLOB;
     } else {
         objP = ObjFromByteArray(u.pv, n);
     }
@@ -3390,10 +3394,8 @@ static TCL_RESULT Twapi_CryptSetKeyParamObjCmd(ClientData clientdata, Tcl_Interp
 
 static TCL_RESULT TwapiCloseContext(Tcl_Interp *interp, Tcl_Obj *objP,
                                     const char *typeptr,
-//                                    TCL_RESULT (*unregfn)(Tcl_Interp *, HANDLE),
-                                    TCL_RESULT (*unregfn)(),
-//                                    BOOL (WINAPI *freefn)(HANDLE))
-                                    BOOL (WINAPI *freefn)())
+                                    TwapiUnregisterFnPtr unregfn,
+                                    TwapiFreeFnPtr freefn)
 {
     HANDLE h;
     if (ObjToOpaque(interp, objP, &h, typeptr) != TCL_OK ||
@@ -4414,8 +4416,9 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 10014: // CertFreeCertificateContext
         CHECK_NARGS(interp, objc, 1);
         return TwapiCloseContext(interp, objv[0], "PCCERT_CONTEXT",
-                                 TwapiUnregisterPCCERT_CONTEXT, CertFreeCertificateContext);
-        
+            (TwapiUnregisterFnPtr)TwapiUnregisterPCCERT_CONTEXT,
+            (TwapiFreeFnPtr)CertFreeCertificateContext);
+
     case 10004:
     case 10015:
     case 10035:
@@ -4878,8 +4881,9 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 10032: // CertFreeCertificateChain
         CHECK_NARGS(interp, objc, 1);
         return TwapiCloseContext(interp, objv[0], "PCCERT_CHAIN_CONTEXT",
-                                 TwapiUnregisterPCCERT_CHAIN_CONTEXT, TwapiCertFreeCertificateChain);
-        
+            (TwapiUnregisterFnPtr)TwapiUnregisterPCCERT_CHAIN_CONTEXT,
+            (TwapiFreeFnPtr)TwapiCertFreeCertificateChain);
+
     case 10033: // CertFindExtension
         res = TwapiGetArgs(interp, objc, objv,
                            GETVERIFIEDPTR(certP, PCCERT_CONTEXT, CertFreeCertificateContext),
@@ -5100,12 +5104,14 @@ static TCL_RESULT Twapi_CryptoCallObjCmd(ClientData clientdata, Tcl_Interp *inte
     case 10053: // CertFreeCRLContext
         CHECK_NARGS(interp, objc, 1);
         return TwapiCloseContext(interp, objv[0], "PCCRL_CONTEXT",
-                                 TwapiUnregisterPCCRL_CONTEXT, CertFreeCRLContext);
+            (TwapiUnregisterFnPtr)TwapiUnregisterPCCRL_CONTEXT,
+            (TwapiFreeFnPtr)CertFreeCRLContext);
     case 10054: // CertFreeCTLContext
         CHECK_NARGS(interp, objc, 1);
         return TwapiCloseContext(interp, objv[0], "PCCTL_CONTEXT",
-                                 TwapiUnregisterPCCTL_CONTEXT, CertFreeCTLContext);
-        
+            (TwapiUnregisterFnPtr)TwapiUnregisterPCCTL_CONTEXT,
+            (TwapiFreeFnPtr)CertFreeCTLContext);
+
     case 10055: // CryptCATAdminCalcHashFromFileHandle
         CHECK_NARGS(interp, objc, 1);
         if (ObjToHANDLE(interp, objv[0], &h) != TCL_OK)
