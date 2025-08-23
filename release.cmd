@@ -7,6 +7,7 @@
 @set dir90x86=c:\Tcl\9.0.0\x86
 @set dir86x64=c:\Tcl\8.6.10\x64
 @set dir86x86=c:\Tcl\8.6.10\x86
+@set tclsh=%dir90x86%\bin\tclsh90.exe
 
 :: Should not have to change anything after this line
 
@@ -55,7 +56,7 @@ echo lappend auto_path %outdiru%; exit [catch {puts [package require %package%]}
 echo lappend auto_path %outdiru%; exit [catch {puts [package require %package%]}] | %dir86x86%\bin\tclsh86t.exe
 @if ERRORLEVEL 1 goto abort
 
-cd %outdir%\.. && zip -r %pkgdir%.zip %pkgdir% || goto abort
+cd %outdir%\.. && echo zipfs mkzip %pkgdir%.zip %pkgdir% | %tclsh% || goto abort
 
 @endlocal
 @exit /B 0

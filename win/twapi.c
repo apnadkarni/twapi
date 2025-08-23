@@ -804,8 +804,9 @@ static int TwapiOneTimeInit(void *pv)
     return TCL_OK;
 }
 
-TwapiId Twapi_NewId()
+TwapiId Twapi_NewId(TwapiInterpContext *ticP)
 {
+    (void) ticP; /* For future reference - may be NULL */
 #ifdef _WIN64
     return InterlockedIncrement64(&gIdGenerator);
 #else

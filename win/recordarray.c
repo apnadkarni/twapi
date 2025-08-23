@@ -599,10 +599,10 @@ TCL_RESULT Twapi_RecordObjCmd(
 #ifdef _WIN64
         /* Unfortunately, Tcl_Objprintf does not handle 64 bits currently */
         char buf[40];
-        _snprintf(buf, sizeof(buf), "%I64u", Twapi_NewId());
+        _snprintf(buf, sizeof(buf), "%I64u", Twapi_NewId(NULL));
         nameObj = Tcl_ObjPrintf("%s%srecord%s", nsP->fullName, sep, buf);
 #else
-        nameObj = Tcl_ObjPrintf("%s%srecord%lu", nsP->fullName, sep, Twapi_NewId());
+        nameObj = Tcl_ObjPrintf("%s%srecord%lu", nsP->fullName, sep, Twapi_NewId(NULL));
 #endif
     } else {
         char *nameP = ObjToString(objv[1]);

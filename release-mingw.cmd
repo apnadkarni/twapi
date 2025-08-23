@@ -21,7 +21,8 @@
 
 :setup
 
-@set DISTRO=%~dp0\dist\mingw\%package%-%version%
+@set PKGDIR=%package%-%version%
+@set DISTRO=%~dp0\dist\mingw\%PKGDIR%
 @set TCLROOT=C:\tcl
 @set TCLROOTU=%TCLROOT:\=/%
 
@@ -29,6 +30,9 @@
 @call :build 9.0.0 mingw32 || goto abort
 @call :build 8.6.10 mingw64 --enable-64bit || goto abort
 @call :build 8.6.10 mingw32 || goto abort
+
+@set tclsh=%TCLROOT%\9.0.0\mingw64\bin\tclsh90.exe
+cd %DISTRO%\.. && echo zipfs mkzip %PKGDIR%.zip %PKGDIR% | %tclsh% || goto abort
 
 @endlocal
 @exit /b 0
