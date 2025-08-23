@@ -276,12 +276,12 @@ static TCL_RESULT ParseCStructHelper (Tcl_Interp *interp, MemLifo *memlifoP,
         Tcl_Size  len;
         DWORD     dwLen;
         int       j, elem_size;
-#if 0
-        TCL_RESULT (*fn)(Tcl_Interp *, Tcl_Obj *, void *);
+#if 1
+        typedef TCL_RESULT (*ObjToFn)(Tcl_Interp *, Tcl_Obj *, void *);
 #else
 	typedef TCL_RESULT (*ObjToFn)();
-        ObjToFn fn;
 #endif
+        ObjToFn fn;
         /* count > 0 => array and source obj is a list (even if count == 1) */
         if (count) {
             if (ObjGetElements(interp, objPP[i], &nelems, &arrayObj) != TCL_OK)
