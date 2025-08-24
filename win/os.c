@@ -324,18 +324,11 @@ int Twapi_SystemPagefileInformation(Tcl_Interp *interp)
 }
 
 
-typedef UINT (WINAPI *GetSystemWow64DirectoryW_t)(LPWSTR, UINT);
-MAKE_DYNLOAD_FUNC(GetSystemWow64DirectoryW, kernel32, GetSystemWow64DirectoryW_t)
 int Twapi_GetSystemWow64Directory(Tcl_Interp *interp)
 {
-    GetSystemWow64DirectoryW_t GetSystemWow64DirectoryPtr = Twapi_GetProc_GetSystemWow64DirectoryW();
     WCHAR path[MAX_PATH+1];
     UINT len;
-    if (GetSystemWow64DirectoryPtr == NULL) {
-        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
-    }
-
-    len = (UINT) (*GetSystemWow64DirectoryPtr)(path, sizeof(path)/sizeof(path[0]));
+    len = (UINT) GetSystemWow64DirectoryW(path, sizeof(path)/sizeof(path[0]));
     if (len == 0) {
         return TwapiReturnSystemError(interp);
     }

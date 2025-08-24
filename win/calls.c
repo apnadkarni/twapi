@@ -16,38 +16,6 @@ static TCL_RESULT Twapi_LsaQueryInformationPolicy (
     );
 static Tcl_Obj *TwapiRandomByteArrayObj(Tcl_Interp *interp, int nbytes);
 
-
-/* TBD - should probably move this function to a WTS module */
-typedef BOOL (WINAPI *WTSRegisterSessionNotification_t)(HWND, DWORD);
-MAKE_DYNLOAD_FUNC(WTSRegisterSessionNotification, wtsapi32, WTSRegisterSessionNotification_t)
-static BOOL Twapi_WTSRegisterSessionNotification(
-    HWND hwnd,
-    DWORD flags
-)
-{
-    WTSRegisterSessionNotification_t fnPtr = Twapi_GetProc_WTSRegisterSessionNotification();
-
-    if (fnPtr == NULL) {
-        SetLastError(ERROR_PROC_NOT_FOUND);
-        return FALSE;
-    }
-
-    return (*fnPtr)(hwnd, flags);
-}
-typedef BOOL (WINAPI *WTSUnRegisterSessionNotification_t)(HWND);
-MAKE_DYNLOAD_FUNC(WTSUnRegisterSessionNotification, wtsapi32, WTSUnRegisterSessionNotification_t)
-static BOOL Twapi_WTSUnRegisterSessionNotification(HWND hwnd)
-{
-    WTSUnRegisterSessionNotification_t fnPtr = Twapi_GetProc_WTSUnRegisterSessionNotification();
-
-    if (fnPtr == NULL) {
-        SetLastError(ERROR_PROC_NOT_FOUND);
-        return FALSE;
-    }
-
-    return (*fnPtr)(hwnd);
-}
-
 TWAPI_EXTERN_VA
 TCL_RESULT TwapiGetArgsVA(Tcl_Interp *interp, Tcl_Size objc, Tcl_Obj *CONST objv[],
                           int fmtch, va_list ap)
@@ -1640,7 +1608,7 @@ static int Twapi_CallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc,
         if (h == NULL)
             return TCL_ERROR;
         result.type       = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = Twapi_WTSRegisterSessionNotification(h, dw);
+        result.value.ival = WTSRegisterSessionNotification(h, dw);
         break;
     case 16:
         CHECK_NARGS(interp, objc, 0);
@@ -1648,7 +1616,7 @@ static int Twapi_CallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc,
         if (h == NULL)
             return TCL_ERROR;
         result.type       = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = Twapi_WTSUnRegisterSessionNotification(h);
+        result.value.ival = WTSUnRegisterSessionNotification(h);
         break;
     }
 

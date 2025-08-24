@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (c) 2012 Ashok P. Nadkarni
  * All rights reserved.
  *
@@ -18,10 +18,6 @@ static HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #ifndef MODULENAME
 #define MODULENAME "twapi_apputil"
 #endif
-
-BOOLEAN Twapi_Wow64DisableWow64FsRedirection(LPVOID *oldvalueP);
-BOOLEAN Twapi_Wow64RevertWow64FsRedirection(LPVOID addr);
-BOOLEAN Twapi_Wow64EnableWow64FsRedirection(BOOLEAN enable_redirection);
 
 static int TwapiGetProfileSectionHelper(
     Tcl_Interp *interp,
@@ -64,51 +60,6 @@ static int TwapiGetProfileSectionHelper(
     return TCL_OK;
 }
 
-
-
-typedef BOOLEAN (WINAPI *Wow64EnableWow64FsRedirection_t)(BOOLEAN);
-MAKE_DYNLOAD_FUNC(Wow64EnableWow64FsRedirection, kernel32, Wow64EnableWow64FsRedirection_t)
-BOOLEAN Twapi_Wow64EnableWow64FsRedirection(BOOLEAN enable_redirection)
-{
-    Wow64EnableWow64FsRedirection_t Wow64EnableWow64FsRedirectionPtr = Twapi_GetProc_Wow64EnableWow64FsRedirection();
-    if (Wow64EnableWow64FsRedirectionPtr == NULL) {
-        SetLastError(ERROR_PROC_NOT_FOUND);
-    } else {
-        if ((*Wow64EnableWow64FsRedirectionPtr)(enable_redirection))
-            return TRUE;
-        /* Not clear if the function sets last error so do it ourselves */
-        if (GetLastError() == 0)
-            SetLastError(ERROR_INVALID_FUNCTION); // For lack of better
-    }
-    return FALSE;
-}
-
-typedef BOOL (WINAPI *Wow64DisableWow64FsRedirection_t)(LPVOID *);
-MAKE_DYNLOAD_FUNC(Wow64DisableWow64FsRedirection, kernel32, Wow64DisableWow64FsRedirection_t)
-BOOLEAN Twapi_Wow64DisableWow64FsRedirection(LPVOID *oldvalueP)
-{
-    Wow64DisableWow64FsRedirection_t Wow64DisableWow64FsRedirectionPtr = Twapi_GetProc_Wow64DisableWow64FsRedirection();
-    if (Wow64DisableWow64FsRedirectionPtr == NULL) {
-        SetLastError(ERROR_PROC_NOT_FOUND);
-        return FALSE;
-    } else {
-        return (*Wow64DisableWow64FsRedirectionPtr)(oldvalueP);
-    }
-}
-
-typedef BOOL (WINAPI *Wow64RevertWow64FsRedirection_t)(LPVOID);
-MAKE_DYNLOAD_FUNC(Wow64RevertWow64FsRedirection, kernel32, Wow64RevertWow64FsRedirection_t)
-BOOLEAN Twapi_Wow64RevertWow64FsRedirection(LPVOID addr)
-{
-    Wow64RevertWow64FsRedirection_t Wow64RevertWow64FsRedirectionPtr = Twapi_GetProc_Wow64RevertWow64FsRedirection();
-    if (Wow64RevertWow64FsRedirectionPtr == NULL) {
-        SetLastError(ERROR_PROC_NOT_FOUND);
-        return FALSE;
-    } else {
-        return (*Wow64RevertWow64FsRedirectionPtr)(addr);
-    }
-}
-
 int Twapi_CommandLineToArgv(Tcl_Interp *interp, LPCWSTR cmdlineP)
 {
     LPWSTR *argv;
@@ -146,7 +97,7 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
     switch (func) {
     case 2:
         CHECK_NARGS(interp, objc, 0);
-        if (Twapi_Wow64DisableWow64FsRedirection(&pv))
+        if (Wow64DisableWow64FsRedirection(&pv))
             TwapiResult_SET_PTR(result, void*, pv);
         else
             result.type = TRT_GETLASTERROR;
@@ -162,7 +113,7 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         if (ObjToLPVOID(interp, objv[0], &pv) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = Twapi_Wow64RevertWow64FsRedirection(pv);
+        result.value.ival = Wow64RevertWow64FsRedirection(pv);
         break;
     case 5: // WritePrivateProfileString
         CHECK_NARGS(interp, objc, 4);
@@ -201,7 +152,7 @@ static int Twapi_AppCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int ob
         CHECK_NARGS(interp, objc, 1);
         CHECK_DWORD_OBJ(interp, dw, objv[0]);
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = Twapi_Wow64EnableWow64FsRedirection((BOOLEAN)dw);
+        result.value.ival = Wow64EnableWow64FsRedirection((BOOLEAN)dw);
         break;
     case 10:
         CHECK_NARGS(interp, objc, 1);
