@@ -4962,7 +4962,7 @@ TwapiEncryptData(Tcl_Interp *interp,
     CopyMemory(outP, inP, nin);
 
     status = CryptProtectMemory(outP, sz, 0);
-    if (status != 0)
+    if (!status)
         return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
 
     *noutP = sz;
@@ -5019,7 +5019,7 @@ TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *interp, BYTE *encP, ULONG n
     CopyMemory(outP, encP, nenc);
 
     status = CryptUnprotectMemory(outP, nenc, 0);
-    if (status != 0)
+    if (!status)
             return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
 
     /* Last byte contains pad count */
