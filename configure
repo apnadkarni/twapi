@@ -5118,7 +5118,6 @@ fi
     vars="
             win/twapi.h
 	    win/twapi_ddkdefs.h
-	    win/twapi_sdkdefs.h
 	    win/zlist.h
 	    win/memlifo.h
     "

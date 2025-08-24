@@ -4918,17 +4918,6 @@ ObjToByteArrayDW(Tcl_Interp     *ip,
     return TCL_OK;
 }
 
-/*
- * RtlEncryptMemory (aka SystemFunction040) and
- * RtlDecryptMemory (aka SystemFunction041)
- * The Feb 2003 SDK does not define these in the headers, nor does it
- * include them in the export libs. So we have to dynamically load them
-*/
-typedef BOOLEAN (NTAPI *SystemFunction040_t)(PVOID, ULONG, ULONG);
-MAKE_DYNLOAD_FUNC(SystemFunction040, advapi32, SystemFunction040_t)
-typedef BOOLEAN (NTAPI *SystemFunction041_t)(PVOID, ULONG, ULONG);
-MAKE_DYNLOAD_FUNC(SystemFunction041, advapi32, SystemFunction041_t)
-
 /* Encrypt the given source bytes into the output buffer and length in *noutP.
  * If outP is NULL places required buffer size in *noutP.
  */
@@ -4941,33 +4930,24 @@ TwapiEncryptData(Tcl_Interp *interp,
 {
     ULONG sz, pad_len;
     NTSTATUS status;
-    SystemFunction040_t fnP = Twapi_GetProc_SystemFunction040();
-
-    if (fnP == NULL)
-        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
-
     /*
      * Total length has to be multiple of encryption block size
      * so encryption involves padding. We will stick a byte
      * at the end to hold actual pad length
      */
-#ifndef RTL_ENCRYPT_MEMORY_SIZE // Not defined in all SDK's
-# define RTL_ENCRYPT_MEMORY_SIZE 8
-#endif
-#define BLOCK_SIZE_MASK (RTL_ENCRYPT_MEMORY_SIZE-1)
+#define BLOCK_SIZE_MASK (CRYPTPROTECTMEMORY_BLOCK_SIZE-1)
 
     if (nin & BLOCK_SIZE_MASK) {
-        /* Not a multiple of RTL_ENCRYPT_MEMORY_SIZE */
         sz = (nin + BLOCK_SIZE_MASK) & ~BLOCK_SIZE_MASK;
         pad_len = sz - nin;
     } else {
         /* Exact size. But we need a byte for the pad length field
            so need to add an entire block for that */
-        pad_len = RTL_ENCRYPT_MEMORY_SIZE;
+        pad_len = CRYPTPROTECTMEMORY_BLOCK_SIZE;
         sz = nin + pad_len;
     }
     TWAPI_ASSERT(pad_len > 0);
-    TWAPI_ASSERT(pad_len <= RTL_ENCRYPT_MEMORY_SIZE);
+    TWAPI_ASSERT(pad_len <= CRYPTPROTECTMEMORY_BLOCK_SIZE);
 
     if (outP == NULL) {
         /* Caller just wants to know what size buffer is needed */
@@ -4981,8 +4961,7 @@ TwapiEncryptData(Tcl_Interp *interp,
     outP[sz-1] = (BYTE) pad_len;
     CopyMemory(outP, inP, nin);
 
-    /* RtlEncryptMemory */
-    status = fnP(outP, sz, 0);
+    status = CryptProtectMemory(outP, sz, 0);
     if (status != 0)
         return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
 
@@ -5024,10 +5003,6 @@ TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *interp, BYTE *encP, ULONG n
 {
     ULONG pad_len;
     NTSTATUS status;
-    SystemFunction041_t fnP = Twapi_GetProc_SystemFunction041();
-
-    if (fnP == NULL)
-        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
 
     if (nenc == 0 || (nenc & BLOCK_SIZE_MASK))
         return TwapiDecryptPadLengthError(interp, nenc);
@@ -5043,15 +5018,14 @@ TWAPI_EXTERN TCL_RESULT TwapiDecryptData(Tcl_Interp *interp, BYTE *encP, ULONG n
 
     CopyMemory(outP, encP, nenc);
 
-    /* RtlDecryptMemory */
-    status = fnP(outP, nenc, 0);
+    status = CryptUnprotectMemory(outP, nenc, 0);
     if (status != 0)
             return Twapi_AppendSystemError(interp, TwapiNTSTATUSToError(status));
 
     /* Last byte contains pad count */
     pad_len = outP[nenc-1];
 
-    if (pad_len == 0 || pad_len > RTL_ENCRYPT_MEMORY_SIZE || pad_len > nenc)
+    if (pad_len == 0 || pad_len > CRYPTPROTECTMEMORY_BLOCK_SIZE || pad_len > nenc)
         return TwapiDecryptPadLengthError(interp, pad_len);
 
     *noutP = nenc - pad_len;
@@ -5066,7 +5040,7 @@ TwapiDecryptDataSWS(Tcl_Interp *interp,
                     ULONG      *noutP)
 {
     TCL_RESULT res;
-    ULONG nout;
+    ULONG nout = 0;
     BYTE *outP;
 
     res = TwapiDecryptData(interp, encP, nenc, NULL, &nout);
@@ -5124,7 +5098,7 @@ TWAPI_EXTERN WCHAR * ObjDecryptWinCharsSWS(Tcl_Interp *interp,
                           Tcl_Size *ncharsP /* May be NULL */
     )
 {
-    ULONG nenc, ndec;
+    ULONG nenc, ndec = 0;
     BYTE *enc, *dec;
     TCL_RESULT res;
     Tcl_Size len;

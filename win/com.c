@@ -2355,7 +2355,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
             VariantInit(&result.value.var);
             hr = ifc.recordinfo->lpVtbl->GetName(ifc.recordinfo, &result.value.var.bstrVal);
             if (hr == S_OK) {
-                result.type = VT_VARIANT;
+                result.type = TRT_VARIANT;
                 result.value.var.vt = VT_BSTR;
             }
             break;

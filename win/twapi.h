@@ -177,7 +177,6 @@ typedef int Tcl_Size;
 # endif
 #endif
 
-#include "twapi_sdkdefs.h"
 #include "twapi_ddkdefs.h"
 #include "zlist.h"
 #include "memlifo.h"
@@ -1886,6 +1885,7 @@ struct alias_dispatch_s {
 #define DEFINE_ALIAS_CMD(fn_, code_)  {#fn_, #code_}
 TWAPI_EXTERN void TwapiDefineAliasCmds(Tcl_Interp *, int, struct alias_dispatch_s *, const char *);
 
+#define TwapiZeroMemory(p_, count_) memset((p_), 0, (count_))
 
 
 

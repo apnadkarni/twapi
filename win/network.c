@@ -8,77 +8,6 @@
 #include "twapi.h"
 #include <ntverp.h>
 
-#if (VER_PRODUCTBUILD <= 3790) && !defined(__GNUC__)
-typedef struct _TCPIP_OWNER_MODULE_BASIC_INFO {
-    PWCHAR pModuleName;
-    PWCHAR pModulePath;
-} TCPIP_OWNER_MODULE_BASIC_INFO;
-
-#define MAX_DHCPV6_DUID_LENGTH          130
-#define MAX_DNS_SUFFIX_STRING_LENGTH    256
-
-typedef enum {
-    TUNNEL_TYPE_NONE = 0,
-    TUNNEL_TYPE_OTHER = 1,
-    TUNNEL_TYPE_DIRECT = 2,
-    TUNNEL_TYPE_6TO4 = 11,
-    TUNNEL_TYPE_ISATAP = 13,
-    TUNNEL_TYPE_TEREDO = 14,
-    TUNNEL_TYPE_IPHTTPS = 15,
-} TUNNEL_TYPE, *PTUNNEL_TYPE;
-
-typedef union _NET_LUID {
-    ULONG64 Value;
-    struct {
-        ULONG64 Reserved  :24;
-        ULONG64 NetLuidIndex  :24;
-        ULONG64 IfType  :16;
-    } Info;
-} NET_LUID, *PNET_LUID, IF_LUID;
-
-typedef GUID NET_IF_NETWORK_GUID;
-
-typedef enum _NET_IF_CONNECTION_TYPE
-{
-    NET_IF_CONNECTION_DEDICATED = 1,
-    NET_IF_CONNECTION_PASSIVE = 2,
-    NET_IF_CONNECTION_DEMAND = 3,
-    NET_IF_CONNECTION_MAXIMUM = 4
-} NET_IF_CONNECTION_TYPE, *PNET_IF_CONNECTION_TYPE;
-
-typedef UINT32 NET_IF_COMPARTMENT_ID, *PNET_IF_COMPARTMENT_ID;
-
-typedef struct _IP_ADAPTER_DNS_SUFFIX {
-struct _IP_ADAPTER_DNS_SUFFIX  *Next;
-  WCHAR                         String[MAX_DNS_SUFFIX_STRING_LENGTH];
-} IP_ADAPTER_DNS_SUFFIX, *PIP_ADAPTER_DNS_SUFFIX;
-
-typedef struct _IP_ADAPTER_WINS_SERVER_ADDRESS_LH {
-union {
-ULONGLONG Alignment;
-struct {
-      ULONG Length;
-      DWORD Reserved;
-    };
-  };
-  struct _IP_ADAPTER_WINS_SERVER_ADDRESS_LH  *Next;
-  SOCKET_ADDRESS                         Address;
-} IP_ADAPTER_WINS_SERVER_ADDRESS_LH, *PIP_ADAPTER_WINS_SERVER_ADDRESS_LH;
-
-typedef struct _IP_ADAPTER_GATEWAY_ADDRESS_LH {
-    union {
-        ULONGLONG Alignment;
-        struct {
-            ULONG Length;
-            DWORD Reserved;
-        };
-    };
-    struct _IP_ADAPTER_GATEWAY_ADDRESS_LH *Next;
-    SOCKET_ADDRESS Address;
-} IP_ADAPTER_GATEWAY_ADDRESS_LH, *PIP_ADAPTER_GATEWAY_ADDRESS_LH;
-
-#endif
-
 /*
  * Vista+ IP_ADAPTER_ADDRESSES. We define our own structure even for newer
  * SDK's because we determine field availability at runtime and not compile
@@ -154,19 +83,6 @@ typedef struct _TwapiHostnameEvent {
  */
 #define SIZE_TwapiHostnameEvent(namelen_) \
     (sizeof(TwapiHostnameEvent) + (namelen_))
-
-/* Undocumented functions */
-typedef DWORD (WINAPI *GetOwnerModuleFromTcpEntry_t)(PVOID, int, PVOID, PDWORD);
-MAKE_DYNLOAD_FUNC(GetOwnerModuleFromTcpEntry, iphlpapi, GetOwnerModuleFromTcpEntry_t)
-typedef DWORD (WINAPI *GetOwnerModuleFromUdpEntry_t)(PVOID, int, PVOID, PDWORD);
-MAKE_DYNLOAD_FUNC(GetOwnerModuleFromUdpEntry, iphlpapi, GetOwnerModuleFromUdpEntry_t)
-typedef DWORD (WINAPI *GetOwnerModuleFromTcp6Entry_t)(PVOID, int, PVOID, PDWORD);
-MAKE_DYNLOAD_FUNC(GetOwnerModuleFromTcp6Entry, iphlpapi, GetOwnerModuleFromTcp6Entry_t)
-typedef DWORD (WINAPI *GetOwnerModuleFromUdp6Entry_t)(PVOID, int, PVOID, PDWORD);
-MAKE_DYNLOAD_FUNC(GetOwnerModuleFromUdp6Entry, iphlpapi, GetOwnerModuleFromUdp6Entry_t)
-
-typedef DWORD (WINAPI *GetBestInterfaceEx_t)(struct sockaddr*, DWORD *);
-MAKE_DYNLOAD_FUNC(GetBestInterfaceEx, iphlpapi, GetBestInterfaceEx_t)
 
 typedef DWORD (WINAPI *TwapiGetIpTableFnPtr)(void *, PULONG, BOOL);
 typedef Tcl_Obj * (WINAPI *TwapiIpEntryToObjFnPtr)(Tcl_Interp *, void *);
@@ -691,7 +607,6 @@ Tcl_Obj *ObjFromMIB_TCPROW(Tcl_Interp *interp, const MIB_TCPROW *row, int size)
     Tcl_Obj *obj[9];
     char     buf[sizeof(TCPIP_OWNER_MODULE_BASIC_INFO) + 4*MAX_PATH];
     DWORD    buf_sz;
-    GetOwnerModuleFromTcpEntry_t  fn;
 
     obj[0] = ObjFromDWORD(row->dwState);
     obj[1] = IPAddrObjFromDWORD(row->dwLocalAddr);
@@ -709,9 +624,8 @@ Tcl_Obj *ObjFromMIB_TCPROW(Tcl_Interp *interp, const MIB_TCPROW *row, int size)
 
     obj[6] = ObjFromWideInt(((MIB_TCPROW_OWNER_MODULE *)row)->liCreateTimestamp.QuadPart);
 
-    fn = Twapi_GetProc_GetOwnerModuleFromTcpEntry();
     buf_sz = sizeof(buf);
-    if (fn && (*fn)((MIB_TCPROW_OWNER_MODULE *)row,
+    if (GetOwnerModuleFromTcpEntry((MIB_TCPROW_OWNER_MODULE *)row,
                     0, // TCPIP_OWNER_MODULE_BASIC_INFO
                     buf, &buf_sz) == NO_ERROR) {
         TCPIP_OWNER_MODULE_BASIC_INFO *modP;
@@ -764,7 +678,6 @@ Tcl_Obj *ObjFromMIB_TCP6ROW(Tcl_Interp *interp, const MIB_TCP6ROW_OWNER_PID *row
     Tcl_Obj *obj[9];
     char     buf[sizeof(TCPIP_OWNER_MODULE_BASIC_INFO) + 4*MAX_PATH];
     DWORD    buf_sz;
-    GetOwnerModuleFromTcpEntry_t  fn;
 
     obj[0] = ObjFromDWORD(row->dwState);
     obj[1] = ObjFromIPv6Addr(row->ucLocalAddr, row->dwLocalScopeId);
@@ -778,9 +691,8 @@ Tcl_Obj *ObjFromMIB_TCP6ROW(Tcl_Interp *interp, const MIB_TCP6ROW_OWNER_PID *row
 
     obj[6] = ObjFromWideInt(((MIB_TCP6ROW_OWNER_MODULE *)row)->liCreateTimestamp.QuadPart);
 
-    fn = Twapi_GetProc_GetOwnerModuleFromTcp6Entry();
     buf_sz = sizeof(buf);
-    if (fn && (*fn)((MIB_TCP6ROW_OWNER_MODULE *)row,
+    if (GetOwnerModuleFromTcp6Entry((MIB_TCP6ROW_OWNER_MODULE *)row,
                     0, //TCPIP_OWNER_MODULE_BASIC_INFO
                     buf, &buf_sz) == NO_ERROR) {
         TCPIP_OWNER_MODULE_BASIC_INFO *modP;
@@ -801,7 +713,6 @@ Tcl_Obj *ObjFromMIB_UDPROW(Tcl_Interp *interp, MIB_UDPROW *row, int size)
     Tcl_Obj *obj[6];
     char     buf[sizeof(TCPIP_OWNER_MODULE_BASIC_INFO) + 4*MAX_PATH];
     DWORD    buf_sz;
-    GetOwnerModuleFromUdpEntry_t fn;
 
     obj[0] = IPAddrObjFromDWORD(row->dwLocalAddr);
     obj[1] = ObjFromInt(ntohs((WORD)row->dwLocalPort));
@@ -816,9 +727,8 @@ Tcl_Obj *ObjFromMIB_UDPROW(Tcl_Interp *interp, MIB_UDPROW *row, int size)
 
     obj[3] = ObjFromWideInt(((MIB_UDPROW_OWNER_MODULE *)row)->liCreateTimestamp.QuadPart);
 
-    fn = Twapi_GetProc_GetOwnerModuleFromUdpEntry();
     buf_sz = sizeof(buf);
-    if (fn && (*fn)((MIB_UDPROW_OWNER_MODULE *)row,
+    if (GetOwnerModuleFromUdpEntry((MIB_UDPROW_OWNER_MODULE *)row,
                     0, // TCPIP_OWNER_MODULE_BASIC_INFO enum
                     buf, &buf_sz) == NO_ERROR) {
         TCPIP_OWNER_MODULE_BASIC_INFO *modP;
@@ -838,7 +748,6 @@ Tcl_Obj *ObjFromMIB_UDP6ROW(Tcl_Interp *interp, MIB_UDP6ROW_OWNER_PID *row, int 
     Tcl_Obj *obj[6];
     char     buf[sizeof(TCPIP_OWNER_MODULE_BASIC_INFO) + 4*MAX_PATH];
     DWORD    buf_sz;
-    GetOwnerModuleFromUdp6Entry_t fn;
 
     obj[0] = ObjFromIPv6Addr(row->ucLocalAddr, row->dwLocalScopeId);
     obj[1] = ObjFromInt(ntohs((WORD)row->dwLocalPort));
@@ -849,9 +758,8 @@ Tcl_Obj *ObjFromMIB_UDP6ROW(Tcl_Interp *interp, MIB_UDP6ROW_OWNER_PID *row, int 
 
     obj[3] = ObjFromWideInt(((MIB_UDP6ROW_OWNER_MODULE *)row)->liCreateTimestamp.QuadPart);
 
-    fn = Twapi_GetProc_GetOwnerModuleFromUdp6Entry();
     buf_sz = sizeof(buf);
-    if (fn && (*fn)((MIB_UDP6ROW_OWNER_MODULE *)row,
+    if (GetOwnerModuleFromUdp6Entry((MIB_UDP6ROW_OWNER_MODULE *)row,
                     0, // TCPIP_OWNER_MODULE_BASIC_INFO enum
                     buf, &buf_sz) == NO_ERROR) {
         TCPIP_OWNER_MODULE_BASIC_INFO *modP;
@@ -1167,10 +1075,6 @@ TwapiIpConfigTableHelper(TwapiInterpContext *ticP,
     int  tries;
     MemLifoSize len;
 
-    if (fn == NULL) {
-        return Twapi_AppendSystemError(ticP->interp, ERROR_PROC_NOT_FOUND);
-    }
-
     /*
      * Keep looping as long as we are told we need a bigger buffer.
      * For robustness, we set a limit on number of tries. Note required
@@ -1382,8 +1286,6 @@ int Twapi_GetIpForwardTable(TwapiInterpContext *ticP, int sort)
         );
 }
 
-typedef DWORD (WINAPI *GetExtendedTcpTable_t)(PVOID, PDWORD, BOOL, ULONG, ULONG, ULONG);
-MAKE_DYNLOAD_FUNC(GetExtendedTcpTable, iphlpapi, GetExtendedTcpTable_t)
 int Twapi_GetExtendedTcpTable(
     Tcl_Interp *interp,
     void *buf,
@@ -1394,10 +1296,6 @@ int Twapi_GetExtendedTcpTable(
     )
 {
     int error;
-    GetExtendedTcpTable_t fn = Twapi_GetProc_GetExtendedTcpTable();
-    if (fn == NULL) {
-        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
-    }
 
     /* IPv6 Windows (at least on XP) has a bug in that it incorrectly
        calculates buffer size and overwrites the passed buffer when
@@ -1406,12 +1304,13 @@ int Twapi_GetExtendedTcpTable(
        7: TCP_TABLE_OWNER_MODULE_CONNECTIONS
        8: TCP_TABLE_OWNER_MODULE_ALL
        Google for details
+	   TBD - is the above still true for later Windows versions ?
     */
     if (family == AF_INET6 && table_class > 5) {
         return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
     }
        
-    error = (*fn)(buf, &buf_sz, sorted, family, table_class, 0);
+    error = GetExtendedTcpTable(buf, &buf_sz, sorted, family, table_class, 0);
     if (error == NO_ERROR || error == ERROR_INSUFFICIENT_BUFFER) {
         /* We used to return buf_sz in success case as well. However
            it is not clear from latest MSDN docs that buf_sz is meaningful
@@ -1424,8 +1323,6 @@ int Twapi_GetExtendedTcpTable(
 }
 
 
-typedef DWORD (WINAPI *GetExtendedUdpTable_t)(PVOID, PDWORD, BOOL, ULONG, ULONG, ULONG);
-MAKE_DYNLOAD_FUNC(GetExtendedUdpTable, iphlpapi, GetExtendedUdpTable_t)
 int Twapi_GetExtendedUdpTable(
     Tcl_Interp *interp,
     void *buf,
@@ -1436,16 +1333,12 @@ int Twapi_GetExtendedUdpTable(
     )
 {
     int error;
-    GetExtendedUdpTable_t fn = Twapi_GetProc_GetExtendedUdpTable();
-    if (fn == NULL) {
-        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
-    }
 
     /* See note in Twapi_GetExtendedTcpTable function above */
     if (family == AF_INET6 && table_class > 5) {
         return Twapi_AppendSystemError(interp, ERROR_INVALID_PARAMETER);
     }
-    error = (*fn)(buf, &buf_sz, sorted, family, table_class, 0);
+    error = GetExtendedUdpTable(buf, &buf_sz, sorted, family, table_class, 0);
     if (error == NO_ERROR || error == ERROR_INSUFFICIENT_BUFFER) {
         /* We used to return buf_sz in success case as well. However
            it is not clear from latest MSDN docs that buf_sz is meaningful
@@ -1456,121 +1349,6 @@ int Twapi_GetExtendedUdpTable(
         return Twapi_AppendSystemError(interp, error);
     }
 }
-
-
-typedef DWORD (WINAPI *AllocateAndGetTcpExTableFromStack_t)(PVOID *,BOOL,HANDLE,DWORD, DWORD);
-MAKE_DYNLOAD_FUNC(AllocateAndGetTcpExTableFromStack, iphlpapi, AllocateAndGetTcpExTableFromStack_t)
-int Twapi_AllocateAndGetTcpExTableFromStack(
-    TwapiInterpContext *ticP,
-    BOOL sorted,
-    DWORD flags
-)
-{
-    int error;
-    AllocateAndGetTcpExTableFromStack_t fn = Twapi_GetProc_AllocateAndGetTcpExTableFromStack();
-
-    if (fn) {
-        void *buf = NULL;
-
-        /* 2 -> AF_INET (IP v4) */
-        error = (*fn)(&buf, sorted, GetProcessHeap(), flags, 2);
-        if (error)
-            return Twapi_AppendSystemError(ticP->interp, error);
-
-        ObjSetResult(ticP->interp, ObjFromTcpExTable(ticP->interp, buf));
-        HeapFree(GetProcessHeap(), 0, buf);
-        return TCL_OK;
-    } else {
-        DWORD sz;
-        MIB_TCPTABLE *tab = NULL;
-        int i;
-
-        /* TBD - can remove this code since Win2K no longer supported ? */
-
-        /*
-         * First get the required  buffer size.
-         * Do this in a loop since size might change with an upper limit
-         * on number of iterations.
-         * We do not use MemLifo because allocations are likely quite large
-         * so little benefit.
-         */
-        for (tab = NULL, sz = 0, i = 0; i < 10; ++i) {
-            error = GetTcpTable(tab, &sz, sorted);
-            if (error != ERROR_INSUFFICIENT_BUFFER)
-                break;
-            /* Retry with larger buffer */
-            if (tab)
-                TwapiFree(tab);
-            tab = (MIB_TCPTABLE *) TwapiAlloc(sz);
-        }
-        
-        if (error == ERROR_SUCCESS)
-            ObjSetResult(ticP->interp, ObjFromMIB_TCPTABLE(ticP->interp, tab));
-        else
-            Twapi_AppendSystemError(ticP->interp, error);
-        if (tab)
-            TwapiFree(tab);
-        return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
-    }
-}
-
-
-typedef DWORD (WINAPI *AllocateAndGetUdpExTableFromStack_t)(PVOID *,BOOL,HANDLE,DWORD, DWORD);
-MAKE_DYNLOAD_FUNC(AllocateAndGetUdpExTableFromStack, iphlpapi, AllocateAndGetUdpExTableFromStack_t)
-int Twapi_AllocateAndGetUdpExTableFromStack(
-    TwapiInterpContext *ticP,
-    BOOL sorted,
-    DWORD flags
-)
-{
-    int error;
-    AllocateAndGetUdpExTableFromStack_t fn = Twapi_GetProc_AllocateAndGetUdpExTableFromStack();
-
-    if (fn) {
-        void *buf = NULL;
-
-        /* 2 -> AF_INET (IP v4) */
-        error = (*fn)(&buf, sorted, GetProcessHeap(), flags, 2);
-        if (error)
-            return Twapi_AppendSystemError(ticP->interp, error);
-
-        ObjSetResult(ticP->interp, ObjFromUdpExTable(ticP->interp, buf));
-        HeapFree(GetProcessHeap(), 0, buf);
-        return TCL_OK;
-    } else {
-        DWORD sz;
-        MIB_UDPTABLE *tab = NULL;
-        int i;
-
-        /* TBD - can remove this code since Win2K no longer supported ? */
-
-        /*
-         * First get the required  buffer size.
-         * Do this in a loop since size might change with an upper limit
-         * on number of iterations.
-         * We do not use MemLifo because allocations are likely quite large
-         * so little benefit.
-         */
-        for (tab = NULL, sz = 0, i = 0; i < 10; ++i) {
-            error = GetUdpTable(tab, &sz, sorted);
-            if (error != ERROR_INSUFFICIENT_BUFFER)
-                break;
-            /* Retry with larger buffer */
-            if (tab)
-                TwapiFree(tab);
-            tab = (MIB_UDPTABLE *) TwapiAlloc(sz);
-        }
-        
-        if (error == ERROR_SUCCESS)
-            ObjSetResult(ticP->interp, ObjFromMIB_UDPTABLE(ticP->interp, tab));
-        else
-            Twapi_AppendSystemError(ticP->interp, error);
-        if (tab)
-            TwapiFree(tab);
-        return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
-    }
-}
-
 
 static int Twapi_GetNameInfoObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
@@ -1689,39 +1467,26 @@ static int Twapi_GetBestRouteObjCmd(ClientData clientdata, Tcl_Interp *interp, i
 static int Twapi_GetBestInterfaceObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
-    GetBestInterfaceEx_t fn;
     int result;
     DWORD ifindex;
-    DWORD ipaddr;
     Tcl_Obj *objP;
+    SOCKADDR_STORAGE ss;
 
     if (objc != 2)
         return TwapiReturnError(ticP->interp, TWAPI_BAD_ARG_COUNT);
 
-    fn = Twapi_GetProc_GetBestInterfaceEx();
-    if (fn) {
-        SOCKADDR_STORAGE ss;
-
-        /* We only have the address, ObjToSOCKADDR_STORAGE expects
-         * it as first element of a list with optional second param
-         */
-        objP = ObjNewList(1, &objv[1]);
-        ObjIncrRefs(objP);
-        result = ObjToSOCKADDR_STORAGE(interp, objP, &ss);
-        ObjDecrRefs(objP);
-        if (result != TCL_OK)
-            return result;
-        result = (*fn)((struct sockaddr *)&ss, &ifindex);
-        if (result)
-            return Twapi_AppendSystemError(interp, result);
-    } else {
-        /* GetBestInterfaceEx not available before XP SP2 */
-        if (IPAddrObjToDWORD(interp, objv[1], &ipaddr) == TCL_ERROR)
-            return TCL_ERROR;
-        result = GetBestInterface(ipaddr, &ifindex);
-        if (result)
-            return Twapi_AppendSystemError(interp, result);
-    }
+    /* We only have the address, ObjToSOCKADDR_STORAGE expects
+     * it as first element of a list with optional second param
+     */
+    objP = ObjNewList(1, &objv[1]);
+    ObjIncrRefs(objP);
+    result = ObjToSOCKADDR_STORAGE(interp, objP, &ss);
+    ObjDecrRefs(objP);
+    if (result != TCL_OK)
+        return result;
+    result = GetBestInterfaceEx((struct sockaddr *)&ss, &ifindex);
+    if (result)
+        return Twapi_AppendSystemError(interp, result);
 
     ObjSetResult(interp, ObjFromLong(ifindex));
     return TCL_OK;
@@ -2066,10 +1831,6 @@ static int Twapi_NetworkCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
         switch (func) {
         case 301:
             return Twapi_GetAdaptersAddresses(ticP, dw, dw2, NULL);
-        case 302:
-            return Twapi_AllocateAndGetTcpExTableFromStack(ticP, dw, dw2);
-        case 303:
-            return Twapi_AllocateAndGetUdpExTableFromStack(ticP, dw, dw2);
         }
     } else {
         /* Free-for-all - each func responsible for checking arguments */
@@ -2132,8 +1893,6 @@ static int TwapiNetworkInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(Twapi_IPAddressFamily,  252), // TBD - Tcl interface
         DEFINE_ALIAS_CMD(Twapi_NormalizeIPAddress,  253), // TBD - Tcl interface
         DEFINE_ALIAS_CMD(GetAdaptersAddresses,  301),
-        DEFINE_ALIAS_CMD(AllocateAndGetTcpExTableFromStack,  302),
-        DEFINE_ALIAS_CMD(AllocateAndGetUdpExTableFromStack,  303),
         DEFINE_ALIAS_CMD(Twapi_FormatExtendedTcpTable,  10000),
         DEFINE_ALIAS_CMD(Twapi_FormatExtendedUdpTable,  10001),
         DEFINE_ALIAS_CMD(GetExtendedTcpTable,  10002),
