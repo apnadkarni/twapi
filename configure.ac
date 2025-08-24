@@ -157,7 +157,6 @@ if test "${TEA_PLATFORM}" = "windows" ; then
     TEA_ADD_HEADERS([
             win/twapi.h
 	    win/twapi_ddkdefs.h
-	    win/twapi_sdkdefs.h
 	    win/zlist.h
 	    win/memlifo.h
     ])
