@@ -8123,14 +8123,14 @@ $as_echo "no" >&6; }
 
 # Link to either the 64- or 32-bit dyncall libs. This check has to happen
 # after TEA_CONFIG_CFLAGS because that sets the do64bit variable
-if test "$do64bit" = "yes"; then :
+if test "$do64bit" != "yes" -a "x$MSYSTEM" != "xMINGW64"; then :
 
-	  DYNCALL_LIBS="${srcdir}/dyncall/dyncall-0.9/lib/release_amd64/libdyncall_s.lib"
+	  DYNCALL_LIBS="${srcdir}/dyncall/dyncall-0.9/lib/release_x86/libdyncall_s.lib"
 
 
 else
 
-	  DYNCALL_LIBS="${srcdir}/dyncall/dyncall-0.9/lib/release_x86/libdyncall_s.lib"
+	  DYNCALL_LIBS="${srcdir}/dyncall/dyncall-0.9/lib/release_amd64/libdyncall_s.lib"
 
 
 fi

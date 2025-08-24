@@ -264,10 +264,10 @@ TEA_CONFIG_CFLAGS
 
 # Link to either the 64- or 32-bit dyncall libs. This check has to happen
 # after TEA_CONFIG_CFLAGS because that sets the do64bit variable
-AS_IF([test "$do64bit" = "yes"], [
-	  AC_SUBST(DYNCALL_LIBS, "${srcdir}/dyncall/dyncall-0.9/lib/release_amd64/libdyncall_s.lib")
-      ], [
+AS_IF([test "$do64bit" != "yes" -a "x$MSYSTEM" != "xMINGW64"], [
 	  AC_SUBST(DYNCALL_LIBS, "${srcdir}/dyncall/dyncall-0.9/lib/release_x86/libdyncall_s.lib")
+      ], [
+	  AC_SUBST(DYNCALL_LIBS, "${srcdir}/dyncall/dyncall-0.9/lib/release_amd64/libdyncall_s.lib")
       ])
 
 #--------------------------------------------------------------------
