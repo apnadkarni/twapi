@@ -24,108 +24,6 @@ int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
 
 static MAKE_DYNLOAD_FUNC(NtQuerySystemInformation, ntdll, NtQuerySystemInformation_t)
 
-/*
- * Different SDK's have different versions of the following structures.
- * We define our own equivalents. Currently these correspond to the 8.1 SDK
- */
-typedef struct _TWAPI_PROCESSOR_NUMBER {
-    WORD   Group;
-    BYTE  Number;
-    BYTE  Reserved;
-} TWAPI_PROCESSOR_NUMBER;
-
-typedef enum _TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP {
-    TwapiRelationProcessorCore,
-    TwapiRelationNumaNode,
-    TwapiRelationCache,
-    TwapiRelationProcessorPackage,
-    TwapiRelationGroup,
-} TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP;
-
-#ifndef LTP_PC_SMT
-#define LTP_PC_SMT 0x1
-#endif
-
-typedef enum _TWAPI_PROCESSOR_CACHE_TYPE {
-    TwapiCacheUnified,
-    TwapiCacheInstruction,
-    TwapiCacheData,
-    TwapiCacheTrace
-} TWAPI_PROCESSOR_CACHE_TYPE;
-
-#define TWAPI_CACHE_FULLY_ASSOCIATIVE 0xFF
-
-typedef struct _TWAPI_CACHE_DESCRIPTOR {
-    BYTE   Level;
-    BYTE   Associativity;
-    WORD   LineSize;
-    DWORD  Size;
-    TWAPI_PROCESSOR_CACHE_TYPE Type;
-} TWAPI_CACHE_DESCRIPTOR;
-
-typedef struct _TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION {
-    ULONG_PTR   ProcessorMask;
-    TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP Relationship;
-    union {
-        struct {
-            BYTE  Flags;
-        } ProcessorCore;
-        struct {
-            DWORD NodeNumber;
-        } NumaNode;
-        TWAPI_CACHE_DESCRIPTOR Cache;
-        ULONGLONG  Reserved[2];
-    } DUMMYUNIONNAME;
-} TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION;
-
-typedef struct _TWAPI_PROCESSOR_RELATIONSHIP {
-    BYTE  Flags;
-    BYTE  Reserved[21];
-    WORD   GroupCount;
-    GROUP_AFFINITY GroupMask[ANYSIZE_ARRAY];
-} TWAPI_PROCESSOR_RELATIONSHIP;
-
-typedef struct _TWAPI_NUMA_NODE_RELATIONSHIP {
-    DWORD NodeNumber;
-    BYTE  Reserved[20];
-    GROUP_AFFINITY GroupMask;
-} TWAPI_NUMA_NODE_RELATIONSHIP;
-
-typedef struct _TWAPI_CACHE_RELATIONSHIP {
-    BYTE  Level;
-    BYTE  Associativity;
-    WORD   LineSize;
-    DWORD CacheSize;
-    TWAPI_PROCESSOR_CACHE_TYPE Type;
-    BYTE  Reserved[20];
-    GROUP_AFFINITY GroupMask;
-} TWAPI_CACHE_RELATIONSHIP;
-
-typedef struct _TWAPI_PROCESSOR_GROUP_INFO {
-    BYTE  MaximumProcessorCount;
-    BYTE  ActiveProcessorCount;
-    BYTE  Reserved[38];
-    KAFFINITY ActiveProcessorMask;
-} TWAPI_PROCESSOR_GROUP_INFO;
-
-typedef struct _TWAPI_GROUP_RELATIONSHIP {
-    WORD   MaximumGroupCount;
-    WORD   ActiveGroupCount;
-    BYTE  Reserved[20];
-    TWAPI_PROCESSOR_GROUP_INFO GroupInfo[ANYSIZE_ARRAY];
-} TWAPI_GROUP_RELATIONSHIP;
-
-typedef struct _TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX {
-    TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP Relationship;
-    DWORD Size;
-    union {
-        TWAPI_PROCESSOR_RELATIONSHIP Processor;
-        TWAPI_NUMA_NODE_RELATIONSHIP NumaNode;
-        TWAPI_CACHE_RELATIONSHIP Cache;
-        TWAPI_GROUP_RELATIONSHIP Group;
-    } DUMMYUNIONNAME;
-} TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX;
-
 TWAPI_INLINE Tcl_Obj *ObjFromKAFFINITY(KAFFINITY kaffinity) {
     return ObjFromULONG_PTR(kaffinity);
 }
@@ -149,7 +47,7 @@ ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX(
 
     objs[0] = ObjFromLong(slpiexP->Relationship);
     switch (slpiexP->Relationship) {
-    case TwapiRelationCache:
+    case RelationCache:
         elems[0] = ObjFromLong(slpiexP->Cache.Level);
         elems[1] = ObjFromLong(slpiexP->Cache.Associativity);
         elems[2] = ObjFromLong(slpiexP->Cache.LineSize);
@@ -158,7 +56,7 @@ ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX(
         elems[5] = ObjFromGROUP_AFFINITY(&slpiexP->Cache.GroupMask);
         nelems = 6;
         break;
-    case TwapiRelationGroup:
+    case RelationGroup:
         elems[0] = ObjFromLong(slpiexP->Group.MaximumGroupCount);
         elems[1] = ObjNewList(slpiexP->Group.ActiveGroupCount, NULL);
         for (i = 0; i < slpiexP->Group.ActiveGroupCount; ++i) {
@@ -169,13 +67,13 @@ ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX(
         }
         nelems = 2;
         break;
-    case TwapiRelationNumaNode:
+    case RelationNumaNode:
         elems[0] = ObjFromLong(slpiexP->NumaNode.NodeNumber);
         elems[1] = ObjFromGROUP_AFFINITY(&slpiexP->NumaNode.GroupMask);
         nelems = 2;
         break;
-    case TwapiRelationProcessorCore:
-    case TwapiRelationProcessorPackage:
+    case RelationProcessorCore:
+    case RelationProcessorPackage:
         elems[0] = ObjFromLong(slpiexP->Processor.Flags);
         elems[1] = ObjNewList(slpiexP->Processor.GroupCount, NULL);
         for (i = 0; i < slpiexP->Processor.GroupCount; ++i)
@@ -193,7 +91,7 @@ ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX(
 
 TCL_RESULT Twapi_GetLogicalProcessorInformationEx(
     Tcl_Interp *interp,
-    TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP rel
+    LOGICAL_PROCESSOR_RELATIONSHIP rel
     )
 {
     DWORD sz = 0, winerr;
@@ -216,7 +114,7 @@ TCL_RESULT Twapi_GetLogicalProcessorInformationEx(
     if (winerr == ERROR_SUCCESS) {
         Tcl_Obj *objP = ObjNewList(0, NULL);
         DWORD used;
-        /* NOTE - TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
+        /* NOTE - SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX
            is actually a variable size structure even if
            the C struct is not defined as such. So we cannot
            just advance the pointer. We have to add the explicit

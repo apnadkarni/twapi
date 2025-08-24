@@ -108,7 +108,8 @@ PRJ_OBJS = $(PRJ_OBJS) \
 
 
 HEADERS = \
-	$(ROOT)\win\twapi.h
+	$(ROOT)\win\twapi.h \
+	$(ROOT)\win\twapi_sdkdefs.h
 
 PRJ_INCLUDES = -I $(ROOT)\include -I $(DYNCALLDIR)\include
 
@@ -176,5 +177,5 @@ install: pkgindex $(PRJLIB) default-install-scripts
 	@$(CPY) $(ROOT)\README.md "$(SCRIPT_INSTALL_DIR)"
 	@$(CPY) $(ROOT)\LICENSE "$(SCRIPT_INSTALL_DIR)"
 
-$(PRJ_OBJS): $(HEADERS) $(ROOT)\configure.ac
+$(PRJ_OBJS): $(HEADERS) $(ROOT)\configure.ac $(PRJ_HEADERS)
 

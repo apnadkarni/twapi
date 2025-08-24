@@ -303,41 +303,41 @@ int Twapi_GetTokenInformation(
         DWORD dw;
         TOKEN_TYPE type;
         SECURITY_IMPERSONATION_LEVEL sil;
-        TWAPI_TOKEN_ELEVATION elevation;
-        TWAPI_TOKEN_ELEVATION_TYPE elevation_type;
-        TWAPI_TOKEN_LINKED_TOKEN linked_token;
+        TOKEN_ELEVATION elevation;
+        TOKEN_ELEVATION_TYPE elevation_type;
+        TOKEN_LINKED_TOKEN linked_token;
     } value;
     SWSMark mark = NULL;
 
     switch (token_class) {
-    case TwapiTokenElevation:
-    case TwapiTokenElevationType:
-    case TwapiTokenMandatoryPolicy:
-    case TwapiTokenHasRestrictions:
-    case TwapiTokenLinkedToken:
+    case TokenElevation:
+    case TokenElevationType:
+    case TokenMandatoryPolicy:
+    case TokenHasRestrictions:
+    case TokenLinkedToken:
     case TokenImpersonationLevel:
     case TokenSandBoxInert:
     case TokenSessionId:
     case TokenType:
-    case TwapiTokenUIAccess:
-    case TwapiTokenVirtualizationAllowed:
-    case TwapiTokenVirtualizationEnabled:
+    case TokenUIAccess:
+    case TokenVirtualizationAllowed:
+    case TokenVirtualizationEnabled:
 
         sz = sizeof(value);
         if (GetTokenInformation(tokenH, token_class, &value, sz, &sz)) {
             switch (token_class) {
-            case TwapiTokenLinkedToken:
+            case TokenLinkedToken:
                 resultObj = ObjFromHANDLE(value.linked_token.LinkedToken);
                 result = TCL_OK;
                 break;
 
-            case TwapiTokenMandatoryPolicy: /* FALLTHRU */
-            case TwapiTokenElevation:
+            case TokenMandatoryPolicy: /* FALLTHRU */
+            case TokenElevation:
                 resultObj = ObjFromDWORD(value.elevation.TokenIsElevated);
                 result = TCL_OK;
                 break;
 
-            case TwapiTokenElevationType:
+            case TokenElevationType:
                 resultObj = ObjFromInt(value.elevation_type);
                 result = TCL_OK;
                 break;
@@ -347,10 +347,10 @@ int Twapi_GetTokenInformation(
                 result = TCL_OK;
                 break;
 
-            case TwapiTokenHasRestrictions:
-            case TwapiTokenUIAccess:
-            case TwapiTokenVirtualizationAllowed:
-            case TwapiTokenVirtualizationEnabled:
+            case TokenHasRestrictions:
+            case TokenUIAccess:
+            case TokenVirtualizationAllowed:
+            case TokenVirtualizationEnabled:
             case TokenSandBoxInert:
             case TokenSessionId:
                 resultObj = ObjFromDWORD(value.dw);
@@ -410,7 +410,7 @@ int Twapi_GetTokenInformation(
                               &resultObj);
         break;
 
-    case TwapiTokenIntegrityLevel: /* FALLTHRU */
+    case TokenIntegrityLevel: /* FALLTHRU */
     case TokenUser:
         resultObj=ObjFromSID_AND_ATTRIBUTES(interp, &((TOKEN_USER *) infoP)->User);
         if (resultObj)
@@ -853,8 +853,8 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
     union {
         COORD coord;
         WCHAR buf[MAX_PATH+1];
-        TWAPI_TOKEN_MANDATORY_POLICY ttmp;
-        TWAPI_TOKEN_MANDATORY_LABEL ttml;
+        TOKEN_MANDATORY_POLICY ttmp;
+        TOKEN_MANDATORY_LABEL ttml;
         TOKEN_PRIMARY_GROUP tpg;
         TOKEN_OWNER towner;
         LSA_UNICODE_STRING lsa_ustr;
@@ -1105,14 +1105,14 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
             u.ttmp.Policy = dw;
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetTokenInformation(h,
-                                                    TwapiTokenMandatoryPolicy,
+                                                    TokenMandatoryPolicy,
                                                     &u.ttmp, sizeof(u.ttmp));
             break;
         case 1007:
         case 1009:
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetTokenInformation(h,
-                                                    func == 1007 ? TwapiTokenVirtualizationEnabled : TwapiTokenSessionId,
+                                                    func == 1007 ? TokenVirtualizationEnabled : TokenSessionId,
                                                     &dw, sizeof(dw));
             break;
 
@@ -1148,7 +1148,7 @@ static TCL_RESULT Twapi_SecCallObjCmd(ClientData clientdata, Tcl_Interp *interp,
                 goto vamoose;
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = SetTokenInformation(h,
-                                                    TwapiTokenIntegrityLevel,
+                                                    TokenIntegrityLevel,
                                                     &u.ttml, sizeof(u.ttml));
             break;
         }
