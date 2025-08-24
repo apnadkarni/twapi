@@ -108,8 +108,7 @@ PRJ_OBJS = $(PRJ_OBJS) \
 
 
 HEADERS = \
-	$(ROOT)\win\twapi.h \
-	$(ROOT)\win\twapi_sdkdefs.h
+	$(ROOT)\win\twapi.h
 
 PRJ_INCLUDES = -I $(ROOT)\include -I $(DYNCALLDIR)\include
 
