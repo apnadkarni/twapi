@@ -1569,8 +1569,7 @@ proc validcert {} {
 
 # Returns google cert. Must be released by caller
 proc googlecert {} {
-    set enc [read_file [file join [tcltest::testsDirectory] certs www.google.com.pem] r]
-    return [twapi::cert_import $enc -encoding pem]
+    return [twapi::cert_import [googleencodedcert] -encoding pem]
 }
 
 

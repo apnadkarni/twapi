@@ -3832,21 +3832,21 @@ namespace eval twapi::base::test {
     } -body {
         set c [twapi::conceal abc]
         list [string length $c] [conceal_check abc $c] [twapi::reveal $c]
-    } -result {8 1 abc}
+    } -result {16 1 abc}
 
     test conceal-1.1 {
-        Conceal text exactly 8 chars (block size), unicode
+        Conceal Unicode string
     } -body {
-        set c [twapi::conceal abcdefg\u0100]
+        set c [twapi::conceal a\xe9\u4e4e]
         list [string length $c] [string first ab $c] [twapi::reveal $c]
-    } -result [list 24 -1 abcdefg\u0100]
+    } -result [list 16 -1 a\xe9\u4e4e]
 
     test conceal-1.2 {
         Conceal empty string
     } -body {
         set c [twapi::conceal ""]
         list [string length $c] [string equal "" $c] [twapi::reveal $c]
-    } -result [list 8 0 {}]
+    } -result [list 16 0 {}]
 
     test conceal-1.3 {
         Conceal string
@@ -3855,16 +3855,14 @@ namespace eval twapi::base::test {
     } -body {
         set c [twapi::conceal $s]
         list [string length $c] [conceal_check $s $c]  [twapi::reveal $c]
-    } -result [list 8 1 "\x00\xff\x80"]
+    } -result [list 16 1 "\x00\xff\x80"]
 
     test conceal-1.4 {
-        Conceal string, block size (8)
-    } -setup {
-        set s "\x00\x01\x02\x03\xff\xfe\xfd\xfc"
+        Conceal exactly block size (16)
     } -body {
-        set c [twapi::conceal $s]
-        list [string length $c] [conceal_check $s $c] [twapi::reveal $c]
-    } -result [list 24 1 "\x00\x01\x02\x03\xff\xfe\xfd\xfc"]
+        set c [twapi::conceal abcdefghijklmnop]
+        list [string length $c] [string first ab $c] [twapi::reveal $c]
+    } -result [list 48 -1 abcdefghijklmnop]
 
     test conceal-1.5 {
         Conceal binary
@@ -3876,9 +3874,11 @@ namespace eval twapi::base::test {
         set binstr [binary format c* $l]
     } -body {
         set c [twapi::conceal $binstr]
-        # binary will be encoded as unicode (256*2) plus 8 byte pad = 520
-        list [string length $c] [conceal_check $binstr $c] [string equal $binstr [twapi::reveal $c]]
-    } -result [list 520 1 1]
+        # binary will be encoded as unicode (256*2) plus 16 byte pad = 528
+        list [string length $c] \
+                  [conceal_check $binstr $c] \
+                  [string equal $binstr [twapi::reveal $c]]
+    } -result [list 528 1 1]
 
     ################################################################
 

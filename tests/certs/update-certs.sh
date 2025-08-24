@@ -1,0 +1,4 @@
+openssl s_client -connect www.yahoo.com:443 -servername www.yahoo.com </dev/null 2>/dev/null   | openssl x509 -outform PEM > www.yahoo.com.pem
+openssl s_client -connect www.google.com:443 -servername www.google.com </dev/null 2>/dev/null   | openssl x509 -outform PEM > www.google.com.pem
+openssl s_client -connect test-ev-ecc.ssl.com:443 -servername test-ev-ecc.ssl.com </dev/null 2>/dev/null   | openssl x509 -outform PEM > test-ev-ecc.ssl.com.pem
+openssl s_client -connect revoked-rsa-dv.ssl.com:443 -servername revoked-rsa-dv.ssl.com </dev/null 2>/dev/null   | openssl x509 -outform PEM > revoked-rsa-dv.ssl.com.pem

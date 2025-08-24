@@ -1,7 +1,25 @@
+openssl_conf = openssl_init
 #
 # OpenSSL example configuration file.
 # This is mostly being used for generation of certificate requests.
 #
+
+[openssl_init]
+providers = providers_sect
+alg_section = my_alg
+
+[my_alg]
+bogus = foo
+
+[providers_sect]
+default = default_sect
+legacy = legacy_sect
+
+[default_sect]
+activate = 1
+
+[legacy_sect]
+activate = 1
 
 # This definition stops the following lines choking if HOME isn't
 # defined.

@@ -736,41 +736,13 @@ namespace eval twapi::crypto::test {
 
     test cert_system_store_open-3.0 {
         Verify changes to cert contexts persisted after store closed -deferclose 1
-    } -setup {
-        # Create temporary store to modify
-        set storepath [new_name]
-        set hstore [twapi::cert_system_store_open $storepath user]
-        set cer [sampleencodedcert]
-        set hcert [twapi::cert_store_add_encoded_certificate $hstore $cer]
-        twapi::cert_property_set $hcert description "original"
-        twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
     } -body {
-        set hstore [twapi::cert_system_store_open $storepath user]
-        set hcert [twapi::cert_store_enum_contents $hstore]
-        set desc1 [twapi::cert_property $hcert description]
-        twapi::cert_store_release $hstore; # Close store first
-        twapi::cert_property_set $hcert description "shouldnotbesaved"; 
-        twapi::cert_release $hcert
-
-        set hstore [twapi::cert_system_store_open $storepath user -deferclose 1]
-        set hcert [twapi::cert_store_enum_contents $hstore]
-        set desc2 [twapi::cert_property $hcert description]
-        twapi::cert_store_release $hstore; # Close store first
-        twapi::cert_property_set $hcert description "shouldbesaved"
-        twapi::cert_release $hcert
-
-        set hstore [twapi::cert_system_store_open $storepath user]
-        set hcert [twapi::cert_store_enum_contents $hstore]
-        set desc3 [twapi::cert_property $hcert description]
-
-        # TBD - do not understand why this test fails
-        list $desc1 $desc2 $desc3
-    } -cleanup {
-        twapi::cert_release $hcert
-        twapi::cert_store_release $hstore
-        file delete $storepath
-    } -result [list original original shouldbesaved]
+	    # This test is disabled because closing the handle to a system store
+		# does not guarantee the store is closed or not - depends on other
+		# processes having it open. Thus there is no way to reliably test
+		# -deferclose. This test is in place as a reminder of why there is
+		# no test :-)
+	} -result ""
 
     foreach loc [concat {user users service services localmachine localmachineenterprise localmachinegrouppolicy usergrouppolicy} [twapi::cert_system_store_locations]] {
         test "cert_system_store_open-$loc-1.0"  {
@@ -1562,7 +1534,7 @@ namespace eval twapi::crypto::test {
     } -cleanup {
         twapi::cert_release $hcert
         twapi::cert_store_release $hstore
-    } -result *.google.com
+    } -result www.google.com
 
     ################################################################
 
@@ -2700,8 +2672,9 @@ namespace eval twapi::crypto::test {
     } -body {
         twapi::cert_thumbprint $cert
     } -cleanup {
+		# Calculated as openssl x509 -in test-ev-ecc.ssl.com.pem -outform DER | openssl sha1
         twapi::cert_release $cert
-    } -result 5581192cd269ae1fc24cf85b5c3742f3ebb762b5
+    } -result a3b27c4e71632c1f7f16d3c84ebc69df207cf832
 
     ################################################################
 
@@ -2767,7 +2740,7 @@ namespace eval twapi::crypto::test {
         set path [write_test_file $req wb]
         lassign [openssl req -inform der -in $path -noout -text -verify] stdout stderr
         list [regexp "Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Key Encipherment, Key Agreement\n.+X509v3 Extended Key Usage: critical.+TLS Web Client Authentication\n.+" $stdout] \
-            [string match "*verify OK*" $stderr]
+            [string match "*verify OK*" $stderr] $stderr
     } -result {1 1}
     
     test cert_request_create-1.1 {
@@ -5452,7 +5425,7 @@ namespace eval twapi::crypto::test {
         } -result [list $errors $info $names]
     }
     testdef 1.0 "Normal chain" googlecert {} {haspreferredissuer} \
-        {*.google.com {GTS CA 1C3} {GTS Root R1}} \
+        {www.google.com WR2 {GTS Root R1}} \
         -usageany server_auth
     testdef 1.1 "Expired chain" expiredcert {time} {haspreferredissuer} \
         {expired-rsa-ev.ssl.com {SSL.com EV SSL Intermediate CA RSA R3} {SSL.com EV Root Certification Authority RSA R2}} \
@@ -5533,7 +5506,7 @@ namespace eval twapi::crypto::test {
         twapi::cert_subject_name $c
     } -cleanup {
         twapi::cert_release $c
-    } -result www.example.org
+    } -result *.example.org
 
     ################################################################
 
@@ -5549,7 +5522,7 @@ namespace eval twapi::crypto::test {
         }
     } -cleanup {
         twapi::cert_release $hcert
-    } -result {*.google.com {GTS CA 1C3} {GTS Root R1}}
+    } -result {www.google.com WR2 {GTS Root R1}}
 
     ################################################################
 
