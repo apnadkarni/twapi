@@ -39,7 +39,7 @@ on:
       run-tests: # Whether tests should be run
         description: 'Run tests as well'
         required: false
-        default: true
+        default: false
         type: boolean
 
 jobs:
