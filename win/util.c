@@ -42,7 +42,8 @@ Tcl_Obj *TwapiLowerCaseObj(Tcl_Obj *objP)
 MAKE_DYNLOAD_FUNC(RtlGetVersion, ntdll, FARPROC)
 BOOL TwapiRtlGetVersion(LPOSVERSIONINFOW verP)
 {
-    FARPROC func = Twapi_GetProc_RtlGetVersion();
+    typedef NTSTATUS (WINAPI * RTLGETVERSIONPROC)(LPOSVERSIONINFOW);
+    RTLGETVERSIONPROC func = (RTLGETVERSIONPROC) Twapi_GetProc_RtlGetVersion();
     if (func) {
         if ((*func)(verP) == STATUS_SUCCESS)
             return 1;
@@ -72,7 +73,7 @@ int TwapiMinOSVersion(DWORD major, DWORD minor)
  */
 void TwapiGetDllVersion(char *dll, DLLVERSIONINFO *verP)
 {
-    FARPROC fn;
+    DLLGETVERSIONPROC fn;
     HINSTANCE h;
 
     verP->cbSize = sizeof(DLLVERSIONINFO);
@@ -85,7 +86,7 @@ void TwapiGetDllVersion(char *dll, DLLVERSIONINFO *verP)
     if (h == NULL)
         return;
 
-    fn = (FARPROC) GetProcAddress(h, "DllGetVersion");
+    fn = (DLLGETVERSIONPROC) GetProcAddress(h, "DllGetVersion");
     if (fn)
         (void) (*fn)(verP);
 

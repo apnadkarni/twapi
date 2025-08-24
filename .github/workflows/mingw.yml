@@ -39,7 +39,7 @@ on:
       run-tests: # Whether tests should be run
         description: 'Run tests as well'
         required: false
-        default: true
+        default: false
         type: boolean
 
 jobs:
@@ -84,5 +84,6 @@ jobs:
       uses: apnadkarni/tcl-build-extension@v1
       with:
         toolchain: 'msys2'
+        make-opts: '-k'
         run-tests: ${{ inputs.run-tests }}
 

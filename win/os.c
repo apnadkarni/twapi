@@ -23,10 +23,6 @@ int Twapi_SystemProcessorTimes(TwapiInterpContext *ticP);
 int Twapi_SystemPagefileInformation(Tcl_Interp *interp);
 
 static MAKE_DYNLOAD_FUNC(NtQuerySystemInformation, ntdll, NtQuerySystemInformation_t)
-static MAKE_DYNLOAD_FUNC(GetProductInfo, kernel32, FARPROC)
-static MAKE_DYNLOAD_FUNC(GetLogicalProcessorInformation, kernel32, FARPROC)
-static MAKE_DYNLOAD_FUNC(GetLogicalProcessorInformationEx, kernel32, FARPROC)
-
 
 /*
  * Different SDK's have different versions of the following structures.
@@ -37,17 +33,6 @@ typedef struct _TWAPI_PROCESSOR_NUMBER {
     BYTE  Number;
     BYTE  Reserved;
 } TWAPI_PROCESSOR_NUMBER;
-
-//
-// Structure to represent a group-specific affinity, such as that of a
-// thread.  Specifies the group number and the affinity within that group.
-//
-
-typedef struct _TWAPI_GROUP_AFFINITY {
-    KAFFINITY Mask;
-    WORD   Group;
-    WORD   Reserved[3];
-} TWAPI_GROUP_AFFINITY;
 
 typedef enum _TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP {
     TwapiRelationProcessorCore,
@@ -97,13 +82,13 @@ typedef struct _TWAPI_PROCESSOR_RELATIONSHIP {
     BYTE  Flags;
     BYTE  Reserved[21];
     WORD   GroupCount;
-    TWAPI_GROUP_AFFINITY GroupMask[ANYSIZE_ARRAY];
+    GROUP_AFFINITY GroupMask[ANYSIZE_ARRAY];
 } TWAPI_PROCESSOR_RELATIONSHIP;
 
 typedef struct _TWAPI_NUMA_NODE_RELATIONSHIP {
     DWORD NodeNumber;
     BYTE  Reserved[20];
-    TWAPI_GROUP_AFFINITY GroupMask;
+    GROUP_AFFINITY GroupMask;
 } TWAPI_NUMA_NODE_RELATIONSHIP;
 
 typedef struct _TWAPI_CACHE_RELATIONSHIP {
@@ -113,7 +98,7 @@ typedef struct _TWAPI_CACHE_RELATIONSHIP {
     DWORD CacheSize;
     TWAPI_PROCESSOR_CACHE_TYPE Type;
     BYTE  Reserved[20];
-    TWAPI_GROUP_AFFINITY GroupMask;
+    GROUP_AFFINITY GroupMask;
 } TWAPI_CACHE_RELATIONSHIP;
 
 typedef struct _TWAPI_PROCESSOR_GROUP_INFO {
@@ -145,7 +130,7 @@ TWAPI_INLINE Tcl_Obj *ObjFromKAFFINITY(KAFFINITY kaffinity) {
     return ObjFromULONG_PTR(kaffinity);
 }
 
-static Tcl_Obj *ObjFromGROUP_AFFINITY(TWAPI_GROUP_AFFINITY *gaP)
+static Tcl_Obj *ObjFromGROUP_AFFINITY(GROUP_AFFINITY *gaP)
 {
     Tcl_Obj *objs[2];
     objs[0] = ObjFromKAFFINITY(gaP->Mask);
@@ -153,9 +138,9 @@ static Tcl_Obj *ObjFromGROUP_AFFINITY(TWAPI_GROUP_AFFINITY *gaP)
     return ObjNewList(2, objs);
 }
 
-static Tcl_Obj *ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX(
-    TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiexP
-    )
+static Tcl_Obj *
+ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX(
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX slpiexP)
 {
     Tcl_Obj *objs[2];
     Tcl_Obj *elems[6];
@@ -206,66 +191,25 @@ static Tcl_Obj *ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX(
 
 }
 
-static Tcl_Obj *ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION(
-    TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION *slpiP
-    )
-{
-    Tcl_Obj *objs[3];
-    Tcl_Obj *elems[5];
-
-    objs[0] = ObjFromULONG_PTR(slpiP->ProcessorMask);
-    objs[1] = ObjFromLong(slpiP->Relationship);
-    
-    switch (slpiP->Relationship) {
-    case TwapiRelationCache:
-        elems[0] = ObjFromLong(slpiP->Cache.Level);
-        elems[1] = ObjFromLong(slpiP->Cache.Associativity);
-        elems[2] = ObjFromLong(slpiP->Cache.LineSize);
-        elems[3] = ObjFromDWORD(slpiP->Cache.Size);
-        elems[4] = ObjFromLong(slpiP->Cache.Type);
-        objs[2] = ObjNewList(5, elems);
-        break;
-    case TwapiRelationNumaNode:
-        objs[2] = ObjFromLong(slpiP->NumaNode.NodeNumber);
-        break;
-    case TwapiRelationProcessorCore:
-        objs[2] = ObjFromLong(slpiP->ProcessorCore.Flags);
-        break;
-    case TwapiRelationGroup: /* TBD - add support */
-    case TwapiRelationProcessorPackage:
-    default:
-        objs[2] = ObjFromEmptyString();
-        break;
-    }
-
-    return ObjNewList(3, objs);
-}
-
-
 TCL_RESULT Twapi_GetLogicalProcessorInformationEx(
     Tcl_Interp *interp,
     TWAPI_LOGICAL_PROCESSOR_RELATIONSHIP rel
     )
 {
-    FARPROC fn;
     DWORD sz = 0, winerr;
-    TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX *slpiexP;
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX slpiexP;
     MemLifoSize len;
-
-    fn = Twapi_GetProc_GetLogicalProcessorInformationEx();
-    if (fn == NULL)
-        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
 
     slpiexP = SWSPushFrame(1000, &len);
     sz = len > ULONG_MAX ? ULONG_MAX : (DWORD) len;
 
     winerr = ERROR_SUCCESS;
-    if (fn(rel, slpiexP, &sz) == 0) {
+    if (GetLogicalProcessorInformationEx(rel, slpiexP, &sz) == 0) {
         winerr = GetLastError();
         if (winerr == ERROR_INSUFFICIENT_BUFFER) {
             winerr = ERROR_SUCCESS;
             slpiexP = SWSAlloc(sz, NULL);
-            if (fn(rel, slpiexP, &sz) == 0)
+            if (GetLogicalProcessorInformationEx(rel, slpiexP, &sz) == 0)
                 winerr = GetLastError();
         }
     }
@@ -281,45 +225,7 @@ TCL_RESULT Twapi_GetLogicalProcessorInformationEx(
         while (used < sz) {
             ObjAppendElement(NULL, objP, ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX(slpiexP));
             used += slpiexP->Size;
-            slpiexP = ADDPTR(slpiexP, slpiexP->Size, TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*);
-        }
-        ObjSetResult(interp, objP);
-    }
-    SWSPopFrame();
-    return winerr == ERROR_SUCCESS ? TCL_OK : Twapi_AppendSystemError(interp, winerr);
-}
-
-TCL_RESULT Twapi_GetLogicalProcessorInformation(Tcl_Interp *interp)
-{
-    FARPROC fn;
-    DWORD sz = 0, winerr;
-    TWAPI_SYSTEM_LOGICAL_PROCESSOR_INFORMATION *slpiP;
-    MemLifoSize len;
-
-    fn = Twapi_GetProc_GetLogicalProcessorInformation();
-    if (fn == NULL)
-        return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
-
-    slpiP = SWSPushFrame(1000, &len);
-    sz = len > ULONG_MAX ? ULONG_MAX : (DWORD) len;
-    winerr = ERROR_SUCCESS;
-    if (fn(slpiP, &sz) == 0) {
-        winerr = GetLastError();
-        if (winerr == ERROR_INSUFFICIENT_BUFFER) {
-            winerr = ERROR_SUCCESS;
-            slpiP = SWSAlloc(sz, NULL);
-            if (fn(slpiP, &sz) == 0)
-                winerr = GetLastError();
-        }
-    }
-    if (winerr == ERROR_SUCCESS) {
-        Tcl_Obj *objP = ObjNewList(0, NULL);
-        int used;
-        used = 0;
-        while ((used + sizeof(*slpiP)) < sz) {
-            ObjAppendElement(NULL, objP, ObjFromSYSTEM_LOGICAL_PROCESSOR_INFORMATION(slpiP));
-            used += sizeof(*slpiP);
-            ++slpiP;
+            slpiexP = ADDPTR(slpiexP, slpiexP->Size, SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*);
         }
         ObjSetResult(interp, objP);
     }
@@ -557,7 +463,6 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
     TIME_ZONE_INFORMATION *tzinfoP;
     int func = PtrToInt(clientdata);
     Tcl_Obj *sObj, *s2Obj;
-    FARPROC fn;
 
     --objc;
     ++objv;
@@ -567,8 +472,6 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
         if (objc != 0)
             return TwapiReturnError(interp, TWAPI_BAD_ARG_COUNT);
         switch (func) {
-        case 32:
-            return Twapi_GetLogicalProcessorInformation(interp);
         case 33:
             result.value.unicode.len = sizeof(u.buf)/sizeof(u.buf[0]);
             if (GetComputerNameW(u.buf, (DWORD *) &result.value.unicode.len)) {
@@ -681,13 +584,9 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
                 result.type = TRT_GETLASTERROR;
             break;
         case 1007: // GetProductInfo
-            fn = Twapi_GetProc_GetProductInfo();
-            if (fn == NULL) {
-                return Twapi_AppendSystemError(interp, ERROR_PROC_NOT_FOUND);
-            }
             result.value.ival = 0;
             result.type = TRT_DWORD;
-            (*fn)(6,0,0,0, &result.value.ival);
+            GetProductInfo(6,0,0,0, &result.value.uval);
             break;
         }
     }
@@ -699,7 +598,6 @@ static int Twapi_OsCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int obj
 static int TwapiOsInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct fncode_dispatch_s OsDispatch[] = {
-        DEFINE_FNCODE_CMD(GetLogicalProcessorInformation, 32),
         DEFINE_FNCODE_CMD(GetComputerName, 33),
         DEFINE_FNCODE_CMD(GetSystemInfo, 34),
         DEFINE_FNCODE_CMD(GlobalMemoryStatus, 35),
