@@ -973,6 +973,7 @@ proc twapi::_hostname_resolve_handler {id status addrandports} {
 # returns. Note level 6 and higher is two orders of magnitude more expensive
 # to get for IPv4 and crashes in Windows for IPv6 (silently downgraded to
 # level 5 for IPv6)
+# TBD - is this crash bug still true in current Windows versions?
 twapi::proc* twapi::_get_all_tcp {sort level address_family} {
     variable _tcp_buf
     set _tcp_buf(ptr) NULL
@@ -988,25 +989,12 @@ twapi::proc* twapi::_get_all_tcp {sort level address_family} {
         set level 5;            # IPv6 crashes for levels > 5 - Windows bug
     }
 
-    # Get required size of buffer. This also verifies that the
-    # GetExtendedTcpTable API exists on this system
-    # TBD - modify to do this check only once and not on every call
-
-    if {[catch {twapi::GetExtendedTcpTable $_tcp_buf(ptr) $_tcp_buf(size) $sort $address_family $level} bufsz]} {
-        # No workee, try AllocateAndGetTcpExTableFromStack
-        # Note if GetExtendedTcpTable is not present, ipv6 is not
-        # available
-        if {$address_family == 2} {
-            return [AllocateAndGetTcpExTableFromStack $sort 0]
-        } else {
-            return {}
-        }
-    }
-
     # The required buffer size might change as connections
     # are added or deleted. So we sit in a loop.
     # Non-0 value indicates buffer was not large enough
     # For safety, we only retry 10 times
+    set bufsz [twapi::GetExtendedTcpTable $_tcp_buf(ptr) $_tcp_buf(size) \
+	              $sort $address_family $level]
     set i 0
     while {$bufsz && [incr i] <= 10} {
         if {! [pointer_null? $_tcp_buf(ptr)]} {
@@ -1014,14 +1002,14 @@ twapi::proc* twapi::_get_all_tcp {sort level address_family} {
             set _tcp_buf(ptr) NULL
             set _tcp_buf(size) 0
         }
-        
+
         set _tcp_buf(ptr) [malloc $bufsz]
         set _tcp_buf(size) $bufsz
 
         set bufsz [GetExtendedTcpTable $_tcp_buf(ptr) $_tcp_buf(size) $sort $address_family $level]
     }
 
-    if ($bufsz) {
+    if {$bufsz} {
         # Repeated attempts failed
         win32_error 122
     }
@@ -1045,21 +1033,12 @@ twapi::proc* twapi::_get_all_udp {sort level address_family} {
         set level 5;            # IPv6 crashes for levels > 5 - Windows bug
     }
 
-    # Get required size of buffer. This also verifies that the
-    # GetExtendedTcpTable API exists on this system
-    if {[catch {twapi::GetExtendedUdpTable $_udp_buf(ptr) $_udp_buf(size) $sort $address_family $level} bufsz]} {
-        # No workee, try AllocateAndGetUdpExTableFromStack
-        if {$address_family == 2} {
-            return [AllocateAndGetUdpExTableFromStack $sort 0]
-        } else {
-            return {}
-        }
-    }
-
     # The required buffer size might change as connections
     # are added or deleted. So we sit in a loop.
     # Non-0 value indicates buffer was not large enough
     # For safety, we only retry 10 times
+    set bufsz [twapi::GetExtendedUdpTable $_udp_buf(ptr) $_udp_buf(size) \
+	             $sort $address_family $level]
     set i 0
     while {$bufsz && [incr i] <= 10} {
         if {! [pointer_null? $_udp_buf(ptr)]} {
@@ -1067,14 +1046,12 @@ twapi::proc* twapi::_get_all_udp {sort level address_family} {
             set _udp_buf(ptr) NULL
             set _udp_buf(size) 0
         }
-        
         set _udp_buf(ptr) [malloc $bufsz]
         set _udp_buf(size) $bufsz
-
         set bufsz [GetExtendedUdpTable $_udp_buf(ptr) $_udp_buf(size) $sort $address_family $level]
     }
 
-    if ($bufsz) {
+    if {$bufsz} {
         # Repeated attempts failed
         win32_error 122
     }

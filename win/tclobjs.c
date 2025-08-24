@@ -5040,7 +5040,7 @@ TwapiDecryptDataSWS(Tcl_Interp *interp,
                     ULONG      *noutP)
 {
     TCL_RESULT res;
-    ULONG nout;
+    ULONG nout = 0;
     BYTE *outP;
 
     res = TwapiDecryptData(interp, encP, nenc, NULL, &nout);
@@ -5098,7 +5098,7 @@ TWAPI_EXTERN WCHAR * ObjDecryptWinCharsSWS(Tcl_Interp *interp,
                           Tcl_Size *ncharsP /* May be NULL */
     )
 {
-    ULONG nenc, ndec;
+    ULONG nenc, ndec = 0;
     BYTE *enc, *dec;
     TCL_RESULT res;
     Tcl_Size len;
