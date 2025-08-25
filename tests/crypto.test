@@ -1234,7 +1234,6 @@ namespace eval twapi::crypto::test {
         set matches 0
         set cert NULL
         foreach substring {microsoft GTS SSL.com} {
-            puts "Trying $substring"
             while {1} {
                 set cert [twapi::cert_store_find_certificate $hstore subject_substring $substring $cert]
                 if {$cert eq ""} break
@@ -1550,7 +1549,7 @@ namespace eval twapi::crypto::test {
         set path [write_test_file [twapi::cert_store_export_pfx [samplestore] ""]]
         lassign [openssl pkcs12 -in $path -info -passin pass:] stdout stderr
         list \
-            [regexp -all {issuer=/CN=twapitest(ca|intermediate)/C=IN/O=Tcl/OU=twapi} $stdout] \
+            [regexp -all {issuer=CN=twapitest(ca|intermediate), C=IN, O=Tcl, OU=twapi} $stdout] \
             [regexp -all {Certificate bag} $stderr] 
     } -result {7 7}
 
@@ -1566,7 +1565,7 @@ namespace eval twapi::crypto::test {
         set path [write_test_file [twapi::cert_store_export_pfx [samplestore] [twapi::conceal pkcspass]]]
         lassign [openssl pkcs12 -in $path -info -passin pass:pkcspass] stdout stderr
         list \
-            [regexp -all {issuer=/CN=twapitest(ca|intermediate)/C=IN/O=Tcl/OU=twapi} $stdout] \
+            [regexp -all {issuer=CN=twapitest(ca|intermediate), C=IN, O=Tcl, OU=twapi} $stdout] \
             [regexp -all {Certificate bag} $stderr] 
     } -result {7 7}
 
@@ -1640,7 +1639,7 @@ namespace eval twapi::crypto::test {
     } -body {
         set path [write_test_file [twapi::cert_store_export_pkcs7 [samplestore]]]
         lassign [openssl pkcs7 -in $path -noout -inform pem -print_certs] output stderr
-        llength [regexp -inline -all {subject=/CN=twapitest} $output]
+        llength [regexp -inline -all {subject=CN=twapitest} $output]
     } -result 6
 
     test cert_store_export_pkcs7-2.0 {
@@ -1648,7 +1647,7 @@ namespace eval twapi::crypto::test {
     } -body {
         set path [write_test_file [twapi::cert_store_export_pkcs7 [samplestore] -encoding der]]
         lassign [openssl pkcs7 -in $path -noout -inform der -print_certs] output stderr
-        llength [regexp -inline -all {subject=/CN=twapitest} $output]
+        llength [regexp -inline -all {subject=CN=twapitest} $output]
     } -result 6
 
     test cert_store_export_pkcs7-2.1 {
@@ -1656,7 +1655,7 @@ namespace eval twapi::crypto::test {
     } -body {
         set path [write_test_file [twapi::cert_store_export_pkcs7 [samplestore] -encoding pem]]
         lassign [openssl pkcs7 -in $path -noout -print_certs] output stderr
-        llength [regexp -inline -all {subject=/CN=twapitest} $output]
+        llength [regexp -inline -all {subject=CN=twapitest} $output]
     } -result 6
 
     ################################################################
@@ -2740,9 +2739,9 @@ namespace eval twapi::crypto::test {
         set path [write_test_file $req wb]
         lassign [openssl req -inform der -in $path -noout -text -verify] stdout stderr
         list [regexp "Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Key Encipherment, Key Agreement\n.+X509v3 Extended Key Usage: critical.+TLS Web Client Authentication\n.+" $stdout] \
-            [string match "*verify OK*" $stderr] $stderr
+            [expr {$stderr eq "" || [string first "verify OK" $stderr] >= 0}]
     } -result {1 1}
-    
+
     test cert_request_create-1.1 {
         Create a certificate request for a TLS server (PEM)
     } -setup {
@@ -2755,7 +2754,7 @@ namespace eval twapi::crypto::test {
         set path [write_test_file $req w]
         lassign [openssl req -in $path -noout -text -verify] stdout stderr
         list [regexp "Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Key Encipherment, Key Agreement\n.+X509v3 Extended Key Usage: critical.+TLS Web Server Authentication\n" $stdout] \
-            [string match "*verify OK*" $stderr]
+            [expr {$stderr eq "" || [string first "verify OK" $stderr] >= 0}]
     } -result {1 1}
     
     test cert_request_create-1.2 {
@@ -2770,7 +2769,7 @@ namespace eval twapi::crypto::test {
         set path [write_test_file $req wb]
         lassign [openssl req -in $path -inform pem -noout -text -verify] stdout stderr
         list [regexp "Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE\\s+Signature Algorithm:" $stdout] \
-            [string match "*verify OK*" $stderr]
+            [expr {$stderr eq "" || [string first "verify OK" $stderr] >= 0}]
     } -result {1 1}
 
     test cert_request_create-1.3 {
@@ -2793,7 +2792,7 @@ namespace eval twapi::crypto::test {
         # Single regexp overflows the stack so we need break it up
         list [regexp "Certificate Request:.+Subject: $x509_name.+X509v3 Basic Constraints: critical.+CA:FALSE.+X509v3 Key Usage: critical.+Digital Signature, Non Repudiation, Key Encipherment, Data Encipherment, Key Agreement, Certificate Sign, CRL Sign\\s+X509v3 Extended Key Usage:\\s+OCSP Signing, TLS Web Server Authentication, IPSec End System, IPSec Tunnel, TLS Web Client Authentication, IPSec User, Code Signing, Time Stamping, E-mail Protection\\s" $stdout] \
             [regexp ".+X509v3 Subject Alternative Name:.+email:${subject}@twapitest.com, DNS:${subject}.twapitest.com, URI:http://${subject}.twapitest.com, DirName:/CN=${subject}altname, IP Address:127.0.0.1" $stdout] \
-            [string match "*verify OK*" $stderr]
+            [expr {$stderr eq "" || [string first "verify OK" $stderr] >= 0}]
     } -result {1 1 1}
 
 

@@ -1625,7 +1625,6 @@ proc temp_crypto_dir_path {} {
     return $temp_crypto_dir_path
 }
 
-
 proc temp_file_store_path {} {
     variable temp_file_store_path
 
@@ -1677,9 +1676,6 @@ proc openssl_exe_path {} {
     if {[info exists ::env(OPENSSL_EXEPATH)]} {
         set path $::env(OPENSSL_EXEPATH)
     } {
-        # mingw latest versions do not support des-cfb etc.
-        #set path {C:\msys64\mingw32\bin\openssl.exe}
-
         set path [file join [testdir] .. tools openssl bin openssl.exe]
     }
     return [file normalize $path]
@@ -1692,6 +1688,8 @@ proc openssl {args} {
     set ::env(OPENSSL_CONF) [openssl_store_path ssl openssl.cnf]
     set stderr_temp [file join [temp_crypto_dir_path] twapi-openssl-stderr.tmp]
     set status 0
+
+    # openssl versions are not consistent in writing to stderr even on success.
     if {[catch {exec -keepnewline -- $cmd {*}$args 2> $stderr_temp} stdout options]} {
         if {[lindex [dict get $options -errorcode] 0] eq "CHILDSTATUS"} {
             error "$stdout. Stderror: [read_binary $stderr_temp]"
