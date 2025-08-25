@@ -2393,7 +2393,7 @@ static TCL_RESULT Twapi_CallCOMObjCmd(ClientData clientdata, Tcl_Interp *interp,
         case 508: // RecordCopy
             if (objc != 3)
                 goto badargs;
-            if (ObjToLPVOID(interp, objv[1], &pv) != TCL_OK &&
+            if (ObjToLPVOID(interp, objv[1], &pv) != TCL_OK ||
                 ObjToLPVOID(interp, objv[2], &pv2) != TCL_OK)
                 goto ret_error;
             result.type = TRT_EMPTY;
