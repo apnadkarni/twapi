@@ -369,7 +369,7 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
 
     if (session_name_i >= 0) {
         DWORD dw;
-        CHECK_RESULT(ObjToWinCharsDW(interp, objv[session_name_i], &dw, &session_name));
+        CHECK_RESULT(ObjToWinCharsDW(interp, objv[session_name_i+1], &dw, &session_name));
         session_name_i = dw;
     } else {
         session_name_i = 0;
@@ -377,7 +377,7 @@ TCL_RESULT ObjToPEVENT_TRACE_PROPERTIES(
 
     if (logfile_name_i >= 0) {
         DWORD dw;
-        CHECK_RESULT(ObjToWinCharsDW(interp, objv[logfile_name_i], &dw, &logfile_name));
+        CHECK_RESULT(ObjToWinCharsDW(interp, objv[logfile_name_i+1], &dw, &logfile_name));
         logfile_name_i = dw;
     } else {
         logfile_name_i = 0;

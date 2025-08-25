@@ -512,7 +512,8 @@ namespace eval twapi::etw::test {
     } -result {1 0}
 
     test etw_provider-1.0 {
-        Tests etw_start_trace/etw_stop_trace/etw_log_message/etw_enable_trace/etw_disable_trace
+        etw_start_trace/etw_stop_trace/etw_log_message/etw_enable_trace/etw_disable_trace
+        using provider guid
     } -constraints {
         privileged
     } -setup {
@@ -523,7 +524,7 @@ namespace eval twapi::etw::test {
         set hprov [twapi::etw_twapi_provider_register]
         set htrace [twapi::etw_start_trace $tracename -logfile $etl]
         twapi::etw_enable_provider $htrace [twapi::etw_twapi_provider_guid] -1 5
-        set wait_time 2000;      # Need to wait for level changes to effect
+        set wait_time 100;      # Need to wait for level changes to effect
         after $wait_time;              # Needs a bit of time to take effect
         set curtid [twapi::get_current_thread_id]
         for {set level 5} {$level > 0} {incr level -1} {
@@ -546,7 +547,42 @@ namespace eval twapi::etw::test {
             twapi::etw_flush_trace  $htrace
         }
 
-        # Repeat using tokens for levels
+        # Now disable the provider and try to log
+        twapi::etw_disable_provider $htrace [twapi::etw_twapi_provider_guid]
+        after $wait_time
+        twapi::etw_log_message $hprov "fatal (provider disabled)" 1
+        twapi::etw_flush_trace  $htrace
+        twapi::etw_stop_trace  $htrace
+        # Now see if messages were logged as expected
+        set errors {}
+        set htrace [twapi::etw_open_file $etl]
+        set formatter [twapi::etw_open_formatter]
+        set events [twapi::etw_format_events $formatter {*}[twapi::etw_process_events $htrace]]
+        twapi::etw_close_formatter $formatter
+        set result {}
+        foreach event [twapi::recordarray getlist $events -format dict] {
+            if {[dict get $event -providername] in {TwapiETWEventClass TwapiETWProvider}} {
+                lappend result [dict get $event -properties Message]
+            }
+        }
+        set result
+    } -result {SETLEVEL_5 default 1 2 3 4 5 SETLEVEL_4 default 1 2 3 4 SETLEVEL_3 1 2 3 SETLEVEL_2 1 2 SETLEVEL_1 1}
+
+    test etw_provider-1.1 {
+        etw_start_trace/etw_stop_trace/etw_log_message/etw_enable_trace/etw_disable_trace
+        using provider name
+    } -constraints {
+        privileged
+    } -setup {
+        twapi::etw_install_twapi_mof
+    } -body {
+        set etl [new_etl_filepath]
+        set tracename "TWAPITEST_[clock microseconds]"
+        set hprov [twapi::etw_twapi_provider_register]
+        set htrace [twapi::etw_start_trace $tracename -logfile $etl]
+        twapi::etw_enable_provider $htrace [twapi::etw_twapi_provider_name] -1 5
+        set wait_time 100;      # Need to wait for level changes to effect
+        after $wait_time;              # Needs a bit of time to take effect
         set curtid [twapi::get_current_thread_id]
         foreach level {verbose informational warning error fatal} {
             set tid [twapi::get_current_thread_id]
@@ -587,7 +623,7 @@ namespace eval twapi::etw::test {
             }
         }
         set result
-    } -result {SETLEVEL_5 default 1 2 3 4 5 SETLEVEL_4 default 1 2 3 4 SETLEVEL_3 1 2 3 SETLEVEL_2 1 2 SETLEVEL_1 1 SETLEVEL_verbose default fatal error warning informational verbose SETLEVEL_informational default fatal error warning informational SETLEVEL_warning fatal error warning SETLEVEL_error fatal error SETLEVEL_fatal fatal}
+    } -result {SETLEVEL_verbose default fatal error warning informational verbose SETLEVEL_informational default fatal error warning informational SETLEVEL_warning fatal error warning SETLEVEL_error fatal error SETLEVEL_fatal fatal}
 
 
     ################################################################

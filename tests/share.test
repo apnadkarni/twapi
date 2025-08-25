@@ -2138,7 +2138,7 @@ namespace eval twapi::share::test {
     } -body {
         # Find the file id for the file
         set lm_fid [twapi::recordarray cell [twapi::find_lm_open_files -id -basepath [file join $testshares(export_dir_unmapped) $fn]] 0 -id]
-        verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -user] [list -user] [list -user $env(USERNAME)]
+        verify_lm_test_openfile [twapi::get_lm_open_file_info $lm_fid -user] [list -user] [list -user $::env(USERNAME)]
     } -cleanup {
         close $fd
     } -result ""

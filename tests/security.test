@@ -53,7 +53,7 @@ namespace eval twapi::security::test {
     variable administrator_sid [name2sid $administrator_account_name]
 
     # Low Integrity file
-    if {[info exists env(LOCALAPPDATA)]} {
+    if {[info exists ::env(LOCALAPPDATA)]} {
         variable low_integrity_file [file join [file dirname $::env(LOCALAPPDATA)] LocalLow]
     } else {
         variable low_integrity_file $::env(APPDATA); # Does not really matter

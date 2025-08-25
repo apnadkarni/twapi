@@ -116,10 +116,8 @@ proc twapi::get_shares {args} {
         if {$special && $opts(excludespecial)} {
             continue
         }
-        # We need the special cast to int because else operands get promoted
-        # to 64 bits as the hex is treated as an unsigned value
         set share_type [$record_proc -type $rec]
-        if {[info exists type_filter] && [expr {int($share_type & ~ $special)}] != $type_filter} {
+        if {[info exists type_filter] && [expr {0xffffffff & ($share_type & ~ $special)}] != $type_filter} {
             continue
         }
         set rec [$record_proc set $rec -type [_share_type_code_to_symbols $share_type]]
@@ -920,14 +918,13 @@ proc twapi::_share_type_code_to_symbols {type} {
 
     # We need the special cast to int because else operands get promoted
     # to 64 bits as the hex is treated as an unsigned value
-    switch -exact -- [expr {int($type & ~ $special)}] {
+    switch -exact -- [expr {0xffffffff & ($type & ~ $special)}] {
         0  {set sym "file"}
         1  {set sym "printer"}
         2  {set sym "device"}
         3  {set sym "ipc"} 
         default {set sym $type}
     }
-
     set typesyms [list $sym]
 
     if {$special & 0x80000000} {

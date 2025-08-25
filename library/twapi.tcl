@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2003-2018, Ashok P. Nadkarni
+# Copyright (c) 2003-2025, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -298,15 +298,14 @@ proc twapi::_array_non_zero_switches {v_arr indices all} {
 
 
 # Bitmask operations on 32bit values
-# The int() casts are to deal with hex-decimal sign extension issues
 proc twapi::setbits {v_bits mask} {
     upvar $v_bits bits
-    set bits [expr {int($bits) | int($mask)}]
+    set bits [expr {0xffffffff & ($bits | $mask)}]
     return $bits
 }
 proc twapi::resetbits {v_bits mask} {
     upvar $v_bits bits
-    set bits [expr {int($bits) & int(~ $mask)}]
+    set bits [expr {0xffffffff & ($bits & ~ $mask)}]
     return $bits
 }
 
