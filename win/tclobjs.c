@@ -4721,8 +4721,13 @@ TWAPI_EXTERN TCL_RESULT ObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *dwP
 TWAPI_EXTERN TCL_RESULT ObjToDWORD_PTR(Tcl_Interp *interp, Tcl_Obj *objP, DWORD_PTR *dwP)
 {
 #if defined(_WIN64)
-    Tcl_WideInt val;
-    TCL_RESULT res = Tcl_GetWideIntFromObj(interp, objP, &val);
+    Tcl_WideUInt val;
+    TCL_RESULT res = ObjToWideUInt(interp, objP, &val);
+    if (res != TCL_OK) {
+        Tcl_WideInt sval;
+        res = Tcl_GetWideIntFromObj(interp, objP, &sval);
+	val = (Tcl_WideUInt) sval;
+    }
 #else
     long val;
     TCL_RESULT res = Tcl_GetLongFromObj(interp, objP, &val);
