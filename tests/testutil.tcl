@@ -1687,7 +1687,6 @@ proc openssl {args} {
     set cmd [openssl_exe_path]
     set ::env(OPENSSL_CONF) [openssl_store_path ssl openssl.cnf]
     set stderr_temp [file join [temp_crypto_dir_path] twapi-openssl-stderr.tmp]
-    set status 0
 
     # openssl versions are not consistent in writing to stderr even on success.
     if {[catch {exec -keepnewline -- $cmd {*}$args 2> $stderr_temp} stdout options]} {
@@ -1706,8 +1705,6 @@ proc openssl {args} {
 proc openssl& {args} {
     set cmd [openssl_exe_path]
     set ::env(OPENSSL_CONF) [openssl_store_path ssl openssl.cnf]
-    set stderr_temp [file join [temp_crypto_dir_path] twapi-openssl-stderr.tmp]
-    set status 0
     return [open |[list $cmd {*}$args 2>@1]]
 }
 

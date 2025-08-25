@@ -1510,7 +1510,7 @@ test tls-client-openssl-1.0.1 {
     set so [twapi::tls_socket -verifier [list openssl_verify www.simple.org] 127.0.0.1 [openssl_port]]
     # openssl server will only handle up to 16382 bytes
     set data [string range [string repeat abcdefghij 1640] 0 16381]
-    puts -nonewline $so $data ; flush $so
+    puts $so $data ; flush $so
     set response [read $so 16382]
     close $so
     list [string equal [string reverse $response] $data] [regexp {CONNECTION ESTABLISHED.*CONNECTION CLOSED} [read $fd]]
@@ -1565,7 +1565,7 @@ test tls-client-openssl-3.0 {
     puts $so "1234" ; flush $so
     set response [gets $so]
     close $so
-    list $response [regexp {CONNECTION ESTABLISHED.*Peer certificate: C = US, O = Simple Inc, CN = Simple User.*CONNECTION CLOSED} [read $fd]]
+    list $response [regexp {CONNECTION ESTABLISHED.*Peer certificate: DC=org, DC=simple, O=Simple Inc, CN=Simple User.*CONNECTION CLOSED} [read $fd]]
 } -result {4321 1}
 
 
@@ -1672,7 +1672,7 @@ test tls-server-openssl-1.1 {
     }}]
 } -cleanup {
     interp bgerror {} $bgproc
-    close $fd
+    catch {close $fd}; # Since openssl will exit with error on fail
 } -body {
     set after_id [after 5000 [list set ::done timeout]]
     set listener [twapi::tls_socket -server $acceptor -credentials $::serverCreds -requestclientcert -verifier [list openssl_verify ""] 9234]
@@ -1680,7 +1680,6 @@ test tls-server-openssl-1.1 {
     set fd [openssl& s_client -connect 127.0.0.1:9234]
     vwait ::done
     after cancel $after_id
-    set ::done
     close $listener
     # Verify the accept socket is also closed. There should be no rc* channels
     list $::done [chan names rc*]

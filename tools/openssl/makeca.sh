@@ -53,9 +53,26 @@ SAN=DNS:www.simple.org \
     -config etc/server.conf \
     -out certs/simple.org.csr \
     -keyout certs/simple.org.key
-
+echo Creating server cert...
 openssl ca \
         -config etc/signing-ca.conf \
         -in certs/simple.org.csr \
         -out certs/simple.org.crt \
         -extensions server_ext
+
+echo Creating cert chain PKCS7 bundle...
+openssl crl2pkcs7 -nocrl \
+        -certfile ca/signing-ca.crt \
+        -certfile ca/root-ca.crt \
+        -out ca/ca-chain.p7b \
+        -outform pem
+
+echo Creating cert chain in PEM format needed by s_server...
+openssl pkcs7 -in ca/ca-chain.p7b  -print_certs > ca/ca-chain.pem
+
+echo Creating PKCS#12 / PFX client bundle...
+openssl pkcs12 -export \
+        -name "Simple User" \
+        -in certs/simpleuser.crt \
+        -inkey certs/simpleuser.key \
+        -out certs/simpleuser.pfx
