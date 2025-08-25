@@ -207,8 +207,8 @@ namespace eval twapi::parseargs::test {
         Verify parsing of arguments of type int that are octal
     } -body {
         unset -nocomplain opts
-        set vargs {-a 0123 extraarg}
-        array set opts [twapi::parseargs vargs {{a.int 2} {b.int 010}}]
+        set vargs {-a 0o123 extraarg}
+        array set opts [twapi::parseargs vargs {{a.int 2} {b.int 0o10}}]
         expr {
               [llength $vargs] == 1 &&
               [string equal [lindex $vargs 0] "extraarg"] &&

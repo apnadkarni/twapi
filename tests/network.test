@@ -1115,30 +1115,20 @@ namespace eval twapi::network::test {
     test terminate_tcp_connections-3.0 {
         Terminate TCP connections for a remote address (-matchremoteaddress)
     } -setup {
-        set addrA 127.0.0.1
-        set addrB [our_ipaddr]
-        set nconns [twapi::recordarray size [twapi::get_tcp_connections -pid]]
-        set server_socket [socket -server [list lappend ::connection_establised 1] -myaddr $addrA 9341]
-        set server_socket2 [socket -server [list lappend ::connection_establised 1] -myaddr $addrB 9342]
-        set client_socket [socket $addrA 9341]
-        set client_socket2 [socket $addrB 9342]
+        set addr8 8.8.8.8
+        set addr4 8.8.4.4
+        set client8 [socket $addr8 53]
+        set client4 [socket $addr4 53]
     } -body {
         # Assumes no other extraneous connections are created on the system
-        twapi::terminate_tcp_connections -matchremoteaddr $addrA
-        set conns [twapi::get_tcp_connections -pid]
-        # One active connections should be gone (both server listen socket
-        # will still be present). This also verifies somewhat that
-        # we did not kill connections from other processes.
-        set nconnsdiff [expr {[twapi::recordarray size $conns] - $nconns}]
-        # Depending on Tcl version 2 or 4 sockets will be created
-        list [expr {$nconnsdiff == 2 || $nconnsdiff == 4}] \
-            [twapi::get_tcp_connections -pid -matchpid [pid]]
+        set connsBefore [twapi::get_tcp_connections -matchpid [pid]]
+        twapi::terminate_tcp_connections -matchremoteaddr $addr8
+        set connsAfter [twapi::get_tcp_connections -matchpid [pid]]
+        list [twapi::recordarray size $connsBefore] [twapi::recordarray size $connsAfter]
     } -cleanup {
-        close $server_socket
-        close $server_socket2
-        close $client_socket
-        close $client_socket2
-    } -result [list 1 [list [list -pid] [list [pid] [pid] [pid] [pid]]]]
+        catch {close $client8}
+        catch {close $client4}
+    } -result {2 1}
 
     test terminate_tcp_connections-4.0 {
         Terminate TCP connections for a local address (-matchlocaladdress)

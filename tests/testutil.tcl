@@ -1132,7 +1132,6 @@ proc verify_list_match_regexp {cond l} {
 }
 tcltest::customMatch listregexp verify_list_match_regexp
 
-
 # Verify two lists are equal
 proc equal_lists {l1 l2} {
     if {[llength $l1] != [llength $l2]} {
@@ -1147,7 +1146,7 @@ proc equal_lists {l1 l2} {
 }
 tcltest::customMatch list equal_lists
 
-# Verify two lists are equal
+# Verify two dicts are equal
 proc equal_dicts {l1 l2} {
     if {[dict size $l1] != [dict size $l2]} {
         return 0
@@ -1826,25 +1825,27 @@ proc ::setops::union {args} {
    array names {}
 }
 
-proc ::setops::diff {A B} {
-    if {[llength $A] == 0} {
-	 return {}
+proc ::setops::diff {a b} {
+    if {[llength $a] == 0} {
+        return {}
     }
-    if {[llength $B] == 0} {
-	 return $A
+    if {[llength $b] == 0} {
+        return $a
     }
 
-    # get the variable B out of the way, avoid collisions
-    # prepare for "pure list optimisation"
-    set ::setops::tmp [lreplace $B -1 -1 unset -nocomplain]
-    unset B
+    set res {}
 
-    # unset A early: no local variables left
-    foreach [lindex [list $A [unset A]] 0] {.} {break}
+    foreach e $b {
+        set ba($e) .
+    }
 
-    eval $::setops::tmp
+    foreach e $a {
+        if {![info exists ba($e)]} {
+            lappend res $e
+        }
+    }
 
-    info locals
+    return $res
 }
 
 proc ::setops::contains {set element} {
