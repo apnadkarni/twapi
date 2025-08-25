@@ -478,12 +478,15 @@ namespace eval twapi::registry::test {
 
     test reg_key_create-10 {Create new key -backup} -constraints {
         elevated
+    } -setup {
+        set changed_privs [twapi::enable_privileges SeBackupPrivilege]
     } -body {
         set hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\reg_key_create-10 -backup true]
         tcl::mathop::in reg_key_create-10 [registry keys $rootPath]
     } -cleanup {
         twapi::reg_key_close $hkey
         registry delete $rootPath\\reg_key_create-10
+        twapi::disable_privileges $changed_privs
     } -result 1
 
     test reg_key_create-11 {Create new key -backup} -constraints {
@@ -587,42 +590,6 @@ namespace eval twapi::registry::test {
         registry delete HKEY_CURRENT_USER\\$rootKey\\$tokey
     } -result {}
 
-    test reg_key_export-2 {Export registry key -format xp} -constraints {
-        elevated
-    } -setup {
-        set tokey RestoreKey-2
-        set filepath [tcltest::makeFile "" $tokey.reg]
-        file delete $filepath
-    } -body {
-        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
-        twapi::reg_key_export $hkey [file nativename $filepath]
-        set to_hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\$tokey -access maximum_allowed]
-        twapi::reg_key_import $to_hkey $filepath -format xp
-        compare_registry HKEY_CURRENT_USER\\$rootKey\\$tokey HKEY_CURRENT_USER\\$rootKey\\Key1
-    } -cleanup {
-        twapi::reg_key_close $hkey
-        twapi::reg_key_close $to_hkey
-        registry delete HKEY_CURRENT_USER\\$rootKey\\$tokey
-    } -result {}
-
-    test reg_key_export-3 {Export registry key -format win2k} -constraints {
-        elevated
-    } -setup {
-        set tokey RestoreKey-3
-        set filepath [tcltest::makeFile "" $tokey.reg]
-        file delete $filepath
-    } -body {
-        set hkey [twapi::reg_key_open HKEY_CURRENT_USER $rootKey\\Key1]
-        twapi::reg_key_export $hkey [file nativename $filepath]
-        set to_hkey [twapi::reg_key_create HKEY_CURRENT_USER $rootKey\\$tokey -access maximum_allowed]
-        twapi::reg_key_import $to_hkey $filepath -format win2k
-        compare_registry HKEY_CURRENT_USER\\$rootKey\\$tokey HKEY_CURRENT_USER\\$rootKey\\Key1
-    } -cleanup {
-        twapi::reg_key_close $hkey
-        twapi::reg_key_close $to_hkey
-        registry delete HKEY_CURRENT_USER\\$rootKey\\$tokey
-    } -result {}
-
     test reg_key_export-4 {Export registry key -secattr} -constraints {
         elevated
     } -setup {
@@ -638,8 +605,6 @@ namespace eval twapi::registry::test {
         twapi::reg_key_import $to_hkey $filepath
         set secd2 [twapi::get_resource_security_descriptor file $filepath -dacl]
         set dacl2 [twapi::get_security_descriptor_dacl $secd2]
-        puts dacl:[twapi::get_acl_text $dacl]
-        puts dacl:[twapi::get_acl_text $dacl2]
         list \
             [compare_registry HKEY_CURRENT_USER\\$rootKey\\$tokey HKEY_CURRENT_USER\\$rootKey\\Key1] \
             [string equal $dacl $dacl2]

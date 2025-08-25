@@ -156,7 +156,9 @@ namespace eval twapi::ui::test {
     } -setup {
         set np_pid [notepad_exec]
     } -body {
-        llength [twapi::find_windows -pids [list $np_pid] -caption true]
+        set np_wins [twapi::find_windows -pids [list $np_pid]]
+        set np_wins_cap [twapi::find_windows -pids [list $np_pid] -caption true]
+        expr {[llength $np_wins] > [llength $np_wins_cap]}
     } -cleanup {
         kill $np_pid -wait $end_process_timeout
     } -result 1
