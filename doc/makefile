@@ -6,7 +6,7 @@
 # To build website
 #   nmake ADFILE=google-ads.js ADFILE2=google-ads-horizontal-link-unit.js website
 
-TWAPI_VERSION = 5.1
+TWAPI_VERSION = 5.2
 
 SRCROOT=$(MAKEDIR)\..
 TOOLDIR=$(SRCROOT)\tools

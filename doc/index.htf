@@ -19,6 +19,7 @@
   <li>Browse the <a href="https://github.com/apnadkarni/twapi">SourceForge</a>source repository</li>
   <li>Documentation for older versions: 
     <!-- NOTE: Explicit HTTP links because older doc versions do not support https due to http links to yahoo yui css -->
+    <a href="http://twapi.magicsplat.com/v5.1/index.html">5.1</a>
     <a href="http://twapi.magicsplat.com/v5.0/index.html">5.0</a>
     <a href="http://twapi.magicsplat.com/v4.7/index.html">4.7</a>
     <a href="http://twapi.magicsplat.com/v4.6/index.html">4.6</a>
