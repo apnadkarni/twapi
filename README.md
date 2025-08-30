@@ -4,9 +4,9 @@ The Tcl Windows API (TWAPI) extension provides access to the Windows API
 from within the Tcl scripting language.
 
   * Project source repository is at https://github.com/apnadkarni/twapi
-  * Binary distribution is at https://sourceforge.net/projects/twapi/files/Current%20Releases/Tcl%20Windows%20API/
+  * Binary distribution is at https://github.com/apnadkarni/twapi/releases
   * Documentation is at https://twapi.magicsplat.com
-  * Change history is at https://twapi.magicsplat.com/v5.1/versionhistory.html
+  * Change history is at https://twapi.magicsplat.com/v5.2/versionhistory.html
 
 ## Supported platforms
 

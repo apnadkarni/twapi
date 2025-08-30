@@ -86,7 +86,7 @@ proc transform_file {infile {navfile ""} {adfile ""} {adfile2 ""} {outfile ""}} 
         set navdata [read $navfd]
         close $navfd
         puts $outfd "<div class='yui-u first navigation'>"
-        puts $outfd "<a class='imgbutton' href='http://sourceforge.net/project/showfiles.php?group_id=90123'><img title='Download button' alt='Download' src='download.png' onmouseover='javascript:this.src=\"download_active.png\"' onmouseout='javascript:this.src=\"download.png\"' /></a>"
+        puts $outfd "<a class='imgbutton' href='https://github.com/apnadkarni/twapi/releases'><img title='Download button' alt='Download' src='download.png' onmouseover='javascript:this.src=\"download_active.png\"' onmouseout='javascript:this.src=\"download.png\"' /></a>"
         puts $outfd "<hr style='width: 100px; margin-left: 0pt;'/>"
         puts $outfd "<h2>TWAPI $::twapi_version Documentation</h2>"
         puts $outfd "<ul>\n$navdata\n</ul></div>"
