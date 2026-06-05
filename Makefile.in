@@ -297,6 +297,20 @@ VPATH = $(srcdir):$(srcdir)/win
 .c.@OBJEXT@:
 	$(COMPILE) -c `@CYGPATH@ $<` -o $@
 
+buildinfo.@OBJEXT@:	twapiUuid.h
+
+$(srcdir)/manifest.uuid:
+	printf "git-" >$(srcdir)/manifest.uuid
+	(cd $(srcdir); git rev-parse HEAD >>manifest.uuid || \
+	    (printf "svn-r" >manifest.uuid ; \
+	    svn info --show-item last-changed-revision >>manifest.uuid) || \
+	    printf "unknown" >manifest.uuid)
+
+twapiUuid.h:	$(srcdir)/manifest.uuid
+	echo "#define TWAPI_VERSION_UUID \\" >$@
+	cat $(srcdir)/manifest.uuid >>$@
+	echo "" >>$@
+
 #========================================================================
 # Distribution creation
 # You may need to tweak this target to make it work correctly.

@@ -17,7 +17,7 @@ dnl	to configure the system for the local environment.
 #-----------------------------------------------------------------------
 
 # Leave a space after the comma for release.cmd to parse
-AC_INIT([twapi], [5.2.0])
+AC_INIT([twapi], [5.3a0])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -97,6 +97,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
     TEA_ADD_SOURCES([
 	    win/adsi.c
 	    win/async.c
+            win/buildinfo.c
 	    win/calls.c
 	    win/errors.c
 	    win/ffi.c
