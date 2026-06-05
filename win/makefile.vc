@@ -160,11 +160,6 @@ PRJ_LIBS = $(PRJ_LIBS) \
 	wtsapi32.lib
 
 # Define the standard targets
-# We do not use the standard predefined install targets because we want
-# to load binaries from platform-specific subdirectories of the package
-# directory.
-# TODO - try defining MULTIPLATFORM_INSTALL
-DISABLE_TARGET_install = 1
 !include "$(_RULESDIR)\targets.vc"
 
 pkgindex: default-pkgindex-tea
@@ -187,20 +182,16 @@ $(TMP_DIR)\twapiUuid.h: $(TMP_DIR)\manifest.uuid
 	@type $(TMP_DIR)\manifest.uuid >> $(TMP_DIR)\twapiUuid.h
 	@echo:>>$(TMP_DIR)\twapiUuid.h
 
-install: pkgindex $(PRJLIB) default-install-pdbs default-install-scripts
-	echo Installing to '$(SCRIPT_INSTALL_DIR)'
-	if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
-	if not exist "$(BIN_INSTALL_DIR)" mkdir "$(BIN_INSTALL_DIR)"
-!if $(STATIC_BUILD)
-	$(CPY) $(PRJLIB) "$(LIB_INSTALL_DIR)" >NUL
-	for %f in ($(DYNCALLLIBS)) do @$(CPY) %f "$(LIB_INSTALL_DIR)" >NUL
-!else
-	$(CPY) $(PRJLIB) "$(BIN_INSTALL_DIR)" >NUL
-!endif
-	$(CPY) $(LIBDIR)\*.tcl "$(SCRIPT_INSTALL_DIR)"
-	$(CPY) $(OUT_DIR)\pkgIndex.tcl "$(SCRIPT_INSTALL_DIR)"
+install: pkgindex $(PRJLIB) install_extra
+
+install_extra:
+	@if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
 	$(CPY) $(ROOT)\README.md "$(SCRIPT_INSTALL_DIR)"
 	$(CPY) $(ROOT)\LICENSE "$(SCRIPT_INSTALL_DIR)"
+!if $(STATIC_BUILD)
+	@if not exist "$(LIB_INSTALL_DIR)" mkdir "$(LIB_INSTALL_DIR)"
+	for %f in ($(DYNCALLLIBS)) do @$(CPY) %f "$(LIB_INSTALL_DIR)" >NUL
+!endif
 
 $(PRJ_OBJS): $(HEADERS) $(ROOT)\configure.ac $(PRJ_HEADERS) $(TMP_DIR)\twapiUuid.h
 
