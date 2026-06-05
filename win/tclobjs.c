@@ -9,6 +9,11 @@
 #include "twapi_base.h"
 #include "tclTomMath.h"
 
+/* For older MinGW releases */
+#ifndef ERROR_IMPLEMENTATION_LIMIT
+#define ERROR_IMPLEMENTATION_LIMIT 1292
+#endif
+
 /*
  * Struct for mapping VARTYPE values to strings.
  * We search linearly so order based on most likely types. - TBD make hash

@@ -1388,50 +1388,28 @@ proc twapi::get_process_commandline {pid args} {
             }
         }
 
-        if {1} {
-            if {$cmdline_bytelen == 0} {
-                set cmdline ""
-            } else {
-                trap {
-                    set mem [ReadProcessMemory $hpid $cmdline_addr $cmdline_bytelen]
-                } onerror {TWAPI_WIN32 299} {
-                    # ERROR_PARTIAL_COPY
-                    # Rumour has it this can be a transient error if the
-                    # process is initializing, so try once more
-                    Sleep 0;    # Relinquish control to OS to run other process
-                    # Retry
-                    set mem [ReadProcessMemory $hpid $cmdline_addr $cmdline_bytelen]
-                }
-            }
+        if {$cmdline_bytelen == 0} {
+            set cmdline ""
         } else {
-            THIS CODE NEEDS TO BE MODIFIED IF REINSTATED. THE ReadProcessMemory
-            parameters have changed
-            # Old pre-2.3 code
-            # Now read the command line itself. We do not know the length
-            # so assume MAX_PATH (1024) chars (2048 bytes). However, this may
-            # fail if the memory beyond the command line is not allocated in the
-            # target process. So we have to check for this error and retry with
-            # smaller read sizes
-            set max_len 2048
-            while {$max_len > 128} {
-                trap {
-                    ReadProcessMemory $hpid $cmdline_addr $pgbl $max_len
-                    break
-                } onerror {TWAPI_WIN32 299} {
-                    # Reduce read size
-                    set max_len [expr {$max_len / 2}]
-                }
+            trap {
+                set mem [ReadProcessMemory $hpid $cmdline_addr $cmdline_bytelen]
+            } onerror {TWAPI_WIN32 299} {
+                # ERROR_PARTIAL_COPY
+                # Rumour has it this can be a transient error if the
+                # process is initializing, so try once more
+                Sleep 0;    # Relinquish control to OS to run other process
+                # Retry
+                set mem [ReadProcessMemory $hpid $cmdline_addr $cmdline_bytelen]
             }
-            # OK, got something. It's in Unicode format, may not be null terminated
-            # or may have multiple null terminated strings. THe command line
-            # is the first string.
         }
+        # OK, got something. It's in Unicode format, may not be null terminated
+        # or may have multiple null terminated strings. THe command line
+        # is the first string.
         set cmdline [encoding convertfrom unicode $mem]
         set null_offset [string first "\0" $cmdline]
         if {$null_offset >= 0} {
             set cmdline [string range $cmdline 0 [expr {$null_offset-1}]]
         }
-
     } onerror {TWAPI_WIN32 5} {
         # Access denied
         set cmdline $opts(noaccess)
