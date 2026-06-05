@@ -55,43 +55,34 @@ only supports hashes and signatures. When creating a
 a CSP type that supports the desired operations. The following types
 are recognized:
 [const prov_rsa_full],
+[const prov_rsa_aes],
 [const prov_rsa_sig],
+[const prov_rsa_schannel],
 [const prov_dss],
+[const prov_dss_dh],
+[const prov_dh_schannel],
 [const prov_fortezza],
 [const prov_ms_exchange],
 [const prov_ssl],
-[const prov_rsa_schannel],
-[const prov_dss_dh],
 [const prov_ec_ecdsa_sig],
 [const prov_ec_ecnra_sig],
 [const prov_ec_ecdsa_full],
 [const prov_ec_ecnra_full],
-[const prov_dh_schannel],
 [const prov_spyrus_lynks],
 [const prov_rng],
 [const prov_intel_sec],
-[const prov_replace_owf],
-[const prov_rsa_aes].
+[const prov_replace_owf].
 Refer to the Windows SDK for details about the features provided by each.
-For most applications, the default [const prov_rsa_full] is sufficient.
+On modern systems, [const prov_rsa_aes] is the recommended provider. However,
+the default in most commands is [const prov_rsa_full] for reasons of
+backward compatibility.
 
 [para]
-Two standard providers shipped as part of Windows are
-[const "Microsoft Base Cryptographic Provider"]
-and the
-[const "Microsoft Strong Cryptographic Provider"].
-On most systems, the latter is the default when no specific CSP is selected
-and is sufficient in most cases unless some special functionality like
-hardware based cryptography is desired.
-
-[para]
-The commands
-[uri #csps [cmd csps]] and 
-[uri #csp_types [cmd csp_types]] 
+The commands [uri #csps [cmd csps]] and [uri #csp_types [cmd csp_types]]
 return the list of CSP's and CSP types on the system.
 
 [section "Keys and key containers"]
-The keys used for cryptographic operations are stored in 
+The keys used for cryptographic operations are stored in
 [emph "key containers"] within a CSP's control.
 The keys are not generally exposed directly to an application but rather
 the CSP carries out the operations using the keys on the application's behalf.
@@ -99,7 +90,7 @@ the CSP carries out the operations using the keys on the application's behalf.
 [para]
 A CSP may be associated with multiple key containers, each identified by a name.
 The specific key container and the keys within that container that
-are used for an operation depends on the 
+are used for an operation depends on the
 [sectref "Cryptographic contexts"] is bound at the time the context is
 created via the [uri #crypt_acquire [cmd crypt_acquire]]
 command. This command also allows creation of new key containers within
@@ -108,10 +99,10 @@ a CSP if they do not exist.
 [para]
 Depending on the options specified and the account under which they
 are created, key containers are created with restricted access. The
-exact access depends on the account group membership 
+exact access depends on the account group membership
 (e.g. whether an adminitrator or not) and operating system version.
-Applications can set specific access rules by setting a 
-[uri security.html DACL] on the container using 
+Applications can set specific access rules by setting a
+[uri security.html DACL] on the container using
 [uri #crypt_set_security_descriptor [cmd crypt_set_security_descriptor]].
 
 [para]
