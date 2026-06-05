@@ -729,7 +729,7 @@ number of seconds is returned. Otherwise, the fractional part is also returned.
 [call [cmd large_system_time_to_timelist] [arg SYSTEMTIMEVALUE]]
 Some Windows functions return time as the number of 100 nanosecond units
 since Jan 1, 1601. The command converts such time values to a list
-of 8 elements representing the year, month, day, hour, minutes, seconds, 
+of 8 elements representing the year, month, day, hour, minutes, seconds,
 milliseconds and day of week.
 
 [call [cmd load_library] [arg FILEPATH] [opt [arg options]]]
@@ -738,19 +738,54 @@ Loads a DLL and returns a handle to it.
 The handle must later be released by calling
 [uri \#free_library [cmd free_library]], not [cmd close_handle].
 
-The following options may be specified:
+The following options may be specified. See the Windows SDK for more
+details regarding each.
 [list_begin opt]
+[opt_def [cmd -alteredpath]]Uses an alternative search strategy to find
+modules referenced by this module. See the Windows SDK for more details
+about Windows versions support and other requirements.
+[opt_def [cmd -datafile]]If specified, the module is loaded as a data file as
+opposed to an executable module. This is useful when the file is being
+loaded only to
+[uri resource.html "extract resources"] or
+[uri base.html\#format_message "format messages"].
+[opt_def [cmd -datafileexclusive]]
+Similar to [cmd -datafile] except the file is opened for exclusive
+write access.
 [opt_def [cmd -dontresolverefs]]Normally, if the module being loaded is a DLL,
 the system will load any other modules referenced by it and also call its
 [cmd DllMain] function to initialize it. If this option is specified, neither
-of these actions will be done.
-[opt_def [cmd -datafile]]If specified, the module is loaded as a data file as
-opposed to an executable module. This is useful when the file is being
-loaded only to 
-[uri resource.html "extract resources"] or 
-[uri base.html\#format_message "format messages"].
-[opt_def [cmd -alteredpath]]Uses an alternative search strategy to find
-modules referenced by this module. See the Windows SDK for more details.
+of these actions will be done. DEPRECATED. Use [cmd -datafileexclusive]
+and/or [cmd -imageresource] instead.
+[opt_def [cmd -ignorecodeauthzlevel]]
+Ignores AppLocker rules and Software Restriction Policies.
+[opt_def [cmd -imageresource]]
+Maps the file into the process address space as an image file without
+the initialization required to make it runnable. Generally to be used
+in conjunction with the [cmd -datafile] or [cmd -datafileexclusive]
+options.
+[opt_def [cmd -requiresignedtarget]]
+Check the digital signature of the image at load time.
+[opt_def [cmd -searchapplicationdir]]
+Only search the application's installation directory.
+Do not combine with [cmd -alteredpath].
+[opt_def [cmd -searchdefaultdirs]]
+Equivalent to combination of [cmd -searchapplicationdir],
+[cmd -searchsystem32] and [cmd -searchuserdirs]. This is
+the recommended setting.
+Do not combine with [cmd -alteredpath].
+[opt_def [cmd -searchdllloaddir]]
+Check the DLL's directory first when searching for its depedencies.
+[opt_def [cmd -searchuserdirs]]
+Only search directories that were added with the [cmd AddDllDirectory]
+and [SetDllDirectory] Windows API's.
+Do not combine with [cmd -alteredpath].
+[opt_def [cmd -searchsystem32]]
+Only search the Windows System32 directory.
+Do not combine with [cmd -alteredpath].
+[opt_def [cmd -safecurrentdirs]]
+Only allow loading from the current directory if it is included
+in the Safe load list.
 [list_end]
 
 [nl]

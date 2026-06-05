@@ -2019,22 +2019,35 @@ namespace eval twapi::base::test {
         twapi::free_library $libh
     } -result "* HANDLE" -match glob
 
-    test load_library-1.1 {
-        Load a library as a data file
+    set testnum 0
+    foreach opt {
+        -alteredpath
+        -dontresolverefs
+        -datafile
+        -datafileexclusive
+        -ignorecodeauthzlevel
+        -imageresource
+        -searchapplicationdir
+        -safecurrentdirs
+        -searchdefaultdirs
+        -searchdllloaddir
+        -searchsystem32
+        -searchuserdirs
+    } {
+        test load_library-1.[incr testnum] "load_library $opt" -body {
+                set libh [twapi::load_library $rctest_dll $opt]
+        } -cleanup {
+            twapi::free_library $libh
+        } -result "* HANDLE" -match glob
+    }
+    test load_library-1.[incr testnum] {
+        load_library -requiresignedtarget
     } -body {
-        set libh [twapi::load_library $rctest_dll -datafile]
-    } -cleanup {
-        twapi::free_library $libh
-    } -result "* HANDLE" -match glob
+        twapi::load_library $rctest_dll -requiresignedtarget
+    } -result {Windows cannot verify the digital signature for this file.*} \
+        -match glob -returnCodes error
 
-    test load_library-1.2 {
-        Load a library without resolving references
-    } -body {
-        set libh [twapi::load_library $rctest_dll -dontresolverefs]
-    } -cleanup {
-        twapi::free_library $libh
-    } -result "* HANDLE" -match glob
-        
+
     ################################################################
 
     test free_library-1.0 {

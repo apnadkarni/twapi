@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2012-2014, Ashok P. Nadkarni
+# Copyright (c) 2012-2026, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -88,23 +88,64 @@ proc twapi::map_windows_error {code} {
 # Load given library
 proc twapi::load_library {path args} {
     array set opts [parseargs args {
+        alteredpath
         dontresolverefs
         datafile
-        alteredpath
+        datafileexclusive
+        ignorecodeauthzlevel
+        imageresource
+        requiresignedtarget
+        searchapplicationdir
+        safecurrentdirs
+        searchdefaultdirs
+        searchdllloaddir
+        searchsystem32
+        searchuserdirs
     }]
 
     set flags 0
     if {$opts(dontresolverefs)} {
-        setbits flags 1;                # DONT_RESOLVE_DLL_REFERENCES
+        setbits flags 1
     }
     if {$opts(datafile)} {
-        setbits flags 2;                # LOAD_LIBRARY_AS_DATAFILE
+        setbits flags 2
     }
     if {$opts(alteredpath)} {
-        setbits flags 8;                # LOAD_WITH_ALTERED_SEARCH_PATH
+        setbits flags 8
+    }
+    if {$opts(ignorecodeauthzlevel)} {
+        setbits flags 0x10
+    }
+    if {$opts(imageresource)} {
+        setbits flags 0x20
+    }
+    if {$opts(datafileexclusive)} {
+        setbits flags 0x40
+    }
+    if {$opts(requiresignedtarget)} {
+        setbits flags 0x80
+    }
+    if {$opts(searchdllloaddir)} {
+        setbits flags 0x100
+    }
+    if {$opts(searchapplicationdir)} {
+        setbits flags 0x200
+    }
+    if {$opts(searchuserdirs)} {
+        setbits flags 0x400
+    }
+    if {$opts(searchsystem32)} {
+        setbits flags 0x800
+    }
+    if {$opts(searchdefaultdirs)} {
+        setbits flags 0x1000
+    }
+    if {$opts(safecurrentdirs)} {
+        setbits flags 0x2000
     }
 
-    # LoadLibrary always wants backslashes
+    # LoadLibrary wants backslashes. Do not normalize path as
+    # the function uses a search path depending on flags.
     set path [file nativename $path]
     return [LoadLibraryEx $path $flags]
 }
