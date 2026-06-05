@@ -1269,6 +1269,7 @@ void TwapiThreadPoolRegistrationShutdown(TwapiThreadPoolRegistration *tprP);
 TWAPI_EXTERN int Twapi_GenerateWin32Error(Tcl_Interp *interp, DWORD error, char *msg);
 
 LRESULT TwapiEvalWinMessage(TwapiInterpContext *ticP, UINT msg, WPARAM wParam, LPARAM lParam);
+Tcl_ObjCmdProc BuildInfoObjCmd;
 
 /* Tcl_Obj manipulation and conversion - basic Windows types */
 

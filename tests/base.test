@@ -40,6 +40,26 @@ namespace eval twapi::base::test {
 
     ################################################################
 
+    test build-info-1.0 {
+        Get the build configuration
+    } -body {
+        twapi::build-info
+    } -result "[twapi::get_version -patchlevel]+*" -match glob
+
+    test build-info-1.1 {
+        Get the build configuration version
+    } -body {
+        twapi::build-info version
+    } -result "[twapi::get_version]"
+
+    test build-info-1.2 {
+        Get the build configuration patchlevel
+    } -body {
+        twapi::build-info patchlevel
+    } -result "[twapi::get_version -patchlevel]"
+
+    ################################################################
+
     test get_version-1.0 {
         Get TWAPI version
     } -body {

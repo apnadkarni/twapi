@@ -15,7 +15,9 @@ and some functionality commonly required in all Windows application.
 [uri \#get_version [cmd get_version]] returns TWAPI version information. 
 [uri #export_public_commands [cmd export_public_commands]] and
 [uri #import_commands [cmd import_commands]] enable export and import
-of commands defined in the TWAPI namespace.
+of commands defined in the TWAPI namespace. The
+[uri #build-info [cmd build-info]] command returns information about
+the TWAPI compile-time build configuration.
 
 [section "Handles and pointers"]
 Several Win32 and TWAPI commands return operating system handles or pointers
@@ -282,6 +284,11 @@ based on the Tcl [cmd apply] command.
 
 [section Commands]
 [list_begin definitions]
+
+[call [cmd build-info] [opt [arg field]]]
+
+Returns compile time build information for TWAPI in a format analogous to the
+Tcl [cmd tcl::build-info] command. See the Tcl documentation for details.
 
 [call [cmd cancel_wait_on_handle] [arg HANDLE]]
 Cancels any previously registered asynchronous wait on a handle that
@@ -667,6 +674,8 @@ Version of the Tcl headers used for the build.
 Boolean indicating whether the build used Tcl Extension Architecture
 or native builds.
 [list_end]
+
+Also see [cmd build-info].
 
 [call [cmd get_handle_inheritance] [arg HANDLE]]
 Indicates whether the specified handle is marked as

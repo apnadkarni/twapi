@@ -50,6 +50,7 @@ BIN_INSTALL_DIR = $(SCRIPT_INSTALL_DIR)\$(DLLSUBDIR)
 PRJ_OBJS = $(PRJ_OBJS) \
 	    $(TMP_DIR)\adsi.obj \
 	    $(TMP_DIR)\async.obj \
+	    $(TMP_DIR)\buildinfo.obj \
 	    $(TMP_DIR)\calls.obj \
 	    $(TMP_DIR)\errors.obj \
 	    $(TMP_DIR)\ffi.obj \
@@ -110,7 +111,7 @@ PRJ_OBJS = $(PRJ_OBJS) \
 HEADERS = \
 	$(ROOT)\win\twapi.h
 
-PRJ_INCLUDES = -I $(ROOT)\include -I $(DYNCALLDIR)\include
+PRJ_INCLUDES = -I $(ROOT)\include -I $(DYNCALLDIR)\include -I$(TMP_DIR)
 
 # Windows defines
 PRJ_DEFINES = -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0601 -DWINVER=0x0601 -D_UNICODE -DUNICODE
@@ -121,8 +122,9 @@ PRJ_DEFINES = $(PRJ_DEFINES) -DTCL_NO_DEPRECATED
 # TWAPI defines
 PRJ_DEFINES = $(PRJ_DEFINES) -DTWAPI_SINGLE_MODULE
 
-PRJ_LIBS = $(DYNCALLLIBDIR)\libdyncall_s.lib $(DYNCALLLIBDIR)\libdynload_s.lib $(DYNCALLLIBDIR)\libdyncallback_s.lib
+DYNCALLLIBS = $(DYNCALLLIBDIR)\libdyncall_s.lib $(DYNCALLLIBDIR)\libdynload_s.lib $(DYNCALLLIBDIR)\libdyncallback_s.lib
 
+PRJ_LIBS = $(PRJ_LIBS) $(DYNCALLLIBS)
 !if (($(TCL_MAJOR_VERSION) > 8) || (($(TCL_MAJOR_VERSION) == 8) && ($(TCL_MINOR_VERSION) >= 7)))
 PRJ_LIBS = $(PRJ_LIBS) $(INSTALLDIR)\lib\tommath.lib
 !endif
@@ -161,20 +163,45 @@ PRJ_LIBS = $(PRJ_LIBS) \
 # We do not use the standard predefined install targets because we want
 # to load binaries from platform-specific subdirectories of the package
 # directory.
+# TODO - try defining MULTIPLATFORM_INSTALL
 DISABLE_TARGET_install = 1
 !include "$(_RULESDIR)\targets.vc"
 
 pkgindex: default-pkgindex-tea
 
-install: pkgindex $(PRJLIB) default-install-scripts
-	@echo Installing to '$(SCRIPT_INSTALL_DIR)'
-	@if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
-	@if not exist "$(BIN_INSTALL_DIR)" mkdir "$(BIN_INSTALL_DIR)"
-	@$(CPY) $(PRJLIB) "$(BIN_INSTALL_DIR)" >NUL
-	@$(CPY) $(LIBDIR)\*.tcl "$(SCRIPT_INSTALL_DIR)"
-	@$(CPY) $(OUT_DIR)\pkgIndex.tcl "$(SCRIPT_INSTALL_DIR)"
-	@$(CPY) $(ROOT)\README.md "$(SCRIPT_INSTALL_DIR)"
-	@$(CPY) $(ROOT)\LICENSE "$(SCRIPT_INSTALL_DIR)"
+# Use manifest file which defines commit id for build-info command
+$(TMP_DIR)\manifest.uuid:
+!IF EXIST($(ROOT)\manifest.uuid)
+	@copy "$(ROOT)\manifest.uuid" "$(TMP_DIR)\manifest.uuid"
+!ELSE
+!IF EXIST($(ROOT)\.git)
+	@echo puts -nonewline git- | "$(TCLSH)" >$(TMP_DIR)\manifest.uuid
+	@git rev-parse HEAD >>$(TMP_DIR)\manifest.uuid || echo git-unknown >$(TMP_DIR)\manifest.uuid
+!ELSE
+	@echo unknown >$(TMP_DIR)\manifest.uuid
+!ENDIF
+!ENDIF
 
-$(PRJ_OBJS): $(HEADERS) $(ROOT)\configure.ac $(PRJ_HEADERS)
+$(TMP_DIR)\twapiUuid.h: $(TMP_DIR)\manifest.uuid
+	@echo #define TWAPI_VERSION_UUID \> $(TMP_DIR)\twapiUuid.h
+	@type $(TMP_DIR)\manifest.uuid >> $(TMP_DIR)\twapiUuid.h
+	@echo:>>$(TMP_DIR)\twapiUuid.h
 
+install: pkgindex $(PRJLIB) default-install-pdbs default-install-scripts
+	echo Installing to '$(SCRIPT_INSTALL_DIR)'
+	if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
+	if not exist "$(BIN_INSTALL_DIR)" mkdir "$(BIN_INSTALL_DIR)"
+!if $(STATIC_BUILD)
+	$(CPY) $(PRJLIB) "$(LIB_INSTALL_DIR)" >NUL
+	for %f in ($(DYNCALLLIBS)) do @$(CPY) %f "$(LIB_INSTALL_DIR)" >NUL
+!else
+	$(CPY) $(PRJLIB) "$(BIN_INSTALL_DIR)" >NUL
+!endif
+	$(CPY) $(LIBDIR)\*.tcl "$(SCRIPT_INSTALL_DIR)"
+	$(CPY) $(OUT_DIR)\pkgIndex.tcl "$(SCRIPT_INSTALL_DIR)"
+	$(CPY) $(ROOT)\README.md "$(SCRIPT_INSTALL_DIR)"
+	$(CPY) $(ROOT)\LICENSE "$(SCRIPT_INSTALL_DIR)"
+
+$(PRJ_OBJS): $(HEADERS) $(ROOT)\configure.ac $(PRJ_HEADERS) $(TMP_DIR)\twapiUuid.h
+
+$(WINDIR)\buildinfo.c : $(WINDIR)\twapi.h $(TMP_DIR)\twapiUuid.h
