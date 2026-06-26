@@ -4,7 +4,6 @@
 # where INPUTFILE is the html fragment that should go into the content
 # section of the web page, NAVFILE is the navigation link fragment file,
 # and the two ADFILE are right side and top ad content.
-# TBD - fix hardcoded version numbers and copyright years
 
 #
 # Read the given file and write out the HTML
@@ -115,11 +114,7 @@ proc transform_file {infile {navfile ""} {adfile ""} {adfile2 ""} {outfile ""}} 
     # Insert the footer
     puts $outfd "<div id='ft'>"
     puts $outfd "Tcl Windows API $::twapi_version"
-    puts $outfd {
-        <div class='copyright'>
-          &copy; 2002-2020 Ashok P. Nadkarni
-        </div>
-    }
+    puts $outfd "<div class='copyright'> &copy; 2002-[clock format [clock seconds] -format %Y] Ashok P. Nadkarni </div>"
     # <a href='http://www.magicsplat.com/privacy.html'>Privacy policy</a>
 
     puts $outfd "</div>"

@@ -306,7 +306,7 @@ Size of security trailer to be appended to messages.
 [list_end]
 
 [call [cmd sspi_context_username] [arg CONTEXT]]
-[emph TBD]
+Returns the name of the user associated with the context.
 
 [call [cmd sspi_decrypt] [arg CONTEXT] [arg ENCRYPTTOKEN] [arg ENCRYPTEDDATA] [arg PADDING] [opt [arg options]]]
 Returns the decrypted data. [arg CONTEXT] is a datagram or connection

@@ -1149,10 +1149,14 @@ The command accepts the following options
 If [arg true] (default), the imported key can be exported at a later
 time. If [const false] the key cannot be exported although it can
 be used for cryptographic operations.
-[opt_def [cmd -ipsechmac] [arg BOOLEAN]] TBD
-[opt_def [cmd -oaep] [arg BOOLEAN]] TBD
+[opt_def [cmd -ipsechmac] [arg BOOLEAN]] Allows import of a RC2 key
+larger than 16 bytes.
+[opt_def [cmd -oaep] [arg BOOLEAN]]
+Pass as [const true] to indicate the imported key is wrapped using RSAES-OAEP
+instead of the older PKCS #1 v1.5
+padding. Default is [const false].
 [opt_def [cmd -userprotected] [arg BOOLEAN]]
-If specified as [const true], the user is notified in a CSP-dependent
+If [const true], the user is notified in a CSP-dependent
 manner whenever the key is used. Default is [const false].
 [opt_def [cmd -wrapper] [arg HWRAPPER]]
 If [arg KEYBLOB] was in an encrypted form, this option must be specified

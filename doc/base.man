@@ -778,7 +778,7 @@ Do not combine with [cmd -alteredpath].
 Check the DLL's directory first when searching for its depedencies.
 [opt_def [cmd -searchuserdirs]]
 Only search directories that were added with the [cmd AddDllDirectory]
-and [SetDllDirectory] Windows API's.
+and [cmd SetDllDirectory] Windows API's.
 Do not combine with [cmd -alteredpath].
 [opt_def [cmd -searchsystem32]]
 Only search the Windows System32 directory.

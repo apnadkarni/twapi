@@ -1,7 +1,8 @@
 # Generate a MS Help TOC file from the DTP meta file
 
-# TBD - should do this in a safe interp
-
+interp create -safe ip
+interp alias ip rootname {} file rootname
+ip eval {
 # Create a linkable name that matches the one created by the doctools
 # htm formatter
 proc make_linkable_cmd {name} {
@@ -17,7 +18,7 @@ proc make_linkable_cmd {name} {
     }
 
     # Massage some other funky chars
-    set name [string map {{ } {} ? __} $name]    
+    set name [string map {{ } {} ? __} $name]
 
     # Hopefully all the above will not lead to name clashes
     return [string tolower $name]
@@ -27,7 +28,7 @@ proc process_meta {data} {
     set text ""
     foreach {__ item} $data {
         array set manpage $item
-        set filename [file rootname $manpage(file)].html
+        set filename [rootname $manpage(file)].html
         append text {<LI> <OBJECT type="text/sitemap">}
         if {$manpage(desc) != ""} {
             append text "\n\t<param name=\"Name\" value=\"$manpage(desc)\">"
@@ -50,6 +51,7 @@ proc process_meta {data} {
     }
     return $text
 }
+}; # ip eval
 
 #
 # Processing being here
@@ -75,8 +77,7 @@ set fd [open [lindex $argv 0]]
 set data [read $fd]
 close $fd
 
-# Eval the file - should really be in a safe interpreter! TBD
-puts [process_meta $data]
+puts [ip eval [list  process_meta $data]]
 
 # Write the trailer
 puts {
