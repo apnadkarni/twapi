@@ -34,56 +34,88 @@ Note that the [uri base.html [package twapi_base]] provides some
 commonly used commands for mapping between account names and SIDs.
 
 [para]
-The commands [uri \#new_user [cmd new_user]] and
-[uri \#delete_user [cmd delete_user]]
-allow addition and deletion of user accounts. The commands
-[uri \#enable_user [cmd enable_user]], [uri \#disable_user [cmd disable_user]]
-and [uri \#unlock_user [cmd unlock_user]] may be used
-to change the state of a user account.
-The command [uri \#get_user_account_info [cmd get_user_account_info]]
-returns various attributes and
-properties of a user account. These may be modified through the
-[uri \#set_user_account_info [cmd set_user_account_info]]
-function or alternatively, modified individually
-through the following set of functions:
-[uri \#set_user_name [cmd set_user_name]],
-[uri \#set_user_password [cmd set_user_password]],
-[uri \#set_user_home_dir [cmd set_user_home_dir]],
-[uri \#set_user_comment [cmd set_user_comment]],
-[uri \#set_user_script_path [cmd set_user_script_path]],
-[uri \#set_user_full_name [cmd set_user_full_name]],
-[uri \#set_user_country_code [cmd set_user_country_code]],
-[uri \#set_user_profile [cmd set_user_profile]],
-[uri \#set_user_home_dir_drive [cmd set_user_home_dir_drive]],
-[uri \#set_user_expiration [cmd set_user_expiration]].
+The following commands can be used for managing user accounts.
+[list_begin opt]
+[opt_def [uri \#delete_user [cmd delete_user]]]
+Deletes a user account.
+[opt_def [uri \#disable_user [cmd disable_user]]]
+Disables a user acccount.
+[opt_def [uri \#enable_user [cmd enable_user]]]
+Enables a user acccount.
+[opt_def [uri \#get_user_account_info [cmd get_user_account_info]]]
+Returns various attributes and properties of a user account.
+[opt_def [uri \#new_user [cmd new_user]]]
+Creates a new user account.
+[opt_def [uri \#set_user_account_info [cmd set_user_account_info]]]
+Sets various attributes and properties of a user account.
+[opt_def [uri \#set_user_comment [cmd set_user_comment]]]
+Sets the comment tied to the user account.
+[opt_def [uri \#set_user_country_code [cmd set_user_country_code]]]
+Sets the user's country code.
+[opt_def [uri \#set_user_expiration [cmd set_user_expiration]]]
+Sets the expiration time for the account.
+[opt_def [uri \#set_user_full_name [cmd set_user_full_name]]]
+Sets the full name of the user.
+[opt_def [uri \#set_user_home_dir [cmd set_user_home_dir]]]
+Sets the account home directory.
+[opt_def [uri \#set_user_home_dir_drive [cmd set_user_home_dir_drive]]]
+Sets the home directory drive for the user.
+[opt_def [uri \#set_user_name [cmd set_user_name]]]
+Sets the user account name.
+[opt_def [uri \#set_user_password [cmd set_user_password]]]
+Sets the user password.
+[opt_def [uri \#set_user_profile [cmd set_user_profile]]]
+Sets the location of the user's profile.
+[opt_def [uri \#set_user_script_path [cmd set_user_script_path]]]
+Sets the login script for the user.
+[opt_def [uri \#unlock_user [cmd unlock_user]]]
+Unlocks a user account that has been locked out due to
+password failures.
+[list_end]
 
-[para]
-Information about global and local groups may be retrieved through
-the [uri security.html\#get_global_group_info [cmd get_global_group_info]] and
-[uri security.html\#get_local_group_info [cmd get_local_group_info]] commands.
-New global groups may be created and deleted through the
-[uri \#new_global_group [cmd new_global_group]]
-and [uri \#delete_global_group [cmd delete_global_group]] commands.
-The equivalent commands for
-local groups are [uri \#new_local_group [cmd new_local_group]]
-and [uri \#delete_local_group [cmd delete_local_group]]. Users may
-be added and removed using the commands
-[uri \#add_user_to_global_group [cmd add_user_to_global_group]],
-[uri \#add_member_to_local_group [cmd add_member_to_local_group]],
-[uri \#add_members_to_local_group [cmd add_members_to_local_group]],
-[uri \#remove_user_from_global [cmd remove_user_from_global]],
-[uri \#remove_member_from_local_group [cmd remove_member_from_local_group]]
-and
-[uri \#remove_members_from_local_group [cmd remove_member_from_local_group]].
-[para]
-The rights and privileges associated with accounts can be managed through
-the [uri \#get_account_rights [cmd get_account_rights]],
-[uri \#find_accounts_with_right [cmd find_accounts_with_right]],
-[uri \#add_account_rights [cmd add_account_rights]] and
-[uri \#remove_account_rights [cmd remove_account_rights]] commands.
+The following commands relate to group management.
+[list_begin opt]
+[opt_def [uri \#add_member_to_local_group [cmd add_member_to_local_group]]]
+Adds a member (user or group) to a local group.
+[opt_def [uri \#add_members_to_local_group [cmd add_members_to_local_group]]]
+Adds multiple members to a local group.
+[opt_def [uri \#add_user_to_global_group [cmd add_user_to_global_group]]]
+Adds a user to a global group.
+[opt_def [uri \#delete_global_group [cmd delete_global_group]]]
+Deletes a global group.
+[opt_def [uri \#delete_local_group [cmd delete_local_group]]]
+Deletes a local group.
+[opt_def [uri security.html\#get_global_group_info [cmd get_global_group_info]]]
+Retrieves information about a global group.
+[opt_def [uri security.html\#get_local_group_info [cmd get_local_group_info]]]
+Retrieves information about a local group.
+[opt_def [uri \#new_global_group [cmd new_global_group]]]
+Creates a new global group.
+[opt_def [uri \#new_local_group [cmd new_local_group]]]
+Creates a local group.
+[opt_def [uri \#remove_member_from_local_group [cmd remove_member_from_local_group]]]
+Removes a member from a local group.
+[opt_def [uri \#remove_members_from_local_group [cmd remove_member_from_local_group]]]
+Removes multiple members from a local group.
+[opt_def [uri \#remove_user_from_global [cmd remove_user_from_global]]]
+Removes a user from a global group.
+[list_end]
+
+The rights and privileges associated with both user and group accounts
+can be managed with the following commands.
+[list_being opt]
+[opt_def [uri \#add_account_rights [cmd add_account_rights]]]
+Adds rights to an account.
+[opt_def [uri \#find_accounts_with_right [cmd find_accounts_with_right]]]
+Returns list of accounts with a specified right.
+[opt_def [uri \#get_account_rights [cmd get_account_rights]]]
+Returns the rights associated with an account.
+[opt_def [uri \#remove_account_rights [cmd remove_account_rights]]]
+Removes rights from an account.
+[list_end]
 
 [section "Enumerating Accounts"]
-There are several commands for enumerating users and groups, including group 
+There are several commands for enumerating users and groups, including group
 membership.
 [list_begin opt]
 [opt_def [uri \#get_users [cmd get_users]]]
@@ -107,9 +139,9 @@ has direct or indirect membership.
 With the exception of
 [uri \#get_user_local_groups [cmd get_user_local_groups]] and
 [uri \#get_user_global_groups [cmd get_user_global_groups]],
-all these commands follow the same pattern of invocation 
+all these enumeration commands follow the same pattern of invocation
 and use a standard set of options. Without any optional arguments, the
-commands return a simple list of user or group names as appropriate. However, 
+commands return a simple list of user or group names as appropriate. However,
 the commands also allow retrieval of information with additional
 detail or in incremental fashion.
 [para]
@@ -514,7 +546,8 @@ the form "[arg option1] [arg value1] ...".
 be retrieved. The option [cmd -system] may be used to specify the system from
 whose context the account lookup should be performed.
 [nl]
-The data returned depends on which of the following options are specified:
+The data returned depends on which of the following options are specified. Fields
+not present in the account database are returned as empty strings.
 [list_begin opt]
 [opt_def [cmd -acct_expires]]
 Returns the time when the account is set to expire. This value may

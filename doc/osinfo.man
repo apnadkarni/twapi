@@ -12,72 +12,80 @@ configuration including operating system functions and hardware configuration.
 
 [section Overview]
 
-The commands [uri \#get_os_version [cmd get_os_version]]
-and [uri \#min_os_version [cmd min_os_version]] get and verify
-operating system version information.
-[para]
-The commands [uri \#get_os_info [cmd get_os_info]] and
-[uri \#get_os_description [cmd get_os_description]] allow retrieval of more detailed
-operating system information than the standard Tcl commands which
-do not distinguish between service packs, Professional versus Server
-versions and so on.
-[para]
-The command [uri \#get_computer_name [cmd get_computer_name]]
-returns one of several forms of the system name.
-The command [uri \#get_computer_netbios_name [cmd get_computer_netbios_name]]
-returns the NETBIOS name
-of the computer. Domain and workgroup information about the system
-can be obtained through the
-[uri \#get_primary_domain_info [cmd get_primary_domain_info]]
-command. [uri \#find_domain_controller [cmd find_domain_controller]]
-returns information about a domain controller with specified characteristics.
-[uri \#get_primary_domain_controller [cmd get_primary_domain_controller]]
-returns the name
-of the primary domain controller of the computer.
-[para]
-The commands [uri \#get_processor_count [cmd get_processor_count]],
-[uri \#get_processor_group_configuration [cmd get_processor_group_configuration]]
-and [uri \#get_processor_info [cmd get_processor_info]]
-retrieve information about the
-processors in the system.
+The following commands retrieve operating system information.
 
-[para]
-The command [uri \#get_memory_info [cmd get_memory_info]]
-returns the physical and virtual memory
-configuration of the system.
+[list_begin opt]
+[opt_def [uri \#get_os_version [cmd get_os_version]]]
+Retrieves the operating system version.
+[opt_def [uri \#min_os_version [cmd min_os_version]]]
+Verifies a minimum operating system version.
+[opt_def [uri \#get_os_info [cmd get_os_info]]]
+Retrieves detailed operating system information.
+[opt_def [uri \#get_os_description [cmd get_os_description]]]
+Retrieves operating system details in a human readable form.
+[list_end]
 
-[para]
-The command [uri \#get_system_time [cmd get_system_time]] returns
-the current system time in high resolution.
-The command [uri \#get_system_uptime [cmd get_system_uptime]] returns
-the how long the system has been running.
-The command [uri \#shutdown_system [cmd shutdown_system]] may be used
-to shutdown or reboot the system. The command
-[uri \#abort_system_shutdown [cmd abort_system_shutdown]]
-may be used to abort an ongoing system shutdown.
-The command
-[uri \#suspend_system [cmd suspend_system]] may be used to put the system
-in stand by or hibernate states. You can prevent the system from
-being suspended due to inactivity through the
-[uri process.html#SetThreadExecutionState [cmd SetThreadExecutionState]]
-command.
+The following commands are related to the system and
+domain information.
+[list_begin opt]
+[opt_def [uri \#find_domain_controller [cmd find_domain_controller]]]
+Returns the domain controller with specified characteristics.
+[opt_def [uri \#get_computer_name [cmd get_computer_name]]]
+Returns one of several forms of the system name.
+[opt_def [uri \#get_computer_netbios_name [cmd get_computer_netbios_name]]]
+Returns the NETBIOS name of the computer.
+[opt_def [uri \#get_primary_domain_info [cmd get_primary_domain_info]]]
+Returns domain and workgroup information.
+[opt_def [uri \#get_primary_domain_controller [cmd get_primary_domain_controller]]]
+Returns the name of the primary domain controller.
+[list_end]
 
-The commands [uri \#logoff [cmd logoff]]
-and [uri \#lock_workstation [cmd lock_workstation]]
-may be used to log out of a user account and to lock a workstation
-respectively. Notifications regarding user switching, logon, logoff etc.
-can be enabled and disabled with the
-[uri \#start_wts_session_monitor [cmd start_wts_session_monitor]] and
-[uri \#stop_wts_session_monitor [cmd stop_wts_session_monitor]] commands.
+The following commands provide information related to hardware configuration
+and performance.
+[list_begin opt]
+[opt_def [uri \#get_memory_info [cmd get_memory_info]]]
+Returns the physical and virtual memory configuration of the system.
+[opt_def [uri \#get_processor_count [cmd get_processor_count]]]
+Returns the number of processors in the system.
+[opt_def [uri \#get_processor_group_config [cmd get_processor_group_config]]]
+Returns the processor group configuration.
+[opt_def [uri \#get_processor_info [cmd get_processor_info]]]
+Returns processor performance metrics.
+[opt_def [uri \#get_system_time [cmd get_system_time]]]
+Returns the current high resolution system time.
+[list_end]
 
-[para]
-Various system settings related to the user experience can be retrieved
-and set through the
-[uri osinfo.html\#get_system_parameters_info [cmd get_system_parameters_info]]
-and
-[uri osinfo.html\#set_system_parameters_info [cmd set_system_parameters_info]]
-commands.
 
+The following commands are related to user session and system lifetimes.
+[list_begin opt]
+[opt_def [uri \#abort_system_shutdown [cmd abort_system_shutdown]]]
+Aborts an ongoing system shutdown.
+[opt_def [uri \#get_system_uptime [cmd get_system_uptime]]]
+Returns how long the system has been running.
+[opt_def [uri \#lock_workstation [cmd lock_workstation]]]
+Locks the workstation.
+[opt_def [uri \#logoff [cmd logoff]]]
+Logs off the current user.
+[opt_def [uri process.html#SetThreadExecutionState [cmd SetThreadExecutionState]]]
+Prevents the system from being suspended due to inactivity.
+[opt_def [uri \#shutdown_system [cmd shutdown_system]]]
+Shuts down or reboots the system.
+[opt_def [uri \#start_wts_session_monitor [cmd start_wts_session_monitor]]]
+Enables notifications of regarding user sessions changes such as
+switching, logon and logoff.
+[opt_def [uri \#stop_wts_session_monitor [cmd stop_wts_session_monitor]]]
+Disables notifications of regarding user session changes.
+[opt_def [uri \#suspend_system [cmd suspend_system]]]
+Suspends or hibernates the system.
+[list_end]
+
+The following commands get or set system settings related to user experience.
+[list_begin opt]
+[opt_def [uri osinfo.html\#get_system_parameters_info [cmd get_system_parameters_info]]]
+Returns a specified system setting.
+[opt_def [uri osinfo.html\#set_system_parameters_info [cmd set_system_parameters_info]]]
+Sets a specified system setting.
+[list_end]
 
 [section Commands]
 [list_begin definitions]
