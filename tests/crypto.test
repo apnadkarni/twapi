@@ -164,7 +164,7 @@ namespace eval twapi::crypto::test {
         twapi::sspi_delete_context $sctx
         twapi::sspi_delete_context $cctx
     } -result [list 1 1]
-        
+
     test sspi_enumerate_packages-1.0 {
         Enumerate SSPI providers
     } -body {
@@ -320,6 +320,32 @@ namespace eval twapi::crypto::test {
         }
         set errors
     } -result {}
+
+    # SSPI contexts
+    foreach pkg {NTLM Negotiate Kerberos} {
+        test sspi_context_username-${pkg}-1.0 "Get username from sspi context - $pkg" \
+            -setup "lassign \[setup_contexts $pkg\] cctx sctx" \
+            -constraints [expr {$pkg eq "Kerberos" ? "domain" : ""}]  -body {
+                list [twapi::sspi_context_username $cctx] \
+                [twapi::sspi_context_username $sctx]
+            } -cleanup {
+                twapi::sspi_delete_context $sctx
+                twapi::sspi_delete_context $cctx
+            } -result [list $::env(COMPUTERNAME)\\$::env(USERNAME) \
+                           $::env(COMPUTERNAME)\\$::env(USERNAME)]
+    }
+
+    foreach pkg {NTLM Negotiate Kerberos} {
+        test sspi_context_username-${pkg}-1.0 "Get username from sspi context - $pkg" \
+            -setup "lassign \[setup_contexts $pkg\] cctx sctx" \
+            -constraints [expr {$pkg eq "Kerberos" ? "domain" : ""}]  -body {
+                list [twapi::sspi_context_sizes $cctx] \
+                [twapi::sspi_context_sizes $sctx]
+            } -cleanup {
+                twapi::sspi_delete_context $sctx
+                twapi::sspi_delete_context $cctx
+            } -result {{-maxtoken \d+ -maxsig \d+ -blocksize \d+ -trailersize \d+} {-maxtoken \d+ -maxsig \d+ -blocksize \d+ -trailersize \d+}} -match regexp
+    }
 
     # Certificate Stores
 
