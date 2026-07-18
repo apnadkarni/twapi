@@ -705,6 +705,56 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
+    test evt-bookmarks-1.0 {
+        evt_create_bookmark, evt_update_bookmark, evt_seek -bookmark
+    } -setup {
+        set hquery [twapi::evt_query -channel Setup]
+        set hevents [twapi::evt_next $hquery -count 2]
+        set hevent [lindex $hevents 1]
+        set event_xml [twapi::evt_render_event_xml $hevent]
+    } -cleanup {
+        twapi::evt_close {*}$hevents $hbook $hquery
+    } -body {
+        set hbook [twapi::evt_create_bookmark]
+        twapi::evt_update_bookmark $hbook $hevent
+        twapi::evt_close {*}$hevents
+        set hevents [twapi::evt_next $hquery -count 2]
+        set new_xml [twapi::evt_render_event_xml [lindex $hevents 0]]
+        twapi::evt_close {*}$hevents
+        twapi::evt_seek $hquery 0 -bookmark $hbook
+        set hevents [twapi::evt_next $hquery -count 2]
+        set event_xml_bookmarked [twapi::evt_render_event_xml [lindex $hevents 0]]
+        list [string equal $event_xml $new_xml] \
+            [string equal $event_xml $event_xml_bookmarked]
+    } -result {0 1}
+
+    test evt_bookmarks-2.0 {
+        evt_create_bookmark XML, evt_seek -bookmark
+    } -setup {
+        set hquery [twapi::evt_query -channel Setup]
+        set hevents [twapi::evt_next $hquery -count 2]
+        set hevent [lindex $hevents 1]
+        set event_xml [twapi::evt_render_event_xml $hevent]
+    } -cleanup {
+        twapi::evt_close {*}$hevents $hbook $hquery
+    } -body {
+        set hbook [twapi::evt_create_bookmark]
+        twapi::evt_update_bookmark $hbook $hevent
+        set xml [twapi::evt_render_bookmark $hbook]
+        twapi::evt_close {*}$hevents $hbook
+        set hevents [twapi::evt_next $hquery -count 2]
+        set new_xml [twapi::evt_render_event_xml [lindex $hevents 0]]
+        twapi::evt_close {*}$hevents
+        set hbook [twapi::evt_create_bookmark $xml]
+        twapi::evt_seek $hquery 0 -bookmark $hbook
+        set hevents [twapi::evt_next $hquery -count 2]
+        set event_xml_bookmarked [twapi::evt_render_event_xml [lindex $hevents 0]]
+        list [string equal $event_xml $new_xml] \
+            [string equal $event_xml $event_xml_bookmarked]
+    } -result {0 1}
+
+    ################################################################
+
     test evt_publishers-1.0 {
         Evt publishers
     } -constraints {

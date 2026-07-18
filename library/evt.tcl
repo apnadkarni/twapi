@@ -142,9 +142,14 @@ proc twapi::evt_export_log {outfile args} {
     return [EvtExportLog $opts(session) $path $opts(query) [_evt_normalize_path $outfile] $opts(ignorequeryerrors)]
 }
 
-# TBD - document
-proc twapi::evt_create_bookmark {{mark ""}} {
-    return [EvtCreateBookmark $mark]
+proc twapi::evt_render_bookmark {hbm} {
+    # 2 -> EvtRenderBookmark
+    return [Twapi_EvtRenderUnicode NULL $hbm 2]
+}
+
+proc twapi::evt_render_event_xml {hbm} {
+    # 1 -> EvtRenderEventXml
+    return [Twapi_EvtRenderUnicode NULL $hbm 1]
 }
 
 # TBD - document

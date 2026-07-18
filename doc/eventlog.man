@@ -392,7 +392,7 @@ When notifications are no longer desired, the two handles in the
 returned pair must be released via [uri #eventlog_close [cmd eventlog_close]]
 and [uri handles.html#close_handle [cmd close_handle]] respectively.
 [nl]
-This command is internally identical to 
+This command is internally identical to
 [uri #winlog_subscribe [cmd winlog_subscribe]] on Windows version before Vista.
 On Vista and later, this command translates to the older Windows event log
 API while [cmd winlog_subscribe] will invoke the new Vista APIs.
@@ -424,6 +424,20 @@ display this as a list of strings.
 [opt_def [cmd -data] [arg DATA]]Raw binary data that should be stored as part
 of the event record.
 [list_end]
+
+[call [cmd evt_create_bookmark] [opt [arg XML]]]
+Creates and returns a handle to an event bookmark. A bookmark identifies a
+specific event in an event log and may be used to restart event processing from
+that event at a later time.
+If [arg XML] is specified, it must be the XML representation of a
+bookmark as previously returned by
+[uri #evt_render_bookmark [cmd evt_render_bookmark]].
+[nl]
+The returned bookmark identifies the event represented by the XML. If [arg XML]
+is an empty string, the returned bookmark is not associated with any event and
+may subsequently be updated using [cmd evt_update_bookmark].
+[nl]
+The returned handle should be released via [cmd evt_close].
 
 [call [cmd evt_channels] [opt [arg HSESSION]]]
 Returns a list of names of the EVT channels through the EVT session handle
@@ -707,6 +721,11 @@ an XPATH expression or a structured XML query. See
 the Windows SDK for details.
 [list_end]
 
+[call [cmd evt_render_bookmark] [arg HBOOOKMARK]]
+Returns the XML form of a bookmark. This can then be passed to the
+[uri #evt_create_bookmark [cmd evt_create_bookmark]] command to
+recreate the bookmark to an event at some later time.
+
 [call [cmd evt_subscribe] [arg CHANNELPATH] [opt [arg options]]]
 Registers for notifications when events are logged to the event
 channel [arg CHANNELPATH]. Returns a pair of two handles, the first
@@ -742,13 +761,25 @@ an XPATH expression or a structured XML query. See
 the Windows SDK for details.
 [list_end]
 
+[call [cmd evt_update_bookmark] [arg HBOOKMARK] [arg HEVENT]]
+
+Updates the bookmark specified by [arg HBOOKMARK] to identify the event
+specified by [arg HEVENT]. [arg HBOOKMARK] and [arg HEVENT] must be
+bookmark and event handles returned by
+[uri #evt_create_bookmark [cmd evt_create_bookmark]]
+and [uri #evt_next [cmd uri_next]] respectively.
+The event handle must refer to an event returned by [cmd evt_next]. The
+bookmark may subsequently be used with commands like
+[uri #evt_seek [cmd evt_seek]] or [uri #evt_query [cmd evt_query]]
+to resume processing from the bookmarked event.
+
 [call [cmd winlog_backup] [arg NAME] [arg BACKUPFILE]]
 Writes events from the specified event channel or source to a backup file.
 [arg NAME] is the name of an event log source (pre-Vista)
 or channel (Vista and later).
 
 [call [cmd winlog_clear] [arg NAME] [opt "[cmd -backup] [arg BACKUPFILE]"]]
-Clears the specified event channel or source of all events. 
+Clears the specified event channel or source of all events.
 [arg NAME] is the name of an event log source (pre-Vista)
 or channel (Vista and later).
 [nl]
