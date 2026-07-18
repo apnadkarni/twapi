@@ -36,7 +36,7 @@ namespace eval twapi {
         set _evt(render_buffer) NULL
 
         # publisher_handles - caches publisher names to their meta information.
-        #    This is a dictionary indexed with nested keys - 
+        #    This is a dictionary indexed with nested keys -
         #     publisher, session, lcid. TBD - need a mechanism to clear ?
         set _evt(publisher_handles) [dict create]
 
@@ -54,17 +54,14 @@ namespace eval twapi {
     }
 }
 
-# TBD - document
 proc twapi::evt_local_session {} {
     return NULL
 }
 
-# TBD - document
-proc twapi::evt_local_session? {hsess} {
+proc twapi::evt_is_local_session {hsess} {
     return [pointer_null? $hsess]
 }
 
-# TBD - document
 proc twapi::evt_open_session {server args} {
     array set opts [parseargs args {
         user.arg
@@ -80,15 +77,13 @@ proc twapi::evt_open_session {server args} {
     return [EvtOpenSession 1 [list $server $opts(user) $opts(domain) $opts(password) $opts(authtype)] 0 0]
 }
 
-# TBD - document
 proc twapi::evt_close_session {hsess} {
-    if {![evt_local_session? $hsess]} {
+    if {![evt_is_local_session $hsess]} {
         evt_close $hsess
     }
 }
 
 proc twapi::evt_channels {{hevtsess NULL}} {
-    # TBD - document hevtsess
     set chnames {}
     set hevt [EvtOpenChannelEnum $hevtsess 0]
     trap {
@@ -123,7 +118,6 @@ proc twapi::evt_archive_exported_log {logpath args} {
 }
 
 proc twapi::evt_export_log {outfile args} {
-    # TBD - document -session
     array set opts [parseargs args {
         {session.arg NULL}
         file.arg

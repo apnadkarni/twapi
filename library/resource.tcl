@@ -290,6 +290,10 @@ proc twapi::resource_stringid_to_stringblockid {id} {
 }
 
 proc twapi::extract_resources {hmod {withdata 0}} {
+    # Note the order of resources can be important. For example, Windows uses
+    # the first icon group it finds as the desktop icon. Happily, dict preserves
+    # order so a dict for iteration will return items in the original order
+    # in the library.
     set result [dict create]
     foreach type [enumerate_resource_types $hmod] {
         set typedict [dict create]
@@ -307,6 +311,170 @@ proc twapi::extract_resources {hmod {withdata 0}} {
         dict set result $type $typedict
     }
     return $result
+}
+
+proc twapi::_collect_icon_group {hmod group_name group_info} {
+    set lang_icons [dict create]
+    foreach lang_id [dict keys $group_info] {
+        set res [twapi::read_resource $hmod 14 $group_name $lang_id]
+        lassign [binary scan $res ttt reserved type count]
+        if {$type != 1} {
+            error "RT_GROUP_ICON idType is not 1 as expected."
+        }
+        # Loop through icon dir entries 
+        for {set i 0} {$i < $count} {incr i} {
+            # Initial RT_GROUP_ICON header is 6 bytes, each dir
+            # entry is 14 bytes with icon id in last two bytes
+            set offset [expr {6 + (14*$i)}]
+            binary scan $res "@${offset}x12t" icon_id
+            dict lappend lang_icons $lang_id $icon_id
+        }
+    }
+    return $lang_icons
+}
+
+proc twapi::replace_file_icon {path icopath args} {
+    array set opts [twapi::parseargs args {
+        {name.arg {}}
+        langid.int
+    } -maxleftover 0]
+
+    # The file icons are stored as RT_ICON_GROUP type (14) which is essentially
+    # a directory of icons stored as RT_ICON type (3). Resources are identified
+    # by the triplet <type, name, language>. When replacing icons, only the ones
+    # with the specified name and and language are replaced. The -name and
+    # -langid options identify the RT_ICON_GROUP to be replaced. If -name is not
+    # specified, it defaults to the name of the first icon group stored. If
+    # -langid is not specified, all icon groups with the given name are replaced
+    # irrespective of their language.
+    #
+    # IMPORTANT: RT_ICON's may be referenced from multiple RT_ICON_GROUPS. We
+    # should delete them only if the group being replaced is the only one
+    # referencing them.
+
+    set path [file normalize $path]
+    set hmod [load_library $path -datafile]
+
+    # Step 1 - Collect current resource information
+    # - Collect ids of the icons that are referenced by the icon group as they
+    #   have to be overwritten unless referenced elsewhere
+    # - Collect ids of icons referenced by other groups to ensure they are not
+    #   deleted
+    set target_group_name $opts(name)
+    set target_group_icon_ids [list ]
+    set target_group_icons_by_lang [dict create ]
+    set other_group_icon_ids [list ]
+    set other_group_icons_by_lang [dict create ]
+    try {
+        set resources [extract_resources $hmod]
+        # If no name is given, the first icon group found will be the target
+        dict for {target_group_name -} [dict get $resources 14] {
+            break
+        }
+
+        # Iterate over RT_ICON_GROUP's to collect the lang+icons foreach
+        dict for {group_name group_info} [dict getdef $resources 14 {}] {
+            # Get the per-language icons for this group as lang->icon dict
+            set lang_icons [_collect_icon_group $hmod $group_name $group_info]
+            if {$group_name eq $target_group_name} {
+                # Target group
+                set target_group_icons_by_lang $lang_icons
+                dict for {lang_id icon_ids} $lang_icons {
+                    lappend target_group_icon_ids {*}$icon_ids
+                }
+            } else {
+                # Some other group. Lump them all together
+                dict for {lang_id icon_ids} $lang_icons {
+                    dict lappend other_group_icons_by_lang $lang_id {*}$icon_ids
+                    lappend other_group_icon_ids {*}$icon_ids
+                }
+            }
+        }
+    } trap {TWAPI_WIN32 1812} {} {
+        # No resource section? No problem, nothing to delete
+    } finally {
+        # We have to free the library BEFORE starting the update below.
+        free_library $hmod
+    }
+
+    if {$target_group_name eq ""} {
+        # Were not passed a name and the file did not already have icon group
+        # Just make up our own
+        set target_group_name AppIcon
+    }
+
+    # Find the highest icon id in use. If needed, new id's will be generated
+    # starting from this.
+    set icon_id_last [lindex [lsort -integer [concat $target_group_icon_ids $other_group_icon_ids]] end]
+
+    # Step 2 - Read the new icon file
+    set fd [open $icopath {RDONLY BINARY}]
+    set icodata [read $fd]
+    close $fd
+
+    binary scan $icodata ttt reserved type nicons
+    if {$reserved != 0 || $type != 1} {
+        error "$icopath not recognized as a .ICO file"
+    }
+    if {$nicons == 0} {
+        error "No icons in $icopath"
+    }
+
+    # Step 3 - Write icons to file
+    # - Delete a RT_ICON if not referenced from other RT_ICON_GROUPS
+    # - Write the new RT_ICON
+
+    set hupdate [twapi::begin_resource_update $path]
+    try {
+        # If -langid unspecified, delete all resources, else only that
+        if {[info exists opts(langid)]} {
+            set target_lang_ids [dict getdef $target_group_icons_by_lang {}]
+        } else {
+            set target_lang_ids [dict keys $target_group_icons_by_lang]
+        }
+        foreach lang_id $target_lang_ids {
+            twapi::delete_resource $hupdate 14 $target_group_name $lang_id
+            dict for {lang_id icon_ids} $target_group_icons_by_lang {
+                foreach icon_id $icon_ids {
+                    twapi::delete_resource $hupdate 3 $icon_id $lang_id
+                }
+            }
+        }
+
+        # Loop and copy icons. We will first use up the icon id's
+        # that we deleted and then generate new ones. Along the way
+        # we will also build the icon dir to be placed into 
+        # RT_GROUP_ICON
+
+        set groupres [binary format ttt 0 1 $nicons]
+        for {set i 0} {$i < $nicons} {incr i} {
+            # Initial RT_GROUP_ICON header is 6 bytes, each dir in ICO file
+            # entry is 16 bytes.
+            set offset [expr {6 + (16*$i)}]
+            binary scan $icodata "@${offset} cu cu cu cu tu tu nu nu" width height colorcount reserved places bitcount bytesinres imageoffset
+            # Find an id to use for the ICO.
+            if {[llength $icons_to_delete]} {
+                set icons_to_delete [lassign $icons_to_delete icoid]
+            } else {
+                # Need to find an unused id
+                while {[lsearch -exact $orig_icon_ids [incr unused_id]] >= 0} {
+                    # Keep looping
+                }
+                set icoid $unused_id; # Note next outer iteration will start from unused_id
+            }
+            # We have the id for the icon in $icoid
+            # Format the directory entry for the icon
+            append groupres [binary format "cu cu cu cu tu tu nu tu" $width $height $colorcount $reserved $places $bitcount $bytesinres $icoid]
+            # Write out the icon itself
+            twapi::update_resource $libh 3 $icoid $opts(lang) [string range $icodata $imageoffset [expr {$imageoffset+$bytesinres-1}]]
+        }
+
+    } trap {} {msg} {
+        twapi::end_resource_update $hupdate -discard
+        error $msg
+    }
+
+    return [list $target_group_icons $other_group_icons]
 }
 
 # TBD - test

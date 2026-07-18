@@ -103,7 +103,7 @@ Removes a user from a global group.
 
 The rights and privileges associated with both user and group accounts
 can be managed with the following commands.
-[list_being opt]
+[list_begin opt]
 [opt_def [uri \#add_account_rights [cmd add_account_rights]]]
 Adds rights to an account.
 [opt_def [uri \#find_accounts_with_right [cmd find_accounts_with_right]]]

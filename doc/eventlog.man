@@ -18,10 +18,10 @@ to write to the event log without this module being loaded.
 
 [section Overview]
 
-The Windows event log provides a common application-independent 
+The Windows event log provides a common application-independent
 mechanism for applications to log messages for diagnostic and informational
 purposes. The infrastructure and API's supporting this mechanism changed
-starting with Windows Vista. Although the older Windows API's 
+starting with Windows Vista. Although the older Windows API's
 will also work on Vista and later versions, they are limited in
 their support for events logged by applications using the newer API's.
 
@@ -55,9 +55,9 @@ For reading the event log, use of the
 as those will use the underlying API
 that is most appropriate for that OS version. Alternatively, if
 platform-specific features not available through those commands
-are required, applications can call the 
+are required, applications can call the
 [uri #usingeventlogcommands [cmd eventlog]] or
-[uri #usingevtcommands [cmd evt]] 
+[uri #usingevtcommands [cmd evt]]
 commands as appropriate after checking the operating
 system version.
 
@@ -115,25 +115,35 @@ in the Windows SDK. TWAPI does not support writing events using the
 new API. Only reading of events is supported.
 
 [para]
-The new event logging subsystem in Windows Vista is considerably more
-flexible (and complex) than what was available in earlier Windows
-versions. The description below assumes the reader 
-is familiar with the terms and concepts described in the Windows
-SDK.
+The new event logging subsystem in Windows Vista is considerably more flexible
+(and complex) than what was available in earlier Windows versions. The
+description below assumes the reader is familiar with the terms and concepts
+described in the Windows SDK.
 
 [para]
-In the Vista event logging system, [emph channels]
-implement a event stream to which event publishers can write events.
-The commands [uri #evt_channels [cmd evt_channels]] and
-[uri #evt_publishers [cmd evt_publishers]]
-return the names of the channels and publishers on a system respectively.
+
+The [uri #evt_local_session [cmd evt_local_session]] command returns a handle to
+a EVT session for the Windows Event Log service on the local system using the
+current user credentials.
+The [uri #evt_open_session [cmd evt_open_session]] command establishes
+a session to a remote system or to the local system using different user
+credentials. The command [uri #evt_is_local_session [cmd evt_is_local_session]]
+can be used to distinguish between handles returned by the two commands.
+When no longer needed, sessions opened using [cmd evt_open_session] should be
+released using [uri #evt_close_session [cmd evt_close_session]].
+
 [para]
-Event consumers can consume events from channels in real time or
-from a saved event file using the 
-the [uri #evt_query [cmd evt_query]] command. This command returns
-a handle to a result set containing matching events. These can
-then be retrieved and processed using the
-[uri #evt_next [cmd evt_next]] and 
+EVT [emph channels] implement a event stream to which event publishers can write
+events. The commands [uri #evt_channels [cmd evt_channels]] and
+[uri #evt_publishers [cmd evt_publishers]] return the names of the channels and
+publishers on a system respectively.
+
+[para]
+
+Event consumers can consume events from channels in real time or from a saved
+event file using the the [uri #evt_query [cmd evt_query]] command. This command
+returns a handle to a result set containing matching events. These can then be
+retrieved and processed using the [uri #evt_next [cmd evt_next]] and
 [uri #evt_decode_events [cmd evt_decode_events]] or
 [uri #evt_decode_event [cmd evt_decode_event]].
 
@@ -178,8 +188,6 @@ with [uri #winlog_clear [cmd winlog_clear]].
 [para]
 To monitor the event log in real time, use the
 [uri #winlog_subscribe [cmd winlog_subscribe]] command.
-
-
 
 [section "Commands"]
 
@@ -417,8 +425,9 @@ display this as a list of strings.
 of the event record.
 [list_end]
 
-[call [cmd evt_channels]]
-Returns a list of names of the channels on the system.
+[call [cmd evt_channels] [opt [arg HSESSION]]]
+Returns a list of names of the EVT channels through the EVT session handle
+[arg HSESSION]. Defaults to the local system.
 
 [call [cmd evt_clear_log] [arg CHANNELNAME] [opt "[cmd -backup] [arg BACKUPFILE]"]]
 Clears the specified event channel of all events. If [cmd -backup] is specified,
@@ -428,6 +437,10 @@ is cleared.
 [call [cmd evt_close] [opt "[arg EVTHANDLE] [arg EVTHANDLE]..."]]
 Close handles returned by various EVT commands such as
 [uri #evt_query [cmd evt_query]] or [uri #evt_next [cmd evt_next]].
+
+[call [cmd evt_close_session] [arg EVTSESSIONHANDLE]]
+Close a EVT session handle returned by
+[uri #evt_open_session [cmd evt_open_session]].
 
 [call [cmd evt_decode_event] [arg HEVENT] [opt [arg options]]]
 Returns information about an event. [arg HEVENT] is a handle
@@ -560,7 +573,18 @@ returned result set.
 [arg QUERYSTRING] should be [const *] (for all events, default),
 an XPATH expression or a structured XML query. See
 the Windows SDK for details.
+[opt_def [cmd -session] [arg HSESSION]]
+Specifies the EVT session handle. Defaults to EVT session to the local
+system.
 [list_end]
+
+[call [cmd evt_is_local_session] [arg HSESSION]]]
+Returns `1` if the passed EVT session handle was created with
+[uri #evt_local_session [cmd evt_local_session]] and `0` otherwise.
+
+[call [cmd evt_local_session]]
+Returns an EVT session handle to the local system using the current user
+credentials. The handle need not be closed.
 
 [call [cmd evt_next] [arg HEVTRESULTSET] [opt [arg options]]]
 Returns a list containing events from a event query result set.
@@ -589,14 +613,59 @@ events returned may be less if the end of the result set is reached.
 If unspecified, the number of returned events depends on various
 internal tuning factors and applications must not rely on a specific
 number being returned.
-[opt_def -status [arg VARNAME]]
+[opt_def [cmd -status] [arg VARNAME]]
 The name of a variable in which to return status. If there is an
 error when reading the next event, the command will normally generate
 an Tcl exception. If this option is specified, the command will instead
 return an empty list and store the error code in the specified variable.
-[opt_def -timeout [arg MILLISECONDS]]
+[opt_def [cmd -timeout] [arg MILLISECONDS]]
 Specifies the number of milliseconds to wait for events. A value of 
 [const -1] (default) indicates call should not time out.
+[list_end]
+
+
+[call [cmd evt_open_session] [opt [arg options]] [arg SERVER]]
+
+Returns a EVT session handle for accessing the Windows event log service on the
+local or a remote computer. [arg SERVER] specifies the name of the computer to
+connect to.
+[nl]
+The handle may be passed to other commands that
+operate on event logs on the target computer. When no longer needed, the handle
+should be released using [cmd evt_close_session].
+[nl]
+The following options can be specified:
+[list_begin opt]
+[opt_def -user [arg USERNAME]]
+Specifies the user account to use when connecting to the remote
+computer. If omitted, the credentials of the current process are used.
+
+[opt_def -domain [arg DOMAIN]]
+Specifies the domain for the account specified by the [cmd -user]
+option. This may be a Windows domain name or the name of the remote
+computer for local accounts.
+
+[opt_def -password [arg PASSWORD]]
+Specifies the password corresponding to the account specified by the
+[cmd -user] option. Must be in
+[uri base.html#passwordprotection "encrypted form"].
+
+[opt_def -authtype [arg AUTHTYPE]]
+Specifies the authentication mechanism to use when connecting to the
+remote computer.
+
+[list_end]
+
+[arg AUTHTYPE] may be take one of the following values.
+[list_begin opt]
+[opt_def [const default]]
+Uses the default authentication mechanism. This is the default.
+[opt_def [const negotiate]]
+Uses the Negotiate security package.
+[opt_def [const kerberos]]
+Uses Kerberos authentication.
+[opt_def [const ntlm]]
+Uses NTLM authentication.
 [list_end]
 
 [call [cmd evt_publishers]]

@@ -16,8 +16,8 @@ resources.
 Resources are stored in Portable Executable format files (exe's and dll's).
 A resource has an associated name, type and a language.
 The name and type can be either integer values or strings.
-To retrieve a particular resource, you must know both the associated
-values, the type and the name, for that resource. When a resource type
+To retrieve a particular resource, you must know both,
+the type and the name, for that resource. When a resource type
 or name is a string, it must be explicitly enclosed in quotes. For example,
 [example "::twapi::read_resource \$h 14 {\"ICON3\"} 0"]
 and not
@@ -103,8 +103,8 @@ and [uri #read_resource_string [cmd read_resource_string]].
 
 [para]
 You can also enumerate resources present in a module using the
-[uri #enumerate_resource_types [cmd enumerate_resource_types]]
-[uri #enumerate_resource_names [cmd enumerate_resource_names]]
+[uri #enumerate_resource_types [cmd enumerate_resource_types]],
+[uri #enumerate_resource_names [cmd enumerate_resource_names]] and
 [uri #enumerate_resource_languages [cmd enumerate_resource_languages]]
 commands. The entire resource tree can be enumerated, optionally
 retrieving the resource values, through the command
@@ -114,7 +114,7 @@ retrieving the resource values, through the command
 [para]
 Note that resources themselves do not need to be explicitly freed up.
 In particular, [emph "do not try to close the resource handles"] through
-the [cmd CloseHandle] or [uri base.html#close_handles [cmd close_handles]].
+[cmd CloseHandle] or [uri base.html#close_handles [cmd close_handles]].
 
 
 [section "Updating Resources"]

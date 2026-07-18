@@ -63,6 +63,22 @@ namespace eval twapi::eventlog::test {
     variable source
     variable type
 
+    # Get credentials for EVT sessions
+    proc evt_test_creds {target} {
+        variable evt_test_creds
+        if {![info exists evt_test_creds] || ![dict exists $evt_test_creds $target]} {
+            dict set evt_test_creds $target [twapi::cred_prompt_gui $target]
+        }
+        return [dict get $evt_test_creds $target]
+    }
+
+    # Returns a handle to EVT session used for tests
+    proc evt_test_session {args} {
+        lassign [evt_test_creds $::env(COMPUTERNAME) {*}$args] user pw save
+        set hsess [twapi::evt_open_session $::env(COMPUTERNAME) -user $user -password $pw ]
+        return $hsess
+    }
+
     # Read the last entry from the specified event log
     proc get_last_event {source} {
         set hevl [twapi::eventlog_open -source $source]
@@ -505,6 +521,83 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
+    test evt_open_session-1.0 {
+        Open a EVT session with default credentials
+    } -body {
+        # Default creds - DON'T use evt_test_session
+        set hsess [twapi::evt_open_session $::env(COMPUTERNAME)]
+        expr {[llength [twapi::evt_channels $hsess]] > 0}
+    } -cleanup {
+        twapi::evt_close_session $hsess
+    } -result 1
+
+    test evt_open_session-2.0 {
+        Open a EVT session with user name and password
+    } -constraints userInteraction -cleanup {
+        twapi::evt_close_session $hsess
+    } -body {
+        set hsess [evt_test_session]
+        expr {[llength [twapi::evt_channels $hsess]] > 0}
+    } -result 1
+
+    test evt_open_session-3.0 {
+        Open a EVT session with domain user name and password
+    } -constraints userInteraction -cleanup {
+        twapi::evt_close_session $hsess
+    } -body {
+        set hsess [evt_test_session -domain $::env(COMPUTERNAME)]
+        expr {[llength [twapi::evt_channels $hsess]] > 0}
+    } -result 1
+
+    set testnum -1
+    foreach authtype {default ntlm negotiate} {
+        test evt_open_session-4.[incr testnum] "Open a EVT session with user name and password, auth type $authtype" \
+            -constraints userInteraction -cleanup {
+                twapi::evt_close_session $hsess
+            } -body {
+                set hsess [evt_test_session -authtype $authtype]
+                expr {[llength [twapi::evt_channels $hsess]] > 0}
+            } -result 1
+    }
+    # Assumes it will fail since no kerberos/AD
+    test evt_open_session-4.3 "Open a EVT session with user name and password, auth type kerberos" \
+        -constraints userInteraction -cleanup {
+            twapi::evt_close_session $hsess
+        } -body {
+            list [catch {
+                set hsess [evt_test_session -authtype $kerberos]
+                twapi::evt_channels $hsess
+            } msg] $msg
+        } -result {1 *security package specific error*} -match glob
+
+
+    ################################################################
+
+    test evt_local_session-1.0 {
+        Open a local EVT session
+    } -body {
+        expr {[llength [twapi::evt_channels [twapi::evt_local_session]]] > 0}
+    } -result 1
+
+    ################################################################
+
+    test evt_is_local_session-1.0 {
+        Check if a session is local
+    } -body {
+        twapi::evt_is_local_session [twapi::evt_local_session]
+    } -result 1
+
+    test evt_open_session-1.2 {
+        Check if a session is local (remote case)
+    } -body {
+        set hsess [twapi::evt_open_session $::env(COMPUTERNAME)]
+        expr {[llength [twapi::evt_channels $hsess]] > 0}
+    } -cleanup {
+        twapi::evt_close_session $hsess
+    } -result 0
+
+    ################################################################
+
     test evt_channels-1.0 {
         Evt channels
     } -constraints {
@@ -562,32 +655,53 @@ namespace eval twapi::eventlog::test {
     ################################################################
 
     test evt_export_log-1.0 {
-        Export the eventlog
-    } -constraints {
-        win6
+        Export the eventlo -channel, -file
+    } -setup {
+        set backup [file join $::env(TEMP) twapi_events.bak]
+        set backup2 [file join $::env(TEMP) twapi_events2.bak]
+        if {[file exists $backup]} {file delete $backup}
+        if {[file exists $backup2]} {file delete $backup2}
+    } -body {
+        set count [twapi::winlog_event_count -channel Setup]
+        twapi::evt_export_log $backup -channel Setup
+        twapi::evt_export_log $backup2 -file $backup
+        list \
+            [expr {[twapi::winlog_event_count -file $backup] == $count}] \
+            [expr {[twapi::winlog_event_count -file $backup2] == $count}]
+      } -cleanup {
+          file delete $backup
+          file delete $backup2
+      } -result {1 1}
+
+    test evt_export_log-2.0 {
+        Export the eventlog -session
+    } -setup {
+        # Not using evt_test_session because want to use default credentials.
+        # Token created with explicit credentials may not have some required
+        # privileges.
+        set hsession [twapi::evt_open_session $::env(COMPUTERNAME)]
+        set backup [file join $::env(TEMP) twapi_events.bak]
+        if {[file exists $backup]} {file delete $backup}
+    } -body {
+        set count [twapi::winlog_event_count -channel Setup]
+        twapi::evt_export_log $backup -channel Setup -session $hsession
+        expr {[twapi::winlog_event_count -file $backup] == $count}
+    } -cleanup {
+        twapi::evt_close_session $hsession
+        file delete $backup
+    } -result 1
+
+    test evt_export_log-3.0 {
+        Export the eventlog -query
     } -setup {
         set backup [file join $::env(TEMP) twapi_events.bak]
         if {[file exists $backup]} {file delete $backup}
     } -body {
-        set count [twapi::winlog_event_count -channel System]
-        twapi::evt_export_log $backup -channel System
-        expr {[twapi::winlog_event_count -file $backup] == $count}
-    } -cleanup {
-        file delete $backup
-    } -result 1
-
-    test evt_export_log-10.0 {
-        Export the eventlog -session -file -query -ignorequeryerrors
-    } -constraints {
-        TBD win6
-    } -setup {
-        TBD
-    } -body {
-        TBD
-    } -cleanup {
-        TBD
-    } -result TBD
-
+        twapi::evt_export_log $backup -channel Setup -query {*[System[Channel='Setup' and EventID=1]]} -channel Setup
+        expr {[twapi::winlog_event_count -file $backup] < $count}
+      } -cleanup {
+          file delete $backup
+      } -result 1
 
     ################################################################
 
