@@ -16,6 +16,10 @@ This module provides commands for reading and writing the Windows event log.
 and [uri \#eventlog_close [cmd eventlog_close]]. This allows applications
 to write to the event log without this module being loaded.
 
+[para]
+Many commands dealing with the event log require the process to be running
+with administrative privileges and/or in elevated mode.
+
 [section Overview]
 
 The Windows event log provides a common application-independent
@@ -99,8 +103,7 @@ notifications through the
 
 [para]
 Event logs can be backed up using [uri \#eventlog_backup [cmd eventlog_backup]]
-or as
-a side effect of clearing the log through
+or as a side effect of clearing the log through
 [uri \#eventlog_clear [cmd eventlog_clear]]. The
 backup file can be read using the standard
 [uri \#eventlog_open [cmd eventlog_open]] and
@@ -108,11 +111,10 @@ backup file can be read using the standard
 
 [section "Using evt Commands"]
 
-This section describes the use of the newer 
-event log commands available in Windows Vista and later Windows version.
-The corresponding Windows API functions are prefixed with [cmd Evt]
-in the Windows SDK. TWAPI does not support writing events using the
-new API. Only reading of events is supported.
+This section describes the use of the newer event log commands available in
+Windows Vista and later Windows version. The corresponding Windows API functions
+are prefixed with [cmd Evt] in the Windows SDK. TWAPI does not support writing
+events using the new API. Only reading of events is supported.
 
 [para]
 The new event logging subsystem in Windows Vista is considerably more flexible
@@ -121,7 +123,6 @@ description below assumes the reader is familiar with the terms and concepts
 described in the Windows SDK.
 
 [para]
-
 The [uri #evt_local_session [cmd evt_local_session]] command returns a handle to
 a EVT session for the Windows Event Log service on the local system using the
 current user credentials.
@@ -139,18 +140,48 @@ events. The commands [uri #evt_channels [cmd evt_channels]] and
 publishers on a system respectively.
 
 [para]
-
 Event consumers can consume events from channels in real time or from a saved
 event file using the the [uri #evt_query [cmd evt_query]] command. This command
 returns a handle to a result set containing matching events. These can then be
-retrieved and processed using the [uri #evt_next [cmd evt_next]] and
-[uri #evt_decode_events [cmd evt_decode_events]] or
-[uri #evt_decode_event [cmd evt_decode_event]].
+retrieved the [uri #evt_next [cmd evt_next]] and further processed with
+one of the rendering commands in the table below.
+
+[list_begin opt]
+
+[opt_def [uri #evt_decode_event [cmd evt_decode_event]]]
+Returns content of an event as a dictionary.
+[opt_def [uri #evt_decode_events [cmd evt_decode_events]]]
+Returns a [uri base.html#recordarrays recordarray] containing
+content of multiple events.
+[opt_def [uri #evt_render_event [cmd evt_render_event]]]
+Returns content of an event as XML.
+[list_end]
+
+[para]
+An EVT [emph bookmark] identifies a specific event in an event log. Bookmarks are
+created with [uri #evt_create_bookmark [cmd evt_create_bookmark]] and
+set to point to a specific event either by passing a
+XML representation previously generated with
+[uri #evt_render_bookmark [cmd evt_render_bookmark]] to that command or
+with [uri #evt_update_bookmark [cmd evt_update_bookmark]] when given
+a event handle. A bookmark may be used to resume processing from its
+targeted event in an event query by passing it to
+[uri #evt_seek [cmd evt_seek]] or [uri #evt_subscribe [cmd evt_subscribe]].
 
 [para]
 All handles returned by the [cmd evt_*] commands, such as those returned from
 [uri #evt_next [cmd evt_next]] and [uri #evt_query [cmd evt_query]]
 must be closed by passing them to [uri #evt_close [cmd evt_close]].
+
+[para]
+Event logs can be exported to file using one of the following functions.
+
+[list_begin opt]
+[opt_def [uri #evt_archive_exported_log [cmd evt_archive_exported_log]]]
+Archives an exported event log file with localized strings.
+[opt_def [uri #evt_export_log [cmd evt_export_log]]]
+Exports a event log channel to a log file.
+[list_end]
 
 [para]
 To monitor the event log in real time, use the
@@ -166,7 +197,7 @@ a command to write events.
 [para]
 The common access commands require a handle to the event log which
 can be obtained via the [uri \#winlog_open [cmd winlog_open]]
-command. 
+command.
 The returned handle must be closed when no
 longer required by calling
 [uri \#winlog_close [cmd winlog_close]].
@@ -425,6 +456,17 @@ display this as a list of strings.
 of the event record.
 [list_end]
 
+[call [cmd evt_archive_exported_log] [arg LOGPATH] [opt [arg options]]]
+Archives the exported event log in file [arg LOGPATH]
+along with formatting information so
+that it can be viewed on systems where the event providers are not installed.
+[list_begin opt]
+[opt_def [cmd -lcid] [arg LCID]]
+The locale identifier to use for the formatting messages in the archive.
+[opt_def [cmd -session] [arg HSESSION]]
+Specifies the EVT session handle. Defaults to the local system.
+[list_end]
+
 [call [cmd evt_create_bookmark] [opt [arg XML]]]
 Creates and returns a handle to an event bookmark. A bookmark identifies a
 specific event in an event log and may be used to restart event processing from
@@ -443,10 +485,16 @@ The returned handle should be released via [cmd evt_close].
 Returns a list of names of the EVT channels through the EVT session handle
 [arg HSESSION]. Defaults to the local system.
 
-[call [cmd evt_clear_log] [arg CHANNELNAME] [opt "[cmd -backup] [arg BACKUPFILE]"]]
-Clears the specified event channel of all events. If [cmd -backup] is specified,
-the events are written to the specified backup file before the channel
+[call [cmd evt_clear_log] [arg CHANNELNAME] [opt [arg options]]]
+Clears the specified event channel of all events.
+
+[list_begin opt]
+[opt_def [cmd -backup] [arg BACKUPFILE]]
+Specifies a backup file in which to save events before the event channel
 is cleared.
+[opt_def [cmd -session] [arg HSESSION]]
+Specifies the EVT session handle. Defaults to the local system.
+[list_end]
 
 [call [cmd evt_close] [opt "[arg EVTHANDLE] [arg EVTHANDLE]..."]]
 Close handles returned by various EVT commands such as
@@ -558,8 +606,7 @@ Specifies the path to the logfile containing archived publisher metadata
 for the event.
 This option is ignored if the [cmd -hpublisher] option is specified.
 [opt_def [cmd -session] [arg HSESSION]]
-Specifies the session to the event logging subsystem for the event.
-By default the local event logging subsystem is used.
+Specifies the EVT session handle. Defaults to the local system.
 [list_end]
 
 
@@ -588,8 +635,7 @@ returned result set.
 an XPATH expression or a structured XML query. See
 the Windows SDK for details.
 [opt_def [cmd -session] [arg HSESSION]]
-Specifies the EVT session handle. Defaults to EVT session to the local
-system.
+Specifies the EVT session handle. Defaults to the local system.
 [list_end]
 
 [call [cmd evt_is_local_session] [arg HSESSION]]]
@@ -726,6 +772,13 @@ Returns the XML form of a bookmark. This can then be passed to the
 [uri #evt_create_bookmark [cmd evt_create_bookmark]] command to
 recreate the bookmark to an event at some later time.
 
+[call [cmd evt_render_event] [arg HEVENT]]
+
+Returns the XML representation of the event referenced by [arg HEVENT],
+including including system-defined metadata and provider-defined event data.
+Localized message text is not included but can be retrieved with
+[uri #evt_format_message [cmd evt_format_message]].
+
 [call [cmd evt_subscribe] [arg CHANNELPATH] [opt [arg options]]]
 Registers for notifications when events are logged to the event
 channel [arg CHANNELPATH]. Returns a pair of two handles, the first
@@ -761,6 +814,18 @@ an XPATH expression or a structured XML query. See
 the Windows SDK for details.
 [list_end]
 
+[call [cmd evt_system_render_context]]
+Returns a handle to a render context that can be passed to
+[uri #evt_render_event [cmd evt_render_event]] to render the
+system-defined properties of an event.
+[nl]
+The returned values correspond to the properties identified by the
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_system_property_id "system property identifiers"]
+defined by the Windows Event Log API and returned in that order.
+[nl]
+The returned handle should be released using [uri #evt_close [cmd evt_close]]
+when no longer needed.
+
 [call [cmd evt_update_bookmark] [arg HBOOKMARK] [arg HEVENT]]
 
 Updates the bookmark specified by [arg HBOOKMARK] to identify the event
@@ -772,6 +837,33 @@ The event handle must refer to an event returned by [cmd evt_next]. The
 bookmark may subsequently be used with commands like
 [uri #evt_seek [cmd evt_seek]] or [uri #evt_query [cmd evt_query]]
 to resume processing from the bookmarked event.
+
+[call [cmd evt_user_render_context]]
+Returns a handle to a render context that can be passed to
+[uri #evt_render_event [cmd evt_render_event]] to render the
+user-defined properties of an event under the [const UserData]
+section of the event, and the [const EventData] section if no
+[const UserData] section is present.
+[nl]
+The returned values correspond to the properties defined by the
+provider in the event schema and returned in the same order.
+[nl]
+The returned handle should be released using [uri #evt_close [cmd evt_close]]
+when no longer needed.
+
+[call [cmd evt_xpaths_render_context] [arg XPATHLIST]]
+
+Returns a handle to a render context for rendering the event properties
+selected by the list of XPATH expressions passed in [arg XPATHLIST].
+The handle can then be passed to
+[uri #evt_render_event [cmd evt_render_event]] to render the selected
+property values.
+[nl]
+Each element of [arg XPATHLIST] specifies an XPath expression that
+selects a single property from an event. The values are returned in the
+same order as the corresponding XPath expressions in the list.
+[nl]
+The returned should be released using [cmd evt_close].
 
 [call [cmd winlog_backup] [arg NAME] [arg BACKUPFILE]]
 Writes events from the specified event channel or source to a backup file.

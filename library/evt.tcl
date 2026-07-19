@@ -25,11 +25,11 @@ namespace eval twapi {
 
         # system_render_context_handle - is the handle to a rendering
         #    context for the system portion of an event
-        set _evt(system_render_context_handle) [evt_render_context_system]
+        set _evt(system_render_context_handle) [evt_system_render_context]
 
         # user_render_context_handle - is the handle to a rendering
         #    context for the user data portion of an event
-        set _evt(user_render_context_handle) [evt_render_context_user]
+        set _evt(user_render_context_handle) [evt_user_render_context]
 
         # render_buffer - is NULL or holds a pointer to the buffer used to
         #    retrieve values so does not have to be reallocated every time.
@@ -98,7 +98,6 @@ proc twapi::evt_channels {{hevtsess NULL}} {
 }
 
 proc twapi::evt_clear_log {chanpath args} {
-    # TBD - document -session
     array set opts [parseargs args {
         {session.arg NULL}
         {backup.arg ""}
@@ -107,7 +106,6 @@ proc twapi::evt_clear_log {chanpath args} {
     return [EvtClearLog $opts(session) $chanpath [_evt_normalize_path $opts(backup)] 0]
 }
 
-# TBD - document
 proc twapi::evt_archive_exported_log {logpath args} {
     array set opts [parseargs args {
         {session.arg NULL}
@@ -147,23 +145,23 @@ proc twapi::evt_render_bookmark {hbm} {
     return [Twapi_EvtRenderUnicode NULL $hbm 2]
 }
 
-proc twapi::evt_render_event_xml {hbm} {
+proc twapi::evt_render_event {hevent} {
     # 1 -> EvtRenderEventXml
-    return [Twapi_EvtRenderUnicode NULL $hbm 1]
+    return [Twapi_EvtRenderUnicode NULL $hevent 1]
 }
 
 # TBD - document
-proc twapi::evt_render_context_xpaths {xpaths} {
+proc twapi::evt_xpaths_render_context {xpaths} {
     return [EvtCreateRenderContext $xpaths 0]
 }
 
 # TBD - document
-proc twapi::evt_render_context_system {} {
+proc twapi::evt_system_render_context {} {
     return [EvtCreateRenderContext {} 1]
 }
 
 # TBD - document
-proc twapi::evt_render_context_user {} {
+proc twapi::evt_user_render_context {} {
     return [EvtCreateRenderContext {} 2]
 }
 

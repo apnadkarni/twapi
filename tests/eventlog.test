@@ -11,6 +11,7 @@ eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_eventlog
+load_twapi_package twapi_process; # Needed for proc privileged
 
 # TBD - notes for testing
 if {0} {
@@ -62,6 +63,20 @@ namespace eval twapi::eventlog::test {
     variable testnum
     variable source
     variable type
+
+    proc privileged {} {
+        if {[twapi::min_os_version 6]} {
+            if {[twapi::process_in_administrators] &&
+                [twapi::get_process_elevation] eq "full"} {
+                return 1
+            } else {
+                return 0
+            }
+        } else {
+            return [twapi::process_in_administrators]
+        }
+    }
+    ::tcltest::testConstraint privileged [privileged]
 
     # Get credentials for EVT sessions
     proc evt_test_creds {target} {
@@ -612,9 +627,7 @@ namespace eval twapi::eventlog::test {
 
     test evt_clear_log-1.0 {
         Clear the event log
-    } -constraints {
-        win6 systemmodificationok
-    } -body {
+    } -constraints systemmodificationok -body {
         twapi::evt_clear_log Application
         set hevl [twapi::evt_open_log_info -channel Application]
         dict get [twapi::evt_log_info $hevl -numberoflogrecords] -numberoflogrecords
@@ -624,9 +637,7 @@ namespace eval twapi::eventlog::test {
 
     test evt_log_clear-1.1 {
         Backup and clear the event log
-    } -constraints {
-        win6 systemmodificationok
-    } -setup {
+    } -constraints systemmodificationok -setup {
         set backup [file join [tcltest::temporaryDirectory] twapi_events.bak]
         if {[file exists $backup]} {file delete $backup}
     } -body {
@@ -642,14 +653,14 @@ namespace eval twapi::eventlog::test {
 
     test evt_log_clear-2.0 {
         Backup and clear the event log -session
-    } -constraints {
-        TBD win6 systemmodificationok
-    } -setup {
-        TBD
+    } -constraints systemmodificationok -setup {
+        set hsess [twapi::evt_open_session $::env(COMPUTERNAME)]
     } -body {
-        TBD
+        twapi::evt_clear_log Application -session $hsess
+        set hevl [twapi::evt_open_log_info -channel Application]
+        dict get [twapi::evt_log_info $hevl -numberoflogrecords] -numberoflogrecords
     } -cleanup {
-        TBD
+        twapi::evt_close_session $hsess
     } -result {1 1}
 
     ################################################################
@@ -705,13 +716,59 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
+    test evt_archive_exported_log-1.0 {
+        Archive an event log file
+    } -constraints privileged -setup {
+        set archive [file join $::env(TEMP) twapi_events.bak]
+        if {[file exists $archive]} {file delete $archive}
+    } -body {
+        set count [twapi::winlog_event_count -channel Setup]
+        twapi::evt_export_log $archive -channel Setup
+        twapi::evt_archive_exported_log $archive
+        expr {[twapi::winlog_event_count -file $archive] == $count}
+      } -cleanup {
+          file delete $archive
+      } -result 1
+
+    test evt_archive_exported_log-2.0 {
+        Archive an event log file -lcid
+    } -constraints privileged -setup {
+        set archive [file join $::env(TEMP) twapi_events.bak]
+        if {[file exists $archive]} {file delete $archive}
+    } -body {
+        set count [twapi::winlog_event_count -channel Setup]
+        twapi::evt_export_log $archive -channel Setup
+        twapi::evt_archive_exported_log $archive -lcid 1033
+        expr {[twapi::winlog_event_count -file $archive] == $count}
+      } -cleanup {
+          file delete $archive
+      } -result 1
+
+    test evt_archive_exported_log-3.0 {
+        Archive an event log file -session
+    } -constraints privileged -setup {
+        set hsess [twapi::evt_open_session $::env(COMPUTERNAME)]
+        set archive [file join $::env(TEMP) twapi_events.bak]
+        if {[file exists $archive]} {file delete $archive}
+    } -body {
+        set count [twapi::winlog_event_count -channel Setup]
+        twapi::evt_export_log $archive -channel Setup -session $hsess
+        twapi::evt_archive_exported_log $archive -session $hsess
+        expr {[twapi::winlog_event_count -file $archive] == $count}
+      } -cleanup {
+          file delete $archive
+          twapi::evt_close_session $hsess
+      } -result 1
+
+    ################################################################
+
     test evt-bookmarks-1.0 {
         evt_create_bookmark, evt_update_bookmark, evt_seek -bookmark
     } -setup {
         set hquery [twapi::evt_query -channel Setup]
         set hevents [twapi::evt_next $hquery -count 2]
         set hevent [lindex $hevents 1]
-        set event_xml [twapi::evt_render_event_xml $hevent]
+        set event_xml [twapi::evt_render_event $hevent]
     } -cleanup {
         twapi::evt_close {*}$hevents $hbook $hquery
     } -body {
@@ -719,11 +776,11 @@ namespace eval twapi::eventlog::test {
         twapi::evt_update_bookmark $hbook $hevent
         twapi::evt_close {*}$hevents
         set hevents [twapi::evt_next $hquery -count 2]
-        set new_xml [twapi::evt_render_event_xml [lindex $hevents 0]]
+        set new_xml [twapi::evt_render_event [lindex $hevents 0]]
         twapi::evt_close {*}$hevents
         twapi::evt_seek $hquery 0 -bookmark $hbook
         set hevents [twapi::evt_next $hquery -count 2]
-        set event_xml_bookmarked [twapi::evt_render_event_xml [lindex $hevents 0]]
+        set event_xml_bookmarked [twapi::evt_render_event [lindex $hevents 0]]
         list [string equal $event_xml $new_xml] \
             [string equal $event_xml $event_xml_bookmarked]
     } -result {0 1}
@@ -734,7 +791,7 @@ namespace eval twapi::eventlog::test {
         set hquery [twapi::evt_query -channel Setup]
         set hevents [twapi::evt_next $hquery -count 2]
         set hevent [lindex $hevents 1]
-        set event_xml [twapi::evt_render_event_xml $hevent]
+        set event_xml [twapi::evt_render_event $hevent]
     } -cleanup {
         twapi::evt_close {*}$hevents $hbook $hquery
     } -body {
@@ -743,15 +800,28 @@ namespace eval twapi::eventlog::test {
         set xml [twapi::evt_render_bookmark $hbook]
         twapi::evt_close {*}$hevents $hbook
         set hevents [twapi::evt_next $hquery -count 2]
-        set new_xml [twapi::evt_render_event_xml [lindex $hevents 0]]
+        set new_xml [twapi::evt_render_event [lindex $hevents 0]]
         twapi::evt_close {*}$hevents
         set hbook [twapi::evt_create_bookmark $xml]
         twapi::evt_seek $hquery 0 -bookmark $hbook
         set hevents [twapi::evt_next $hquery -count 2]
-        set event_xml_bookmarked [twapi::evt_render_event_xml [lindex $hevents 0]]
+        set event_xml_bookmarked [twapi::evt_render_event [lindex $hevents 0]]
         list [string equal $event_xml $new_xml] \
             [string equal $event_xml $event_xml_bookmarked]
     } -result {0 1}
+
+    ################################################################
+
+    test evt_render_event-1.0 {
+        Render event XML
+    } -setup {
+        set hquery [twapi::evt_query -channel Setup]
+        set hevents [twapi::evt_next $hquery]
+    } -cleanup {
+        twapi::evt_close {*}$hevents $hquery
+    } -body {
+        twapi::evt_render_event [lindex $hevents 0]
+    } -result {<Event*<System>*</System>*</Event>} -match glob
 
     ################################################################
 

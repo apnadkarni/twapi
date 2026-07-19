@@ -322,7 +322,6 @@ proc twapi::_eventlog_notification_handler {hevent event} {
     }
 }
 
-# TBD - document
 proc twapi::eventlog_subscribe {source} {
     set hevl [eventlog_open -source $source]
     set hevent [lindex [CreateEvent [_make_secattr {} 0] 0 0 ""] 0]
