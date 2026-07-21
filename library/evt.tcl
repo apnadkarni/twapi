@@ -145,12 +145,20 @@ proc twapi::evt_render_bookmark {hbm} {
     return [Twapi_EvtRenderUnicode NULL $hbm 2]
 }
 
-proc twapi::evt_render_event {hevent} {
+proc twapi::evt_render_event {hevt} {
     # 1 -> EvtRenderEventXml
-    return [Twapi_EvtRenderUnicode NULL $hevent 1]
+    return [Twapi_EvtRenderUnicode NULL $hevt 1]
 }
 
-# TBD - document
+proc twapi::evt_render_values {hevt hctx} {
+    set hbuf [Twapi_EvtRenderValues $hctx $hevt NULL]
+    try {
+        return [Twapi_ExtractEVT_RENDER_VALUES $hbuf]
+    } finally {
+        evt_free_EVT_RENDER_VALUES $hbuf
+    }
+}
+
 proc twapi::evt_xpaths_render_context {xpaths} {
     return [EvtCreateRenderContext $xpaths 0]
 }

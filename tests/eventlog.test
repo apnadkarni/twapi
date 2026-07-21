@@ -825,6 +825,85 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
+    test evt_system_render_context-1.0 {
+        Render context for system properties
+    } -setup {
+        set hquery [twapi::evt_query -channel Setup]
+        set hevents [twapi::evt_next $hquery]
+    } -cleanup {
+        twapi::evt_close {*}$hevents $hquery
+    } -body {
+        set hctx [twapi::evt_system_render_context]
+        set hevt [lindex $hevents 0]
+        set xml [twapi::evt_render_event $hevt]
+        regexp {Provider Name='([^']+)'\s+Guid='([^']+)'.+ProcessID='([^']+)'} $xml -> provider guid pid
+        set values [twapi::evt_render_values $hevt $hctx]
+        twapi::evt_close $hctx
+        list [llength $values] \
+            [expr {$provider eq [lindex $values 0]}] \
+            [string equal -nocase $guid [lindex $values 1]] \
+            [expr {$pid eq [lindex $values 12]}] \
+            [lindex $values 14]
+    } -result [list [llength [twapi::evt_system_fields]] 1 1 1 Setup]
+
+    ################################################################
+
+    test evt_user_render_context-1.0 {
+        Render context for user properties
+    } -setup {
+        set hquery [twapi::evt_query -channel Setup]
+        set hevents [twapi::evt_next $hquery]
+    } -cleanup {
+        twapi::evt_close {*}$hevents $hquery
+    } -body {
+        set hctx [twapi::evt_user_render_context]
+        set hevt [lindex $hevents 0]
+        set xml [twapi::evt_render_event $hevt]
+        regexp {<UserData>(.*)</UserData>} $xml -> userdata
+        set xml_values [lmap {- value} [regexp -inline -all {<[^>]+>([^<]+)} $userdata] {
+            set value
+        }]
+        set values [twapi::evt_render_values $hevt $hctx]
+        twapi::evt_close $hctx
+        equal_lists $values $xml_values
+    } -result 1
+    ################################################################
+
+    test evt_xpaths_render_context-1.0 {
+        Render context for xpaths
+    } -setup {
+        set hquery [twapi::evt_query -channel Setup]
+        set hevents [twapi::evt_next $hquery]
+    } -cleanup {
+        twapi::evt_close {*}$hevents $hquery
+    } -body {
+        set xpaths [list "Event/System/Provider/@Name" "Event/System/Channel"]
+        set hctx [twapi::evt_xpaths_render_context $xpaths]
+        set hevt [lindex $hevents 0]
+        set values [twapi::evt_render_values $hevt $hctx]
+        twapi::evt_close $hctx
+        set values
+    } -result {Microsoft-Windows-Servicing Setup}
+
+    test evt_xpaths_render_context-2.0 {
+        Render context for xpaths - no match
+    } -setup {
+        set hquery [twapi::evt_query -channel Setup]
+        set hevents [twapi::evt_next $hquery]
+    } -cleanup {
+        twapi::evt_close {*}$hevents $hquery
+    } -body {
+        set xpaths [list "Event/System/NoSuch"]
+        set hctx [twapi::evt_xpaths_render_context $xpaths]
+        set hevt [lindex $hevents 0]
+        set values [twapi::evt_render_values $hevt $hctx]
+        twapi::evt_close $hctx
+        puts llength:[llength $values]
+        set values
+    } -result [list ]
+
+    ################################################################
+
     test evt_publishers-1.0 {
         Evt publishers
     } -constraints {

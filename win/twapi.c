@@ -1206,7 +1206,7 @@ TCL_RESULT TwapiUnregisterPointerTic(TwapiInterpContext *ticP, const void *p, vo
     code = TWAPI_REGISTERED_POINTER_NOTFOUND;
     if (he) {
         TwapiRegisteredPointer *rP = Tcl_GetHashValue(he);
-        if (rP->tag != typetag)
+        if (typetag && rP->tag != typetag)
             code = TWAPI_REGISTERED_POINTER_TAG_MISMATCH;
         else {
             /* For counted pointers, free if ref count reaches 0.
