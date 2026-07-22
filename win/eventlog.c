@@ -247,13 +247,6 @@ static int Twapi_EventlogInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     return Twapi_EvtInitCalls(interp, ticP);
 }
 
-static int TwapiEventlogOneTimeInit(void *arg)
-{
-    Tcl_Interp *interp = arg;
-    TwapiInitEvtStubs(interp);
-    return TCL_OK;
-}
-
 #ifndef TWAPI_SINGLE_MODULE
 BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
 {
@@ -280,11 +273,6 @@ int Twapi_eventlog_Init(Tcl_Interp *interp)
     if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
         return TCL_ERROR;
     }
-
-    if (! TwapiDoOneTimeInit(&TwapiEventlogOneTimeInitialized,
-                             TwapiEventlogOneTimeInit, interp))
-        return TCL_ERROR;
-
 
     return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, DEFAULT_TIC) ? TCL_OK : TCL_ERROR;
 }

@@ -17,7 +17,7 @@ dnl	to configure the system for the local environment.
 #-----------------------------------------------------------------------
 
 # Leave a space after the comma for release.cmd to parse
-AC_INIT([twapi], [5.3a0])
+AC_INIT([twapi], [6.0a0])
 
 #--------------------------------------------------------------------
 # Call TEA_INIT as the first TEA_ macro to set up initial vars.
@@ -92,7 +92,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 
     TEA_ADD_INCLUDES([-I. -I\"$(${CYGPATH} ${srcdir}/twapi/include)\" -I\"${srcdir}/dyncall/dyncall-0.9/include\"])
 
-    TEA_ADD_CFLAGS([-DUNICODE -D_UNICODE -DWINVER=0x0601 -D_WIN32_WINNT=0x0601 -DPSAPI_VERSION=1])
+    TEA_ADD_CFLAGS([-DUNICODE -D_UNICODE -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 -DPSAPI_VERSION=2])
 
     TEA_ADD_SOURCES([
 	    win/adsi.c
@@ -164,12 +164,12 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 
     TEA_ADD_LIBS([
 		    kernel32.lib advapi32.lib user32.lib
-		    rpcrt4.lib gdi32.lib psapi.lib netapi32.lib
+		    rpcrt4.lib gdi32.lib netapi32.lib
 		    pdh.lib winmm.lib mpr.lib ws2_32.lib uuid.lib
 		    ole32.lib oleaut32.lib shell32.lib shlwapi.lib
 		    winspool.lib version.lib iphlpapi.lib
 		    powrprof.lib secur32.lib userenv.lib
-		    wtsapi32.lib setupapi.lib uxtheme.lib
+		    wtsapi32.lib setupapi.lib uxtheme.lib wevtapi.lib
 		    credui.lib crypt32.lib wintrust.lib tdh.lib
 		])
 

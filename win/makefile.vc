@@ -1,19 +1,9 @@
 #------------------------------------------------------------- -*- makefile -*-
 #
-# Nmake makefile for building cffi.
+# Nmake makefile for building twapi.
 #
-# Basic build, test and install using libffi
-#   nmake /s /nologo /f makefile.vc INSTALLDIR=c:\path\to\tcl EXTDIR=c:\path\to\libffi
-# Basic build, test and install using dyncall
-#   nmake /s /nologo /f makefile.vc OPTS=dyncall INSTALLDIR=c:\path\to\tcl EXTDIR=c:\path\to\dyncall
-#
-# The EXTDIR directory should contain "include" and "lib" directories for
-# dyncall/libffi depending on the library being used. If undefined, it will default
-# to ../external-libs/win/$(BUILDDIRTOP) where BUILDDIRTOP is defined by rules-ext.vc
-# above based on architecture, compiler version and build mode (debug/release).
-# See the BUILD.md in top level directory for building dyncall and libffi itself.
-#
-# To test and install,
+# Basic build, test and install
+#   nmake /s /nologo /f makefile.vc INSTALLDIR=c:\path\to\tcl
 #   nmake /s /nologo /f makefile.vc INSTALLDIR=c:\path\to\tcl test
 #   nmake /s /nologo /f makefile.vc INSTALLDIR=c:\path\to\tcl install
 #
@@ -114,7 +104,7 @@ HEADERS = \
 PRJ_INCLUDES = -I $(ROOT)\include -I $(DYNCALLDIR)\include -I$(TMP_DIR)
 
 # Windows defines
-PRJ_DEFINES = -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0601 -DWINVER=0x0601 -D_UNICODE -DUNICODE
+PRJ_DEFINES = -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0A00 -DWINVER=0x0A00 -D_UNICODE -DUNICODE -DPSAPI_VERSION=2
 
 # Tcl defines
 PRJ_DEFINES = $(PRJ_DEFINES) -DTCL_NO_DEPRECATED
@@ -143,7 +133,6 @@ PRJ_LIBS = $(PRJ_LIBS) \
 	oleaut32.lib \
 	pdh.lib \
 	powrprof.lib \
-	psapi.lib \
 	rpcrt4.lib \
 	secur32.lib \
 	setupapi.lib \
@@ -153,6 +142,7 @@ PRJ_LIBS = $(PRJ_LIBS) \
 	userenv.lib \
 	uxtheme.lib \
 	version.lib \
+	wevtapi.lib \
 	winmm.lib \
 	winspool.lib \
 	wintrust.lib \

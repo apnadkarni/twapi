@@ -7,7 +7,6 @@
 
 #include "twapi.h"
 #include "twapi_base.h"
-#include "tclTomMath.h"
 
 /* For older MinGW releases */
 #ifndef ERROR_IMPLEMENTATION_LIMIT

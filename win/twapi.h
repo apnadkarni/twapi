@@ -167,6 +167,10 @@
 #include <wincred.h>
 
 #include "tcl.h"
+#if TCL_MAJOR_VERSION > 8 || TCL_MINOR_VERSION > 6
+#define TCL_NO_TOMMATH_H 1
+#endif
+#include <tclTomMath.h>
 
 #ifndef TCL_SIZE_MAX
 # define Tcl_GetSizeIntFromObj Tcl_GetIntFromObj

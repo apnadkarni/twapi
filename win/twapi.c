@@ -8,7 +8,6 @@
 #include "twapi.h"
 #include "twapi_base.h"
 #include <ntverp.h>             /* Needed for VER_PRODUCTBUILD SDK version */
-#include "tclTomMath.h"
 
 /* Following two definitions required for MinGW builds */
 #ifndef MODULENAME
