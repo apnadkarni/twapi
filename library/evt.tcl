@@ -163,12 +163,10 @@ proc twapi::evt_xpaths_render_context {xpaths} {
     return [EvtCreateRenderContext $xpaths 0]
 }
 
-# TBD - document
 proc twapi::evt_system_render_context {} {
     return [EvtCreateRenderContext {} 1]
 }
 
-# TBD - document
 proc twapi::evt_user_render_context {} {
     return [EvtCreateRenderContext {} 2]
 }

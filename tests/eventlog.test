@@ -898,10 +898,15 @@ namespace eval twapi::eventlog::test {
         set hevt [lindex $hevents 0]
         set values [twapi::evt_render_values $hevt $hctx]
         twapi::evt_close $hctx
-        puts llength:[llength $values]
+        # Missing properties are returned as empty string.
         set values
-    } -result [list ]
+    } -result [list {}]
 
+    test evt_xpaths_render_context-3.0 {
+        Render context for xpaths - empty xpath list
+    } -body {
+        twapi::evt_xpaths_render_context {}
+    } -result {At least one XPATH expression must be specified. TWAPI error: Invalid data.} -returnCodes error
     ################################################################
 
     test evt_publishers-1.0 {

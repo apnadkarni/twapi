@@ -885,7 +885,8 @@ when no longer needed.
 [call [cmd evt_xpaths_render_context] [arg XPATHLIST]]
 
 Returns a handle to a render context for rendering the event properties
-selected by the list of XPATH expressions passed in [arg XPATHLIST].
+selected by the list of XPATH expressions passed in [arg XPATHLIST]
+which must contain at least one XPATH expression.
 The handle can then be passed to
 [uri #evt_render_values [cmd evt_render_values]] to render the selected
 property values.

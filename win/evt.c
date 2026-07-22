@@ -498,7 +498,7 @@ static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP,
         objP = ObjFromEmptyString();
     }
 
-    if (flags) {
+    if (flags & 1) {
         retObjs[0] = ObjFromInt(varP->Type);
         retObjs[1] = objP;
         return ObjNewList(2, retObjs);
@@ -818,37 +818,51 @@ static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(ClientData clientdata, Tcl_
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     EVT_HANDLE hevt;
     Tcl_Size count;
-    LPCWSTR *xpathsP = NULL;
+    LPCWSTR *xpathsP;
     int flags;
-    DWORD ret = TCL_ERROR;
+    DWORD ret;
+    const char *msg = NULL;
 
     if (TwapiGetArgs(interp, objc-1, objv+1, ARGSKIP, GETINT(flags), ARGEND) != TCL_OK ||
         ObjListLength(interp, objv[1], &count) != TCL_OK)
         return TCL_ERROR;
 
-    if (count == 0) {
-        xpathsP = NULL;
+    if (flags == EvtRenderContextValues) {
+        if (count == 0) {
+            msg = "At least one XPATH expression must be specified.";
+            ret = TCL_ERROR;
+        }
+        else {
+            /* Note ObjToArgvW needs an extra entry for terminating NULL */
+            xpathsP = MemLifoPushFrame(
+                ticP->memlifoP, (count + 1) * sizeof(xpathsP[0]), NULL);
+            ret = ObjToArgvW(interp, objv[1], xpathsP, count + 1, &count);
+            if (ret == TCL_OK) {
+                ret = DWORD_LIMIT_CHECK(interp, count);
+            }
+        }
     } else {
-        /* Note ObjToArgvW needs an extra entry for terminating NULL */
-        xpathsP = MemLifoPushFrame(ticP->memlifoP, (count+1) * sizeof(xpathsP[0]), NULL);
-        ret = ObjToArgvW(interp, objv[1], xpathsP, count+1, &count);
-        if (ret != TCL_OK)
-            goto vamoose;
-        ret = DWORD_LIMIT_CHECK(interp, count);
-        if (ret != TCL_OK)
-            goto vamoose;
+        if (count != 0) {
+            msg = "No XPATH expressions must be specified.";
+            ret = TCL_ERROR;
+        }
     }
-
-    hevt = EvtCreateRenderContext((DWORD)count, xpathsP, flags);
-    if (hevt == NULL) {
-        ret = TwapiReturnSystemError(interp);
-        goto vamoose;
+    if (ret == TCL_OK) {
+        hevt = EvtCreateRenderContext((DWORD)count, xpathsP, flags);
+        if (hevt == NULL) {
+            ret = TwapiReturnSystemError(interp);
+        } else {
+            ObjSetResult(interp, ObjFromEVT_HANDLE(hevt));
+            ret = TCL_OK;
+        }
     }
-
-    ObjSetResult(interp, ObjFromEVT_HANDLE(hevt));
-    ret = TCL_OK;
-
-vamoose:
+    else {
+	/* If msg is NULL, interp result is already set. */
+        if (msg != NULL) {
+            TwapiReturnErrorEx(
+                interp, TWAPI_INVALID_DATA, Tcl_NewStringObj(msg, -1));
+        }
+    }
     if (xpathsP)
         MemLifoPopFrame(ticP->memlifoP);
     return ret;
