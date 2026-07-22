@@ -809,7 +809,6 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         EVT_HANDLE hevts[100];
     } u;
     EVT_VARIANT var;
-    GUID guid;
     int i;
 
     --objc;
@@ -882,7 +881,6 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
         /* dw is property id */
         switch (dw) {
         case EvtChannelConfigEnabled:
-        case EvtChannelConfigClassicEventlog:
         case EvtChannelLoggingConfigRetention:
         case EvtChannelLoggingConfigAutoBackup:
             if (ObjToBoolean(interp, objv[3], &var.BooleanVal) != TCL_OK)
@@ -890,18 +888,14 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
             var.Type = EvtVarTypeBoolean;
             break;
         case EvtChannelConfigIsolation:
-        case EvtChannelConfigType:
         case EvtChannelPublishingConfigLevel:
-        case EvtChannelPublishingConfigClockType:
         case EvtChannelPublishingConfigFileMax:
             if (ObjToDWORD(interp, objv[3], (DWORD *)&var.UInt32Val) != TCL_OK)
                 return TCL_ERROR;
             var.Type = EvtVarTypeUInt32;
             break;
-        case EvtChannelConfigOwningPublisher:
         case EvtChannelConfigAccess:
         case EvtChannelLoggingConfigLogFilePath:
-        case EvtChannelPublisherList:
             var.StringVal = ObjToWinChars(objv[3]);
             var.Type = EvtVarTypeString;
             break;
@@ -913,20 +907,25 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
                 return TCL_ERROR;
             var.Type = EvtVarTypeUInt64;
             break;
-        case EvtChannelPublishingConfigControlGuid:
-            if (ObjToGUID(interp, objv[3], &guid) != TCL_OK)
-                return TCL_ERROR;
-            var.Type = EvtVarTypeGuid;
-            break;
         default:
-            /* Note following properties cannot be set 
+            /* Note following properties cannot be set
+               case EvtChannelConfigType:
                case EvtChannelPublishingConfigBufferSize:
                case EvtChannelPublishingConfigMinBuffers:
                case EvtChannelPublishingConfigMaxBuffers:
                case EvtChannelPublishingConfigLatency:
                case EvtChannelPublishingConfigSidType:
+               case EvtChannelConfigOwningPublisher:
+               case EvtChannelConfigClassicEventlog:
+               case EvtChannelPublishingConfigControlGuid:
+               case EvtChannelPublishingConfigClockType:
+               case EvtChannelPublisherList:
             */
-            return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+            return TwapiReturnErrorEx(
+                interp,
+                TWAPI_INVALID_ARGS,
+                Tcl_NewStringObj("Attempt to modify a read-only channel property.",
+                                 -1));
         }
         result.type = TRT_EXCEPTION_ON_FALSE;
         result.value.ival = EvtSetChannelConfigProperty(hevt, dw, dw2, &var);

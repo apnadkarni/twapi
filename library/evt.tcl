@@ -180,24 +180,20 @@ proc twapi::evt_open_channel_config {chanpath args} {
     return [EvtOpenChannelConfig $opts(session) $chanpath 0]
 }
 
-# TBD - document
 proc twapi::evt_get_channel_config {hevt propid} {
     return [EvtGetChannelConfigProperty $hevt \
                 [_evt_map_channel_config_property $propid]]
 }
 
-# TBD - document
 proc twapi::evt_set_channel_config {hevt propid val} {
-    return [EvtSetChannelConfigProperty $hevt [_evt_map_channel_config_property $propid 0 $val]]
+    return [EvtSetChannelConfigProperty $hevt [_evt_map_channel_config_property $propid] 0 $val]
 }
 
-
-# TBD - document
 proc twapi::_evt_map_channel_config_property {propid} {
     if {[string is integer -strict $propid]} {
         return $propid
     }
-    
+
     # Note: values are from winevt.h, Win7 SDK has typos for last few
     return [dict get {
         -enabled                  0
@@ -209,18 +205,18 @@ proc twapi::_evt_map_channel_config_property {propid} {
         -loggingretention         6
         -loggingautobackup        7
         -loggingmaxsize           8
-        -logfilepath       9
-        -publishinglevel          10
-        -publishingkeywords       11
-        -publishingcontrolguid    12
-        -publishingbuffersize     13
-        -publishingminbuffers     14
-        -publishingmaxbuffers     15
-        -publishinglatency        16
-        -publishingclocktype      17
-        -publishingsidtype        18
-        -publisherlist            19
-        -publishingfilemax        20
+        -logfilepath              9
+        -publishinglevel         10
+        -publishingkeywords      11
+        -publishingcontrolguid   12
+        -publishingbuffersize    13
+        -publishingminbuffers    14
+        -publishingmaxbuffers    15
+        -publishinglatency       16
+        -publishingclocktype     17
+        -publishingsidtype       18
+        -publisherlist           19
+        -publishingfilemax       20
     } $propid]
 }
 

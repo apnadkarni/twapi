@@ -137,8 +137,10 @@ released using [uri #evt_close_session [cmd evt_close_session]].
 EVT [emph channels] implement a event stream to which event providers can write
 events. The commands [uri #evt_channels [cmd evt_channels]] and
 [uri #evt_publishers [cmd evt_publishers]] return the names of the channels and
-publishers on a system respectively. Channels have configuration properties
-that are retrieved and set through
+publishers on a system respectively. Channels have configuration properties.
+The configuration database is opened with
+[uri #evt_open_channel_config [cmd evt_open_channel_config]]. Properties
+can then be retrieved and set through
 [uri #evt_get_channel_config [cmd evt_get_channel_config]] and
 [uri #evt_set_channel_config [cmd evt_set_channel_config]]. These
 are mapped to the Window SDK enumeration
@@ -714,7 +716,7 @@ Specifies the EVT session handle. Defaults to the local system.
 Returns the value of a configuration property [arg PROPERTY] for the channel
 configuration specified by the handle [arg HCHANCFG].
 
-[call [cmd evt_is_local_session] [arg HSESSION]]]
+[call [cmd evt_is_local_session] [arg HSESSION]]
 Returns `1` if the passed EVT session handle was created with
 [uri #evt_local_session [cmd evt_local_session]] and `0` otherwise.
 

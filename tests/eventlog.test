@@ -1000,6 +1000,99 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
+    test evt_open_channel_config-1.0 {
+        Open a local channel configuration
+    } -body {
+        twapi::evt_close [twapi::evt_open_channel_config Setup]
+    } -result ""
+
+    test evt_open_channel_config-1.1 {
+        Open a local channel configuration -session
+    } -setup {
+        set hsess [twapi::evt_open_session $::env(COMPUTERNAME) -session $hsess]
+    } -cleanup {
+        twapi::evt_close $hsess
+    } -body {
+        twapi::evt_close [twapi::evt_open_channel_config Setup -session $hsess]
+    } -result ""
+
+    ################################################################
+
+    test evt_get_channel_config "evt_get_channel_config" -setup {
+            set hcfg [twapi::evt_open_channel_config Setup]
+        } -cleanup {
+            twapi::evt_close $hcfg
+        } -body {
+            # Test both symol and integer value
+            set bad {}
+            foreach {propid change} {
+                -enabled                  toggle
+                -isolation                toggle
+                -type                     const
+                -classiceventlog          const
+                -loggingretention         toggle
+                -loggingautobackup        toggle
+                -loggingmaxsize           incr
+                -publishingbuffersize     const
+                -publishingminbuffers     const
+                -publishingmaxbuffers     const
+                -publishinglatency        const
+                -publishingclocktype      const
+                -publishingsidtype        const
+                -publishingfilemax        incr
+            } {
+                set prop [twapi::evt_get_channel_config $hcfg $propid]
+                if {![string is integer -strict $prop]} {
+                    lappend bad get$propid
+                } else {
+                    switch $change {
+                        toggle { set newvalue [expr {!$prop}] }
+                        incr {set newvalue [expr {$prop+1}] }
+                        const {
+                            # Should not permit
+                            if {![catch {
+                                twapi::evt_set_channel_config $hcfg $propid $prop
+                            }]} {
+                                lappend bad get$propid
+                            }
+                            continue
+                        }
+                    }
+                    # Note this only changes in-memory cache and does not
+                    # require privs
+                    twapi::evt_set_channel_config $hcfg $propid $newvalue
+                    if {[twapi::evt_get_channel_config $hcfg $propid] != $newvalue} {
+                        lappend bad set$propid; # The set failed
+                    }
+                }
+            }
+            if {![string equal -nocase Setup.evtx [file tail [twapi::evt_get_channel_config $hcfg -logfilepath]]]} {
+                lappend bad get-logfilepath
+            }
+            if {![string equal -nocase Microsoft-Windows-Eventlog [file tail [twapi::evt_get_channel_config $hcfg -owningpublisher]]]} {
+                lappend bad get-owningpublisher
+            }
+            if {[catch {twapi::sddl_to_security_descriptor [twapi::evt_get_channel_config $hcfg -access]}]} {
+                lappend bad get-access
+            }
+            foreach propid {
+                -publishinglevel         10
+                -publishingkeywords      11
+                -publishingcontrolguid   12
+            } {
+                # Value could be anything. Just ensure no error
+                if {[catch {twapi::evt_get_channel_config $hcfg $propid}]} {
+                    lappend bad get$propid
+                }
+            }
+            if {"Microsoft-Windows-Eventlog" ni [twapi::evt_get_channel_config $hcfg -publisherlist]} {
+                lappend bad get-publisherlist
+            }
+            set bad
+        } -result {}
+
+    ################################################################
+
     test evt_decode_event-1.0 {
         Event query -session -file -query -ignorequeryerrors
     } -constraints {
