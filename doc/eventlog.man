@@ -812,7 +812,7 @@ the third case, the order is always that of the
 [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_system_property_id "EVT_SYSTEM_PROPERTY_ID"]
 enumeration in the Windows SDK.
 This order can also be retrieved with the
-[uri #evt_system_fields [cmd evt_system_fields]] command.
+[uri #evt_system_properties [cmd evt_system_properties]] command.
 
 [call [cmd evt_subscribe] [arg CHANNELPATH] [opt [arg options]]]
 Registers for notifications when events are logged to the event

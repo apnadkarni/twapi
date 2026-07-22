@@ -10,12 +10,13 @@ namespace eval twapi {
     variable _evt;              # See _evt_init
 
     # System event fields in order returned by _evt_decode_event_system_fields
-    twapi::record evt_system_fields  {
+    twapi::record evt_system_properties  {
         -providername -providerguid -eventid -qualifiers -level -task
         -opcode -keywordmask -timecreated -eventrecordid -activityid
         -relatedactivityid -pid -tid -channel
         -computer -sid -version
     }
+    interp alias {} ::twapi::evt_system_fields {} ::twapi::evt_system_properties
 
     proc _evt_init {} {
         variable _evt
@@ -462,11 +463,11 @@ twapi::proc* twapi::_evt_decode_event_system_fields {hevt} {
     variable _evt
     set _evt(render_buffer) [Twapi_EvtRenderValues $_evt(system_render_context_handle) $hevt $_evt(render_buffer)]
     set rec [Twapi_ExtractEVT_RENDER_VALUES $_evt(render_buffer)]
-    return [evt_system_fields set $rec \
-                -providername [atomize [evt_system_fields -providername $rec]] \
-                -providerguid [atomize [evt_system_fields -providerguid $rec]] \
-                -channel [atomize [evt_system_fields -channel $rec]] \
-                -computer [atomize [evt_system_fields -computer $rec]]]
+    return [evt_system_properties set $rec \
+                -providername [atomize [evt_system_properties -providername $rec]] \
+                -providerguid [atomize [evt_system_properties -providerguid $rec]] \
+                -channel [atomize [evt_system_properties -channel $rec]] \
+                -computer [atomize [evt_system_properties -computer $rec]]]
 }
 
 # TBD - document. Returns a list of user data values
@@ -498,7 +499,7 @@ twapi::proc* twapi::evt_decode_events {hevts args} {
     } -ignoreunknown -hyphenated]
         
     # SAME ORDER AS _evt_decode_event_system_fields
-    set decoded_fields [evt_system_fields]
+    set decoded_fields [evt_system_properties
     set decoded_events {}
     
     # ORDER MUST BE SAME AS order in which values are appended below
@@ -511,7 +512,7 @@ twapi::proc* twapi::evt_decode_events {hevts args} {
     foreach hevt $hevts {
         set decoded [_evt_decode_event_system_fields $hevt]
         # Get publisher from hevt
-        set publisher [evt_system_fields -providername $decoded]
+        set publisher [evt_system_properties -providername $decoded]
 
         if {! [dict exists $_evt(publisher_handles) $publisher $opts(-session) $opts(-lcid)]} {
             if {[catch {
@@ -527,7 +528,7 @@ twapi::proc* twapi::evt_decode_events {hevts args} {
         # and -opcodename. TBD - can -keywords be added to this ?
         foreach {intopt opt callflag} {-level -levelname 2 -task -taskname 3 -opcode -opcodename 4} {
             if {$opts($opt)} {
-                set ival [evt_system_fields $intopt $decoded]
+                set ival [evt_system_properties $intopt $decoded]
                 if {[dict exists $_evt($opt) $publisher $ival]} {
                     lappend decoded [dict get $_evt($opt) $publisher $ival]
                 } else {

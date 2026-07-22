@@ -334,6 +334,7 @@ proc twapi::_collect_icon_group {hmod group_name group_info} {
 }
 
 proc twapi::replace_file_icon {path icopath args} {
+    error "This command is not implemented." ; # Still WIP
     array set opts [twapi::parseargs args {
         {name.arg {}}
         langid.int

@@ -844,7 +844,7 @@ namespace eval twapi::eventlog::test {
             [string equal -nocase $guid [lindex $values 1]] \
             [expr {$pid eq [lindex $values 12]}] \
             [lindex $values 14]
-    } -result [list [llength [twapi::evt_system_fields]] 1 1 1 Setup]
+    } -result [list [llength [twapi::evt_system_properties]] 1 1 1 Setup]
 
     ################################################################
 

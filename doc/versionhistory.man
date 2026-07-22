@@ -7,6 +7,24 @@
 [para]
 Summarizes the list of changes for each version of TWAPI.
 
+[section "Version 6.0"]
+[list_begin bullet]
+[bullet] New package
+[uri evt.html [cmd twapi_evt]]
+[bullet]
+[emph "Incompatible change"]
+Removed [cmd twapi_eventlog] package and [cmd eventlog_*] and
+[cmd winlog_*] commands. Use [cmd twapi_evt] package instead.
+[bullet]
+[emph "Incompatible change"]
+Dropped support for Windows 8.1 and earlier.
+[bullet]
+New Vista+ options for [uri base.html#load_library [cmd load_library]].
+[bullet]
+New command [uri base.html#build-info [cmd build-info]] analogous
+to the Tcl [cmd build-info] command.
+[list_end]
+
 [section "Version 5.2"]
 [list_begin bullet]
 [bullet] Added
