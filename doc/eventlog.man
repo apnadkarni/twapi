@@ -137,7 +137,58 @@ released using [uri #evt_close_session [cmd evt_close_session]].
 EVT [emph channels] implement a event stream to which event providers can write
 events. The commands [uri #evt_channels [cmd evt_channels]] and
 [uri #evt_publishers [cmd evt_publishers]] return the names of the channels and
-publishers on a system respectively.
+publishers on a system respectively. Channels have configuration properties
+that are retrieved and set through
+[uri #evt_get_channel_config [cmd evt_get_channel_config]] and
+[uri #evt_set_channel_config [cmd evt_set_channel_config]]. These
+are mapped to the Window SDK enumeration
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EVT_CHANNEL_CONFIG_PROPERTY_ID]
+as per the table below.
+
+[list_begin opt]
+[opt_def -enabled]
+[const EvtChannelConfigEnabled]
+[opt_def -isolation]
+[const EvtChannelConfigIsolation]
+[opt_def -type]
+[const EvtChannelConfigType]
+[opt_def -owningpublisher]
+[const EvtChannelConfigOwningPublisher]
+[opt_def -classiceventlog]
+[const EvtChannelConfigClassicEventlog]
+[opt_def -access]
+[const EvtChannelConfigAccess]
+[opt_def -loggingretention]
+[const EvtChannelLoggingConfigRetention]
+[opt_def -loggingautobackup]
+[const EvtChannelLoggingConfigAutoBackup]
+[opt_def -loggingmaxsize]
+[const EvtChannelLoggingConfigMaxSize]
+[opt_def -logfilepath]
+[const EvtChannelLoggingConfigLogFilePath]
+[opt_def -publishinglevel]
+[const EvtChannelPublishingConfigLevel]
+[opt_def -publishingkeywords]
+[const EvtChannelPublishingConfigKeywords]
+[opt_def -publishingcontrolguid]
+[const EvtChannelPublishingConfigControlGuid]
+[opt_def -publishingbuffersize]
+[const EvtChannelPublishingConfigBufferSize]
+[opt_def -publishingminbuffers]
+[const EvtChannelPublishingConfigMinBuffers]
+[opt_def -publishingmaxbuffers]
+[const EvtChannelPublishingConfigMaxBuffers]
+[opt_def -publishinglatency]
+[const EvtChannelPublishingConfigLatency]
+[opt_def -publishingclocktype]
+[const EvtChannelPublishingConfigClockType]
+[opt_def -publishingsidtype]
+[const EvtChannelPublishingConfigSidType]
+[opt_def -publisherlist]
+[const EvtChannelPublisherList]
+[opt_def -publishingfilemax]
+[const EvtChannelPublishingConfigFileMax]
+[list_end]
 
 [para]
 Event consumers can consume events from channels in real time or from a saved
@@ -658,6 +709,11 @@ the Windows SDK for details.
 Specifies the EVT session handle. Defaults to the local system.
 [list_end]
 
+[call [cmd evt_get_channel_config] [arg HCHANCFG] [arg PROPERTY]]
+
+Returns the value of a configuration property [arg PROPERTY] for the channel
+configuration specified by the handle [arg HCHANCFG].
+
 [call [cmd evt_is_local_session] [arg HSESSION]]]
 Returns `1` if the passed EVT session handle was created with
 [uri #evt_local_session [cmd evt_local_session]] and `0` otherwise.
@@ -703,6 +759,16 @@ Specifies the number of milliseconds to wait for events. A value of
 [const -1] (default) indicates call should not time out.
 [list_end]
 
+[call [cmd evt_open_channel_config] [arg CHANNELNAME] [opt "[cmd -session] [arg HSESSION]"]]
+
+Returns a handle to the configuration of the named channel. Opens the
+configuration for an event log channel and returns a handle to it.
+[cmd -session] specifies the handle for the EVT session for the channel's
+host which defaults to the local system. The returned handle may be used with
+[uri #evt_get_channel_config [cmd evt_get_channel_config]] and
+[uri #evt_set_channel_config [cmd evt_set_channel_config]]
+to query and modify the channel configuration. When longer needed,
+it should be released with [uri #evt_close [cmd evt_close]].
 
 [call [cmd evt_open_session] [opt [arg options]] [arg SERVER]]
 
@@ -747,6 +813,7 @@ Uses Kerberos authentication.
 [opt_def [const ntlm]]
 Uses NTLM authentication.
 [list_end]
+
 
 [call [cmd evt_publishers]]
 Returns a list of names of the publishers registered on the system.
@@ -813,6 +880,11 @@ the third case, the order is always that of the
 enumeration in the Windows SDK.
 This order can also be retrieved with the
 [uri #evt_system_properties [cmd evt_system_properties]] command.
+
+[call [cmd evt_set_channel_config] [arg HCHANCFG] [arg PROPERTY] [arg VALUE]]
+
+Sets the value of a configuration property [arg PROPERTY] for the channel
+configuration specified by the handle [arg HCHANCFG] to [arg VALUE].
 
 [call [cmd evt_subscribe] [arg CHANNELPATH] [opt [arg options]]]
 Registers for notifications when events are logged to the event

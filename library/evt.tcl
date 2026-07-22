@@ -172,7 +172,6 @@ proc twapi::evt_user_render_context {} {
     return [EvtCreateRenderContext {} 2]
 }
 
-# TBD - document
 proc twapi::evt_open_channel_config {chanpath args} {
     array set opts [parseargs args {
         {session.arg NULL}
@@ -182,14 +181,9 @@ proc twapi::evt_open_channel_config {chanpath args} {
 }
 
 # TBD - document
-proc twapi::evt_get_channel_config {hevt args} {
-    set result {}
-    foreach opt $args {
-        lappend result $opt \
-            [EvtGetChannelConfigProperty $hevt \
-                 [_evt_map_channel_config_property $hevt $propid]]
-    }
-    return $result
+proc twapi::evt_get_channel_config {hevt propid} {
+    return [EvtGetChannelConfigProperty $hevt \
+                [_evt_map_channel_config_property $propid]]
 }
 
 # TBD - document
@@ -215,7 +209,7 @@ proc twapi::_evt_map_channel_config_property {propid} {
         -loggingretention         6
         -loggingautobackup        7
         -loggingmaxsize           8
-        -logginglogfilepath       9
+        -logfilepath       9
         -publishinglevel          10
         -publishingkeywords       11
         -publishingcontrolguid    12
