@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2012-2014, Ashok P. Nadkarni
+# Copyright (c) 2012-2026, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -180,13 +180,14 @@ proc twapi::evt_open_channel_config {chanpath args} {
     return [EvtOpenChannelConfig $opts(session) $chanpath 0]
 }
 
-proc twapi::evt_get_channel_config {hevt propid} {
-    return [EvtGetChannelConfigProperty $hevt \
+proc twapi::evt_get_channel_config {hcfg propid} {
+    return [EvtGetChannelConfigProperty $hcfg \
                 [_evt_map_channel_config_property $propid]]
 }
 
-proc twapi::evt_set_channel_config {hevt propid val} {
-    return [EvtSetChannelConfigProperty $hevt [_evt_map_channel_config_property $propid] 0 $val]
+proc twapi::evt_set_channel_config {hcfg propid val} {
+    return [EvtSetChannelConfigProperty $hcfg \
+                [_evt_map_channel_config_property $propid] 0 $val]
 }
 
 proc twapi::_evt_map_channel_config_property {propid} {
@@ -221,13 +222,8 @@ proc twapi::_evt_map_channel_config_property {propid} {
 }
 
 # TBD - document
-proc twapi::evt_event_info {hevt args} {
-    set result {}
-    foreach opt $args {
-        lappend result $opt [EvtGetEventInfo $hevt \
-                                 [dict get {-queryids 0 -path 1} $opt]]
-    }
-    return $result
+proc twapi::evt_event_logpath {hevt} {
+    return [EvtGetEventInfo $hevt 1]
 }
 
 

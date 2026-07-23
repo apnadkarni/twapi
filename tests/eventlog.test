@@ -812,6 +812,19 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
+    test evt_event_logpath-1.0 {
+        Get the channel or file containing the event
+    } -setup {
+        set hquery [twapi::evt_query -channel Setup]
+        set hevents [twapi::evt_next $hquery]
+    } -cleanup {
+        twapi::evt_close {*}$hevents $hquery
+    } -body {
+        twapi::evt_event_logpath [lindex $hevents 0]
+    } -result Setup
+
+    ################################################################
+
     test evt_render_event-1.0 {
         Render event XML
     } -setup {
@@ -1018,7 +1031,23 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    test evt_get_channel_config "evt_get_channel_config" -setup {
+    test evt_save_channel_config {
+        Save a channel configuration
+    } -constraints {
+        systemmodificationok privileged
+    } -setup {
+        set hcfg [twapi::evt_open_channel_config Setup]
+    } -cleanup {
+        twapi::evt_close $hcfg
+    } -body {
+        set maxsize [twapi::evt_get_channel_config $hcfg -loggingmaxsize]
+        twapi::evt_set_channel_config $hcfg -loggingmaxsize [incr maxsize]
+        twapi::evt_close $hcfg
+        set hcfg [twapi::evt_open_channel_config Setup]
+        expr {[twapi::evt_get_channel_config $hcfg -loggingmaxsize] == $maxSize}
+    } -result 1
+
+    test evt_channel_config "evt_get_channel_config" -setup {
             set hcfg [twapi::evt_open_channel_config Setup]
         } -cleanup {
             twapi::evt_close $hcfg

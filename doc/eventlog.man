@@ -142,10 +142,12 @@ The configuration database is opened with
 [uri #evt_open_channel_config [cmd evt_open_channel_config]]. Properties
 can then be retrieved and set through
 [uri #evt_get_channel_config [cmd evt_get_channel_config]] and
-[uri #evt_set_channel_config [cmd evt_set_channel_config]]. These
-are mapped to the Window SDK enumeration
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EVT_CHANNEL_CONFIG_PROPERTY_ID]
-as per the table below.
+[uri #evt_set_channel_config [cmd evt_set_channel_config]].
+Changes made are saved with
+[uri #evt_save_channel_config [cmd evt_save_channel_config]].
+The configuration properties are shown in the table below and
+mapped to the Window SDK enumeration
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EVT_CHANNEL_CONFIG_PROPERTY_ID].
 
 [list_begin opt]
 [opt_def -enabled]
@@ -196,7 +198,7 @@ as per the table below.
 Event consumers can consume events from channels in real time or from a saved
 event file using the the [uri #evt_query [cmd evt_query]] command. This command
 returns a handle to a result set containing matching events. These can then be
-retrieved the [uri #evt_next [cmd evt_next]] and further processed with
+retrieved by [uri #evt_next [cmd evt_next]] and further processed with
 one of the rendering commands below.
 
 [list_begin opt]
@@ -208,6 +210,8 @@ publisher-defined fields and formatted messages.
 Returns a [uri base.html#recordarrays recordarray] containing
 content of multiple events in the same form as returned by
 [cmd evt_decode_event].
+[opt_def [uri #evt_event_logpath [cmd evt_event_logpath]]]
+Returns the channel or file from which the event was read.
 [opt_def [uri #evt_render_event [cmd evt_render_event]]]
 Returns content of an event as XML.
 [opt_def [uri #evt_render_values [cmd evt_render_event]]]
@@ -682,6 +686,9 @@ This option is ignored if the [cmd -hpublisher] option is specified.
 Specifies the EVT session handle. Defaults to the local system.
 [list_end]
 
+[call [cmd evt_event_logpath] [arg HEVT]]
+Returns the path of the channel or file from which the event
+indentified by [arg HEVT] was retrieved.
 
 [call [cmd evt_export_log] [arg OUTFILE] [opt [arg options]]]
 Exports events, optionally matching a query,
@@ -883,10 +890,15 @@ enumeration in the Windows SDK.
 This order can also be retrieved with the
 [uri #evt_system_properties [cmd evt_system_properties]] command.
 
+[call [cmd evt_save_channel_config] [arg HCHANCFG]]
+Saves any changes made to the channel configuration.
+
 [call [cmd evt_set_channel_config] [arg HCHANCFG] [arg PROPERTY] [arg VALUE]]
 
 Sets the value of a configuration property [arg PROPERTY] for the channel
 configuration specified by the handle [arg HCHANCFG] to [arg VALUE].
+The modification does not take effect until the configuration is saved
+with [uri #evt_save_channel_config [cmd evt_save_channel_config]].
 
 [call [cmd evt_subscribe] [arg CHANNELPATH] [opt [arg options]]]
 Registers for notifications when events are logged to the event
