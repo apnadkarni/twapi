@@ -221,26 +221,9 @@ proc twapi::_evt_map_channel_config_property {propid} {
     } $propid]
 }
 
-# TBD - document
 proc twapi::evt_event_logpath {hevt} {
     return [EvtGetEventInfo $hevt 1]
 }
-
-
-# TBD - document
-proc twapi::evt_event_metadata_property {hevt args} {
-    set result {}
-    foreach opt $args {
-        lappend result $opt \
-            [EvtGetEventMetadataProperty $hevt \
-                 [dict get {
-                     -id 0 -version 1 -channel 2 -level 3
-                     -opcode 4 -task 5 -keyword 6 -messageid 7 -template 8
-                 } $opt]]
-    }
-    return $result
-}
-
 
 # TBD - document
 proc twapi::evt_open_log_info {args} {
@@ -279,20 +262,17 @@ proc twapi::evt_log_info {hevt args} {
     return $result
 }
 
-# TBD - document
-proc twapi::evt_publisher_metadata_property {hpub args} {
-    set result {}
-    foreach opt $args {
-        set val [EvtGetPublisherMetadataProperty $hpub [dict get {
-            -publisherguid 0  -resourcefilepath 1 -parameterfilepath 2
-            -messagefilepath 3 -helplink 4 -publishermessageid 5
-            -channelreferences 6 -levels 12 -tasks 16
-            -opcodes 21 -keywords 25
-        } $opt] 0]
-        if {$opt ni {-channelreferences -levels -tasks -opcodes -keywords}} {
-            lappend result $opt $val
-            continue
-        }
+proc twapi::evt_publisher_metadata_property {hpub opt} {
+    set val [EvtGetPublisherMetadataProperty $hpub [dict get {
+        -publisherguid 0  -resourcefilepath 1 -parameterfilepath 2
+        -messagefilepath 3 -helplink 4 -publishermessageid 5
+        -channelreferences 6 -levels 12 -tasks 16
+        -opcodes 21 -keywords 25
+    } $opt] 0]
+    if {$opt ni {-channelreferences -levels -tasks -opcodes -keywords}} {
+        return $val
+    }
+    try {
         set n [EvtGetObjectArraySize $val]
         set val2 {}
         for {set i 0} {$i < $n} {incr i} {
@@ -308,15 +288,24 @@ proc twapi::evt_publisher_metadata_property {hpub args} {
                 -keywords {-keywordname 26 -keywordvalue 27
                     -keywordmessageid 28}
             } $opt] {
-                lappend rec $opt2 [EvtGetObjectArrayProperty $val $iopt $i]
+                set opt2val [EvtGetObjectArrayProperty $val $iopt $i]
+                if {$opt2 in {
+                    -channelreferencemessageid
+                    -levelmessageid
+                    -taskmessagid
+                    -opcodemessageid
+                    -keywordmessageid
+                } && $opt2val == 4294967295} {
+                    set op2val -1
+                }
+                lappend rec $opt2 $opt2val
             }
             lappend val2 $rec
         }
-
+        return $val2
+    } finally {
         evt_close $val
-        lappend result $opt $val2
     }
-    return $result
 }
 
 # TBD - document
@@ -330,12 +319,10 @@ proc twapi::evt_query_info {hq args} {
     return $result
 }
 
-# TBD - document
 proc twapi::evt_object_array_size {hevt} {
     return [EvtGetObjectArraySize $hevt]
 }
 
-# TBD - document
 proc twapi::evt_object_array_property {hevt index args} {
     set result {}
 
@@ -369,7 +356,6 @@ proc twapi::evt_publishers {{hsess NULL}} {
     return $pubs
 }
 
-# TBD - document
 proc twapi::evt_open_publisher_metadata {pub args} {
     array set opts [parseargs args {
         {session.arg NULL}
@@ -380,17 +366,27 @@ proc twapi::evt_open_publisher_metadata {pub args} {
     return [EvtOpenPublisherMetadata $opts(session) $pub $opts(logfile) $opts(lcid) 0]
 }
 
-# TBD - document
-proc twapi::evt_publisher_events_metadata {hpub args} {
+proc twapi::_evt_event_metadata_property {hmeta property_name} {
+    return [EvtGetEventMetadataProperty $hmeta \
+                 [dict get {
+                     -id 0 -version 1 -channel 2 -level 3
+                     -opcode 4 -task 5 -keyword 6 -messageid 7 -template 8
+                 } $property_name]]
+}
+
+proc twapi::evt_publisher_events_metadata {hpub property_names} {
     set henum [EvtOpenEventMetadataEnum $hpub]
 
     # It is faster to build a list and then have Tcl shimmer to a dict when
     # required
     set meta {}
-    trap {
+    try {
         while {[set hmeta [EvtNextEventMetadata $henum 0]] ne ""} {
-            lappend meta [evt_event_metadata_property $hmeta {*}$args]
-            evt_close $hmeta
+            try {
+                lappend meta [_evt_event_metadata_property $hmeta {*}$property_names]
+            } finally {
+                evt_close $hmeta
+            }
         }
     } finally {
         evt_close $henum
@@ -581,7 +577,7 @@ twapi::proc* twapi::evt_decode_events {hevts args} {
                 }
             }
         }
-        
+
         lappend decoded_events $decoded
     }
 
@@ -592,13 +588,12 @@ proc twapi::evt_decode_event {hevt args} {
     return [recordarray index [evt_decode_events [list $hevt] {*}$args] 0 -format dict]
 }
 
-# TBD - document
 proc twapi::evt_format_publisher_message {hpub msgid args} {
 
     array set opts [parseargs args {
         {values.arg NULL}
     } -maxleftover 0]
-        
+
     return [EvtFormatMessage $hpub NULL $msgid $opts(values) 8]
 }
 

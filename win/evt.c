@@ -1084,7 +1084,7 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(EvtOpenPublisherMetadata, 10),
         DEFINE_FNCODE_CMD(evt_create_bookmark, 11),
         DEFINE_FNCODE_CMD(evt_update_bookmark, 12),
-        DEFINE_FNCODE_CMD(evt_free, 13),
+        DEFINE_FNCODE_CMD(evt_free, 13), // TBD docs
         DEFINE_FNCODE_CMD(evt_close, 14),
         DEFINE_FNCODE_CMD(evt_cancel, 102), // TBD docs
         DEFINE_FNCODE_CMD(EvtOpenChannelEnum, 103),

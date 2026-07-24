@@ -80,7 +80,7 @@ Events can be written using the
 [uri \#eventlog_write [cmd eventlog_write]]
 command. The [uri \#eventlog_log [cmd eventlog_log]]
 command provides an alternate, simpler but less flexible,
-interface for writing events. 
+interface for writing events.
 [para]
 Events can be read from an event log
 through the [uri \#eventlog_read [cmd eventlog_read]]
@@ -718,6 +718,12 @@ the Windows SDK for details.
 Specifies the EVT session handle. Defaults to the local system.
 [list_end]
 
+[call [cmd evt_format_publisher_message] [arg HPUB] [arg MESSAGEID]]
+
+Returns the message corresponding to the message identifier
+[arg MESSAGEID] using the message resources associated with the publisher
+metadata specified by handle [arg HPUB].
+
 [call [cmd evt_get_channel_config] [arg HCHANCFG] [arg PROPERTY]]
 
 Returns the value of a configuration property [arg PROPERTY] for the channel
@@ -764,7 +770,7 @@ error when reading the next event, the command will normally generate
 an Tcl exception. If this option is specified, the command will instead
 return an empty list and store the error code in the specified variable.
 [opt_def [cmd -timeout] [arg MILLISECONDS]]
-Specifies the number of milliseconds to wait for events. A value of 
+Specifies the number of milliseconds to wait for events. A value of
 [const -1] (default) indicates call should not time out.
 [list_end]
 
@@ -778,6 +784,27 @@ host which defaults to the local system. The returned handle may be used with
 [uri #evt_set_channel_config [cmd evt_set_channel_config]]
 to query and modify the channel configuration. When longer needed,
 it should be released with [uri #evt_close [cmd evt_close]].
+
+[call [cmd evt_open_publisher_metadata] [arg PROVIDER] [opt [arg options]]]
+
+Returns a handle to the metadata for the event provider named [arg PROVIDER].
+The returned handle should be released using [cmd evt_close].
+The following options may be passed to the command.
+
+[list_begin opt]
+
+[opt_def "[cmd -session] [arg HSESSION]"]
+Specifies the EVT session handle to the system where the provider resides. Defaults to the local system.
+
+[opt_def "[cmd -logfile] [arg PATH]"]
+Path to an exported event log or archived log holding the publisher
+metadata instead of the default metadata installed on the system.
+
+[opt_def "[cmd -lcid] [arg LCID]"]
+The LCID for accessing localized metadata. The default value of `0` uses
+the thread's locale.
+
+[list_end]
 
 [call [cmd evt_open_session] [opt [arg options]] [arg SERVER]]
 
@@ -823,6 +850,138 @@ Uses Kerberos authentication.
 Uses NTLM authentication.
 [list_end]
 
+[call [cmd evt_publisher_events_metadata] [arg HPUB] [arg PROPNAMES]]
+
+Returns a list containing the metadata for each event defined by the
+publisher identified by the handle [arg HPUB]. Each event's metadata
+includes the event's metadata properties as a dictionary keyed by
+the event property names passed in [arg PROPNAMES]. These correspond
+to the [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EVT_EVENT_METADATA_PROPERTY_ID]
+values shown in the table below.
+
+[list_begin opt]
+[opt_def -channel]
+EventMetadataEventChannel
+[opt_def -id]
+EventMetadataEventID
+[opt_def -keyword]
+EventMetadataEventKeyword
+[opt_def -level]
+EventMetadataEventLevel
+[opt_def -messageid]
+EventMetadataEventMessageID
+[opt_def -opcode]
+EventMetadataEventOpcode
+[opt_def -task]
+EventMetadataEventTask
+[opt_def -template]
+EventMetadataEventTemplate
+[opt_def -version]
+EventMetadataEventVersion
+
+[list_end]
+
+[call evt_publisher_metadata_property [arg HPUB] [arg PROPNAME]]
+
+Returns the value of a metadata property named [arg PROPNAME] for the publisher
+identified by its handle [arg HPUB]. Valid [arg PROPNAME] values are shown
+in the table below.
+
+[list_begin opt]
+[opt_def -publisherguid]
+The publisher's GUID.
+[opt_def -resourcefilepath]
+The path to the publisher's resource file.
+[opt_def -parameterfilepath]
+The path to the publisher's parameter file.
+[opt_def -messagefilepath]
+The path to the publisher's message file.
+[opt_def -helplink]
+The URL of the help page.
+[opt_def -publishermessageid]
+The message id for retrieving the publisher's name.
+[opt_def -channelreferences]
+List of dictionaries of channels owned by the publisher (see below).
+[opt_def -levels]
+List of dictionaries of levels defined by the publisher (see below).
+[opt_def -tasks]
+List of dictionaries of tasks defined by the publisher (see below).
+[opt_def -opcodes]
+List of dictionaries of opcodes defined by the publisher (see below).
+[opt_def -keywords]
+List of dictionaries of keywords defined by the publisher (see below).
+[list_end]
+
+Each element of the list returned for property [cmd -channelreferences] is a
+dictionary with the keys listed in the table below along with the equivalent
+Windows SDK enumeration.
+
+[list_begin opt]
+[opt_def -channelreferenceflags]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceFlags]
+[opt_def -channelreferenceid]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceID]
+[opt_def -channelreferenceindex]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceIndex]
+[opt_def -channelreferencemessageid]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceMessageID]
+[opt_def -channelreferencepath]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferencePath]
+[list_end]
+
+Each element of the list returned for property [cmd -levels] is a
+dictionary with the keys listed in the table below along with the equivalent
+Windows SDK enumeration.
+
+[list_begin opt]
+[opt_def -levelmessageid]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataMessageID]
+[opt_def -levelname]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataLevelName]
+[opt_def -levelvalue]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataLevelValue]
+[list_end]
+
+Each element of the list returned for property [cmd -tasks] is a
+dictionary with the keys listed in the table below along with the equivalent
+Windows SDK enumeration.
+
+[list_begin opt]
+[opt_def -taskeventguid]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskEventGuid]
+[opt_def -taskmessageid]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskMessageID]
+[opt_def -taskname]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskName]
+[opt_def -taskvalue]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskValue]
+[list_end]
+
+Each element of the list returned for property [cmd -opcodes] is a
+dictionary with the keys listed in the table below along with the equivalent
+Windows SDK enumeration.
+
+[list_begin opt]
+[opt_def -opcodemessageid]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeMessageID]
+[opt_def -opcodename]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeName]
+[opt_def -opcodevalue]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeValue]
+[list_end]
+
+Each element of the list returned for property [cmd -keywords] is a
+dictionary with the keys listed in the table below along with the equivalent
+Windows SDK enumeration.
+
+[list_begin opt]
+[opt_def -keywordmessageid]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordMessageID]
+[opt_def -keywordname]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordName]
+[opt_def -keywordvalue]
+[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordValue]
+[list_end]
 
 [call [cmd evt_publishers]]
 Returns a list of names of the publishers registered on the system.
