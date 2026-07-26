@@ -290,13 +290,14 @@ proc twapi::evt_publisher_metadata_property {hpub opt} {
             } $opt] {
                 set opt2val [EvtGetObjectArrayProperty $val $iopt $i]
                 if {$opt2 in {
+                    -channelreferenceindex
                     -channelreferencemessageid
                     -levelmessageid
                     -taskmessagid
                     -opcodemessageid
                     -keywordmessageid
                 } && $opt2val == 4294967295} {
-                    set op2val -1
+                    set opt2val -1
                 }
                 lappend rec $opt2 $opt2val
             }
@@ -366,12 +367,16 @@ proc twapi::evt_open_publisher_metadata {pub args} {
     return [EvtOpenPublisherMetadata $opts(session) $pub $opts(logfile) $opts(lcid) 0]
 }
 
-proc twapi::_evt_event_metadata_property {hmeta property_name} {
-    return [EvtGetEventMetadataProperty $hmeta \
+proc twapi::_evt_event_metadata_properties {hmeta property_names} {
+    set properties {}
+    foreach prop $property_names {
+        lappend properties $prop [EvtGetEventMetadataProperty $hmeta \
                  [dict get {
                      -id 0 -version 1 -channel 2 -level 3
                      -opcode 4 -task 5 -keyword 6 -messageid 7 -template 8
-                 } $property_name]]
+                 } $prop]]
+    }
+    return $properties
 }
 
 proc twapi::evt_publisher_events_metadata {hpub property_names} {
@@ -383,7 +388,7 @@ proc twapi::evt_publisher_events_metadata {hpub property_names} {
     try {
         while {[set hmeta [EvtNextEventMetadata $henum 0]] ne ""} {
             try {
-                lappend meta [_evt_event_metadata_property $hmeta {*}$property_names]
+                lappend meta [_evt_event_metadata_properties $hmeta $property_names]
             } finally {
                 evt_close $hmeta
             }
@@ -594,6 +599,7 @@ proc twapi::evt_format_publisher_message {hpub msgid args} {
         {values.arg NULL}
     } -maxleftover 0]
 
+    # 8 -> EvtFormatMessageId. Note, not 8 (EvtFormatMessageProvider) 
     return [EvtFormatMessage $hpub NULL $msgid $opts(values) 8]
 }
 

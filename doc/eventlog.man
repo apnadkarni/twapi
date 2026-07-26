@@ -806,7 +806,7 @@ the thread's locale.
 
 [list_end]
 
-[call [cmd evt_open_session] [opt [arg options]] [arg SERVER]]
+[call [cmd evt_open_session] [arg SERVER] [opt [arg options]]]
 
 Returns a EVT session handle for accessing the Windows event log service on the
 local or a remote computer. [arg SERVER] specifies the name of the computer to
@@ -881,7 +881,7 @@ EventMetadataEventVersion
 
 [list_end]
 
-[call evt_publisher_metadata_property [arg HPUB] [arg PROPNAME]]
+[call [cmd evt_publisher_metadata_property] [arg HPUB] [arg PROPNAME]]
 
 Returns the value of a metadata property named [arg PROPNAME] for the publisher
 identified by its handle [arg HPUB]. Valid [arg PROPNAME] values are shown
@@ -918,15 +918,20 @@ Windows SDK enumeration.
 
 [list_begin opt]
 [opt_def -channelreferenceflags]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceFlags]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceFlags]
+- if 1, the channel was imported from another publisher's manifest.
 [opt_def -channelreferenceid]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceID]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceID]
+- numeric id assigned to the channel as per its manifest's `value` attribute.
 [opt_def -channelreferenceindex]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceIndex]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceIndex]
+- the provider assigned channel identifier.
 [opt_def -channelreferencemessageid]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceMessageID]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceMessageID]
+- the message id for the channel localized name.
+
 [opt_def -channelreferencepath]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferencePath]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferencePath] - the canonical name of the channel.
 [list_end]
 
 Each element of the list returned for property [cmd -levels] is a

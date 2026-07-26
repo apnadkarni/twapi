@@ -13,6 +13,8 @@ source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_eventlog
 load_twapi_package twapi_process; # Needed for proc privileged
 
+tcltest::testConstraint haveFrenchLocale [file exists {C:\Windows\System32\fr-FR\wevtsvc.dll.mui}]
+
 # TBD - notes for testing
 if {0} {
 (twapi) 61 % set hpub [evt_open_publisher_metadata Microsoft-Windows-EventSystem]
@@ -78,6 +80,11 @@ namespace eval twapi::eventlog::test {
     }
     ::tcltest::testConstraint privileged [privileged]
 
+    proc new_file {{ext evt}} {
+        variable file_name_ctr
+        return [file join [tcltest::temporaryDirectory] evttest-[incr file_name_ctr].$ext]
+    }
+
     # Get credentials for EVT sessions
     proc evt_test_creds {target} {
         variable evt_test_creds
@@ -92,6 +99,18 @@ namespace eval twapi::eventlog::test {
         lassign [evt_test_creds $::env(COMPUTERNAME) {*}$args] user pw save
         set hsess [twapi::evt_open_session $::env(COMPUTERNAME) -user $user -password $pw ]
         return $hsess
+    }
+
+    # Returns path to the exported Setup log file
+    variable exported_setup_event_file
+    proc exported_setup_event_file {} {
+        variable exported_setup_event_file
+        if {![info exists exported_setup_event_file] ||
+            ![file exists $exported_setup_event_file]
+        } {
+            set exported_setup_event_file [new_file exported_setup_events.evt]
+        }
+        return $exported_setup_event_file
     }
 
     # Read the last entry from the specified event log
@@ -668,10 +687,8 @@ namespace eval twapi::eventlog::test {
     test evt_export_log-1.0 {
         Export the eventlo -channel, -file
     } -setup {
-        set backup [file join $::env(TEMP) twapi_events.bak]
-        set backup2 [file join $::env(TEMP) twapi_events2.bak]
-        if {[file exists $backup]} {file delete $backup}
-        if {[file exists $backup2]} {file delete $backup2}
+        set backup [new_file]
+        set backup2 [new_file]
     } -body {
         set count [twapi::winlog_event_count -channel Setup]
         twapi::evt_export_log $backup -channel Setup
@@ -679,9 +696,6 @@ namespace eval twapi::eventlog::test {
         list \
             [expr {[twapi::winlog_event_count -file $backup] == $count}] \
             [expr {[twapi::winlog_event_count -file $backup2] == $count}]
-      } -cleanup {
-          file delete $backup
-          file delete $backup2
       } -result {1 1}
 
     test evt_export_log-2.0 {
@@ -691,22 +705,19 @@ namespace eval twapi::eventlog::test {
         # Token created with explicit credentials may not have some required
         # privileges.
         set hsession [twapi::evt_open_session $::env(COMPUTERNAME)]
-        set backup [file join $::env(TEMP) twapi_events.bak]
-        if {[file exists $backup]} {file delete $backup}
+        set backup [new_file]
     } -body {
         set count [twapi::winlog_event_count -channel Setup]
         twapi::evt_export_log $backup -channel Setup -session $hsession
         expr {[twapi::winlog_event_count -file $backup] == $count}
     } -cleanup {
         twapi::evt_close_session $hsession
-        file delete $backup
     } -result 1
 
     test evt_export_log-3.0 {
         Export the eventlog -query
     } -setup {
-        set backup [file join $::env(TEMP) twapi_events.bak]
-        if {[file exists $backup]} {file delete $backup}
+        set backup [new_file]
     } -body {
         twapi::evt_export_log $backup -channel Setup -query {*[System[Channel='Setup' and EventID=1]]} -channel Setup
         expr {[twapi::winlog_event_count -file $backup] < $count}
@@ -719,44 +730,36 @@ namespace eval twapi::eventlog::test {
     test evt_archive_exported_log-1.0 {
         Archive an event log file
     } -constraints privileged -setup {
-        set archive [file join $::env(TEMP) twapi_events.bak]
-        if {[file exists $archive]} {file delete $archive}
+        set archive [new_file]
     } -body {
         set count [twapi::winlog_event_count -channel Setup]
         twapi::evt_export_log $archive -channel Setup
         twapi::evt_archive_exported_log $archive
         expr {[twapi::winlog_event_count -file $archive] == $count}
-      } -cleanup {
-          file delete $archive
       } -result 1
 
     test evt_archive_exported_log-2.0 {
         Archive an event log file -lcid
     } -constraints privileged -setup {
-        set archive [file join $::env(TEMP) twapi_events.bak]
-        if {[file exists $archive]} {file delete $archive}
+        set archive [new_file]
     } -body {
         set count [twapi::winlog_event_count -channel Setup]
         twapi::evt_export_log $archive -channel Setup
         twapi::evt_archive_exported_log $archive -lcid 1033
         expr {[twapi::winlog_event_count -file $archive] == $count}
-      } -cleanup {
-          file delete $archive
-      } -result 1
+    } -result 1
 
     test evt_archive_exported_log-3.0 {
         Archive an event log file -session
     } -constraints privileged -setup {
         set hsess [twapi::evt_open_session $::env(COMPUTERNAME)]
-        set archive [file join $::env(TEMP) twapi_events.bak]
-        if {[file exists $archive]} {file delete $archive}
+        set archive [new_file]
     } -body {
         set count [twapi::winlog_event_count -channel Setup]
         twapi::evt_export_log $archive -channel Setup -session $hsess
         twapi::evt_archive_exported_log $archive -session $hsess
         expr {[twapi::winlog_event_count -file $archive] == $count}
       } -cleanup {
-          file delete $archive
           twapi::evt_close_session $hsess
       } -result 1
 
@@ -1150,6 +1153,231 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
+    test evt_open_publisher_metadata-1.0 {
+        Open publisher metadata
+    } -cleanup {
+        twapi::evt_close $hpub
+    } -body {
+        set hpub [twapi::evt_open_publisher_metadata Microsoft-Windows-Eventlog]
+        twapi::evt_format_publisher_message $hpub 2415919106
+    } -result System
+
+    test evt_open_publisher_metadata-2.0 {
+        Open publisher metadata - -lcid
+    } -constraints haveFrenchLocale -cleanup {
+        twapi::evt_close $hpub
+    } -body {
+        set hpub [twapi::evt_open_publisher_metadata Microsoft-Windows-Eventlog -lcid 1036]
+        twapi::evt_format_publisher_message $hpub 2415919106
+    } -result Système
+
+    test evt_open_publisher_metadata-3.0 {
+        Open publisher metadata - -session
+    } -setup {
+        set hsess [twapi::evt_open_session $::env(COMPUTERNAME)]
+    } -cleanup {
+        twapi::evt_close $hpub
+        twapi::evt_close_session $hsess
+    } -body {
+        set hpub [twapi::evt_open_publisher_metadata Microsoft-Windows-Eventlog -session $hsess]
+        twapi::evt_format_publisher_message $hpub 2415919106
+    } -result System
+
+    test evt_open_publisher_metadata-4.0 {
+        Open publisher metadata - -session
+    } -body {
+        set hpub [twapi::evt_open_publisher_metadata Microsoft-Windows-Eventlog -logfile [exported_setup_event_file]]
+        twapi::evt_format_publisher_message $hpub 2415919106
+    } -result System
+
+    ################################################################
+
+    test evt_publisher_metadata_property-1.0 {
+        Get publisher metadata
+    } -setup {
+        set hpub [twapi::evt_open_publisher_metadata Microsoft-Windows-Eventlog -lcid 1033]
+    } -cleanup {
+        twapi::evt_close $hpub
+    } -body {
+        set bad {}
+        foreach {prop pat} {
+            -publisherguid {{FC65DDD8-D6EF-4962-83D5-6E5CFE9CE148}}
+            -resourcefilepath *System32\\\\wevtsvc.dll
+            -parameterfilepath *
+            -messagefilepath *System32\\\\wevtsvc.dll
+            -helplink https://go.microsoft.com/*
+        } {
+            set val [twapi::evt_publisher_metadata_property $hpub $prop]
+            if {![string match -nocase $pat $val]} {
+                lappend bad $prop
+            }
+        }
+        set val [twapi::evt_publisher_metadata_property $hpub -publishermessageid]
+        if {! [string equal -nocase \
+                   [twapi::evt_format_publisher_message $hpub $val] \
+                   Microsoft-Windows-Eventlog]} {
+            lappend prop -publishermessageid
+        }
+        set chanrefs [twapi::evt_publisher_metadata_property $hpub -channelreferences]
+        foreach chanref $chanrefs {
+            foreach key {-channelreferenceindex -channelreferenceid -channelreferenceflags} {
+                if {![dict exists $chanref $key] || \
+                        ![string is integer -strict [dict get $chanref $key]]} {
+                    lappend bad -channelreferences($key)
+                }
+            }
+            # File tail because the message string for Microsoft-Windows-EventLog/Debug
+            # etc is just Debug
+            if {![string equal -nocase \
+                      [twapi::evt_format_publisher_message $hpub \
+                           [dict get $chanref -channelreferencemessageid]] \
+                      [file tail [dict get $chanref -channelreferencepath]]]} {
+                lappend bad -channelreferences([dict get $chanref -channelreferencepath])
+                break
+            }
+        }
+        set levels [twapi::evt_publisher_metadata_property $hpub -levels]
+        foreach level $levels {
+            if {![regexp {^win:(.+)} [dict get $level -levelname] -> level_name]} {
+                lappend bad -levels([dict get $level -levelname])
+                continue
+            }
+            set level_label \
+                [expr {
+                       $level_name eq "Informational" ? "Information" : $level_name
+                   }]
+            if {![string equal -nocase \
+                      [twapi::evt_format_publisher_message $hpub \
+                           [dict get $level -levelmessageid]] \
+                      $level_label]} {
+                lappend bad -levels($level_name)
+                continue
+            }
+            if {[dict get $level -levelvalue] != [dict get {
+                Critical 1 Error 2 Warning 3 Informational 4 Verbose 5
+            } $level_name]} {
+                lappend bad -levels($level_name)
+                continue
+            }
+        }
+        set tasks [twapi::evt_publisher_metadata_property $hpub -tasks]
+        foreach task $tasks {
+            if {![regexp {^el:(.+)} [dict get $task -taskname] -> task_name]} {
+                lappend bad -tasks([dict get $task -taskname])
+                continue
+            }
+            set task_label [dict get {
+                Initialization "Service startup"
+                EventProcessing "Event processing"
+                Shutdown "Service shutdown"
+                LogClear "Log clear"
+                AutoBackup "Log automatic backup"
+                AbnormalShutdown "System abnormal shutdown"
+                UsageAudit "Service Usage Audit"
+            } $task_name]
+            if {![string equal -nocase \
+                      [twapi::evt_format_publisher_message $hpub \
+                           [dict get $task -taskmessageid]] \
+                      $task_label]} {
+                lappend bad -tasks($task_name,-taskmessageid)
+                continue
+            }
+            if {![string is integer -strict [dict get $task -taskvalue]]} {
+                lappend bad -tasks($task_name,-taskvalue)
+                continue
+            }
+            if {![valid_guid [dict get $task -taskeventguid]]} {
+                lappend bad -tasks($task_name,-taskguid)
+            }
+        }
+
+        set opcodes [twapi::evt_publisher_metadata_property $hpub -opcodes]
+        foreach opcode $opcodes {
+            if {![regexp {^win:(.+)} [dict get $opcode -opcodename] -> opcode_name]} {
+                lappend bad -opcodes([dict get $opcode -opcodename])
+                continue
+            }
+            if {![string equal -nocase \
+                      [twapi::evt_format_publisher_message $hpub \
+                           [dict get $opcode -opcodemessageid]] \
+                      $opcode_name]} {
+                lappend bad -opcodes($opcode_name,-opcodemessageid)
+                continue
+            }
+            if {![string is integer -strict [dict get $opcode -opcodevalue]]} {
+                lappend bad -opcodes($opcode_name,-opcodevalue)
+                continue
+            }
+        }
+        set keywords [twapi::evt_publisher_metadata_property $hpub -keywords]
+        foreach keyword $keywords {
+            if {![regexp {^[^:]+:(.+)} [dict get $keyword -keywordname] -> keyword_name]} {
+                lappend bad -keywords([dict get $keyword -keywordname])
+                continue
+            }
+            set keyword_label [dict get {
+                Availability "Service availability"
+                Settings "Service configuration"
+                SystemAvailability "System availability"
+                Audit "API Usage Audit"
+                AuditSuccess "Audit Success"
+            } $keyword_name]
+            if {![string equal -nocase \
+                      [twapi::evt_format_publisher_message $hpub \
+                           [dict get $keyword -keywordmessageid]] \
+                      $keyword_label]} {
+                lappend bad -keywords($keyword_name,-keywordmessageid)
+                continue
+            }
+            if {![string is integer -strict [dict get $keyword -keywordvalue]]} {
+                lappend bad -keywords($keyword_name,-keywordvalue)
+                continue
+            }
+        }
+
+        set bad
+    } -result {}
+
+    ################################################################
+
+    test evt_publisher_events_metadata-1.0 {
+        Get publisher events
+    } -setup {
+        set hpub [twapi::evt_open_publisher_metadata Microsoft-Windows-Setup]
+    } -cleanup {
+        twapi::evt_close $hpub
+    } -body {
+        set bad {}
+        set events_metadata [twapi::evt_publisher_events_metadata $hpub {
+            -id -channel -version -level -opcode -task -keyword -messageid -template
+        }]
+        foreach event_metadata $events_metadata {
+            foreach key {
+                -id -channel -version -level -opcode -task -keyword -messageid
+            } {
+                if {![dict exists $event_metadata $key] ||
+                    ![string is integer -strict [dict get $event_metadata $key]]
+                } {
+                    lappend bad $key
+                }
+                set messageid [dict get $event_metadata -messageid]
+                if {$messageid != -1} {
+                    if {[twapi::evt_format_publisher_message $hpub $messageid] eq ""} {
+                        lappend bad -messageid($messageid)
+                    }
+                }
+                set template [dict get $event_metadata -template]
+                if {$template ne "" &&
+                    ![regexp {^<template.*</template>\s*$} $template]} {
+                    lappend bad -template([dict get $event_metadata -id])
+                }
+            }
+        }
+        set bad
+    } -result {}
+
+    ################################################################
+
     test winlog_backup-1.0 {
         Back up the eventlog, also covers winlog_event_count-2.0
     } -body {
@@ -1426,6 +1654,11 @@ namespace eval twapi::eventlog::test {
 
     #
     # Clean up
+    if {[info exists exported_setup_event_file] &&
+        [file exists $exported_setup_event_file]} {
+        file delete $exported_setup_event_file
+    }
+
     ::tcltest::cleanupTests
 }
 
