@@ -244,7 +244,7 @@ static int Twapi_EventlogInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
     Tcl_CreateObjCommand(interp, "twapi::ReadEventLog", Twapi_ReadEventLogObjCmd, ticP, NULL);
 
-    return Twapi_EvtInitCalls(interp, ticP);
+    return TCL_OK;
 }
 
 #ifndef TWAPI_SINGLE_MODULE

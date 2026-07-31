@@ -12,6 +12,7 @@
 
 #include "twapi.h"
 #include "twapi_eventlog.h"
+#include "twapi_events.h"
 
 #include <ntverp.h>             /* Needed for VER_PRODUCTBUILD SDK version */
 
@@ -20,7 +21,18 @@
 #pragma comment(lib, "delayimp.lib") /* Prevents winevt from loading unless necessary */
 #endif
 
+#ifndef TWAPI_SINGLE_MODULE
+HMODULE gModuleHandle;     /* DLL handle to ourselves */
+#endif
+
+#ifndef MODULENAME
+#define MODULENAME "twapi_evt"
+#endif
+
 typedef HANDLE EVT_HANDLE;
+
+static REGHANDLE gEvtRegHandle = 0;
+static TwapiOneTimeInitState gEvtInitialized;
 
 /* Used as a typedef for returning allocated memory to script level */
 #define TWAPI_EVT_RENDER_VALUES_TYPESTR "EVT_RENDER_VALUES *"
@@ -794,7 +806,11 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(ClientData clientdata, Tcl_Interp *
     return res;
 }
 
-int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int
+Twapi_EvtCallObjCmd(ClientData clientdata,
+                    Tcl_Interp *interp,
+                    int objc,
+                    Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
     DWORD dw, dw2;
@@ -1047,7 +1063,92 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     return Twapi_AppendEvtExtendedStatus(interp);
 }
 
-int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int
+TwapiParseSeverity(Tcl_Interp *interp, Tcl_Obj *obj, BYTE *levelPtr)
+{
+    static const char *const names[] = {
+        "critical", "error", "warning", "informational", "verbose", NULL
+    };
+    int level;
+
+    if (Tcl_GetIntFromObj(NULL, obj, &level) == TCL_OK) {
+	/* Our manifest only defines events for levels 1-5 */
+        if (level < 1 || level > 5) {
+            return TwapiReturnErrorMsg(
+                interp,
+                TWAPI_INVALID_DATA,
+                "Numeric severity levels must be in range 1-5");
+        }
+        *levelPtr = (BYTE)level;
+        return TCL_OK;
+    }
+
+    if (Tcl_GetIndexFromObj(interp, obj, names, "severity level", 0, &level) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    *levelPtr = (BYTE)(level + 1);
+    return TCL_OK;
+}
+
+int
+Twapi_EvtLogObjCmd(ClientData clientData,
+                   Tcl_Interp *interp,
+                   int objc,
+                   Tcl_Obj *const objv[])
+{
+    BYTE        level;
+
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "level message");
+        return TCL_ERROR;
+    }
+
+    if (TwapiParseSeverity(interp, objv[1], &level) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+    EVENT_DATA_DESCRIPTOR   data[2];
+    const EVENT_DESCRIPTOR *evdP;
+    switch (level) {
+    case 1: evdP = &TWAPI_EVT_EVENT_CRITICAL; break;
+    case 2: evdP = &TWAPI_EVT_EVENT_ERROR; break;
+    case 3: evdP = &TWAPI_EVT_EVENT_WARNING; break;
+    case 4: evdP = &TWAPI_EVT_EVENT_INFORMATIONAL; break;
+    case 5: evdP = &TWAPI_EVT_EVENT_VERBOSE; break;
+    default:
+        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+    }
+
+    TWAPI_ASSERT(gEvtRegHandle != NULL);
+    if (!EventEnabled(gEvtRegHandle, evdP)) {
+        /* not enabled so no point writing it - will be discarded anyways */
+        return TCL_OK;
+    }
+	   // TBD - is this already somewhere?
+    WCHAR path[MAX_PATH];
+    if (GetModuleFileNameW(NULL, path, sizeof(path)) == 0) {
+        path[0] = L'\0';
+    }
+    Tcl_DString ds;
+    Tcl_DStringInit(&ds);
+    Tcl_UtfToWCharDString(Tcl_GetString(objv[2]), -1, &ds);
+
+    EventDataDescCreate(
+        &data[0], path, (ULONG)((wcslen(path) + 1) * sizeof(WCHAR)));
+    EventDataDescCreate(&data[1],
+                        (LPCWSTR)Tcl_DStringValue(&ds),
+                        (ULONG)(Tcl_DStringLength(&ds) + sizeof(WCHAR)));
+    ULONG status = EventWrite(gEvtRegHandle, evdP, 2, data);
+    Tcl_DStringFree(&ds);
+
+    if (status != ERROR_SUCCESS) {
+    	return Twapi_AppendSystemError(interp, status);
+    }
+    return TCL_OK;
+}
+
+
+int TwapiEvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct tcl_dispatch_s EvtTclDispatch[] = {
         DEFINE_TCL_CMD(GetEVT_VARIANT, Twapi_EvtGetEVT_VARIANTObjCmd),
@@ -1057,7 +1158,8 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(EvtCreateRenderContext, Twapi_EvtCreateRenderContextObjCmd),
         DEFINE_TCL_CMD(EvtFormatMessage, Twapi_EvtFormatMessageObjCmd),
         DEFINE_TCL_CMD(EvtOpenSession, Twapi_EvtOpenSessionObjCmd),
-        DEFINE_TCL_CMD(Twapi_ExtractEVT_VARIANT_ARRAY, Twapi_ExtractEVT_VARIANT_ARRAYObjCmd),
+        DEFINE_TCL_CMD(evt_write, Twapi_EvtLogObjCmd),
+        DEFINE_TCL_CMD(Twapi_ExtractEVT_RENDER_VALUES, Twapi_ExtractEVT_RENDER_VALUESObjCmd),
         DEFINE_TCL_CMD(Twapi_ExtractEVT_RENDER_VALUES, Twapi_ExtractEVT_RENDER_VALUESObjCmd),
     };
 
@@ -1100,5 +1202,62 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     TwapiDefineTclCmds(interp, ARRAYSIZE(EvtTclDispatch), EvtTclDispatch, ticP);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(EvtFnDispatch), EvtFnDispatch, Twapi_EvtCallObjCmd);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(EvtVariantGetDispatch), EvtVariantGetDispatch, "twapi::GetEVT_VARIANT");
+
     return TCL_OK;
 }
+
+static int EvtModuleOneTimeInit(void *arg)
+{
+    ULONG status = EventRegister(
+        &TWAPI_EVT_PROVIDER, /* provider GUID, from twapi_app.h    */
+        NULL,                 /* EnableCallback: none               */
+        NULL,                 /* CallbackContext                    */
+        &gEvtRegHandle);
+
+    return (status == ERROR_SUCCESS) ? TCL_OK : TCL_ERROR;
+}
+
+/* Called when interp is deleted */
+static void TwapiEvtCleanup(TwapiInterpContext *ticP)
+{
+    if (gEvtRegHandle) {
+        EventUnregister(gEvtRegHandle);
+        gEvtRegHandle = 0;
+    }
+}
+
+#ifndef TWAPI_SINGLE_MODULE
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gModuleHandle = hmod;
+    return TRUE;
+}
+#endif
+
+/* Main entry point */
+#ifndef TWAPI_SINGLE_MODULE
+__declspec(dllexport)
+#endif
+int Twapi_evt_Init(Tcl_Interp *interp)
+{
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiEvtInitCalls,
+        TwapiEvtCleanup
+    };
+
+    /* IMPORTANT */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs */
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+        return TCL_ERROR;
+    }
+
+    /* Init unless already done. */
+    if (! TwapiDoOneTimeInit(&gEvtInitialized, EvtModuleOneTimeInit, interp))
+        return TCL_ERROR;
+
+    /* NEW_TIC since we have a cleanup routine */
+    return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, NEW_TIC) ? TCL_OK : TCL_ERROR;
+}
+

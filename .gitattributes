@@ -18,6 +18,7 @@ install-sh text eol=lf
 *.exe binary
 *.a binary
 *.so binary
+*.bin binary
 
 
 # Ignore the hidden files when exporting to an archive for distribution.

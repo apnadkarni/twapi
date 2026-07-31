@@ -33,6 +33,7 @@ TwapiModuleInitProc Twapi_crypto_Init;
 TwapiModuleInitProc Twapi_device_Init;
 TwapiModuleInitProc Twapi_etw_Init;
 TwapiModuleInitProc Twapi_eventlog_Init;
+TwapiModuleInitProc Twapi_evt_Init;
 TwapiModuleInitProc Twapi_input_Init;
 TwapiModuleInitProc Twapi_mstask_Init;
 TwapiModuleInitProc Twapi_multimedia_Init;
@@ -207,6 +208,7 @@ int TwapiLoadStaticModules(Tcl_Interp *interp)
     TWAPI_INIT_MODULE(interp, Twapi_device_Init);
     TWAPI_INIT_MODULE(interp, Twapi_etw_Init);
     TWAPI_INIT_MODULE(interp, Twapi_eventlog_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_evt_Init);
     TWAPI_INIT_MODULE(interp, Twapi_input_Init);
     TWAPI_INIT_MODULE(interp, Twapi_mstask_Init);
     TWAPI_INIT_MODULE(interp, Twapi_multimedia_Init);

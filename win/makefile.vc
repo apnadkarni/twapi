@@ -19,11 +19,10 @@
 PROJECT = twapi
 
 MULTIPLATFORM_INSTALL = 1
-RCFILE = common.rc
+RCFILE = twapi.rc
 
 !include "rules-ext.vc"
 
-!message $(ROOT)
 DYNCALLDIR=$(ROOT)\dyncall\dyncall-0.9
 
 # Override shared library installation directory
@@ -101,7 +100,7 @@ PRJ_OBJS = $(PRJ_OBJS) \
 HEADERS = \
 	$(ROOT)\win\twapi.h
 
-PRJ_INCLUDES = -I $(ROOT)\include -I $(DYNCALLDIR)\include -I$(TMP_DIR)
+PRJ_INCLUDES = -I $(ROOT)\include -I $(DYNCALLDIR)\include -I$(TMP_DIR) -I$(WIN_DIR)\rc
 
 # Windows defines
 PRJ_DEFINES = -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0A00 -DWINVER=0x0A00 -D_UNICODE -DUNICODE -DPSAPI_VERSION=2
@@ -181,6 +180,7 @@ install_extra:
 	@if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
 	$(CPY) $(ROOT)\README.md "$(SCRIPT_INSTALL_DIR)"
 	$(CPY) $(ROOT)\LICENSE "$(SCRIPT_INSTALL_DIR)"
+	$(CPY) $(WIN_DIR)\twapi_events.man "$(SCRIPT_INSTALL_DIR)"
 !if $(STATIC_BUILD)
 	@if not exist "$(LIB_INSTALL_DIR)" mkdir "$(LIB_INSTALL_DIR)"
 	for %f in ($(DYNCALLLIBS)) do @$(CPY) %f "$(LIB_INSTALL_DIR)" >NUL
