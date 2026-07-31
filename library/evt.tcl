@@ -673,6 +673,42 @@ proc twapi::evt_subscribe {path args} {
     return [list $hsubscribe $hevent]
 }
 
+# TBD - document
+proc twapi::evt_register_provider {manifest resource_file message_file} {
+    set wevutil [auto_execok wevtutil]
+    if {[get_process_elevation] ne "full"} {
+        error "Command requires running in elevated privilege mode."
+    }
+    exec {*}$wevutil im \
+        [file nativename [file normalize $manifest]] \
+        "/rf:[file nativename [file normalize $resource_file]]" \
+        "/mf:[file nativename [file normalize $message_file]]"
+}
+
+# TBD - document
+proc twapi::evt_unregister_provider {manifest} {
+    set wevutil [auto_execok wevtutil]
+    if {[get_process_elevation] ne "full"} {
+        error "Command requires running in elevated privilege mode."
+    }
+    exec {*}$wevutil um [file nativename [file normalize $manifest]]
+}
+
+# TBD - document
+proc twapi::evt_register_twapi {} {
+    set path [get_twapi_dll_path]
+    if {$path eq ""} {
+        # Assume statically linked
+        set path [info nameofexecutable]
+    }
+    evt_register_provider [file join [get_twapi_script_dir] twapi_events.man] $path $path
+}
+
+# TBD - document
+proc twapi::evt_unregister_twapi {} {
+    evt_unregister_provider [file join [get_twapi_script_dir] twapi_events.man]
+}
+
 proc twapi::_evt_normalize_path {path} {
     # Do not want to rely on [file normalize] returning "" for ""
     if {$path eq ""} {

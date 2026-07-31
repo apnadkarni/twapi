@@ -148,10 +148,18 @@ PRJ_LIBS = $(PRJ_LIBS) \
 	ws2_32.lib \
 	wtsapi32.lib
 
-# Define the standard targets
+# Provide our own custom shell and test targets
+DISABLE_TARGET_shell=1
+DISABLE_TARGET_test=1
 !include "$(_RULESDIR)\targets.vc"
 
 pkgindex: default-pkgindex-tea
+
+shell: $(OUT_DIR)\twapi_events.man default-shell
+test: $(OUT_DIR)\twapi_events.man default-test
+$(OUT_DIR)\twapi_events.man: $(RCDIR)\twapi_events.man
+	$(CPY) $(RCDIR)\twapi_events.man "$(OUT_DIR)"
+
 
 website:
 	cd ..\doc && nmake website
@@ -180,7 +188,7 @@ install_extra:
 	@if not exist "$(SCRIPT_INSTALL_DIR)" mkdir "$(SCRIPT_INSTALL_DIR)"
 	$(CPY) $(ROOT)\README.md "$(SCRIPT_INSTALL_DIR)"
 	$(CPY) $(ROOT)\LICENSE "$(SCRIPT_INSTALL_DIR)"
-	$(CPY) $(WIN_DIR)\twapi_events.man "$(SCRIPT_INSTALL_DIR)"
+	$(CPY) $(RCDIR)\twapi_events.man "$(SCRIPT_INSTALL_DIR)"
 !if $(STATIC_BUILD)
 	@if not exist "$(LIB_INSTALL_DIR)" mkdir "$(LIB_INSTALL_DIR)"
 	for %f in ($(DYNCALLLIBS)) do @$(CPY) %f "$(LIB_INSTALL_DIR)" >NUL
