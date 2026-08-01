@@ -1097,10 +1097,31 @@ Twapi_EvtLogObjCmd(ClientData clientData,
                    Tcl_Obj *const objv[])
 {
     BYTE        level;
+    const char *opts[] = {
+        "-application", "-activityid", "-relatedactivityid", NULL
+    };
+    enum opt { OPT_APP, OPT_ACTIVITY, OPT_RELATEDACTIVITY };
+    int index;
+    Tcl_Obj *appObj = NULL;
 
-    if (objc != 3) {
+    if (objc < 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "level message");
         return TCL_ERROR;
+    }
+
+    for (int i = 3; i < objc; ++i) {
+        if (Tcl_GetIndexFromObj(interp, objv[i], opts, "option", 0, &index)
+            != TCL_OK) {
+            return TCL_ERROR;
+        }
+        if (++i == objc) {
+            return TwapiReturnMissingOptValueError(interp, objv[i - 1]);
+        }
+        switch (index) {
+        case OPT_APP:
+            appObj = objv[i];
+            break;
+        }
     }
 
     if (TwapiParseSeverity(interp, objv[1], &level) != TCL_OK) {
@@ -1138,7 +1159,14 @@ Twapi_EvtLogObjCmd(ClientData clientData,
     EventDataDescCreate(&data[2],
                         (LPCWSTR)Tcl_DStringValue(&ds),
                         (ULONG)(Tcl_DStringLength(&ds) + sizeof(WCHAR)));
-    ULONG status = EventWrite(gEvtRegHandle, evdP, 3, data);
+    ULONG status = EventWriteEx(gEvtRegHandle,
+                                evdP,
+                                0ULL, /* Filter */
+                                0UL,  /* Flags */
+                                NULL, /* LPCGUID - activity id */
+                                NULL, /* LPCGUID - Related activity id */
+                                3,
+                                data);
     Tcl_DStringFree(&ds);
 
     if (status != ERROR_SUCCESS) {

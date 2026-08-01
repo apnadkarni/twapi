@@ -427,6 +427,7 @@ typedef int TWAPI_ERROR;
 #define TWAPI_SCRIPT_ERROR 21
 #define TWAPI_INVALID_DATA 22
 #define TWAPI_INVALID_PTR 23
+#define TWAPI_MISSING_OPT_VALUE 24
 
 /*
  * Map TWAPI error codes into Win32 error code format.
@@ -1421,9 +1422,15 @@ TWAPI_EXTERN Tcl_Obj *ObjDuplicate(Tcl_Obj *);
 /* errors.c */
 TWAPI_EXTERN TCL_RESULT TwapiReturnSystemError(Tcl_Interp *interp);
 TWAPI_EXTERN TCL_RESULT TwapiReturnError(Tcl_Interp *interp, int code);
-TWAPI_EXTERN TCL_RESULT TwapiReturnErrorEx(Tcl_Interp *interp, int code, Tcl_Obj *objP);
-TWAPI_EXTERN TCL_RESULT TwapiReturnErrorMsg(Tcl_Interp *interp, int code, char *msg);
+TWAPI_EXTERN TCL_RESULT TwapiReturnErrorEx(Tcl_Interp *interp,
+                                           int code,
+                                           Tcl_Obj *objP);
+TWAPI_EXTERN TCL_RESULT TwapiReturnErrorMsg(Tcl_Interp *interp,
+                                            int code,
+                                            char *msg);
 TWAPI_EXTERN TCL_RESULT TwapiReturnErrorUIntMax(Tcl_Interp *interp);
+TWAPI_EXTERN TCL_RESULT TwapiReturnMissingOptValueError(Tcl_Interp *interp,
+                                                        Tcl_Obj *);
 
 TWAPI_EXTERN DWORD TwapiNTSTATUSToError(NTSTATUS status);
 TWAPI_EXTERN Tcl_Obj *Twapi_MakeTwapiErrorCodeObj(int err);
