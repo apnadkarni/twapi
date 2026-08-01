@@ -1130,9 +1130,10 @@ Twapi_EvtLogObjCmd(ClientData clientData,
 
     LPCWSTR appName = L"Tcl Application"; // TBD - pass as argument ?
     EventDataDescCreate(&data[0], appName, (ULONG)(sizeof(WCHAR)*(1 + wcslen(appName))));
+    LPCWSTR exe_path = TwapiWinPathGet(&gExePath);
     EventDataDescCreate(&data[1],
-                        gExePath ? gExePath : L"",
-                        (ULONG)(((gExePath ? gExePathLen : 0) + 1)
+                        exe_path ? exe_path : L"",
+                        (ULONG)(((exe_path ? gExePathLen : 0) + 1)
                             * sizeof(WCHAR)));
     EventDataDescCreate(&data[2],
                         (LPCWSTR)Tcl_DStringValue(&ds),

@@ -97,7 +97,7 @@ ZLIST_DECL(TwapiInterpContext) gTwapiInterpContexts;
 TwapiId volatile gIdGenerator;
 
 /* Path to executable and its length in WCHAR's excluding termiating nul */
-LPCWSTR gExePath;
+TwapiWinPath gExePath;
 DWORD gExePathLen;
 
 /*
@@ -582,8 +582,7 @@ static void Twapi_Cleanup(ClientData clientdata)
      */
 
     WSACleanup();
-    if (gExePath)
-        Tcl_Free(gExePath);
+    TwapiWinPathFree(&gExePath);
 }
 
 static void Twapi_InterpCleanup(ClientData unused, Tcl_Interp *interp)
@@ -766,7 +765,6 @@ static int TwapiOneTimeInit(void *pv)
     Tcl_Interp *interp = (Tcl_Interp *) pv;
     WSADATA ws_data;
     WORD    ws_ver = MAKEWORD(1,1);
-    DWORD dw;
 
     gTlsIndex = TlsAlloc();
     if (gTlsIndex == TLS_OUT_OF_INDEXES) {
@@ -805,14 +803,15 @@ static int TwapiOneTimeInit(void *pv)
         return TCL_ERROR;
     }
 
-    gExePath = Tcl_Alloc(MAX_PATH * sizeof(WCHAR));
-    dw = GetModuleFileNameW(NULL, gExePath, MAX_PATH);
-    if (dw == 0 || dw == MAX_PATH) {
+    TwapiWinPath temp;
+    LPCWSTR exe_path = TwapiWinGetModuleFileName(NULL, &temp);
+    if (exe_path == NULL
+        || (exe_path = TwapiWinGetFullPathName(exe_path, &gExePath, NULL))
+               == NULL) {
         Tcl_SetResult(interp, "Failed to get application path.", TCL_STATIC);
         return TCL_ERROR;
     }
-    gExePathLen = dw;
-
+    gExePathLen = (DWORD) wcslen(exe_path);
     if (WSAStartup(ws_ver, &ws_data) != 0) {
         Tcl_SetResult(interp, "Could not initialize Winsock.", TCL_STATIC);
         return TCL_ERROR;

@@ -516,7 +516,391 @@ TCL_RESULT TwapiValidateSID(Tcl_Interp *interp, SID *sidP, DWORD len)
 
     return TCL_OK;
 }
+/*
+ *----------------------------------------------------------------------
+ *
+ * TwapiWinPathResize --
+ *
+ *	Resize the path buffer to accommodate a path of the specified size.
+ *	If the required size fits in the static buffer, uses that.
+ *	Otherwise, allocates dynamic memory.
+ *
+ * Results:
+ *	Returns non-NULL pointer to buffer big enough for 'capacity' WCHARs.
+ *	Will panic on failure to allocate memory.
+ *
+ * Side effects:
+ *	May allocate memory that must be freed with TwapiWinPathFree.
+ *	Any previously allocated dynamic buffer is freed before allocating
+ *	a new one.
+ *
+ *----------------------------------------------------------------------
+ */
 
+WCHAR *
+TwapiWinPathResize(
+    TwapiWinPath *pathBufPtr,	/* Path buffer. Must have been initialized */
+    DWORD capacity)		/* Required capacity in WCHARS, including
+				 * the nul terminator. */
+{
+    assert(capacity > 0);
+
+    if (pathBufPtr->bufferPtr != pathBufPtr->buffer) {
+	Tcl_Free(pathBufPtr->bufferPtr);
+	pathBufPtr->bufferPtr = pathBufPtr->buffer;
+    }
+
+    if (capacity > (sizeof(pathBufPtr->buffer) / sizeof(WCHAR))) {
+	pathBufPtr->bufferPtr = (WCHAR *)Tcl_Alloc(capacity * sizeof(WCHAR));
+    }
+
+    return pathBufPtr->bufferPtr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TwapiWinGetFullPathName --
+ *
+ *	Wrapper for GetFullPathNameW that automatically grows the buffer
+ *	as needed to accommodate the full path.
+ *
+ * Results:
+ *	Returns a pointer to the full path name on success, The returned
+ *	pointer is valid until TwapiWinPathFree or TwapiWinPathResize is called
+ *	on winPathPtr. Returns NULL on failure. An error code may be
+ *	retrieved via GetLastError() as for GetFullPathNameW.
+ *
+ * Side effects:
+ *	May allocate memory that must be freed with TwapiWinPathFree
+ *	on a non-NULL return. Sets *filePartPtr to point to the
+ *	filename portion of the path if filePartPtr is not NULL.
+ *
+ *----------------------------------------------------------------------
+ */
+
+WCHAR *
+TwapiWinGetFullPathName(
+    const WCHAR *pathPtr,	/* Input path (relative or absolute) */
+    TwapiWinPath *winPathPtr,	/* Buffer to receive full path. Should be
+				 * uninitialized or previously reset with
+				 * TwapiWinPathFree. */
+    WCHAR **filePartPtrPtr)	/* Receives pointer to filename if non-NULL */
+{
+    DWORD numChars;
+    DWORD capacity;
+    WCHAR *fullPathPtr;
+    WCHAR *filePartPtr = NULL;
+    DWORD err;
+
+    fullPathPtr = TwapiWinPathInit(winPathPtr, &capacity);
+    numChars = GetFullPathNameW(pathPtr, capacity, fullPathPtr, &filePartPtr);
+
+    if (numChars == 0) {
+	goto errorReturn;
+    }
+
+    /*
+     * numChars does not include the null terminator so even if numChars
+     * equal to capacity, the buffer was too small.
+     */
+    if (numChars < capacity) {
+	if (filePartPtrPtr != NULL) {
+	    *filePartPtrPtr = filePartPtr;
+	}
+	return fullPathPtr;
+    }
+
+    /*
+     * Buffer too small. In this case, numChars is required space INCLUDING
+     * the null terminator. Allocate a larger buffer and try again.
+     */
+    capacity = numChars;
+    fullPathPtr = TwapiWinPathResize(winPathPtr, capacity);
+    numChars = GetFullPathNameW(pathPtr, capacity, fullPathPtr, &filePartPtr);
+    if (numChars == 0 || numChars >= capacity) {
+	/* Failed or still too small (shouldn't happen). */
+	goto errorReturn;
+    }
+
+    if (filePartPtrPtr != NULL) {
+	*filePartPtrPtr = filePartPtr;
+    }
+    return fullPathPtr;
+
+  errorReturn:
+    err = GetLastError();
+    TwapiWinPathFree(winPathPtr);
+    SetLastError(err);
+    return NULL;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TwapiWinGetModuleFileName --
+ *
+ *	Wrapper for GetModuleFileNameW that automatically grows the buffer
+ *	as needed to accommodate the full path.
+ *
+ * Results:
+ *	Returns a pointer to the full path name on success, The returned
+ *	pointer is valid until TwapiWinPathFree or TwapiWinPathResize is called
+ *	on winPathPtr. Returns NULL on failure. An error code may be
+ *	retrieved via GetLastError() as for GetModuleFileNameW.
+ *
+ * Side effects:
+ *	May allocate memory that must be freed with TwapiWinPathFree
+ *	on a non-NULL return.
+ *
+ *----------------------------------------------------------------------
+ */
+
+WCHAR *
+TwapiWinGetModuleFileName(
+    HMODULE hModule,
+    TwapiWinPath *winPathPtr)	/* Buffer to receive full path. Should be
+				 * uninitialized or previously reset with
+				 * TwapiWinPathFree. */
+{
+    DWORD capacity;
+    DWORD err = ERROR_SUCCESS;
+
+    WCHAR *pathPtr = TwapiWinPathInit(winPathPtr, &capacity);
+    while (capacity < USHRT_MAX) {
+	DWORD numChars = GetModuleFileNameW(hModule, pathPtr, capacity);
+	if (numChars == 0) {
+	    err = GetLastError();
+	    break;
+	}
+	/*
+	 * numChars does not include the null terminator so even if numChars
+	 * equal to capacity, the buffer was too small.
+	 */
+	if (numChars < capacity) {
+	    return pathPtr;
+	}
+	err = GetLastError();
+	if (err != ERROR_INSUFFICIENT_BUFFER) {
+	    break;
+	}
+	/*
+	 * Unlike in the case of some other Win32 functions, numChars is NOT
+	 * required size so just double the capacity we just tried.
+	 */
+	pathPtr = TwapiWinPathResize(winPathPtr, 2 * capacity);
+    }
+
+    /* Failure */
+    TwapiWinPathFree(winPathPtr);
+    SetLastError(err); /* In case TwapiWinPathFree overwrote GetLastError */
+    return NULL;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TwapiWinGetCurrentDirectory --
+ *
+ *	Wrapper for GetCurrentDirectoryW that automatically grows the buffer
+ *	as needed to accommodate the full path.
+ *
+ * Results:
+ *	Returns a pointer to the full path name on success, The returned
+ *	pointer is valid until TwapiWinPathFree or TwapiWinPathResize is called
+ *	on winPathPtr. Returns NULL on failure. An error code may be
+ *	retrieved via GetLastError() as for GetCurrentDirectoryW.
+ *
+ * Side effects:
+ *	May allocate memory that must be freed with TwapiWinPathFree
+ *	on a non-NULL return.
+ *
+ *----------------------------------------------------------------------
+ */
+
+WCHAR *
+TwapiWinGetCurrentDirectory(
+    TwapiWinPath *winPathPtr)	/* Buffer to receive full path. Should be
+				 * uninitialized or previously reset with
+				 * TwapiWinPathFree. */
+{
+    /*
+     * Note: Unfortunately cannot use TwapiWinGetPath to implement because order
+     * of parameters of wrapped function is different.
+     */
+    DWORD numChars;
+    DWORD capacity;
+    WCHAR *fullPathPtr;
+    DWORD err;
+
+    fullPathPtr = TwapiWinPathInit(winPathPtr, &capacity);
+    numChars = GetCurrentDirectoryW(capacity, fullPathPtr);
+
+    if (numChars == 0) {
+	goto errorReturn;
+    }
+
+    /*
+     * numChars does not include the null terminator so even if numChars
+     * equal to capacity, the buffer was too small.
+     */
+    if (numChars < capacity) {
+	return fullPathPtr;
+    }
+
+    /*
+     * Buffer too small. In this case, numChars is required space INCLUDING
+     * the null terminator. Allocate a larger buffer and try again.
+     */
+    capacity = numChars;
+    fullPathPtr = TwapiWinPathResize(winPathPtr, capacity);
+    numChars = GetCurrentDirectoryW(capacity, fullPathPtr);
+    if (numChars == 0 || numChars >= capacity) {
+	/* Failed or still too small (shouldn't happen). */
+	goto errorReturn;
+    }
+
+    return fullPathPtr;
+
+  errorReturn:
+    err = GetLastError();
+    TwapiWinPathFree(winPathPtr);
+    SetLastError(err);
+    return NULL;
+}
+/*
+ *----------------------------------------------------------------------
+ *
+ * TwapiWinGetEnvironmentVariable --
+ *
+ *	Wrapper for GetEnvironmentVariableW that automatically grows the
+ *	buffer as needed.
+ *
+ * Results:
+ *	Returns a pointer to the environment variable value. The returned
+ *	pointer is valid until TwapiWinPathFree or TwapiWinPathResize is called
+ *	on winPathPtr. Returns NULL on failure. An error code may be
+ *	retrieved via GetLastError() as for GetEnvironmentVariableW.
+ *
+ * Side effects:
+ *	May allocate memory that must be freed with TwapiWinPathFree
+ *	on a non-NULL return.
+ *
+ *----------------------------------------------------------------------
+ */
+WCHAR *
+TwapiWinGetEnvironmentVariable(
+    const WCHAR *envName,	/* Environment variable name */
+    TwapiWinPath *winPathPtr)	/* Buffer to receive full path. Should be
+				 * uninitialized or previously reset with
+				 * TwapiWinPathFree. */
+{
+    DWORD numChars;
+    DWORD capacity;
+    WCHAR *fullPathPtr;
+    DWORD err;
+
+    fullPathPtr = TwapiWinPathInit(winPathPtr, &capacity);
+    numChars = GetEnvironmentVariableW(envName, fullPathPtr, capacity);
+
+    if (numChars == 0) {
+	goto errorReturn;
+    }
+
+    /*
+     * numChars does not include the null terminator so even if numChars
+     * equal to capacity, the buffer was too small.
+     */
+    if (numChars < capacity) {
+	return fullPathPtr;
+    }
+
+    /*
+     * Buffer too small. In this case, numChars is required space INCLUDING
+     * the null terminator. Allocate a larger buffer and try again.
+     */
+    capacity = numChars;
+    fullPathPtr = TwapiWinPathResize(winPathPtr, capacity);
+    numChars = GetEnvironmentVariableW(envName, fullPathPtr, capacity);
+    if (numChars == 0 || numChars >= capacity) {
+	/* Failed or still too small (shouldn't happen). */
+	goto errorReturn;
+    }
+
+    return fullPathPtr;
+
+errorReturn:
+    err = GetLastError();
+    TwapiWinPathFree(winPathPtr);
+    SetLastError(err);
+    return NULL;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TwapiWinGetDirPath --
+ *
+ *	Wrapper for functions that match the signature of the GetPathFunc
+ *	typedef.
+ *
+ * Results:
+ *	Returns a pointer to the environment variable value. The returned
+ *	pointer is valid until TwapiWinPathFree or TwapiWinPathResize is called
+ *	on winPathPtr. Returns NULL on failure. An error code may be
+ *	retrieved via GetLastError() as for GetEnvironmentVariableW.
+ *
+ * Side effects:
+ *	May allocate memory that must be freed with TwapiWinPathFree
+ *	on a non-NULL return.
+ *
+ *----------------------------------------------------------------------
+ */
+WCHAR *
+TwapiWinGetPath(
+    TwapiGetPathFunc getPathFunc,	/* Function to call for path of interest. */
+    TwapiWinPath *winPathPtr)	/* Buffer to receive full path. Should be
+				 * uninitialized or previously reset with
+				 * TwapiWinPathFree. */
+{
+    DWORD numChars;
+    DWORD capacity;
+    WCHAR *fullPathPtr;
+    DWORD err;
+
+    fullPathPtr = TwapiWinPathInit(winPathPtr, &capacity);
+    numChars = getPathFunc(fullPathPtr, capacity);
+
+    if (numChars == 0) {
+	goto errorReturn;
+    }
+
+    /*
+     * numChars does not include the null terminator so even if numChars
+     * equal to capacity, the buffer was too small.
+     */
+    if (numChars < capacity) {
+	return fullPathPtr;
+    }
+
+    /*
+     * Buffer too small. In this case, numChars is required space INCLUDING
+     * the null terminator. Allocate a larger buffer and try again.
+     */
+    capacity = numChars;
+    fullPathPtr = TwapiWinPathResize(winPathPtr, capacity);
+    numChars = getPathFunc(fullPathPtr, capacity);
+    if (numChars > 0 && numChars < capacity) {
+	return fullPathPtr;
+    }
+
+errorReturn:
+    err = GetLastError();
+    TwapiWinPathFree(winPathPtr);
+    SetLastError(err);
+    return NULL;
+}
 
 #ifdef TWAPI_REPLACE_CRT
 /* 
