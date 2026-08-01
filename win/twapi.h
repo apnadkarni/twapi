@@ -1243,6 +1243,8 @@ extern HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
 #endif
 extern GUID gTwapiNullGuid;
 extern struct TwapiTclVersion gTclVersion;
+extern LPCWSTR gExePath;
+extern DWORD gExePathLen;
 
 #define RETURN_ERROR_IF_UNTHREADED(interp_)    \
   do { \

@@ -1107,7 +1107,7 @@ Twapi_EvtLogObjCmd(ClientData clientData,
         return TCL_ERROR;
     }
 
-    EVENT_DATA_DESCRIPTOR   data[2];
+    EVENT_DATA_DESCRIPTOR   data[3];
     const EVENT_DESCRIPTOR *evdP;
     switch (level) {
     case 1: evdP = &TWAPI_EVT_EVENT_CRITICAL; break;
@@ -1124,21 +1124,20 @@ Twapi_EvtLogObjCmd(ClientData clientData,
         /* not enabled so no point writing it - will be discarded anyways */
         return TCL_OK;
     }
-	   // TBD - is this already somewhere?
-    WCHAR path[MAX_PATH];
-    if (GetModuleFileNameW(NULL, path, sizeof(path)) == 0) {
-        path[0] = L'\0';
-    }
     Tcl_DString ds;
     Tcl_DStringInit(&ds);
     Tcl_UtfToWCharDString(Tcl_GetString(objv[2]), -1, &ds);
 
-    EventDataDescCreate(
-        &data[0], path, (ULONG)((wcslen(path) + 1) * sizeof(WCHAR)));
+    LPCWSTR appName = L"Tcl Application"; // TBD - pass as argument ?
+    EventDataDescCreate(&data[0], appName, (ULONG)(sizeof(WCHAR)*(1 + wcslen(appName))));
     EventDataDescCreate(&data[1],
+                        gExePath ? gExePath : L"",
+                        (ULONG)(((gExePath ? gExePathLen : 0) + 1)
+                            * sizeof(WCHAR)));
+    EventDataDescCreate(&data[2],
                         (LPCWSTR)Tcl_DStringValue(&ds),
                         (ULONG)(Tcl_DStringLength(&ds) + sizeof(WCHAR)));
-    ULONG status = EventWrite(gEvtRegHandle, evdP, 2, data);
+    ULONG status = EventWrite(gEvtRegHandle, evdP, 3, data);
     Tcl_DStringFree(&ds);
 
     if (status != ERROR_SUCCESS) {
@@ -1158,7 +1157,7 @@ int TwapiEvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(EvtCreateRenderContext, Twapi_EvtCreateRenderContextObjCmd),
         DEFINE_TCL_CMD(EvtFormatMessage, Twapi_EvtFormatMessageObjCmd),
         DEFINE_TCL_CMD(EvtOpenSession, Twapi_EvtOpenSessionObjCmd),
-        DEFINE_TCL_CMD(evt_write, Twapi_EvtLogObjCmd),
+        DEFINE_TCL_CMD(evt_log, Twapi_EvtLogObjCmd),
         DEFINE_TCL_CMD(Twapi_ExtractEVT_RENDER_VALUES, Twapi_ExtractEVT_RENDER_VALUESObjCmd),
         DEFINE_TCL_CMD(Twapi_ExtractEVT_RENDER_VALUES, Twapi_ExtractEVT_RENDER_VALUESObjCmd),
     };

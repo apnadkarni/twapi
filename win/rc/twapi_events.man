@@ -45,6 +45,7 @@ of a message compiler that understands event manifests.
 
         <templates>
           <template tid="tid_LogEvent">
+            <data name="Application" inType="win:UnicodeString" outType="xs:string"/>
             <data name="ImagePath"  inType="win:UnicodeString" outType="xs:string"/>
             <data name="Message"    inType="win:UnicodeString" outType="xs:string"/>
           </template>
@@ -93,7 +94,7 @@ of a message compiler that understands event manifests.
         <string id="Twapi.ChannelOperationalMessage" value="Twapi-App Operational"/>
         <string id="Twapi.TaskLogMessage" value="Log Message"/>
         <string id="Twapi.Event.Body"
-                value="%2%n%nImage Path: %1"/>
+                value="%3%n%nApplication: %1%n%nImage Path: %2"/>
       </stringTable>
     </resources>
   </localization>

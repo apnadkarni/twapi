@@ -838,19 +838,19 @@ _mcgen_CheckContextType_Twapi_App(_In_ McGenContext_Twapi_App* pContext)
 //
 // Event write macros for event "TWAPI_EVT_EVENT_CRITICAL"
 //
-#define EventWriteTWAPI_EVT_EVENT_CRITICAL(ImagePath, Message) \
+#define EventWriteTWAPI_EVT_EVENT_CRITICAL(Application, ImagePath, Message) \
         MCGEN_EVENT_ENABLED(TWAPI_EVT_EVENT_CRITICAL) \
-        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_CRITICAL(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_CRITICAL, ImagePath, Message) : 0
-#define EventWriteTWAPI_EVT_EVENT_CRITICAL_AssumeEnabled(ImagePath, Message) \
-        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_CRITICAL(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_CRITICAL, ImagePath, Message)
-#define EventWriteTWAPI_EVT_EVENT_CRITICAL_ForContext(pContext, ImagePath, Message) \
+        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_CRITICAL(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_CRITICAL, Application, ImagePath, Message) : 0
+#define EventWriteTWAPI_EVT_EVENT_CRITICAL_AssumeEnabled(Application, ImagePath, Message) \
+        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_CRITICAL(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_CRITICAL, Application, ImagePath, Message)
+#define EventWriteTWAPI_EVT_EVENT_CRITICAL_ForContext(pContext, Application, ImagePath, Message) \
         MCGEN_EVENT_ENABLED_FORCONTEXT(pContext, TWAPI_EVT_EVENT_CRITICAL) \
-        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_CRITICAL(&(pContext)->Context, &TWAPI_EVT_EVENT_CRITICAL, ImagePath, Message) : 0
-#define EventWriteTWAPI_EVT_EVENT_CRITICAL_ForContextAssumeEnabled(pContext, ImagePath, Message) \
-        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_CRITICAL(&_mcgen_CheckContextType_Twapi_App(pContext)->Context, &TWAPI_EVT_EVENT_CRITICAL, ImagePath, Message)
+        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_CRITICAL(&(pContext)->Context, &TWAPI_EVT_EVENT_CRITICAL, Application, ImagePath, Message) : 0
+#define EventWriteTWAPI_EVT_EVENT_CRITICAL_ForContextAssumeEnabled(pContext, Application, ImagePath, Message) \
+        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_CRITICAL(&_mcgen_CheckContextType_Twapi_App(pContext)->Context, &TWAPI_EVT_EVENT_CRITICAL, Application, ImagePath, Message)
 
 // This macro is for use by MC-generated code and should not be used directly.
-#define _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_CRITICAL _mcgen_PASTE2(McTemplateU0zz_, MCGEN_EVENTWRITETRANSFER)
+#define _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_CRITICAL _mcgen_PASTE2(McTemplateU0zzz_, MCGEN_EVENTWRITETRANSFER)
 
 //
 // Enablement check macro for event "TWAPI_EVT_EVENT_ERROR"
@@ -861,19 +861,19 @@ _mcgen_CheckContextType_Twapi_App(_In_ McGenContext_Twapi_App* pContext)
 //
 // Event write macros for event "TWAPI_EVT_EVENT_ERROR"
 //
-#define EventWriteTWAPI_EVT_EVENT_ERROR(ImagePath, Message) \
+#define EventWriteTWAPI_EVT_EVENT_ERROR(Application, ImagePath, Message) \
         MCGEN_EVENT_ENABLED(TWAPI_EVT_EVENT_ERROR) \
-        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_ERROR(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_ERROR, ImagePath, Message) : 0
-#define EventWriteTWAPI_EVT_EVENT_ERROR_AssumeEnabled(ImagePath, Message) \
-        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_ERROR(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_ERROR, ImagePath, Message)
-#define EventWriteTWAPI_EVT_EVENT_ERROR_ForContext(pContext, ImagePath, Message) \
+        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_ERROR(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_ERROR, Application, ImagePath, Message) : 0
+#define EventWriteTWAPI_EVT_EVENT_ERROR_AssumeEnabled(Application, ImagePath, Message) \
+        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_ERROR(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_ERROR, Application, ImagePath, Message)
+#define EventWriteTWAPI_EVT_EVENT_ERROR_ForContext(pContext, Application, ImagePath, Message) \
         MCGEN_EVENT_ENABLED_FORCONTEXT(pContext, TWAPI_EVT_EVENT_ERROR) \
-        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_ERROR(&(pContext)->Context, &TWAPI_EVT_EVENT_ERROR, ImagePath, Message) : 0
-#define EventWriteTWAPI_EVT_EVENT_ERROR_ForContextAssumeEnabled(pContext, ImagePath, Message) \
-        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_ERROR(&_mcgen_CheckContextType_Twapi_App(pContext)->Context, &TWAPI_EVT_EVENT_ERROR, ImagePath, Message)
+        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_ERROR(&(pContext)->Context, &TWAPI_EVT_EVENT_ERROR, Application, ImagePath, Message) : 0
+#define EventWriteTWAPI_EVT_EVENT_ERROR_ForContextAssumeEnabled(pContext, Application, ImagePath, Message) \
+        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_ERROR(&_mcgen_CheckContextType_Twapi_App(pContext)->Context, &TWAPI_EVT_EVENT_ERROR, Application, ImagePath, Message)
 
 // This macro is for use by MC-generated code and should not be used directly.
-#define _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_ERROR _mcgen_PASTE2(McTemplateU0zz_, MCGEN_EVENTWRITETRANSFER)
+#define _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_ERROR _mcgen_PASTE2(McTemplateU0zzz_, MCGEN_EVENTWRITETRANSFER)
 
 //
 // Enablement check macro for event "TWAPI_EVT_EVENT_WARNING"
@@ -884,19 +884,19 @@ _mcgen_CheckContextType_Twapi_App(_In_ McGenContext_Twapi_App* pContext)
 //
 // Event write macros for event "TWAPI_EVT_EVENT_WARNING"
 //
-#define EventWriteTWAPI_EVT_EVENT_WARNING(ImagePath, Message) \
+#define EventWriteTWAPI_EVT_EVENT_WARNING(Application, ImagePath, Message) \
         MCGEN_EVENT_ENABLED(TWAPI_EVT_EVENT_WARNING) \
-        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_WARNING(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_WARNING, ImagePath, Message) : 0
-#define EventWriteTWAPI_EVT_EVENT_WARNING_AssumeEnabled(ImagePath, Message) \
-        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_WARNING(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_WARNING, ImagePath, Message)
-#define EventWriteTWAPI_EVT_EVENT_WARNING_ForContext(pContext, ImagePath, Message) \
+        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_WARNING(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_WARNING, Application, ImagePath, Message) : 0
+#define EventWriteTWAPI_EVT_EVENT_WARNING_AssumeEnabled(Application, ImagePath, Message) \
+        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_WARNING(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_WARNING, Application, ImagePath, Message)
+#define EventWriteTWAPI_EVT_EVENT_WARNING_ForContext(pContext, Application, ImagePath, Message) \
         MCGEN_EVENT_ENABLED_FORCONTEXT(pContext, TWAPI_EVT_EVENT_WARNING) \
-        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_WARNING(&(pContext)->Context, &TWAPI_EVT_EVENT_WARNING, ImagePath, Message) : 0
-#define EventWriteTWAPI_EVT_EVENT_WARNING_ForContextAssumeEnabled(pContext, ImagePath, Message) \
-        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_WARNING(&_mcgen_CheckContextType_Twapi_App(pContext)->Context, &TWAPI_EVT_EVENT_WARNING, ImagePath, Message)
+        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_WARNING(&(pContext)->Context, &TWAPI_EVT_EVENT_WARNING, Application, ImagePath, Message) : 0
+#define EventWriteTWAPI_EVT_EVENT_WARNING_ForContextAssumeEnabled(pContext, Application, ImagePath, Message) \
+        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_WARNING(&_mcgen_CheckContextType_Twapi_App(pContext)->Context, &TWAPI_EVT_EVENT_WARNING, Application, ImagePath, Message)
 
 // This macro is for use by MC-generated code and should not be used directly.
-#define _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_WARNING _mcgen_PASTE2(McTemplateU0zz_, MCGEN_EVENTWRITETRANSFER)
+#define _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_WARNING _mcgen_PASTE2(McTemplateU0zzz_, MCGEN_EVENTWRITETRANSFER)
 
 //
 // Enablement check macro for event "TWAPI_EVT_EVENT_INFORMATIONAL"
@@ -907,19 +907,19 @@ _mcgen_CheckContextType_Twapi_App(_In_ McGenContext_Twapi_App* pContext)
 //
 // Event write macros for event "TWAPI_EVT_EVENT_INFORMATIONAL"
 //
-#define EventWriteTWAPI_EVT_EVENT_INFORMATIONAL(ImagePath, Message) \
+#define EventWriteTWAPI_EVT_EVENT_INFORMATIONAL(Application, ImagePath, Message) \
         MCGEN_EVENT_ENABLED(TWAPI_EVT_EVENT_INFORMATIONAL) \
-        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_INFORMATIONAL(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_INFORMATIONAL, ImagePath, Message) : 0
-#define EventWriteTWAPI_EVT_EVENT_INFORMATIONAL_AssumeEnabled(ImagePath, Message) \
-        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_INFORMATIONAL(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_INFORMATIONAL, ImagePath, Message)
-#define EventWriteTWAPI_EVT_EVENT_INFORMATIONAL_ForContext(pContext, ImagePath, Message) \
+        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_INFORMATIONAL(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_INFORMATIONAL, Application, ImagePath, Message) : 0
+#define EventWriteTWAPI_EVT_EVENT_INFORMATIONAL_AssumeEnabled(Application, ImagePath, Message) \
+        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_INFORMATIONAL(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_INFORMATIONAL, Application, ImagePath, Message)
+#define EventWriteTWAPI_EVT_EVENT_INFORMATIONAL_ForContext(pContext, Application, ImagePath, Message) \
         MCGEN_EVENT_ENABLED_FORCONTEXT(pContext, TWAPI_EVT_EVENT_INFORMATIONAL) \
-        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_INFORMATIONAL(&(pContext)->Context, &TWAPI_EVT_EVENT_INFORMATIONAL, ImagePath, Message) : 0
-#define EventWriteTWAPI_EVT_EVENT_INFORMATIONAL_ForContextAssumeEnabled(pContext, ImagePath, Message) \
-        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_INFORMATIONAL(&_mcgen_CheckContextType_Twapi_App(pContext)->Context, &TWAPI_EVT_EVENT_INFORMATIONAL, ImagePath, Message)
+        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_INFORMATIONAL(&(pContext)->Context, &TWAPI_EVT_EVENT_INFORMATIONAL, Application, ImagePath, Message) : 0
+#define EventWriteTWAPI_EVT_EVENT_INFORMATIONAL_ForContextAssumeEnabled(pContext, Application, ImagePath, Message) \
+        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_INFORMATIONAL(&_mcgen_CheckContextType_Twapi_App(pContext)->Context, &TWAPI_EVT_EVENT_INFORMATIONAL, Application, ImagePath, Message)
 
 // This macro is for use by MC-generated code and should not be used directly.
-#define _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_INFORMATIONAL _mcgen_PASTE2(McTemplateU0zz_, MCGEN_EVENTWRITETRANSFER)
+#define _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_INFORMATIONAL _mcgen_PASTE2(McTemplateU0zzz_, MCGEN_EVENTWRITETRANSFER)
 
 //
 // Enablement check macro for event "TWAPI_EVT_EVENT_VERBOSE"
@@ -930,19 +930,19 @@ _mcgen_CheckContextType_Twapi_App(_In_ McGenContext_Twapi_App* pContext)
 //
 // Event write macros for event "TWAPI_EVT_EVENT_VERBOSE"
 //
-#define EventWriteTWAPI_EVT_EVENT_VERBOSE(ImagePath, Message) \
+#define EventWriteTWAPI_EVT_EVENT_VERBOSE(Application, ImagePath, Message) \
         MCGEN_EVENT_ENABLED(TWAPI_EVT_EVENT_VERBOSE) \
-        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_VERBOSE(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_VERBOSE, ImagePath, Message) : 0
-#define EventWriteTWAPI_EVT_EVENT_VERBOSE_AssumeEnabled(ImagePath, Message) \
-        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_VERBOSE(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_VERBOSE, ImagePath, Message)
-#define EventWriteTWAPI_EVT_EVENT_VERBOSE_ForContext(pContext, ImagePath, Message) \
+        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_VERBOSE(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_VERBOSE, Application, ImagePath, Message) : 0
+#define EventWriteTWAPI_EVT_EVENT_VERBOSE_AssumeEnabled(Application, ImagePath, Message) \
+        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_VERBOSE(&TWAPI_EVT_PROVIDER_Context, &TWAPI_EVT_EVENT_VERBOSE, Application, ImagePath, Message)
+#define EventWriteTWAPI_EVT_EVENT_VERBOSE_ForContext(pContext, Application, ImagePath, Message) \
         MCGEN_EVENT_ENABLED_FORCONTEXT(pContext, TWAPI_EVT_EVENT_VERBOSE) \
-        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_VERBOSE(&(pContext)->Context, &TWAPI_EVT_EVENT_VERBOSE, ImagePath, Message) : 0
-#define EventWriteTWAPI_EVT_EVENT_VERBOSE_ForContextAssumeEnabled(pContext, ImagePath, Message) \
-        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_VERBOSE(&_mcgen_CheckContextType_Twapi_App(pContext)->Context, &TWAPI_EVT_EVENT_VERBOSE, ImagePath, Message)
+        ? _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_VERBOSE(&(pContext)->Context, &TWAPI_EVT_EVENT_VERBOSE, Application, ImagePath, Message) : 0
+#define EventWriteTWAPI_EVT_EVENT_VERBOSE_ForContextAssumeEnabled(pContext, Application, ImagePath, Message) \
+        _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_VERBOSE(&_mcgen_CheckContextType_Twapi_App(pContext)->Context, &TWAPI_EVT_EVENT_VERBOSE, Application, ImagePath, Message)
 
 // This macro is for use by MC-generated code and should not be used directly.
-#define _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_VERBOSE _mcgen_PASTE2(McTemplateU0zz_, MCGEN_EVENTWRITETRANSFER)
+#define _mcgen_TEMPLATE_FOR_TWAPI_EVT_EVENT_VERBOSE _mcgen_PASTE2(McTemplateU0zzz_, MCGEN_EVENTWRITETRANSFER)
 
 #endif // MCGEN_DISABLE_PROVIDER_CODE_GENERATION
 
@@ -961,20 +961,21 @@ _mcgen_CheckContextType_Twapi_App(_In_ McGenContext_Twapi_App* pContext)
 // Function for template "tid_LogEvent" (and possibly others).
 // This function is for use by MC-generated code and should not be used directly.
 //
-#ifndef McTemplateU0zz_def
-#define McTemplateU0zz_def
+#ifndef McTemplateU0zzz_def
+#define McTemplateU0zzz_def
 ETW_INLINE
 ULONG
-_mcgen_PASTE2(McTemplateU0zz_, MCGEN_EVENTWRITETRANSFER)(
+_mcgen_PASTE2(McTemplateU0zzz_, MCGEN_EVENTWRITETRANSFER)(
     _In_ PMCGEN_TRACE_CONTEXT Context,
     _In_ PCEVENT_DESCRIPTOR Descriptor,
     _In_opt_ PCWSTR  _Arg0,
-    _In_opt_ PCWSTR  _Arg1
+    _In_opt_ PCWSTR  _Arg1,
+    _In_opt_ PCWSTR  _Arg2
     )
 {
-#define McTemplateU0zz_ARGCOUNT 2
+#define McTemplateU0zzz_ARGCOUNT 3
 
-    EVENT_DATA_DESCRIPTOR EventData[McTemplateU0zz_ARGCOUNT + 1];
+    EVENT_DATA_DESCRIPTOR EventData[McTemplateU0zzz_ARGCOUNT + 1];
 
     EventDataDescCreate(&EventData[1],
                         (_Arg0 != NULL) ? _Arg0 : L"NULL",
@@ -984,9 +985,13 @@ _mcgen_PASTE2(McTemplateU0zz_, MCGEN_EVENTWRITETRANSFER)(
                         (_Arg1 != NULL) ? _Arg1 : L"NULL",
                         (_Arg1 != NULL) ? (ULONG)((wcslen(_Arg1) + 1) * sizeof(WCHAR)) : (ULONG)sizeof(L"NULL"));
 
-    return McGenEventWrite(Context, Descriptor, NULL, McTemplateU0zz_ARGCOUNT + 1, EventData);
+    EventDataDescCreate(&EventData[3],
+                        (_Arg2 != NULL) ? _Arg2 : L"NULL",
+                        (_Arg2 != NULL) ? (ULONG)((wcslen(_Arg2) + 1) * sizeof(WCHAR)) : (ULONG)sizeof(L"NULL"));
+
+    return McGenEventWrite(Context, Descriptor, NULL, McTemplateU0zzz_ARGCOUNT + 1, EventData);
 }
-#endif // McTemplateU0zz_def
+#endif // McTemplateU0zzz_def
 
 #endif // MCGEN_DISABLE_PROVIDER_CODE_GENERATION
 

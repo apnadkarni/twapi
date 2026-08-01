@@ -630,7 +630,7 @@ proc twapi::evt_seek {hresults pos args} {
         incr flags;             # 1 -> first, 2 -> last, 3 -> current
         set opts(bookmark) NULL
     }
-        
+
     incr flags $opts(strict)
 
     EvtSeek $hresults $pos $opts(bookmark) 0 $flags

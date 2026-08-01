@@ -96,6 +96,10 @@ ZLIST_DECL(TwapiInterpContext) gTwapiInterpContexts;
 /* Used to generate unique id's */
 TwapiId volatile gIdGenerator;
 
+/* Path to executable and its length in WCHAR's excluding termiating nul */
+LPCWSTR gExePath;
+DWORD gExePathLen;
+
 /*
  * Whether the callback dll/libray has been initialized.
  * The value must be managed using the InterlockedCompareExchange functions to
@@ -578,6 +582,8 @@ static void Twapi_Cleanup(ClientData clientdata)
      */
 
     WSACleanup();
+    if (gExePath)
+        Tcl_Free(gExePath);
 }
 
 static void Twapi_InterpCleanup(ClientData unused, Tcl_Interp *interp)
@@ -760,6 +766,7 @@ static int TwapiOneTimeInit(void *pv)
     Tcl_Interp *interp = (Tcl_Interp *) pv;
     WSADATA ws_data;
     WORD    ws_ver = MAKEWORD(1,1);
+    DWORD dw;
 
     gTlsIndex = TlsAlloc();
     if (gTlsIndex == TLS_OUT_OF_INDEXES) {
@@ -797,6 +804,14 @@ static int TwapiOneTimeInit(void *pv)
         Tcl_SetResult(interp, "Could not get OS version.", TCL_STATIC);
         return TCL_ERROR;
     }
+
+    gExePath = Tcl_Alloc(MAX_PATH * sizeof(WCHAR));
+    dw = GetModuleFileNameW(NULL, gExePath, MAX_PATH);
+    if (dw == 0 || dw == MAX_PATH) {
+        Tcl_SetResult(interp, "Failed to get application path.", TCL_STATIC);
+        return TCL_ERROR;
+    }
+    gExePathLen = dw;
 
     if (WSAStartup(ws_ver, &ws_data) != 0) {
         Tcl_SetResult(interp, "Could not initialize Winsock.", TCL_STATIC);
