@@ -7,120 +7,49 @@
 [description]
 [para]
 
-This module provides commands for reading and writing the Windows event log.
+The [cmd twapi_evt] package implements commands for reading and writing to
+the Windows Event log.
 
-[emph "The following commands, although described here, are available in the twapi_base package itself and do not require this module to be loaded:"]
-[uri \#eventlog_open [cmd eventlog_open]],
-[uri \#eventlog_log [cmd eventlog_log]],
-[uri \#eventlog_write [cmd eventlog_write]]
-and [uri \#eventlog_close [cmd eventlog_close]]. This allows applications
-to write to the event log without this module being loaded.
+[section Publishers]
 
-[para]
-Many commands dealing with the event log require the process to be running
-with administrative privileges and/or in elevated mode.
-
-[section Overview]
-
-The Windows event log provides a common application-independent
-mechanism for applications to log messages for diagnostic and informational
-purposes. The infrastructure and API's supporting this mechanism changed
-starting with Windows Vista. Although the older Windows API's
-will also work on Vista and later versions, they are limited in
-their support for events logged by applications using the newer API's.
+An event [emph publisher], or [emph provider] (the Windows SDK uses the term
+interchangeably) defines the structure of events it may generate, the channels
+to which it writes events, and localized message strings. This structure is
+described by metadata in a publisher manifest that is installed on the system.
 
 [para]
-TWAPI follows the Windows model by providing two sets of commands
-corresponding to the two Windows API sets and in addition also
-provides a set of unified commands:
-[list_begin bullet]
-[bullet]
-Commands prefixed with [cmd eventlog] are layered on top of the older
-pre-Vista API's. These will work on all Windows systems but reflect
-the inability of the underlying Windows API to fully format messages
-for events logged by applications using the new APIs.
-[bullet]
-Commands prefixed with [cmd evt] are layered on top of the newer API's.
-These can deal with events logged by applications using either API version
-but can only be used on Windows Vista and later. They will raise
-an error on earlier versions of Windows.
-[bullet]
-Commands prefixed with [cmd winlog] present a unified interface and
-direct calls to the appropriate Windows API depending on operating
-system version. They also present a single interface to the application
-irrespective of the operating system. However, they do not cover
-features that are unique to a specific Windows API and have a slight
-performance penalty.
+The following commands return information
+related to publishers.
+
+[list_begin opt]
+[opt_def [uri #evt_publisher_events_metadata [cmd evt_publisher_events_metadata]]]
+Returns the metadata for the events defined by a publisher.
+[opt_def [uri #evt_publisher_message [cmd evt_publisher_message]]]
+Returns the message corresponding to a message id from the publisher's
+message resource.
+[opt_def [uri #evt_publisher_metadata_open [cmd evt_publisher_metadata_open]]]
+Returns a handle to a publisher's metadata.
+[opt_def [uri #evt_publisher_metadata_property [cmd evt_publisher_metadata_property]]]
+Returns the value of a publisher metadata property.
+[opt_def [uri #evt_publisher_install [cmd evt_publisher_install]]]
+Installs a publisher to the local system.
+[opt_def [uri #evt_publisher_uninstall [cmd evt_publisher_uninstall]]]
+Uninstalls a publisher from the local system.
+[opt_def [uri #evt_publishers [cmd evt_publishers]]]
+Returns a list of publishers installed on the local system.
+[opt_def [uri #evt_twapi_install [cmd evt_twapi_install]]]
+Installs the TWAPI event publisher.
+[opt_def [uri #evt_twapi_uninstall [cmd evt_twapi_uninstall]]]
+Uninstalls the TWAPI event publisher.
 [list_end]
 
-[para]
-For reading the event log, use of the
-[uri #usingwinlogcommands [cmd winlog]] set of commands is recommended
-as those will use the underlying API
-that is most appropriate for that OS version. Alternatively, if
-platform-specific features not available through those commands
-are required, applications can call the
-[uri #usingeventlogcommands [cmd eventlog]] or
-[uri #usingevtcommands [cmd evt]]
-commands as appropriate after checking the operating
-system version.
+An [emph event] is structured data written to event log whose fields
+and their format are defined by the [emph "event metadata"].
 
-[section "Using eventlog Commands"]
 
-This section describes the use of the older pre-Vista
-event log commands. Most access to the event log using
-this API requires a handle returned by
-the [uri \#eventlog_open [cmd eventlog_open]]
-command. A handle allows either read or write
-access, but never both. Returned handles must be closed when no
-longer required by calling
-[uri \#eventlog_close [cmd eventlog_close]].
-[para]
-Events can be written using the
-[uri \#eventlog_write [cmd eventlog_write]]
-command. The [uri \#eventlog_log [cmd eventlog_log]]
-command provides an alternate, simpler but less flexible,
-interface for writing events.
-[para]
-Events can be read from an event log
-through the [uri \#eventlog_read [cmd eventlog_read]]
-command. The returned event record can be
-formatted using [uri \#eventlog_format_message [cmd eventlog_format_message]] and
-[uri \#eventlog_format_category [cmd eventlog_format_category]].
-[para]
-The command [uri \#eventlog_count [cmd eventlog_count]]
-returns the number of records in the event
-log. [uri \#eventlog_oldest [cmd eventlog_oldest]]
-returns the record number of the oldest record.
-The command [uri \#eventlog_is_full [cmd eventlog_is_full]]
-indicates whether the event log is full.
 
-[para]
-To monitor the event log in real time, an application can poll at
-regular intervals. However, a more efficient way is to set up
-notifications through the
-[uri #eventlog_subscribe [cmd eventlog_subscribe]] command.
-
-[para]
-Event logs can be backed up using [uri \#eventlog_backup [cmd eventlog_backup]]
-or as a side effect of clearing the log through
-[uri \#eventlog_clear [cmd eventlog_clear]]. The
-backup file can be read using the standard
-[uri \#eventlog_open [cmd eventlog_open]] and
-[uri \#eventlog_read [cmd eventlog_read]] commands.
 
 [section "Using evt Commands"]
-
-This section describes the use of the newer event log commands available in
-Windows Vista and later Windows version. The corresponding Windows API functions
-are prefixed with [cmd Evt] in the Windows SDK. TWAPI does not support writing
-events using the new API. Only reading of events is supported.
-
-[para]
-The new event logging subsystem in Windows Vista is considerably more flexible
-(and complex) than what was available in earlier Windows versions. The
-description below assumes the reader is familiar with the terms and concepts
-described in the Windows SDK.
 
 [para]
 The [uri #evt_local_session [cmd evt_local_session]] command returns a handle to
@@ -262,96 +191,16 @@ Exports a event log channel to a log file.
 To monitor the event log in real time, use the
 [uri #evt_subscribe [cmd evt_subscribe]] command.
 
-[section "Using winlog Commands"]
-
-This section describes the use of the TWAPI's common interface
-to the old and new versions of Windows event log APIs. This is the
-recommended interface for consuming events but does not provide
-a command to write events.
-
-[para]
-The common access commands require a handle to the event log which
-can be obtained via the [uri \#winlog_open [cmd winlog_open]]
-command.
-The returned handle must be closed when no
-longer required by calling
-[uri \#winlog_close [cmd winlog_close]].
-
-[para]
-Events can be read from an event log
-through the [uri \#winlog_read [cmd winlog_read]]
-command which returns a list of dictionaries containing
-the fields of each event.
-[uri #winlog_event_count [cmd winlog_event_count]] returns the number
-of events in an event log.
-
-[para]
-Events can be written to a backup file using 
-[uri #winlog_backup [cmd winlog_backup]] and cleared
-with [uri #winlog_clear [cmd winlog_clear]].
-
-
-[para]
-To monitor the event log in real time, use the
-[uri #winlog_subscribe [cmd winlog_subscribe]] command.
-
 [section "Commands"]
 
+[para]
+[emph {
+    Many commands dealing with the event log require the process to be running
+    with administrative privileges and/or in elevated mode.
+}]
+
+
 [list_begin definitions]
-
-[call [cmd eventlog_backup] [arg "EVENTLOGHANDLE"] [arg FILENAME]]
-Backs up the specified event log to the file [arg FILENAME]. The file
-may be opened for reading using the
-[uri \#eventlog_open [cmd eventlog_open]] command.
-[arg EVENTLOGHANDLE] must be a read handle.
-
-[call [cmd eventlog_clear] [arg "EVENTLOGHANDLE"] [opt "[cmd -backup] [arg FILENAME]"]]
-Clears the specified event log. If the [cmd -backup] option is specified, the
-event log is first backed to the file [arg FILENAME].
-[arg EVENTLOGHANDLE] must be a read handle (even though the command
-actually modifies the event log).
-
-[call [cmd eventlog_close] [arg "EVENTLOGHANDLE"]]
-Closes a handle previously returned by
-[uri \#eventlog_open [cmd eventlog_open]] and frees any
-associated resources.
-
-[call [cmd eventlog_count] [arg EVENTLOGHANDLE]]
-Returns the number of records in the specified event log.
-[arg EVENTLOGHANDLE] must be a read handle.
-
-[call [cmd eventlog_format_category] [arg EVENT_RECORD] [opt [arg options]]]
-Returns the text corresponding to the numeric category field in
-[arg EVENT_RECORD] by looking up the appropriate resources. [arg EVENT_RECORD]
-must be an element of the event record list returned from the
-[uri \#eventlog_read [cmd eventlog_read]] command.
-[nl]
-The following options may be specified with the command:
-[list_begin opt]
-[opt_def [cmd -langid] [arg LANGID]] Passed to the [cmd format_message]
-command for formatting. See the description of that function for details.
-[opt_def [cmd -width] [arg MAXLINEWIDTH]] Passed to the [cmd format_message]
-command for formatting. See the description of that function for details.
-[list_end]
-
-[call [cmd eventlog_format_message] [arg EVENT_RECORD] [opt [arg options]]]
-Returns the text corresponding to the message in
-[arg EVENT_RECORD] by looking up the appropriate resources. [arg EVENT_RECORD]
-must be an element of the event record list returned from the
-[uri \#eventlog_read [cmd eventlog_read]] command.
-[nl]
-The following options may be specified with the command:
-[list_begin opt]
-[opt_def [cmd -langid] [arg LANGID]] Passed to the [cmd format_message]
-command for formatting. See the description of that function for details.
-[opt_def [cmd -width] [arg MAXLINEWIDTH]] Passed to the
-[uri base.html\#format_message [cmd format_message]]
-command for formatting. See the description of that function for details.
-[list_end]
-
-[call [cmd eventlog_is_full] [arg EVENTLOGHANDLE]]
-Returns 1 if the specified event log is full, and 0 otherwise.
-[arg EVENTLOGHANDLE] may be either a read or a write handle.
 
 [call [cmd eventlog_log] [arg MESSAGE] [opt [arg options]]]
 Writes a record into the specified event log. This is a wrapper around
@@ -376,159 +225,6 @@ the event. [arg EVENTTYPE] should be one of [const success], [const error],
 [opt_def [cmd -category] [arg CATEGORY]] This should be a integer corresponding
 to a category id in the event source's category or message file. This value
 defaults to [const 0].
-[list_end]
-
-[call [cmd eventlog_monitor_start] [arg EVENTLOGHANDLE] [arg SCRIPT]]
-[emph Deprecated]
-Registers [arg SCRIPT] to be invoked whenever the event log specified 
-by [arg EVENTLOGHANDLE] receives a new event. [arg EVENTLOGHANDLE] must
-be a read handle to an event log on the local system.
-Windows will invoke [arg SCRIPT] only when new events
-are written to the event log but no more than once every 5 seconds.
-Note that [arg EVENTLOGHANDLE] must not be closed in order for
-the notifications to be sent.
-[nl]
-The command returns an id for the notification. When the
-application is no longer interested in receiving notifications, it should
-release the associated resources by passing the id to
-[uri #eventlog_monitor_stop [cmd eventlog_monitor_stop]]. This is required
-even if [arg EVENTLOGHANDLE] is closed.
-
-[call [cmd eventlog_monitor_stop] [arg EVENTNOTIFICATIONID]]
-[emph Deprecated]
-Stops notifications from the event log. [arg EVENTNOTIFICATIONID] is
-the id returned from a previous call to
-[uri #eventlog_monitor_start [cmd eventlog_monitor_start]].
-
-[call [cmd eventlog_oldest] [arg EVENTLOGHANDLE]]
-Returns the record number of the oldest record in the specified event log.
-[arg EVENTLOGHANDLE] must be a read handle.
-
-[call [cmd eventlog_open] [opt [arg options]]]
-
-Returns a handle to the specified event log. When no longer required, it
-should be closed by passing it to
-[uri \#eventlog_close [cmd eventlog_close]]. Various options
-specify the event log to be opened and the read-write mode.
-
-[list_begin opt]
-[opt_def [cmd -file] [arg EVENTLOGBACKUPFILE]]
-Specifies the name of a backed up event log file.
-This option may not be used with the [cmd -source] or [cmd -system] options.
-[opt_def [cmd -source] [arg SOURCENAME]] Specifies a event log source. The
-returned handle will refer to the event log to which events from
-[arg SOURCENAME] are logged. This defaults to the filename portion (without
-the path or extension) of the executable file.
-This option may not be used with the [cmd -file] option.
-[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the system on which
-the event log resides. By default, this is the local system.
-This option cannot be used with the [cmd -file] option.
-[opt_def [cmd -write]] Returns a handle used for writing to the event log.
-By default, a read handle is returned. Note that event log handles
-are never read-write. Applications wishing to do both need to open two
-separate handles. This option may not be used with the [cmd -file] option
-as event log backup files cannot be written to.
-[list_end]
-
-[call [cmd eventlog_read] [arg EVENTLOGHANDLE] [opt [arg options]]]
-Returns a list of event records read from the specified event log.
-[arg EVENTLOGHANDLE] must be a read handle. The number of records
-returned may vary depending on the number of records in the event log
-as well as internal buffering limits. Returns an empty list
-when no more records can be read. Each
-[uri \#eventlog_read [cmd eventlog_read]] command
-moves the event log read pointer.
-[nl]
-The following options may be specified to control the read operation:
-[list_begin opt]
-[opt_def [cmd -seek] [arg RECORDNUMBER]]Normally the command returns
-event log records starting from current read pointer. If this option
-is specified, the command will return records starting with the one
-with record number [arg RECORDNUMBER].
-[opt_def [cmd -direction] "[const backward]|[const forward]"]
-Controls the direction in which the read pointer moves. By default,
-the commands will return records reading forwards from the current read
-pointer.
-[list_end]
-Each element in the returned list corresponds to an event log record
-and is a list of the form [arg "field value ..."]. The following fields
-are returned in each event record:
-[list_begin opt]
-[opt_def [const -category]] This is an integer corresponding
-to a category id in the event source's category or message file.
-[opt_def [const -data]]Raw binary data stored as part
-of the event record.
-[opt_def [const -eventid]] The event id that identifies the event type.
-See [cmd eventlog_write] for how this may be used.
-[opt_def [const -params]] A list of strings
-corresponding to the positional [arg %N] format specifiers in the format
-string for the event in the message file.
-[opt_def [const -sid]] The SID of the user account of the thread that logged
-the event. This may be a null string if this information was not included
-in the record.
-[opt_def [const -recordnum]] The record number for this record. This may be
-used with the [cmd -seek] option to locate a record.
-[opt_def [const -source]] The event source that logged the event.
-[opt_def [const -system]] The name of the system on which the event
-was generated.
-[opt_def [const -timegenerated]]Contains the time that the event was
-generated (UTC) expressed as an offset in seconds since
-00:00:00 Jan 1, 1970. This can be passed to the [cmd "clock format"] command to
-convert to an absolute time.
-[opt_def [const -timewritten]]Contains the time (UTC) that the event was
-written into the event log expressed as an offset in seconds since
-00:00:00 Jan 1, 1970. This can be passed to the [cmd "clock format"] command to
-convert to an absolute time.
-[opt_def [const -type]] Indicates the type or severity of
-the event. The value is one of [const success], [const error],
-[const warning], [const information],
-[const auditsuccess] or [const auditfailure].
-[list_end]
-
-[call [cmd eventlog_subscribe] [arg EVENTSOURCE]]
-Registers for notifications when events are logged to the specified
-event log. Returns a pair of two handles, the first
-is a handle that can be passed to [uri #eventlog_read [cmd eventlog_read]]
-to retrieve logged events. The second is a handle that is signalled
-when events are available to be read on the channel. It can be
-used in either synchronous or asynchronous mode with
-[uri base.html#wait_on_handle [cmd wait_on_handle]].
-[nl]
-When notifications are no longer desired, the two handles in the
-returned pair must be released via [uri #eventlog_close [cmd eventlog_close]]
-and [uri handles.html#close_handle [cmd close_handle]] respectively.
-[nl]
-This command is internally identical to
-[uri #winlog_subscribe [cmd winlog_subscribe]] on Windows version before Vista.
-On Vista and later, this command translates to the older Windows event log
-API while [cmd winlog_subscribe] will invoke the new Vista APIs.
-
-[call [cmd eventlog_write] [arg EVENTLOGHANDLE] [arg EVENTID] [opt [arg options]]]
-Writes a record into the specified event log. [arg EVENTLOGHANDLE] must be
-a write handle for an event log. [arg EVENTID] is a integer that identifies
-the specific event. If the event source is configured in the registry, this
-is the message id for the event in the message file for the source. If
-no message file has been configured, this event id is irrelevant.
-[nl]
-The following options may be specified to control the values of the various
-fields in the event log record:
-[list_begin opt]
-[opt_def [cmd -type] [arg EVENTTYPE]] Indicates the type or severity of
-the event. [arg EVENTTYPE] should be one of [const success], [const error],
-[const warning], [const information] (default), [const auditsuccess] or [const auditfailure]. Note that the last two may only be used when writing to the
-Security event log.
-[opt_def [cmd -category] [arg CATEGORY]] This should be a integer corresponding
-to a category id in the event source's category or message file. This value
-defaults to 1.
-[opt_def [cmd -loguser]] Specifying this will cause the SID of the user
-account for this thread to be included in the event record.
-[opt_def [cmd -params] [arg PARAMLIST]] Specifies a list of strings
-corresponding to the positional [arg %N] format specifiers in the format
-string for the event in the message file. If the source has not been
-configured with a message file in the registry, event viewers will generally
-display this as a list of strings.
-[opt_def [cmd -data] [arg DATA]]Raw binary data that should be stored as part
-of the event record.
 [list_end]
 
 [call [cmd evt_archive_exported_log] [arg LOGPATH] [opt [arg options]]]
@@ -698,7 +394,7 @@ The following options may be specified to select which events are
 included in the result set.
 [list_begin opt]
 [opt_def [cmd -channel] [arg CHANNELNAME]]
-Specifies the event channel from which events are to be read. Cannot
+Specifies the event channel from which events are to be read. Cannot
 be used with the [cmd -file] option.
 [opt_def [cmd -file] [arg PATH]]
 Specifies the event file from which events are to be read. Cannot
@@ -717,12 +413,6 @@ the Windows SDK for details.
 [opt_def [cmd -session] [arg HSESSION]]
 Specifies the EVT session handle. Defaults to the local system.
 [list_end]
-
-[call [cmd evt_format_publisher_message] [arg HPUB] [arg MESSAGEID]]
-
-Returns the message corresponding to the message identifier
-[arg MESSAGEID] using the message resources associated with the publisher
-metadata specified by handle [arg HPUB].
 
 [call [cmd evt_get_channel_config] [arg HCHANCFG] [arg PROPERTY]]
 
@@ -784,27 +474,6 @@ host which defaults to the local system. The returned handle may be used with
 [uri #evt_set_channel_config [cmd evt_set_channel_config]]
 to query and modify the channel configuration. When longer needed,
 it should be released with [uri #evt_close [cmd evt_close]].
-
-[call [cmd evt_open_publisher_metadata] [arg PROVIDER] [opt [arg options]]]
-
-Returns a handle to the metadata for the event provider named [arg PROVIDER].
-The returned handle should be released using [cmd evt_close].
-The following options may be passed to the command.
-
-[list_begin opt]
-
-[opt_def "[cmd -session] [arg HSESSION]"]
-Specifies the EVT session handle to the system where the provider resides. Defaults to the local system.
-
-[opt_def "[cmd -logfile] [arg PATH]"]
-Path to an exported event log or archived log holding the publisher
-metadata instead of the default metadata installed on the system.
-
-[opt_def "[cmd -lcid] [arg LCID]"]
-The LCID for accessing localized metadata. The default value of `0` uses
-the thread's locale.
-
-[list_end]
 
 [call [cmd evt_open_session] [arg SERVER] [opt [arg options]]]
 
@@ -880,6 +549,42 @@ EventMetadataEventTemplate
 EventMetadataEventVersion
 
 [list_end]
+
+[call [cmd evt_publisher_install] [arg MANPATH] [arg RESPATH] [arg MSGPATH]]
+
+Registers an event publisher with the local system. [arg MANPATH], [arg RESPATH]
+and [arg MSGPATH] are the paths to the publisher's manifest file, resource file
+and message files respectively. The command may display an elevation prompt if
+the process is not running in elevated mode.
+
+
+[call [cmd evt_publisher_message] [arg HPUB] [arg MESSAGEID]]
+Returns the message corresponding to the message identifier
+[arg MESSAGEID] using the message resources associated with the publisher
+metadata specified by handle [arg HPUB].
+
+
+[call [cmd evt_publisher_metadata_open] [arg PROVIDER] [opt [arg options]]]
+
+Returns a handle to the metadata for the event provider named [arg PROVIDER].
+The returned handle should be released using [cmd evt_close].
+The following options may be passed to the command.
+
+[list_begin opt]
+
+[opt_def "[cmd -session] [arg HSESSION]"]
+Specifies the EVT session handle to the system where the provider resides. Defaults to the local system.
+
+[opt_def "[cmd -logfile] [arg PATH]"]
+Path to an exported event log or archived log holding the publisher
+metadata instead of the default metadata installed on the system.
+
+[opt_def "[cmd -lcid] [arg LCID]"]
+The LCID for accessing localized metadata. The default value of `0` uses
+the thread's locale.
+
+[list_end]
+
 
 [call [cmd evt_publisher_metadata_property] [arg HPUB] [arg PROPNAME]]
 
@@ -987,6 +692,12 @@ Windows SDK enumeration.
 [opt_def -keywordvalue]
 [uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordValue]
 [list_end]
+
+[call [cmd evt_publisher_uninstall] [arg MANPATH]]
+
+Unregisters an event publisher with the local system. [arg MANPATH] is the path
+to the publisher's manifest file. The command may display an elevation prompt if
+the process is not running in elevated mode.
 
 [call [cmd evt_publishers]]
 Returns a list of names of the publishers registered on the system.
@@ -1107,6 +818,15 @@ system-defined properties of an event.
 The returned handle should be released using [uri #evt_close [cmd evt_close]]
 when no longer needed.
 
+[call [cmd evt_twapi_install]]
+
+Registers the TWAPI event publisher with the local system. The command may
+display an elevation prompt if the process is not running in elevated mode.
+
+[call [cmd evt_twapi_uninstall]]
+
+Unregisters the TWAPI event publisher from the local system.
+
 [call [cmd evt_update_bookmark] [arg HBOOKMARK] [arg HEVENT]]
 
 Updates the bookmark specified by [arg HBOOKMARK] to identify the event
@@ -1147,110 +867,6 @@ same order as the corresponding XPath expressions in the list.
 [nl]
 The returned should be released using [cmd evt_close].
 
-[call [cmd winlog_backup] [arg NAME] [arg BACKUPFILE]]
-Writes events from the specified event channel or source to a backup file.
-[arg NAME] is the name of an event log source (pre-Vista)
-or channel (Vista and later).
-
-[call [cmd winlog_clear] [arg NAME] [opt "[cmd -backup] [arg BACKUPFILE]"]]
-Clears the specified event channel or source of all events.
-[arg NAME] is the name of an event log source (pre-Vista)
-or channel (Vista and later).
-[nl]
-If [cmd -backup] is specified,
-the events are written to the specified backup file before the channel
-is cleared.
-
-[call [cmd winlog_close] [arg "WINLOGHANDLE"]]
-Closes the handle [arg WINLOGHANDLE] which must have been
-previously returned by [uri \#winlog_open [cmd winlog_open]]
-and frees any associated resources.
-
-[call [cmd winlog_event_count] [opt [arg options]]]
-
-Returns the number of events in the specified event log using the API
-appropriate for the Windows version. The following options may
-be specified with the command.
-
-[list_begin opt]
-[opt_def [cmd -channel] [arg NAME]] Specifies a event log source (pre-Vista)
-or channel (Vista and later) from which events are to be read.
-This option may not be used with the [cmd -file] option.
-[opt_def [cmd -file] [arg EVENTLOGBACKUPFILE]]
-Specifies the name of a backed up event log file.
-This option may not be used with the [cmd -channel] or [cmd -system] options.
-[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the system on which
-the event log resides. By default, this is the local system.
-This option cannot be used with the [cmd -file] option.
-[list_end]
-
-[call [cmd winlog_open] [opt [arg options]]]
-
-Returns a handle to the specified event log using the API
-appropriate for the Windows version.
-When no longer required, it
-should be closed by passing it to
-[uri \#winlog_close [cmd winlog_close]]. The following options may
-be specified with the command.
-
-[list_begin opt]
-[opt_def [cmd -channel] [arg NAME]] Specifies a event log source (pre-Vista)
-or channel (Vista and later) from which events are to be read.
-This option may not be used with the [cmd -file] option.
-[opt_def [cmd -direction] [arg DIRECTION]]
-If [arg DIRECTION] is [const forward] events are returned oldest
-first. If [arg DIRECTION] is [const backward], events are returned
-newest first.
-[opt_def [cmd -file] [arg EVENTLOGBACKUPFILE]]
-Specifies the name of a backed up event log file.
-This option may not be used with the [cmd -channel] or [cmd -system] options.
-[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the system on which
-the event log resides. By default, this is the local system.
-This option cannot be used with the [cmd -file] option.
-[list_end]
-
-[call [cmd winlog_read] [arg "WINLOGHANDLE"] [opt "[cmd -lcid] [arg LCID]"]]
-Returns a [uri base.html#recordarrays "record array"] containing
-events read from the specified event log.
-The handle [arg WINLOGHANDLE] must have been
-previously returned by [uri \#winlog_open [cmd winlog_open]].
-[arg LCID] is the identifies the language in which messages are
-to be formatted.
-[nl]
-The number of events
-returned may vary. Returns an empty record array
-when no more records can be read. Each
-[uri \#winlog_read [cmd winlog_read]] command
-moves the event log read pointer.
-[nl]
-The returned record array contains the following fields describing
-the event :
-[cmd -channel], [cmd -taskname], [cmd -message], [cmd -providername], 
-[cmd -eventid], [cmd -level], [cmd -levelname], [cmd -eventrecordid], 
-[cmd -computer], [cmd -sid] and [cmd -timecreated].
-Refer to [uri #evt_decode_events [cmd evt_decode_events]] for
-details.
-[nl]
-The record array may also contain additional fields that should be ignored.
-
-
-[call [cmd winlog_subscribe] [arg CHANNEL_OR_SOURCE]]
-Registers for notifications when events are logged to the specified
-event source or channel. Returns a pair of two handles, the first
-is a event log handle that can be passed to [uri #winlog_read [cmd winlog_read]]
-to retrieve logged events. The second is a handle that is signalled
-when events are available to be read on the channel. It can be
-used in either synchronous or asynchronous mode with
-[uri base.html#wait_on_handle [cmd wait_on_handle]].
-[nl]
-Note that Windows will not signal the handle unless a call to
-[uri #winlog_read [cmd winlog_read]] fails [emph and] a new event arrives.
-The mere presence of unread events is not sufficient.
-[nl]
-When notifications are no longer desired, call 
-[uri #winlog_close [cmd winlog_close]] passing in the event log handle
-which is the first element in the returned list. This will also
-release the signal handle which need not be closed explicitly.
 [list_end]
 
 [keywords "event log"]

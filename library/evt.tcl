@@ -357,7 +357,7 @@ proc twapi::evt_publishers {{hsess NULL}} {
     return $pubs
 }
 
-proc twapi::evt_open_publisher_metadata {pub args} {
+proc twapi::evt_publisher_metadata_open {pub args} {
     array set opts [parseargs args {
         {session.arg NULL}
         logfile.arg
@@ -593,7 +593,7 @@ proc twapi::evt_decode_event {hevt args} {
     return [recordarray index [evt_decode_events [list $hevt] {*}$args] 0 -format dict]
 }
 
-proc twapi::evt_format_publisher_message {hpub msgid args} {
+proc twapi::evt_publisher_message {hpub msgid args} {
 
     array set opts [parseargs args {
         {values.arg NULL}
@@ -673,8 +673,8 @@ proc twapi::evt_subscribe {path args} {
     return [list $hsubscribe $hevent]
 }
 
-# TBD - document
-proc twapi::evt_register_provider {manifest resource_file message_file} {
+# TBD - test
+proc twapi::evt_publisher_install {manifest resource_file message_file} {
     set wevutil [auto_execok wevtutil]
     if {[get_process_elevation] ne "full"} {
         set params "im"
@@ -692,8 +692,8 @@ proc twapi::evt_register_provider {manifest resource_file message_file} {
         "/mf:[file nativename [file normalize $message_file]]"
 }
 
-# TBD - document
-proc twapi::evt_unregister_provider {manifest} {
+# TBD - test
+proc twapi::evt_publisher_uninstall {manifest} {
     set wevutil [auto_execok wevtutil]
     if {[get_process_elevation] ne "full"} {
         set params "um"
@@ -705,24 +705,19 @@ proc twapi::evt_unregister_provider {manifest} {
     exec {*}$wevutil um [file nativename [file normalize $manifest]]
 }
 
-# TBD - document
-proc twapi::evt_register_twapi_provider {} {
+# TBD - test
+proc twapi::evt_twapi_install {} {
     set path [get_twapi_dll_path]
     if {$path eq ""} {
         # Assume statically linked
         set path [info nameofexecutable]
     }
-    evt_register_provider [file join [get_twapi_script_dir] twapi_events.man] $path $path
+    evt_publisher_install [file join [get_twapi_script_dir] twapi_events.man] $path $path
 }
 
-# TBD - document
-proc twapi::evt_unregister_twapi_provider {} {
-    evt_unregister_provider [file join [get_twapi_script_dir] twapi_events.man]
-}
-
-# TBD - document
-proc twapi::evt_unregister_twapi {} {
-    evt_unregister_provider [file join [get_twapi_script_dir] twapi_events.man]
+# TBD - test
+proc twapi::evt_twapi_uninstall {} {
+    evt_publisher_uninstall [file join [get_twapi_script_dir] twapi_events.man]
 }
 
 proc twapi::_evt_normalize_path {path} {

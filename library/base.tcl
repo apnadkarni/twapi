@@ -1126,7 +1126,7 @@ proc twapi::eventlog_write {hevl id args} {
         auditfailure     {set opts(type) 16}
         default {error "Invalid value '$opts(type)' for option -type"}
     }
-    
+
     if {$opts(loguser)} {
         set user [get_current_user -sid]
     } else {
@@ -1138,7 +1138,6 @@ proc twapi::eventlog_write {hevl id args} {
 }
 
 
-# Log a message 
 proc twapi::eventlog_log {message args} {
     array set opts [parseargs args {
         system.arg
@@ -1150,7 +1149,7 @@ proc twapi::eventlog_log {message args} {
     set hevl [eventlog_open -write -source $opts(source) -system $opts(system)]
 
     trap {
-        eventlog_write $hevl 1 -params [list $message] -type $opts(type) -category $opts(category)
+        eventlog_write $hevl 40 -params [list $message] -type $opts(type) -category $opts(category)
     } finally {
         eventlog_close $hevl
     }
