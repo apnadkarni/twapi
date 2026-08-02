@@ -157,7 +157,8 @@ static void UpdateWinCharsTypeString(Tcl_Obj *objP)
 
 #endif // #if 0
     
-    Tcl_WinTCharToUtf(rep->chars, rep->nchars * sizeof(WCHAR), &ds);
+    Tcl_DStringInit(&ds);
+    Tcl_WCharToUtfDString(rep->chars, rep->nchars, &ds);
     nbytes = Tcl_DStringLength(&ds);
     utf8 = ckalloc(nbytes+1);
     memmove(utf8, Tcl_DStringValue(&ds), nbytes);
@@ -180,7 +181,8 @@ TWAPI_EXTERN WCHAR *ObjToWinChars(Tcl_Obj *objP)
         return WinCharsGet(objP)->chars;
 
     utf8 = ObjToStringN(objP, &nbytes);
-    Tcl_WinUtfToTChar(utf8, nbytes, &ds);
+    Tcl_DStringInit(&ds);
+    Tcl_UtfToWCharDString(utf8, nbytes, &ds);
     len = Tcl_DStringLength(&ds) / sizeof(WCHAR);
     rep = WinCharsNew((WCHAR *) Tcl_DStringValue(&ds), len);
     Tcl_DStringFree(&ds);
