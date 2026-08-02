@@ -1142,7 +1142,7 @@ Twapi_EvtLogObjCmd(ClientData clientData,
         return TCL_ERROR;
     }
 
-    if (gEvtRegHandle == NULL) {
+    if (gEvtRegHandle == 0) {
 	/* Initialization of gEvtRegHandle must have failed */
         return TwapiReturnErrorMsg(interp,
                                    TWAPI_INIT_FAILURE,
