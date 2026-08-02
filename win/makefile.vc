@@ -70,7 +70,6 @@ PRJ_OBJS = $(PRJ_OBJS) \
 	    $(TMP_DIR)\sspi.obj \
 	    $(TMP_DIR)\device.obj \
 	    $(TMP_DIR)\etw.obj \
-	    $(TMP_DIR)\eventlog.obj \
 	    $(TMP_DIR)\evt.obj \
 	    $(TMP_DIR)\input.obj \
 	    $(TMP_DIR)\mstask.obj \
