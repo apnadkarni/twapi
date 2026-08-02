@@ -12,6 +12,7 @@
 
 #include "twapi.h"
 #include "twapi_eventlog.h"
+#include "twapi_events.h"
 
 #include <ntverp.h>             /* Needed for VER_PRODUCTBUILD SDK version */
 
@@ -20,7 +21,18 @@
 #pragma comment(lib, "delayimp.lib") /* Prevents winevt from loading unless necessary */
 #endif
 
+#ifndef TWAPI_SINGLE_MODULE
+HMODULE gModuleHandle;     /* DLL handle to ourselves */
+#endif
+
+#ifndef MODULENAME
+#define MODULENAME "twapi_evt"
+#endif
+
 typedef HANDLE EVT_HANDLE;
+
+static REGHANDLE gEvtRegHandle = 0;
+static TwapiOneTimeInitState gEvtInitialized;
 
 /* Used as a typedef for returning allocated memory to script level */
 #define TWAPI_EVT_RENDER_VALUES_TYPESTR "EVT_RENDER_VALUES *"
@@ -794,7 +806,11 @@ static TCL_RESULT Twapi_EvtOpenSessionObjCmd(ClientData clientdata, Tcl_Interp *
     return res;
 }
 
-int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int
+Twapi_EvtCallObjCmd(ClientData clientdata,
+                    Tcl_Interp *interp,
+                    int objc,
+                    Tcl_Obj *CONST objv[])
 {
     TwapiResult result;
     DWORD dw, dw2;
@@ -1047,7 +1063,162 @@ int Twapi_EvtCallObjCmd(ClientData clientdata, Tcl_Interp *interp, int objc, Tcl
     return Twapi_AppendEvtExtendedStatus(interp);
 }
 
-int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
+static int
+TwapiParseSeverity(Tcl_Interp *interp, Tcl_Obj *obj, BYTE *levelPtr)
+{
+    static const char *const names[] = {
+        "critical", "error", "warning", "informational", "verbose", NULL
+    };
+    int level;
+
+    if (Tcl_GetIntFromObj(NULL, obj, &level) == TCL_OK) {
+	/* Our manifest only defines events for levels 1-5 */
+        if (level < 1 || level > 5) {
+            return TwapiReturnErrorMsg(
+                interp,
+                TWAPI_INVALID_DATA,
+                "Numeric severity levels must be in range 1-5");
+        }
+        *levelPtr = (BYTE)level;
+        return TCL_OK;
+    }
+
+    if (Tcl_GetIndexFromObj(interp, obj, names, "severity level", 0, &level) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    *levelPtr = (BYTE)(level + 1);
+    return TCL_OK;
+}
+
+int
+Twapi_EvtLogObjCmd(ClientData clientData,
+                   Tcl_Interp *interp,
+                   int objc,
+                   Tcl_Obj *const objv[])
+{
+    BYTE        level;
+    const char *opts[] = {
+        "-application", "-activityid", "-relatedactivityid", NULL
+    };
+    enum opt { OPT_APP, OPT_ACTIVITY, OPT_RELATED_ACTIVITY };
+    int index;
+    Tcl_Obj *appObj = NULL;
+    GUID activity_guid, *activity_guidP = NULL;
+    GUID related_activity_guid, *related_activity_guidP = NULL;
+
+    if (objc < 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "level message");
+        return TCL_ERROR;
+    }
+
+    for (int i = 3; i < objc; ++i) {
+        if (Tcl_GetIndexFromObj(interp, objv[i], opts, "option", 0, &index)
+            != TCL_OK) {
+            return TCL_ERROR;
+        }
+        if (++i == objc) {
+            return TwapiReturnMissingOptValueError(interp, objv[i - 1]);
+        }
+        switch (index) {
+        case OPT_APP:
+            appObj = objv[i];
+            break;
+        case OPT_ACTIVITY:
+	    if (ObjToGUID(interp, objv[i], &activity_guid) != TCL_OK) {
+                return TCL_ERROR;
+            }
+            activity_guidP = &activity_guid;
+            break;
+        case OPT_RELATED_ACTIVITY:
+            if (ObjToGUID(interp, objv[i], &related_activity_guid) != TCL_OK) {
+                return TCL_ERROR;
+            }
+            related_activity_guidP = &related_activity_guid;
+            break;
+        }
+    }
+
+    if (TwapiParseSeverity(interp, objv[1], &level) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+    if (gEvtRegHandle == NULL) {
+	/* Initialization of gEvtRegHandle must have failed */
+        return TwapiReturnErrorMsg(interp,
+                                   TWAPI_INIT_FAILURE,
+                                   "TWAPI EVT Provider handle is NULL.");
+    }
+
+    EVENT_DATA_DESCRIPTOR   data[3];
+    const EVENT_DESCRIPTOR *evdP;
+    switch (level) {
+    case 1: evdP = &TWAPI_EVT_EVENT_CRITICAL; break;
+    case 2: evdP = &TWAPI_EVT_EVENT_ERROR; break;
+    case 3: evdP = &TWAPI_EVT_EVENT_WARNING; break;
+    case 4: evdP = &TWAPI_EVT_EVENT_INFORMATIONAL; break;
+    case 5: evdP = &TWAPI_EVT_EVENT_VERBOSE; break;
+    default:
+        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+    }
+
+    if (!EventEnabled(gEvtRegHandle, evdP)) {
+        /* not enabled so no point writing it - will be discarded anyways */
+        return TCL_OK;
+    }
+
+    Tcl_Size utf_len;
+    const char *utfP;
+
+    Tcl_DString ds;
+    LPCWSTR msgP;
+    ULONG msg_num_bytes;
+    Tcl_DStringInit(&ds);
+    utfP    = Tcl_GetStringFromObj(objv[2], &utf_len);
+    msgP    = (LPCWSTR) Tcl_UtfToWCharDString(utfP, utf_len, &ds);
+    msg_num_bytes = (ULONG) Tcl_DStringLength(&ds) + sizeof(WCHAR); /* + L'\0' */
+
+    Tcl_DString dsApp;
+    LPCWSTR app_nameP;
+    ULONG app_name_num_bytes;
+    Tcl_DStringInit(&dsApp);
+    if (appObj) {
+        utfP = Tcl_GetStringFromObj(appObj, &utf_len);
+        app_nameP = (LPCWSTR) Tcl_UtfToWCharDString(utfP, utf_len, &dsApp);
+        app_name_num_bytes = (ULONG) Tcl_DStringLength(&dsApp) + sizeof(WCHAR);
+    }
+    else {
+#define DEFAULT_APP_NAME L"Tcl Application"
+        app_nameP          = DEFAULT_APP_NAME;
+        app_name_num_bytes = (ULONG) sizeof(DEFAULT_APP_NAME); /* inc. \0 */
+#undef DEFAULT_APP_NAME
+    }
+
+    EventDataDescCreate(&data[0], app_nameP, (ULONG)app_name_num_bytes);
+    LPCWSTR exe_path = TwapiWinPathGet(&gExePath);
+    EventDataDescCreate(&data[1],
+                        exe_path ? exe_path : L"",
+                        (ULONG)(((exe_path ? gExePathLen : 0) + 1)
+                            * sizeof(WCHAR)));
+    EventDataDescCreate(&data[2], msgP, (ULONG)msg_num_bytes);
+    ULONG status = EventWriteEx(gEvtRegHandle,
+                                evdP,
+                                0ULL, /* Filter */
+                                0UL,  /* Flags */
+                                activity_guidP,
+                                related_activity_guidP,
+                                3,
+                                data);
+    Tcl_DStringFree(&dsApp);
+    Tcl_DStringFree(&ds);
+
+    if (status != ERROR_SUCCESS) {
+    	return Twapi_AppendSystemError(interp, status);
+    }
+    return TCL_OK;
+}
+
+
+int TwapiEvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 {
     static struct tcl_dispatch_s EvtTclDispatch[] = {
         DEFINE_TCL_CMD(GetEVT_VARIANT, Twapi_EvtGetEVT_VARIANTObjCmd),
@@ -1057,7 +1228,8 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(EvtCreateRenderContext, Twapi_EvtCreateRenderContextObjCmd),
         DEFINE_TCL_CMD(EvtFormatMessage, Twapi_EvtFormatMessageObjCmd),
         DEFINE_TCL_CMD(EvtOpenSession, Twapi_EvtOpenSessionObjCmd),
-        DEFINE_TCL_CMD(Twapi_ExtractEVT_VARIANT_ARRAY, Twapi_ExtractEVT_VARIANT_ARRAYObjCmd),
+        DEFINE_TCL_CMD(evt_log, Twapi_EvtLogObjCmd),
+        DEFINE_TCL_CMD(Twapi_ExtractEVT_RENDER_VALUES, Twapi_ExtractEVT_RENDER_VALUESObjCmd),
         DEFINE_TCL_CMD(Twapi_ExtractEVT_RENDER_VALUES, Twapi_ExtractEVT_RENDER_VALUESObjCmd),
     };
 
@@ -1100,5 +1272,63 @@ int Twapi_EvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     TwapiDefineTclCmds(interp, ARRAYSIZE(EvtTclDispatch), EvtTclDispatch, ticP);
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(EvtFnDispatch), EvtFnDispatch, Twapi_EvtCallObjCmd);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(EvtVariantGetDispatch), EvtVariantGetDispatch, "twapi::GetEVT_VARIANT");
+
     return TCL_OK;
 }
+
+static int EvtModuleOneTimeInit(void *arg)
+{
+    /* Ignore return value so failure does not prevent the whole module from loading. */
+    (void) EventRegister(
+        &TWAPI_EVT_PROVIDER,
+        NULL,                 /* EnableCallback: none               */
+        NULL,                 /* CallbackContext                    */
+        &gEvtRegHandle);
+
+    return TCL_OK;
+}
+
+/* Called when interp is deleted */
+static void TwapiEvtCleanup(TwapiInterpContext *ticP)
+{
+    if (gEvtRegHandle) {
+        EventUnregister(gEvtRegHandle);
+        gEvtRegHandle = 0;
+    }
+}
+
+#ifndef TWAPI_SINGLE_MODULE
+BOOL WINAPI DllMain(HINSTANCE hmod, DWORD reason, PVOID unused)
+{
+    if (reason == DLL_PROCESS_ATTACH)
+        gModuleHandle = hmod;
+    return TRUE;
+}
+#endif
+
+/* Main entry point */
+#ifndef TWAPI_SINGLE_MODULE
+__declspec(dllexport)
+#endif
+int Twapi_evt_Init(Tcl_Interp *interp)
+{
+    static TwapiModuleDef gModuleDef = {
+        MODULENAME,
+        TwapiEvtInitCalls,
+        TwapiEvtCleanup
+    };
+
+    /* IMPORTANT */
+    /* MUST BE FIRST CALL as it initializes Tcl stubs */
+    if (Tcl_InitStubs(interp, TCL_VERSION, 0) == NULL) {
+        return TCL_ERROR;
+    }
+
+    /* Init unless already done. */
+    if (! TwapiDoOneTimeInit(&gEvtInitialized, EvtModuleOneTimeInit, interp))
+        return TCL_ERROR;
+
+    /* NEW_TIC since we have a cleanup routine */
+    return TwapiRegisterModule(interp, MODULE_HANDLE, &gModuleDef, NEW_TIC) ? TCL_OK : TCL_ERROR;
+}
+

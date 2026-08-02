@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+IMPORTANT: Any changes to this file MUST BE backward compatible.
+
+IMPORTANT: thanks to the lack of a compatible message compiler in MinGW64,
+building of resources is not done as part of the build but rather the
+resources are committed to the repository. Thus if this file is modified,
+resources must be rebuilt as a manual step before building TWAPI. For
+example, within the rc directory, at a VS prompt,
+
+ mc.exe -um -b -h . -r . -n twapi_events.man
+ 
+and then committed back into the repository.
+
+Not ideal, but don't know how else to get around MinGW64 toolchain's lack
+of a message compiler that understands event manifests.
+-->
+<instrumentationManifest xmlns="http://schemas.microsoft.com/win/2004/08/events"
+                          xmlns:win="http://manifests.microsoft.com/win/2004/08/windows/events"
+                          xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <instrumentation>
+    <events>
+      <provider name="Twapi-App"
+	  	guid="{806A7A75-0F8B-4BB7-B57B-24BA13C6D626}"
+                symbol="TWAPI_EVT_PROVIDER"
+                resourceFileName="twapi.dll"
+                messageFileName="twapi.dll"
+                message="$(string.Twapi.ProviderMessage)">
+
+        <channels>
+          <channel name="Twapi-App/Operational"
+                   chid="TwapiAppOperational"
+                   symbol="TWAPI_EVT_CHANNEL_OPERATIONAL"
+                   type="Operational"
+                   enabled="true"
+                   message="$(string.Twapi.ChannelOperationalMessage)"/>
+        </channels>
+
+        <levels>
+          <!-- Standard levels are predefined. -->
+        </levels>
+
+        <tasks>
+          <task name="LogMessage" symbol="TWAPI_EVT_TASK_LOGMESSAGE" value="1"
+                message="$(string.Twapi.TaskLogMessage)"/>
+        </tasks>
+
+        <templates>
+          <template tid="tid_LogEvent">
+            <data name="Application" inType="win:UnicodeString" outType="xs:string"/>
+            <data name="ImagePath"  inType="win:UnicodeString" outType="xs:string"/>
+            <data name="Message"    inType="win:UnicodeString" outType="xs:string"/>
+          </template>
+        </templates>
+
+        <events>
+          <event symbol="TWAPI_EVT_EVENT_CRITICAL"
+                 value="1001" version="0" level="win:Critical"
+                 task="LogMessage" template="tid_LogEvent"
+                 channel="Twapi-App/Operational"
+                 message="$(string.Twapi.Event.Body)"/>
+
+          <event symbol="TWAPI_EVT_EVENT_ERROR"
+                 value="1002" version="0" level="win:Error"
+                 task="LogMessage" template="tid_LogEvent"
+                 channel="Twapi-App/Operational"
+                 message="$(string.Twapi.Event.Body)"/>
+
+          <event symbol="TWAPI_EVT_EVENT_WARNING"
+                 value="1003" version="0" level="win:Warning"
+                 task="LogMessage" template="tid_LogEvent"
+                 channel="Twapi-App/Operational"
+                 message="$(string.Twapi.Event.Body)"/>
+
+          <event symbol="TWAPI_EVT_EVENT_INFORMATIONAL"
+                 value="1004" version="0" level="win:Informational"
+                 task="LogMessage" template="tid_LogEvent"
+                 channel="Twapi-App/Operational"
+                 message="$(string.Twapi.Event.Body)"/>
+
+          <event symbol="TWAPI_EVT_EVENT_VERBOSE"
+                 value="1005" version="0" level="win:Verbose"
+                 task="LogMessage" template="tid_LogEvent"
+                 channel="Twapi-App/Operational"
+                 message="$(string.Twapi.Event.Body)"/>
+        </events>
+
+      </provider>
+    </events>
+  </instrumentation>
+
+  <localization>
+    <resources culture="en-US">
+      <stringTable>
+        <string id="Twapi.ProviderMessage" value="Twapi Application Provider"/>
+        <string id="Twapi.ChannelOperationalMessage" value="Twapi-App Operational"/>
+        <string id="Twapi.TaskLogMessage" value="Log Message"/>
+        <string id="Twapi.Event.Body"
+                value="%3%n%nApplication: %1%nImage Path: %2"/>
+      </stringTable>
+    </resources>
+  </localization>
+
+</instrumentationManifest>

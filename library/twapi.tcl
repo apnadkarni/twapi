@@ -17,6 +17,16 @@ namespace eval twapi {
     variable nullptr "__null__"
 
     variable scriptdir [file dirname [info script]]
+    # TBD - document
+    proc get_twapi_script_dir {} {
+        variable scriptdir
+        return $scriptdir
+    }
+    # TBD - document
+    proc get_twapi_dll_path {} {
+        variable dllPath; # Set in pkgIndex.tcl
+        return $dllPath
+    }
 
     # Name of the var holding log messages in reflected in the C
     # code, don't change it!

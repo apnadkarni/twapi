@@ -33,6 +33,7 @@ TwapiModuleInitProc Twapi_crypto_Init;
 TwapiModuleInitProc Twapi_device_Init;
 TwapiModuleInitProc Twapi_etw_Init;
 TwapiModuleInitProc Twapi_eventlog_Init;
+TwapiModuleInitProc Twapi_evt_Init;
 TwapiModuleInitProc Twapi_input_Init;
 TwapiModuleInitProc Twapi_mstask_Init;
 TwapiModuleInitProc Twapi_multimedia_Init;
@@ -94,6 +95,10 @@ ZLIST_DECL(TwapiInterpContext) gTwapiInterpContexts;
 
 /* Used to generate unique id's */
 TwapiId volatile gIdGenerator;
+
+/* Path to executable and its length in WCHAR's excluding termiating nul */
+TwapiWinPath gExePath;
+DWORD gExePathLen;
 
 /*
  * Whether the callback dll/libray has been initialized.
@@ -207,6 +212,7 @@ int TwapiLoadStaticModules(Tcl_Interp *interp)
     TWAPI_INIT_MODULE(interp, Twapi_device_Init);
     TWAPI_INIT_MODULE(interp, Twapi_etw_Init);
     TWAPI_INIT_MODULE(interp, Twapi_eventlog_Init);
+    TWAPI_INIT_MODULE(interp, Twapi_evt_Init);
     TWAPI_INIT_MODULE(interp, Twapi_input_Init);
     TWAPI_INIT_MODULE(interp, Twapi_mstask_Init);
     TWAPI_INIT_MODULE(interp, Twapi_multimedia_Init);
@@ -576,6 +582,7 @@ static void Twapi_Cleanup(ClientData clientdata)
      */
 
     WSACleanup();
+    TwapiWinPathFree(&gExePath);
 }
 
 static void Twapi_InterpCleanup(ClientData unused, Tcl_Interp *interp)
@@ -796,6 +803,15 @@ static int TwapiOneTimeInit(void *pv)
         return TCL_ERROR;
     }
 
+    TwapiWinPath temp;
+    LPCWSTR exe_path = TwapiWinGetModuleFileName(NULL, &temp);
+    if (exe_path == NULL
+        || (exe_path = TwapiWinGetFullPathName(exe_path, &gExePath, NULL))
+               == NULL) {
+        Tcl_SetResult(interp, "Failed to get application path.", TCL_STATIC);
+        return TCL_ERROR;
+    }
+    gExePathLen = (DWORD) wcslen(exe_path);
     if (WSAStartup(ws_ver, &ws_data) != 0) {
         Tcl_SetResult(interp, "Could not initialize Winsock.", TCL_STATIC);
         return TCL_ERROR;

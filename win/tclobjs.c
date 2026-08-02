@@ -1298,7 +1298,7 @@ TWAPI_EXTERN int ObjToGUID(Tcl_Interp *interp, Tcl_Obj *objP, GUID *guidP)
         if (*wsP == L'{') {
             /* GUID form */
             /* We *used* to use CLSIDFromString but it turns out that
-               accepts Prog IDs as valid GUIDs as well */
+               accepts Prog IDs, not just GUIDs */
             if ((hr = IIDFromString(wsP, guidP)) != NOERROR) {
                 Twapi_AppendSystemError(interp, hr);
                 return TCL_ERROR;

@@ -39,6 +39,8 @@ static struct TWAPI_ERROR_MAP error_map[] = {
     {TWAPI_SCRIPT_ERROR, "Script error."},
     {TWAPI_INVALID_DATA, "Invalid data."},
     {TWAPI_INVALID_PTR, "Invalid pointer."},
+    {TWAPI_MISSING_OPT_VALUE, "No value supplied for option."},
+    {TWAPI_INIT_FAILURE, "Component initialization failed."},
 };
 #define TWAPI_ERROR_MAP_SIZE (sizeof(error_map)/sizeof(error_map[0]))
 
@@ -229,6 +231,20 @@ int TwapiReturnErrorEx(Tcl_Interp *interp, int code, Tcl_Obj *objP)
     }
     /* TBD - what if code is TWAPI_NO_ERROR ? */
     return TCL_ERROR; /* Always, so caller can just return */
+}
+
+int TwapiReturnMissingOptValueError(Tcl_Interp *interp, Tcl_Obj *optObj)
+{
+    Tcl_Obj *objv[3];
+
+    objv[0] = STRING_LITERAL_OBJ("TWAPI");
+    objv[1] = ObjFromInt(TWAPI_MISSING_OPT_VALUE);
+    objv[2] =
+        Tcl_ObjPrintf("No value supplied for option %s", Tcl_GetString(optObj));
+    Tcl_Obj *objP = ObjNewList(3, objv);
+    Tcl_SetObjErrorCode(interp, objP);
+    ObjSetResult(interp, objv[2]);
+    return TCL_ERROR;
 }
 
 int TwapiReturnSystemError(Tcl_Interp *interp)

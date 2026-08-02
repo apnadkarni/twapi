@@ -630,7 +630,7 @@ proc twapi::evt_seek {hresults pos args} {
         incr flags;             # 1 -> first, 2 -> last, 3 -> current
         set opts(bookmark) NULL
     }
-        
+
     incr flags $opts(strict)
 
     EvtSeek $hresults $pos $opts(bookmark) 0 $flags
@@ -671,6 +671,57 @@ proc twapi::evt_subscribe {path args} {
     }
 
     return [list $hsubscribe $hevent]
+}
+
+# TBD - document
+proc twapi::evt_register_provider {manifest resource_file message_file} {
+    set wevutil [auto_execok wevtutil]
+    if {[get_process_elevation] ne "full"} {
+        set params "im"
+        append params " \"[file nativename [file normalize $manifest]]\""
+        append params " \"/rf:[file nativename [file normalize $resource_file]]\""
+        append params " \"/mf:[file nativename [file normalize $message_file]]\""
+        set wevutil [lindex $wevutil 0]
+        shell_execute -verb runas -show hide -path $wevutil -params $params
+        return
+    }
+    exec {*}$wevutil im \
+        [file nativename [file normalize $manifest]] \
+        "/rf:[file nativename [file normalize $resource_file]]" \
+        "/mf:[file nativename [file normalize $message_file]]"
+}
+
+# TBD - document
+proc twapi::evt_unregister_provider {manifest} {
+    set wevutil [auto_execok wevtutil]
+    if {[get_process_elevation] ne "full"} {
+        set params "um"
+        append params " \"[file nativename [file normalize $manifest]]\""
+        set wevutil [lindex $wevutil 0]
+        shell_execute -verb runas -show hide -path $wevutil -params $params
+        return
+    }
+    exec {*}$wevutil um [file nativename [file normalize $manifest]]
+}
+
+# TBD - document
+proc twapi::evt_register_twapi_provider {} {
+    set path [get_twapi_dll_path]
+    if {$path eq ""} {
+        # Assume statically linked
+        set path [info nameofexecutable]
+    }
+    evt_register_provider [file join [get_twapi_script_dir] twapi_events.man] $path $path
+}
+
+# TBD - document
+proc twapi::evt_unregister_twapi_provider {} {
+    evt_unregister_provider [file join [get_twapi_script_dir] twapi_events.man]
+}
+
+# TBD - document
+proc twapi::evt_unregister_twapi {} {
+    evt_unregister_provider [file join [get_twapi_script_dir] twapi_events.man]
 }
 
 proc twapi::_evt_normalize_path {path} {

@@ -41,7 +41,7 @@ package ifneeded twapi_base @PACKAGE_VERSION@ \
 
         # Load was successful
         set ${package_ns}::dllPath [file normalize $path]
-        set ${package_ns}::packageDir $dir
+        set ${package_ns}::packageDir $dir; # TBD - is this needed? twapi.tcl already has scriptdir
         source [file join $dir twapi.tcl]
         package provide twapi_base @PACKAGE_VERSION@
     }] $dir]
@@ -61,6 +61,7 @@ set __twapimods {
     device
     etw
     eventlog
+    evt
     mstask
     multimedia
     namedpipe

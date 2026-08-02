@@ -427,6 +427,8 @@ typedef int TWAPI_ERROR;
 #define TWAPI_SCRIPT_ERROR 21
 #define TWAPI_INVALID_DATA 22
 #define TWAPI_INVALID_PTR 23
+#define TWAPI_MISSING_OPT_VALUE 24
+#define TWAPI_INIT_FAILURE 25
 
 /*
  * Map TWAPI error codes into Win32 error code format.
@@ -1244,6 +1246,15 @@ extern HMODULE gTwapiModuleHandle;     /* DLL handle to ourselves */
 extern GUID gTwapiNullGuid;
 extern struct TwapiTclVersion gTclVersion;
 
+typedef struct TwapiWinPath {
+    WCHAR buffer[MAX_PATH];	/* buffer for path */
+    WCHAR *bufferPtr;		/* pointer to buffer (may be same as buffer
+				 * or a heap-allocated extension) */
+} TwapiWinPath;
+
+extern TwapiWinPath gExePath;
+extern DWORD gExePathLen;
+
 #define RETURN_ERROR_IF_UNTHREADED(interp_)    \
   do { \
     int result = Twapi_CheckThreadedTcl(interp_); \
@@ -1412,9 +1423,15 @@ TWAPI_EXTERN Tcl_Obj *ObjDuplicate(Tcl_Obj *);
 /* errors.c */
 TWAPI_EXTERN TCL_RESULT TwapiReturnSystemError(Tcl_Interp *interp);
 TWAPI_EXTERN TCL_RESULT TwapiReturnError(Tcl_Interp *interp, int code);
-TWAPI_EXTERN TCL_RESULT TwapiReturnErrorEx(Tcl_Interp *interp, int code, Tcl_Obj *objP);
-TWAPI_EXTERN TCL_RESULT TwapiReturnErrorMsg(Tcl_Interp *interp, int code, char *msg);
+TWAPI_EXTERN TCL_RESULT TwapiReturnErrorEx(Tcl_Interp *interp,
+                                           int code,
+                                           Tcl_Obj *objP);
+TWAPI_EXTERN TCL_RESULT TwapiReturnErrorMsg(Tcl_Interp *interp,
+                                            int code,
+                                            char *msg);
 TWAPI_EXTERN TCL_RESULT TwapiReturnErrorUIntMax(Tcl_Interp *interp);
+TWAPI_EXTERN TCL_RESULT TwapiReturnMissingOptValueError(Tcl_Interp *interp,
+                                                        Tcl_Obj *);
 
 TWAPI_EXTERN DWORD TwapiNTSTATUSToError(NTSTATUS status);
 TWAPI_EXTERN Tcl_Obj *Twapi_MakeTwapiErrorCodeObj(int err);
@@ -1892,7 +1909,103 @@ TWAPI_EXTERN void TwapiDefineAliasCmds(Tcl_Interp *, int, struct alias_dispatch_
 
 #define TwapiZeroMemory(p_, count_) memset((p_), 0, (count_))
 
+/*
+ * Utilities dealing with path buffers
+ */
+/*
+ *----------------------------------------------------------------------
+ *
+ * TwapiWinPathInit --
+ *
+ *	Initialize a path buffer. Never returns NULL.
+ *
+ *----------------------------------------------------------------------
+ */
+static inline WCHAR *
+TwapiWinPathInit(
+    TwapiWinPath *pathBufPtr,	/* Structure to be initialized */
+    DWORD *capacityPtr)		/* On return, capacity in WCHARS
+				   Must NOT be NULL */
+{
+    pathBufPtr->bufferPtr = pathBufPtr->buffer;
+    *capacityPtr = (DWORD)(sizeof(pathBufPtr->buffer) / sizeof(WCHAR));
+    return pathBufPtr->bufferPtr;
+}
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * TwapiWinPathGet --
+ *
+ *	Returns pointer to the current buffer.
+ *
+ *----------------------------------------------------------------------
+ */
+static inline WCHAR *
+TwapiWinPathGet(
+    TwapiWinPath *pathBufPtr)
+{
+    return pathBufPtr->bufferPtr;
+}
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * TwapiWinPathFree --
+ *
+ *	Frees a previously initialized path buffer.
+ *
+ *----------------------------------------------------------------------
+ */
+static inline void
+TwapiWinPathFree(
+    TwapiWinPath *pathBufPtr)	/* Structure to be freed */
+{
+    if (pathBufPtr->bufferPtr != pathBufPtr->buffer) {
+	Tcl_Free(pathBufPtr->bufferPtr);
+    }
+    pathBufPtr->bufferPtr = pathBufPtr->buffer;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TwapiWinPathReset --
+ *
+ *	Resets a previously initialized path buffer to its initial state.
+ *
+ *----------------------------------------------------------------------
+ */
+static inline WCHAR *
+TwapiWinPathReset(
+    TwapiWinPath *pathBufPtr,	/* Structure to be initialized */
+    DWORD *capacityPtr)		/* On return, capacity in WCHARS
+				   Must NOT be NULL */
+{
+    TwapiWinPathFree(pathBufPtr);
+    *capacityPtr = (DWORD)(sizeof(pathBufPtr->buffer) / sizeof(WCHAR));
+    return pathBufPtr->bufferPtr;
+}
+/*
+ * TwapiGetPathFunc should match the signature of functions such as
+ * GetSystemDirectoryW and GetWindowsDirectoryW. lpBuffer is expected to be
+ * a buffer of size uSize WCHARs. The function should return the number of
+ * WCHARs written to the buffer, not including the null terminator, or 0 on
+ * failure. If the buffer is too small, the function should return the
+ * required size in WCHARs *including* the null terminator.
+ */
+typedef UINT WINAPI TwapiGetPathFunc(LPWSTR lpBuffer, UINT uSize);
+
+MODULE_SCOPE WCHAR *	TwapiWinGetPath(TwapiGetPathFunc getPathFunc,
+			    TwapiWinPath *winPathPtr);
+MODULE_SCOPE WCHAR *	TwapiWinPathResize(TwapiWinPath *winPathPtr,
+			    DWORD capacityNeeded);
+MODULE_SCOPE WCHAR *	TwapiWinGetFullPathName(const WCHAR *pathPtr,
+			    TwapiWinPath *winPathPtr,
+			    WCHAR **filePartPtrPtr);
+MODULE_SCOPE WCHAR *	TwapiWinGetCurrentDirectory(TwapiWinPath *winPathPtr);
+MODULE_SCOPE WCHAR *	TwapiWinGetEnvironmentVariable(const WCHAR *envName,
+			    TwapiWinPath *winPathPtr);
+MODULE_SCOPE WCHAR *	TwapiWinGetModuleFileName(HMODULE, TwapiWinPath *);
 
 #endif // TWAPI_H
