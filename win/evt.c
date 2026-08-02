@@ -1100,9 +1100,11 @@ Twapi_EvtLogObjCmd(ClientData clientData,
     const char *opts[] = {
         "-application", "-activityid", "-relatedactivityid", NULL
     };
-    enum opt { OPT_APP, OPT_ACTIVITY, OPT_RELATEDACTIVITY };
+    enum opt { OPT_APP, OPT_ACTIVITY, OPT_RELATED_ACTIVITY };
     int index;
     Tcl_Obj *appObj = NULL;
+    GUID activity_guid, *activity_guidP = NULL;
+    GUID related_activity_guid, *related_activity_guidP = NULL;
 
     if (objc < 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "level message");
@@ -1121,11 +1123,30 @@ Twapi_EvtLogObjCmd(ClientData clientData,
         case OPT_APP:
             appObj = objv[i];
             break;
+        case OPT_ACTIVITY:
+	    if (ObjToGUID(interp, objv[i], &activity_guid) != TCL_OK) {
+                return TCL_ERROR;
+            }
+            activity_guidP = &activity_guid;
+            break;
+        case OPT_RELATED_ACTIVITY:
+            if (ObjToGUID(interp, objv[i], &related_activity_guid) != TCL_OK) {
+                return TCL_ERROR;
+            }
+            related_activity_guidP = &related_activity_guid;
+            break;
         }
     }
 
     if (TwapiParseSeverity(interp, objv[1], &level) != TCL_OK) {
         return TCL_ERROR;
+    }
+
+    if (gEvtRegHandle == NULL) {
+	/* Initialization of gEvtRegHandle must have failed */
+        return TwapiReturnErrorMsg(interp,
+                                   TWAPI_INIT_FAILURE,
+                                   "TWAPI EVT Provider handle is NULL.");
     }
 
     EVENT_DATA_DESCRIPTOR   data[3];
@@ -1140,33 +1161,54 @@ Twapi_EvtLogObjCmd(ClientData clientData,
         return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
     }
 
-    TWAPI_ASSERT(gEvtRegHandle != NULL);
     if (!EventEnabled(gEvtRegHandle, evdP)) {
         /* not enabled so no point writing it - will be discarded anyways */
         return TCL_OK;
     }
-    Tcl_DString ds;
-    Tcl_DStringInit(&ds);
-    Tcl_UtfToWCharDString(Tcl_GetString(objv[2]), -1, &ds);
 
-    LPCWSTR appName = L"Tcl Application"; // TBD - pass as argument ?
-    EventDataDescCreate(&data[0], appName, (ULONG)(sizeof(WCHAR)*(1 + wcslen(appName))));
+    Tcl_Size utf_len;
+    const char *utfP;
+
+    Tcl_DString ds;
+    LPCWSTR msgP;
+    ULONG msg_num_bytes;
+    Tcl_DStringInit(&ds);
+    utfP    = Tcl_GetStringFromObj(objv[2], &utf_len);
+    msgP    = (LPCWSTR) Tcl_UtfToWCharDString(utfP, utf_len, &ds);
+    msg_num_bytes = (ULONG) Tcl_DStringLength(&ds) + sizeof(WCHAR); /* + L'\0' */
+
+    Tcl_DString dsApp;
+    LPCWSTR app_nameP;
+    ULONG app_name_num_bytes;
+    Tcl_DStringInit(&dsApp);
+    if (appObj) {
+        utfP = Tcl_GetStringFromObj(appObj, &utf_len);
+        app_nameP = (LPCWSTR) Tcl_UtfToWCharDString(utfP, utf_len, &dsApp);
+        app_name_num_bytes = (ULONG) Tcl_DStringLength(&dsApp) + sizeof(WCHAR);
+    }
+    else {
+#define DEFAULT_APP_NAME L"Tcl Application"
+        app_nameP          = DEFAULT_APP_NAME;
+        app_name_num_bytes = (ULONG) sizeof(DEFAULT_APP_NAME); /* inc. \0 */
+#undef DEFAULT_APP_NAME
+    }
+
+    EventDataDescCreate(&data[0], app_nameP, (ULONG)app_name_num_bytes);
     LPCWSTR exe_path = TwapiWinPathGet(&gExePath);
     EventDataDescCreate(&data[1],
                         exe_path ? exe_path : L"",
                         (ULONG)(((exe_path ? gExePathLen : 0) + 1)
                             * sizeof(WCHAR)));
-    EventDataDescCreate(&data[2],
-                        (LPCWSTR)Tcl_DStringValue(&ds),
-                        (ULONG)(Tcl_DStringLength(&ds) + sizeof(WCHAR)));
+    EventDataDescCreate(&data[2], msgP, (ULONG)msg_num_bytes);
     ULONG status = EventWriteEx(gEvtRegHandle,
                                 evdP,
                                 0ULL, /* Filter */
                                 0UL,  /* Flags */
-                                NULL, /* LPCGUID - activity id */
-                                NULL, /* LPCGUID - Related activity id */
+                                activity_guidP,
+                                related_activity_guidP,
                                 3,
                                 data);
+    Tcl_DStringFree(&dsApp);
     Tcl_DStringFree(&ds);
 
     if (status != ERROR_SUCCESS) {
@@ -1236,13 +1278,14 @@ int TwapiEvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
 
 static int EvtModuleOneTimeInit(void *arg)
 {
-    ULONG status = EventRegister(
-        &TWAPI_EVT_PROVIDER, /* provider GUID, from twapi_app.h    */
+    /* Ignore return value so failure does not prevent the whole module from loading. */
+    (void) EventRegister(
+        &TWAPI_EVT_PROVIDER,
         NULL,                 /* EnableCallback: none               */
         NULL,                 /* CallbackContext                    */
         &gEvtRegHandle);
 
-    return (status == ERROR_SUCCESS) ? TCL_OK : TCL_ERROR;
+    return TCL_OK;
 }
 
 /* Called when interp is deleted */

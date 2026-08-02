@@ -40,6 +40,7 @@ static struct TWAPI_ERROR_MAP error_map[] = {
     {TWAPI_INVALID_DATA, "Invalid data."},
     {TWAPI_INVALID_PTR, "Invalid pointer."},
     {TWAPI_MISSING_OPT_VALUE, "No value supplied for option."},
+    {TWAPI_INIT_FAILURE, "Component initialization failed."},
 };
 #define TWAPI_ERROR_MAP_SIZE (sizeof(error_map)/sizeof(error_map[0]))
 

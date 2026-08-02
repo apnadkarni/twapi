@@ -428,6 +428,7 @@ typedef int TWAPI_ERROR;
 #define TWAPI_INVALID_DATA 22
 #define TWAPI_INVALID_PTR 23
 #define TWAPI_MISSING_OPT_VALUE 24
+#define TWAPI_INIT_FAILURE 25
 
 /*
  * Map TWAPI error codes into Win32 error code format.

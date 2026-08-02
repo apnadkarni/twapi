@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
+IMPORTANT: Any changes to this file MUST BE backward compatible.
+
 IMPORTANT: thanks to the lack of a compatible message compiler in MinGW64,
 building of resources is not done as part of the build but rather the
 resources are committed to the repository. Thus if this file is modified,
@@ -94,7 +96,7 @@ of a message compiler that understands event manifests.
         <string id="Twapi.ChannelOperationalMessage" value="Twapi-App Operational"/>
         <string id="Twapi.TaskLogMessage" value="Log Message"/>
         <string id="Twapi.Event.Body"
-                value="%3%n%nApplication: %1%n%nImage Path: %2"/>
+                value="%3%n%nApplication: %1%nImage Path: %2"/>
       </stringTable>
     </resources>
   </localization>

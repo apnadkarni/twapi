@@ -155,8 +155,8 @@ DISABLE_TARGET_test=1
 
 pkgindex: default-pkgindex-tea
 
-shell: $(OUT_DIR)\twapi_events.man default-shell
-test: $(OUT_DIR)\twapi_events.man default-test
+shell: default-shell $(OUT_DIR)\twapi_events.man
+test:  default-test $(OUT_DIR)\twapi_events.man
 $(OUT_DIR)\twapi_events.man: $(RCDIR)\twapi_events.man
 	$(CPY) $(RCDIR)\twapi_events.man "$(OUT_DIR)"
 
