@@ -11,7 +11,6 @@
  */
 
 #include "twapi.h"
-#include "twapi_eventlog.h"
 #include "twapi_events.h"
 
 #include <ntverp.h>             /* Needed for VER_PRODUCTBUILD SDK version */
@@ -28,8 +27,6 @@ HMODULE gModuleHandle;     /* DLL handle to ourselves */
 #ifndef MODULENAME
 #define MODULENAME "twapi_evt"
 #endif
-
-typedef HANDLE EVT_HANDLE;
 
 static REGHANDLE gEvtRegHandle = 0;
 static TwapiOneTimeInitState gEvtInitialized;
@@ -518,11 +515,11 @@ static TCL_RESULT Twapi_EvtNextObjCmd(ClientData clientdata, Tcl_Interp *interp,
             /* No status var supplied. In this case, eof is not an error */
             if (dw == 0 || dw == ERROR_NO_MORE_ITEMS || dw == ERROR_TIMEOUT)
                 result = TCL_OK;
-            else
-                result = TCL_ERROR;
+            else {
+                result = Twapi_AppendSystemError(interp, dw);
+            }
         }
     }
-
 
     MemLifoPopFrame(ticP->memlifoP);
     return result;
@@ -844,8 +841,10 @@ Twapi_EvtCallObjCmd(ClientData clientdata,
         if (func == 1) {
             result.type = TRT_EXCEPTION_ON_FALSE;
             result.value.ival = EvtClearLog(hevt, s, s2, dw);
-        } else
-            TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtQuery(hevt, s, s2, dw));
+        } else {
+            TwapiResult_SET_NONNULL_PTR(
+                result, EVT_HANDLE, EvtQuery(hevt, s, s2, dw));
+        }
         break;
     case 3: // EvtSeek
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
@@ -1053,7 +1052,7 @@ Twapi_EvtCallObjCmd(ClientData clientdata,
                 EvtGetObjectArraySize(hevt, &result.value.uval) ?
                 TRT_DWORD : TRT_GETLASTERROR;
             break;
-        }            
+        }
     }
 
     dw = TwapiSetResult(interp, &result);

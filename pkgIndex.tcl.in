@@ -60,7 +60,6 @@ set __twapimods {
     crypto
     device
     etw
-    eventlog
     evt
     mstask
     multimedia

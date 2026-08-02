@@ -682,6 +682,7 @@ proc twapi::evt_register_provider {manifest resource_file message_file} {
         append params " \"/rf:[file nativename [file normalize $resource_file]]\""
         append params " \"/mf:[file nativename [file normalize $message_file]]\""
         set wevutil [lindex $wevutil 0]
+        puts "shell_execute -verb runas -show hide -path $wevutil -params $params"
         shell_execute -verb runas -show hide -path $wevutil -params $params
         return
     }
