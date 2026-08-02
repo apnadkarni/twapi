@@ -147,18 +147,14 @@ PRJ_LIBS = $(PRJ_LIBS) \
 	ws2_32.lib \
 	wtsapi32.lib
 
-# Provide our own custom shell and test targets
-DISABLE_TARGET_shell=1
-DISABLE_TARGET_test=1
 !include "$(_RULESDIR)\targets.vc"
 
 pkgindex: default-pkgindex-tea
 
-shell: default-shell $(OUT_DIR)\twapi_events.man
-test:  default-test $(OUT_DIR)\twapi_events.man
+default-shell: $(OUT_DIR)\twapi_events.man
+default-test:  $(OUT_DIR)\twapi_events.man
 $(OUT_DIR)\twapi_events.man: $(RCDIR)\twapi_events.man
 	$(CPY) $(RCDIR)\twapi_events.man "$(OUT_DIR)"
-
 
 website:
 	cd ..\doc && nmake website
