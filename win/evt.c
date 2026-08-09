@@ -1260,7 +1260,7 @@ int TwapiEvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(evt_cancel, 102), // TBD docs
         DEFINE_FNCODE_CMD(EvtOpenChannelEnum, 103),
         DEFINE_FNCODE_CMD(EvtNextChannelPath, 104),
-        DEFINE_FNCODE_CMD(evt_save_channel_config, 105),
+        DEFINE_FNCODE_CMD(evt_channel_config_save, 105),
         DEFINE_FNCODE_CMD(EvtOpenPublisherEnum, 106),
         DEFINE_FNCODE_CMD(EvtOpenEventMetadataEnum, 107),
         DEFINE_FNCODE_CMD(EvtNextEventMetadata, 108),

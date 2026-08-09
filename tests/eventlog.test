@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2004-2012, Ashok P. Nadkarni
+# Copyright (c) 2004-2026, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
@@ -97,7 +97,7 @@ namespace eval twapi::eventlog::test {
     # Returns a handle to EVT session used for tests
     proc evt_test_session {args} {
         lassign [evt_test_creds $::env(COMPUTERNAME) {*}$args] user pw save
-        set hsess [twapi::evt_open_session $::env(COMPUTERNAME) -user $user -password $pw ]
+        set hsess [twapi::evt_session_open $::env(COMPUTERNAME) -user $user -password $pw ]
         return $hsess
     }
 
@@ -555,29 +555,29 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    test evt_open_session-1.0 {
+    test evt_session_open-1.0 {
         Open a EVT session with default credentials
     } -body {
         # Default creds - DON'T use evt_test_session
-        set hsess [twapi::evt_open_session $::env(COMPUTERNAME)]
+        set hsess [twapi::evt_session_open $::env(COMPUTERNAME)]
         expr {[llength [twapi::evt_channels $hsess]] > 0}
     } -cleanup {
-        twapi::evt_close_session $hsess
+        twapi::evt_session_close $hsess
     } -result 1
 
-    test evt_open_session-2.0 {
+    test evt_session_open-2.0 {
         Open a EVT session with user name and password
     } -constraints userInteraction -cleanup {
-        twapi::evt_close_session $hsess
+        twapi::evt_session_close $hsess
     } -body {
         set hsess [evt_test_session]
         expr {[llength [twapi::evt_channels $hsess]] > 0}
     } -result 1
 
-    test evt_open_session-3.0 {
+    test evt_session_open-3.0 {
         Open a EVT session with domain user name and password
     } -constraints userInteraction -cleanup {
-        twapi::evt_close_session $hsess
+        twapi::evt_session_close $hsess
     } -body {
         set hsess [evt_test_session -domain $::env(COMPUTERNAME)]
         expr {[llength [twapi::evt_channels $hsess]] > 0}
@@ -585,18 +585,18 @@ namespace eval twapi::eventlog::test {
 
     set testnum -1
     foreach authtype {default ntlm negotiate} {
-        test evt_open_session-4.[incr testnum] "Open a EVT session with user name and password, auth type $authtype" \
+        test evt_session_open-4.[incr testnum] "Open a EVT session with user name and password, auth type $authtype" \
             -constraints userInteraction -cleanup {
-                twapi::evt_close_session $hsess
+                twapi::evt_session_close $hsess
             } -body {
                 set hsess [evt_test_session -authtype $authtype]
                 expr {[llength [twapi::evt_channels $hsess]] > 0}
             } -result 1
     }
     # Assumes it will fail since no kerberos/AD
-    test evt_open_session-4.3 "Open a EVT session with user name and password, auth type kerberos" \
+    test evt_session_open-4.3 "Open a EVT session with user name and password, auth type kerberos" \
         -constraints userInteraction -cleanup {
-            twapi::evt_close_session $hsess
+            twapi::evt_session_close $hsess
         } -body {
             list [catch {
                 set hsess [evt_test_session -authtype $kerberos]
@@ -607,27 +607,27 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    test evt_local_session-1.0 {
+    test evt_session_open_local-1.0 {
         Open a local EVT session
     } -body {
-        expr {[llength [twapi::evt_channels [twapi::evt_local_session]]] > 0}
+        expr {[llength [twapi::evt_channels [twapi::evt_session_open_local]]] > 0}
     } -result 1
 
     ################################################################
 
-    test evt_is_local_session-1.0 {
+    test evt_session_is_local-1.0 {
         Check if a session is local
     } -body {
-        twapi::evt_is_local_session [twapi::evt_local_session]
+        twapi::evt_session_is_local [twapi::evt_session_open_local]
     } -result 1
 
-    test evt_open_session-1.2 {
+    test evt_session_open-1.2 {
         Check if a session is local (remote case)
     } -body {
-        set hsess [twapi::evt_open_session $::env(COMPUTERNAME)]
+        set hsess [twapi::evt_session_open $::env(COMPUTERNAME)]
         expr {[llength [twapi::evt_channels $hsess]] > 0}
     } -cleanup {
-        twapi::evt_close_session $hsess
+        twapi::evt_session_close $hsess
     } -result 0
 
     ################################################################
@@ -673,13 +673,13 @@ namespace eval twapi::eventlog::test {
     test evt_log_clear-2.0 {
         Backup and clear the event log -session
     } -constraints systemmodificationok -setup {
-        set hsess [twapi::evt_open_session $::env(COMPUTERNAME)]
+        set hsess [twapi::evt_session_open $::env(COMPUTERNAME)]
     } -body {
         twapi::evt_clear_log Application -session $hsess
         set hevl [twapi::evt_open_log_info -channel Application]
         dict get [twapi::evt_log_info $hevl -numberoflogrecords] -numberoflogrecords
     } -cleanup {
-        twapi::evt_close_session $hsess
+        twapi::evt_session_close $hsess
     } -result {1 1}
 
     ################################################################
@@ -704,14 +704,14 @@ namespace eval twapi::eventlog::test {
         # Not using evt_test_session because want to use default credentials.
         # Token created with explicit credentials may not have some required
         # privileges.
-        set hsession [twapi::evt_open_session $::env(COMPUTERNAME)]
+        set hsession [twapi::evt_session_open $::env(COMPUTERNAME)]
         set backup [new_file]
     } -body {
         set count [twapi::winlog_event_count -channel Setup]
         twapi::evt_export_log $backup -channel Setup -session $hsession
         expr {[twapi::winlog_event_count -file $backup] == $count}
     } -cleanup {
-        twapi::evt_close_session $hsession
+        twapi::evt_session_close $hsession
     } -result 1
 
     test evt_export_log-3.0 {
@@ -752,7 +752,7 @@ namespace eval twapi::eventlog::test {
     test evt_archive_exported_log-3.0 {
         Archive an event log file -session
     } -constraints privileged -setup {
-        set hsess [twapi::evt_open_session $::env(COMPUTERNAME)]
+        set hsess [twapi::evt_session_open $::env(COMPUTERNAME)]
         set archive [new_file]
     } -body {
         set count [twapi::winlog_event_count -channel Setup]
@@ -760,7 +760,7 @@ namespace eval twapi::eventlog::test {
         twapi::evt_archive_exported_log $archive -session $hsess
         expr {[twapi::winlog_event_count -file $archive] == $count}
       } -cleanup {
-          twapi::evt_close_session $hsess
+          twapi::evt_session_close $hsess
       } -result 1
 
     ################################################################
@@ -945,8 +945,8 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hq [twapi::evt_query -channel system]
         lassign [twapi::evt_next $hq -count 2] hevt1 hevt2
-        array set first [twapi::evt_decode_event $hevt1]
-        array set second [twapi::evt_decode_event $hevt2]
+        array set first [twapi::evt_event_decode $hevt1]
+        array set second [twapi::evt_event_decode $hevt2]
         # Verify default forward direction
         expr {
               $first(-timecreated) <= $second(-timecreated)
@@ -966,8 +966,8 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hq [twapi::evt_query -channel system -direction forward]
         lassign [twapi::evt_next $hq -count 2] hevt1 hevt2
-        array set first [twapi::evt_decode_event $hevt1]
-        array set second [twapi::evt_decode_event $hevt2]
+        array set first [twapi::evt_event_decode $hevt1]
+        array set second [twapi::evt_event_decode $hevt2]
         # Verify default forward direction
         expr {
               $first(-timecreated) <= $second(-timecreated)
@@ -987,8 +987,8 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hq [twapi::evt_query -channel system -direction backward]
         lassign [twapi::evt_next $hq -count 2] hevt1 hevt2
-        array set first [twapi::evt_decode_event $hevt1]
-        array set second [twapi::evt_decode_event $hevt2]
+        array set first [twapi::evt_event_decode $hevt1]
+        array set second [twapi::evt_event_decode $hevt2]
         # Verify default forward direction
         expr {
               $first(-timecreated) >= $second(-timecreated)
@@ -1016,42 +1016,42 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    test evt_open_channel_config-1.0 {
+    test evt_channel_config_open-1.0 {
         Open a local channel configuration
     } -body {
-        twapi::evt_close [twapi::evt_open_channel_config Setup]
+        twapi::evt_close [twapi::evt_channel_config_open Setup]
     } -result ""
 
-    test evt_open_channel_config-1.1 {
+    test evt_channel_config_open-1.1 {
         Open a local channel configuration -session
     } -setup {
-        set hsess [twapi::evt_open_session $::env(COMPUTERNAME) -session $hsess]
+        set hsess [twapi::evt_session_open $::env(COMPUTERNAME) -session $hsess]
     } -cleanup {
         twapi::evt_close $hsess
     } -body {
-        twapi::evt_close [twapi::evt_open_channel_config Setup -session $hsess]
+        twapi::evt_close [twapi::evt_channel_config_open Setup -session $hsess]
     } -result ""
 
     ################################################################
 
-    test evt_save_channel_config {
+    test evt_channel_config_save {
         Save a channel configuration
     } -constraints {
         systemmodificationok privileged
     } -setup {
-        set hcfg [twapi::evt_open_channel_config Setup]
+        set hcfg [twapi::evt_channel_config_open Setup]
     } -cleanup {
         twapi::evt_close $hcfg
     } -body {
-        set maxsize [twapi::evt_get_channel_config $hcfg -loggingmaxsize]
-        twapi::evt_set_channel_config $hcfg -loggingmaxsize [incr maxsize]
+        set maxsize [twapi::evt_channel_config_get $hcfg -loggingmaxsize]
+        twapi::evt_channel_config_set $hcfg -loggingmaxsize [incr maxsize]
         twapi::evt_close $hcfg
-        set hcfg [twapi::evt_open_channel_config Setup]
-        expr {[twapi::evt_get_channel_config $hcfg -loggingmaxsize] == $maxSize}
+        set hcfg [twapi::evt_channel_config_open Setup]
+        expr {[twapi::evt_channel_config_get $hcfg -loggingmaxsize] == $maxSize}
     } -result 1
 
-    test evt_channel_config "evt_get_channel_config" -setup {
-            set hcfg [twapi::evt_open_channel_config Setup]
+    test evt_channel_config "evt_channel_config_get" -setup {
+            set hcfg [twapi::evt_channel_config_open Setup]
         } -cleanup {
             twapi::evt_close $hcfg
         } -body {
@@ -1073,7 +1073,7 @@ namespace eval twapi::eventlog::test {
                 -publishingsidtype        const
                 -publishingfilemax        incr
             } {
-                set prop [twapi::evt_get_channel_config $hcfg $propid]
+                set prop [twapi::evt_channel_config_get $hcfg $propid]
                 if {![string is integer -strict $prop]} {
                     lappend bad get$propid
                 } else {
@@ -1083,7 +1083,7 @@ namespace eval twapi::eventlog::test {
                         const {
                             # Should not permit
                             if {![catch {
-                                twapi::evt_set_channel_config $hcfg $propid $prop
+                                twapi::evt_channel_config_set $hcfg $propid $prop
                             }]} {
                                 lappend bad get$propid
                             }
@@ -1092,19 +1092,19 @@ namespace eval twapi::eventlog::test {
                     }
                     # Note this only changes in-memory cache and does not
                     # require privs
-                    twapi::evt_set_channel_config $hcfg $propid $newvalue
-                    if {[twapi::evt_get_channel_config $hcfg $propid] != $newvalue} {
+                    twapi::evt_channel_config_set $hcfg $propid $newvalue
+                    if {[twapi::evt_channel_config_get $hcfg $propid] != $newvalue} {
                         lappend bad set$propid; # The set failed
                     }
                 }
             }
-            if {![string equal -nocase Setup.evtx [file tail [twapi::evt_get_channel_config $hcfg -logfilepath]]]} {
+            if {![string equal -nocase Setup.evtx [file tail [twapi::evt_channel_config_get $hcfg -logfilepath]]]} {
                 lappend bad get-logfilepath
             }
-            if {![string equal -nocase Microsoft-Windows-Eventlog [file tail [twapi::evt_get_channel_config $hcfg -owningpublisher]]]} {
+            if {![string equal -nocase Microsoft-Windows-Eventlog [file tail [twapi::evt_channel_config_get $hcfg -owningpublisher]]]} {
                 lappend bad get-owningpublisher
             }
-            if {[catch {twapi::sddl_to_security_descriptor [twapi::evt_get_channel_config $hcfg -access]}]} {
+            if {[catch {twapi::sddl_to_security_descriptor [twapi::evt_channel_config_get $hcfg -access]}]} {
                 lappend bad get-access
             }
             foreach propid {
@@ -1113,11 +1113,11 @@ namespace eval twapi::eventlog::test {
                 -publishingcontrolguid   12
             } {
                 # Value could be anything. Just ensure no error
-                if {[catch {twapi::evt_get_channel_config $hcfg $propid}]} {
+                if {[catch {twapi::evt_channel_config_get $hcfg $propid}]} {
                     lappend bad get$propid
                 }
             }
-            if {"Microsoft-Windows-Eventlog" ni [twapi::evt_get_channel_config $hcfg -publisherlist]} {
+            if {"Microsoft-Windows-Eventlog" ni [twapi::evt_channel_config_get $hcfg -publisherlist]} {
                 lappend bad get-publisherlist
             }
             set bad
@@ -1125,7 +1125,7 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    test evt_decode_event-1.0 {
+    test evt_event_decode-1.0 {
         Event query -session -file -query -ignorequeryerrors
     } -constraints {
         TBD win6
@@ -1139,7 +1139,7 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    test evt_decode_events-1.0 {
+    test evt_event_decode_list-1.0 {
         Event query -session -file -query -ignorequeryerrors
     } -constraints {
         TBD win6
@@ -1174,10 +1174,10 @@ namespace eval twapi::eventlog::test {
     test evt_publisher_metadata_open-3.0 {
         Open publisher metadata - -session
     } -setup {
-        set hsess [twapi::evt_open_session $::env(COMPUTERNAME)]
+        set hsess [twapi::evt_session_open $::env(COMPUTERNAME)]
     } -cleanup {
         twapi::evt_close $hpub
-        twapi::evt_close_session $hsess
+        twapi::evt_session_close $hsess
     } -body {
         set hpub [twapi::evt_publisher_metadata_open Microsoft-Windows-Eventlog -session $hsess]
         twapi::evt_publisher_message $hpub 2415919106

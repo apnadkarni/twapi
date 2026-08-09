@@ -10,6 +10,26 @@
 The [cmd twapi_evt] package implements commands for reading and writing to
 the Windows Event log.
 
+[section Sessions]
+
+An event log [emph session] is a connection to the event log service on
+a system. Most commands for reading and writing event logs and related
+configuration work within the context of a session which defaults to
+the local system. The following commands are used to managed sessions.
+
+[list_begin opt]
+[opt_def [uri #evt_session_close [cmd evt_session_close]]]
+Closes a session to an event log service.
+[opt_def [uri #evt_session_is_local [cmd evt_session_is_local]]]
+Checks if a session is local.
+[opt_def [uri #evt_session_open [cmd evt_session_open]]]
+Opens a session to a remote or local event log service using passed
+credentials.
+[opt_def [uri #evt_session_open_local [cmd evt_session_open_local]]]
+Returns the session to the local event log service
+using current credentials.
+[list_end]
+
 [section Publishers]
 
 An event [emph publisher], or [emph provider] (the Windows SDK uses the term
@@ -43,85 +63,98 @@ Installs the TWAPI event publisher.
 Uninstalls the TWAPI event publisher.
 [list_end]
 
-An [emph event] is structured data written to event log whose fields
-and their format are defined by the [emph "event metadata"].
+[section Channels]
 
+Event log [emph channels] are named event streams from which events are
+read or written. Each channel has configuration properties that control
+aspects of channel behavior. The related commands are shown in the table
+below.
 
+[list_begin opt]
+[opt_def [uri #evt_channel_config_get [cmd evt_channel_config_get]]]
+Retrieves a channel configuration property value.
+[opt_def [uri #evt_channel_config_open [cmd evt_channel_config_open]]]
+Open the configuration property database for a channel.
+[opt_def [uri #evt_channel_config_save [cmd evt_channel_config_save]]]
+Save all modified channel configuration properties.
+[opt_def [uri #evt_channel_config_set [cmd evt_channel_config_set]]]
+Sets a channel configuration property value.
+[opt_def [uri #evt_channels [cmd evt_channels]]]
+Returns the list of channel names.
+[list_end]
 
-
-[section "Using evt Commands"]
-
-[para]
-The [uri #evt_local_session [cmd evt_local_session]] command returns a handle to
-an EVT [emph session] for the Windows Event Log service on the local system using the
-current user credentials.
-The [uri #evt_open_session [cmd evt_open_session]] command establishes
-a session to a remote system or to the local system using different user
-credentials. The command [uri #evt_is_local_session [cmd evt_is_local_session]]
-can be used to distinguish between handles returned by the two commands.
-When no longer needed, sessions opened using [cmd evt_open_session] should be
-released using [uri #evt_close_session [cmd evt_close_session]].
-
-[para]
-EVT [emph channels] implement a event stream to which event providers can write
-events. The commands [uri #evt_channels [cmd evt_channels]] and
-[uri #evt_publishers [cmd evt_publishers]] return the names of the channels and
-publishers on a system respectively. Channels have configuration properties.
-The configuration database is opened with
-[uri #evt_open_channel_config [cmd evt_open_channel_config]]. Properties
-can then be retrieved and set through
-[uri #evt_get_channel_config [cmd evt_get_channel_config]] and
-[uri #evt_set_channel_config [cmd evt_set_channel_config]].
-Changes made are saved with
-[uri #evt_save_channel_config [cmd evt_save_channel_config]].
-The configuration properties are shown in the table below and
-mapped to the Window SDK enumeration
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EVT_CHANNEL_CONFIG_PROPERTY_ID].
+The configuration properties for channels are managed through options
+to the [cmd evt_channel_config_get] and [cmd evt_channel_config_set]
+commands. These options and the corresponding property defined
+by the Window SDK enumeration
+[const EVT_CHANNEL_CONFIG_PROPERTY_ID]
+are shown in the table below.
 
 [list_begin opt]
 [opt_def -enabled]
-[const EvtChannelConfigEnabled]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelConfigEnabled]
 [opt_def -isolation]
-[const EvtChannelConfigIsolation]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelConfigIsolation]
 [opt_def -type]
-[const EvtChannelConfigType]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelConfigType]
 [opt_def -owningpublisher]
-[const EvtChannelConfigOwningPublisher]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelConfigOwningPublisher]
 [opt_def -classiceventlog]
-[const EvtChannelConfigClassicEventlog]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelConfigClassicEventlog]
 [opt_def -access]
-[const EvtChannelConfigAccess]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelConfigAccess]
 [opt_def -loggingretention]
-[const EvtChannelLoggingConfigRetention]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelLoggingConfigRetention]
 [opt_def -loggingautobackup]
-[const EvtChannelLoggingConfigAutoBackup]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelLoggingConfigAutoBackup]
 [opt_def -loggingmaxsize]
-[const EvtChannelLoggingConfigMaxSize]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelLoggingConfigMaxSize]
 [opt_def -logfilepath]
-[const EvtChannelLoggingConfigLogFilePath]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelLoggingConfigLogFilePath]
 [opt_def -publishinglevel]
-[const EvtChannelPublishingConfigLevel]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigLevel]
 [opt_def -publishingkeywords]
-[const EvtChannelPublishingConfigKeywords]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigKeywords]
 [opt_def -publishingcontrolguid]
-[const EvtChannelPublishingConfigControlGuid]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigControlGuid]
 [opt_def -publishingbuffersize]
-[const EvtChannelPublishingConfigBufferSize]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigBufferSize]
 [opt_def -publishingminbuffers]
-[const EvtChannelPublishingConfigMinBuffers]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigMinBuffers]
 [opt_def -publishingmaxbuffers]
-[const EvtChannelPublishingConfigMaxBuffers]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigMaxBuffers]
 [opt_def -publishinglatency]
-[const EvtChannelPublishingConfigLatency]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigLatency]
 [opt_def -publishingclocktype]
-[const EvtChannelPublishingConfigClockType]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigClockType]
 [opt_def -publishingsidtype]
-[const EvtChannelPublishingConfigSidType]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigSidType]
 [opt_def -publisherlist]
-[const EvtChannelPublisherList]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublisherList]
 [opt_def -publishingfilemax]
-[const EvtChannelPublishingConfigFileMax]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigFileMax]
 [list_end]
+
+[section Events]
+
+An [emph event] is structured data written to event log whose fields
+and their format are defined by the [emph "event metadata"].
+Consuming these events generally involves three steps:
+
+
+[section "Consuming events"]
+
+[list_begin bullet]
+[bullet]
+Retrieving a result set containing the events of interest based
+on specified criteria.
+[bullet]
+Extracting raw data fields from an event.
+[bullet]
+Rendering the raw fields in a desired form as XML or formatted
+for human consumption.
+[list_end]
+
 
 [para]
 Event consumers can consume events from channels in real time or from a saved
@@ -132,13 +165,13 @@ one of the rendering commands below.
 
 [list_begin opt]
 
-[opt_def [uri #evt_decode_event [cmd evt_decode_event]]]
+[opt_def [uri #evt_event_decode [cmd evt_event_decode]]]
 Returns content of an event as a dictionary including system-defined,
 publisher-defined fields and formatted messages.
-[opt_def [uri #evt_decode_events [cmd evt_decode_events]]]
+[opt_def [uri #evt_event_decode_list [cmd evt_event_decode_list]]]
 Returns a [uri base.html#recordarrays recordarray] containing
 content of multiple events in the same form as returned by
-[cmd evt_decode_event].
+[cmd evt_event_decode].
 [opt_def [uri #evt_event_logpath [cmd evt_event_logpath]]]
 Returns the channel or file from which the event was read.
 [opt_def [uri #evt_render_event [cmd evt_render_event]]]
@@ -202,31 +235,6 @@ To monitor the event log in real time, use the
 
 [list_begin definitions]
 
-[call [cmd eventlog_log] [arg MESSAGE] [opt [arg options]]]
-Writes a record into the specified event log. This is a wrapper around
-[uri \#eventlog_open [cmd eventlog_open]],
-[uri \#eventlog_write [cmd eventlog_write]],
-[uri \#eventlog_close [cmd eventlog_close]] for simple
-logging needs and should be used for applications that do not have
-a message file.
-[nl]
-The following options may be specified to control the values of the various
-fields in the event log record:
-[list_begin opt]
-[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the system on which
-the event log resides. By default, this is the local system.
-[opt_def [cmd -source] [arg SOURCENAME]] Specifies a event log source. The
-returned handle will refer to the event log to which events from
-[arg SOURCENAME] are logged. This defaults to the filename portion (without
-the path or extension) of the executable file.
-[opt_def [cmd -type] [arg EVENTTYPE]] Indicates the type or severity of
-the event. [arg EVENTTYPE] should be one of [const success], [const error],
-[const warning], [const information] (default), [const auditsuccess] or [const auditfailure].
-[opt_def [cmd -category] [arg CATEGORY]] This should be a integer corresponding
-to a category id in the event source's category or message file. This value
-defaults to [const 0].
-[list_end]
-
 [call [cmd evt_archive_exported_log] [arg LOGPATH] [opt [arg options]]]
 Archives the exported event log in file [arg LOGPATH]
 along with formatting information so
@@ -252,6 +260,30 @@ may subsequently be updated using [cmd evt_update_bookmark].
 [nl]
 The returned handle should be released via [cmd evt_close].
 
+[call [cmd evt_channel_config_get] [arg HCHANCFG] [arg PROPERTY]]
+Returns the value of a configuration property [arg PROPERTY] for the channel
+configuration specified by the handle [arg HCHANCFG].
+
+[call [cmd evt_channel_config_open] [arg CHANNELNAME] [opt "[cmd -session] [arg HSESSION]"]]
+Returns a handle to the configuration of the named channel. Opens the
+configuration for an event log channel and returns a handle to it.
+[cmd -session] specifies the handle for the EVT session for the channel's
+host which defaults to the local system. The returned handle may be used with
+[uri #evt_channel_config_get [cmd evt_channel_config_get]] and
+[uri #evt_channel_config_set [cmd evt_channel_config_set]]
+to query and modify the channel configuration. When longer needed,
+it should be released with [uri #evt_close [cmd evt_close]].
+
+[call [cmd evt_channel_config_save] [arg HCHANCFG]]
+Saves any changes made to the channel configuration.
+
+[call [cmd evt_channel_config_set] [arg HCHANCFG] [arg PROPERTY] [arg VALUE]]
+
+Sets the value of a configuration property [arg PROPERTY] for the channel
+configuration specified by the handle [arg HCHANCFG] to [arg VALUE].
+The modification does not take effect until the configuration is saved
+with [uri #evt_channel_config_save [cmd evt_channel_config_save]].
+
 [call [cmd evt_channels] [opt [arg HSESSION]]]
 Returns a list of names of the EVT channels through the EVT session handle
 [arg HSESSION]. Defaults to the local system.
@@ -271,11 +303,7 @@ Specifies the EVT session handle. Defaults to the local system.
 Close handles returned by various EVT commands such as
 [uri #evt_query [cmd evt_query]] or [uri #evt_next [cmd evt_next]].
 
-[call [cmd evt_close_session] [arg EVTSESSIONHANDLE]]
-Close a EVT session handle returned by
-[uri #evt_open_session [cmd evt_open_session]].
-
-[call [cmd evt_decode_event] [arg HEVENT] [opt [arg options]]]
+[call [cmd evt_event_decode] [arg HEVENT] [opt [arg options]]]
 
 Returns a Tcl dictionary containing the system-defined event properties,
 publisher-defined event data, and formatted message strings.
@@ -285,11 +313,11 @@ returned from [uri #evt_next [cmd evt_next]].
 [nl]
 
 The keys in the returned dictionary are the same as the fields of the record
-array returned by [uri #evt_decode_events [cmd evt_decode_events]]. See the
+array returned by [uri #evt_event_decode_list [cmd evt_event_decode_list]]. See the
 documentation of that command for fields and options.
 
 [nl]
-Besides the options for [cmd evt_decode_events], the
+Besides the options for [cmd evt_event_decode_list], the
 following additional options may also be specified:
 [list_begin opt]
 [opt_def [cmd -hpublisher] [arg HPUBLISHER]]
@@ -302,7 +330,7 @@ the values will instead be picked from [arg HVALUES] which must
 be a handle to a render values block.
 [list_end]
 
-[call [cmd evt_decode_events] [arg HEVENTLIST]]
+[call [cmd evt_event_decode_list] [arg HEVENTLIST] [opt [arg options]]]
 Returns a [uri base.html#recordarrays "record array"] containing
 decoded events. [arg HEVENTLIST] is a list of handles
 to events as returned from [uri #evt_next [cmd evt_next]].
@@ -414,25 +442,12 @@ the Windows SDK for details.
 Specifies the EVT session handle. Defaults to the local system.
 [list_end]
 
-[call [cmd evt_get_channel_config] [arg HCHANCFG] [arg PROPERTY]]
-
-Returns the value of a configuration property [arg PROPERTY] for the channel
-configuration specified by the handle [arg HCHANCFG].
-
-[call [cmd evt_is_local_session] [arg HSESSION]]
-Returns `1` if the passed EVT session handle was created with
-[uri #evt_local_session [cmd evt_local_session]] and `0` otherwise.
-
-[call [cmd evt_local_session]]
-Returns an EVT session handle to the local system using the current user
-credentials. The handle need not be closed.
-
 [call [cmd evt_next] [arg HEVTRESULTSET] [opt [arg options]]]
 Returns a list containing events from a event query result set.
 [arg HEVTRESULTSET] is a handle to a result set as returned by
 [uri #evt_query [cmd evt_query]]. The returned list elements
 are event handles which can be passed to
-[uri #evt_decode_event [cmd evt_decode_event]]. These event handles
+[uri #evt_event_decode [cmd evt_event_decode]]. These event handles
 must be closed via [uri #evt_close [cmd evt_close]].
 [nl]
 The command returns an empty list if no more events are available.
@@ -462,61 +477,6 @@ return an empty list and store the error code in the specified variable.
 [opt_def [cmd -timeout] [arg MILLISECONDS]]
 Specifies the number of milliseconds to wait for events. A value of
 [const -1] (default) indicates call should not time out.
-[list_end]
-
-[call [cmd evt_open_channel_config] [arg CHANNELNAME] [opt "[cmd -session] [arg HSESSION]"]]
-
-Returns a handle to the configuration of the named channel. Opens the
-configuration for an event log channel and returns a handle to it.
-[cmd -session] specifies the handle for the EVT session for the channel's
-host which defaults to the local system. The returned handle may be used with
-[uri #evt_get_channel_config [cmd evt_get_channel_config]] and
-[uri #evt_set_channel_config [cmd evt_set_channel_config]]
-to query and modify the channel configuration. When longer needed,
-it should be released with [uri #evt_close [cmd evt_close]].
-
-[call [cmd evt_open_session] [arg SERVER] [opt [arg options]]]
-
-Returns a EVT session handle for accessing the Windows event log service on the
-local or a remote computer. [arg SERVER] specifies the name of the computer to
-connect to.
-[nl]
-The handle may be passed to other commands that
-operate on event logs on the target computer. When no longer needed, the handle
-should be released using [cmd evt_close_session].
-[nl]
-The following options can be specified:
-[list_begin opt]
-[opt_def -user [arg USERNAME]]
-Specifies the user account to use when connecting to the remote
-computer. If omitted, the credentials of the current process are used.
-
-[opt_def -domain [arg DOMAIN]]
-Specifies the domain for the account specified by the [cmd -user]
-option. This may be a Windows domain name or the name of the remote
-computer for local accounts.
-
-[opt_def -password [arg PASSWORD]]
-Specifies the password corresponding to the account specified by the
-[cmd -user] option. Must be in
-[uri base.html#passwordprotection "encrypted form"].
-
-[opt_def -authtype [arg AUTHTYPE]]
-Specifies the authentication mechanism to use when connecting to the
-remote computer.
-
-[list_end]
-
-[arg AUTHTYPE] may be take one of the following values.
-[list_begin opt]
-[opt_def [const default]]
-Uses the default authentication mechanism. This is the default.
-[opt_def [const negotiate]]
-Uses the Negotiate security package.
-[opt_def [const kerberos]]
-Uses Kerberos authentication.
-[opt_def [const ntlm]]
-Uses NTLM authentication.
 [list_end]
 
 [call [cmd evt_publisher_events_metadata] [arg HPUB] [arg PROPNAMES]]
@@ -765,15 +725,63 @@ enumeration in the Windows SDK.
 This order can also be retrieved with the
 [uri #evt_system_properties [cmd evt_system_properties]] command.
 
-[call [cmd evt_save_channel_config] [arg HCHANCFG]]
-Saves any changes made to the channel configuration.
+[call [cmd evt_session_close] [arg EVTSESSIONHANDLE]]
+Close a EVT session handle returned by
+[uri #evt_session_open [cmd evt_session_open]].
 
-[call [cmd evt_set_channel_config] [arg HCHANCFG] [arg PROPERTY] [arg VALUE]]
+[call [cmd evt_session_is_local] [arg HSESSION]]
+Returns `1` if the passed EVT session handle was created with
+[uri #evt_session_open_local [cmd evt_session_open_local]] and `0` otherwise.
 
-Sets the value of a configuration property [arg PROPERTY] for the channel
-configuration specified by the handle [arg HCHANCFG] to [arg VALUE].
-The modification does not take effect until the configuration is saved
-with [uri #evt_save_channel_config [cmd evt_save_channel_config]].
+[call [cmd evt_session_open] [arg SERVER] [opt [arg options]]]
+
+Returns a EVT session handle for accessing the Windows event log service on the
+local or a remote computer. [arg SERVER] specifies the name of the computer to
+connect to.
+[nl]
+The handle may be passed to other commands that
+operate on event logs on the target computer. When no longer needed, the handle
+should be released using [cmd evt_session_close].
+[nl]
+The following options can be specified:
+[list_begin opt]
+[opt_def -user [arg USERNAME]]
+Specifies the user account to use when connecting to the remote
+computer. If omitted, the credentials of the current process are used.
+
+[opt_def -domain [arg DOMAIN]]
+Specifies the domain for the account specified by the [cmd -user]
+option. This may be a Windows domain name or the name of the remote
+computer for local accounts.
+
+[opt_def -password [arg PASSWORD]]
+Specifies the password corresponding to the account specified by the
+[cmd -user] option. Must be in
+[uri base.html#passwordprotection "encrypted form"].
+
+[opt_def -authtype [arg AUTHTYPE]]
+Specifies the authentication mechanism to use when connecting to the
+remote computer.
+
+[list_end]
+
+[arg AUTHTYPE] may be take one of the following values.
+[list_begin opt]
+[opt_def [const default]]
+Uses the default authentication mechanism. This is the default.
+[opt_def [const negotiate]]
+Uses the Negotiate security package.
+[opt_def [const kerberos]]
+Uses Kerberos authentication.
+[opt_def [const ntlm]]
+Uses NTLM authentication.
+[list_end]
+
+[call [cmd evt_session_open_local]]
+Returns an EVT session handle to the local system using the current user
+credentials. The handle need not be closed.
+
+
 
 [call [cmd evt_subscribe] [arg CHANNELPATH] [opt [arg options]]]
 Registers for notifications when events are logged to the event

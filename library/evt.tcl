@@ -9,7 +9,7 @@
 namespace eval twapi {
     variable _evt;              # See _evt_init
 
-    # System event fields in order returned by _evt_decode_event_system_fields
+    # System event fields in order returned by _evt_event_decode_system_fields
     twapi::record evt_system_properties  {
         -providername -providerguid -eventid -qualifiers -level -task
         -opcode -keywordmask -timecreated -eventrecordid -activityid
@@ -55,15 +55,15 @@ namespace eval twapi {
     }
 }
 
-proc twapi::evt_local_session {} {
+proc twapi::evt_session_open_local {} {
     return NULL
 }
 
-proc twapi::evt_is_local_session {hsess} {
+proc twapi::evt_session_is_local {hsess} {
     return [pointer_null? $hsess]
 }
 
-proc twapi::evt_open_session {server args} {
+proc twapi::evt_session_open {server args} {
     array set opts [parseargs args {
         user.arg
         domain.arg
@@ -78,8 +78,8 @@ proc twapi::evt_open_session {server args} {
     return [EvtOpenSession 1 [list $server $opts(user) $opts(domain) $opts(password) $opts(authtype)] 0 0]
 }
 
-proc twapi::evt_close_session {hsess} {
-    if {![evt_is_local_session $hsess]} {
+proc twapi::evt_session_close {hsess} {
+    if {![evt_session_is_local $hsess]} {
         evt_close $hsess
     }
 }
@@ -172,7 +172,7 @@ proc twapi::evt_user_render_context {} {
     return [EvtCreateRenderContext {} 2]
 }
 
-proc twapi::evt_open_channel_config {chanpath args} {
+proc twapi::evt_channel_config_open {chanpath args} {
     array set opts [parseargs args {
         {session.arg NULL}
     } -maxleftover 0]
@@ -180,12 +180,12 @@ proc twapi::evt_open_channel_config {chanpath args} {
     return [EvtOpenChannelConfig $opts(session) $chanpath 0]
 }
 
-proc twapi::evt_get_channel_config {hcfg propid} {
+proc twapi::evt_channel_config_get {hcfg propid} {
     return [EvtGetChannelConfigProperty $hcfg \
                 [_evt_map_channel_config_property $propid]]
 }
 
-proc twapi::evt_set_channel_config {hcfg propid val} {
+proc twapi::evt_channel_config_set {hcfg propid val} {
     return [EvtSetChannelConfigProperty $hcfg \
                 [_evt_map_channel_config_property $propid] 0 $val]
 }
@@ -444,7 +444,7 @@ proc twapi::evt_next {hresultset args} {
     }
 }
 
-twapi::proc* twapi::_evt_decode_event_system_fields {hevt} {
+twapi::proc* twapi::_evt_event_decode_system_fields {hevt} {
     _evt_init
 } {
     variable _evt
@@ -458,7 +458,7 @@ twapi::proc* twapi::_evt_decode_event_system_fields {hevt} {
 }
 
 # TBD - document. Returns a list of user data values
-twapi::proc* twapi::evt_decode_event_userdata {hevt} {
+twapi::proc* twapi::evt_event_decode_userdata {hevt} {
     _evt_init
 } {
     variable _evt
@@ -466,7 +466,7 @@ twapi::proc* twapi::evt_decode_event_userdata {hevt} {
     return [Twapi_ExtractEVT_RENDER_VALUES $_evt(render_buffer)]
 }
 
-twapi::proc* twapi::evt_decode_events {hevts args} {
+twapi::proc* twapi::evt_event_decode_list {hevts args} {
     _evt_init
 } {
     variable _evt
@@ -485,7 +485,7 @@ twapi::proc* twapi::evt_decode_events {hevts args} {
         xml
     } -ignoreunknown -hyphenated]
         
-    # SAME ORDER AS _evt_decode_event_system_fields
+    # SAME ORDER AS _evt_event_decode_system_fields
     set decoded_fields [evt_system_properties
     set decoded_events {}
     
@@ -497,7 +497,7 @@ twapi::proc* twapi::evt_decode_events {hevts args} {
     }
 
     foreach hevt $hevts {
-        set decoded [_evt_decode_event_system_fields $hevt]
+        set decoded [_evt_event_decode_system_fields $hevt]
         # Get publisher from hevt
         set publisher [evt_system_properties -providername $decoded]
 
@@ -572,7 +572,7 @@ twapi::proc* twapi::evt_decode_events {hevts args} {
                 # TBD - make sure we have a test for this case.
                 # TBD - log
                 if {[catch {
-                    lappend decoded "Message for event could not be found. Event contained user data: [join [evt_decode_event_userdata $hevt] ,]"
+                    lappend decoded "Message for event could not be found. Event contained user data: [join [evt_event_decode_userdata $hevt] ,]"
                 } message]} {
                     if {[info exists opts(-ignorestring)]} {
                         lappend decoded $opts(-ignorestring)
@@ -589,8 +589,8 @@ twapi::proc* twapi::evt_decode_events {hevts args} {
     return [list $decoded_fields $decoded_events]
 }
 
-proc twapi::evt_decode_event {hevt args} {
-    return [recordarray index [evt_decode_events [list $hevt] {*}$args] 0 -format dict]
+proc twapi::evt_event_decode {hevt args} {
+    return [recordarray index [evt_event_decode_list [list $hevt] {*}$args] 0 -format dict]
 }
 
 proc twapi::evt_publisher_message {hpub msgid args} {
@@ -739,7 +739,7 @@ proc twapi::_evt_dump {args} {
     trap {
         while {[llength [set hevts [evt_next $hq]]]} {
             trap {
-                foreach ev [recordarray getlist [evt_decode_events $hevts -message -ignorestring None.] -format dict] {
+                foreach ev [recordarray getlist [evt_event_decode_list $hevts -message -ignorestring None.] -format dict] {
                     if {[info exists opts(count)] &&
                         [incr opts(count) -1] < 0} {
                         return
