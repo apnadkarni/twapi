@@ -26,11 +26,11 @@ namespace eval twapi {
 
         # system_render_context_handle - is the handle to a rendering
         #    context for the system portion of an event
-        set _evt(system_render_context_handle) [evt_system_render_context]
+        set _evt(system_render_context_handle) [evt_render_context_system]
 
         # user_render_context_handle - is the handle to a rendering
         #    context for the user data portion of an event
-        set _evt(user_render_context_handle) [evt_user_render_context]
+        set _evt(user_render_context_handle) [evt_render_context_userdata]
 
         # render_buffer - is NULL or holds a pointer to the buffer used to
         #    retrieve values so does not have to be reallocated every time.
@@ -160,15 +160,15 @@ proc twapi::evt_render_values {hevt hctx} {
     }
 }
 
-proc twapi::evt_xpaths_render_context {xpaths} {
+proc twapi::evt_render_context_xpaths {xpaths} {
     return [EvtCreateRenderContext $xpaths 0]
 }
 
-proc twapi::evt_system_render_context {} {
+proc twapi::evt_render_context_system {} {
     return [EvtCreateRenderContext {} 1]
 }
 
-proc twapi::evt_user_render_context {} {
+proc twapi::evt_render_context_userdata {} {
     return [EvtCreateRenderContext {} 2]
 }
 

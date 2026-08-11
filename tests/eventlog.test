@@ -841,7 +841,7 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    test evt_system_render_context-1.0 {
+    test evt_render_context_system-1.0 {
         Render context for system properties
     } -setup {
         set hquery [twapi::evt_query -channel Setup]
@@ -849,7 +849,7 @@ namespace eval twapi::eventlog::test {
     } -cleanup {
         twapi::evt_close {*}$hevents $hquery
     } -body {
-        set hctx [twapi::evt_system_render_context]
+        set hctx [twapi::evt_render_context_system]
         set hevt [lindex $hevents 0]
         set xml [twapi::evt_render_event $hevt]
         regexp {Provider Name='([^']+)'\s+Guid='([^']+)'.+ProcessID='([^']+)'} $xml -> provider guid pid
@@ -864,7 +864,7 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    test evt_user_render_context-1.0 {
+    test evt_render_context_userdata-1.0 {
         Render context for user properties
     } -setup {
         set hquery [twapi::evt_query -channel Setup]
@@ -872,7 +872,7 @@ namespace eval twapi::eventlog::test {
     } -cleanup {
         twapi::evt_close {*}$hevents $hquery
     } -body {
-        set hctx [twapi::evt_user_render_context]
+        set hctx [twapi::evt_render_context_userdata]
         set hevt [lindex $hevents 0]
         set xml [twapi::evt_render_event $hevt]
         regexp {<UserData>(.*)</UserData>} $xml -> userdata
@@ -885,7 +885,7 @@ namespace eval twapi::eventlog::test {
     } -result 1
     ################################################################
 
-    test evt_xpaths_render_context-1.0 {
+    test evt_render_context_xpaths-1.0 {
         Render context for xpaths
     } -setup {
         set hquery [twapi::evt_query -channel Setup]
@@ -894,14 +894,14 @@ namespace eval twapi::eventlog::test {
         twapi::evt_close {*}$hevents $hquery
     } -body {
         set xpaths [list "Event/System/Provider/@Name" "Event/System/Channel"]
-        set hctx [twapi::evt_xpaths_render_context $xpaths]
+        set hctx [twapi::evt_render_context_xpaths $xpaths]
         set hevt [lindex $hevents 0]
         set values [twapi::evt_render_values $hevt $hctx]
         twapi::evt_close $hctx
         set values
     } -result {Microsoft-Windows-Servicing Setup}
 
-    test evt_xpaths_render_context-2.0 {
+    test evt_render_context_xpaths-2.0 {
         Render context for xpaths - no match
     } -setup {
         set hquery [twapi::evt_query -channel Setup]
@@ -910,7 +910,7 @@ namespace eval twapi::eventlog::test {
         twapi::evt_close {*}$hevents $hquery
     } -body {
         set xpaths [list "Event/System/NoSuch"]
-        set hctx [twapi::evt_xpaths_render_context $xpaths]
+        set hctx [twapi::evt_render_context_xpaths $xpaths]
         set hevt [lindex $hevents 0]
         set values [twapi::evt_render_values $hevt $hctx]
         twapi::evt_close $hctx
@@ -918,10 +918,10 @@ namespace eval twapi::eventlog::test {
         set values
     } -result [list {}]
 
-    test evt_xpaths_render_context-3.0 {
+    test evt_render_context_xpaths-3.0 {
         Render context for xpaths - empty xpath list
     } -body {
-        twapi::evt_xpaths_render_context {}
+        twapi::evt_render_context_xpaths {}
     } -result {At least one XPATH expression must be specified. TWAPI error: Invalid data.} -returnCodes error
     ################################################################
 

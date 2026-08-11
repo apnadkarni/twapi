@@ -139,29 +139,40 @@ are shown in the table below.
 
 An [emph event] is structured data written to event log whose fields
 and their format are defined by the [emph "event metadata"].
-Consuming these events generally involves three steps:
-
 
 [section "Consuming events"]
+
+Event consumers can consume events from channels in real time or from a saved
+event file. This generally involves three steps:
 
 [list_begin bullet]
 [bullet]
 Retrieving a result set containing the events of interest based
-on specified criteria.
+on specified criteria and iterating over it.
 [bullet]
-Extracting raw data fields from an event.
+Optionally, selecting data elements of interest from each event.
 [bullet]
-Rendering the raw fields in a desired form as XML or formatted
+Rendering the data in a desired format such as XML or formatted
 for human consumption.
 [list_end]
 
+Result sets are retrieved with [uri #evt_query [cmd evt_query]] which returns a
+handle to the result set containing matching events. The handle is passed to
+[uri #evt_next [cmd evt_next]] to iterate over the result set.
 
 [para]
-Event consumers can consume events from channels in real time or from a saved
-event file using the the [uri #evt_query [cmd evt_query]] command. This command
-returns a handle to a result set containing matching events. These can then be
-retrieved by [uri #evt_next [cmd evt_next]] and further processed with
-one of the rendering commands below.
+A [emph "render context"] selects the event fields that are to
+be rendered from an event. The following functions create a render context.
+
+[list_begin opt]
+[opt_def [uri #evt_render_context_system [cmd evt_render_context_system]]]
+Returns a handle to a render context that includes all system-defined fields.
+[opt_def [uri #evt_render_context_userdata [cmd evt_render_context_userdata]]]
+Returns a handle to a render context that includes all publisher-defined fields.
+[opt_def [uri #evt_render_context_xpaths [cmd evt_render_context_xpaths]]]
+Returns a handle to a render context that includes fields matching
+XPATH expressions.
+[list_end]
 
 [list_begin opt]
 
@@ -176,23 +187,11 @@ content of multiple events in the same form as returned by
 Returns the channel or file from which the event was read.
 [opt_def [uri #evt_render_event [cmd evt_render_event]]]
 Returns content of an event as XML.
-[opt_def [uri #evt_render_values [cmd evt_render_event]]]
+[opt_def [uri #evt_render_values [cmd evt_render_values]]]
 Returns list of specific field values from an event as selected
 by a render context.
 [list_end]
 
-A [emph "render context"] selects the event fields that are to
-be rendered from an event. The following functions create a render context.
-
-[list_begin opt]
-[opt_def [uri #evt_system_render_context [cmd evt_system_render_context]]]
-Returns a handle to a render context that includes all system-defined fields.
-[opt_def [uri #evt_user_render_context [cmd evt_user_render_context]]]
-Returns a handle to a render context that includes all publisher-defined fields.
-[opt_def [uri #evt_xpaths_render_context [cmd evt_xpaths_render_context]]]
-Returns a handle to a render context that includes fields matching
-XPATH expressions.
-[list_end]
 
 [para]
 An EVT [emph bookmark] identifies a specific event in an event log. Bookmarks are
@@ -703,6 +702,44 @@ Returns the XML form of a bookmark. This can then be passed to the
 [uri #evt_create_bookmark [cmd evt_create_bookmark]] command to
 recreate the bookmark to an event at some later time.
 
+[call [cmd evt_render_context_system]]
+Returns a handle to a render context that can be passed to
+[uri #evt_render_values [cmd evt_render_values]] to render the
+system-defined properties of an event.
+[nl]
+The returned handle should be released using [uri #evt_close [cmd evt_close]]
+when no longer needed.
+
+[call [cmd evt_render_context_userdata]]
+Returns a handle to a render context that can be passed to
+[uri #evt_render_values [cmd evt_render_values]] to render the
+user-defined properties of an event under the [const UserData]
+section of the event, and the [const EventData] section if no
+[const UserData] section is present.
+[nl]
+The returned values correspond to the properties defined by the
+provider in the event schema and returned in the same order.
+[nl]
+The returned handle should be released using [uri #evt_close [cmd evt_close]]
+when no longer needed.
+
+[call [cmd evt_render_context_xpaths] [arg XPATHLIST]]
+
+Returns a handle to a render context for rendering the event properties
+selected by the list of XPATH expressions passed in [arg XPATHLIST]
+which must contain at least one XPATH expression.
+The handle can then be passed to
+[uri #evt_render_values [cmd evt_render_values]] to render the selected
+property values.
+[nl]
+Each element of [arg XPATHLIST] specifies an XPath expression that
+selects a [emph single] property from an event, for example
+[const Event/System/Provider/@Name] or [const Event/System/Channel].
+The values are returned in the
+same order as the corresponding XPath expressions in the list.
+[nl]
+The returned handle should be released using [cmd evt_close].
+
 [call [cmd evt_render_event] [arg HEVENT]]
 
 Returns the XML representation of the event referenced by [arg HEVENT],
@@ -710,13 +747,13 @@ including including system-defined metadata and provider-defined event data.
 Localized message text is not included but can be retrieved with
 [uri #evt_format_message [cmd evt_format_message]].
 
-[call [cmd evt_render_values] [arg HEVENT] [opt [arg HCTX]]]
+[call [cmd evt_render_values] [arg HEVENT] [arg HCTX]]
 Returns a list of field values from event referenced by [arg HEVENT]
 as per the rendering context referenced by [arg HCTX] which must be
 a handle returned by
-[uri #evt_xpaths_render_context [cmd evt_xpaths_render_context]],
-[uri #evt_user_render_context [cmd evt_user_render_context]], or
-[uri #evt_system_render_context [cmd evt_system_render_context]].
+[uri #evt_render_context_xpaths [cmd evt_render_context_xpaths]],
+[uri #evt_render_context_userdata [cmd evt_render_context_userdata]], or
+[uri #evt_render_context_system [cmd evt_render_context_system]].
 The order of values in the first two cases is the order of the XPATHS
 in the render context and order of event's user data fields respectively. In
 the third case, the order is always that of the
@@ -730,8 +767,8 @@ Close a EVT session handle returned by
 [uri #evt_session_open [cmd evt_session_open]].
 
 [call [cmd evt_session_is_local] [arg HSESSION]]
-Returns `1` if the passed EVT session handle was created with
-[uri #evt_session_open_local [cmd evt_session_open_local]] and `0` otherwise.
+Returns [const 1] if the passed EVT session handle was created with
+[uri #evt_session_open_local [cmd evt_session_open_local]] and [const 0] otherwise.
 
 [call [cmd evt_session_open] [arg SERVER] [opt [arg options]]]
 
@@ -818,14 +855,6 @@ an XPATH expression or a structured XML query. See
 the Windows SDK for details.
 [list_end]
 
-[call [cmd evt_system_render_context]]
-Returns a handle to a render context that can be passed to
-[uri #evt_render_values [cmd evt_render_values]] to render the
-system-defined properties of an event.
-[nl]
-The returned handle should be released using [uri #evt_close [cmd evt_close]]
-when no longer needed.
-
 [call [cmd evt_twapi_install]]
 
 Registers the TWAPI event publisher with the local system. The command may
@@ -847,33 +876,6 @@ bookmark may subsequently be used with commands like
 [uri #evt_seek [cmd evt_seek]] or [uri #evt_query [cmd evt_query]]
 to resume processing from the bookmarked event.
 
-[call [cmd evt_user_render_context]]
-Returns a handle to a render context that can be passed to
-[uri #evt_render_values [cmd evt_render_values]] to render the
-user-defined properties of an event under the [const UserData]
-section of the event, and the [const EventData] section if no
-[const UserData] section is present.
-[nl]
-The returned values correspond to the properties defined by the
-provider in the event schema and returned in the same order.
-[nl]
-The returned handle should be released using [uri #evt_close [cmd evt_close]]
-when no longer needed.
-
-[call [cmd evt_xpaths_render_context] [arg XPATHLIST]]
-
-Returns a handle to a render context for rendering the event properties
-selected by the list of XPATH expressions passed in [arg XPATHLIST]
-which must contain at least one XPATH expression.
-The handle can then be passed to
-[uri #evt_render_values [cmd evt_render_values]] to render the selected
-property values.
-[nl]
-Each element of [arg XPATHLIST] specifies an XPath expression that
-selects a single property from an event. The values are returned in the
-same order as the corresponding XPath expressions in the list.
-[nl]
-The returned should be released using [cmd evt_close].
 
 [list_end]
 
