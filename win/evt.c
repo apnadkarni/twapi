@@ -530,12 +530,14 @@ static TCL_RESULT Twapi_EvtCreateRenderContextObjCmd(ClientData clientdata, Tcl_
     TwapiInterpContext *ticP = (TwapiInterpContext*) clientdata;
     EVT_HANDLE hevt;
     Tcl_Size count;
-    LPCWSTR *xpathsP;
+    LPCWSTR *xpathsP = NULL;
     int flags;
-    DWORD ret;
     const char *msg = NULL;
+    int ret;
 
-    if (TwapiGetArgs(interp, objc-1, objv+1, ARGSKIP, GETINT(flags), ARGEND) != TCL_OK ||
+    ret = TwapiGetArgs(
+        interp, objc - 1, objv + 1, ARGSKIP, GETINT(flags), ARGEND);
+    if (ret != TCL_OK ||
         ObjListLength(interp, objv[1], &count) != TCL_OK)
         return TCL_ERROR;
 

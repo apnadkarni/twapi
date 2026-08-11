@@ -146,12 +146,12 @@ proc twapi::evt_render_bookmark {hbm} {
     return [Twapi_EvtRenderUnicode NULL $hbm 2]
 }
 
-proc twapi::evt_render_event {hevt} {
+proc twapi::evt_render_event_xml {hevt} {
     # 1 -> EvtRenderEventXml
     return [Twapi_EvtRenderUnicode NULL $hevt 1]
 }
 
-proc twapi::evt_render_values {hevt hctx} {
+proc twapi::evt_render_event {hevt hctx} {
     set hbuf [Twapi_EvtRenderValues $hctx $hevt NULL]
     try {
         return [Twapi_ExtractEVT_RENDER_VALUES $hbuf]
@@ -486,7 +486,7 @@ twapi::proc* twapi::evt_event_decode_list {hevts args} {
     } -ignoreunknown -hyphenated]
         
     # SAME ORDER AS _evt_event_decode_system_fields
-    set decoded_fields [evt_system_properties
+    set decoded_fields [evt_system_properties]
     set decoded_events {}
     
     # ORDER MUST BE SAME AS order in which values are appended below
