@@ -42,14 +42,14 @@ The following commands return information
 related to publishers.
 
 [list_begin opt]
-[opt_def [uri #evt_publisher_events_metadata [cmd evt_publisher_events_metadata]]]
+[opt_def [uri #evt_publisher_events [cmd evt_publisher_events]]]
 Returns the metadata for the events defined by a publisher.
 [opt_def [uri #evt_publisher_message [cmd evt_publisher_message]]]
 Returns the message corresponding to a message id from the publisher's
 message resource.
-[opt_def [uri #evt_publisher_metadata_open [cmd evt_publisher_metadata_open]]]
+[opt_def [uri #evt_publisher_open [cmd evt_publisher_open]]]
 Returns a handle to a publisher's metadata.
-[opt_def [uri #evt_publisher_metadata_property [cmd evt_publisher_metadata_property]]]
+[opt_def [uri #evt_publisher_property [cmd evt_publisher_property]]]
 Returns the value of a publisher metadata property.
 [opt_def [uri #evt_publisher_install [cmd evt_publisher_install]]]
 Installs a publisher to the local system.
@@ -83,79 +83,42 @@ Sets a channel configuration property value.
 Returns the list of channel names.
 [list_end]
 
-The configuration properties for channels are managed through options
-to the [cmd evt_channel_config_get] and [cmd evt_channel_config_set]
-commands. These options and the corresponding property defined
-by the Window SDK enumeration
-[const EVT_CHANNEL_CONFIG_PROPERTY_ID]
-are shown in the table below.
-
-[list_begin opt]
-[opt_def -enabled]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelConfigEnabled]
-[opt_def -isolation]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelConfigIsolation]
-[opt_def -type]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelConfigType]
-[opt_def -owningpublisher]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelConfigOwningPublisher]
-[opt_def -classiceventlog]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelConfigClassicEventlog]
-[opt_def -access]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelConfigAccess]
-[opt_def -loggingretention]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelLoggingConfigRetention]
-[opt_def -loggingautobackup]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelLoggingConfigAutoBackup]
-[opt_def -loggingmaxsize]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelLoggingConfigMaxSize]
-[opt_def -logfilepath]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelLoggingConfigLogFilePath]
-[opt_def -publishinglevel]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigLevel]
-[opt_def -publishingkeywords]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigKeywords]
-[opt_def -publishingcontrolguid]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigControlGuid]
-[opt_def -publishingbuffersize]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigBufferSize]
-[opt_def -publishingminbuffers]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigMinBuffers]
-[opt_def -publishingmaxbuffers]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigMaxBuffers]
-[opt_def -publishinglatency]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigLatency]
-[opt_def -publishingclocktype]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigClockType]
-[opt_def -publishingsidtype]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigSidType]
-[opt_def -publisherlist]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublisherList]
-[opt_def -publishingfilemax]
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_channel_config_property_id EvtChannelPublishingConfigFileMax]
-[list_end]
-
-[section Events]
-
-An [emph event] is structured data written to event log whose fields
-and their format are defined by the [emph "event metadata"].
-
 [section "Consuming events"]
 
 Event consumers can consume events from channels in real time, or from a saved
 event file, by calling [uri #evt_query [cmd evt_query]] and iterating over
-the returned result set with [uri #evt_next [cmd evt_next]].
+the returned result set with [uri #evt_next [cmd evt_next]]. The following commands
+return the data present in an event in various forms.
+
+[list_begin opt]
+[opt_def [uri #evt_event_decode [cmd evt_event_decode]]]
+Returns a dictionary mapping event fields names to their corresponding
+values.
+[opt_def [uri #evt_event_decode_list [cmd evt_event_decode_list]]]
+Returns a [uri base.html#recordarray [cmd recordarray]] containing
+values of fields from multiple events.
+[opt_def [uri #evt_event_logpath [cmd evt_event_logpath]]]
+Returns the channel or file from which the event was read.
+[opt_def [uri #evt_event_message [cmd evt_event_message]]]
+Returns the formatted message for the event.
+[opt_def [uri #evt_event_render [cmd evt_event_render]]]
+Returns event fields as a list based on a rendering context.
+[opt_def [uri #evt_event_xml [cmd evt_event_xml]]]
+Returns the event fields in XML format.
+[list_end]
+
+The [uri #evt_event_decode [cmd evt_event_decode]] and
+[uri #evt_event_decode_list [cmd evt_event_decode_list]] commands
+support mapping of message ids to localized strings and formatting of
+messages. The [uri #evt_event_render [cmd evt_event_render]] and
+[uri #evt_event_xml [cmd evt_event_xml]] commands
+do not perform the above mapping or formatting.
 
 [para]
-The property values for each event can be retrieved with the high level
-[uri #evt_event_decode [cmd evt_event_decode]] and
-[uri #evt_event_decode_list [cmd evt_event_decode_list]]. Alternatively, lower-level
-[uri #evt_render_event [cmd evt_render_event]]
-command may be used which returns the values in a raw form with minimal processing.
-In particular, it does not map numeric
-identifiers to the corresponding strings or format messages. It also
-requires a [emph "render context"] to be passed which selects the event properties
-that are to be rendered from an event. The following commands create a render context.
+The [cmd evt_event_render] command requires a
+[emph "render context"] to be passed which selects the event properties
+that are to be rendered from an event. The following commands create
+a render context.
 
 [list_begin opt]
 [opt_def [uri #evt_render_context_system [cmd evt_render_context_system]]]
@@ -171,25 +134,18 @@ Event properties may also be rendered as XML either by passing the
 [cmd -xml] option to
 [uri #evt_event_decode [cmd evt_event_decode]] or
 [uri #evt_event_decode_list [cmd evt_event_decode_list]], or with
-the command [uri #evt_render_event_xml [cmd evt_render_event_xml]].
+the command [uri #evt_event_xml [cmd evt_event_xml]].
 The former will include elements mapping message identifiers to strings.
 The latter only includes elements directly present in the event.
 
-[list_begin opt]
-
-[opt_def [uri #evt_event_logpath [cmd evt_event_logpath]]]
-Returns the channel or file from which the event was read.
-[opt_def [uri #evt_event_message [cmd evt_event_message]]]
-Returns the formatted message for the event.
-[list_end]
 
 [section Bookmarks]
 An EVT [emph bookmark] identifies a specific event in an event log. Bookmarks are
-created with [uri #evt_create_bookmark [cmd evt_create_bookmark]] and
+created with [uri #evt_bookmark_create [cmd evt_bookmark_create]] and
 set to point to a specific event either by passing a
 XML representation previously generated with
-[uri #evt_render_bookmark [cmd evt_render_bookmark]] to that command or
-with [uri #evt_update_bookmark [cmd evt_update_bookmark]] when given
+[uri #evt_bookmark_render [cmd evt_bookmark_render]] to that command or
+with [uri #evt_bookmark_update [cmd evt_bookmark_update]] when given
 a event handle. A bookmark may be used to resume processing from its
 targeted event in an event query by passing it to
 [uri #evt_seek [cmd evt_seek]] or [uri #evt_subscribe [cmd evt_subscribe]].
@@ -235,19 +191,38 @@ The locale identifier to use for the formatting messages in the archive.
 Specifies the EVT session handle. Defaults to the local system.
 [list_end]
 
-[call [cmd evt_create_bookmark] [opt [arg XML]]]
+[call [cmd evt_bookmark_create] [opt [arg XML]]]
 Creates and returns a handle to an event bookmark. A bookmark identifies a
 specific event in an event log and may be used to restart event processing from
 that event at a later time.
 If [arg XML] is specified, it must be the XML representation of a
 bookmark as previously returned by
-[uri #evt_render_bookmark [cmd evt_render_bookmark]].
+[uri #evt_bookmark_render [cmd evt_bookmark_render]].
 [nl]
 The returned bookmark identifies the event represented by the XML. If [arg XML]
 is an empty string, the returned bookmark is not associated with any event and
-may subsequently be updated using [cmd evt_update_bookmark].
+may subsequently be updated using [cmd evt_bookmark_update].
 [nl]
 The returned handle should be released via [cmd evt_close].
+
+[call [cmd evt_bookmark_render] [arg HBOOOKMARK]]
+Returns the XML form of a bookmark. This can then be passed to the
+[uri #evt_bookmark_create [cmd evt_bookmark_create]] command to
+recreate the bookmark to an event at some later time.
+
+[call [cmd evt_bookmark_update] [arg HBOOKMARK] [arg HEVENT]]
+
+Updates the bookmark specified by [arg HBOOKMARK] to identify the event
+specified by [arg HEVENT]. [arg HBOOKMARK] and [arg HEVENT] must be
+bookmark and event handles returned by
+[uri #evt_bookmark_create [cmd evt_bookmark_create]]
+and [uri #evt_next [cmd uri_next]] respectively.
+The event handle must refer to an event returned by [cmd evt_next]. The
+bookmark may subsequently be used with commands like
+[uri #evt_seek [cmd evt_seek]] or [uri #evt_query [cmd evt_query]]
+to resume processing from the bookmarked event.
+
+
 
 [call [cmd evt_channel_config_get] [arg HCHANCFG] [arg PROPERTY]]
 Returns the value of a configuration property [arg PROPERTY] for the channel
@@ -262,6 +237,127 @@ host which defaults to the local system. The returned handle may be used with
 [uri #evt_channel_config_set [cmd evt_channel_config_set]]
 to query and modify the channel configuration. When longer needed,
 it should be released with [uri #evt_close [cmd evt_close]].
+
+[nl]
+The configuration properties for channels are managed through options
+to the
+[uri #evt_channel_config_get [cmd evt_channel_config_get]]
+[uri #evt_channel_config_set [cmd evt_channel_config_set]]
+commands. These options and the corresponding
+[uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-schema "event manifest schema"]
+elements or attributes are shown in the table below.
+
+[list_begin opt]
+[opt_def -enabled]
+
+[const 1] or [const 0] depending on whether the channel is enabled or not.
+
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.enabled].
+
+[opt_def -isolation]
+
+One of [const 0] (Application), [const 1] (System) or [const 2] (Custom).
+
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.isolation].
+
+[opt_def -type] One of [const 0] (Admin), [const 1] (Operational), [const 2]
+(Analytic) or [const 3] (Debug).
+
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.type].
+
+[opt_def -owningpublisher]
+Name of the publisher defining the channel.
+
+[opt_def -classiceventlog]
+
+[const 1] or [const 0] indicating whether the channel is a classic (pre-Vista)
+channel or not.
+
+[opt_def -access]
+
+An SDDL access descriptor that controls access to the channel and the backing
+store in conjunction with the [cmd -isolation] property.
+
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.access].
+
+[opt_def -loggingretention]
+
+[const 1] or [const 0] depending on whether the backing log file is sequential
+or circular.
+
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.retention].
+
+[opt_def -loggingautobackup]
+
+[const 1] if a new log file is created when the current backing file reaches its
+maximum size and [const 0] otherwise. In the former case, [cmd -retention] must
+have a true value.
+
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.retention].
+
+[opt_def -loggingmaxsize]
+Maximum size of the log file.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.maxSize].
+
+[opt_def -logfilepath]
+Path of the backing log file.
+
+[opt_def -publishinglevel]
+
+The severity level threshold for writing events to the channel. Events with
+severity values above this are ignored. If [const 0] or unset (empty), all
+events are written to the channel.
+
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.level].
+
+[opt_def -publishingkeywords]
+
+If [const 0] or unset, events are written irrespective of keywords. Otherwise,
+only events that have a keyword included in the bitmask are written to the
+channel.
+
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.keywords].
+
+[opt_def -publishingcontrolguid]
+Session GUID for a ETW session. Generally not present for event log channels.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.controlGuid].
+
+[opt_def -publishingbuffersize]
+Memory buffer size for the channel in Kilobytes.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.bufferSize].
+
+[opt_def -publishingminbuffers]
+Minimum number of buffers to allocate for the channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.minBuffers].
+
+[opt_def -publishingmaxbuffers]
+Maximum number of buffers to allocate for the channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.maxBuffers].
+
+[opt_def -publishinglatency]
+
+Milliseconds to wait before flushing buffers. If 0, buffers are flushed only
+when full.
+
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.latency].
+
+[opt_def -publishingclocktype]
+[opt_def -publishingsidtype]
+[const 1] or [const 0] indicating whether the SID of the logging principal
+should be included in events logged to the channel or not.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.sidType].
+
+[opt_def -publisherlist]
+List of publishers logging to the channel including the owning publisher as
+well as those importing the channel.
+
+[opt_def -publishingfilemax]
+Maximum number of times a new log file should be created when the channel is
+enabled including reboots.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.fileMax].
+[list_end]
+
+
 
 [call [cmd evt_channel_config_save] [arg HCHANCFG]]
 Saves any changes made to the channel configuration.
@@ -404,6 +500,31 @@ Returns the path of the channel or file from which the event
 identified by [arg HEVT] was retrieved.
 
 [call [cmd evt_event_message] [arg HPUB] [arg HEVT]]
+TBD
+
+[call [cmd evt_event_render] [arg HEVENT] [arg HCTX]]
+Returns a list of field values from event referenced by [arg HEVENT]
+as per the rendering context referenced by [arg HCTX] which must be
+a handle returned by
+[uri #evt_render_context_xpaths [cmd evt_render_context_xpaths]],
+[uri #evt_render_context_userdata [cmd evt_render_context_userdata]], or
+[uri #evt_render_context_system [cmd evt_render_context_system]].
+The order of values in the first two cases is the order of the XPATHS
+in the render context and order of event's user data fields respectively. In
+the third case, the order is always that of the
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_system_property_id "EVT_SYSTEM_PROPERTY_ID"]
+enumeration in the Windows SDK.
+This order can also be retrieved with the
+[uri #evt_system_properties [cmd evt_system_properties]] command.
+
+[call [cmd evt_event_xml] [arg HEVENT]]
+
+Returns the XML representation of the event referenced by [arg HEVENT],
+including including system-defined metadata and provider-defined event data.
+Localized message text is not included but can be retrieved with
+[uri #evt_format_message [cmd evt_format_message]]. Alternatively, use the
+the [cmd -xml] option to [uri #evt_event_decode [cmd evt_event_decode]]
+as it includes localized fields names and formatted messages.
 
 [call [cmd evt_export_log] [arg OUTFILE] [opt [arg options]]]
 Exports events, optionally matching a query,
@@ -470,7 +591,7 @@ Specifies the number of milliseconds to wait for events. A value of
 [const -1] (default) indicates call should not time out.
 [list_end]
 
-[call [cmd evt_publisher_events_metadata] [arg HPUB] [arg PROPNAMES]]
+[call [cmd evt_publisher_events] [arg HPUB] [arg PROPNAMES]]
 
 Returns a list containing the metadata for each event defined by the
 publisher identified by the handle [arg HPUB]. Each event's metadata
@@ -515,16 +636,17 @@ Returns the message corresponding to the message identifier
 metadata specified by handle [arg HPUB].
 
 
-[call [cmd evt_publisher_metadata_open] [arg PROVIDER] [opt [arg options]]]
+[call [cmd evt_publisher_open] [arg PUBLISHER] [opt [arg options]]]
 
-Returns a handle to the metadata for the event provider named [arg PROVIDER].
+Returns a handle to the metadata for the event publisher named [arg PUBLISHER].
 The returned handle should be released using [cmd evt_close].
 The following options may be passed to the command.
 
 [list_begin opt]
 
 [opt_def "[cmd -session] [arg HSESSION]"]
-Specifies the EVT session handle to the system where the provider resides. Defaults to the local system.
+Specifies the EVT session handle to the system hosting the publisher.
+Defaults to the local system.
 
 [opt_def "[cmd -logfile] [arg PATH]"]
 Path to an exported event log or archived log holding the publisher
@@ -537,26 +659,28 @@ the thread's locale.
 [list_end]
 
 
-[call [cmd evt_publisher_metadata_property] [arg HPUB] [arg PROPNAME]]
+[call [cmd evt_publisher_property] [arg HPUB] [arg PROPNAME]]
 
 Returns the value of a metadata property named [arg PROPNAME] for the publisher
 identified by its handle [arg HPUB]. Valid [arg PROPNAME] values are shown
 in the table below.
 
 [list_begin opt]
-[opt_def -publisherguid]
+[opt_def -guid]
 The publisher's GUID.
-[opt_def -resourcefilepath]
+[opt_def -resourcefile]
 The path to the publisher's resource file.
-[opt_def -parameterfilepath]
+[opt_def -parameterfile]
 The path to the publisher's parameter file.
-[opt_def -messagefilepath]
+[opt_def -messagefile]
 The path to the publisher's message file.
 [opt_def -helplink]
 The URL of the help page.
-[opt_def -publishermessageid]
-The message id for retrieving the publisher's name.
-[opt_def -channelreferences]
+[opt_def -messageid]
+The message id attribute for the publisher. The corresponding message, retrievable using
+[uri #evt_publisher_message [cmd evt_publisher_message]], is generally the
+publisher name. [const -1] if the publisher does not define the attribute.
+[opt_def -channels]
 List of dictionaries of channels owned by the publisher (see below).
 [opt_def -levels]
 List of dictionaries of levels defined by the publisher (see below).
@@ -568,25 +692,25 @@ List of dictionaries of opcodes defined by the publisher (see below).
 List of dictionaries of keywords defined by the publisher (see below).
 [list_end]
 
-Each element of the list returned for property [cmd -channelreferences] is a
+Each element of the list returned for property [cmd -channels] is a
 dictionary with the keys listed in the table below along with the equivalent
 Windows SDK enumeration.
 
 [list_begin opt]
-[opt_def -channelreferenceflags]
+[opt_def -channelflags]
 [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceFlags]
 - if 1, the channel was imported from another publisher's manifest.
-[opt_def -channelreferenceid]
+[opt_def -channelid]
 [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceID]
-- numeric id assigned to the channel as per its manifest's `value` attribute.
-[opt_def -channelreferenceindex]
+- numeric id assigned to the channel as per its value attribute.
+[opt_def -channelindex]
 [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceIndex]
-- the provider assigned channel identifier.
-[opt_def -channelreferencemessageid]
+- the publisher assigned channel identifier.
+[opt_def -channelmessageid]
 [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceMessageID]
-- the message id for the channel localized name.
+- the message id attribute for the channel. [const -1] if not defined.
 
-[opt_def -channelreferencepath]
+[opt_def -channelpath]
 [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferencePath] - the canonical name of the channel.
 [list_end]
 
@@ -596,11 +720,11 @@ Windows SDK enumeration.
 
 [list_begin opt]
 [opt_def -levelmessageid]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataMessageID]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataMessageID] - message id attribute of the level. [const -1] if undefined.
 [opt_def -levelname]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataLevelName]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataLevelName] - name attribute of the level.
 [opt_def -levelvalue]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataLevelValue]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataLevelValue] - value attribute of the level.
 [list_end]
 
 Each element of the list returned for property [cmd -tasks] is a
@@ -609,13 +733,13 @@ Windows SDK enumeration.
 
 [list_begin opt]
 [opt_def -taskeventguid]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskEventGuid]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskEventGuid] - eventGuid attribute of the task.
 [opt_def -taskmessageid]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskMessageID]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskMessageID] - message id attribute of the task. [const -1] if undefined.
 [opt_def -taskname]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskName]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskName] - name attribute of the task.
 [opt_def -taskvalue]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskValue]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskValue] - value attribute of the task.
 [list_end]
 
 Each element of the list returned for property [cmd -opcodes] is a
@@ -624,11 +748,11 @@ Windows SDK enumeration.
 
 [list_begin opt]
 [opt_def -opcodemessageid]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeMessageID]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeMessageID] - message id attribute of the opcode. [const -1] if undefined.
 [opt_def -opcodename]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeName]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeName] - name attribute of the opcode.
 [opt_def -opcodevalue]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeValue]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeValue] - value attribute of the opcode.
 [list_end]
 
 Each element of the list returned for property [cmd -keywords] is a
@@ -637,11 +761,11 @@ Windows SDK enumeration.
 
 [list_begin opt]
 [opt_def -keywordmessageid]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordMessageID]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordMessageID] - message id attribute of the keyword. [const -1] if undefined.
 [opt_def -keywordname]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordName]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordName] - name attribute of the keyword.
 [opt_def -keywordvalue]
-[uri #https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordValue]
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordValue] - value attribute of the keyword.
 [list_end]
 
 [call [cmd evt_publisher_uninstall] [arg MANPATH]]
@@ -689,14 +813,9 @@ an XPATH expression or a structured XML query. See
 the Windows SDK for details.
 [list_end]
 
-[call [cmd evt_render_bookmark] [arg HBOOOKMARK]]
-Returns the XML form of a bookmark. This can then be passed to the
-[uri #evt_create_bookmark [cmd evt_create_bookmark]] command to
-recreate the bookmark to an event at some later time.
-
 [call [cmd evt_render_context_system]]
 Returns a handle to a render context that can be passed to
-[uri #evt_render_event [cmd evt_render_event]] to render the
+[uri #evt_event_render [cmd evt_event_render]] to render the
 system-defined properties of an event.
 [nl]
 The returned handle should be released using [uri #evt_close [cmd evt_close]]
@@ -704,13 +823,13 @@ when no longer needed.
 
 [call [cmd evt_render_context_userdata]]
 Returns a handle to a render context that can be passed to
-[uri #evt_render_event [cmd evt_render_event]] to render the
+[uri #evt_event_render [cmd evt_event_render]] to render the
 user-defined properties of an event under the [const UserData]
 section of the event, and the [const EventData] section if no
 [const UserData] section is present.
 [nl]
 The returned values correspond to the properties defined by the
-provider in the event schema and returned in the same order.
+publisher in the event schema and returned in the same order.
 [nl]
 The returned handle should be released using [uri #evt_close [cmd evt_close]]
 when no longer needed.
@@ -721,7 +840,7 @@ Returns a handle to a render context for rendering the event properties
 selected by the list of XPATH expressions passed in [arg XPATHLIST]
 which must contain at least one XPATH expression.
 The handle can then be passed to
-[uri #evt_render_event [cmd evt_render_event]] to render the selected
+[uri #evt_event_render [cmd evt_event_render]] to render the selected
 property values.
 [nl]
 Each element of [arg XPATHLIST] specifies an XPath expression that
@@ -731,29 +850,6 @@ The values are returned in the
 same order as the corresponding XPath expressions in the list.
 [nl]
 The returned handle should be released using [cmd evt_close].
-
-[call [cmd evt_render_event] [arg HEVENT] [arg HCTX]]
-Returns a list of field values from event referenced by [arg HEVENT]
-as per the rendering context referenced by [arg HCTX] which must be
-a handle returned by
-[uri #evt_render_context_xpaths [cmd evt_render_context_xpaths]],
-[uri #evt_render_context_userdata [cmd evt_render_context_userdata]], or
-[uri #evt_render_context_system [cmd evt_render_context_system]].
-The order of values in the first two cases is the order of the XPATHS
-in the render context and order of event's user data fields respectively. In
-the third case, the order is always that of the
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_system_property_id "EVT_SYSTEM_PROPERTY_ID"]
-enumeration in the Windows SDK.
-This order can also be retrieved with the
-[uri #evt_system_properties [cmd evt_system_properties]] command.
-
-[call [cmd evt_render_event_xml] [arg HEVENT]]
-
-Returns the XML representation of the event referenced by [arg HEVENT],
-including including system-defined metadata and provider-defined event data.
-Localized message text is not included but can be retrieved with
-[uri #evt_format_message [cmd evt_format_message]].
-
 
 [call [cmd evt_session_close] [arg EVTSESSIONHANDLE]]
 Close a EVT session handle returned by
@@ -856,19 +952,6 @@ display an elevation prompt if the process is not running in elevated mode.
 [call [cmd evt_twapi_uninstall]]
 
 Unregisters the TWAPI event publisher from the local system.
-
-[call [cmd evt_update_bookmark] [arg HBOOKMARK] [arg HEVENT]]
-
-Updates the bookmark specified by [arg HBOOKMARK] to identify the event
-specified by [arg HEVENT]. [arg HBOOKMARK] and [arg HEVENT] must be
-bookmark and event handles returned by
-[uri #evt_create_bookmark [cmd evt_create_bookmark]]
-and [uri #evt_next [cmd uri_next]] respectively.
-The event handle must refer to an event returned by [cmd evt_next]. The
-bookmark may subsequently be used with commands like
-[uri #evt_seek [cmd evt_seek]] or [uri #evt_query [cmd evt_query]]
-to resume processing from the bookmarked event.
-
 
 [list_end]
 

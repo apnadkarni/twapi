@@ -141,17 +141,17 @@ proc twapi::evt_export_log {outfile args} {
     return [EvtExportLog $opts(session) $path $opts(query) [_evt_normalize_path $outfile] $opts(ignorequeryerrors)]
 }
 
-proc twapi::evt_render_bookmark {hbm} {
+proc twapi::evt_bookmark_render {hbm} {
     # 2 -> EvtRenderBookmark
     return [Twapi_EvtRenderUnicode NULL $hbm 2]
 }
 
-proc twapi::evt_render_event_xml {hevt} {
+proc twapi::evt_event_xml {hevt} {
     # 1 -> EvtRenderEventXml
     return [Twapi_EvtRenderUnicode NULL $hevt 1]
 }
 
-proc twapi::evt_render_event {hevt hctx} {
+proc twapi::evt_event_render {hevt hctx} {
     set hbuf [Twapi_EvtRenderValues $hctx $hevt NULL]
     try {
         return [Twapi_ExtractEVT_RENDER_VALUES $hbuf]
@@ -262,14 +262,14 @@ proc twapi::evt_log_info {hevt args} {
     return $result
 }
 
-proc twapi::evt_publisher_metadata_property {hpub opt} {
+proc twapi::evt_publisher_property {hpub opt} {
     set val [EvtGetPublisherMetadataProperty $hpub [dict get {
-        -publisherguid 0  -resourcefilepath 1 -parameterfilepath 2
-        -messagefilepath 3 -helplink 4 -publishermessageid 5
-        -channelreferences 6 -levels 12 -tasks 16
+        -guid 0  -resourcefile 1 -parameterfile 2
+        -messagefile 3 -helplink 4 -messageid 5
+        -channels 6 -levels 12 -tasks 16
         -opcodes 21 -keywords 25
     } $opt] 0]
-    if {$opt ni {-channelreferences -levels -tasks -opcodes -keywords}} {
+    if {$opt ni {-channels -levels -tasks -opcodes -keywords}} {
         return $val
     }
     try {
@@ -278,9 +278,9 @@ proc twapi::evt_publisher_metadata_property {hpub opt} {
         for {set i 0} {$i < $n} {incr i} {
             set rec {}
             foreach {opt2 iopt} [dict get {
-                -channelreferences { -channelreferencepath 7
-                    -channelreferenceindex 8 -channelreferenceid 9
-                    -channelreferenceflags 10 -channelreferencemessageid 11}
+                -channels { -channelpath 7
+                    -channelindex 8 -channelid 9
+                    -channelflags 10 -channelmessageid 11}
                 -levels { -levelname 13 -levelvalue 14 -levelmessageid 15 }
                 -tasks { -taskname 17 -taskeventguid 18 -taskvalue 19
                     -taskmessageid 20}
@@ -290,10 +290,10 @@ proc twapi::evt_publisher_metadata_property {hpub opt} {
             } $opt] {
                 set opt2val [EvtGetObjectArrayProperty $val $iopt $i]
                 if {$opt2 in {
-                    -channelreferenceindex
-                    -channelreferencemessageid
+                    -channelindex
+                    -channelmessageid
                     -levelmessageid
-                    -taskmessagid
+                    -taskmessageid
                     -opcodemessageid
                     -keywordmessageid
                 } && $opt2val == 4294967295} {
@@ -330,9 +330,9 @@ proc twapi::evt_object_array_property {hevt index args} {
     foreach opt $args {
         lappend result $opt \
             [EvtGetObjectArrayProperty $hevt [dict get {
-                -channelreferencepath 7
-                -channelreferenceindex 8 -channelreferenceid 9
-                -channelreferenceflags 10 -channelreferencemessageid 11
+                -channelpath 7
+                -channelindex 8 -channelid 9
+                -channelflags 10 -channelmessageid 11
                 -levelname 13 -levelvalue 14 -levelmessageid 15
                 -taskname 17 -taskeventguid 18 -taskvalue 19
                 -taskmessageid 20 -opcodename 22
@@ -357,7 +357,7 @@ proc twapi::evt_publishers {{hsess NULL}} {
     return $pubs
 }
 
-proc twapi::evt_publisher_metadata_open {pub args} {
+proc twapi::evt_publisher_open {pub args} {
     array set opts [parseargs args {
         {session.arg NULL}
         logfile.arg
@@ -379,7 +379,7 @@ proc twapi::_evt_event_metadata_properties {hmeta property_names} {
     return $properties
 }
 
-proc twapi::evt_publisher_events_metadata {hpub property_names} {
+proc twapi::evt_publisher_events {hpub property_names} {
     set henum [EvtOpenEventMetadataEnum $hpub]
 
     # It is faster to build a list and then have Tcl shimmer to a dict when
@@ -568,7 +568,7 @@ twapi::proc* twapi::evt_event_decode_list {hevts args} {
         if {$opts(-message)} {
             if {[EvtFormatMessage $hpub $hevt 0 $opts(-values) 1 message]} {
                 lappend decoded $message
-            } elseif {[EvtFormatMessage NULL $hevt 0 $opts(-values) 1 message]} { {
+            } elseif {[EvtFormatMessage NULL $hevt 0 $opts(-values) 1 message]} {
                 # If above failed, try with NULL publisher handler. In this case
                 # EvtFormatMessage will use the rendering info stored within the
                 # event in case it is a forwarded event from another system.
@@ -633,7 +633,7 @@ proc twapi::evt_publisher_message {hpub msgid args} {
         {values.arg NULL}
     } -maxleftover 0]
 
-    # 8 -> EvtFormatMessageId. Note, not 8 (EvtFormatMessageProvider) 
+    # 8 -> EvtFormatMessageId. Note, not 7 (EvtFormatMessageProvider) 
     return [EvtFormatMessage $hpub NULL $msgid $opts(values) 8]
 }
 

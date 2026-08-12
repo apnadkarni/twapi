@@ -17,9 +17,9 @@ tcltest::testConstraint haveFrenchLocale [file exists {C:\Windows\System32\fr-FR
 
 # TBD - notes for testing
 if {0} {
-(twapi) 61 % set hpub [evt_publisher_metadata_open Microsoft-Windows-EventSystem]
+(twapi) 61 % set hpub [evt_publisher_open Microsoft-Windows-EventSystem]
 5 EVT_HANDLE
-(twapi) 62 % evt_publisher_events_metadata $hpub -id -messageid
+(twapi) 62 % evt_publisher_events $hpub -id -messageid
 {-id 512 -messageid 512} {-id 2147488002 -messageid 2147488002} {-id 2147488003 -messageid 2147488003} {-id 2147488004 -messageid 2147488004} {-id 2147488005 -messageid 2147488005} {-id 2147488006 -messageid 2147488006} {-id 2147488007 -messageid 2147488007} {-id 2147488009 -messageid 2147488009} {-id 2147488010 -messageid 2147488010} {-id 3221230081 -messageid 3221230081} {-id 3221230082 -messageid 3221230082} {-id 3221230083 -messageid 3221230083} {-id 3221230084 -messageid 3221230084} {-id 3221230085 -messageid 3221230085} {-id 3221230086 -messageid 3221230086} {-id 3221230087 -messageid 3221230087} {-id 3221230088 -messageid 3221230088} {-id 3221230089 -messageid 3221230089} {-id 3221230090 -messageid 3221230090} {-id 3221230091 -messageid 3221230091} {-id 3221230092 -messageid 3221230092} {-id 3221230093 -messageid 3221230093} {-id 3221230094 -messageid 3221230094} {-id 3221230095 -messageid 3221230095} {-id 3221230096 -messageid 3221230096} {-id 1073746449 -messageid 1073746449}
 (twapi) 63 % evt_publisher_message $hpub 512
 The substitution string for insert index (%1) could not be found.
@@ -766,49 +766,49 @@ namespace eval twapi::eventlog::test {
     ################################################################
 
     test evt-bookmarks-1.0 {
-        evt_create_bookmark, evt_update_bookmark, evt_seek -bookmark
+        evt_bookmark_create, evt_bookmark_update, evt_seek -bookmark
     } -setup {
         set hquery [twapi::evt_query -channel Setup]
         set hevents [twapi::evt_next $hquery -count 2]
         set hevent [lindex $hevents 1]
-        set event_xml [twapi::evt_render_event_xml $hevent]
+        set event_xml [twapi::evt_event_xml $hevent]
     } -cleanup {
         twapi::evt_close {*}$hevents $hbook $hquery
     } -body {
-        set hbook [twapi::evt_create_bookmark]
-        twapi::evt_update_bookmark $hbook $hevent
+        set hbook [twapi::evt_bookmark_create]
+        twapi::evt_bookmark_update $hbook $hevent
         twapi::evt_close {*}$hevents
         set hevents [twapi::evt_next $hquery -count 2]
-        set new_xml [twapi::evt_render_event_xml [lindex $hevents 0]]
+        set new_xml [twapi::evt_event_xml [lindex $hevents 0]]
         twapi::evt_close {*}$hevents
         twapi::evt_seek $hquery 0 -bookmark $hbook
         set hevents [twapi::evt_next $hquery -count 2]
-        set event_xml_bookmarked [twapi::evt_render_event_xml [lindex $hevents 0]]
+        set event_xml_bookmarked [twapi::evt_event_xml [lindex $hevents 0]]
         list [string equal $event_xml $new_xml] \
             [string equal $event_xml $event_xml_bookmarked]
     } -result {0 1}
 
     test evt_bookmarks-2.0 {
-        evt_create_bookmark XML, evt_seek -bookmark
+        evt_bookmark_create XML, evt_seek -bookmark
     } -setup {
         set hquery [twapi::evt_query -channel Setup]
         set hevents [twapi::evt_next $hquery -count 2]
         set hevent [lindex $hevents 1]
-        set event_xml [twapi::evt_render_event_xml $hevent]
+        set event_xml [twapi::evt_event_xml $hevent]
     } -cleanup {
         twapi::evt_close {*}$hevents $hbook $hquery
     } -body {
-        set hbook [twapi::evt_create_bookmark]
-        twapi::evt_update_bookmark $hbook $hevent
-        set xml [twapi::evt_render_bookmark $hbook]
+        set hbook [twapi::evt_bookmark_create]
+        twapi::evt_bookmark_update $hbook $hevent
+        set xml [twapi::evt_bookmark_render $hbook]
         twapi::evt_close {*}$hevents $hbook
         set hevents [twapi::evt_next $hquery -count 2]
-        set new_xml [twapi::evt_render_event_xml [lindex $hevents 0]]
+        set new_xml [twapi::evt_event_xml [lindex $hevents 0]]
         twapi::evt_close {*}$hevents
-        set hbook [twapi::evt_create_bookmark $xml]
+        set hbook [twapi::evt_bookmark_create $xml]
         twapi::evt_seek $hquery 0 -bookmark $hbook
         set hevents [twapi::evt_next $hquery -count 2]
-        set event_xml_bookmarked [twapi::evt_render_event_xml [lindex $hevents 0]]
+        set event_xml_bookmarked [twapi::evt_event_xml [lindex $hevents 0]]
         list [string equal $event_xml $new_xml] \
             [string equal $event_xml $event_xml_bookmarked]
     } -result {0 1}
@@ -828,7 +828,7 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    test evt_render_event_xml-1.0 {
+    test evt_event_xml-1.0 {
         Render event XML
     } -setup {
         set hquery [twapi::evt_query -channel Setup]
@@ -836,7 +836,7 @@ namespace eval twapi::eventlog::test {
     } -cleanup {
         twapi::evt_close {*}$hevents $hquery
     } -body {
-        twapi::evt_render_event_xml [lindex $hevents 0]
+        twapi::evt_event_xml [lindex $hevents 0]
     } -result {<Event*<System>*</System>*</Event>} -match glob
 
     ################################################################
@@ -851,9 +851,9 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hctx [twapi::evt_render_context_system]
         set hevt [lindex $hevents 0]
-        set xml [twapi::evt_render_event_xml $hevt]
+        set xml [twapi::evt_event_xml $hevt]
         regexp {Provider Name='([^']+)'\s+Guid='([^']+)'.+ProcessID='([^']+)'} $xml -> provider guid pid
-        set values [twapi::evt_render_event $hevt $hctx]
+        set values [twapi::evt_event_render $hevt $hctx]
         twapi::evt_close $hctx
         list [llength $values] \
             [expr {$provider eq [lindex $values 0]}] \
@@ -874,12 +874,12 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hctx [twapi::evt_render_context_userdata]
         set hevt [lindex $hevents 0]
-        set xml [twapi::evt_render_event_xml $hevt]
+        set xml [twapi::evt_event_xml $hevt]
         regexp {<UserData>(.*)</UserData>} $xml -> userdata
         set xml_values [lmap {- value} [regexp -inline -all {<[^>]+>([^<]+)} $userdata] {
             set value
         }]
-        set values [twapi::evt_render_event $hevt $hctx]
+        set values [twapi::evt_event_render $hevt $hctx]
         twapi::evt_close $hctx
         equal_lists $values $xml_values
     } -result 1
@@ -896,7 +896,7 @@ namespace eval twapi::eventlog::test {
         set xpaths [list "Event/System/Provider/@Name" "Event/System/Channel"]
         set hctx [twapi::evt_render_context_xpaths $xpaths]
         set hevt [lindex $hevents 0]
-        set values [twapi::evt_render_event $hevt $hctx]
+        set values [twapi::evt_event_render $hevt $hctx]
         twapi::evt_close $hctx
         set values
     } -result {Microsoft-Windows-Servicing Setup}
@@ -912,7 +912,7 @@ namespace eval twapi::eventlog::test {
         set xpaths [list "Event/System/NoSuch"]
         set hctx [twapi::evt_render_context_xpaths $xpaths]
         set hevt [lindex $hevents 0]
-        set values [twapi::evt_render_event $hevt $hctx]
+        set values [twapi::evt_event_render $hevt $hctx]
         twapi::evt_close $hctx
         # Missing properties are returned as empty string.
         set values
@@ -1153,25 +1153,25 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    test evt_publisher_metadata_open-1.0 {
+    test evt_publisher_open-1.0 {
         Open publisher metadata
     } -cleanup {
         twapi::evt_close $hpub
     } -body {
-        set hpub [twapi::evt_publisher_metadata_open Microsoft-Windows-Eventlog]
+        set hpub [twapi::evt_publisher_open Microsoft-Windows-Eventlog]
         twapi::evt_publisher_message $hpub 2415919106
     } -result System
 
-    test evt_publisher_metadata_open-2.0 {
+    test evt_publisher_open-2.0 {
         Open publisher metadata - -lcid
     } -constraints haveFrenchLocale -cleanup {
         twapi::evt_close $hpub
     } -body {
-        set hpub [twapi::evt_publisher_metadata_open Microsoft-Windows-Eventlog -lcid 1036]
+        set hpub [twapi::evt_publisher_open Microsoft-Windows-Eventlog -lcid 1036]
         twapi::evt_publisher_message $hpub 2415919106
     } -result Système
 
-    test evt_publisher_metadata_open-3.0 {
+    test evt_publisher_open-3.0 {
         Open publisher metadata - -session
     } -setup {
         set hsess [twapi::evt_session_open $::env(COMPUTERNAME)]
@@ -1179,64 +1179,64 @@ namespace eval twapi::eventlog::test {
         twapi::evt_close $hpub
         twapi::evt_session_close $hsess
     } -body {
-        set hpub [twapi::evt_publisher_metadata_open Microsoft-Windows-Eventlog -session $hsess]
+        set hpub [twapi::evt_publisher_open Microsoft-Windows-Eventlog -session $hsess]
         twapi::evt_publisher_message $hpub 2415919106
     } -result System
 
-    test evt_publisher_metadata_open-4.0 {
+    test evt_publisher_open-4.0 {
         Open publisher metadata - -session
     } -body {
-        set hpub [twapi::evt_publisher_metadata_open Microsoft-Windows-Eventlog -logfile [exported_setup_event_file]]
+        set hpub [twapi::evt_publisher_open Microsoft-Windows-Eventlog -logfile [exported_setup_event_file]]
         twapi::evt_publisher_message $hpub 2415919106
     } -result System
 
     ################################################################
 
-    test evt_publisher_metadata_property-1.0 {
+    test evt_publisher_property-1.0 {
         Get publisher metadata
     } -setup {
-        set hpub [twapi::evt_publisher_metadata_open Microsoft-Windows-Eventlog -lcid 1033]
+        set hpub [twapi::evt_publisher_open Microsoft-Windows-Eventlog -lcid 1033]
     } -cleanup {
         twapi::evt_close $hpub
     } -body {
         set bad {}
         foreach {prop pat} {
-            -publisherguid {{FC65DDD8-D6EF-4962-83D5-6E5CFE9CE148}}
-            -resourcefilepath *System32\\\\wevtsvc.dll
-            -parameterfilepath *
-            -messagefilepath *System32\\\\wevtsvc.dll
+            -guid {{FC65DDD8-D6EF-4962-83D5-6E5CFE9CE148}}
+            -resourcefile *System32\\\\wevtsvc.dll
+            -parameterfile *
+            -messagefile *System32\\\\wevtsvc.dll
             -helplink https://go.microsoft.com/*
         } {
-            set val [twapi::evt_publisher_metadata_property $hpub $prop]
+            set val [twapi::evt_publisher_property $hpub $prop]
             if {![string match -nocase $pat $val]} {
                 lappend bad $prop
             }
         }
-        set val [twapi::evt_publisher_metadata_property $hpub -publishermessageid]
+        set val [twapi::evt_publisher_property $hpub -messageid]
         if {! [string equal -nocase \
                    [twapi::evt_publisher_message $hpub $val] \
                    Microsoft-Windows-Eventlog]} {
-            lappend prop -publishermessageid
+            lappend prop -messageid
         }
-        set chanrefs [twapi::evt_publisher_metadata_property $hpub -channelreferences]
+        set chanrefs [twapi::evt_publisher_property $hpub -channels]
         foreach chanref $chanrefs {
-            foreach key {-channelreferenceindex -channelreferenceid -channelreferenceflags} {
+            foreach key {-channelindex -channelid -channelflags} {
                 if {![dict exists $chanref $key] || \
                         ![string is integer -strict [dict get $chanref $key]]} {
-                    lappend bad -channelreferences($key)
+                    lappend bad -channels($key)
                 }
             }
             # File tail because the message string for Microsoft-Windows-EventLog/Debug
             # etc is just Debug
             if {![string equal -nocase \
                       [twapi::evt_publisher_message $hpub \
-                           [dict get $chanref -channelreferencemessageid]] \
-                      [file tail [dict get $chanref -channelreferencepath]]]} {
-                lappend bad -channelreferences([dict get $chanref -channelreferencepath])
+                           [dict get $chanref -channelmessageid]] \
+                      [file tail [dict get $chanref -channelpath]]]} {
+                lappend bad -channels([dict get $chanref -channelpath])
                 break
             }
         }
-        set levels [twapi::evt_publisher_metadata_property $hpub -levels]
+        set levels [twapi::evt_publisher_property $hpub -levels]
         foreach level $levels {
             if {![regexp {^win:(.+)} [dict get $level -levelname] -> level_name]} {
                 lappend bad -levels([dict get $level -levelname])
@@ -1260,7 +1260,7 @@ namespace eval twapi::eventlog::test {
                 continue
             }
         }
-        set tasks [twapi::evt_publisher_metadata_property $hpub -tasks]
+        set tasks [twapi::evt_publisher_property $hpub -tasks]
         foreach task $tasks {
             if {![regexp {^el:(.+)} [dict get $task -taskname] -> task_name]} {
                 lappend bad -tasks([dict get $task -taskname])
@@ -1291,7 +1291,7 @@ namespace eval twapi::eventlog::test {
             }
         }
 
-        set opcodes [twapi::evt_publisher_metadata_property $hpub -opcodes]
+        set opcodes [twapi::evt_publisher_property $hpub -opcodes]
         foreach opcode $opcodes {
             if {![regexp {^win:(.+)} [dict get $opcode -opcodename] -> opcode_name]} {
                 lappend bad -opcodes([dict get $opcode -opcodename])
@@ -1309,7 +1309,7 @@ namespace eval twapi::eventlog::test {
                 continue
             }
         }
-        set keywords [twapi::evt_publisher_metadata_property $hpub -keywords]
+        set keywords [twapi::evt_publisher_property $hpub -keywords]
         foreach keyword $keywords {
             if {![regexp {^[^:]+:(.+)} [dict get $keyword -keywordname] -> keyword_name]} {
                 lappend bad -keywords([dict get $keyword -keywordname])
@@ -1340,15 +1340,15 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    test evt_publisher_events_metadata-1.0 {
+    test evt_publisher_events-1.0 {
         Get publisher events
     } -setup {
-        set hpub [twapi::evt_publisher_metadata_open Microsoft-Windows-Setup]
+        set hpub [twapi::evt_publisher_open Microsoft-Windows-Setup]
     } -cleanup {
         twapi::evt_close $hpub
     } -body {
         set bad {}
-        set events_metadata [twapi::evt_publisher_events_metadata $hpub {
+        set events_metadata [twapi::evt_publisher_events $hpub {
             -id -channel -version -level -opcode -task -keyword -messageid -template
         }]
         foreach event_metadata $events_metadata {

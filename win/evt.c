@@ -958,7 +958,7 @@ Twapi_EvtCallObjCmd(ClientData clientdata,
         TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtOpenPublisherMetadata(hevt, ObjToWinChars(sObj), s2, dw, dw2));
         break;
 
-    case 11: // evt_create_bookmark
+    case 11: // evt_bookmark_create
         if (TwapiGetArgs(interp, objc, objv, ARGUSEDEFAULT,
                          GETOBJ(sObj), ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -966,7 +966,7 @@ Twapi_EvtCallObjCmd(ClientData clientdata,
         TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtCreateBookmark(s));
         break;
 
-    case 12: // evt_update_bookmark
+    case 12: // evt_bookmark_update
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt), GETEVTH(hevt2),
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
@@ -1255,8 +1255,8 @@ int TwapiEvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(EvtExportLog, 8),
         DEFINE_FNCODE_CMD(EvtSetChannelConfigProperty, 9),
         DEFINE_FNCODE_CMD(EvtOpenPublisherMetadata, 10),
-        DEFINE_FNCODE_CMD(evt_create_bookmark, 11),
-        DEFINE_FNCODE_CMD(evt_update_bookmark, 12),
+        DEFINE_FNCODE_CMD(evt_bookmark_create, 11),
+        DEFINE_FNCODE_CMD(evt_bookmark_update, 12),
         DEFINE_FNCODE_CMD(evt_free, 13), // TBD docs
         DEFINE_FNCODE_CMD(evt_close, 14),
         DEFINE_FNCODE_CMD(evt_cancel, 102), // TBD docs
