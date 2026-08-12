@@ -771,7 +771,7 @@ namespace eval twapi::eventlog::test {
         set hquery [twapi::evt_query -channel Setup]
         set hevents [twapi::evt_next $hquery -count 2]
         set hevent [lindex $hevents 1]
-        set event_xml [twapi::evt_render_event $hevent]
+        set event_xml [twapi::evt_render_event_xml $hevent]
     } -cleanup {
         twapi::evt_close {*}$hevents $hbook $hquery
     } -body {
@@ -779,11 +779,11 @@ namespace eval twapi::eventlog::test {
         twapi::evt_update_bookmark $hbook $hevent
         twapi::evt_close {*}$hevents
         set hevents [twapi::evt_next $hquery -count 2]
-        set new_xml [twapi::evt_render_event [lindex $hevents 0]]
+        set new_xml [twapi::evt_render_event_xml [lindex $hevents 0]]
         twapi::evt_close {*}$hevents
         twapi::evt_seek $hquery 0 -bookmark $hbook
         set hevents [twapi::evt_next $hquery -count 2]
-        set event_xml_bookmarked [twapi::evt_render_event [lindex $hevents 0]]
+        set event_xml_bookmarked [twapi::evt_render_event_xml [lindex $hevents 0]]
         list [string equal $event_xml $new_xml] \
             [string equal $event_xml $event_xml_bookmarked]
     } -result {0 1}
@@ -794,7 +794,7 @@ namespace eval twapi::eventlog::test {
         set hquery [twapi::evt_query -channel Setup]
         set hevents [twapi::evt_next $hquery -count 2]
         set hevent [lindex $hevents 1]
-        set event_xml [twapi::evt_render_event $hevent]
+        set event_xml [twapi::evt_render_event_xml $hevent]
     } -cleanup {
         twapi::evt_close {*}$hevents $hbook $hquery
     } -body {
@@ -803,12 +803,12 @@ namespace eval twapi::eventlog::test {
         set xml [twapi::evt_render_bookmark $hbook]
         twapi::evt_close {*}$hevents $hbook
         set hevents [twapi::evt_next $hquery -count 2]
-        set new_xml [twapi::evt_render_event [lindex $hevents 0]]
+        set new_xml [twapi::evt_render_event_xml [lindex $hevents 0]]
         twapi::evt_close {*}$hevents
         set hbook [twapi::evt_create_bookmark $xml]
         twapi::evt_seek $hquery 0 -bookmark $hbook
         set hevents [twapi::evt_next $hquery -count 2]
-        set event_xml_bookmarked [twapi::evt_render_event [lindex $hevents 0]]
+        set event_xml_bookmarked [twapi::evt_render_event_xml [lindex $hevents 0]]
         list [string equal $event_xml $new_xml] \
             [string equal $event_xml $event_xml_bookmarked]
     } -result {0 1}
@@ -828,7 +828,7 @@ namespace eval twapi::eventlog::test {
 
     ################################################################
 
-    test evt_render_event-1.0 {
+    test evt_render_event_xml-1.0 {
         Render event XML
     } -setup {
         set hquery [twapi::evt_query -channel Setup]
@@ -836,7 +836,7 @@ namespace eval twapi::eventlog::test {
     } -cleanup {
         twapi::evt_close {*}$hevents $hquery
     } -body {
-        twapi::evt_render_event [lindex $hevents 0]
+        twapi::evt_render_event_xml [lindex $hevents 0]
     } -result {<Event*<System>*</System>*</Event>} -match glob
 
     ################################################################
@@ -851,9 +851,9 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hctx [twapi::evt_render_context_system]
         set hevt [lindex $hevents 0]
-        set xml [twapi::evt_render_event $hevt]
+        set xml [twapi::evt_render_event_xml $hevt]
         regexp {Provider Name='([^']+)'\s+Guid='([^']+)'.+ProcessID='([^']+)'} $xml -> provider guid pid
-        set values [twapi::evt_render_values $hevt $hctx]
+        set values [twapi::evt_render_event $hevt $hctx]
         twapi::evt_close $hctx
         list [llength $values] \
             [expr {$provider eq [lindex $values 0]}] \
@@ -874,12 +874,12 @@ namespace eval twapi::eventlog::test {
     } -body {
         set hctx [twapi::evt_render_context_userdata]
         set hevt [lindex $hevents 0]
-        set xml [twapi::evt_render_event $hevt]
+        set xml [twapi::evt_render_event_xml $hevt]
         regexp {<UserData>(.*)</UserData>} $xml -> userdata
         set xml_values [lmap {- value} [regexp -inline -all {<[^>]+>([^<]+)} $userdata] {
             set value
         }]
-        set values [twapi::evt_render_values $hevt $hctx]
+        set values [twapi::evt_render_event $hevt $hctx]
         twapi::evt_close $hctx
         equal_lists $values $xml_values
     } -result 1
@@ -896,7 +896,7 @@ namespace eval twapi::eventlog::test {
         set xpaths [list "Event/System/Provider/@Name" "Event/System/Channel"]
         set hctx [twapi::evt_render_context_xpaths $xpaths]
         set hevt [lindex $hevents 0]
-        set values [twapi::evt_render_values $hevt $hctx]
+        set values [twapi::evt_render_event $hevt $hctx]
         twapi::evt_close $hctx
         set values
     } -result {Microsoft-Windows-Servicing Setup}
@@ -912,7 +912,7 @@ namespace eval twapi::eventlog::test {
         set xpaths [list "Event/System/NoSuch"]
         set hctx [twapi::evt_render_context_xpaths $xpaths]
         set hevt [lindex $hevents 0]
-        set values [twapi::evt_render_values $hevt $hctx]
+        set values [twapi::evt_render_event $hevt $hctx]
         twapi::evt_close $hctx
         # Missing properties are returned as empty string.
         set values

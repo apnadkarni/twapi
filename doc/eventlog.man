@@ -1,6 +1,6 @@
 [comment {-*- tcl -*- doctools manpage}]
 [manpage_begin "Event log" n ""]
-[copyright "2004-2014, Ashok P. Nadkarni"]
+[copyright "2004-2026, Ashok P. Nadkarni"]
 [moddesc "Event Log"]
 [titledesc "Commands relating to reading and writing the Windows event log"]
 [require twapi_eventlog]
@@ -142,27 +142,20 @@ and their format are defined by the [emph "event metadata"].
 
 [section "Consuming events"]
 
-Event consumers can consume events from channels in real time or from a saved
-event file. This generally involves three steps:
-
-[list_begin bullet]
-[bullet]
-Retrieving a result set containing the events of interest based
-on specified criteria and iterating over it.
-[bullet]
-Optionally, selecting data elements of interest from each event.
-[bullet]
-Rendering the data in a desired format such as XML or formatted
-for human consumption.
-[list_end]
-
-Result sets are retrieved with [uri #evt_query [cmd evt_query]] which returns a
-handle to the result set containing matching events. The handle is passed to
-[uri #evt_next [cmd evt_next]] to iterate over the result set.
+Event consumers can consume events from channels in real time, or from a saved
+event file, by calling [uri #evt_query [cmd evt_query]] and iterating over
+the returned result set with [uri #evt_next [cmd evt_next]].
 
 [para]
-A [emph "render context"] selects the event fields that are to
-be rendered from an event. The following functions create a render context.
+The property values for each event can be retrieved with the high level
+[uri #evt_event_decode [cmd evt_event_decode]] and
+[uri #evt_event_decode_list [cmd evt_event_decode_list]]. Alternatively, lower-level
+[uri #evt_render_event [cmd evt_render_event]]
+command may be used which returns the values in a raw form with minimal processing.
+In particular, it does not map numeric
+identifiers to the corresponding strings or format messages. It also
+requires a [emph "render context"] to be passed which selects the event properties
+that are to be rendered from an event. The following commands create a render context.
 
 [list_begin opt]
 [opt_def [uri #evt_render_context_system [cmd evt_render_context_system]]]
@@ -174,26 +167,23 @@ Returns a handle to a render context that includes fields matching
 XPATH expressions.
 [list_end]
 
+Event properties may also be rendered as XML either by passing the
+[cmd -xml] option to
+[uri #evt_event_decode [cmd evt_event_decode]] or
+[uri #evt_event_decode_list [cmd evt_event_decode_list]], or with
+the command [uri #evt_render_event_xml [cmd evt_render_event_xml]].
+The former will include elements mapping message identifiers to strings.
+The latter only includes elements directly present in the event.
+
 [list_begin opt]
 
-[opt_def [uri #evt_event_decode [cmd evt_event_decode]]]
-Returns content of an event as a dictionary including system-defined,
-publisher-defined fields and formatted messages.
-[opt_def [uri #evt_event_decode_list [cmd evt_event_decode_list]]]
-Returns a [uri base.html#recordarrays recordarray] containing
-content of multiple events in the same form as returned by
-[cmd evt_event_decode].
 [opt_def [uri #evt_event_logpath [cmd evt_event_logpath]]]
 Returns the channel or file from which the event was read.
-[opt_def [uri #evt_render_event [cmd evt_render_event]]]
-Returns content of an event as XML.
-[opt_def [uri #evt_render_values [cmd evt_render_values]]]
-Returns list of specific field values from an event as selected
-by a render context.
+[opt_def [uri #evt_event_message [cmd evt_event_message]]]
+Returns the formatted message for the event.
 [list_end]
 
-
-[para]
+[section Bookmarks]
 An EVT [emph bookmark] identifies a specific event in an event log. Bookmarks are
 created with [uri #evt_create_bookmark [cmd evt_create_bookmark]] and
 set to point to a specific event either by passing a
@@ -411,7 +401,9 @@ Specifies the EVT session handle. Defaults to the local system.
 
 [call [cmd evt_event_logpath] [arg HEVT]]
 Returns the path of the channel or file from which the event
-indentified by [arg HEVT] was retrieved.
+identified by [arg HEVT] was retrieved.
+
+[call [cmd evt_event_message] [arg HPUB] [arg HEVT]]
 
 [call [cmd evt_export_log] [arg OUTFILE] [opt [arg options]]]
 Exports events, optionally matching a query,
@@ -704,7 +696,7 @@ recreate the bookmark to an event at some later time.
 
 [call [cmd evt_render_context_system]]
 Returns a handle to a render context that can be passed to
-[uri #evt_render_values [cmd evt_render_values]] to render the
+[uri #evt_render_event [cmd evt_render_event]] to render the
 system-defined properties of an event.
 [nl]
 The returned handle should be released using [uri #evt_close [cmd evt_close]]
@@ -712,7 +704,7 @@ when no longer needed.
 
 [call [cmd evt_render_context_userdata]]
 Returns a handle to a render context that can be passed to
-[uri #evt_render_values [cmd evt_render_values]] to render the
+[uri #evt_render_event [cmd evt_render_event]] to render the
 user-defined properties of an event under the [const UserData]
 section of the event, and the [const EventData] section if no
 [const UserData] section is present.
@@ -729,7 +721,7 @@ Returns a handle to a render context for rendering the event properties
 selected by the list of XPATH expressions passed in [arg XPATHLIST]
 which must contain at least one XPATH expression.
 The handle can then be passed to
-[uri #evt_render_values [cmd evt_render_values]] to render the selected
+[uri #evt_render_event [cmd evt_render_event]] to render the selected
 property values.
 [nl]
 Each element of [arg XPATHLIST] specifies an XPath expression that
@@ -740,14 +732,7 @@ same order as the corresponding XPath expressions in the list.
 [nl]
 The returned handle should be released using [cmd evt_close].
 
-[call [cmd evt_render_event] [arg HEVENT]]
-
-Returns the XML representation of the event referenced by [arg HEVENT],
-including including system-defined metadata and provider-defined event data.
-Localized message text is not included but can be retrieved with
-[uri #evt_format_message [cmd evt_format_message]].
-
-[call [cmd evt_render_values] [arg HEVENT] [arg HCTX]]
+[call [cmd evt_render_event] [arg HEVENT] [arg HCTX]]
 Returns a list of field values from event referenced by [arg HEVENT]
 as per the rendering context referenced by [arg HCTX] which must be
 a handle returned by
@@ -761,6 +746,14 @@ the third case, the order is always that of the
 enumeration in the Windows SDK.
 This order can also be retrieved with the
 [uri #evt_system_properties [cmd evt_system_properties]] command.
+
+[call [cmd evt_render_event_xml] [arg HEVENT]]
+
+Returns the XML representation of the event referenced by [arg HEVENT],
+including including system-defined metadata and provider-defined event data.
+Localized message text is not included but can be retrieved with
+[uri #evt_format_message [cmd evt_format_message]].
+
 
 [call [cmd evt_session_close] [arg EVTSESSIONHANDLE]]
 Close a EVT session handle returned by

@@ -568,6 +568,11 @@ twapi::proc* twapi::evt_event_decode_list {hevts args} {
         if {$opts(-message)} {
             if {[EvtFormatMessage $hpub $hevt 0 $opts(-values) 1 message]} {
                 lappend decoded $message
+            } elseif {[EvtFormatMessage NULL $hevt 0 $opts(-values) 1 message]} { {
+                # If above failed, try with NULL publisher handler. In this case
+                # EvtFormatMessage will use the rendering info stored within the
+                # event in case it is a forwarded event from another system.
+                lappend decoded $message
             } else {
                 # TBD - make sure we have a test for this case.
                 # TBD - log
@@ -591,6 +596,35 @@ twapi::proc* twapi::evt_event_decode_list {hevts args} {
 
 proc twapi::evt_event_decode {hevt args} {
     return [recordarray index [evt_event_decode_list [list $hevt] {*}$args] 0 -format dict]
+}
+
+proc twapi::_evt_publisher_handle_from_event {hevt {lcid 0} {session NULL} {logfile {}}} {
+    variable _evt
+
+    set decoded [_evt_event_decode_system_fields $hevt]
+    set publisher [evt_system_properties -providername $decoded]
+    if {! [dict exists $_evt(publisher_handles) $publisher $session $lcid]} {
+        if {[catch {
+            dict set _evt(publisher_handles) $publisher $session $lcid [EvtOpenPublisherMetadata $session $publisher $logfile $lcid 0]
+        }]} {
+            # TBD - debug log
+            dict set _evt(publisher_handles) $publisher $session $lcid NULL
+        }
+    }
+    set hpub [dict get $_evt(publisher_handles) $publisher $session $lcid]
+
+}
+
+# TBD - document
+proc twapi::evt_event_message {hevt args} {
+    parseargs args {
+        {lcid.int 0}
+        {logfile.arg ""}
+        {session.arg NULL}
+    } -setvars
+    # Note hpub is cached so do not close here
+    set hpub [_evt_publisher_handle_from_event $hevt $lcid $session $logfile]
+    return [EvtFormatMessage $hpub $hevt 0 NULL 1]
 }
 
 proc twapi::evt_publisher_message {hpub msgid args} {
