@@ -1043,11 +1043,11 @@ namespace eval twapi::eventlog::test {
     } -cleanup {
         twapi::evt_close $hcfg
     } -body {
-        set maxsize [twapi::evt_channel_config_get $hcfg -loggingmaxsize]
-        twapi::evt_channel_config_set $hcfg -loggingmaxsize [incr maxsize]
+        set maxsize [twapi::evt_channel_config_get $hcfg -logmaxsize]
+        twapi::evt_channel_config_set $hcfg -logmaxsize [incr maxsize]
         twapi::evt_close $hcfg
         set hcfg [twapi::evt_channel_config_open Setup]
-        expr {[twapi::evt_channel_config_get $hcfg -loggingmaxsize] == $maxSize}
+        expr {[twapi::evt_channel_config_get $hcfg -logmaxsize] == $maxSize}
     } -result 1
 
     test evt_channel_config "evt_channel_config_get" -setup {
@@ -1058,20 +1058,20 @@ namespace eval twapi::eventlog::test {
             # Test both symol and integer value
             set bad {}
             foreach {propid change} {
-                -enabled                  toggle
-                -isolation                toggle
-                -type                     const
-                -classiceventlog          const
-                -loggingretention         toggle
-                -loggingautobackup        toggle
-                -loggingmaxsize           incr
-                -publishingbuffersize     const
-                -publishingminbuffers     const
-                -publishingmaxbuffers     const
-                -publishinglatency        const
-                -publishingclocktype      const
-                -publishingsidtype        const
-                -publishingfilemax        incr
+                -enabled         toggle
+                -isolation       toggle
+                -type            const
+                -classic const
+                -logretention    toggle
+                -autobackup   toggle
+                -logmaxsize      incr
+                -buffersize      const
+                -minbuffers      const
+                -maxbuffers      const
+                -latency         const
+                -clocktype       const
+                -sidtype         const
+                -filemax         incr
             } {
                 set prop [twapi::evt_channel_config_get $hcfg $propid]
                 if {![string is integer -strict $prop]} {
@@ -1101,16 +1101,16 @@ namespace eval twapi::eventlog::test {
             if {![string equal -nocase Setup.evtx [file tail [twapi::evt_channel_config_get $hcfg -logfilepath]]]} {
                 lappend bad get-logfilepath
             }
-            if {![string equal -nocase Microsoft-Windows-Eventlog [file tail [twapi::evt_channel_config_get $hcfg -owningpublisher]]]} {
-                lappend bad get-owningpublisher
+            if {![string equal -nocase Microsoft-Windows-Eventlog [file tail [twapi::evt_channel_config_get $hcfg -publisher]]]} {
+                lappend bad get-publisher
             }
             if {[catch {twapi::sddl_to_security_descriptor [twapi::evt_channel_config_get $hcfg -access]}]} {
                 lappend bad get-access
             }
             foreach propid {
-                -publishinglevel         10
-                -publishingkeywords      11
-                -publishingcontrolguid   12
+                -level         10
+                -keywords      11
+                -controlguid   12
             } {
                 # Value could be anything. Just ensure no error
                 if {[catch {twapi::evt_channel_config_get $hcfg $propid}]} {

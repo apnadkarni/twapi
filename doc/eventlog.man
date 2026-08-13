@@ -93,18 +93,22 @@ return the data present in an event in various forms.
 [list_begin opt]
 [opt_def [uri #evt_event_decode [cmd evt_event_decode]]]
 Returns a dictionary mapping event fields names to their corresponding
-values.
+values with message ids formatted as localized strings.
 [opt_def [uri #evt_event_decode_list [cmd evt_event_decode_list]]]
-Returns a [uri base.html#recordarray [cmd recordarray]] containing
-values of fields from multiple events.
+Similar to [cmd evt_event_decode] but takes multiple events and returns
+a [uri base.html#recordarray [cmd recordarray]].
 [opt_def [uri #evt_event_logpath [cmd evt_event_logpath]]]
 Returns the channel or file from which the event was read.
 [opt_def [uri #evt_event_message [cmd evt_event_message]]]
 Returns the formatted message for the event.
 [opt_def [uri #evt_event_render [cmd evt_event_render]]]
-Returns event fields as a list based on a rendering context.
+Returns event fields as a list based on a rendering context. Does not
+map message ids or format messages.
 [opt_def [uri #evt_event_xml [cmd evt_event_xml]]]
-Returns the event fields in XML format.
+Returns the event fields in XML format. Does not include rendered
+messages. Use the [cmd -xml] option to
+[uri #evt_event_decode [cmd evt_event_decode]] if that is desired.
+
 [list_end]
 
 The [uri #evt_event_decode [cmd evt_event_decode]] and
@@ -122,22 +126,13 @@ a render context.
 
 [list_begin opt]
 [opt_def [uri #evt_render_context_system [cmd evt_render_context_system]]]
-Returns a handle to a render context that includes all system-defined fields.
+Returns a handle to a render context for system-defined fields.
 [opt_def [uri #evt_render_context_userdata [cmd evt_render_context_userdata]]]
-Returns a handle to a render context that includes all publisher-defined fields.
+Returns a handle to a render context for publisher-defined fields.
 [opt_def [uri #evt_render_context_xpaths [cmd evt_render_context_xpaths]]]
-Returns a handle to a render context that includes fields matching
+Returns a handle to a render context for fields matching
 XPATH expressions.
 [list_end]
-
-Event properties may also be rendered as XML either by passing the
-[cmd -xml] option to
-[uri #evt_event_decode [cmd evt_event_decode]] or
-[uri #evt_event_decode_list [cmd evt_event_decode_list]], or with
-the command [uri #evt_event_xml [cmd evt_event_xml]].
-The former will include elements mapping message identifiers to strings.
-The latter only includes elements directly present in the event.
-
 
 [section Bookmarks]
 An EVT [emph bookmark] identifies a specific event in an event log. Bookmarks are
@@ -227,6 +222,8 @@ to resume processing from the bookmarked event.
 [call [cmd evt_channel_config_get] [arg HCHANCFG] [arg PROPERTY]]
 Returns the value of a configuration property [arg PROPERTY] for the channel
 configuration specified by the handle [arg HCHANCFG].
+See [uri #evt_channel_config_open [cmd evt_channel_config_open]] for
+a list of properties.
 
 [call [cmd evt_channel_config_open] [arg CHANNELNAME] [opt "[cmd -session] [arg HSESSION]"]]
 Returns a handle to the configuration of the named channel. Opens the
@@ -248,116 +245,101 @@ commands. These options and the corresponding
 elements or attributes are shown in the table below.
 
 [list_begin opt]
-[opt_def -enabled]
-
-[const 1] or [const 0] depending on whether the channel is enabled or not.
-
-See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.enabled].
-
-[opt_def -isolation]
-
-One of [const 0] (Application), [const 1] (System) or [const 2] (Custom).
-
-See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.isolation].
-
-[opt_def -type] One of [const 0] (Admin), [const 1] (Operational), [const 2]
-(Analytic) or [const 3] (Debug).
-
-See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.type].
-
-[opt_def -owningpublisher]
-Name of the publisher defining the channel.
-
-[opt_def -classiceventlog]
-
-[const 1] or [const 0] indicating whether the channel is a classic (pre-Vista)
-channel or not.
 
 [opt_def -access]
-
 An SDDL access descriptor that controls access to the channel and the backing
 store in conjunction with the [cmd -isolation] property.
-
 See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.access].
 
-[opt_def -loggingretention]
-
-[const 1] or [const 0] depending on whether the backing log file is sequential
-or circular.
-
-See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.retention].
-
-[opt_def -loggingautobackup]
-
+[opt_def -autobackup]
 [const 1] if a new log file is created when the current backing file reaches its
 maximum size and [const 0] otherwise. In the former case, [cmd -retention] must
 have a true value.
-
 See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.retention].
 
-[opt_def -loggingmaxsize]
-Maximum size of the log file.
-See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.maxSize].
+[opt_def -buffersize]
+Memory buffer size for the channel in Kilobytes.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.bufferSize].
+
+[opt_def -classic]
+[const 1] or [const 0] indicating whether the channel is a classic (pre-Vista)
+channel or not.
+
+[opt_def -clocktype]
+[const 0] if using system time for time stamps and [const 1] for QPC.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.clockType].
+
+[opt_def -controlguid]
+Session GUID for a ETW session. Generally not present for event log channels.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.controlGuid].
+
+[opt_def -enabled]
+[const 1] or [const 0] depending on whether the channel is enabled or not.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.enabled].
+
+[opt_def -filemax]
+Maximum number of times a new log file should be created when the channel is
+enabled including reboots.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.fileMax].
+
+[opt_def -isolation]
+One of [const 0] (Application), [const 1] (System) or [const 2] (Custom).
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.isolation].
+
+[opt_def -keywords]
+If [const 0] or unset, events are written irrespective of keywords. Otherwise,
+only events that have a keyword included in the bitmask are written to the
+channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.keywords].
+
+[opt_def -latency]
+Milliseconds to wait before flushing buffers. If 0, buffers are flushed only
+when full.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.latency].
+
+[opt_def -level]
+The severity level threshold for writing events to the channel. Events with
+severity values above this are ignored. If [const 0] or unset (empty), all
+events are written to the channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.level].
 
 [opt_def -logfilepath]
 Path of the backing log file.
 
-[opt_def -publishinglevel]
+[opt_def -logmaxsize]
+Maximum size of the log file.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.maxSize].
 
-The severity level threshold for writing events to the channel. Events with
-severity values above this are ignored. If [const 0] or unset (empty), all
-events are written to the channel.
+[opt_def -logretention]
+[const 1] or [const 0] depending on whether the backing log file is sequential
+or circular.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.retention].
 
-See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.level].
-
-[opt_def -publishingkeywords]
-
-If [const 0] or unset, events are written irrespective of keywords. Otherwise,
-only events that have a keyword included in the bitmask are written to the
-channel.
-
-See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.keywords].
-
-[opt_def -publishingcontrolguid]
-Session GUID for a ETW session. Generally not present for event log channels.
-See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.controlGuid].
-
-[opt_def -publishingbuffersize]
-Memory buffer size for the channel in Kilobytes.
-See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.bufferSize].
-
-[opt_def -publishingminbuffers]
-Minimum number of buffers to allocate for the channel.
-See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.minBuffers].
-
-[opt_def -publishingmaxbuffers]
+[opt_def -maxbuffers]
 Maximum number of buffers to allocate for the channel.
 See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.maxBuffers].
 
-[opt_def -publishinglatency]
+[opt_def -minbuffers]
+Minimum number of buffers to allocate for the channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.minBuffers].
 
-Milliseconds to wait before flushing buffers. If 0, buffers are flushed only
-when full.
+[opt_def -publisher]
+Name of the publisher defining the channel.
 
-See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.latency].
+[opt_def -publisherlist]
+List of publishers logging to the channel including the owning publisher that
+defined the channel as well as those importing the channel.
 
-[opt_def -publishingclocktype]
-[opt_def -publishingsidtype]
+[opt_def -sidtype]
 [const 1] or [const 0] indicating whether the SID of the logging principal
 should be included in events logged to the channel or not.
 See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.sidType].
 
-[opt_def -publisherlist]
-List of publishers logging to the channel including the owning publisher as
-well as those importing the channel.
+[opt_def -type] One of [const 0] (Admin), [const 1] (Operational), [const 2]
+(Analytic) or [const 3] (Debug).
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.type].
 
-[opt_def -publishingfilemax]
-Maximum number of times a new log file should be created when the channel is
-enabled including reboots.
-See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.fileMax].
 [list_end]
-
-
 
 [call [cmd evt_channel_config_save] [arg HCHANCFG]]
 Saves any changes made to the channel configuration.
@@ -368,6 +350,8 @@ Sets the value of a configuration property [arg PROPERTY] for the channel
 configuration specified by the handle [arg HCHANCFG] to [arg VALUE].
 The modification does not take effect until the configuration is saved
 with [uri #evt_channel_config_save [cmd evt_channel_config_save]].
+See [uri #evt_channel_config_open [cmd evt_channel_config_open]] for
+a list of properties.
 
 [call [cmd evt_channels] [opt [arg HSESSION]]]
 Returns a list of names of the EVT channels through the EVT session handle

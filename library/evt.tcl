@@ -197,27 +197,27 @@ proc twapi::_evt_map_channel_config_property {propid} {
 
     # Note: values are from winevt.h, Win7 SDK has typos for last few
     return [dict get {
-        -enabled                  0
-        -isolation                1
-        -type                     2
-        -owningpublisher          3
-        -classiceventlog          4
-        -access                   5
-        -loggingretention         6
-        -loggingautobackup        7
-        -loggingmaxsize           8
-        -logfilepath              9
-        -publishinglevel         10
-        -publishingkeywords      11
-        -publishingcontrolguid   12
-        -publishingbuffersize    13
-        -publishingminbuffers    14
-        -publishingmaxbuffers    15
-        -publishinglatency       16
-        -publishingclocktype     17
-        -publishingsidtype       18
-        -publisherlist           19
-        -publishingfilemax       20
+        -enabled         0
+        -isolation       1
+        -type            2
+        -publisher 3
+        -classic 4
+        -access          5
+        -logretention    6
+        -autobackup   7
+        -logmaxsize      8
+        -logfilepath     9
+        -level          10
+        -keywords       11
+        -controlguid    12
+        -buffersize     13
+        -minbuffers     14
+        -maxbuffers     15
+        -latency        16
+        -clocktype      17
+        -sidtype        18
+        -publisherlist  19
+        -filemax        20
     } $propid]
 }
 
