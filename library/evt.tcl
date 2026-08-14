@@ -55,6 +55,10 @@ namespace eval twapi {
     }
 }
 
+proc twapi::evt_close {args} {
+    EvtClose {*}$args
+}
+
 proc twapi::evt_session_open_local {} {
     return NULL
 }
@@ -195,7 +199,6 @@ proc twapi::_evt_map_channel_config_property {propid} {
         return $propid
     }
 
-    # Note: values are from winevt.h, Win7 SDK has typos for last few
     return [dict get {
         -enabled         0
         -isolation       1
