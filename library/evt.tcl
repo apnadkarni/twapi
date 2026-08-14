@@ -55,6 +55,10 @@ namespace eval twapi {
     }
 }
 
+proc twapi::evt_close {args} {
+    EvtClose {*}$args
+}
+
 proc twapi::evt_session_open_local {} {
     return NULL
 }
@@ -195,7 +199,6 @@ proc twapi::_evt_map_channel_config_property {propid} {
         return $propid
     }
 
-    # Note: values are from winevt.h, Win7 SDK has typos for last few
     return [dict get {
         -enabled         0
         -isolation       1
@@ -346,7 +349,7 @@ proc twapi::evt_object_array_property {hevt index args} {
 proc twapi::evt_publishers {{hsess NULL}} {
     set pubs {}
     set hevt [EvtOpenPublisherEnum $hsess 0]
-    trap {
+    try {
         while {[set pub [EvtNextPublisherId $hevt]] ne ""} {
             lappend pubs $pub
         }
@@ -396,7 +399,7 @@ proc twapi::evt_publisher_events {hpub property_names} {
     } finally {
         evt_close $henum
     }
-    
+
     return $meta
 }
 
@@ -414,7 +417,7 @@ proc twapi::evt_query {args} {
         ! ([info exists opts(file)] || [info exists opts(channel)])} {
         error "Exactly one of -file or -channel must be specified."
     }
-    
+
     set flags $opts(ignorequeryerrors)
     incr flags $opts(direction)
 
