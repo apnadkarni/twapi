@@ -437,7 +437,6 @@ oo::class create twapi::EventLogChannelConfig {
     method publishers       {}    {EvtGetChannelConfigProperty $hConfig 19}
     method maxFiles         {}    {EvtGetChannelConfigProperty $hConfig 20}
     method setMaxFiles      {val} {EvtGetChannelConfigProperty $hConfig 20 0 $val}
-
 }
 
 proc twapi::evt_bookmark_render {hbm} {
