@@ -487,11 +487,11 @@ twapi::proc* twapi::evt_event_decode_list {hevts args} {
         keywords
         xml
     } -ignoreunknown -hyphenated]
-        
+
     # SAME ORDER AS _evt_event_decode_system_fields
     set decoded_fields [evt_system_properties]
     set decoded_events {}
-    
+
     # ORDER MUST BE SAME AS order in which values are appended below
     foreach opt {-levelname -taskname -opcodename -keywords -xml -message} {
         if {$opts($opt)} {

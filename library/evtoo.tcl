@@ -197,6 +197,8 @@ oo::class create twapi::EventLogSession {
 oo::class create twapi::EventLogPublisher {
     variable hPublisher
     variable publisherName
+    variable levelNameMap
+
     constructor {osess publisher {lcid 0} {logarchive {}}} {
         namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
         set publisherName $publisher
@@ -237,6 +239,27 @@ oo::class create twapi::EventLogPublisher {
         return [my GetPropertiesArray 25 {
             -keywordname 26 -keywordvalue 27 -keywordmessageid 28
         } {-keywordmessageid}]
+    }
+    method message {msg_id} {
+        # TBD - cache message id's
+        # 8 -> EvtFormatMessageId
+        return [EvtFormatMessage $hPublisher NULL $msg_id NULL 8]
+    }
+    method levelNames {} {
+        if {![info exists levelNameMap]} {
+            foreach level_elem [my levels] {
+                set level [dict get $level_elem -levelvalue]
+                set msgid [dict get $level_elem -levelmessageid]
+                if {$msgid != -1} {
+                    if {![catch {my message $msgid} level_name]} {
+                        dict set levelNameMap $level $level_name
+                        continue
+                    }
+                }
+                dict set levelNameMap $level $level
+            }
+        }
+        return $levelNameMap
     }
     method GetPropertiesArray {property_enum definitions {minus_one_map {}}} {
         set harray [EvtGetPublisherMetadataProperty $hPublisher $property_enum]
@@ -305,12 +328,31 @@ oo::class create twapi::EventLogFormatter {
     # Dictionary mapping publisher names to their wrapper objects
     variable publisherObjs
 
+    # Dictionary mapping publisher names to their handles
+    variable publisherHandles
+
     # Rendering context for system fields
     variable hSystemContext
 
     # Reusable buffer for rendering values
     variable renderBuffer
 
+    # Map of (publisher, level) -> level name
+    variable levelNameMap
+
+    initialize {
+        # system properties mapped to their position in an event
+        variable systemPropertyNameMap
+        array set systemPropertyNameMap {
+            -providername 0 -providerguid 1 -eventid 2 -qualifiers 3 -level 4
+            -task 5 -opcode 6 -keywords 7 -timecreated 8 -eventrecordid 9
+            -activityid 10 -relatedactivityid 11 -pid 12 -tid 13 -channel 14
+            -computer 15 -sid 16 -version 17
+        }
+        variable eventPropertyNames [concat \
+                                         [array names systemPropertyNameMap] \
+                                         {-userdata}]
+    }
     constructor {osess args} {
         namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
         parseargs args {
@@ -322,7 +364,7 @@ oo::class create twapi::EventLogFormatter {
         set publisherObjs [dict create]
         set logArchive [_evt_native_path $logarchive]
         set hSystemContext [EvtCreateRenderContext {} 1]
-
+        set levelNameMap [dict create]
         set renderBuffer NULL
     }
     destructor {
@@ -330,22 +372,71 @@ oo::class create twapi::EventLogFormatter {
         EvtClose $hSystemContext
         $oSession unregister [dict values $publisherObjs]
     }
+    method decodeEvents {hevts args} {
+        classvariable systemPropertyNameMap eventPropertyNames
+        parseargs args {
+            ignorestring.arg
+            {properties.arg {-providername -eventid -level -task -timecreated -pid}}
+            {raw 0}
+        } -setvars -maxleftover 0
+
+        return [list $properties [lmap hevt $hevts {
+            set system_properties [my EventSystemProperties $hevt]
+            set publisher [lindex $system_properties 0]
+            set rec [lmap prop_name $properties {
+                switch -exact -- $prop_name {
+                    -level {
+                        my LevelName $publisher $level
+                    }
+                    -task - -opcode - -keywords {
+                        lindex $system_properties $systemPropertyNameMap($prop_name)
+                    }
+                    default {
+                        lindex $system_properties $systemPropertyNameMap($prop_name)
+                    }
+                }
+            }]
+        }]]
+    }
     method formatEventAsXml {hevt} {
         set publisher [lindex [my EventSystemProperties $hevt] 0]
         ## 9 -> EvtFormatMessageXml
         return [EvtFormatMessage [my PublisherHandle $publisher] $hevt 0 NULL 9]
     }
     method PublisherHandle publisher {
-        if {![dict exists $publisherObjs $publisher]} {
-            dict set publisherObjs $publisher \
-                [$oSession newPublisher $publisher \
-                     -lcid $localeId -logarchive $logArchive]
+        if {[dict exists $publisherHandles $publisher]} {
+            return [dict get $publisherHandles $publisher]
         }
-        return [[dict get $publisherObjs $publisher] handle]
+        if {![dict exists $publisherObjs $publisher]} {
+            if {[catch {
+                $oSession newPublisher $publisher \
+                    -lcid $localeId -logarchive $logArchive
+            } obj]} {
+                dict set publisherHandles $publisher NULL
+                return
+            }
+            dict set publisherObjs $publisher $obj
+        } else {
+            set obj [dict get $publisherObjs $publisher]
+        }
+        set h [$obj handle]
+        dict set publisherHandles $publisher $h
+        return $h
     }
     method EventSystemProperties {hevt} {
         set renderBuffer [Twapi_EvtRenderValues $hSystemContext $hevt $renderBuffer]
         return [Twapi_ExtractEVT_RENDER_VALUES $renderBuffer]
+    }
+    method LevelName {publisher level} {
+        if {[dict exists $levelNameMap $publisher]} {
+            return [dict getdef $levelNameMap $publisher $level $level]
+        }
+        if {[catch {
+            set hpub [my PublisherHandle $publisher]
+            foreach level_def []
+        }]} {
+            dict set levelNameMap $publisher $level
+        }
     }
 }
 
