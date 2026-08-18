@@ -696,6 +696,10 @@ namespace eval twapi::parseargs::test {
         list $opts(a) $opts(b) $opts(c)
     } -result {0 99 4}
 
+    test parseargs-bug-48 {Crash on shimmer} -body {
+        set vargs x
+        twapi::parseargs vargs $vargs
+    } -result {x 0}
     ################################################################
 
     ::tcltest::cleanupTests

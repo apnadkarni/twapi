@@ -122,6 +122,7 @@ static void DupParseargsOpt(Tcl_Obj *srcP, Tcl_Obj *dstP)
         return;
     }
 
+    /* TBD - optimize with reference counted intrep */
     doptsP = (struct OptionDescriptor *) ckalloc(srcP->internalRep.ptrAndLongRep.value * sizeof(*doptsP));
     dstP->internalRep.ptrAndLongRep.ptr = doptsP;
     i = srcP->internalRep.ptrAndLongRep.value;
@@ -334,6 +335,7 @@ int Twapi_ParseargsObjCmd(
     int         nopts;
     int         j, k;
     Tcl_WideInt wide;
+    Tcl_Obj *optsObj = NULL;
     struct OptionDescriptor *opts;
     int         ignoreunknown = 0;
     int         nulldefault = 0;
@@ -355,13 +357,17 @@ int Twapi_ParseargsObjCmd(
     }
 
     /* Now construct the option descriptors */
-    if (objv[2]->typePtr != &gParseargsOptionType) {
-        if (SetParseargsOptFromAny(interp, objv[2]) != TCL_OK)
+    optsObj = Tcl_IsShared(objv[2]) ? Tcl_DuplicateObj(objv[2]) : objv[2];
+    ObjIncrRefs(optsObj);
+    if (optsObj->typePtr != &gParseargsOptionType) {
+        if (SetParseargsOptFromAny(interp, optsObj) != TCL_OK) {
+            ObjDecrRefs(optsObj);
             return TCL_ERROR;
+        }
     }
 
-    opts =  objv[2]->internalRep.ptrAndLongRep.ptr;
-    nopts = objv[2]->internalRep.ptrAndLongRep.value;
+    opts =  optsObj->internalRep.ptrAndLongRep.ptr;
+    nopts = optsObj->internalRep.ptrAndLongRep.value;
 
     if (nopts > TWAPI_PARSEARGS_STATIC) {
         valuesP = MemLifoPushFrame(ticP->memlifoP, nopts * sizeof(*valuesP), NULL);
@@ -682,6 +688,8 @@ int Twapi_ParseargsObjCmd(
     if (valuesP && valuesP != values)
         MemLifoPopFrame(ticP->memlifoP);
 
+    if (optsObj)
+        ObjDecrRefs(optsObj);
     return TCL_OK;
 
 invalid_args_error:
@@ -704,6 +712,9 @@ error_return:
     }
     if (valuesP && valuesP != values)
         MemLifoPopFrame(ticP->memlifoP);
+
+    if (optsObj)
+        ObjDecrRefs(optsObj);
 
     return TCL_ERROR;
 }
