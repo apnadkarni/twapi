@@ -198,6 +198,9 @@ oo::class create twapi::EventLogPublisher {
     variable hPublisher
     variable publisherName
     variable levelNameMap
+    variable taskNameMap
+    variable opcodeNameMap
+    variable keywordNameMap
 
     constructor {osess publisher {lcid 0} {logarchive {}}} {
         namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
@@ -221,24 +224,53 @@ oo::class create twapi::EventLogPublisher {
     }
     method levels {} {
         return [my GetPropertiesArray 12 {
-            -levelname 13 -levelvalue 14 -levelmessageid 15
-        } {-levelmessageid}]
+            -name 13 -value 14 -messageid 15
+        } {-messageid}]
     }
     method tasks {} {
         return [my GetPropertiesArray 16 {
-            -taskname 17 -taskeventguid 18 -taskvalue 19
-            -taskmessageid 20
-        } {-taskmessageid}]
+            -name 17 -eventguid 18 -value 19
+            -messageid 20
+        } {-messageid}]
     }
     method opcodes {} {
         return [my GetPropertiesArray 21 {
-            -opcodename 22 -opcodevalue 23 -opcodemessageid 24
-        } {-opcodemessageid}]
+            -name 22 -value 23 -messageid 24
+        } {-messageid}]
     }
     method keywords {} {
         return [my GetPropertiesArray 25 {
-            -keywordname 26 -keywordvalue 27 -keywordmessageid 28
-        } {-keywordmessageid}]
+            -name 26 -value 27 -messageid 28
+        } {-messageid}]
+    }
+    method eventDefinitions {property_names} {
+        set henum [EvtOpenEventMetadataEnum $hPublisher]
+
+        # It is faster to build a list and then have Tcl shimmer to a dict when
+        # required
+        set meta {}
+        try {
+            while {[set hmeta [EvtNextEventMetadata $henum 0]] ne ""} {
+                try {
+                    set properties {}
+                    foreach prop $property_names {
+                        lappend properties $prop \
+                            [EvtGetEventMetadataProperty $hmeta \
+                                 [dict get {
+                                     -id 0 -version 1 -channel 2 -level 3
+                                     -opcode 4 -task 5 -keyword 6 -messageid 7 -template 8
+                                 } $prop]]
+                    }
+                    lappend meta $properties
+                } finally {
+                    evt_close $hmeta
+                }
+            }
+        } finally {
+            evt_close $henum
+        }
+
+        return $meta
     }
     method message {msg_id} {
         # TBD - cache message id's
@@ -247,20 +279,43 @@ oo::class create twapi::EventLogPublisher {
     }
     method levelNames {} {
         if {![info exists levelNameMap]} {
-            foreach level_elem [my levels] {
-                set level [dict get $level_elem -levelvalue]
-                set msgid [dict get $level_elem -levelmessageid]
-                if {$msgid != -1} {
-                    if {![catch {my message $msgid} level_name]} {
-                        dict set levelNameMap $level $level_name
-                        continue
-                    }
-                }
-                dict set levelNameMap $level $level
-            }
+            my InitNames levelNameMap levels
         }
         return $levelNameMap
     }
+    method taskNames {} {
+        if {![info exists taskNameMap]} {
+            my InitNames taskNameMap tasks
+        }
+        return $taskNameMap
+    }
+    method opcodeNames {} {
+        if {![info exists opcodeNameMap]} {
+            my InitNames opcodeNameMap opcodes
+        }
+        return $opcodeNameMap
+    }
+    method keywordNames {} {
+        if {![info exists keywordNameMap]} {
+            my InitNames keywordNameMap keywords
+        }
+        return $keywordNameMap
+    }
+    method InitNames {name_map_var method_name} {
+        set $name_map_var [dict create]
+        foreach elem [my $method_name] {
+            set value [dict get $elem -value]
+            set msgid [dict get $elem -messageid]
+            if {$msgid != -1} {
+                if {![catch {my message $msgid} name]} {
+                    dict set $name_map_var $value $name
+                    continue
+                }
+            }
+            dict set $name_map_var $value $value
+        }
+    }
+
     method GetPropertiesArray {property_enum definitions {minus_one_map {}}} {
         set harray [EvtGetPublisherMetadataProperty $hPublisher $property_enum]
         try {
@@ -326,6 +381,8 @@ oo::class create twapi::EventLogFormatter {
     variable logArchive
 
     # Dictionary mapping publisher names to their wrapper objects
+    # publisher names are case-insensitive. However, we do not bother
+    # normalizing names to use as keys as duplicate objects cause no harm
     variable publisherObjs
 
     # Dictionary mapping publisher names to their handles
@@ -334,11 +391,17 @@ oo::class create twapi::EventLogFormatter {
     # Rendering context for system fields
     variable hSystemContext
 
+    # Rendering context for user fields
+    variable hUserContext
+
     # Reusable buffer for rendering values
     variable renderBuffer
 
-    # Map of (publisher, level) -> level name
+    # Map of (publisher, level/task/opcode/keywords) -> names
     variable levelNameMap
+    variable taskNameMap
+    variable opcodeNameMap
+    variable keywordNameMap
 
     initialize {
         # system properties mapped to their position in an event
@@ -362,14 +425,20 @@ oo::class create twapi::EventLogFormatter {
         set oSession $osess
         set localeId $lcid
         set publisherObjs [dict create]
+        set publisherHandles [dict create]
         set logArchive [_evt_native_path $logarchive]
         set hSystemContext [EvtCreateRenderContext {} 1]
+        set hUserContext [EvtCreateRenderContext {} 2]
         set levelNameMap [dict create]
+        set taskNameMap [dict create]
+        set opcodeNameMap [dict create]
+        set keywordNameMap [dict create]
         set renderBuffer NULL
     }
     destructor {
         evt_free_render_values $hRenderValuesBuffer
         EvtClose $hSystemContext
+        EvtClose $hUserContext
         $oSession unregister [dict values $publisherObjs]
     }
     method decodeEvents {hevts args} {
@@ -386,10 +455,22 @@ oo::class create twapi::EventLogFormatter {
             set rec [lmap prop_name $properties {
                 switch -exact -- $prop_name {
                     -level {
-                        my LevelName $publisher $level
+                        my LevelName $publisher [lindex $system_properties 4]
                     }
-                    -task - -opcode - -keywords {
-                        lindex $system_properties $systemPropertyNameMap($prop_name)
+                    -task {
+                        my TaskName $publisher [lindex $system_properties 5]
+                    }
+                    -opcode {
+                        my OpcodeName $publisher [lindex $system_properties 6]
+                    }
+                    -keywords {
+                        my KeywordNames $publisher [lindex $system_properties 7]
+                    }
+                    -userdata {
+                        my EventUserProperties $hevt
+                    }
+                    -message {
+                        my EventMessage $publisher $hevt
                     }
                     default {
                         lindex $system_properties $systemPropertyNameMap($prop_name)
@@ -398,44 +479,130 @@ oo::class create twapi::EventLogFormatter {
             }]
         }]]
     }
-    method formatEventAsXml {hevt} {
+    method formatEvent hevt {
+        my EventMessage [lindex [my EventSystemProperties $hevt] 0] $hevt
+    }
+    method formatEventAsXml hevt {
         set publisher [lindex [my EventSystemProperties $hevt] 0]
         ## 9 -> EvtFormatMessageXml
         return [EvtFormatMessage [my PublisherHandle $publisher] $hevt 0 NULL 9]
+    }
+    method PublisherObj publisher {
+        if {[dict exists $publisherObjs $publisher]} {
+            return [dict get $publisherObjs $publisher]
+        }
+        set obj [$oSession newPublisher $publisher \
+                     -lcid $localeId -logarchive $logArchive]
+        dict set publisherObjs $publisher $obj
+        return $obj
     }
     method PublisherHandle publisher {
         if {[dict exists $publisherHandles $publisher]} {
             return [dict get $publisherHandles $publisher]
         }
-        if {![dict exists $publisherObjs $publisher]} {
-            if {[catch {
-                $oSession newPublisher $publisher \
-                    -lcid $localeId -logarchive $logArchive
-            } obj]} {
-                dict set publisherHandles $publisher NULL
-                return
-            }
-            dict set publisherObjs $publisher $obj
+
+        if {[catch {my PublisherObj $publisher} obj]} {
+            dict set publisherHandles $publisher NULL
+            return NULL
         } else {
-            set obj [dict get $publisherObjs $publisher]
+            set h [$obj handle]
+            dict set publisherHandles $publisher $h
+            return $h
         }
-        set h [$obj handle]
-        dict set publisherHandles $publisher $h
-        return $h
     }
     method EventSystemProperties {hevt} {
         set renderBuffer [Twapi_EvtRenderValues $hSystemContext $hevt $renderBuffer]
         return [Twapi_ExtractEVT_RENDER_VALUES $renderBuffer]
     }
-    method LevelName {publisher level} {
+    method EventUserProperties -export {hevt} {
+        set renderBuffer [Twapi_EvtRenderValues $hUserContext $hevt $renderBuffer]
+        return [Twapi_ExtractEVT_RENDER_VALUES $renderBuffer]
+    }
+    method LevelName -export {publisher level} {
         if {[dict exists $levelNameMap $publisher]} {
             return [dict getdef $levelNameMap $publisher $level $level]
         }
-        if {[catch {
-            set hpub [my PublisherHandle $publisher]
-            foreach level_def []
+        # Not in cache. Get from publisher. May fail because there is no such
+        # publisher registered.
+        if {![catch {
+            dict set levelNameMap $publisher [[my PublisherObj $publisher] levelNames]
         }]} {
-            dict set levelNameMap $publisher $level
+            return [dict getdef $levelNameMap $publisher $level $level]
+        }
+        if {![dict exists $levelNameMap ""]} {
+            # Default localized level names
+            # Get default level names used by Windows Eventlog
+            if {[catch {
+                set map [[my PublisherObj Microsoft-Windows-Eventlog] levelNames]
+            }]} {
+                # Even that failed, so use English mappings
+                set map {1 Critical 2 Error 3 Warning 4 Information 5 Verbose}
+            }
+            dict set levelNameMap "" $map
+        }
+        dict set levelNameMap $publisher [dict get $levelNameMap ""]
+        return [dict getdef $levelNameMap $publisher $level $level]
+    }
+    method TaskName -export {publisher task} {
+        if {[dict exists $taskNameMap $publisher]} {
+            return [dict getdef $taskNameMap $publisher $task $task]
+        }
+        # Not in cache. Get from publisher. May fail because there is no such
+        # publisher registered.
+        if {[catch {
+            dict set taskNameMap $publisher [[my PublisherObj $publisher] taskNames]
+        }]} {
+            # Default to the task id. Unlike for levels, we do not try
+            # Microsoft-Windows-Eventlog or have any predefined names for tasks.
+            dict set taskNameMap $publisher $task $task
+        }
+        return [dict getdef $taskNameMap $publisher $task $task]
+    }
+    method KeywordNames -export {publisher keywords} {
+        # Treat as a bit mask else loop below will continue forever
+        # on negative 64-bit values
+        set keywords [expr {$keywords & 0xffffffffffffffff}]
+        set names {}
+        # keywords are a bitmask, each bit being a keyword
+        while {$keywords} {
+            set keyword [expr {$keywords & -$keywords}]
+            set keywords [expr {$keywords & ~$keyword}]
+            lappend names [my KeywordName $publisher $keyword]
+        }
+        return $names
+    }
+    method KeywordName {publisher keyword} {
+        if {[dict exists $keywordNameMap $publisher]} {
+            return [dict getdef $keywordNameMap $publisher $keyword $keyword]
+        }
+        # Not in cache. Get from publisher. May fail because there is no such
+        # publisher registered.
+        if {[catch {
+            dict set keywordNameMap $publisher [[my PublisherObj $publisher] keywordNames]
+        }]} {
+            # Default to the keyword id. Unlike for levels, we do not try
+            # Microsoft-Windows-Eventlog or have any predefined names for keywords.
+            dict set keywordNameMap $publisher $keyword $keyword
+        }
+        return [dict getdef $keywordNameMap $publisher $keyword $keyword]
+    }
+
+    method EventMessage {publisher hevt} {
+        if {[EvtFormatMessage [my PublisherHandle $publisher] \
+                 $hevt 0 NULL 1 message]} {
+            return $message
+        } elseif {[EvtFormatMessage NULL $hevt 0 NULL 1 message]} {
+            # try with NULL publisher handler. In this case EvtFormatMessage
+            # will use the rendering info stored within the event in case it is
+            # a forwarded event from another system.
+            return $message
+        } else {
+            # TBD - make sure we have a test for this case.
+            set message "Message for event could not be found."
+            catch {
+                append message " Event user data: " [join [my EventUserProperties $hevt] ", "]
+            }
+            return $message
         }
     }
 }

@@ -110,9 +110,11 @@ static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP,
         objP = ObjFromInt(varP->Int32Val);
         break;
     case EvtVarTypeUInt32:
+    case EvtVarTypeHexInt32:
         objP = ObjFromDWORD(varP->UInt32Val);
         break;
     case EvtVarTypeInt64:
+    case EvtVarTypeHexInt64:
         objP = ObjFromWideInt(varP->Int64Val);
         break;
     case EvtVarTypeUInt64:
@@ -147,10 +149,6 @@ static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP,
         break;
     case EvtVarTypeEvtHandle:
         objP = ObjFromEVT_HANDLE(varP->EvtHandleVal);
-        break;
-    case EvtVarTypeHexInt32:      /* TBD - do not know how to interpret this  */
-        break;
-    case EvtVarTypeHexInt64:      /* TBD - do not know how to interpret this  */
         break;
     default:
         /* Check if an array. */
