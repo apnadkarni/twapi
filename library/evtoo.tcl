@@ -347,13 +347,14 @@ oo::class create twapi::EventLogQuery {
         parseargs args {
             {query.arg {}}
             {ignorequeryerrors 0 0x1000}
-            {direction.sym forward {forward 0x100 reverse 0x200 backward 0x200}}
+            {direction.sym forward {forward 0x100 backward 0x200}}
         } -maxleftover 0 -setvars
         set hSession $hsess
         set hResultSet [EvtQuery $hsess $source $query \
                     [tcl::mathop::| $flags $ignorequeryerrors $direction]]
 
     }
+    method handle {} {return $hResultSet}
     method next {args} {
         parseargs args {
             {timeout.int -1}
@@ -367,6 +368,15 @@ oo::class create twapi::EventLogQuery {
         } else {
             return [EvtNext $hResultSet $count $timeout 0]
         }
+    }
+    method info {} {
+        # Don't return as dictionary because in case of multiple references to
+        # the same channel in a query list, not clear if it will be returned
+        # just once or multiple types.
+        lmap channel_name [EvtGetQueryInfo $hResultSet 0] \
+            channel_status [EvtGetQueryInfo $hResultSet 1] {
+                list $channel_name $channel_status
+            }
     }
 }
 
@@ -443,6 +453,7 @@ oo::class create twapi::EventLogFormatter {
     }
     method decodeEvents {hevts args} {
         classvariable systemPropertyNameMap eventPropertyNames
+        # TBD - ignorestring, raw
         parseargs args {
             ignorestring.arg
             {properties.arg {-providername -eventid -level -task -timecreated -pid}}
@@ -479,6 +490,11 @@ oo::class create twapi::EventLogFormatter {
             }]
         }]]
     }
+    method decodeEvent {hevt args} {
+        return [recordarray index \
+                    [my decodeEvents [list $hevt] {*}$args] \
+                    0 -format dict]
+    }
     method formatEvent hevt {
         my EventMessage [lindex [my EventSystemProperties $hevt] 0] $hevt
     }
@@ -487,6 +503,25 @@ oo::class create twapi::EventLogFormatter {
         ## 9 -> EvtFormatMessageXml
         return [EvtFormatMessage [my PublisherHandle $publisher] $hevt 0 NULL 9]
     }
+    method seek {offset args} {
+        parseargs args {
+            {origin.arg current {first last current}}
+            bookmark.arg
+            {strict 0 0x10000}
+        } -maxleftover 0 -setvars
+
+        if {[info exists bookmark]} {
+            set flags 4
+        } else {
+            set flags [dict get {first 1 last 2 current 3} $origin]
+            set bookmark NULL
+        }
+
+        incr flags $strict
+
+        EvtSeek $hresults $pos $bookmark 0 $flags
+    }
+
     method PublisherObj publisher {
         if {[dict exists $publisherObjs $publisher]} {
             return [dict get $publisherObjs $publisher]

@@ -317,7 +317,7 @@ proc twapi::evt_query_info {hq args} {
     set result {}
     foreach opt $args {
         lappend result $opt  [EvtGetQueryInfo $hq [dict get {
-            -names 1 statuses 2
+            -names 0 -statuses 1
         } $opt]]
     }
     return $result
