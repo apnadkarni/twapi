@@ -875,7 +875,14 @@ Twapi_EvtCallObjCmd(ClientData clientdata,
                          GETHANDLE(h), GETOBJ(sObj), GETOBJ(s2Obj),
                          GETEVTH(hevt2), GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtSubscribe(hevt, h, ObjToWinChars(sObj), ObjToWinChars(s2Obj), hevt2, NULL, NULL, dw));
+        s2 = ObjToWinChars(s2Obj);
+	if (*s2 == 0)
+            s2 = NULL;
+        TwapiResult_SET_NONNULL_PTR(
+            result,
+            EVT_HANDLE,
+            EvtSubscribe(
+                hevt, h, ObjToWinChars(sObj), s2, hevt2, NULL, NULL, dw));
         break;
     case 8: // EvtExportLog
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),

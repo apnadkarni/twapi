@@ -13,6 +13,7 @@ catch {twapi::EventLogPublisher destroy}
 catch {twapi::EventLogChannelConfig destroy}
 catch {twapi::EventLogChannelInfo destroy}
 catch {twapi::EventLogInfo destroy}
+catch {twapi::EventResultSet destroy}
 catch {twapi::EventLogQuery destroy}
 catch {twapi::EventLogFormatter destroy}
 
@@ -167,8 +168,17 @@ oo::class create twapi::EventLogSession {
         dict set dependentNamespaces [info object namespace $obj] $obj
         return $obj
     }
-    method newLogFileQuery {logpath args} {
+    method newFileQuery {logpath args} {
         return [my createFileQuery [my NewName file-query] $logpath {*}$args]
+    }
+    method createSubscription {objname channel args} {
+        set obj [uplevel 1 [list [namespace which -command EventLogSubscription] \
+                                create $objname $hSession $channel {*}$args]]
+        dict set dependentNamespaces [info object namespace $obj] $obj
+        return $obj
+    }
+    method newSubscription {channel args} {
+        return [my createSubscription [my NewName subscription] $channel {*}$args]
     }
     method createFormatter {objname args} {
         set obj [uplevel 1 [list [namespace which -command EventLogFormatter] \
@@ -301,6 +311,8 @@ oo::class create twapi::EventLogPublisher {
         }
         return $keywordNameMap
     }
+
+    # Private methods
     method InitNames {name_map_var method_name} {
         set $name_map_var [dict create]
         foreach elem [my $method_name] {
@@ -339,8 +351,52 @@ oo::class create twapi::EventLogPublisher {
     }
 }
 
-oo::class create twapi::EventLogQuery {
+# Intended to be used as mixin
+oo::class create twapi::EventResultSet {
     variable hResultSet
+    constructor args {
+        next {*}$args
+    }
+    destructor {
+        next
+        EvtClose $hResultSet
+    }
+    method handle {} {return $hResultSet}
+    method info {} {
+        # Don't return as dictionary because in case of multiple references to
+        # the same channel in a query list, not clear if it will be returned
+        # just once or multiple types.
+        lmap channel_name [EvtGetQueryInfo $hResultSet 0] \
+            channel_status [EvtGetQueryInfo $hResultSet 1] {
+                list $channel_name $channel_status
+            }
+    }
+    method getEvents {args} {
+        parseargs args {
+            {timeout.int -1}
+            {count.int 1}
+            {statusvar.arg}
+        } -maxleftover 0 -setvars
+
+        if {[info exists statusvar]} {
+            upvar 1 $statusvar status
+            set hevts [EvtNext $hResultSet $count $timeout 0 status]
+        } else {
+            set hevts [EvtNext $hResultSet $count $timeout 0]
+        }
+        if {[llength $hevts]} {
+            return $hevts
+        }
+        my EofHandler
+        return $hevts
+    }
+    method SetHandle h {
+        set hResultSet $h
+    }
+}
+
+oo::class create twapi::EventLogQuery {
+    mixin twapi::EventResultSet
     variable hSession
     constructor {hsess source flags args} {
         namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
@@ -350,33 +406,101 @@ oo::class create twapi::EventLogQuery {
             {direction.sym forward {forward 0x100 backward 0x200}}
         } -maxleftover 0 -setvars
         set hSession $hsess
-        set hResultSet [EvtQuery $hsess $source $query \
-                    [tcl::mathop::| $flags $ignorequeryerrors $direction]]
+        my SetHandle [EvtQuery $hsess $source $query \
+                          [tcl::mathop::| $flags $ignorequeryerrors $direction]]
 
     }
-    method handle {} {return $hResultSet}
-    method next {args} {
+    destructor {}
+    method EofHandler {} {}
+}
+
+oo::class create twapi::EventLogSubscription {
+    mixin twapi::EventResultSet
+
+    variable hSession
+    variable hSignal
+    variable commandPrefix
+    variable callbackTimeout
+
+    constructor {hsess channel args} {
+        namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
         parseargs args {
-            {timeout.int -1}
-            {count.int 1}
-            {statusvar.arg}
+            {query.arg {}}
+            hbookmark.arg
+            includeexisting
+            {ignorequeryerrors 0 0x1000}
+            {strict 0 0x10000}
         } -maxleftover 0 -setvars
 
-        if {[info exists statusvar]} {
-            upvar 1 $statusvar status
-            return [EvtNext $hResultSet $count $timeout 0 status]
+        if {[info exists hbookmark]} {
+            set flags 3
         } else {
-            return [EvtNext $hResultSet $count $timeout 0]
+            set hbookmark NULL
+            set flags [expr {$includeexisting ? 2 : 1}]
+        }
+        set flags [expr {$flags | $ignorequeryerrors | $strict}]
+        set hsig [create_event -manualreset 1 -signalled 1]
+        try {
+            set hsub [EvtSubscribe $hsess $hsig $channel $query $hbookmark $flags]
+        } on error {message ropts} {
+            CloseHandle $hsig
+            return -options $ropts $message
+        }
+
+        set asyncMode 0
+        set hSession $hsess
+        set hSignal $hsig
+        my SetHandle $hsub
+        # Do not init commandPrefix until callback is registered
+    }
+    destructor {
+        if {[info exists commandPrefix]} {
+            cancel_wait_on_handle $hSignal
+        }
+        CloseHandle $hSignal
+    }
+    method wait {{ms -1}} {
+        if {[info exists commandPrefix]} {
+            error "Cannot wait on a subscription that has registered callbacks."
+        }
+        # Don't really care why the wait completed (signalled, timeout, abandoned)
+        # Caller simply needs to call the next method in all cases
+        wait_on_handle $hSignal -wait $ms
+    }
+    method registerCallback {cb {ms -1}} {
+        if {$cb eq ""} {
+            error "Cannot register empty callback."
+        }
+        # Verify well formed list
+        llength $cb
+
+        # If callback already exists, no need to register handler again
+        if {![info exists commandPrefix]} {
+            wait_on_handle $hSignal -async [mymethod SignalHandler] \
+                -executeonce 1 -timeout $ms
+        }
+        set commandPrefix $cb
+        set callbackTimeout [incr ms 0]
+    }
+    method unregisterCallback {} {
+        if {[info exists commandPrefix]} {
+            cancel_wait_on_handle $hSignal
+            unset commandPrefix
         }
     }
-    method info {} {
-        # Don't return as dictionary because in case of multiple references to
-        # the same channel in a query list, not clear if it will be returned
-        # just once or multiple types.
-        lmap channel_name [EvtGetQueryInfo $hResultSet 0] \
-            channel_status [EvtGetQueryInfo $hResultSet 1] {
-                list $channel_name $channel_status
-            }
+    method SignalHandler {hsig trigger} {
+        # Irrespective of whether trigger is signalled, timeout, abandoned,
+        # action to be taken is the same. Invoke the callback
+        if {[info exists commandPrefix]} {
+            uplevel #0 $commandPrefix
+        }
+    }
+    method EofHandler {} {
+        twapi::reset_event $hSignal
+        if {[info exists commandPrefix]} {
+            wait_on_handle $hSignal -async [mymethod SignalHandler] \
+                -executeonce 1 -timeout $callbackTimeout
+        }
     }
 }
 
@@ -774,3 +898,4 @@ proc twapi::_evt_native_path {path} {
 proc twapi::evt_free_render_values {p} {
     evt_free $p
 }
+
