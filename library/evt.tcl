@@ -59,92 +59,6 @@ proc twapi::evt_close {args} {
     EvtClose {*}$args
 }
 
-proc twapi::evt_session_open_local {} {
-    return NULL
-}
-
-proc twapi::evt_session_is_local {hsess} {
-    return [pointer_null? $hsess]
-}
-
-proc twapi::evt_session_open {server args} {
-    array set opts [parseargs args {
-        user.arg
-        domain.arg
-        password.arg
-        {authtype.arg 0}
-    } -nulldefault -maxleftover 0]
-
-    if {![string is integer -strict $opts(authtype)]} {
-        set opts(authtype) [dict get {default 0 negotiate 1 kerberos 2 ntlm 3} [string tolower $opts(authtype)]]
-    }
-
-    return [EvtOpenSession 1 [list $server $opts(user) $opts(domain) $opts(password) $opts(authtype)] 0 0]
-}
-
-proc twapi::evt_session_close {hsess} {
-    if {![evt_session_is_local $hsess]} {
-        evt_close $hsess
-    }
-}
-
-proc twapi::evt_channels {{hevtsess NULL}} {
-    set chnames {}
-    set hevt [EvtOpenChannelEnum $hevtsess 0]
-    trap {
-        while {[set chname [EvtNextChannelPath $hevt]] ne ""} {
-            lappend chnames $chname
-        }
-    } finally {
-        evt_close $hevt
-    }
-
-    return $chnames
-}
-
-proc twapi::evt_clear_log {chanpath args} {
-    array set opts [parseargs args {
-        {session.arg NULL}
-        {backup.arg ""}
-    } -maxleftover 0]
-
-    return [EvtClearLog $opts(session) $chanpath [_evt_normalize_path $opts(backup)] 0]
-}
-
-proc twapi::evt_archive_exported_log {logpath args} {
-    array set opts [parseargs args {
-        {session.arg NULL}
-        {lcid.int 0}
-    } -maxleftover 0]
-
-    return [EvtArchiveExportedLog $opts(session) [_evt_normalize_path $logpath] $opts(lcid) 0]
-}
-
-proc twapi::evt_export_log {outfile args} {
-    array set opts [parseargs args {
-        {session.arg NULL}
-        file.arg
-        channel.arg
-        {query.arg *}
-        {ignorequeryerrors 0 0x1000}
-    } -maxleftover 0]
-
-    if {([info exists opts(file)] && [info exists opts(channel)]) ||
-        ! ([info exists opts(file)] || [info exists opts(channel)])} {
-        error "Exactly one of -file or -channel must be specified."
-    }
-
-    if {[info exists opts(file)]} {
-        set path [_evt_normalize_path $opts(file)]
-        incr opts(ignorequeryerrors) 2
-    } else {
-        set path $opts(channel)
-        incr opts(ignorequeryerrors) 1
-    }
-
-    return [EvtExportLog $opts(session) $path $opts(query) [_evt_normalize_path $outfile] $opts(ignorequeryerrors)]
-}
-
 proc twapi::evt_bookmark_render {hbm} {
     # 2 -> EvtRenderBookmark
     return [Twapi_EvtRenderUnicode NULL $hbm 2]
@@ -176,275 +90,8 @@ proc twapi::evt_render_context_userdata {} {
     return [EvtCreateRenderContext {} 2]
 }
 
-proc twapi::evt_channel_config_open {chanpath args} {
-    array set opts [parseargs args {
-        {session.arg NULL}
-    } -maxleftover 0]
-
-    return [EvtOpenChannelConfig $opts(session) $chanpath 0]
-}
-
-proc twapi::evt_channel_config_get {hcfg propid} {
-    return [EvtGetChannelConfigProperty $hcfg \
-                [_evt_map_channel_config_property $propid]]
-}
-
-proc twapi::evt_channel_config_set {hcfg propid val} {
-    return [EvtSetChannelConfigProperty $hcfg \
-                [_evt_map_channel_config_property $propid] 0 $val]
-}
-
-proc twapi::_evt_map_channel_config_property {propid} {
-    if {[string is integer -strict $propid]} {
-        return $propid
-    }
-
-    return [dict get {
-        -enabled         0
-        -isolation       1
-        -type            2
-        -publisher 3
-        -classic 4
-        -access          5
-        -logretention    6
-        -autobackup   7
-        -logmaxsize      8
-        -logfilepath     9
-        -level          10
-        -keywords       11
-        -controlguid    12
-        -buffersize     13
-        -minbuffers     14
-        -maxbuffers     15
-        -latency        16
-        -clocktype      17
-        -sidtype        18
-        -publisherlist  19
-        -filemax        20
-    } $propid]
-}
-
 proc twapi::evt_event_logpath {hevt} {
     return [EvtGetEventInfo $hevt 1]
-}
-
-# TBD - document
-proc twapi::evt_open_log_info {args} {
-    array set opts [parseargs args {
-        {session.arg NULL}
-        file.arg
-        channel.arg
-    } -maxleftover 0]
-
-    if {([info exists opts(file)] && [info exists opts(channel)]) ||
-        ! ([info exists opts(file)] || [info exists opts(channel)])} {
-        error "Exactly one of -file or -channel must be specified."
-    }
-    
-    if {[info exists opts(file)]} {
-        set path [_evt_normalize_path $opts(file)]
-        set flags 0x2
-    } else {
-        set path $opts(channel)
-        set flags 0x1
-    }
-
-    return [EvtOpenLog $opts(session) $path $flags]
-}
-
-# TBD - document
-proc twapi::evt_log_info {hevt args} {
-    set result {}
-    foreach opt $args {
-        lappend result $opt  [EvtGetLogInfo $hevt [dict get {
-            -creationtime 0 -lastaccesstime 1 -lastwritetime 2
-            -filesize 3 -attributes 4 -numberoflogrecords 5
-            -oldestrecordnumber 6 -full 7
-        } $opt]]
-    }
-    return $result
-}
-
-proc twapi::evt_publisher_property {hpub opt} {
-    set val [EvtGetPublisherMetadataProperty $hpub [dict get {
-        -guid 0  -resourcefile 1 -parameterfile 2
-        -messagefile 3 -helplink 4 -messageid 5
-        -channels 6 -levels 12 -tasks 16
-        -opcodes 21 -keywords 25
-    } $opt] 0]
-    if {$opt ni {-channels -levels -tasks -opcodes -keywords}} {
-        return $val
-    }
-    try {
-        set n [EvtGetObjectArraySize $val]
-        set val2 {}
-        for {set i 0} {$i < $n} {incr i} {
-            set rec {}
-            foreach {opt2 iopt} [dict get {
-                -channels { -channelpath 7
-                    -channelindex 8 -channelid 9
-                    -channelflags 10 -channelmessageid 11}
-                -levels { -levelname 13 -levelvalue 14 -levelmessageid 15 }
-                -tasks { -taskname 17 -taskeventguid 18 -taskvalue 19
-                    -taskmessageid 20}
-                -opcodes {-opcodename 22 -opcodevalue 23 -opcodemessageid 24}
-                -keywords {-keywordname 26 -keywordvalue 27
-                    -keywordmessageid 28}
-            } $opt] {
-                set opt2val [EvtGetObjectArrayProperty $val $iopt $i]
-                if {$opt2 in {
-                    -channelindex
-                    -channelmessageid
-                    -levelmessageid
-                    -taskmessageid
-                    -opcodemessageid
-                    -keywordmessageid
-                } && $opt2val == 4294967295} {
-                    set opt2val -1
-                }
-                lappend rec $opt2 $opt2val
-            }
-            lappend val2 $rec
-        }
-        return $val2
-    } finally {
-        evt_close $val
-    }
-}
-
-# TBD - document
-proc twapi::evt_query_info {hq args} {
-    set result {}
-    foreach opt $args {
-        lappend result $opt  [EvtGetQueryInfo $hq [dict get {
-            -names 0 -statuses 1
-        } $opt]]
-    }
-    return $result
-}
-
-proc twapi::evt_object_array_size {hevt} {
-    return [EvtGetObjectArraySize $hevt]
-}
-
-proc twapi::evt_object_array_property {hevt index args} {
-    set result {}
-
-    foreach opt $args {
-        lappend result $opt \
-            [EvtGetObjectArrayProperty $hevt [dict get {
-                -channelpath 7
-                -channelindex 8 -channelid 9
-                -channelflags 10 -channelmessageid 11
-                -levelname 13 -levelvalue 14 -levelmessageid 15
-                -taskname 17 -taskeventguid 18 -taskvalue 19
-                -taskmessageid 20 -opcodename 22
-                -opcodevalue 23 -opcodemessageid 24
-                -keywordname 26 -keywordvalue 27 -keywordmessageid 28
-            }] $index]
-    }
-    return $result
-}
-
-proc twapi::evt_publishers {{hsess NULL}} {
-    set pubs {}
-    set hevt [EvtOpenPublisherEnum $hsess 0]
-    try {
-        while {[set pub [EvtNextPublisherId $hevt]] ne ""} {
-            lappend pubs $pub
-        }
-    } finally {
-        evt_close $hevt
-    }
-
-    return $pubs
-}
-
-proc twapi::evt_publisher_open {pub args} {
-    array set opts [parseargs args {
-        {session.arg NULL}
-        logfile.arg
-        lcid.int
-    } -nulldefault -maxleftover 0]
-
-    return [EvtOpenPublisherMetadata $opts(session) $pub $opts(logfile) $opts(lcid) 0]
-}
-
-proc twapi::_evt_event_metadata_properties {hmeta property_names} {
-    set properties {}
-    foreach prop $property_names {
-        lappend properties $prop [EvtGetEventMetadataProperty $hmeta \
-                 [dict get {
-                     -id 0 -version 1 -channel 2 -level 3
-                     -opcode 4 -task 5 -keyword 6 -messageid 7 -template 8
-                 } $prop]]
-    }
-    return $properties
-}
-
-proc twapi::evt_publisher_events {hpub property_names} {
-    set henum [EvtOpenEventMetadataEnum $hpub]
-
-    # It is faster to build a list and then have Tcl shimmer to a dict when
-    # required
-    set meta {}
-    try {
-        while {[set hmeta [EvtNextEventMetadata $henum 0]] ne ""} {
-            try {
-                lappend meta [_evt_event_metadata_properties $hmeta $property_names]
-            } finally {
-                evt_close $hmeta
-            }
-        }
-    } finally {
-        evt_close $henum
-    }
-
-    return $meta
-}
-
-proc twapi::evt_query {args} {
-    array set opts [parseargs args {
-        {session.arg NULL}
-        file.arg
-        channel.arg
-        {query.arg *}
-        {ignorequeryerrors 0 0x1000}
-        {direction.sym forward {forward 0x100 reverse 0x200 backward 0x200}}
-    } -maxleftover 0]
-
-    if {([info exists opts(file)] && [info exists opts(channel)]) ||
-        ! ([info exists opts(file)] || [info exists opts(channel)])} {
-        error "Exactly one of -file or -channel must be specified."
-    }
-
-    set flags $opts(ignorequeryerrors)
-    incr flags $opts(direction)
-
-    if {[info exists opts(file)]} {
-        set path [_evt_normalize_path $opts(file)]
-        incr flags 0x2
-    } else {
-        set path $opts(channel)
-        incr flags 0x1
-    }
-
-    return [EvtQuery $opts(session) $path $opts(query) $flags]
-}
-
-proc twapi::evt_next {hresultset args} {
-    array set opts [parseargs args {
-        {timeout.int -1}
-        {count.int 1}
-        {status.arg}
-    } -maxleftover 0]
-
-    if {[info exists opts(status)]} {
-        upvar 1 $opts(status) status
-        return [EvtNext $hresultset $opts(count) $opts(timeout) 0 status]
-    } else {
-        return [EvtNext $hresultset $opts(count) $opts(timeout) 0]
-    }
 }
 
 twapi::proc* twapi::_evt_event_decode_system_fields {hevt} {
@@ -469,245 +116,10 @@ twapi::proc* twapi::evt_event_decode_userdata {hevt} {
     return [Twapi_ExtractEVT_RENDER_VALUES $_evt(render_buffer)]
 }
 
-twapi::proc* twapi::evt_event_decode_list {hevts args} {
-    _evt_init
-} {
-    variable _evt
-
-    array set opts [parseargs args {
-        {values.arg NULL}
-        {session.arg NULL}
-        {logfile.arg ""}
-        {lcid.int 0}
-        ignorestring.arg
-        message
-        levelname
-        taskname
-        opcodename
-        keywords
-        xml
-    } -ignoreunknown -hyphenated]
-
-    # SAME ORDER AS _evt_event_decode_system_fields
-    set decoded_fields [evt_system_properties]
-    set decoded_events {}
-
-    # ORDER MUST BE SAME AS order in which values are appended below
-    foreach opt {-levelname -taskname -opcodename -keywords -xml -message} {
-        if {$opts($opt)} {
-            lappend decoded_fields $opt
-        }
-    }
-
-    foreach hevt $hevts {
-        set decoded [_evt_event_decode_system_fields $hevt]
-        # Get publisher from hevt
-        set publisher [evt_system_properties -providername $decoded]
-
-        if {! [dict exists $_evt(publisher_handles) $publisher $opts(-session) $opts(-lcid)]} {
-            if {[catch {
-                dict set _evt(publisher_handles) $publisher $opts(-session) $opts(-lcid) [EvtOpenPublisherMetadata $opts(-session) $publisher $opts(-logfile) $opts(-lcid) 0]
-            }]} {
-                # TBD - debug log
-                dict set _evt(publisher_handles) $publisher $opts(-session) $opts(-lcid) NULL
-            }
-        }
-        set hpub [dict get $_evt(publisher_handles) $publisher $opts(-session) $opts(-lcid)]
-
-        # See if cached values are present for -levelname -taskname
-        # and -opcodename. TBD - can -keywords be added to this ?
-        foreach {intopt opt callflag} {-level -levelname 2 -task -taskname 3 -opcode -opcodename 4} {
-            if {$opts($opt)} {
-                set ival [evt_system_properties $intopt $decoded]
-                if {[dict exists $_evt($opt) $publisher $ival]} {
-                    lappend decoded [dict get $_evt($opt) $publisher $ival]
-                } else {
-                    # Not cached. Look it up. Value of 0 -> null so
-                    # just use ignorestring if specified.
-                    if {$ival == 0 && [info exists opts(-ignorestring)]} {
-                        set optval $opts(-ignorestring)
-                    } else {
-                        if {[info exists opts(-ignorestring)]} {
-                            if {[EvtFormatMessage $hpub $hevt 0 $opts(-values) $callflag optval]} {
-                                dict set _evt($opt) $publisher $ival $optval
-                            } else {
-                                # Note result not cached if not found since
-                                # ignorestring may be different on every call
-                                set optval $opts(-ignorestring)
-                            }
-                        } else {
-                            # -ignorestring not specified so
-                            # will raise error if not found
-                            set optval [EvtFormatMessage $hpub $hevt 0 $opts(-values) $callflag]
-                            dict set _evt($opt) $publisher $ival [atomize $optval]
-                        }
-                    }
-                    lappend decoded $optval
-                }
-            }
-        }
-
-        # Non-cached fields
-        # ORDER MUST BE SAME AS decoded_fields ABOVE
-        foreach {opt callflag} {
-            -keywords 5
-            -xml 9
-        } {
-            if {$opts($opt)} {
-                if {[info exists opts(-ignorestring)]} {
-                    if {! [EvtFormatMessage $hpub $hevt 0 $opts(-values) $callflag optval]} {
-                        set optval $opts(-ignorestring)
-                    }
-                } else {
-                    set optval [EvtFormatMessage $hpub $hevt 0 $opts(-values) $callflag]
-                }
-                lappend decoded $optval
-            }
-        }
-
-        # We treat -message differently because on failure we want
-        # to extract the user data. -ignorestring is not used for this
-        # unless user data extraction also fails
-        if {$opts(-message)} {
-            if {[EvtFormatMessage $hpub $hevt 0 $opts(-values) 1 message]} {
-                lappend decoded $message
-            } elseif {[EvtFormatMessage NULL $hevt 0 $opts(-values) 1 message]} {
-                # If above failed, try with NULL publisher handler. In this case
-                # EvtFormatMessage will use the rendering info stored within the
-                # event in case it is a forwarded event from another system.
-                lappend decoded $message
-            } else {
-                # TBD - make sure we have a test for this case.
-                # TBD - log
-                if {[catch {
-                    lappend decoded "Message for event could not be found. Event contained user data: [join [evt_event_decode_userdata $hevt] ,]"
-                } message]} {
-                    if {[info exists opts(-ignorestring)]} {
-                        lappend decoded $opts(-ignorestring)
-                    } else {
-                        error $message
-                    }
-                }
-            }
-        }
-
-        lappend decoded_events $decoded
-    }
-
-    return [list $decoded_fields $decoded_events]
-}
-
-proc twapi::evt_event_decode {hevt args} {
-    return [recordarray index [evt_event_decode_list [list $hevt] {*}$args] 0 -format dict]
-}
-
-proc twapi::_evt_publisher_handle_from_event {hevt {lcid 0} {session NULL} {logfile {}}} {
-    variable _evt
-
-    set decoded [_evt_event_decode_system_fields $hevt]
-    set publisher [evt_system_properties -providername $decoded]
-    if {! [dict exists $_evt(publisher_handles) $publisher $session $lcid]} {
-        if {[catch {
-            dict set _evt(publisher_handles) $publisher $session $lcid [EvtOpenPublisherMetadata $session $publisher $logfile $lcid 0]
-        }]} {
-            # TBD - debug log
-            dict set _evt(publisher_handles) $publisher $session $lcid NULL
-        }
-    }
-    set hpub [dict get $_evt(publisher_handles) $publisher $session $lcid]
-
-}
-
-# TBD - document
-proc twapi::evt_event_message {hevt args} {
-    parseargs args {
-        {lcid.int 0}
-        {logfile.arg ""}
-        {session.arg NULL}
-    } -setvars
-    # Note hpub is cached so do not close here
-    set hpub [_evt_publisher_handle_from_event $hevt $lcid $session $logfile]
-    return [EvtFormatMessage $hpub $hevt 0 NULL 1]
-}
-
-proc twapi::evt_publisher_message {hpub msgid args} {
-
-    array set opts [parseargs args {
-        {values.arg NULL}
-    } -maxleftover 0]
-
-    # 8 -> EvtFormatMessageId. Note, not 7 (EvtFormatMessageProvider) 
-    return [EvtFormatMessage $hpub NULL $msgid $opts(values) 8]
-}
-
-# TBD - document
-# Where is this used?
-proc twapi::evt_free_EVT_VARIANT_ARRAY {p} {
-    evt_free $p
-}
-
 # TBD - document
 # Where is this used?
 proc twapi::evt_free_EVT_RENDER_VALUES {p} {
     evt_free $p
-}
-
-# TBD - document
-proc twapi::evt_seek {hresults pos args} {
-    array set opts [parseargs args {
-        {origin.arg first {first last current}}
-        bookmark.arg
-        {strict 0 0x10000}
-    } -maxleftover 0]
-
-    if {[info exists opts(bookmark)]} {
-        set flags 4
-    } else {
-        set flags [lsearch -exact {first last current} $opts(origin)]
-        incr flags;             # 1 -> first, 2 -> last, 3 -> current
-        set opts(bookmark) NULL
-    }
-
-    incr flags $opts(strict)
-
-    EvtSeek $hresults $pos $opts(bookmark) 0 $flags
-}
-
-proc twapi::evt_subscribe {path args} {
-    # TBD - document -session and -bookmark and -strict
-    array set opts [parseargs args {
-        {session.arg NULL}
-        {query.arg *}
-        bookmark.arg
-        includeexisting
-        {ignorequeryerrors 0 0x1000}
-        {strict 0 0x10000}
-    } -maxleftover 0]
-
-    set flags [expr {$opts(ignorequeryerrors) | $opts(strict)}]
-    if {[info exists opts(bookmark)]} {
-        set flags [expr {$flags | 3}]
-        set bookmark $opts(origin)
-    } else {
-        set bookmark NULL
-        if {$opts(includeexisting)} {
-            set flags [expr {$flags | 2}]
-        } else {
-            set flags [expr {$flags | 1}]
-        }
-    }
-
-    set hevent [lindex [CreateEvent [_make_secattr {} 0] 0 0 ""] 0]
-    if {[catch {
-        EvtSubscribe $opts(session) $hevent $path $opts(query) $bookmark $flags
-    } hsubscribe]} {
-        set erinfo $::errorInfo
-        set ercode $::errorCode
-        CloseHandle $hevent
-        error $hsubscribe $erinfo $ercode
-    }
-
-    return [list $hsubscribe $hevent]
 }
 
 # TBD - test
@@ -757,7 +169,35 @@ proc twapi::evt_twapi_uninstall {} {
     evt_publisher_uninstall [file join [get_twapi_script_dir] twapi_events.man]
 }
 
-proc twapi::_evt_normalize_path {path} {
+proc twapi::_evt_parse_query_options {argvvar args} {
+    upvar 1 $argvvar argv
+    parseargs argv {
+        channel.arg
+        logfile.arg
+        {query.arg {}}
+        {ignorequeryerrors 0 0x1000}
+    } -setvars {*}$args
+
+    if {[info exists channel]} {
+        if {[info exists logfile]} {
+            error "At most one of -channel and -logfile may be specified."
+        }
+        set source $channel
+        set flags 1
+    } elseif {[info exists logfile]} {
+        set source $logfile
+        set flags 2
+    } elseif {$query ne ""} {
+        set source ""
+        set flags 1
+    } else {
+        set source Application
+        set flags 1
+    }
+    return [list $source $query [tcl::mathop::| $flags $ignorequeryerrors]]
+}
+
+proc twapi::_evt_native_path {path} {
     # Do not want to rely on [file normalize] returning "" for ""
     if {$path eq ""} {
         return ""
@@ -767,27 +207,862 @@ proc twapi::_evt_normalize_path {path} {
 }
 
 proc twapi::_evt_dump {args} {
-    array set opts [parseargs args {
+    parseargs args {
         {outfd.arg stdout}
         count.int
-    } -ignoreunknown]
+    } -ignoreunknown -setvars
 
-    set hq [evt_query {*}$args]
-    trap {
-        while {[llength [set hevts [evt_next $hq]]]} {
-            trap {
-                foreach ev [recordarray getlist [evt_event_decode_list $hevts -message -ignorestring None.] -format dict] {
-                    if {[info exists opts(count)] &&
-                        [incr opts(count) -1] < 0} {
+
+    set osess [EvtSession new]
+    try {
+        set oreader [$osess newReader {*}$args]
+        set ofmt [$osess newFormatter]
+        while {[llength [set hevts [$oreader getEvents -count 100]]]} {
+            try {
+                foreach evt [recordarray getlist \
+                                 [$ofmt decodeEvents $hevts -properties {
+                                     -providername -eventid -level -eventrecordid
+                                     -timecreated -message
+                                 }] -format dict] {
+                    if {[info exists count] && [incr count -1] < 0} {
                         return
                     }
-                    puts $opts(outfd) "[dict get $ev -timecreated] [dict get $ev -eventrecordid] [dict get $ev -providername]: [dict get $ev -eventrecordid] [dict get $ev -message]"
+                    puts $outfd "[dict get $evt -timecreated] [dict get $evt -eventid] [dict get $evt -providername] [dict get $evt -eventrecordid]: [dict get $evt -message]"
                 }
             } finally {
                 evt_close {*}$hevts
             }
         }
     } finally {
-        evt_close $hq
+        # Also destroyed dependent objects like oquery
+        $osess destroy
     }
+}
+
+catch {twapi::EvtSession destroy}
+catch {twapi::EvtPublisher destroy}
+catch {twapi::EvtReader destroy}
+catch {twapi::EvtChannelConfig destroy}
+catch {twapi::EvtChannelInfo destroy}
+catch {twapi::EvtLogInfo destroy}
+catch {twapi::EvtResultSet destroy}
+catch {twapi::EvtFormatter destroy}
+
+oo::class create twapi::EvtSession {
+    variable hSession
+    variable nameCounter
+
+    # Track objects that need to be destroyed when session is destroyed.
+    # Since objects can be renamed, we track their namespaces as the key.
+    variable dependentNamespaces
+
+    constructor {args} {
+
+        namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
+        set dependentNamespaces {}
+
+        if {[llength $args] == 0} {
+            set hSession NULL
+            return
+        }
+
+        parseargs args {
+            {system.arg ""}
+            user.arg
+            domain.arg
+            password.arg
+            {authtype.arg 0}
+        } -nulldefault -maxleftover 0 -setvars
+
+        if {![string is integer -strict $authtype]} {
+            set authtype [dict get {default 0 negotiate 1 kerberos 2 ntlm 3} [string tolower $authtype]]
+        }
+
+        set hSession [EvtOpenSession 1 [list $system $user $domain $password $authtype] 0 0]
+    }
+    destructor {
+        foreach dependent [dict keys $dependentNamespaces] {
+            # Will destroy object implemented by the namespace
+            catch {namespace delete $dependent}
+        }
+        if {![my isLocal]} {
+            EvtClose $hSession
+        }
+    }
+    method handle {} {return $hSession}
+    method isLocal {} {return [string equal $hSession NULL]}
+    method channels {} {
+        set channels {}
+        set hce [EvtOpenChannelEnum $hSession 0]
+        try {
+            while {[set chname [EvtNextChannelPath $hce]] ne ""} {
+                lappend channels $chname
+            }
+        } finally {
+            EvtClose $hce
+        }
+
+        return $channels
+    }
+    method clearChannel {channel args} {
+        parseargs args {{backup.arg ""}} -maxleftover 0 -setvars
+        return [EvtClearLog $hSession $channel [_evt_native_path $backup] 0]
+    }
+    method archiveLogfile {logpath args} {
+        parseargs args {{lcid.int 0}} -maxleftover 0 -setvars
+        return [EvtArchiveExportedLog $hSession \
+                    [_evt_native_path $logpath] $lcid 0]
+    }
+    method exportEvents {channel outfile args} {
+        lassign [_evt_parse_query_options args -maxleftover 0] source query flags
+        EvtExportLog $hSession $source $query \
+            [_evt_native_path $outfile] $flags
+    }
+    method createChannelConfig {objname channel} {
+        set obj [uplevel 1 [list [namespace which -command EvtChannelConfig] \
+                                create $objname [self] $channel]]
+        dict set dependentNamespaces [info object namespace $obj] $obj
+        return $obj
+    }
+    method newChannelConfig {channel} {
+        return [my createChannelConfig [my NewName channel-config] $channel]
+    }
+    method createChannelInfo {objname channel} {
+        set obj [uplevel 1 [list [namespace which -command EvtChannelInfo] \
+                                create $objname [self] $channel]]
+        dict set dependentNamespaces [info object namespace $obj] $obj
+        return $obj
+    }
+    method newChannelInfo {channel} {
+        return [my createChannelInfo [my NewName channel-info] $channel]
+    }
+    method createLogFileInfo {objname logpath} {
+        set obj [uplevel 1 [list [namespace which -command EvtFileInfo] \
+                                create $objname [self] $logpath]]
+        dict set dependentNamespaces [info object namespace $obj] $obj
+        return $obj
+    }
+    method newLogFileInfo {logpath} {
+        return [my createLogFileInfo [my NewName logfile-info] $logpath]
+    }
+    method publishers {} {
+        set pubs {}
+        set henum [EvtOpenPublisherEnum $hSession]
+        try {
+            while {[set pub [EvtNextPublisherId $henum]] ne ""} {
+                lappend pubs $pub
+            }
+        } finally {
+            evt_close $henum
+        }
+        return $pubs
+    }
+    method createPublisher {objname publisher args} {
+        parseargs args {
+            {lcid.int 0}
+            {logarchive.arg ""}
+        } -setvars -maxleftover 0
+        set obj [uplevel 1 [list [namespace which -command EvtPublisher] \
+                                create $objname [self] $publisher $lcid $logarchive]]
+        dict set dependentNamespaces [info object namespace $obj] $obj
+        return $obj
+    }
+    method newPublisher {publisher args} {
+        return [my createPublisher [my NewName pub] $publisher {*}$args]
+    }
+    method createReader {objname args} {
+        set obj [uplevel 1 [list [namespace which -command EvtReader] \
+                                create $objname $hSession {*}$args]]
+        dict set dependentNamespaces [info object namespace $obj] $obj
+        return $obj
+    }
+    method newReader {args} {
+        return [my createReader [my NewName chan-query] {*}$args]
+    }
+    method createSubscription {objname channel args} {
+        set obj [uplevel 1 [list [namespace which -command EvtSubscription] \
+                                create $objname $hSession $channel {*}$args]]
+        dict set dependentNamespaces [info object namespace $obj] $obj
+        return $obj
+    }
+    method newSubscription {channel args} {
+        return [my createSubscription [my NewName subscription] $channel {*}$args]
+    }
+    method createFormatter {objname args} {
+        set obj [uplevel 1 [list [namespace which -command EvtFormatter] \
+                                create $objname [self] {*}$args]]
+        dict set dependentNamespaces [info object namespace $obj] $obj
+        return $obj
+    }
+    method newFormatter {args} {
+        return [my createFormatter [my NewName fmt] {*}$args]
+    }
+    method unregister {objs} {
+        foreach obj $objs {
+            set obj_ns [info object namespace $obj]
+            $obj destroy
+            dict unset dependentNamespace $obj_ns
+        }
+    }
+
+    # Private methods
+    method NewName {{name_part obj}} {
+        return [string cat evt- $name_part - [incr nameCounter]]
+    }
+
+}
+
+oo::class create twapi::EvtPublisher {
+    variable hPublisher
+    variable publisherName
+    variable levelNameMap
+    variable taskNameMap
+    variable opcodeNameMap
+    variable keywordNameMap
+
+    constructor {osess publisher {lcid 0} {logarchive {}}} {
+        namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
+        set publisherName $publisher
+        set hPublisher [EvtOpenPublisherMetadata [$osess handle] \
+                            $publisher $logarchive $lcid 0]
+    }
+    method name          {} {return $publisherName}
+    method handle        {} {return $hPublisher}
+    method guid          {} {EvtGetPublisherMetadataProperty $hPublisher 0}
+    method resourceFile  {} {EvtGetPublisherMetadataProperty $hPublisher 1}
+    method parameterFile {} {EvtGetPublisherMetadataProperty $hPublisher 2}
+    method messageFile   {} {EvtGetPublisherMetadataProperty $hPublisher 3}
+    method helpLink      {} {EvtGetPublisherMetadataProperty $hPublisher 4}
+    method messageId     {} {EvtGetPublisherMetadataProperty $hPublisher 5}
+    method channels {} {
+        return [my GetPropertiesArray 6 {
+            -channelpath 7 -channelindex 8 -channelid 9
+            -channelflags 10 -channelmessageid 11
+        } {-channelindex -channelmessageid}]
+    }
+    method levels {} {
+        return [my GetPropertiesArray 12 {
+            -name 13 -value 14 -messageid 15
+        } {-messageid}]
+    }
+    method tasks {} {
+        return [my GetPropertiesArray 16 {
+            -name 17 -eventguid 18 -value 19
+            -messageid 20
+        } {-messageid}]
+    }
+    method opcodes {} {
+        return [my GetPropertiesArray 21 {
+            -name 22 -value 23 -messageid 24
+        } {-messageid}]
+    }
+    method keywords {} {
+        return [my GetPropertiesArray 25 {
+            -name 26 -value 27 -messageid 28
+        } {-messageid}]
+    }
+    method eventDefinitions {property_names} {
+        set henum [EvtOpenEventMetadataEnum $hPublisher]
+
+        # It is faster to build a list and then have Tcl shimmer to a dict when
+        # required
+        set meta {}
+        try {
+            while {[set hmeta [EvtNextEventMetadata $henum 0]] ne ""} {
+                try {
+                    set properties {}
+                    foreach prop $property_names {
+                        lappend properties $prop \
+                            [EvtGetEventMetadataProperty $hmeta \
+                                 [dict get {
+                                     -id 0 -version 1 -channel 2 -level 3
+                                     -opcode 4 -task 5 -keyword 6 -messageid 7 -template 8
+                                 } $prop]]
+                    }
+                    lappend meta $properties
+                } finally {
+                    evt_close $hmeta
+                }
+            }
+        } finally {
+            evt_close $henum
+        }
+
+        return $meta
+    }
+    method message {msg_id} {
+        # TBD - cache message id's
+        # 8 -> EvtFormatMessageId
+        return [EvtFormatMessage $hPublisher NULL $msg_id NULL 8]
+    }
+    method levelNames {} {
+        if {![info exists levelNameMap]} {
+            my InitNames levelNameMap levels
+        }
+        return $levelNameMap
+    }
+    method taskNames {} {
+        if {![info exists taskNameMap]} {
+            my InitNames taskNameMap tasks
+        }
+        return $taskNameMap
+    }
+    method opcodeNames {} {
+        if {![info exists opcodeNameMap]} {
+            my InitNames opcodeNameMap opcodes
+        }
+        return $opcodeNameMap
+    }
+    method keywordNames {} {
+        if {![info exists keywordNameMap]} {
+            my InitNames keywordNameMap keywords
+        }
+        return $keywordNameMap
+    }
+
+    # Private methods
+    method InitNames {name_map_var method_name} {
+        set $name_map_var [dict create]
+        foreach elem [my $method_name] {
+            set value [dict get $elem -value]
+            set msgid [dict get $elem -messageid]
+            if {$msgid != -1} {
+                if {![catch {my message $msgid} name]} {
+                    dict set $name_map_var $value $name
+                    continue
+                }
+            }
+            dict set $name_map_var $value $value
+        }
+    }
+
+    method GetPropertiesArray {property_enum definitions {minus_one_map {}}} {
+        set harray [EvtGetPublisherMetadataProperty $hPublisher $property_enum]
+        try {
+            set n [EvtGetObjectArraySize $harray]
+            set elems {}
+            for {set i 0} {$i < $n} {incr i} {
+                set elem [dict create]
+                foreach {opt enum} $definitions {
+                    set value [EvtGetObjectArrayProperty $harray $enum $i]
+                    if {$opt in $minus_one_map && $value == 4294967295} {
+                        set value -1
+                    }
+                    dict set elem $opt $value
+                }
+                lappend elems $elem
+            }
+            return $elems
+        } finally {
+            EvtClose $harray
+        }
+    }
+}
+
+# Intended to be used as mixin
+oo::class create twapi::EvtResultSet {
+    variable hResultSet
+    constructor args {
+        next {*}$args
+    }
+    destructor {
+        next
+        EvtClose $hResultSet
+    }
+    method handle {} {return $hResultSet}
+    method info {} {
+        # Don't return as dictionary because in case of multiple references to
+        # the same channel in a query list, not clear if it will be returned
+        # just once or multiple types.
+        lmap channel_name [EvtGetQueryInfo $hResultSet 0] \
+            channel_status [EvtGetQueryInfo $hResultSet 1] {
+                list $channel_name $channel_status
+            }
+    }
+    method getEvents {args} {
+        parseargs args {
+            {timeout.int -1}
+            {count.int 1}
+            {statusvar.arg}
+        } -maxleftover 0 -setvars
+
+        if {[info exists statusvar]} {
+            upvar 1 $statusvar status
+            set hevts [EvtNext $hResultSet $count $timeout 0 status]
+        } else {
+            set hevts [EvtNext $hResultSet $count $timeout 0]
+        }
+        if {[llength $hevts]} {
+            return $hevts
+        }
+        my EofHandler
+        return $hevts
+    }
+    method SetHandle h {
+        set hResultSet $h
+    }
+}
+
+oo::class create twapi::EvtReader {
+    mixin twapi::EvtResultSet
+    variable hSession
+    constructor {hsess args} {
+        namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
+        parseargs args {
+            {direction.sym forward {forward 0x100 backward 0x200}}
+        } -ignoreunknown -setvars
+        lassign [_evt_parse_query_options args -maxleftover 0] source query flags
+
+        set hSession $hsess
+        my SetHandle [EvtQuery $hsess $source $query \
+                          [tcl::mathop::| $flags $direction]]
+    }
+    destructor {}
+    method EofHandler {} {}
+}
+
+oo::class create twapi::EvtSubscription {
+    mixin twapi::EvtResultSet
+
+    variable hSession
+    variable hSignal
+    variable commandPrefix
+    variable callbackTimeout
+
+    constructor {hsess channel args} {
+        namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
+        parseargs args {
+            {query.arg {}}
+            hbookmark.arg
+            includeexisting
+            {ignorequeryerrors 0 0x1000}
+            {strict 0 0x10000}
+        } -maxleftover 0 -setvars
+
+        if {[info exists hbookmark]} {
+            set flags 3
+        } else {
+            set hbookmark NULL
+            set flags [expr {$includeexisting ? 2 : 1}]
+        }
+        set flags [expr {$flags | $ignorequeryerrors | $strict}]
+        # MUST be manual rest and initially signalled as per the SDK
+        # example, else subscriptions do not work.
+        set hsig [create_event -manualreset 1 -signalled 1]
+        try {
+            set hsub [EvtSubscribe $hsess $hsig $channel $query $hbookmark $flags]
+        } on error {message ropts} {
+            CloseHandle $hsig
+            return -options $ropts $message
+        }
+
+        set asyncMode 0
+        set hSession $hsess
+        set hSignal $hsig
+        my SetHandle $hsub
+        # Do not init commandPrefix until callback is registered
+    }
+    destructor {
+        if {[info exists commandPrefix]} {
+            cancel_wait_on_handle $hSignal
+        }
+        CloseHandle $hSignal
+    }
+    method wait {{ms -1}} {
+        if {[info exists commandPrefix]} {
+            error "Cannot wait on a subscription that has registered callbacks."
+        }
+        # Don't really care why the wait completed (signalled, timeout, abandoned)
+        # Caller simply needs to call the next method in all cases
+        wait_on_handle $hSignal -wait $ms
+    }
+    method registerCallback {cb {ms -1}} {
+        if {$cb eq ""} {
+            error "Cannot register empty callback."
+        }
+        # Verify well formed list
+        llength $cb
+
+        # If callback already exists, no need to register handler again
+        if {![info exists commandPrefix]} {
+            wait_on_handle $hSignal -async [mymethod SignalHandler] \
+                -executeonce 1 -timeout $ms
+        }
+        set commandPrefix $cb
+        set callbackTimeout [incr ms 0]
+    }
+    method unregisterCallback {} {
+        if {[info exists commandPrefix]} {
+            cancel_wait_on_handle $hSignal
+            unset commandPrefix
+        }
+    }
+    method SignalHandler {hsig trigger} {
+        # Irrespective of whether trigger is signalled, timeout, abandoned,
+        # action to be taken is the same. Invoke the callback
+        if {[info exists commandPrefix]} {
+            uplevel #0 $commandPrefix
+        }
+    }
+    method EofHandler {} {
+        twapi::reset_event $hSignal
+        if {[info exists commandPrefix]} {
+            wait_on_handle $hSignal -async [mymethod SignalHandler] \
+                -executeonce 1 -timeout $callbackTimeout
+        }
+    }
+}
+
+oo::class create twapi::EvtFormatter {
+    # Owning session object
+    variable oSession
+
+    # LCID for formatting messages
+    variable localeId
+
+    # metadata file to look up before system registry
+    variable logArchive
+
+    # Dictionary mapping publisher names to their wrapper objects
+    # publisher names are case-insensitive. However, we do not bother
+    # normalizing names to use as keys as duplicate objects cause no harm
+    variable publisherObjs
+
+    # Dictionary mapping publisher names to their handles
+    variable publisherHandles
+
+    # Rendering context for system fields
+    variable hSystemContext
+
+    # Rendering context for user fields
+    variable hUserContext
+
+    # Reusable buffer for rendering values
+    variable renderBuffer
+
+    # Map of (publisher, level/task/opcode/keywords) -> names
+    variable levelNameMap
+    variable taskNameMap
+    variable opcodeNameMap
+    variable keywordNameMap
+
+    initialize {
+        # system properties mapped to their position in an event
+        variable systemPropertyNameMap
+        array set systemPropertyNameMap {
+            -providername 0 -providerguid 1 -eventid 2 -qualifiers 3 -level 4
+            -task 5 -opcode 6 -keywords 7 -timecreated 8 -eventrecordid 9
+            -activityid 10 -relatedactivityid 11 -pid 12 -tid 13 -channel 14
+            -computer 15 -sid 16 -version 17
+        }
+        variable eventPropertyNames [concat \
+                                         [array names systemPropertyNameMap] \
+                                         {-userdata}]
+    }
+    constructor {osess args} {
+        namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
+        parseargs args {
+            {logarchive.arg ""}
+            {lcid.int 0}
+        } -maxleftover 0 -setvars
+        set oSession $osess
+        set localeId $lcid
+        set publisherObjs [dict create]
+        set publisherHandles [dict create]
+        set logArchive [_evt_native_path $logarchive]
+        set hSystemContext [EvtCreateRenderContext {} 1]
+        set hUserContext [EvtCreateRenderContext {} 2]
+        set levelNameMap [dict create]
+        set taskNameMap [dict create]
+        set opcodeNameMap [dict create]
+        set keywordNameMap [dict create]
+        set renderBuffer NULL
+    }
+    destructor {
+        if {$renderBuffer ne "NULL"} {
+            evt_free_EVT_RENDER_VALUES $renderBuffer
+        }
+        EvtClose $hSystemContext
+        EvtClose $hUserContext
+        $oSession unregister [dict values $publisherObjs]
+    }
+    method decodeEvents {hevts args} {
+        classvariable systemPropertyNameMap eventPropertyNames
+        # TBD - ignorestring, raw
+        parseargs args {
+            ignorestring.arg
+            {properties.arg {-providername -eventid -level -task -timecreated -pid}}
+            {raw 0}
+        } -setvars -maxleftover 0
+
+        return [list $properties [lmap hevt $hevts {
+            set system_properties [my EventSystemProperties $hevt]
+            set publisher [lindex $system_properties 0]
+            set rec [lmap prop_name $properties {
+                switch -exact -- $prop_name {
+                    -level {
+                        my LevelName $publisher [lindex $system_properties 4]
+                    }
+                    -task {
+                        my TaskName $publisher [lindex $system_properties 5]
+                    }
+                    -opcode {
+                        my OpcodeName $publisher [lindex $system_properties 6]
+                    }
+                    -keywords {
+                        my KeywordNames $publisher [lindex $system_properties 7]
+                    }
+                    -userdata {
+                        my EventUserProperties $hevt
+                    }
+                    -message {
+                        my EventMessage $publisher $hevt
+                    }
+                    default {
+                        lindex $system_properties $systemPropertyNameMap($prop_name)
+                    }
+                }
+            }]
+        }]]
+    }
+    method decodeEvent {hevt args} {
+        return [recordarray index \
+                    [my decodeEvents [list $hevt] {*}$args] \
+                    0 -format dict]
+    }
+    method formatEvent hevt {
+        my EventMessage [lindex [my EventSystemProperties $hevt] 0] $hevt
+    }
+    method formatEventAsXml hevt {
+        set publisher [lindex [my EventSystemProperties $hevt] 0]
+        ## 9 -> EvtFormatMessageXml
+        return [EvtFormatMessage [my PublisherHandle $publisher] $hevt 0 NULL 9]
+    }
+    method seek {offset args} {
+        parseargs args {
+            {origin.arg current {first last current}}
+            bookmark.arg
+            {strict 0 0x10000}
+        } -maxleftover 0 -setvars
+
+        if {[info exists bookmark]} {
+            set flags 4
+        } else {
+            set flags [dict get {first 1 last 2 current 3} $origin]
+            set bookmark NULL
+        }
+
+        incr flags $strict
+
+        EvtSeek $hresults $pos $bookmark 0 $flags
+    }
+
+    method PublisherObj publisher {
+        if {[dict exists $publisherObjs $publisher]} {
+            return [dict get $publisherObjs $publisher]
+        }
+        set obj [$oSession newPublisher $publisher \
+                     -lcid $localeId -logarchive $logArchive]
+        dict set publisherObjs $publisher $obj
+        return $obj
+    }
+    method PublisherHandle publisher {
+        if {[dict exists $publisherHandles $publisher]} {
+            return [dict get $publisherHandles $publisher]
+        }
+
+        if {[catch {my PublisherObj $publisher} obj]} {
+            dict set publisherHandles $publisher NULL
+            return NULL
+        } else {
+            set h [$obj handle]
+            dict set publisherHandles $publisher $h
+            return $h
+        }
+    }
+    method EventSystemProperties {hevt} {
+        set renderBuffer [Twapi_EvtRenderValues $hSystemContext $hevt $renderBuffer]
+        return [Twapi_ExtractEVT_RENDER_VALUES $renderBuffer]
+    }
+    method EventUserProperties -export {hevt} {
+        set renderBuffer [Twapi_EvtRenderValues $hUserContext $hevt $renderBuffer]
+        return [Twapi_ExtractEVT_RENDER_VALUES $renderBuffer]
+    }
+    method LevelName -export {publisher level} {
+        if {[dict exists $levelNameMap $publisher]} {
+            return [dict getdef $levelNameMap $publisher $level $level]
+        }
+        # Not in cache. Get from publisher. May fail because there is no such
+        # publisher registered.
+        if {![catch {
+            dict set levelNameMap $publisher [[my PublisherObj $publisher] levelNames]
+        }]} {
+            return [dict getdef $levelNameMap $publisher $level $level]
+        }
+        if {![dict exists $levelNameMap ""]} {
+            # Default localized level names
+            # Get default level names used by Windows Eventlog
+            if {[catch {
+                set map [[my PublisherObj Microsoft-Windows-Eventlog] levelNames]
+            }]} {
+                # Even that failed, so use English mappings
+                set map {1 Critical 2 Error 3 Warning 4 Information 5 Verbose}
+            }
+            dict set levelNameMap "" $map
+        }
+        dict set levelNameMap $publisher [dict get $levelNameMap ""]
+        return [dict getdef $levelNameMap $publisher $level $level]
+    }
+    method TaskName -export {publisher task} {
+        if {[dict exists $taskNameMap $publisher]} {
+            return [dict getdef $taskNameMap $publisher $task $task]
+        }
+        # Not in cache. Get from publisher. May fail because there is no such
+        # publisher registered.
+        if {[catch {
+            dict set taskNameMap $publisher [[my PublisherObj $publisher] taskNames]
+        }]} {
+            # Default to the task id. Unlike for levels, we do not try
+            # Microsoft-Windows-Eventlog or have any predefined names for tasks.
+            dict set taskNameMap $publisher $task $task
+        }
+        return [dict getdef $taskNameMap $publisher $task $task]
+    }
+    method KeywordNames -export {publisher keywords} {
+        # Treat as a bit mask else loop below will continue forever
+        # on negative 64-bit values
+        set keywords [expr {$keywords & 0xffffffffffffffff}]
+        set names {}
+        # keywords are a bitmask, each bit being a keyword
+        while {$keywords} {
+            set keyword [expr {$keywords & -$keywords}]
+            set keywords [expr {$keywords & ~$keyword}]
+            lappend names [my KeywordName $publisher $keyword]
+        }
+        return $names
+    }
+    method KeywordName {publisher keyword} {
+        if {[dict exists $keywordNameMap $publisher]} {
+            return [dict getdef $keywordNameMap $publisher $keyword $keyword]
+        }
+        # Not in cache. Get from publisher. May fail because there is no such
+        # publisher registered.
+        if {[catch {
+            dict set keywordNameMap $publisher [[my PublisherObj $publisher] keywordNames]
+        }]} {
+            # Default to the keyword id. Unlike for levels, we do not try
+            # Microsoft-Windows-Eventlog or have any predefined names for keywords.
+            dict set keywordNameMap $publisher $keyword $keyword
+        }
+        return [dict getdef $keywordNameMap $publisher $keyword $keyword]
+    }
+
+    method EventMessage {publisher hevt} {
+        if {[EvtFormatMessage [my PublisherHandle $publisher] \
+                 $hevt 0 NULL 1 message]} {
+            return $message
+        } elseif {[EvtFormatMessage NULL $hevt 0 NULL 1 message]} {
+            # try with NULL publisher handler. In this case EvtFormatMessage
+            # will use the rendering info stored within the event in case it is
+            # a forwarded event from another system.
+            return $message
+        } else {
+            # TBD - make sure we have a test for this case.
+            set message "Message for event could not be found."
+            catch {
+                append message " Event user data: " [join [my EventUserProperties $hevt] ", "]
+            }
+            return $message
+        }
+    }
+}
+
+oo::class create twapi::EvtLogInfo {
+    variable hInfo
+    constructor {h} {
+        set hInfo $h
+    }
+    method creationTime       {} {EvtGetLogInfo $hInfo 0}
+    method lastAccessTime     {} {EvtGetLogInfo $hInfo 1}
+    method lastWriteTime      {} {EvtGetLogInfo $hInfo 2}
+    method fileSize           {} {EvtGetLogInfo $hInfo 3}
+    method attributes         {} {EvtGetLogInfo $hInfo 4}
+    method recordCount        {} {EvtGetLogInfo $hInfo 5}
+    method oldestRecordNumber {} {EvtGetLogInfo $hInfo 6}
+    method isFull             {} {EvtGetLogInfo $hInfo 7}
+    destructor {
+        EvtClose $hInfo
+    }
+}
+
+oo::class create twapi::EvtChannelInfo {
+    superclass twapi::EvtLogInfo
+    variable channelName
+    constructor {osess channel} {
+        namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
+        set channelName $channel
+        next [twapi::EvtOpenLog [$osess handle] $channel 1]
+    }
+    method channel {} {return $channelName}
+}
+
+oo::class create twapi::EvtFileInfo {
+    superclass twapi::EvtLogInfo
+    variable filePath
+    constructor {osess logfile} {
+        namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
+        set filePath $logfile
+        next [twapi::EvtOpenLog [$osess handle] $logfile 1]
+    }
+    method filePath {} {return $filePath}
+}
+
+oo::class create twapi::EvtChannelConfig {
+    variable hConfig
+    variable oSession
+    variable channelName
+    constructor {osess channel} {
+        namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
+        set channelName $channel
+        set oSession $osess
+        set hConfig [twapi::EvtOpenChannelConfig [$osess handle] $channel 0]
+    }
+    destructor {
+        EvtClose $hConfig
+        $oSession 
+    }
+    method name {} {return $channelName}
+    method save {} {EvtSaveChannelConfig $hConfig}
+
+    method isEnabled        {}    {EvtGetChannelConfigProperty $hConfig 0}
+    method setEnabled       {val} {EvtSetChannelConfigProperty $hConfig 0 0 $val}
+    method isolation        {}    {EvtGetChannelConfigProperty $hConfig 1}
+    method setIsolation     {val} {EvtSetChannelConfigProperty $hConfig 1 0 $val}
+    method type             {}    {EvtGetChannelConfigProperty $hConfig 2}
+    method publisher        {}    {EvtGetChannelConfigProperty $hConfig 3}
+    method isClassic        {}    {EvtGetChannelConfigProperty $hConfig 4}
+    method access           {}    {EvtGetChannelConfigProperty $hConfig 5}
+    method setAccess        {val} {EvtSetChannelConfigProperty $hConfig 5 0 $val}
+    method retention        {}    {EvtGetChannelConfigProperty $hConfig 6}
+    method setRetention     {val} {EvtGetChannelConfigProperty $hConfig 6 0 $val}
+    method hasAutoBackup    {}    {EvtGetChannelConfigProperty $hConfig 7}
+    method setAutoBackup    {val} {EvtGetChannelConfigProperty $hConfig 7 0 $val}
+    method maxSize          {}    {EvtGetChannelConfigProperty $hConfig 8}
+    method setMaxSize       {val} {EvtGetChannelConfigProperty $hConfig 8 0 $val}
+    method filePath         {}    {EvtGetChannelConfigProperty $hConfig 9}
+    method setFilePath      {val} {EvtGetChannelConfigProperty $hConfig 9 0 $val}
+    method levelFilter      {}    {EvtGetChannelConfigProperty $hConfig 10}
+    method setLevelFilter   {val} {EvtGetChannelConfigProperty $hConfig 10 0 $val}
+    method keywordFilter    {}    {EvtGetChannelConfigProperty $hConfig 11}
+    method setKeywordFilter {val} {EvtGetChannelConfigProperty $hConfig 11 0 $val}
+    method controlGuid      {}    {EvtGetChannelConfigProperty $hConfig 12}
+    method bufferSize       {}    {EvtGetChannelConfigProperty $hConfig 13}
+    method minBuffers       {}    {EvtGetChannelConfigProperty $hConfig 14}
+    method maxBuffers       {}    {EvtGetChannelConfigProperty $hConfig 15}
+    method latency          {}    {EvtGetChannelConfigProperty $hConfig 16}
+    method clockType        {}    {EvtGetChannelConfigProperty $hConfig 17}
+    method sidType          {}    {EvtGetChannelConfigProperty $hConfig 18}
+    method publishers       {}    {EvtGetChannelConfigProperty $hConfig 19}
+    method maxFiles         {}    {EvtGetChannelConfigProperty $hConfig 20}
+    method setMaxFiles      {val} {EvtGetChannelConfigProperty $hConfig 20 0 $val}
 }

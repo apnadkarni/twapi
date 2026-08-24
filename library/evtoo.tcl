@@ -572,7 +572,9 @@ oo::class create twapi::EventLogFormatter {
         set renderBuffer NULL
     }
     destructor {
-        evt_free_render_values $hRenderValuesBuffer
+        if {$renderBuffer ne "NULL"} {
+            evt_free_EVT_RENDER_VALUES $renderBuffer
+        }
         EvtClose $hSystemContext
         EvtClose $hUserContext
         $oSession unregister [dict values $publisherObjs]
@@ -857,90 +859,3 @@ oo::class create twapi::EventLogChannelConfig {
     method maxFiles         {}    {EvtGetChannelConfigProperty $hConfig 20}
     method setMaxFiles      {val} {EvtGetChannelConfigProperty $hConfig 20 0 $val}
 }
-
-proc twapi::evt_bookmark_render {hbm} {
-    # 2 -> EvtRenderBookmark
-    return [Twapi_EvtRenderUnicode NULL $hbm 2]
-}
-
-proc twapi::evt_event_xml {hevt} {
-    # 1 -> EvtRenderEventXml
-    return [Twapi_EvtRenderUnicode NULL $hevt 1]
-}
-
-proc twapi::evt_event_render {hevt hctx} {
-    set hbuf [Twapi_EvtRenderValues $hctx $hevt NULL]
-    try {
-        return [Twapi_ExtractEVT_RENDER_VALUES $hbuf]
-    } finally {
-        evt_free_EVT_RENDER_VALUES $hbuf
-    }
-}
-
-proc twapi::evt_event_logpath {hevt} {
-    return [EvtGetEventInfo $hevt 1]
-}
-
-proc twapi::evt_render_context_xpaths {xpaths} {
-    return [EvtCreateRenderContext $xpaths 0]
-}
-
-proc twapi::evt_render_context_system {} {
-    return [EvtCreateRenderContext {} 1]
-}
-proc twapi::_evt_native_path {path} {
-    # Do not want to rely on [file normalize] returning "" for ""
-    if {$path eq ""} {
-        return ""
-    } else {
-        return [file nativename [file normalize $path]]
-    }
-}
-
-proc twapi::evt_dump {args} {
-    parseargs args {
-        channel.arg
-        logfile.arg
-        {outfd.arg stdout}
-        count.int
-    } -ignoreunknown -setvars
-
-    if {[info exists channel]} {
-        if {[info exists logfile]} {
-            error "At most one of -channel and -file may be specified."
-        }
-    } elseif {![info exists logfile]} {
-        set channel Application
-    }
-
-    set osess [EventLogSession new]
-    try {
-        if {[info exists channel]} {
-            set oquery [$osess newChannelQuery $channel {*}$args]
-        } else {
-            set oquery [$osess newFileQuery $logfile {*}$args]
-        }
-        set ofmt [$osess newFormatter]
-        while {[llength [set hevts [$oquery getEvents -count 100]]]} {
-            try {
-                foreach evt [recordarray getlist \
-                                 [$ofmt decodeEvents $hevts -properties {
-                                     -providername -eventid -level -eventrecordid
-                                     -timecreated -message
-                                 }] -format dict] {
-                    if {[info exists count] && [incr count -1] < 0} {
-                        return
-                    }
-                    puts $outfd "[dict get $evt -timecreated] [dict get $evt -eventid] [dict get $evt -providername]: [dict get $evt -eventrecordid] [dict get $evt -message]"
-                }
-            } finally {
-                evt_close {*}$hevts
-            }
-        }
-    } finally {
-        # Also destroyed dependent objects like oquery
-        $osess destroy
-    }
-}
-
-
