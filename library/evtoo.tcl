@@ -439,6 +439,8 @@ oo::class create twapi::EventLogSubscription {
             set flags [expr {$includeexisting ? 2 : 1}]
         }
         set flags [expr {$flags | $ignorequeryerrors | $strict}]
+        # MUST be manual rest and initially signalled as per the SDK
+        # example, else subscriptions do not work.
         set hsig [create_event -manualreset 1 -signalled 1]
         try {
             set hsub [EvtSubscribe $hsess $hsig $channel $query $hbookmark $flags]
@@ -895,7 +897,50 @@ proc twapi::_evt_native_path {path} {
     }
 }
 
-proc twapi::evt_free_render_values {p} {
-    evt_free $p
+proc twapi::evt_dump {args} {
+    parseargs args {
+        channel.arg
+        logfile.arg
+        {outfd.arg stdout}
+        count.int
+    } -ignoreunknown -setvars
+
+    if {[info exists channel]} {
+        if {[info exists logfile]} {
+            error "At most one of -channel and -file may be specified."
+        }
+    } elseif {![info exists logfile]} {
+        set channel Application
+    }
+
+    set osess [EventLogSession new]
+    try {
+        if {[info exists channel]} {
+            set oquery [$osess newChannelQuery $channel {*}$args]
+        } else {
+            set oquery [$osess newFileQuery $logfile {*}$args]
+        }
+        set ofmt [$osess newFormatter]
+        while {[llength [set hevts [$oquery getEvents -count 100]]]} {
+            try {
+                foreach evt [recordarray getlist \
+                                 [$ofmt decodeEvents $hevts -properties {
+                                     -providername -eventid -level -eventrecordid
+                                     -timecreated -message
+                                 }] -format dict] {
+                    if {[info exists count] && [incr count -1] < 0} {
+                        return
+                    }
+                    puts $outfd "[dict get $evt -timecreated] [dict get $evt -eventid] [dict get $evt -providername]: [dict get $evt -eventrecordid] [dict get $evt -message]"
+                }
+            } finally {
+                evt_close {*}$hevts
+            }
+        }
+    } finally {
+        # Also destroyed dependent objects like oquery
+        $osess destroy
+    }
 }
+
 
