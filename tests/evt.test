@@ -1,0 +1,160 @@
+#
+# Copyright (c) 2026, Ashok P. Nadkarni
+# All rights reserved.
+#
+# See the file LICENSE for license
+
+# This file contains tests for commands from the eventlog.tcl
+
+package require tcltest
+eval tcltest::configure $argv
+
+source [file join [file dirname [info script]] testutil.tcl]
+load_twapi_package twapi_evt
+load_twapi_package twapi_process; # Needed for proc privileged
+
+tcltest::testConstraint haveFrenchLocale [file exists {C:\Windows\System32\fr-FR\wevtsvc.dll.mui}]
+
+namespace eval twapi::evt::test {
+    namespace import ::tcltest::test
+    variable testnum
+    variable source
+    variable type
+
+    proc privileged {} {
+        if {[twapi::min_os_version 6]} {
+            if {[twapi::process_in_administrators] &&
+                [twapi::get_process_elevation] eq "full"} {
+                return 1
+            } else {
+                return 0
+            }
+        } else {
+            return [twapi::process_in_administrators]
+        }
+    }
+    ::tcltest::testConstraint privileged [privileged]
+
+    proc new_file {{ext evt}} {
+        variable file_name_ctr
+        return [file join [tcltest::temporaryDirectory] evttest-[incr file_name_ctr].$ext]
+    }
+
+    # Get credentials for EVT sessions
+    proc evt_test_creds {target} {
+        variable evt_test_creds
+        if {![info exists evt_test_creds] || ![dict exists $evt_test_creds $target]} {
+            dict set evt_test_creds $target [twapi::cred_prompt_gui $target]
+        }
+        return [dict get $evt_test_creds $target]
+    }
+
+    # Returns a remote session object used for tests
+    proc remote_session {} {
+        lassign [evt_test_creds $::env(COMPUTERNAME)] user pw save
+        return [EvtSession new -user $user -password $pw]
+    }
+
+    # Returns path to the exported Setup log file
+    variable exported_setup_event_file
+    proc exported_setup_event_file {} {
+        variable exported_setup_event_file
+        if {![info exists exported_setup_event_file] ||
+            ![file exists $exported_setup_event_file]
+        } {
+            set exported_setup_event_file [new_file exported_setup_events.evt]
+        }
+        return $exported_setup_event_file
+    }
+
+    proc verify_event {e {expected {}}} {
+        set messages {}
+        foreach fld {
+            -channel -taskname -message -providername -eventid -level -levelname -eventrecordid -computer -sid -timecreated
+        } {
+            if {![dict exists $e $fld]} {
+                lappend messages "Field $fld missing from event"
+            }
+            if {[dict exists $expected $fld] &&
+                [dict get $expected $fld] != [dict get $e $fld]
+            } {
+                lappend message "Field value for $fld ([dict get $e $fld]) does not match expected value ([dict get $expected $fld])"
+            }
+        }
+        return $messages
+    }
+
+    #
+    # Session tests
+
+    test EvtSession-1.0 {create local session} -body {
+        list [twapi::EvtSession create lsess] \
+            [lsess isLocal] [lsess destroy] \
+            [info class instances ::twapi::EvtSession]
+    } -result [list [namespace current]::lsess 1 {} {}]
+
+    test EvtSession-1.1 {new local session} -body {
+        set o [twapi::EvtSession new]
+        list [$o isLocal] [$o destroy] \
+            [info class instances ::twapi::EvtSession]
+    } -result [list 1 {} {}]
+
+    test EvtSession-2.0 {
+        create remote session
+    } -constraints userInteraction -body {
+        lassign [evt_test_creds $::env(COMPUTERNAME)] user pw save
+        list [twapi::EvtSession create rsess -system $::env(COMPUTERNAME) \
+                  -user $user -password $pw] \
+            [rsess isLocal] [rsess destroy] \
+            [info class instances ::twapi::EvtSession]
+    } -result [list [namespace current]::rsess 0 {} {}]
+
+    test EvtSession-2.1 {
+        create remote session using current credentials
+    } -body {
+        list [twapi::EvtSession create rsess -system ""] \
+            [rsess isLocal] [rsess destroy] \
+            [info class instances ::twapi::EvtSession]
+    } -result [list [namespace current]::rsess 0 {} {}]
+
+    test EvtSession-2.2 {
+        create remote session with bogus user
+    } -constraints userInteraction -body {
+        lassign [evt_test_creds $::env(COMPUTERNAME)] user pw save
+        list [catch {
+            twapi::EvtSession create rsess -system $::env(COMPUTERNAME) \
+                -user x$user -password $pw
+            # Above will not fail until accessed
+            rsess newPublisher Microsoft-Windows-Eventlog
+        } msg] $msg [rsess isLocal] [rsess destroy] \
+            [info class instances ::twapi::EvtSession] \
+            [info class instances ::twapi::EvtPublisher]
+    } -result {1 {Access is denied.} 0 {} {} {}}
+
+    test EvtSession-2.3 {
+        create remote session with bogus user
+    } -constraints userInteraction -body {
+        lassign [evt_test_creds $::env(COMPUTERNAME)] user pw save
+        list [catch {
+            twapi::EvtSession create rsess -system $::env(COMPUTERNAME) \
+                -user $user -password [twapi::conceal bogus]
+            # Above will not fail until accessed
+            rsess newPublisher Microsoft-Windows-Eventlog
+        } msg] $msg [rsess isLocal] [rsess destroy] \
+            [info class instances ::twapi::EvtSession] \
+            [info class instances ::twapi::EvtPublisher]
+    } -result {1 {Access is denied.} 0 {} {} {}}
+
+    test EvtSession-3.0 {
+        create remote session -domain
+    } -constraints userInteraction -body {
+        lassign [evt_test_creds $::env(COMPUTERNAME)] user pw save
+        list [twapi::EvtSession create rsess -system $::env(COMPUTERNAME) \
+                  -user $user -password $pw -domain $::env(COMPUTERNAME)] \
+            [rsess isLocal] [rsess destroy] \
+            [info class instances ::twapi::EvtSession]
+    } -result [list [namespace current]::rsess 0 {} {}]
+
+    ::tcltest::cleanupTests
+}
+namespace delete ::twapi::evt::test

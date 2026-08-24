@@ -1,0 +1,143 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Event log" n ""]
+[copyright "2026, Ashok P. Nadkarni"]
+[moddesc "Event Log"]
+[titledesc "Commands relating to reading and writing the Windows event log"]
+[require twapi_evt]
+[description]
+[para]
+
+The [cmd twapi_evt] package implements commands for reading and writing to
+the Windows Event log.
+
+[section Overview]
+
+An event log (EVT) [emph session] is a connection to the event log service on
+a system. Access to event log channels and event publishers takes place through
+sessions.
+[para]
+An event [emph publisher], or [emph provider] (the Windows SDK uses the term
+interchangeably) defines the structure of events it may generate, the channels
+to which it writes events, and localized message strings. This structure is
+described by metadata in a publisher manifest that is installed on the system.
+[para]
+Event log [emph channels] are named event streams from which events are
+read or written. Each channel has configuration properties that control
+aspects of channel behavior.
+[para]
+
+[section Sessions]
+
+The first step required for accessing event logs is the creation of an object
+of the [cmd EvtSession] class. The session object provides factory methods
+for creating objects of other classes corresponding to publishers, channels etc.
+The command below will create a [cmd EvtSession] object [cmd sess] for the
+local event log using the default credentials of the process.
+
+[example_begin]
+EvtSession create sess
+[example_end]
+
+[list_begin definitions]
+[call [cmd "EvtSession create"] [arg EVTSESSOBJ] [opt [arg options]]]
+Creates a new TclOO object named [arg EVTSESSOBJ] encapsulating an event
+log session. The command returns the fully qualified name of the
+object.
+[nl]
+By default, the session is created for the local system
+using the current process credentials.
+The following options may be specified to instead connect to
+a remote system or use different credentials.
+
+[list_begin opt]
+[opt_def -authtype [arg AUTHTYPE]]
+Specifies the
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_rpc_login_flags "authentication method"]
+to use for the connection.
+
+[opt_def -domain [arg DOMAIN]]
+Specifies the domain for the account specified by the [cmd -user]
+option. This may be a Windows domain name or the name of the remote
+computer for local accounts.
+
+[opt_def -password [arg PASSWORD]]
+Specifies the password corresponding to the account specified by the
+[cmd -user] option. Must be in
+[uri base.html#passwordprotection "encrypted form"].
+
+[opt_def -system [arg SYSTEMNAME]]
+Connects to the event log service on the system named [arg SYSTEMNAME]
+
+[opt_def -user [arg USERNAME]]
+Specifies the user account to use for the connection.
+If omitted, the credentials of the current process are used.
+
+[list_end]
+
+[call [cmd "EvtSession new"] [opt [arg options]]]
+
+Creates a new TclOO object with a unique name encapsulating an event log
+session. Aside from generation of the object name, behaves identically
+to [uri #evtsessioncreate [cmd "EvtSession create"]]
+
+[call "[arg EVTSESSOBJ] [cmd archiveLogFile]" [arg LOGFILE] [opt "[cmd -lcid] [arg LCID]"]]
+Adds localized strings to the events in the previously exported event log
+file [arg LOGFILE]. Option [cmd -lcid] specifies the locale to use and defaults
+to the process locale.
+
+[call "[arg EVTSESSOBJ] [cmd channels]"]
+Returns a list of channel names registered on the system.
+
+[call "[arg EVTSESSOBJ] [cmd clearChannel] [arg CHANNAME] [opt [arg options]]"]
+Clears the specified channel. If option [cmd -backup] is specified, the channel
+event records are backed up to the file whose path is given by the option value.
+
+[call "[arg EVTSESSOBJ] [cmd destroy]"]
+Calling the [cmd destroy] method on a [cmd EvtSession] object will
+close the wrapped Win32 EVT session handle. Any objects created, such as
+[cmd EvtPublisher], [cmd EvtChannel] etc., through its factory
+methods will also be destroyed.
+
+[call "[arg EVTSESSOBJ] [cmd exportEvents]" [arg OUTFILE] [arg options]]
+Exports events from a channel, logfile or a query to the file [arg OUTFILE]
+which is overwritten. The following options may be specified.
+
+[list_begin opt]
+[opt_def -channel [arg CHANNAME]]
+The name of the channel to export. Must not be specified with [cmd -logfile].
+[opt_def -logfile [arg INFILE]]
+The path to a event log file from which to read events.
+Must not be specified with [cmd -channel].
+[opt_def -query [arg QUERY]]
+An XPath or structured XML query to select events to include in the export.
+By default, all events are exported.
+[opt_def -ignorequeryerrors [arg BOOL]]
+If set to true, any errors in the query are ignored. Default is false.
+[list_end]
+
+[call "[arg EVTSESSOBJ] [cmd handle]"]
+Returns the wrapped Win32 EVT session handle.
+
+[call "[arg EVTSESSOBJ] [cmd isLocal]"]
+Return 1 if the session wrapped by the [arg SESSOBJ] object is the default local
+session and 0 otherwise.
+
+
+[list_end]
+
+[section Publishers]
+An event [emph publisher], or [emph provider] (the Windows SDK uses the term
+interchangeably) defines the structure of events it may generate, the channels
+to which it writes events, and localized message strings. This structure is
+described by metadata in a publisher manifest that is installed on the system.
+
+[list_begin definitions]
+[call "[arg PUBOBJ] [cmd isLocal]"]
+[arg PUBOBJ] must be instance of the [cmd EvtPublisher] class are returned by
+the createPublisher command.
+
+[list_end]
+
+[keywords "event log"]
+
+[manpage_end]
