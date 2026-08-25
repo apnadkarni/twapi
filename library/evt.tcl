@@ -327,23 +327,14 @@ oo::class create twapi::EvtSession {
     method newChannelConfig {channel} {
         return [my createChannelConfig [my NewName channel-config] $channel]
     }
-    method createChannelInfo {objname channel} {
-        set obj [uplevel 1 [list [namespace which -command EvtChannelInfo] \
-                                create $objname [self] $channel]]
+    method createLogInfo {objname args} {
+        set obj [uplevel 1 [list [namespace which -command EvtLogInfo] \
+                                create $objname [self] {*}$args]]
         dict set dependentNamespaces [info object namespace $obj] $obj
         return $obj
     }
-    method newChannelInfo {channel} {
-        return [my createChannelInfo [my NewName channel-info] $channel]
-    }
-    method createLogFileInfo {objname logpath} {
-        set obj [uplevel 1 [list [namespace which -command EvtFileInfo] \
-                                create $objname [self] $logpath]]
-        dict set dependentNamespaces [info object namespace $obj] $obj
-        return $obj
-    }
-    method newLogFileInfo {logpath} {
-        return [my createLogFileInfo [my NewName logfile-info] $logpath]
+    method newLogInfo {args} {
+        return [my createLogInfo [my NewName log-info] {*}$args]
     }
     method publishers {} {
         set pubs {}
@@ -377,7 +368,7 @@ oo::class create twapi::EvtSession {
         return $obj
     }
     method newReader {args} {
-        return [my createReader [my NewName chan-query] {*}$args]
+        return [my createReader [my NewName reader] {*}$args]
     }
     method createSubscription {objname channel args} {
         set obj [uplevel 1 [list [namespace which -command EvtSubscription] \
@@ -979,8 +970,32 @@ oo::class create twapi::EvtFormatter {
 
 oo::class create twapi::EvtLogInfo {
     variable hInfo
-    constructor {h} {
-        set hInfo $h
+    variable logName
+    variable logType
+    constructor {osess args} {
+        namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
+        parseargs args {
+            channel.arg
+            logfile.arg
+        } -setvars {*}$args
+
+        if {[info exists logfile]} {
+            if {[info exists channel]} {
+                error "At most one of -channel and -logfile may be specified."
+            }
+            set logName $logfile
+            set flags 2
+            set logType file
+        } else {
+            set flags 1
+            set logType channel
+            if {[info exists channel]} {
+                set logName $channel
+            } else {
+                set logName Application
+            }
+        }
+        set hInfo [twapi::EvtOpenLog [$osess handle] $logName $flags]
     }
     method creationTime       {} {EvtGetLogInfo $hInfo 0}
     method lastAccessTime     {} {EvtGetLogInfo $hInfo 1}
@@ -990,31 +1005,11 @@ oo::class create twapi::EvtLogInfo {
     method recordCount        {} {EvtGetLogInfo $hInfo 5}
     method oldestRecordNumber {} {EvtGetLogInfo $hInfo 6}
     method isFull             {} {EvtGetLogInfo $hInfo 7}
+    method logType {} { return $logType }
+    method logName {} { return $logName }
     destructor {
         EvtClose $hInfo
     }
-}
-
-oo::class create twapi::EvtChannelInfo {
-    superclass twapi::EvtLogInfo
-    variable channelName
-    constructor {osess channel} {
-        namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
-        set channelName $channel
-        next [twapi::EvtOpenLog [$osess handle] $channel 1]
-    }
-    method channel {} {return $channelName}
-}
-
-oo::class create twapi::EvtFileInfo {
-    superclass twapi::EvtLogInfo
-    variable filePath
-    constructor {osess logfile} {
-        namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
-        set filePath $logfile
-        next [twapi::EvtOpenLog [$osess handle] $logfile 1]
-    }
-    method filePath {} {return $filePath}
 }
 
 oo::class create twapi::EvtChannelConfig {
