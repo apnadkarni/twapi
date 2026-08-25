@@ -92,6 +92,129 @@ Returns a list of channel names registered on the system.
 Clears the specified channel. If option [cmd -backup] is specified, the channel
 event records are backed up to the file whose path is given by the option value.
 
+[call "[arg EVTSESSOBJ] [cmd createChannelConfig]" [arg CHANCFGOBJ] [arg CHANNAME]]
+Creates a TclOO object named [arg CHANCFGOBJ]
+of class [uri #evtchannelconfig [cmd EvtChannelConfig]]
+and returns its fully qualified name. The object wraps a handle to the
+configuration information for the channel [arg CHANNAME]. The returned object
+is automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+
+[call "[arg EVTSESSOBJ] [cmd createLogInfo]" [arg EVTLOGINFOOBJ] [opt [arg options]]]
+Creates a TclOO object named [arg EVTLOGINFOOBJ] of class
+[uri #evtloginfo [cmd EvtLogInfo]] and returns its fully qualified name.
+The object wraps a handle to the configuration information for a channel or event
+log file. The returned object is automatically destroyed when
+[arg EVTSESSOBJ] is destroyed.
+[nl]
+The channel or log file is specified through one of the following options.
+The [cmd Application] channel is the default if no options are passed.
+[list_begin opt]
+[opt_def [cmd -channel] [arg CHANNAME]]
+The name of the channel to export. Must not be specified with [cmd -logfile].
+[opt_def [cmd -logfile] [arg INFILE]]
+The path to a event log file from which to read events.
+Must not be specified with [cmd -channel].
+[list_end]
+
+[call "[arg EVTSESSOBJ] [cmd createPublisher]" [arg EVTPUBOBJ] [arg PUBNAME] [opt [arg options]]]
+Creates a TclOO object named [arg EVTPUBOBJ] of class
+[uri #evtpublisher [cmd EvtPublisher]]
+and returns its fully qualified name. The object wraps a handle to the
+metadata for the publisher named [arg PUBNAME]. The returned object is
+automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+[nl]
+The following options may be passed to the command.
+[list_begin opt]
+[opt_def [cmd -lcid] [arg LCID]]
+The LCID for accessing localized metadata. The default value of `0` uses
+the thread's locale.
+[opt_def [cmd -logarchive] [arg LOGARCHIVE]]
+Path to an [uri #archivelogfile archived] log holding the publisher
+metadata instead of the default metadata installed on the system.
+[list_end]
+
+[call "[arg EVTSESSOBJ] [cmd createReader]" [arg EVTREADEROBJ] [opt [arg options]]]
+Creates a TclOO object named [arg EVTREADEROBJ] of class
+[uri #evtreader [cmd EvtReader]]
+and returns its fully qualified name. The object wraps a handle to
+a EVT result set containing events from one or more channels or an
+event log file. The returned object is
+automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+[nl]
+The following options may be passed to select events to be included
+in the result set.
+[list_begin opt]
+[opt_def [cmd -channel] [arg CHANNAME]]
+Specifies the event channel from which events are to be read. Cannot
+be used with the [cmd -file] option. Defaults to the [const Application]
+channel if neither [cmd -channel] nor [cmd -logfile] is passed.
+[opt_def [cmd -direction] [arg DIRECTION]]
+If [arg DIRECTION] is [const forward] events are returned oldest
+first. If [arg DIRECTION] is [const backward], events are returned
+newest first.
+[opt_def [cmd -logfile] [arg LOGFILE]]
+Specifies the event file from which events are to be read. Cannot
+be used with the [cmd -channel] option.
+[opt_def [cmd -ignorequeryerrors]]
+Normally, if retrieving a specific event results in an error, Windows
+will fail the query and a Tcl exception will be raised.
+If [cmd -ignorequeryerrors] is specified, such events are simply skipped
+and any further events are returned.
+[opt_def [cmd -query] [arg QUERY]]
+Specifies the selection criteria for events that should be included in the
+returned result set.
+[arg QUERY] should be the empty string or [const *] (for all events, default),
+an XPATH expression or a structured XML query. See
+[uri https://learn.microsoft.com/en-us/windows/win32/wes/consuming-events "SDK documentation"].
+[list_end]
+
+[call "[arg EVTSESSOBJ] [cmd createSubscription]" [arg EVTSUBSCRIBEOBJ] [opt [arg options]]]
+Creates a TclOO object named [arg EVTSUBSCRIBEOBJ] of class
+[uri #evtsubscription [cmd EvtSubscription]]
+and returns its fully qualified name. The object wraps a handle to an
+EVT event subscription containing events from one or more channels. The
+returned object is automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+[nl]
+The following options may be passed to select events to be included
+in the result set.
+[list_begin opt]
+[opt_def [cmd -hbookmark] [arg HBOOKMARK]]
+Handle to a bookmark. If specified, all events after the bookmark
+that match the query are included in the subscription.
+[opt_def [cmd -ignorequeryerrors]]
+Normally, if retrieving a specific event results in an error, Windows
+will fail the query and a Tcl exception will be raised.
+If this option is specified, such events are simply skipped
+and any further events are returned.
+[opt_def [cmd -includeexisting]]
+By default the command will only subscribe to new events. If this option
+is specified, notification is sent for existing events as well.
+[opt_def [cmd -query] [arg QUERY]]
+Specifies the selection criteria for events that should be included in the
+returned result set.
+[arg QUERY] should be an empty string or [const *] (for all events, default),
+an XPATH expression or a structured XML query. See
+[uri https://learn.microsoft.com/en-us/windows/win32/wes/consuming-events "SDK documentation"].
+[arg [cmd -strict]]
+If specified, an error is raised if the event referenced by passed bookmark
+does not exist.
+[list_end]
+
+[call "[arg EVTSESSOBJ] [cmd createFormatter]" [arg EVTFMTOBJ] [opt [arg options]]]
+Creates a TclOO object named [arg EVTFMTOBJ] of class
+[uri #evtformatter [cmd EvtFormatter]] and returns its fully qualified name.
+The object is automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+[nl]
+The following options may be passed to the command.
+[list_begin opt]
+[opt_def [cmd -lcid] [arg LCID]]
+The LCID for accessing localized metadata. The default value of [const 0] uses
+the thread's locale.
+[opt_def [cmd -logarchive] [arg LOGARCHIVE]]
+Path to an [uri #archivelogfile archived] log holding the publisher
+metadata instead of the default metadata installed on the system.
+[list_end]
+
 [call "[arg EVTSESSOBJ] [cmd destroy]"]
 Calling the [cmd destroy] method on a [cmd EvtSession] object will
 close the wrapped Win32 EVT session handle. Any objects created, such as
@@ -110,6 +233,7 @@ The path to a event log file from which to read events.
 Must not be specified with [cmd -channel].
 [opt_def -query [arg QUERY]]
 An XPath or structured XML query to select events to include in the export.
+A value of [const *] or the empty string selects all events.
 By default, all events are exported.
 [opt_def -ignorequeryerrors [arg BOOL]]
 If set to true, any errors in the query are ignored. Default is false.
@@ -122,8 +246,67 @@ Returns the wrapped Win32 EVT session handle.
 Return 1 if the session wrapped by the [arg SESSOBJ] object is the default local
 session and 0 otherwise.
 
+[call "[arg EVTSESSOBJ] [cmd newChannelConfig]" [arg CHANNAME]]
+Creates and returns a uniquely named TclOO object of class
+[uri #evtchannelconfig [cmd EvtChannelConfig]].
+The object wraps a handle to the
+configuration information for the channel [arg CHANNAME]. The returned object
+is automatically destroyed when [arg EVTSESSIONOBJ] is destroyed.
+
+[call "[arg EVTSESSOBJ] [cmd newLogInfo]" [opt [arg options]]]
+Creates and returns a uniquely named TclOO object of class
+[uri #evtloginfo [cmd EvtLogInfo]]. The object wraps a handle to the
+configuration information for a channel or event log file.
+The returned object is automatically destroyed when [arg EVTSESSIONOBJ]
+is destroyed. See [uri #createloginfo [cmd createLogInfo]] for options.
+
+[call "[arg EVTSESSOBJ] [cmd newPublisher]" [arg PUBNAME] [opt [arg options]]]
+Creates and returns a uniquely named TclOO object of class
+[uri #evtpublisher [cmd EvtPublisher]]. The object wraps a handle to the
+metadata for the publisher named [arg PUBNAME]. The returned object is
+automatically destroyed when [arg EVTSESSIONOBJ] is destroyed. See
+[uri #createpublisher [cmd createPublisher]] for options.
+
+[call "[arg EVTSESSOBJ] [cmd newReader]" [opt [arg options]]]
+Creates and returns a uniquely named TclOO object of class
+[uri #evtreader [cmd EvtReader]]. The object wraps a handle to the
+a EVT result set containing events from one or more channels or an
+event log file. The returned object is
+automatically destroyed when [arg EVTSESSIONOBJ] is destroyed. See
+[uri #createreader [cmd createReader]] for options.
+
+[call "[arg EVTSESSOBJ] [cmd newSubscription]" [opt [arg options]]]
+Creates and returns a uniquely named TclOO object of class
+[uri #evtsubscription [cmd EvtSubscription]]. The object wraps a handle to the
+EVT event subscription containing events from one or more channels. The
+returned object is automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+See [uri #createsubscription [cmd createSubscription]] for options.
+
+[call "[arg EVTSESSOBJ] [cmd newFormatter]" [opt [arg options]]]
+Creates and returns a uniquely named TclOO object of class
+[uri #evtformatter [cmd EvtFormatter]].
+The object is automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+See [uri #createformatter [cmd createFormatter]] for options.
+
+[call "[arg EVTSESSOBJ] [cmd publishers]"]
+Returns a list of the names of event publishers registered on
+the system connected by the session.
 
 [list_end]
+
+[section Channels]
+
+[list_begin definitions]
+
+[call "[cmd EvtChannelConfig]"]
+Class wrapping a handle to a channel configuration information.
+To guard against future implementation changes, objects of
+this class should be created through
+[uri #createchannelconfig [cmd createChannelConfig]] or
+[uri #newchannelconfig [cmd newChannelConfig]] and not directly.
+
+[list_end]
+
 
 [section Publishers]
 An event [emph publisher], or [emph provider] (the Windows SDK uses the term
