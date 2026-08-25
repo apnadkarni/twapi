@@ -10,33 +10,63 @@
 The [cmd twapi_evt] package implements commands for reading and writing to
 the Windows Event log.
 
-[section Overview]
+[section Sessions]
 
 An event log (EVT) [emph session] is a connection to the event log service on
 a system. Access to event log channels and event publishers takes place through
-sessions.
-[para]
-An event [emph publisher], or [emph provider] (the Windows SDK uses the term
-interchangeably) defines the structure of events it may generate, the channels
-to which it writes events, and localized message strings. This structure is
-described by metadata in a publisher manifest that is installed on the system.
-[para]
-Event log [emph channels] are named event streams from which events are
-read or written. Each channel has configuration properties that control
-aspects of channel behavior.
-[para]
-
-[section Sessions]
-
-The first step required for accessing event logs is the creation of an object
-of the [cmd EvtSession] class. The session object provides factory methods
-for creating objects of other classes corresponding to publishers, channels etc.
+sessions. TclOO objects of class [uri #evtsessioncreate "EvtSession"] wrap EVT
+sessions and provide factory methods for creating objects representing publishers,
+channels etc.
 The command below will create a [cmd EvtSession] object [cmd sess] for the
-local event log using the default credentials of the process.
+local event log using the default credentials of the current thread.
 
 [example_begin]
 EvtSession create sess
 [example_end]
+
+Options allow connection to remote systems and different credentials.
+
+[para]
+Session objects must be destroyed when no longer needed.
+
+[example_begin]
+sess destroy
+[example_end]
+
+This will free the underlying session handles as well as destroy any TclOO
+objects created using its factory methods.
+
+[section "Channels and file stores"]
+
+Event log [emph channels] are named event streams storing event records
+that can be read and written. The configuration properties for a channel are
+managed through objects of the [uri #evtchannelconfig [cmd EvtChannelConfig]]
+class created through the [cmd EvtSession]
+[uri #createchannelconfig [cmd "createChannelConfig"]] or
+[uri #newchannelconfig [cmd "newChannelConfig"]] methods.
+
+[para]
+Event records can also be stored in files by exporting them from a channel
+with the [uri #exportevents [cmd exportEvents]] method. These can be read
+back from the file using the same mechanisms as used for channels. Events
+exported from a channel do not store message strings associated with the
+events. To include these, the file must be further processed using the
+[uri #archivelogfile [cmd archiveLogFile]] method.
+
+[para]
+Information about both channels and file stores can be retrieved using
+objects of class [uri #evtloginfo [cmd EvtLogInfo]] created by the
+[cmd EvtSession] [uri #createloginfo [cmd "createLogInfo"]] or
+[uri #newloginfo [cmd "newLogInfo"]] methods.
+
+[section Publishers]
+An event [emph publisher], or [emph provider] (the Windows SDK uses the term
+interchangeably) defines the structure of events it may generate, the channels
+to which it writes events, and localized message strings. This structure is
+described by metadata in a publisher manifest that is installed on the system.
+
+
+[section Commands]
 
 [list_begin definitions]
 [call [cmd "EvtSession create"] [arg EVTSESSOBJ] [opt [arg options]]]
@@ -72,6 +102,203 @@ Connects to the event log service on the system named [arg SYSTEMNAME]
 Specifies the user account to use for the connection.
 If omitted, the credentials of the current process are used.
 
+[list_end]
+
+
+[call [cmd EvtChannelConfig]]
+Class wrapping a handle to a channel configuration information.
+To guard against future implementation changes, objects of
+this class should be created through
+[uri #evtsessioncreate [cmd EvtSession]] methods
+[uri #createchannelconfig [cmd createChannelConfig]] or
+[uri #newchannelconfig [cmd newChannelConfig]] and not directly.
+
+[call [cmd EvtPublisher]]
+Class wrapping a handle to the metadata of an event publisher.
+To guard against future implementation changes, objects of
+this class should be created through
+[uri #evtsessioncreate [cmd EvtSession]] methods
+[uri #createPublisher [cmd createPublisher]] or
+[uri #newpublisher [cmd newPublisher]] and not directly.
+
+[call "[arg EVTPUBOBJ] [cmd channels]"]
+Returns a list of the publisher's channel definitions. Each element is
+a dictionary with the following keys:
+[list_begin opt]
+[opt_def [cmd -channelid]]
+The numeric id assigned to the channel as per its value attribute.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceID]
+[opt_def [cmd -channelindex]]
+The publisher assigned channel identifier.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceIndex].
+[opt_def [cmd -channelflags]]
+[const 1] if the channel was imported from another publisher's manifest.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceFlags]
+[opt_def [cmd -channelmessageid]]
+Contains the numeric message id for the channel name.
+This can be passed
+to the [uri #message [cmd message]] method to retrieve the name of the
+channel, generally the last component of the full channel path.
+[const -1] if not defined.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceMessageID]
+[opt_def [cmd -channelpath]]
+Contains the canonical full path of the channel, e.g.
+[const Microsoft-Windows-EventLog/Debug].
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferencePath].
+[list_end]
+
+[call "[arg EVTPUBOBJ] [cmd events]" [arg PROPNAMES]]
+Returns a list of the publisher's event definitions.
+Each event's definition
+includes the event's metadata properties as a dictionary keyed by
+the event property names passed in [arg PROPNAMES].
+[list_begin opt]
+[opt_def -channel]
+The numeric value attribute of the associated channel. 0 if no association.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventChannel].
+[opt_def -eventid]
+The numeric value attribute of the event definition which is its id when
+the event is logged.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventID].
+[opt_def -keywords]
+64-bit keyword mask of the all keywords for the event definition.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventKeyword].
+[opt_def -level]
+The level attribute of the event definition. 0 if not specified.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventLevel].
+[opt_def -messageid]
+Message id attribute that can be passed to the
+[uri #message [cmd message]] method to retrieve the localized string
+for the event. [const -1] if unassigned.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventMessageID].
+[opt_def -opcode]
+The opcode attribute of the event. 0 if not specified.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventOpcode].
+[opt_def -task]
+The task attribute of the event. 0 if not specified.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventTask].
+[opt_def -template]
+The XML string from the template attribute of the event definition.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventTemplate].
+[opt_def -version]
+The version attribute of the event definition.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventVersion].
+[list_end]
+
+[call "[arg EVTPUBOBJ] [cmd guid]"]
+Returns the GUID of the publisher whose metadata is encapsulated by [arg EVTPUBOBJ].
+
+[call "[arg EVTPUBOBJ] [cmd handle]"]
+Returns the EVT handle of the publisher metadata encapsulated by [arg EVTPUBOBJ].
+
+[call "[arg EVTPUBOBJ] [cmd helpLink]"]
+Returns the URL of the publisher's help page.
+
+[call "[arg EVTPUBOBJ] [cmd keywordLabels]"]
+Returns a dictionary mapping keyword decimal values to localized labels.
+
+[call "[arg EVTPUBOBJ] [cmd keywords]"]
+Returns a list of the publisher's keyword definitions. Each element is
+a dictionary with the following keys.
+[list_begin opt]
+[opt_def -messageid]
+Message id attribute of the keyword that can be passed to the
+[uri #message [cmd message]] method to retrieve the localized string
+for the keyword. [const -1] if undefined.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordMessageID].
+[opt_def -name]
+Name attribute of the keyword.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordName].
+[opt_def -value]
+Value attribute of the keyword.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordValue].
+[list_end]
+
+[call "[arg EVTPUBOBJ] [cmd lcid]"]
+The locale id that will be used to access the publisher metadata
+encapsulated by [arg EVTPUBLOBJ].
+
+[call "[arg EVTPUBOBJ] [cmd levelLabels]"]
+Returns a dictionary mapping event level decimal values to localized labels.
+
+[call "[arg EVTPUBOBJ] [cmd levels]"]
+Returns a list of the publisher's event level definitions. Each element is
+a dictionary with the following keys:
+[list_begin opt]
+[opt_def -messageid]
+Message id attribute that can be passed to the
+[uri #message [cmd message]] method to retrieve the localized string
+for the level. [const -1] if undefined.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataMessageID].
+[opt_def -name]
+Name attribute of the level.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataLevelName].
+[opt_def -value]
+Value attribute of the level.
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataLevelValue].
+[list_end]
+
+[call "[arg EVTPUBOBJ] [cmd message]" [arg MSGID]]
+Returns the localized string for message id [arg MSGID].
+
+[call "[arg EVTPUBOBJ] [cmd messageFile]"]
+Returns the path to the publisher's message file.
+
+[call "[arg EVTPUBOBJ] [cmd messageId]"]
+Message id attribute that can be passed to the
+[uri #message [cmd message]] method to retrieve the localized string
+for the publisher name. [const -1] if undefined.
+
+[call "[arg EVTPUBOBJ] [cmd name]"]
+Returns the name of the publisher whose metadata is wrapped by [arg EVTPUBOBJ].
+
+[call "[arg EVTPUBOBJ] [cmd opcodeNames]"]
+Returns a dictionary mapping opcode decimal values to localized labels.
+
+[call "[arg EVTPUBOBJ] [cmd opcodes]"]
+Returns a list of the publisher's opcode definitions. Each element is
+a dictionary with the following keys:
+[list_begin opt]
+[opt_def -messageid]
+Message id attribute that can be passed to the
+[uri #message [cmd message]] method to retrieve the localized string
+for the opcode. [const -1] if undefined.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeMessageID].
+[opt_def -name]
+Name attribute of the opcode.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeName].
+[opt_def -value]
+Value attribute of the opcode.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeValue].
+[list_end]
+
+[call "[arg EVTPUBOBJ] [cmd parameterFile]"]
+Returns the path to the publisher's parameter file.
+
+[call "[arg EVTPUBOBJ] [cmd resourceFile]"]
+Returns the path to the publisher's resource file.
+
+[call "[arg EVTPUBOBJ] [cmd taskNames]"]
+Returns a dictionary mapping task decimal values to localized labels.
+
+[call "[arg EVTPUBOBJ] [cmd tasks]"]
+Returns a list of the publisher's opcode definitions. Each element is
+a dictionary with the following keys:
+[list_begin opt]
+[opt_def -eventguid]
+The eventGuid attribute of the task.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskEventGuid].
+[opt_def -messageid]
+Message id attribute that can be passed to the
+[uri #message [cmd message]] method to retrieve the localized string
+for the task. [const -1] if undefined.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskMessageID].
+[opt_def -name]
+Name attribute of the task.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskName]
+[opt_def -value]
+Value attribute of the task.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskValue].
 [list_end]
 
 [call [cmd "EvtSession new"] [opt [arg options]]]
@@ -304,20 +531,6 @@ To guard against future implementation changes, objects of
 this class should be created through
 [uri #createchannelconfig [cmd createChannelConfig]] or
 [uri #newchannelconfig [cmd newChannelConfig]] and not directly.
-
-[list_end]
-
-
-[section Publishers]
-An event [emph publisher], or [emph provider] (the Windows SDK uses the term
-interchangeably) defines the structure of events it may generate, the channels
-to which it writes events, and localized message strings. This structure is
-described by metadata in a publisher manifest that is installed on the system.
-
-[list_begin definitions]
-[call "[arg PUBOBJ] [cmd isLocal]"]
-[arg PUBOBJ] must be instance of the [cmd EvtPublisher] class are returned by
-the createPublisher command.
 
 [list_end]
 

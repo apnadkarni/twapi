@@ -406,19 +406,22 @@ oo::class create twapi::EvtSession {
 oo::class create twapi::EvtPublisher {
     variable hPublisher
     variable publisherName
-    variable levelNameMap
-    variable taskNameMap
-    variable opcodeNameMap
-    variable keywordNameMap
+    variable levelLabelMap
+    variable taskLabelMap
+    variable opcodeLabelMap
+    variable keywordLabelMap
+    variable localeId
 
     constructor {osess publisher {lcid 0} {logarchive {}}} {
         namespace path [linsert [namespace path] 0 [namespace qualifiers [self class]]]
         set publisherName $publisher
+        set localeId $lcid
         set hPublisher [EvtOpenPublisherMetadata [$osess handle] \
                             $publisher $logarchive $lcid 0]
     }
     method name          {} {return $publisherName}
     method handle        {} {return $hPublisher}
+    method lcid          {} {return $localeId}
     method guid          {} {EvtGetPublisherMetadataProperty $hPublisher 0}
     method resourceFile  {} {EvtGetPublisherMetadataProperty $hPublisher 1}
     method parameterFile {} {EvtGetPublisherMetadataProperty $hPublisher 2}
@@ -452,7 +455,7 @@ oo::class create twapi::EvtPublisher {
             -name 26 -value 27 -messageid 28
         } {-messageid}]
     }
-    method eventDefinitions {property_names} {
+    method events {property_names} {
         set henum [EvtOpenEventMetadataEnum $hPublisher]
 
         # It is faster to build a list and then have Tcl shimmer to a dict when
@@ -466,8 +469,8 @@ oo::class create twapi::EvtPublisher {
                         lappend properties $prop \
                             [EvtGetEventMetadataProperty $hmeta \
                                  [dict get {
-                                     -id 0 -version 1 -channel 2 -level 3
-                                     -opcode 4 -task 5 -keyword 6 -messageid 7 -template 8
+                                     -eventid 0 -version 1 -channel 2 -level 3
+                                     -opcode 4 -task 5 -keywords 6 -messageid 7 -template 8
                                  } $prop]]
                     }
                     lappend meta $properties
@@ -486,33 +489,33 @@ oo::class create twapi::EvtPublisher {
         # 8 -> EvtFormatMessageId
         return [EvtFormatMessage $hPublisher NULL $msg_id NULL 8]
     }
-    method levelNames {} {
-        if {![info exists levelNameMap]} {
-            my InitNames levelNameMap levels
+    method levelLabels {} {
+        if {![info exists levelLabelMap]} {
+            my InitLabels levelLabelMap levels
         }
-        return $levelNameMap
+        return $levelLabelMap
     }
-    method taskNames {} {
-        if {![info exists taskNameMap]} {
-            my InitNames taskNameMap tasks
+    method taskLabels {} {
+        if {![info exists taskLabelMap]} {
+            my InitLabels taskLabelMap tasks
         }
-        return $taskNameMap
+        return $taskLabelMap
     }
-    method opcodeNames {} {
-        if {![info exists opcodeNameMap]} {
-            my InitNames opcodeNameMap opcodes
+    method opcodeLabels {} {
+        if {![info exists opcodeLabelMap]} {
+            my InitLabels opcodeLabelMap opcodes
         }
-        return $opcodeNameMap
+        return $opcodeLabelMap
     }
-    method keywordNames {} {
-        if {![info exists keywordNameMap]} {
-            my InitNames keywordNameMap keywords
+    method keywordLabels {} {
+        if {![info exists keywordLabelMap]} {
+            my InitLabels keywordLabelMap keywords
         }
-        return $keywordNameMap
+        return $keywordLabelMap
     }
 
     # Private methods
-    method InitNames {name_map_var method_name} {
+    method InitLabels {name_map_var method_name} {
         set $name_map_var [dict create]
         foreach elem [my $method_name] {
             set value [dict get $elem -value]
@@ -732,10 +735,10 @@ oo::class create twapi::EvtFormatter {
     variable renderBuffer
 
     # Map of (publisher, level/task/opcode/keywords) -> names
-    variable levelNameMap
-    variable taskNameMap
-    variable opcodeNameMap
-    variable keywordNameMap
+    variable levelLabelMap
+    variable taskLabelMap
+    variable opcodeLabelMap
+    variable keywordLabelMap
 
     initialize {
         # system properties mapped to their position in an event
@@ -763,10 +766,10 @@ oo::class create twapi::EvtFormatter {
         set logArchive [_evt_native_path $logarchive]
         set hSystemContext [EvtCreateRenderContext {} 1]
         set hUserContext [EvtCreateRenderContext {} 2]
-        set levelNameMap [dict create]
-        set taskNameMap [dict create]
-        set opcodeNameMap [dict create]
-        set keywordNameMap [dict create]
+        set levelLabelMap [dict create]
+        set taskLabelMap [dict create]
+        set opcodeLabelMap [dict create]
+        set keywordLabelMap [dict create]
         set renderBuffer NULL
     }
     destructor {
@@ -792,16 +795,16 @@ oo::class create twapi::EvtFormatter {
             set rec [lmap prop_name $properties {
                 switch -exact -- $prop_name {
                     -level {
-                        my LevelName $publisher [lindex $system_properties 4]
+                        my LevelLabel $publisher [lindex $system_properties 4]
                     }
                     -task {
-                        my TaskName $publisher [lindex $system_properties 5]
+                        my TaskLabel $publisher [lindex $system_properties 5]
                     }
                     -opcode {
-                        my OpcodeName $publisher [lindex $system_properties 6]
+                        my OpcodeLabel $publisher [lindex $system_properties 6]
                     }
                     -keywords {
-                        my KeywordNames $publisher [lindex $system_properties 7]
+                        my KeywordLabels $publisher [lindex $system_properties 7]
                     }
                     -userdata {
                         my EventUserProperties $hevt
@@ -879,47 +882,47 @@ oo::class create twapi::EvtFormatter {
         set renderBuffer [Twapi_EvtRenderValues $hUserContext $hevt $renderBuffer]
         return [Twapi_ExtractEVT_RENDER_VALUES $renderBuffer]
     }
-    method LevelName -export {publisher level} {
-        if {[dict exists $levelNameMap $publisher]} {
-            return [dict getdef $levelNameMap $publisher $level $level]
+    method LevelLabel -export {publisher level} {
+        if {[dict exists $levelLabelMap $publisher]} {
+            return [dict getdef $levelLabelMap $publisher $level $level]
         }
         # Not in cache. Get from publisher. May fail because there is no such
         # publisher registered.
         if {![catch {
-            dict set levelNameMap $publisher [[my PublisherObj $publisher] levelNames]
+            dict set levelLabelMap $publisher [[my PublisherObj $publisher] levelLabels]
         }]} {
-            return [dict getdef $levelNameMap $publisher $level $level]
+            return [dict getdef $levelLabelMap $publisher $level $level]
         }
-        if {![dict exists $levelNameMap ""]} {
+        if {![dict exists $levelLabelMap ""]} {
             # Default localized level names
             # Get default level names used by Windows Eventlog
             if {[catch {
-                set map [[my PublisherObj Microsoft-Windows-Eventlog] levelNames]
+                set map [[my PublisherObj Microsoft-Windows-Eventlog] levelLabels]
             }]} {
                 # Even that failed, so use English mappings
                 set map {1 Critical 2 Error 3 Warning 4 Information 5 Verbose}
             }
-            dict set levelNameMap "" $map
+            dict set levelLabelMap "" $map
         }
-        dict set levelNameMap $publisher [dict get $levelNameMap ""]
-        return [dict getdef $levelNameMap $publisher $level $level]
+        dict set levelLabelMap $publisher [dict get $levelLabelMap ""]
+        return [dict getdef $levelLabelMap $publisher $level $level]
     }
-    method TaskName -export {publisher task} {
-        if {[dict exists $taskNameMap $publisher]} {
-            return [dict getdef $taskNameMap $publisher $task $task]
+    method TaskLabel -export {publisher task} {
+        if {[dict exists $taskLabelMap $publisher]} {
+            return [dict getdef $taskLabelMap $publisher $task $task]
         }
         # Not in cache. Get from publisher. May fail because there is no such
         # publisher registered.
         if {[catch {
-            dict set taskNameMap $publisher [[my PublisherObj $publisher] taskNames]
+            dict set taskLabelMap $publisher [[my PublisherObj $publisher] taskLabels]
         }]} {
             # Default to the task id. Unlike for levels, we do not try
             # Microsoft-Windows-Eventlog or have any predefined names for tasks.
-            dict set taskNameMap $publisher $task $task
+            dict set taskLabelMap $publisher $task $task
         }
-        return [dict getdef $taskNameMap $publisher $task $task]
+        return [dict getdef $taskLabelMap $publisher $task $task]
     }
-    method KeywordNames -export {publisher keywords} {
+    method KeywordLabels -export {publisher keywords} {
         # Treat as a bit mask else loop below will continue forever
         # on negative 64-bit values
         set keywords [expr {$keywords & 0xffffffffffffffff}]
@@ -928,24 +931,24 @@ oo::class create twapi::EvtFormatter {
         while {$keywords} {
             set keyword [expr {$keywords & -$keywords}]
             set keywords [expr {$keywords & ~$keyword}]
-            lappend names [my KeywordName $publisher $keyword]
+            lappend names [my KeywordLabel $publisher $keyword]
         }
         return $names
     }
-    method KeywordName {publisher keyword} {
-        if {[dict exists $keywordNameMap $publisher]} {
-            return [dict getdef $keywordNameMap $publisher $keyword $keyword]
+    method KeywordLabel {publisher keyword} {
+        if {[dict exists $keywordLabelMap $publisher]} {
+            return [dict getdef $keywordLabelMap $publisher $keyword $keyword]
         }
         # Not in cache. Get from publisher. May fail because there is no such
         # publisher registered.
         if {[catch {
-            dict set keywordNameMap $publisher [[my PublisherObj $publisher] keywordNames]
+            dict set keywordLabelMap $publisher [[my PublisherObj $publisher] keywordLabels]
         }]} {
             # Default to the keyword id. Unlike for levels, we do not try
             # Microsoft-Windows-Eventlog or have any predefined names for keywords.
-            dict set keywordNameMap $publisher $keyword $keyword
+            dict set keywordLabelMap $publisher $keyword $keyword
         }
-        return [dict getdef $keywordNameMap $publisher $keyword $keyword]
+        return [dict getdef $keywordLabelMap $publisher $keyword $keyword]
     }
 
     method EventMessage {publisher hevt} {
