@@ -291,7 +291,7 @@ oo::class create twapi::EvtSession {
     }
     method handle {} {return $hSession}
     method isLocal {} {return [string equal $hSession NULL]}
-    method channels {} {
+    method registeredChannels {} {
         set channels {}
         set hce [EvtOpenChannelEnum $hSession 0]
         try {
@@ -612,6 +612,27 @@ oo::class create twapi::EvtReader {
                           [tcl::mathop::| $flags $direction]]
     }
     destructor {}
+    method seek {offset args} {
+        parseargs args {
+            {origin.arg current {first last current}}
+            hbookmark.arg
+            {strict 0 0x10000}
+        } -maxleftover 0 -setvars
+
+        if {[info exists hbookmark]} {
+            if {[info exists origin]} {
+                error "At most one of options -hbookmark and -origin may be specified."
+            }
+            set flags 4
+        } else {
+            set flags [dict get {first 1 last 2 current 3} $origin]
+            set hbookmark NULL
+        }
+
+        incr flags $strict
+
+        EvtSeek [my handle] $pos $hbookmark 0 $flags
+    }
     method EofHandler {} {}
 }
 
@@ -780,19 +801,13 @@ oo::class create twapi::EvtFormatter {
         EvtClose $hUserContext
         $oSession unregister [dict values $publisherObjs]
     }
-    method decodeEvents {hevts args} {
+    method decodeEvents {hevts {properties {-providername -eventid -level -timecreated -message}}} {
         classvariable systemPropertyNameMap eventPropertyNames
-        # TBD - ignorestring, raw
-        parseargs args {
-            ignorestring.arg
-            {properties.arg {-providername -eventid -level -task -timecreated -pid}}
-            {raw 0}
-        } -setvars -maxleftover 0
 
         return [list $properties [lmap hevt $hevts {
             set system_properties [my EventSystemProperties $hevt]
             set publisher [lindex $system_properties 0]
-            set rec [lmap prop_name $properties {
+            lmap prop_name $properties {
                 switch -exact -- $prop_name {
                     -level {
                         my LevelLabel $publisher [lindex $system_properties 4]
@@ -816,12 +831,12 @@ oo::class create twapi::EvtFormatter {
                         lindex $system_properties $systemPropertyNameMap($prop_name)
                     }
                 }
-            }]
+            }
         }]]
     }
-    method decodeEvent {hevt args} {
+    method decodeEvent {hevt properties} {
         return [recordarray index \
-                    [my decodeEvents [list $hevt] {*}$args] \
+                    [my decodeEvents [list $hevt] $properties] \
                     0 -format dict]
     }
     method formatEvent hevt {
@@ -831,24 +846,6 @@ oo::class create twapi::EvtFormatter {
         set publisher [lindex [my EventSystemProperties $hevt] 0]
         ## 9 -> EvtFormatMessageXml
         return [EvtFormatMessage [my PublisherHandle $publisher] $hevt 0 NULL 9]
-    }
-    method seek {offset args} {
-        parseargs args {
-            {origin.arg current {first last current}}
-            bookmark.arg
-            {strict 0 0x10000}
-        } -maxleftover 0 -setvars
-
-        if {[info exists bookmark]} {
-            set flags 4
-        } else {
-            set flags [dict get {first 1 last 2 current 3} $origin]
-            set bookmark NULL
-        }
-
-        incr flags $strict
-
-        EvtSeek $hresults $pos $bookmark 0 $flags
     }
 
     method PublisherObj publisher {

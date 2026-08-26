@@ -44,6 +44,8 @@ managed through objects of the [uri #evtchannelconfig [cmd EvtChannelConfig]]
 class created through the [cmd EvtSession]
 [uri #createchannelconfig [cmd "createChannelConfig"]] or
 [uri #newchannelconfig [cmd "newChannelConfig"]] methods.
+The channels registered on a system can be retrieved with the
+[cmd EvtSession] [uri #registeredchannels [cmd "registeredChannels"]] method.
 
 [para]
 Event records can also be stored in files by exporting them from a channel
@@ -54,56 +56,258 @@ events. To include these, the file must be further processed using the
 [uri #archivelogfile [cmd archiveLogFile]] method.
 
 [para]
-Information about both channels and file stores can be retrieved using
+Information about individual channels and file stores can be retrieved using
 objects of class [uri #evtloginfo [cmd EvtLogInfo]] created by the
 [cmd EvtSession] [uri #createloginfo [cmd "createLogInfo"]] or
 [uri #newloginfo [cmd "newLogInfo"]] methods.
+
+[section "Reading events"]
+
+Events are read from channels and file stores by invoking
+the [uri #getevents [cmd getEvents]] method on objects of class
+[uri #evtreader [cmd EvtReader]] created using
+[cmd EvtSession] [uri #createreader [cmd "createReader"]] or
+[uri #newreader [cmd "newReader"]] methods. The event handles
+returned are passed to rendering functions depending on the
+event data desired.
+
+[section "Rendering events"]
+
+There are several options for retrieving the event data referenced
+by event handles returned from [uri #getevents [cmd getEvents]].
+The methods of the [uri #evtformatter [cmd EvtFormatter]] class
+provides high-level access to event data. Objects of this class are
+created by the
+[cmd EvtSession] [uri #createformatter [cmd "createFormatter"]] or
+[uri #newformatter [cmd "newFormatter"]] methods. The class takes
+care of mapping raw event data to its publisher's metadata for
+localized messages, levels, tasks etc.
+[para]
+Alternatively, the following lower level functions may be used. These
+leave the caller responsible for retrieving associated publisher
+metadata if needed.
+
+[list_begin opt]
+[opt_def [uri #evt_event_logpath [cmd evt_event_logpath]]]
+Returns the channel or file from which the event was read.
+[opt_def [uri #evt_event_render [cmd evt_event_render]]]
+Returns event fields as a list based on a rendering context.
+[opt_def [uri #evt_event_xml [cmd evt_event_xml]]]
+Returns the event fields in XML format. Does not include rendered
+messages. Use the [cmd EvtFormatter]
+[uri #formateventasxml [cmd formatEventAsXml]] if that is
+required.
+[list_end]
+
+The [cmd evt_event_render] command requires a
+[emph "render context"] to be passed which selects the event properties
+that are to be rendered from an event. The following commands create
+a render context.
+
+[list_begin opt]
+[opt_def [uri #evt_render_context_system [cmd evt_render_context_system]]]
+Returns a handle to a render context for system-defined fields.
+[opt_def [uri #evt_render_context_userdata [cmd evt_render_context_userdata]]]
+Returns a handle to a render context for publisher-defined fields.
+[opt_def [uri #evt_render_context_xpaths [cmd evt_render_context_xpaths]]]
+Returns a handle to a render context for fields matching
+XPATH expressions.
+[list_end]
 
 [section Publishers]
 An event [emph publisher], or [emph provider] (the Windows SDK uses the term
 interchangeably) defines the structure of events it may generate, the channels
 to which it writes events, and localized message strings. This structure is
-described by metadata in a publisher manifest that is installed on the system.
+described by metadata in a publisher manifest that is installed on the system
+or in [uri #archivelogfile "archived event files"] so it can be accessed without
+registration on the system.
+The list of publishers registered on a system can be retrieved with the
+[cmd EvtSession] [uri #publishers [cmd "publishers"]] method.
 
+[para]
+The [uri #evtpublisher [cmd EvtPublisher]] class encapsulates publisher metadata.
+Objects of this class are created by the
+[cmd EvtSession] [uri #createpublisher [cmd "createPublisher"]] or
+[uri #newpublisher [cmd "newPublisher"]] methods. [cmd EvtPublisher] methods
+can be then be used to retrieve various metadata for the publisher. For example,
+the following prints the channels defined by Hyper-V.
+
+[example_begin]
+% sess createPublisher pub Microsoft-Windows-Hyper-V-Compute
+% foreach chan [lb]pub channels] {puts [lb]dict get $chan -channelpath]}
+Microsoft-Windows-Hyper-V-Compute-Admin
+Microsoft-Windows-Hyper-V-Compute-Operational
+Microsoft-Windows-Hyper-V-Compute-Analytic
+[example_end]
+
+Or to get the events defined by the publisher and the corresponding
+localized message string in French (LCID 1036),
+
+[example_begin]
+% sess createPublisher frpub Microsoft-Windows-Hyper-V-Compute -lcid 1036
+::frpub
+% foreach event_def [lb]frpub events {-eventid -messageid}] {
+    puts [lb]dict get $event_def -eventid]:[lb]frpub message [lb]dict get $event_def -messageid]]
+}
+...
+500:Started DM operation add memory. Balancer requested to add %2 pages. (Virtual machine ID %1)
+501:DM operation add memory completed %3 pages were added, time %2 s. (Virtual machine ID %1)
+502:Started DM operation remove memory. Balancer requested to remove %2 pages. (Virtual machine ID %1)
+...
+1000:Le service de calcul hôte démarre.
+1001:Service de calcul hôte démarré.
+1002:Le service de calcul hôte est en cours d’arrêt.
+1003:Service de calcul hôte arrêté.
+...
+[example_end]
+
+Note above that localized messages depend on the appropriate locale being installed
+and the publisher metadata including a localized string for the message id bound
+to the event.
 
 [section Commands]
 
 [list_begin definitions]
-[call [cmd "EvtSession create"] [arg EVTSESSOBJ] [opt [arg options]]]
-Creates a new TclOO object named [arg EVTSESSOBJ] encapsulating an event
-log session. The command returns the fully qualified name of the
-object.
+
+[call [cmd evt_event_logpath] [arg HEVT]]
+Returns the path of the channel or file from which the event
+identified by [arg HEVT] was retrieved.
+
+[call [cmd evt_event_render] [arg HEVENT] [arg HCTX]]
+Returns a list of field values from event referenced by [arg HEVENT]
+as per the rendering context referenced by [arg HCTX] which must be
+a handle returned by
+[uri #evt_render_context_xpaths [cmd evt_render_context_xpaths]],
+[uri #evt_render_context_userdata [cmd evt_render_context_userdata]], or
+[uri #evt_render_context_system [cmd evt_render_context_system]].
+The order of values in the first two cases is the order of the XPATHS
+in the render context and order of event's user data fields respectively. In
+the third case, the order is always that of the
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_system_property_id "EVT_SYSTEM_PROPERTY_ID"]
+enumeration in the Windows SDK.
+
+[call [cmd evt_event_xml] [arg HEVENT]]
+
+Returns the XML representation of the event referenced by [arg HEVENT],
+including including system-defined metadata and provider-defined event data.
+
+[call [cmd evt_render_context_system]]
+Returns a handle to a render context that can be passed to
+[uri #evt_event_render [cmd evt_event_render]] to render the
+system-defined properties of an event.
 [nl]
-By default, the session is created for the local system
-using the current process credentials.
-The following options may be specified to instead connect to
-a remote system or use different credentials.
+The returned handle should be released using [uri #evt_close [cmd evt_close]]
+when no longer needed.
 
+[call [cmd evt_render_context_userdata]]
+Returns a handle to a render context that can be passed to
+[uri #evt_event_render [cmd evt_event_render]] to render the
+user-defined properties of an event under the [const UserData]
+section of the event, and the [const EventData] section if no
+[const UserData] section is present.
+[nl]
+The returned values correspond to the properties defined by the
+publisher in the event schema and returned in the same order.
+[nl]
+The returned handle should be released using [uri #evt_close [cmd evt_close]]
+when no longer needed.
+
+[call [cmd evt_render_context_xpaths] [arg XPATHLIST]]
+
+Returns a handle to a render context for rendering the event properties
+selected by the list of XPATH expressions passed in [arg XPATHLIST]
+which must contain at least one XPATH expression.
+The handle can then be passed to
+[uri #evt_event_render [cmd evt_event_render]] to render the selected
+property values.
+[nl]
+Each element of [arg XPATHLIST] specifies an XPath expression that
+selects a [emph single] property from an event, for example
+[const Event/System/Provider/@Name] or [const Event/System/Channel].
+The values are returned in the
+same order as the corresponding XPath expressions in the list.
+[nl]
+The returned handle should be released using [cmd evt_close].
+
+[call [cmd EvtFormatter]]
+Class for rendering and formatting events.
+To guard against future implementation changes, objects of
+this class should be created through
+[uri #evtsessioncreate [cmd EvtSession]] methods
+[uri #createformatter [cmd createFormatter]] or
+[uri #newformatter [cmd newFormatter]] and not directly.
+
+[call "[arg EVTFMTOBJ] [cmd decodeEvent]" [arg HEVT] [arg PROPERTIES]]
+
+Returns a dictionary containing event data in fully decoded form.
+[arg HEVT] is a handle to a single event. See the
+[uri #decodeevents [cmd decodeEvents]] method for more information.
+This method only differs in that it accepts a single handle and
+return format is a dictionary.
+
+[call "[arg EVTFMTOBJ] [cmd decodeEvents]" [arg HEVTS] [arg PROPERTIES]]
+
+Returns a [uri base.html#recordarrays "record array"] containing
+event data in fully decoded form. [arg HEVTS] is a list of handles
+to events as returned from [uri #getEvents [cmd getEvents]].
+The fields of the record array are those specified in [arg PROPERTIES]
+which defaults to the list [const -providername], [const -eventid],
+[const -level], [const -timecreated] and [const -message].
+The table below shows the possible event fields that may be included
+in [arg PROPERTIES].
 [list_begin opt]
-[opt_def -authtype [arg AUTHTYPE]]
-Specifies the
-[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_rpc_login_flags "authentication method"]
-to use for the connection.
-
-[opt_def -domain [arg DOMAIN]]
-Specifies the domain for the account specified by the [cmd -user]
-option. This may be a Windows domain name or the name of the remote
-computer for local accounts.
-
-[opt_def -password [arg PASSWORD]]
-Specifies the password corresponding to the account specified by the
-[cmd -user] option. Must be in
-[uri base.html#passwordprotection "encrypted form"].
-
-[opt_def -system [arg SYSTEMNAME]]
-Connects to the event log service on the system named [arg SYSTEMNAME]
-
-[opt_def -user [arg USERNAME]]
-Specifies the user account to use for the connection.
-If omitted, the credentials of the current process are used.
-
+[opt_def [cmd -activityid]]
+GUID containing the activity id associated with the event.
+[opt_def [cmd -channel]]
+The channel to which the event was logged.
+[opt_def [cmd -computer]]
+The name of the system on which the event was logged.
+[opt_def [cmd -eventid]]
+The event id for the event's definition in the publisher's metadata.
+[opt_def [cmd -eventrecordid]]
+The id of this event record.
+[opt_def [cmd -keywords]]
+Contains a list of keywords with which the event is tagged.
+[opt_def [cmd -level]]
+The localized string associated by the publisher with the numeric level.
+[opt_def [cmd -message]]
+Contains the localized formatted message corresponding to the event. This
+is similar to what is displayed in the Windows Event Viewer application.
+[opt_def [cmd -opcode]]
+The localized string associated by the publisher with the event opcode.
+[opt_def [cmd -pid]]
+The process id of the process that logged the event.
+[opt_def [cmd -providerguid]]
+The GUID of the logging event provider.
+[opt_def [cmd -providername]]
+The name of the logging event provider.
+[opt_def [cmd -qualifiers]]
+The high 16 bits of the event id for legacy event providers. This is combined with
+the [cmd -eventid] field as low 16 bits to form a 32-bit id to retrieve messages.
+[opt_def [cmd -relatedactivityid]]
+GUID containing the relative activity id associated with the event.
+[opt_def [cmd -task]]
+The localized string associated by the publisher with the event task property.
+[opt_def [cmd -tid]]
+The thread id of the logging thread.
+[opt_def [cmd -timecreated]]
+The time the event was logged in 100ns units since January 1, 1601 UTC.
+[opt_def [cmd -sid]]
+The SID of the account under which the logging thread was running.
+[opt_def [cmd -userdata]]
+A list of the publisher-specific properties for the event.
+[opt_def [cmd -version]]
+The version of the event definition.
 [list_end]
 
+[call "[arg EVTFMTOBJ] [cmd formatEvent]" [arg HEVT]]
+Returns the localized formatted message form of an event.
+[arg HEVT] is a handle to an event.
+
+[call "[arg EVTFMTOBJ] [cmd formatEventAsXml]" [arg HEVT]]
+Returns event data in XML format. [arg HEVT] is a handle to an event.
+Unlike the [uri #evteventxml [cmd evt_event_xml]] command, this includes
+a [const <RenderingInfo>] XML element with the localized strings for the event.
 
 [call [cmd EvtChannelConfig]]
 Class wrapping a handle to a channel configuration information.
@@ -301,6 +505,117 @@ Value attribute of the task.
 See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskValue].
 [list_end]
 
+[call [cmd EvtReader]]
+
+[uri #evtreader [cmd EvtReader]] class instances can be used to read
+events from a result set returned by a query on channels or event log files.
+To guard against future implementation changes, objects of
+this class should be created through
+[uri #evtsessioncreate [cmd EvtSession]] methods
+[uri #createreader [cmd createReader]] or
+[uri #newreader [cmd newReader]] and not directly.
+
+[call "[arg EVTREADEROBJ] [cmd getEvents]" [opt [arg options]]]
+Returns a list containing events from an event result set.
+The returned list elements are event handles which can be rendered
+using [uri #evtformatter [cmd EvtFormatter]] or commands
+[uri #evteventxml [cmd evt_event_xml]] and
+[uri #evteventrender [cmd evt_event_render]].
+The event handles
+must be explicitly closed via [uri #evt_close [cmd evt_close]].
+They are not automatically closed along with the session.
+[nl]
+The command returns an empty list if no more events are available
+in the result set. Additional events logged to the channel subsequent
+to the query are not returned.
+[nl]
+The cursor in the event result set is moved past the returned events
+so each [cmd getEvents] call returns events from the result set in sequence.
+[nl]
+The following options can be specified:
+[list_begin opt]
+[opt_def [cmd -count] [arg COUNT]]
+Returns [arg COUNT] events from the result set. The actual number of
+events returned may be less if the end of the result set is reached.
+If unspecified, the number of returned events depends on various
+internal tuning factors and applications must not rely on a specific
+number being returned.
+[opt_def [cmd -statusvar] [arg VARNAME]]
+The name of a variable in which to return status. If there is an
+error when reading the next event, the command will normally generate
+an Tcl exception. If this option is specified, the command will instead
+return an empty list and store the error code in the specified variable.
+[opt_def [cmd -timeout] [arg MILLISECONDS]]
+Specifies the number of milliseconds to wait for events. A value of
+[const -1] (default) indicates call should not time out.
+[list_end]
+
+[call "[arg EVTREADEROBJ] [cmd handle]"]
+Returns the handle to the underlying EVT query.
+
+[call "[arg EVTREADEROBJ] [cmd info]"]
+Returns the status information for a query. For a structured XML
+query, this is a list each element of which is a pair consisting of
+a channel name in the query and a Win32 error code.
+
+[call "[arg EVTREADEROBJ] [cmd seek]" [arg OFFSET] [opt [arg options]]]
+
+Changes the position of the cursor from which events are read in the
+wrapped result set by [arg OFFSET] records. A negative value will move
+the cursor in the backward direction. A positive value will move it
+forward. By default the offset is interpreted relative to the current
+position of the cursor. The following options may be passed to the
+method.
+
+[list_begin opt]
+[opt_def [cmd -hbookmark] [arg HBOOK]]
+Causes [arg OFFSET] to be interpreted relative to the bookmark referenced
+by the handle [arg HBOOK].
+[opt_def [cmd -origin] [arg ORIGIN]]
+Causes [arg OFFSET] to be interpreted relative to the current cursor
+position, the first record of the result set or the last for [arg ORIGIN] values
+[const current], [const first] and [const last] respectively.
+[opt_def [cmd -strict]]
+If specified, the command will raise an error if the offset or bookmark
+seeks past the boundaries of the result set. By default, the cursor is
+set to the position of the record at the boundary in such cases.
+[list_end]
+
+[call [cmd "EvtSession create"] [arg EVTSESSOBJ] [opt [arg options]]]
+Creates a new TclOO object named [arg EVTSESSOBJ] encapsulating an event
+log session. The command returns the fully qualified name of the
+object.
+[nl]
+By default, the session is created for the local system
+using the current process credentials.
+The following options may be specified to instead connect to
+a remote system or use different credentials.
+
+[list_begin opt]
+[opt_def -authtype [arg AUTHTYPE]]
+Specifies the
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_rpc_login_flags "authentication method"]
+to use for the connection.
+
+[opt_def -domain [arg DOMAIN]]
+Specifies the domain for the account specified by the [cmd -user]
+option. This may be a Windows domain name or the name of the remote
+computer for local accounts.
+
+[opt_def -password [arg PASSWORD]]
+Specifies the password corresponding to the account specified by the
+[cmd -user] option. Must be in
+[uri base.html#passwordprotection "encrypted form"].
+
+[opt_def -system [arg SYSTEMNAME]]
+Connects to the event log service on the system named [arg SYSTEMNAME]
+
+[opt_def -user [arg USERNAME]]
+Specifies the user account to use for the connection.
+If omitted, the credentials of the current process are used.
+
+[list_end]
+
 [call [cmd "EvtSession new"] [opt [arg options]]]
 
 Creates a new TclOO object with a unique name encapsulating an event log
@@ -311,9 +626,6 @@ to [uri #evtsessioncreate [cmd "EvtSession create"]]
 Adds localized strings to the events in the previously exported event log
 file [arg LOGFILE]. Option [cmd -lcid] specifies the locale to use and defaults
 to the process locale.
-
-[call "[arg EVTSESSOBJ] [cmd channels]"]
-Returns a list of channel names registered on the system.
 
 [call "[arg EVTSESSOBJ] [cmd clearChannel] [arg CHANNAME] [opt [arg options]]"]
 Clears the specified channel. If option [cmd -backup] is specified, the channel
@@ -519,20 +831,11 @@ See [uri #createformatter [cmd createFormatter]] for options.
 Returns a list of the names of event publishers registered on
 the system connected by the session.
 
-[list_end]
-
-[section Channels]
-
-[list_begin definitions]
-
-[call "[cmd EvtChannelConfig]"]
-Class wrapping a handle to a channel configuration information.
-To guard against future implementation changes, objects of
-this class should be created through
-[uri #createchannelconfig [cmd createChannelConfig]] or
-[uri #newchannelconfig [cmd newChannelConfig]] and not directly.
+[call "[arg EVTSESSOBJ] [cmd registeredChannels]"]
+Returns a list of channel names registered on the system.
 
 [list_end]
+
 
 [keywords "event log"]
 
