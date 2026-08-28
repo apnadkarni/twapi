@@ -683,12 +683,12 @@ oo::class create twapi::EvtSubscription {
         }
         CloseHandle $hSignal
     }
-    method wait {{ms -1}} {
+    method waitForEvent {{ms -1}} {
         if {[info exists commandPrefix]} {
             error "Cannot wait on a subscription that has registered callbacks."
         }
         # Don't really care why the wait completed (signalled, timeout, abandoned)
-        # Caller simply needs to call the next method in all cases
+        # Caller simply needs to call the getEvents method in all cases
         wait_on_handle $hSignal -wait $ms
     }
     method registerCallback {cb {ms -1}} {
@@ -714,7 +714,7 @@ oo::class create twapi::EvtSubscription {
     }
     method SignalHandler {hsig trigger} {
         # Irrespective of whether trigger is signalled, timeout, abandoned,
-        # action to be taken is the same. Invoke the callback
+        # action to be taken is the same.
         if {[info exists commandPrefix]} {
             uplevel #0 $commandPrefix
         }
@@ -1030,7 +1030,8 @@ oo::class create twapi::EvtChannelConfig {
     method save {} {EvtSaveChannelConfig $hConfig}
 
     method isEnabled        {}    {EvtGetChannelConfigProperty $hConfig 0}
-    method setEnabled       {val} {EvtSetChannelConfigProperty $hConfig 0 0 $val}
+    method enable           {}    {EvtSetChannelConfigProperty $hConfig 0 0 1}
+    method disable          {}    {EvtSetChannelConfigProperty $hConfig 0 0 0}
     method isolation        {}    {EvtGetChannelConfigProperty $hConfig 1}
     method setIsolation     {val} {EvtSetChannelConfigProperty $hConfig 1 0 $val}
     method type             {}    {EvtGetChannelConfigProperty $hConfig 2}

@@ -114,6 +114,15 @@ Returns a handle to a render context for fields matching
 XPATH expressions.
 [list_end]
 
+[section Subscriptions]
+
+Applications can register to be notifified of event arrivals through the
+[uri #evtsubscription [cmd EvtSubscription]] class, instances of which are
+created by the [cmd EvtSession] [uri #createsubscription [cmd createSubscription]]
+or [uri #newsubscription [cmd newSubscription]] methods. Notifications may
+be synchronous via the [uri #waitforevent [cmd waitForEvent]] or through
+callbacks registered with [uri #registercallback [cmd registerCallback]].
+
 [section Publishers]
 An event [emph publisher], or [emph provider] (the Windows SDK uses the term
 interchangeably) defines the structure of events it may generate, the channels
@@ -165,9 +174,49 @@ Note above that localized messages depend on the appropriate locale being instal
 and the publisher metadata including a localized string for the message id bound
 to the event.
 
+[section Bookmarks]
+An EVT [emph bookmark] identifies a specific event in an event log. Bookmarks are
+created with [uri #evt_bookmark_create [cmd evt_bookmark_create]] and
+set to point to a specific event either by passing a
+XML representation previously generated with
+[uri #evt_bookmark_render [cmd evt_bookmark_render]] to that command or
+with [uri #evt_bookmark_update [cmd evt_bookmark_update]] when given
+a event handle. A bookmark may be used to resume reading events from its
+targeted event by passing it to
+[cmd EvtReader] [uri #seek [cmd seek]] method or for initializing a
+[uri #evtsubscription subscription].
+
 [section Commands]
 
 [list_begin definitions]
+
+[call [cmd evt_bookmark_create] [opt [arg XML]]]
+Creates and returns a handle to an event bookmark. A bookmark identifies a
+specific event in an event log and may be used to restart event processing from
+that event at a later time.
+If [arg XML] is specified, it must be the XML representation of a
+bookmark as previously returned by
+[uri #evt_bookmark_render [cmd evt_bookmark_render]].
+[nl]
+The returned bookmark identifies the event represented by the XML. If [arg XML]
+is an empty string, the returned bookmark is not associated with any event and
+may subsequently be updated using [cmd evt_bookmark_update].
+[nl]
+The returned handle should be released via [cmd evt_close].
+
+[call [cmd evt_bookmark_render] [arg HBOOOK]]
+Returns the XML form of a bookmark. This can then be passed to the
+[uri #evt_bookmark_create [cmd evt_bookmark_create]] command to
+recreate the bookmark to an event at some later time.
+
+[call [cmd evt_bookmark_update] [arg HBOOK] [arg HEVT]]
+
+Updates the bookmark specified by its handle [arg HBOOK]
+to identify the event specified by the event handle [arg HEVT].
+
+[call [cmd evt_close] [opt "[arg HEVT] [arg HEVT]..."]]
+Close handles returned by various EVT API's. Primary purpose is to
+close event handles returned by [uri #getEvents [cmd getEvents]].
 
 [call [cmd evt_event_logpath] [arg HEVT]]
 Returns the path of the channel or file from which the event
@@ -316,6 +365,128 @@ this class should be created through
 [uri #evtsessioncreate [cmd EvtSession]] methods
 [uri #createchannelconfig [cmd createChannelConfig]] or
 [uri #newchannelconfig [cmd newChannelConfig]] and not directly.
+[nl]
+Note that changes made to a channel configuration to not take effect
+until they are saved.
+
+[call "[arg EVTCHANCFG] [cmd access]"]
+Returns an SDDL access descriptor that controls access to the channel and the backing
+store in conjunction with the [cmd -isolation] property.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.access].
+[call "[arg EVTCHANCFG] [cmd bufferSize]"]
+Returns memory buffer size for the channel in Kilobytes.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.bufferSize].
+[call "[arg EVTCHANCFG] [cmd clockType]"]
+Returns [const 0] if using system time for time stamps and [const 1] for QPC.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.clockType].
+[call "[arg EVTCHANCFG] [cmd controlGuid]"]
+Returns session GUID for a ETW session. Generally not present for event log channels.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.controlGuid].
+[call "[arg EVTCHANCFG] [cmd filePath]"]
+Returns path of the backing log file.
+[call "[arg EVTCHANCFG] [cmd hasAutoBackup]"]
+Returns [const 1] if a new log file is created when the current backing file reaches its
+maximum size and [const 0] otherwise. In the former case, [cmd -retention] must
+have a true value.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.retention].
+[call "[arg EVTCHANCFG] [cmd isClassic]"]
+Returns [const 1] or [const 0] indicating whether the channel is a classic (pre-Vista)
+channel or not.
+[call "[arg EVTCHANCFG] [cmd isEnabled]"]
+Returns [const 1] or [const 0] depending on whether the channel is enabled or not.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.enabled].
+[call "[arg EVTCHANCFG] [cmd isolation]"]
+Returns one of [const 0] (Application), [const 1] (System) or [const 2] (Custom).
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.isolation].
+[call "[arg EVTCHANCFG] [cmd keywordFilter]"]
+If [const 0] or unset, events are written irrespective of keywords. Otherwise,
+only events that have a keyword included in the bitmask are written to the
+channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.keywords].
+[call "[arg EVTCHANCFG] [cmd latency]"]
+Returns milliseconds to wait before flushing buffers. If 0, buffers are flushed only
+when full.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.latency].
+[call "[arg EVTCHANCFG] [cmd levelFilter]"]
+Returns the severity level threshold for writing events to the channel. Events with
+severity values above this are ignored. If [const 0] or unset (empty), all
+events are written to the channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.level].
+[call "[arg EVTCHANCFG] [cmd maxBuffers]"]
+Returns maximum number of buffers to allocate for the channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.maxBuffers].
+[call "[arg EVTCHANCFG] [cmd maxFiles]"]
+Returns maximum number of times a new log file should be created when the channel is
+enabled including reboots.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.fileMax].
+[call "[arg EVTCHANCFG] [cmd maxSize]"]
+Returns maximum size of the log file.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.maxSize].
+[call "[arg EVTCHANCFG] [cmd minBuffers]"]
+Returns minimum number of buffers to allocate for the channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.minBuffers].
+[call "[arg EVTCHANCFG] [cmd name]"]
+Returns name of the channel.
+[call "[arg EVTCHANCFG] [cmd publisher]"]
+Returns name of the publisher defining the channel.
+[call "[arg EVTCHANCFG] [cmd publishers]"]
+Returns list of publishers logging to the channel including the owning publisher that
+defined the channel as well as those importing the channel.
+[call "[arg EVTCHANCFG] [cmd retention]"]
+Returns [const 1] or [const 0] depending on whether the backing log file is sequential
+or circular.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.retention].
+[call "[arg EVTCHANCFG] [cmd save]"]
+Save changes made to the channel configuration.
+[call "[arg EVTCHANCFG] [cmd setAccess]"]
+Sets the SDDL access descriptor that controls access to the channel and the backing
+store in conjunction with the [cmd -isolation] property.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.access].
+[call "[arg EVTCHANCFG] [cmd setAutoBackup]" [arg BOOL]]
+If set to true,
+a new log file is created when the current backing file reaches its
+maximum size. In the former case, [uri #retention [cmd retention]] must
+also be true.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.autoBackup].
+[call "[arg EVTCHANCFG] [cmd disable]"]
+Disables the channel. Events logged to the channel are discarded.
+[call "[arg EVTCHANCFG] [cmd enable]"]
+Enables the channel so events logged to it are persisted.
+[call "[arg EVTCHANCFG] [cmd setFilePath]" [arg FILEPATH]]
+Sets the path of the backing log file.
+[call "[arg EVTCHANCFG] [cmd setIsolation]" [arg ISOLATION]]
+Sets the isolation level for the channel.
+[arg ISOLATION] must be
+one of [const 0] (Application), [const 1] (System) or [const 2] (Custom).
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.isolation].
+[call "[arg EVTCHANCFG] [cmd setKeywordFilter]" [arg KEYFILTER]]
+Sets the keyword filter for the channel. If [const 0], event keywords
+are not used to filter events.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.keywords].
+[call "[arg EVTCHANCFG] [cmd setLevelFilter]"]
+Sets the severity level threshold for writing events to the channel. Events with
+severity values above this are ignored. If [const 0] or unset (empty), all
+events are written to the channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.level].
+[call "[arg EVTCHANCFG] [cmd setMaxFiles]"]
+Sets the maximum number of times a new log file should be created when the channel is
+enabled including reboots.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.fileMax].
+[call "[arg EVTCHANCFG] [cmd setMaxSize]"]
+Sets the maximum size of the log file.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.maxSize].
+[call "[arg EVTCHANCFG] [cmd setRetention]" [arg BOOL]]
+Set to [const 1] if events are to be retained when file is at max size limit
+or [const 0] if old events are to be overwritten.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.retention].
+[call "[arg EVTCHANCFG] [cmd sidType]"]
+Returns [const 1] or [const 0] indicating whether the SID of the logging principal
+should be included in events logged to the channel or not.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.sidType].
+[call "[arg EVTCHANCFG] [cmd type]"]
+Returns one of [const 0] (Admin), [const 1] (Operational), [const 2]
+(Analytic) or [const 3] (Debug).
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.type].
 
 [call [cmd EvtPublisher]]
 Class wrapping a handle to the metadata of an event publisher.
@@ -734,7 +905,7 @@ returned result set.
 [arg QUERY] should be an empty string or [const *] (for all events, default),
 an XPATH expression or a structured XML query. See
 [uri https://learn.microsoft.com/en-us/windows/win32/wes/consuming-events "SDK documentation"].
-[arg [cmd -strict]]
+[opt_def [cmd -strict]]
 If specified, an error is raised if the event referenced by passed bookmark
 does not exist.
 [list_end]
@@ -833,6 +1004,41 @@ the system connected by the session.
 
 [call "[arg EVTSESSOBJ] [cmd registeredChannels]"]
 Returns a list of channel names registered on the system.
+
+[call [cmd EvtSubscription]]
+
+Class for subscribing to events.
+To guard against future implementation changes, objects of
+this class should be created through
+[uri #evtsessioncreate [cmd EvtSession]] methods
+[uri #createsubscription [cmd createSubscription]] or
+[uri #newsubscription [cmd newSubscription]] and not directly.
+
+[call "[arg EVTSUBSCRIBEOBJ] [cmd registerCallback]" [arg CALLBACK] [opt [arg MILLISECS]]]
+
+Registers a callback to be invoked when an event is available on the
+subscribed channels. Any previously registered callback is replaced.
+[arg MILLISECS] defaults to [const -1] indicating no timeout. Otherwise
+the callback is invoked after [arg MILLISECS] irrespective of whether
+an event is available.
+The callback should call [uri #getEvents [cmd getEvents]] to retrieve
+new events but be prepared to handle the case that no events have
+actually arrived.
+
+[call "[arg EVTSUBSCRIBEOBJ] [cmd unregisterCallback]"]
+
+Unregisters callback previously registered with
+[uri #registercallback [cmd registerCallback]].
+
+[call "[arg EVTSUBSCRIBEOBJ] [cmd waitForEvents] [opt [arg MILLISECS]]"]
+
+Waits for [arg MILLISECS] till an event is available on the subscribed
+channels. [arg MILLISECS] defaults to [const -1] indicating no timeout.
+On return, the caller should call [uri #getEvents [cmd getEvents]]
+but be prepared to handle the case that no events have actually arrived.
+[nl]
+The method should not be called on subscriptions where a callback has
+been registered.
 
 [list_end]
 
