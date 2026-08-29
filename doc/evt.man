@@ -123,13 +123,22 @@ or [uri #newsubscription [cmd newSubscription]] methods. Notifications may
 be synchronous via the [uri #waitforevent [cmd waitForEvent]] or through
 callbacks registered with [uri #registercallback [cmd registerCallback]].
 
+[section "Writing events"]
+
+The [uri #evtlog [cmd evt_log]] command writes events to the
+[const Twapi-App/Operational] event log channel on the local system.
+
 [section Publishers]
 An event [emph publisher], or [emph provider] (the Windows SDK uses the term
 interchangeably) defines the structure of events it may generate, the channels
 to which it writes events, and localized message strings. This structure is
 described by metadata in a publisher manifest that is installed on the system
 or in [uri #archivelogfile "archived event files"] so it can be accessed without
-registration on the system.
+registration on the system. The commands
+[uri #evtpublisherinstall [cmd evt_publisher_install]] and
+[uri #evtpublisherinstall [cmd evt_publisher_install]] respectively install
+and uninstall publisher metadata in the local system.
+[para]
 The list of publishers registered on a system can be retrieved with the
 [cmd EvtSession] [uri #publishers [cmd "publishers"]] method.
 
@@ -240,6 +249,33 @@ enumeration in the Windows SDK.
 Returns the XML representation of the event referenced by [arg HEVENT],
 including including system-defined metadata and provider-defined event data.
 
+[call [cmd evt_log] [arg LEVEL] [arg MESSAGE] [opt [arg options]]]
+Writes an event to the [const Twapi-App/Operational] channel on the local
+system. The Twapi event provider should have been previously registered
+on the system by some means such as the
+[uri #evttwapiinstall [cmd evt_twapi_install]] command. Otherwise, logged
+events are silently discarded by the system.
+[nl]
+[arg LEVEL] should be an integer or one of [const critical], [const error],
+[const warning], [const informational] or [const verbose]. [arg MESSAGE]
+is an arbitrary string. The message logged to the channel automatically
+includes the path of the executable and the application name, which is
+just [const "Tcl Application"] by default but can be changed by passing
+the [cmd -application] option to the command.
+
+[call [cmd evt_publisher_install] [arg MANPATH] [arg RESPATH] [arg MSGPATH]]
+
+Registers an event publisher with the local system. [arg MANPATH], [arg RESPATH]
+and [arg MSGPATH] are the paths to the publisher's manifest file, resource file
+and message files respectively. The command may display an elevation prompt if
+the process is not running in elevated mode.
+
+[call [cmd evt_publisher_uninstall] [arg MANPATH]]
+
+Unregisters an event publisher with the local system. [arg MANPATH] is the path
+to the publisher's manifest file. The command may display an elevation prompt if
+the process is not running in elevated mode.
+
 [call [cmd evt_render_context_system]]
 Returns a handle to a render context that can be passed to
 [uri #evt_event_render [cmd evt_event_render]] to render the
@@ -277,6 +313,15 @@ The values are returned in the
 same order as the corresponding XPath expressions in the list.
 [nl]
 The returned handle should be released using [cmd evt_close].
+
+[call [cmd evt_twapi_install]]
+
+Registers the TWAPI event publisher with the local system. The command may
+display an elevation prompt if the process is not running in elevated mode.
+
+[call [cmd evt_twapi_uninstall]]
+
+Unregisters the TWAPI event publisher from the local system.
 
 [call [cmd EvtFormatter]]
 Class for rendering and formatting events.
