@@ -533,6 +533,39 @@ Returns one of [const 0] (Admin), [const 1] (Operational), [const 2]
 (Analytic) or [const 3] (Debug).
 See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.type].
 
+[call [cmd EvtLogInfo]]
+Class holding information about an event log channel or file.
+To guard against future implementation changes, objects of
+this class should be created through
+[uri #evtsessioncreate [cmd EvtSession]] methods
+[uri #createloginfo [cmd createLogInfo]] or
+[uri #newloginfo [cmd newLogInfo]] and not directly.
+
+[call "[arg EVTLOGINFOOBJ] [cmd attributes]"]
+Bit mask of the file
+[uri https://learn.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants attributes].
+[call "[arg EVTLOGINFOOBJ] [cmd creationTime]"]
+Time the channel or file was created in units of 100 nanoseconds.
+since Jan 1, 1601.
+[call "[arg EVTLOGINFOOBJ] [cmd fileSize]"]
+Size of the file in bytes. In the case of channels, the size of the backing store.
+[call "[arg EVTLOGINFOOBJ] [cmd isFull]"]
+Boolean indicating if the event log channel or file is full.
+[call "[arg EVTLOGINFOOBJ] [cmd lastAccessTime]"]
+Time the channel or file was last accessed in units of 100 nanoseconds
+since Jan 1, 1601.
+[call "[arg EVTLOGINFOOBJ] [cmd lastWriteTime]"]
+Time of writing the most recent event to the channel or file
+in units of 100 nanoseconds since Jan 1, 1601.
+[call "[arg EVTLOGINFOOBJ] [cmd logName]"]
+Name of the channel or file.
+[call "[arg EVTLOGINFOOBJ] [cmd logType]"]
+One of [const channel] or [const file].
+[call "[arg EVTLOGINFOOBJ] [cmd oldestRecordNumber]"]
+Record number of the oldest record in the file.
+[call "[arg EVTLOGINFOOBJ] [cmd recordCount]"]
+Number of event records in the channel or file.
+
 [call [cmd EvtPublisher]]
 Class wrapping a handle to the metadata of an event publisher.
 To guard against future implementation changes, objects of
@@ -923,12 +956,15 @@ an XPATH expression or a structured XML query. See
 [uri https://learn.microsoft.com/en-us/windows/win32/wes/consuming-events "SDK documentation"].
 [list_end]
 
-[call "[arg EVTSESSOBJ] [cmd createSubscription]" [arg EVTSUBSCRIBEOBJ] [opt [arg options]]]
+[call "[arg EVTSESSOBJ] [cmd createSubscription]" [arg EVTSUBSCRIBEOBJ] [arg CHANNAME] [opt [arg options]]]
 Creates a TclOO object named [arg EVTSUBSCRIBEOBJ] of class
 [uri #evtsubscription [cmd EvtSubscription]]
 and returns its fully qualified name. The object wraps a handle to an
 EVT event subscription containing events from one or more channels. The
 returned object is automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+[nl]
+The [arg CHANNAME] argument specifies the name of the channel. Pass an empty
+string if and only if the [cmd -query] option value is a structured XML query.
 [nl]
 The following options may be passed to select events to be included
 in the result set.
@@ -1049,6 +1085,12 @@ the system connected by the session.
 
 [call "[arg EVTSESSOBJ] [cmd registeredChannels]"]
 Returns a list of channel names registered on the system.
+
+[call "[arg EVTSESSOBJ] [cmd with]" [arg FACTORY] [arg TARGETMETHOD]]
+This is a convenience method to create a Evt object belonging to the
+session with the [arg FACTORY] method, invoking its [arg TARGETMETHOD]
+method and destroying the created object. The command returns the result
+of the [arg TARGETMETHOD invocation].
 
 [call [cmd EvtSubscription]]
 

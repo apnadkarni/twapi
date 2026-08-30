@@ -890,7 +890,8 @@ Twapi_EvtCallObjCmd(ClientData clientdata,
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = EvtExportLog(hevt, ObjToWinChars(sObj), ObjToWinChars(s2Obj), ObjToWinChars(s3Obj), dw);
+        result.value.ival = EvtExportLog(hevt, ObjToLPWSTR_NULL_IF_EMPTY(sObj),
+		 ObjToLPWSTR_NULL_IF_EMPTY(s2Obj), ObjToWinChars(s3Obj), dw);
         break;
 
     case 9: // EvtSetChannelConfigProperty

@@ -93,11 +93,14 @@ namespace eval twapi::evt::test {
             [info class instances ::twapi::EvtSession]
     } -result [list [namespace current]::lsess 1 {} {}]
 
-    test EvtSession-1.1 {new local session} -body {
+    test EvtSession-1.1 {new local session with unique names} -body {
         set o [twapi::EvtSession new]
-        list [$o isLocal] [$o destroy] \
+        set o2 [twapi::EvtSession new]
+        list [expr {$o ne $o2}] \
+            [$o isLocal] [$o destroy] \
+            [$o2 isLocal] [$o2 destroy] \
             [info class instances ::twapi::EvtSession]
-    } -result [list 1 {} {}]
+    } -result [list 1 1 {} 1 {} {}]
 
     test EvtSession-2.0 {
         create remote session
@@ -154,6 +157,152 @@ namespace eval twapi::evt::test {
             [rsess isLocal] [rsess destroy] \
             [info class instances ::twapi::EvtSession]
     } -result [list [namespace current]::rsess 0 {} {}]
+
+    test EvtSession-4.0 {
+        Destroying session should destroy dependent objects
+    } -setup {
+        twapi::EvtSession create sess
+        sess createPublisher pub Microsoft-Windows-Eventlog
+        sess createChannelConfig cfg Application
+        sess createLogInfo loginfo -channel Setup
+        sess createReader reader -channel Application
+        sess createSubscription sub Setup
+        sess createFormatter fmt
+    } -body {
+        list \
+            [info class instances twapi::EvtSession] \
+            [info class instances twapi::EvtPublisher] \
+            [info class instances twapi::EvtChannelConfig] \
+            [info class instances twapi::EvtLogInfo] \
+            [info class instances twapi::EvtReader] \
+            [info class instances twapi::EvtSubscription] \
+            [info class instances twapi::EvtFormatter] \
+            [sess destroy] \
+            [info class instances twapi::EvtSession] \
+            [info class instances twapi::EvtPublisher] \
+            [info class instances twapi::EvtChannelConfig] \
+            [info class instances twapi::EvtLogInfo] \
+            [info class instances twapi::EvtReader] \
+            [info class instances twapi::EvtSubscription] \
+            [info class instances twapi::EvtFormatter] \
+        } -result [list ::twapi::evt::test::sess ::twapi::evt::test::pub \
+                       ::twapi::evt::test::cfg ::twapi::evt::test::loginfo \
+                       ::twapi::evt::test::reader ::twapi::evt::test::sub \
+                       ::twapi::evt::test::fmt {} {} {} {} {} {} {} {} ]
+
+    test EvtSession-publishers-channels-1.0 {
+        EvtSession publishers and channels
+    } -setup {
+        twapi::EvtSession create sess
+    } -cleanup {
+        sess destroy
+    } -body {
+        set pubs [sess publishers]
+        set chans [sess registeredChannels]
+        list [expr {[llength $pubs] > 500}] \
+            [expr {[llength $chans] > 500}] \
+            [expr {"Microsoft-Windows-Eventlog" in $pubs}] \
+            [expr {"Application" in $chans}] \
+            [expr {"Microsoft-Windows-EventCollector/Operational" in $chans}]
+
+    } -result {1 1 1 1 1}
+
+    test EvtSession-with-1.0 {
+        EvtSession with method
+    } -setup {
+        twapi::EvtSession create sess
+    } -cleanup {
+        sess destroy
+    } -body {
+        list [sess with {newChannelConfig Setup} publisher] \
+            [info class instances ::twapi::EvtChannelConfig]
+    } -result [list Microsoft-Windows-Eventlog {}]
+
+    proc event_count {osess args} {
+        return [sess with [list newLogInfo {*}$args] recordCount]
+    }
+
+    test EvtSession-exportEvents-1.0 {
+        EvtSession exportEvents -channel and -logfile
+    } -setup {
+        twapi::EvtSession create sess
+        set backup [new_file]
+        set backup2 [new_file]
+        set count [event_count sess -channel Setup]
+    } -cleanup {
+        sess destroy
+        file delete $backup
+        file delete $backup2
+    } -body {
+        sess exportEvents $backup -channel Setup
+        sess exportEvents $backup2 -logfile $backup
+        list \
+            [expr {$count == [event_count sess -logfile $backup]}] \
+            [expr {$count == [event_count sess -logfile $backup2]}]
+    } -result {1 1}
+
+    test EvtSession-exportEvents-2.0 {
+        EvtSession exportEvents -query XPATH query
+    } -setup {
+        twapi::EvtSession create sess
+        set backup [new_file]
+        set count [event_count sess -channel Setup]
+    } -cleanup {
+        sess destroy
+        file delete $backup
+    } -body {
+        sess exportEvents $backup -channel Setup \
+            -query {*[System[EventID=1]]}
+        set exported_count [event_count sess -logfile $backup]
+        expr {$count > $exported_count}
+    } -result 1
+
+    test EvtSession-exportEvents-2.1 {
+        EvtSession exportEvents -query structured XML query
+    } -setup {
+        twapi::EvtSession create sess
+        set backup [new_file]
+        set count [event_count sess -channel Setup]
+    } -cleanup {
+        sess destroy
+        file delete $backup
+    } -body {
+        sess exportEvents $backup -channel Setup \
+            -query {
+                <QueryList>
+                <Query Id="0" Path="Setup">
+                <Select Path="Setup">*[System[EventID!=1]]</Select>
+                </Query>
+                </QueryList> }
+        set exported_count [event_count sess -logfile $backup]
+        expr {$count > $exported_count}
+    } -result 1
+
+    test EvtSession-archiveLogFile-1.0 {
+        EvtSession archiveLogFile
+    } -constraints privileged -setup {
+        twapi::EvtSession create sess
+        set archive [new_file]
+        sess exportEvents $archive -channel Setup
+        set count [event_count sess -logfile $archive]
+        set size [file size $archive]
+    } -cleanup {
+        sess destroy
+        file delete $archive
+        file delete -force $mta_dir
+    } -body {
+        sess archiveLogFile $archive
+        sess archiveLogFile $archive -lcid 1036
+        set archived_count [event_count sess -logfile $archive]
+        set mta_dir [file join [file dirname $archive] LocaleMetaData]
+        # The "0" is for thread default locale
+        set mta0 [file join $mta_dir [file rootname [file tail $archive]]_0.MTA]
+        set mta1036 [file join $mta_dir [file rootname [file tail $archive]]_1036.MTA]
+        list \
+            [expr {$archived_count == $count}] \
+            [file exists $mta0] \
+            [file exists $mta1036]
+    } -result {1 1 1}
 
     ::tcltest::cleanupTests
 }

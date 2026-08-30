@@ -6,6 +6,8 @@
 
 # Event log handling for Vista and later
 
+package require twapi_synch
+
 namespace eval twapi {
     variable _evt;              # See _evt_init
 
@@ -307,12 +309,12 @@ oo::class create twapi::EvtSession {
         parseargs args {{backup.arg ""}} -maxleftover 0 -setvars
         return [EvtClearLog $hSession $channel [_evt_native_path $backup] 0]
     }
-    method archiveLogfile {logpath args} {
+    method archiveLogFile {logpath args} {
         parseargs args {{lcid.int 0}} -maxleftover 0 -setvars
         return [EvtArchiveExportedLog $hSession \
                     [_evt_native_path $logpath] $lcid 0]
     }
-    method exportEvents {channel outfile args} {
+    method exportEvents {outfile args} {
         lassign [_evt_parse_query_options args -maxleftover 0] source query flags
         EvtExportLog $hSession $source $query \
             [_evt_native_path $outfile] $flags
@@ -386,6 +388,14 @@ oo::class create twapi::EvtSession {
     }
     method newFormatter {args} {
         return [my createFormatter [my NewName fmt] {*}$args]
+    }
+    method with {factory targetcall} {
+        set obj [my {*}$factory]
+        try {
+            uplevel 1 [list $obj {*}$targetcall]
+        } finally {
+            $obj destroy
+        }
     }
     method unregister {objs} {
         foreach obj $objs {
@@ -559,7 +569,9 @@ oo::class create twapi::EvtResultSet {
         next {*}$args
     }
     destructor {
-        next
+        if {[llength [self next]]} {
+            next
+        }
         EvtClose $hResultSet
     }
     method handle {} {return $hResultSet}
@@ -662,6 +674,7 @@ oo::class create twapi::EvtSubscription {
         set flags [expr {$flags | $ignorequeryerrors | $strict}]
         # MUST be manual rest and initially signalled as per the SDK
         # example, else subscriptions do not work.
+        puts ns:[namespace path]
         set hsig [create_event -manualreset 1 -signalled 1]
         try {
             set hsub [EvtSubscribe $hsess $hsig $channel $query $hbookmark $flags]
@@ -976,7 +989,7 @@ oo::class create twapi::EvtLogInfo {
         parseargs args {
             channel.arg
             logfile.arg
-        } -setvars {*}$args
+        } -setvars -maxleftover 0
 
         if {[info exists logfile]} {
             if {[info exists channel]} {
@@ -1023,7 +1036,7 @@ oo::class create twapi::EvtChannelConfig {
     }
     destructor {
         EvtClose $hConfig
-        $oSession 
+        $oSession unregister [self]
     }
     method name {} {return $channelName}
     method save {} {EvtSaveChannelConfig $hConfig}
