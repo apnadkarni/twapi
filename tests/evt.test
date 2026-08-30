@@ -84,8 +84,72 @@ namespace eval twapi::evt::test {
         return $messages
     }
 
-    #
-    # Session tests
+    proc event_count {osess args} {
+        return [sess with [list newLogInfo {*}$args] recordCount]
+    }
+
+    proc verify_channel_config {osess channel} {
+        set ocfg [$osess newChannelConfig $channel]
+        set errors ""
+        try {
+            foreach meth {
+                isEnabled isClassic hasAutoBackup retention
+            } {
+               set value [$ocfg $meth]
+               if {![string is boolean -strict $value]} {
+                   lappend errors "$channel method \"$meth\" returned non-boolean value \"$value\""
+               }
+            }
+            foreach meth {
+                bufferSize isolation minBuffers maxBuffers maxFiles maxSize
+                latency type
+                levelFilter keywordFilter
+            } {
+               set value [$ocfg $meth]
+               if {![string is integer -strict $value]} {
+                   lappend errors "$channel method \"$meth\" returned non-integer value \"$value\""
+               }
+               if {$value < 0} {
+                   lappend errors "$channel method \"$meth\" returned negative value \"$value\""
+               }
+            }
+            foreach {meth upper} {
+                isolation 2 type 3 sidType 1 clockType 1
+            } {
+                set value [$ocfg $meth]
+                if {$value < 0 || $value > $upper} {
+                    lappend errors "$channel method \"$meth\" returned unexpected value \"$value\""
+                }
+            }
+            set value [$ocfg access]
+            if {[catch {twapi::sddl_to_security_descriptor $value} secd]} {
+                lappend errors "$channel method \"access\" returned unexpected value \"$value\""
+            }
+            lappend errors "$channel: access $secd"
+
+            set value [$ocfg controlGuid]
+            if {$value ne "" && ![twapi::Twapi_IsValidGUID $value]} {
+                lappend errors "$channel method \"controlGuid\" returned unexpected value \"$value\""
+            }
+            set value [$ocfg name]; # Just ensure no error
+            if {![string equal $name $channel]} {
+                lappend errors "$channel method \"name\" returned unexpected value \"$value\""
+            }
+            set value [$ocfg publisher]; # Just ensure no error
+            if {[llength [$ocfg publishers]] == 0} {
+                lappend errors "$channel method \"publishers\" returned 0 publishers"
+            }
+            set value [$ocfg filePath]
+            if {![file exists $value]} {
+                lappend errors "$channel method \"filePath\" returned non-existent path \"$value\""
+            }
+        } finally {
+            $ocfg destroy
+        }
+        return [join $errors \n]
+    }
+
+    ###
 
     test EvtSession-1.0 {create local session} -body {
         list [twapi::EvtSession create lsess] \
@@ -218,9 +282,7 @@ namespace eval twapi::evt::test {
             [info class instances ::twapi::EvtChannelConfig]
     } -result [list Microsoft-Windows-Eventlog {}]
 
-    proc event_count {osess args} {
-        return [sess with [list newLogInfo {*}$args] recordCount]
-    }
+    ###
 
     test EvtSession-exportEvents-1.0 {
         EvtSession exportEvents -channel and -logfile
@@ -278,6 +340,8 @@ namespace eval twapi::evt::test {
         expr {$count > $exported_count}
     } -result 1
 
+    ###
+
     test EvtSession-archiveLogFile-1.0 {
         EvtSession archiveLogFile
     } -constraints privileged -setup {
@@ -303,6 +367,71 @@ namespace eval twapi::evt::test {
             [file exists $mta0] \
             [file exists $mta1036]
     } -result {1 1 1}
+
+    ###
+
+    test EvtSession-handle-1.0 {
+        EvtSession handle - local
+    } -setup {
+        twapi::EvtSession create sess
+    } -cleanup {
+        sess destroy
+    } -body {
+        sess handle
+    } -result NULL
+
+    test EvtSession-handle-1.1 {
+        EvtSession handle - remote
+    } -setup {
+        twapi::EvtSession create rsess -system ""
+    } -cleanup {
+        rsess destroy
+    } -body {
+        rsess handle
+    } -result {^\d+ EVT_HANDLE$} -match regexp
+
+    ###
+
+    test EvtSession-createChannelConfig-1.0 {
+        EvtSession createChannelConfig - local namespace
+    } -setup {
+        twapi::EvtSession create sess
+    } -cleanup {
+        sess destroy
+    } -body {
+        list [sess createChannelConfig ocfg Application] \
+            [info class instances twapi::EvtChannelConfig] \
+            [ocfg destroy] \
+            [info class instances twapi::EvtChannelConfig]
+    } -result [list [namespace current]::ocfg \
+                   [list [namespace current]::ocfg] \
+                   {} {}]
+
+    test EvtSession-createChannelConfig-1.1 {
+        EvtSession createChannelConfig - global namespace
+    } -setup {
+        twapi::EvtSession create sess
+    } -cleanup {
+        sess destroy
+    } -body {
+        list [sess createChannelConfig ::ocfg Application] \
+            [info class instances twapi::EvtChannelConfig] \
+            [::ocfg destroy] \
+            [info class instances twapi::EvtChannelConfig]
+    } -result [list ::ocfg [list ::ocfg] {} {}]
+
+    test EvtSession-createChannelConfig-2.0 {
+        EvtSession createChannelConfig - verify object destroy with session.
+    } -setup {
+        twapi::EvtSession create sess
+    } -body {
+        list [sess createChannelConfig ocfg Application] \
+            [info class instances twapi::EvtChannelConfig] \
+            [sess destroy] \
+            [info class instances twapi::EvtChannelConfig]
+    } -result [list [namespace current]::ocfg \
+                   [list [namespace current]::ocfg] \
+                   {} {}]
 
     ::tcltest::cleanupTests
 }
