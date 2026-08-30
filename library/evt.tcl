@@ -284,7 +284,9 @@ oo::class create twapi::EvtSession {
     destructor {
         foreach dependent [dict keys $dependentNamespaces] {
             # Will destroy object implemented by the namespace
-            catch {namespace delete $dependent}
+            catch {
+                namespace delete $dependent
+            }
         }
         if {![my isLocal]} {
             EvtClose $hSession
@@ -400,7 +402,6 @@ oo::class create twapi::EvtSession {
     method unregister {objs} {
         foreach obj $objs {
             set obj_ns [info object namespace $obj]
-            $obj destroy
             dict unset dependentNamespace $obj_ns
         }
     }
@@ -674,7 +675,6 @@ oo::class create twapi::EvtSubscription {
         set flags [expr {$flags | $ignorequeryerrors | $strict}]
         # MUST be manual rest and initially signalled as per the SDK
         # example, else subscriptions do not work.
-        puts ns:[namespace path]
         set hsig [create_event -manualreset 1 -signalled 1]
         try {
             set hsub [EvtSubscribe $hsess $hsig $channel $query $hbookmark $flags]
@@ -812,6 +812,7 @@ oo::class create twapi::EvtFormatter {
         EvtClose $hSystemContext
         EvtClose $hUserContext
         $oSession unregister [dict values $publisherObjs]
+        $oSession unregister [self]
     }
     method decodeEvents {hevts {properties {-providername -eventid -level -timecreated -message}}} {
         classvariable systemPropertyNameMap eventPropertyNames
@@ -1036,7 +1037,7 @@ oo::class create twapi::EvtChannelConfig {
     }
     destructor {
         EvtClose $hConfig
-        $oSession unregister [self]
+        $oSession unregister [list [self]]
     }
     method name {} {return $channelName}
     method save {} {EvtSaveChannelConfig $hConfig}
