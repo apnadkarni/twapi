@@ -23,15 +23,11 @@ RCFILE = twapi.rc
 
 !include "rules-ext.vc"
 
-DYNCALLDIR=$(ROOT)\dyncall\dyncall-0.9
-
 # Override shared library installation directory
 !if "$(ARCH)" == "AMD64"
 DLLSUBDIR = win32-x86_64
-DYNCALLLIBDIR = $(DYNCALLDIR)\lib\release_amd64
 !else
 DLLSUBDIR = win32-ix86
-DYNCALLLIBDIR = $(DYNCALLDIR)\lib\release_x86
 !endif
 BIN_INSTALL_DIR = $(SCRIPT_INSTALL_DIR)\$(DLLSUBDIR)
 
@@ -99,7 +95,7 @@ PRJ_OBJS = $(PRJ_OBJS) \
 HEADERS = \
 	$(ROOT)\win\twapi.h
 
-PRJ_INCLUDES = -I $(ROOT)\include -I $(DYNCALLDIR)\include -I$(TMP_DIR) -I$(WIN_DIR)\rc
+PRJ_INCLUDES = -I $(ROOT)\include -I$(TMP_DIR) -I$(WIN_DIR)\rc
 
 # Windows defines
 PRJ_DEFINES = -D_CRT_SECURE_NO_WARNINGS -D_WIN32_WINNT=0x0A00 -DWINVER=0x0A00 -D_UNICODE -DUNICODE -DPSAPI_VERSION=2
@@ -110,9 +106,6 @@ PRJ_DEFINES = $(PRJ_DEFINES) -DTCL_NO_DEPRECATED
 # TWAPI defines
 PRJ_DEFINES = $(PRJ_DEFINES) -DTWAPI_SINGLE_MODULE
 
-DYNCALLLIBS = $(DYNCALLLIBDIR)\libdyncall_s.lib $(DYNCALLLIBDIR)\libdynload_s.lib $(DYNCALLLIBDIR)\libdyncallback_s.lib
-
-PRJ_LIBS = $(PRJ_LIBS) $(DYNCALLLIBS)
 !if (($(TCL_MAJOR_VERSION) > 8) || (($(TCL_MAJOR_VERSION) == 8) && ($(TCL_MINOR_VERSION) >= 7)))
 PRJ_LIBS = $(PRJ_LIBS) $(INSTALLDIR)\lib\tommath.lib
 !endif
@@ -184,10 +177,6 @@ install_extra:
 	$(CPY) $(ROOT)\README.md "$(SCRIPT_INSTALL_DIR)"
 	$(CPY) $(ROOT)\LICENSE "$(SCRIPT_INSTALL_DIR)"
 	$(CPY) $(RCDIR)\twapi_events.man "$(SCRIPT_INSTALL_DIR)"
-!if $(STATIC_BUILD)
-	@if not exist "$(LIB_INSTALL_DIR)" mkdir "$(LIB_INSTALL_DIR)"
-	for %f in ($(DYNCALLLIBS)) do @$(CPY) %f "$(LIB_INSTALL_DIR)" >NUL
-!endif
 
 $(PRJ_OBJS): $(HEADERS) $(ROOT)\configure.ac $(PRJ_HEADERS) $(TMP_DIR)\twapiUuid.h
 
