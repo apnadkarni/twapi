@@ -1043,8 +1043,7 @@ oo::class create twapi::EvtChannelConfig {
     method save {} {EvtSaveChannelConfig $hConfig}
 
     method isEnabled        {}    {EvtGetChannelConfigProperty $hConfig 0}
-    method enable           {}    {EvtSetChannelConfigProperty $hConfig 0 0 1}
-    method disable          {}    {EvtSetChannelConfigProperty $hConfig 0 0 0}
+    method setEnabled       {val} {EvtSetChannelConfigProperty $hConfig 0 0 $val}
     method isolation        {}    {EvtGetChannelConfigProperty $hConfig 1}
     method setIsolation     {val} {EvtSetChannelConfigProperty $hConfig 1 0 $val}
     method type             {}    {EvtGetChannelConfigProperty $hConfig 2}
@@ -1053,13 +1052,13 @@ oo::class create twapi::EvtChannelConfig {
     method access           {}    {EvtGetChannelConfigProperty $hConfig 5}
     method setAccess        {val} {EvtSetChannelConfigProperty $hConfig 5 0 $val}
     method retention        {}    {EvtGetChannelConfigProperty $hConfig 6}
-    method setRetention     {val} {EvtGetChannelConfigProperty $hConfig 6 0 $val}
+    method setRetention     {val} {EvtSetChannelConfigProperty $hConfig 6 0 $val}
     method hasAutoBackup    {}    {EvtGetChannelConfigProperty $hConfig 7}
-    method setAutoBackup    {val} {EvtGetChannelConfigProperty $hConfig 7 0 $val}
+    method setAutoBackup    {val} {EvtSetChannelConfigProperty $hConfig 7 0 $val}
     method maxSize          {}    {EvtGetChannelConfigProperty $hConfig 8}
-    method setMaxSize       {val} {EvtGetChannelConfigProperty $hConfig 8 0 $val}
+    method setMaxSize       {val} {EvtSetChannelConfigProperty $hConfig 8 0 $val}
     method filePath         {}    {EvtGetChannelConfigProperty $hConfig 9}
-    method setFilePath      {val} {EvtGetChannelConfigProperty $hConfig 9 0 $val}
+    method setFilePath      {val} {EvtSetChannelConfigProperty $hConfig 9 0 $val}
     method levelFilter      {}    {EvtGetChannelConfigProperty $hConfig 10}
     method setLevelFilter   {val} {EvtGetChannelConfigProperty $hConfig 10 0 $val}
     method keywordFilter    {}    {EvtGetChannelConfigProperty $hConfig 11}
@@ -1073,5 +1072,5 @@ oo::class create twapi::EvtChannelConfig {
     method sidType          {}    {EvtGetChannelConfigProperty $hConfig 18}
     method publishers       {}    {EvtGetChannelConfigProperty $hConfig 19}
     method maxFiles         {}    {EvtGetChannelConfigProperty $hConfig 20}
-    method setMaxFiles      {val} {EvtGetChannelConfigProperty $hConfig 20 0 $val}
+    method setMaxFiles      {val} {EvtSetChannelConfigProperty $hConfig 20 0 $val}
 }

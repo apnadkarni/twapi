@@ -17,6 +17,7 @@ tcltest::testConstraint haveFrenchLocale [file exists {C:\Windows\System32\fr-FR
 
 namespace eval twapi::evt::test {
     namespace import ::tcltest::test
+    namespace import ::tcl::mathop::== ::tcl::mathop::eq
     variable testnum
     variable source
     variable type
@@ -35,7 +36,7 @@ namespace eval twapi::evt::test {
     }
     ::tcltest::testConstraint privileged [privileged]
 
-    proc new_file {{ext evt}} {
+    proc new_file {{ext evtx}} {
         variable file_name_ctr
         return [file join [tcltest::temporaryDirectory] evttest-[incr file_name_ctr].$ext]
     }
@@ -57,12 +58,14 @@ namespace eval twapi::evt::test {
 
     # Returns path to the exported Setup log file
     variable exported_setup_event_file
-    proc exported_setup_event_file {} {
+    proc exported_setup_events_file {} {
         variable exported_setup_event_file
         if {![info exists exported_setup_event_file] ||
             ![file exists $exported_setup_event_file]
         } {
             set exported_setup_event_file [new_file exported_setup_events.evt]
+            set sess [twapi::EvtSession new]
+            $sess exportEvents $exported_setup_event_file -channel Setup
         }
         return $exported_setup_event_file
     }
@@ -103,7 +106,6 @@ namespace eval twapi::evt::test {
             foreach meth {
                 bufferSize isolation minBuffers maxBuffers maxFiles maxSize
                 latency type
-                levelFilter keywordFilter
             } {
                set value [$ocfg $meth]
                if {![string is integer -strict $value]} {
@@ -112,6 +114,16 @@ namespace eval twapi::evt::test {
                if {$value < 0} {
                    lappend errors "$channel method \"$meth\" returned negative value \"$value\""
                }
+            }
+            foreach meth {levelFilter keywordFilter} {
+                set value [$ocfg $meth]
+                # Note empty strings are ok
+                if {![string is integer $value]} {
+                    lappend errors "$channel method \"$meth\" returned non-integer value \"$value\""
+                }
+                if {$value ne "" && $value < 0} {
+                    lappend errors "$channel method \"$meth\" returned negative value \"$value\""
+                }
             }
             foreach {meth upper} {
                 isolation 2 type 3 sidType 1 clockType 1
@@ -125,26 +137,75 @@ namespace eval twapi::evt::test {
             if {[catch {twapi::sddl_to_security_descriptor $value} secd]} {
                 lappend errors "$channel method \"access\" returned unexpected value \"$value\""
             }
-            lappend errors "$channel: access $secd"
 
             set value [$ocfg controlGuid]
             if {$value ne "" && ![twapi::Twapi_IsValidGUID $value]} {
                 lappend errors "$channel method \"controlGuid\" returned unexpected value \"$value\""
             }
             set value [$ocfg name]; # Just ensure no error
-            if {![string equal $name $channel]} {
+            if {![string equal $value $channel]} {
                 lappend errors "$channel method \"name\" returned unexpected value \"$value\""
             }
-            set value [$ocfg publisher]; # Just ensure no error
-            if {[llength [$ocfg publishers]] == 0} {
+            set pub [$ocfg publisher]; # Just ensure no error, can be empty
+            if {[llength [$ocfg publishers]] == 0 && $pub ne ""} {
+                # publishers should include at least the owning publisher
                 lappend errors "$channel method \"publishers\" returned 0 publishers"
             }
             set value [$ocfg filePath]
-            if {![file exists $value]} {
-                lappend errors "$channel method \"filePath\" returned non-existent path \"$value\""
+            if {![file exists [twapi::expand_environment_vars $value]]} {
+                # File may not exist, verify plausible name
+                set basename [file rootname [file tail $value]]
+                if {![string equal $basename [string map {/ %4} $channel]]} {
+                    lappend errors "$channel method \"filePath\" returned non-existent path \"$value\""
+                }
             }
         } finally {
             $ocfg destroy
+        }
+        return [join $errors \n]
+    }
+
+    proc verify_log_info {osess channel} {
+        set oli [$osess newLogInfo -channel $channel]
+        set errors ""
+        try {
+            foreach meth {creationTime lastAccessTime lastWriteTime} {
+                set value [$oli $meth]
+                if {![string is integer $value]} {
+                    lappend errors "$channel method \"$meth\" returned non-integer value \"$value\""
+                }
+                if {$value eq ""} {
+                    continue
+                }
+                set secs [twapi::large_system_time_to_secs_since_1970 $value]
+                # Expect timestamps between years 2000 and 2050
+                if {$secs < 946665000 || $secs > 2524588200} {
+                    lappend errors "$channel method \"$meth\" returned suspicious clock value \"$value\""
+                }
+            }
+            foreach meth {fileSize attributes recordCount oldestRecordNumber} {
+               set value [$oli $meth]
+               if {![string is integer $value]} {
+                   lappend errors "$channel method \"$meth\" returned non-integer value \"$value\""
+               }
+               if {$value ne "" && $value < 0} {
+                   lappend errors "$channel method \"$meth\" returned negative value \"$value\""
+               }
+            }
+            set value [$oli isFull]
+            if {![string is boolean $value]} {
+                lappend errors "$channel method \"isFull\" returned non-boolean value \"$value\""
+            }
+            set value [$oli logType]
+            if {$value ne "channel"} {
+                lappend errors "$channel method \"logType\" returned \"$value\""
+            }
+            set value [$oli logName]
+            if {![string equal -nocase $value $channel]} {
+                lappend errors "$channel method \"name\" returned \"$value\""
+            }
+        } finally {
+            $oli destroy
         }
         return [join $errors \n]
     }
@@ -222,38 +283,6 @@ namespace eval twapi::evt::test {
             [info class instances ::twapi::EvtSession]
     } -result [list [namespace current]::rsess 0 {} {}]
 
-    test EvtSession-4.0 {
-        Destroying session should destroy dependent objects
-    } -setup {
-        twapi::EvtSession create sess
-        sess createPublisher pub Microsoft-Windows-Eventlog
-        sess createChannelConfig cfg Application
-        sess createLogInfo loginfo -channel Setup
-        sess createReader reader -channel Application
-        sess createSubscription sub Setup
-        sess createFormatter fmt
-    } -body {
-        list \
-            [info class instances twapi::EvtSession] \
-            [info class instances twapi::EvtPublisher] \
-            [info class instances twapi::EvtChannelConfig] \
-            [info class instances twapi::EvtLogInfo] \
-            [info class instances twapi::EvtReader] \
-            [info class instances twapi::EvtSubscription] \
-            [info class instances twapi::EvtFormatter] \
-            [sess destroy] \
-            [info class instances twapi::EvtSession] \
-            [info class instances twapi::EvtPublisher] \
-            [info class instances twapi::EvtChannelConfig] \
-            [info class instances twapi::EvtLogInfo] \
-            [info class instances twapi::EvtReader] \
-            [info class instances twapi::EvtSubscription] \
-            [info class instances twapi::EvtFormatter] \
-        } -result [list ::twapi::evt::test::sess ::twapi::evt::test::pub \
-                       ::twapi::evt::test::cfg ::twapi::evt::test::loginfo \
-                       ::twapi::evt::test::reader ::twapi::evt::test::sub \
-                       ::twapi::evt::test::fmt {} {} {} {} {} {} {} {} ]
-
     test EvtSession-publishers-channels-1.0 {
         EvtSession publishers and channels
     } -setup {
@@ -271,6 +300,8 @@ namespace eval twapi::evt::test {
 
     } -result {1 1 1 1 1}
 
+    ###
+
     test EvtSession-with-1.0 {
         EvtSession with method
     } -setup {
@@ -281,6 +312,17 @@ namespace eval twapi::evt::test {
         list [sess with {newChannelConfig Setup} publisher] \
             [info class instances ::twapi::EvtChannelConfig]
     } -result [list Microsoft-Windows-Eventlog {}]
+
+    test EvtSession-with-2.0 {
+        EvtSession with method call rasing error
+    } -setup {
+        twapi::EvtSession create sess
+    } -cleanup {
+        sess destroy
+    } -body {
+        list [catch {sess with {newChannelConfig Setup} publisher x y}] \
+            [info class instances ::twapi::EvtChannelConfig]
+    } -result [list 1 {}]
 
     ###
 
@@ -390,49 +432,228 @@ namespace eval twapi::evt::test {
         rsess handle
     } -result {^\d+ EVT_HANDLE$} -match regexp
 
+    proc creation_tests {cls args} {
+        test EvtSession-create$cls-1.0 "create$cls - local namespace" -setup {
+            twapi::EvtSession create sess
+        } -cleanup {
+            sess destroy
+        } -body {
+            list [sess create$cls obj {*}$args] \
+                [info class instances twapi::Evt$cls] \
+                [obj destroy] \
+                [info class instances twapi::Evt$cls]
+        } -result [list [namespace current]::obj \
+                   [list [namespace current]::obj] \
+                   {} {}]
+        test EvtSession-create$cls-1.1 "create$cls - global namespace" -setup {
+            twapi::EvtSession create sess
+        } -cleanup {
+            sess destroy
+        } -body {
+            list [sess create$cls ::evttestobj {*}$args] \
+                [info class instances twapi::Evt$cls] \
+                [::evttestobj destroy] \
+                [info class instances twapi::Evt$cls]
+        } -result [list ::evttestobj \
+                   [list ::evttestobj] \
+                   {} {}]
+        test EvtSession-create$cls-2.0 "create$cls - sess destroy" -setup {
+            twapi::EvtSession create sess
+        } -body {
+            list [sess create$cls obj {*}$args] \
+                [info class instances twapi::Evt$cls] \
+                [sess destroy] \
+                [info class instances twapi::Evt$cls]
+        } -result [list [namespace current]::obj \
+                       [list [namespace current]::obj] \
+                       {} {}]
+        test EvtSession-new$cls-1.0 "new$cls - local namespace" -setup {
+            twapi::EvtSession create sess
+        } -cleanup {
+            sess destroy
+        } -body {
+            set o [sess new$cls {*}$args]
+            list [llength [info class instances twapi::Evt$cls]] \
+                [uplevel #0 [list $o destroy]] \
+                [llength [info class instances twapi::Evt$cls]]
+        } -result [list 1 {} 0]
+    }
+    creation_tests ChannelConfig Application
+    creation_tests LogInfo -channel Setup
+    creation_tests LogInfo -logfile [exported_setup_events_file]
+    creation_tests Publisher Microsoft-Windows-Eventlog
+    creation_tests Reader
+    creation_tests Subscription Application
+    creation_tests Formatter
+
     ###
 
-    test EvtSession-createChannelConfig-1.0 {
-        EvtSession createChannelConfig - local namespace
+    test EvtChannelConfig-getter-1.0 {
+        Verify channel configuration for ALL channels
     } -setup {
         twapi::EvtSession create sess
     } -cleanup {
         sess destroy
     } -body {
-        list [sess createChannelConfig ocfg Application] \
-            [info class instances twapi::EvtChannelConfig] \
-            [ocfg destroy] \
-            [info class instances twapi::EvtChannelConfig]
-    } -result [list [namespace current]::ocfg \
-                   [list [namespace current]::ocfg] \
-                   {} {}]
+        set result ""
+        foreach chan [sess registeredChannels] {
+            if {$chan in {Security}} {
+                continue
+            }
+            set result [verify_channel_config sess $chan]
+            if {$result ne ""} break
+        }
+        set result
+    } -result ""
 
-    test EvtSession-createChannelConfig-1.1 {
-        EvtSession createChannelConfig - global namespace
+    test EvtChannelConfig-getter-2.0 {
+        Verify channel configuration for security
+    } -constraints privileged -setup {
+        twapi::EvtSession create sess
+        sess createChannelConfig cfg Security
+        set expected [wevtutil gl Security]
+    } -cleanup {
+        sess destroy
+    } -body {
+        puts expected:$expected
+        puts access:[cfg access]
+        puts bufferSize:[cfg bufferSize]
+        list \
+            [string equal -nocase [cfg access] [dict get $expected channelAccess]] \
+            [string equal -nocase [cfg name] [dict get $expected name]] \
+            [string equal -nocase [cfg publisher] [dict get $expected owningPublisher]] \
+            [string equal -nocase [cfg filePath] [dict get $expected logFileName]] \
+            [== [cfg isEnabled] [expr !![dict get $expected enabled]]] \
+            [== [cfg hasAutoBackup] [expr !![dict get $expected autoBackup]]] \
+            [== [cfg retention] [expr !![dict get $expected retention]]] \
+            [== [cfg maxFiles] [dict get $expected fileMax]] \
+            [== [cfg maxSize] [dict get $expected maxSize]] \
+            [== [cfg type] 0] \
+            [== [cfg isolation] 2]
+    } -result {1 1 1 1 1 1 1 1 1 1 1}
+
+    test EvtChannelConfig-setter-1.0 {
+        Set channel configuration
+    } -setup {
+        twapi::EvtSession create sess
+        sess createChannelConfig cfg Setup
+    } -cleanup {
+        sess destroy
+    } -body {
+        # Test both symol and integer value
+        set bad {}
+        foreach {getter setter change} {
+            isEnabled      setEnabled     toggle
+            isolation      setIsolation   toggle
+            retention      setRetention   toggle
+            hasAutoBackup  setAutoBackup  toggle
+            maxSize        setMaxSize     incr
+            maxFiles       setMaxFiles    incr
+        } {
+            set prop [cfg $getter]
+            switch $change {
+                toggle { set newvalue [expr {!$prop}] }
+                incr {set newvalue [expr {$prop+1}] }
+            }
+            # Note this only changes in-memory cache and does not
+            # require privs
+            cfg $setter $newvalue
+            if {[cfg $getter] != $newvalue} {
+                lappend bad $setter; # The set failed
+            }
+        }
+        # Idempotent just to ensure no errors
+        cfg setFilePath [cfg filePath]
+        cfg setAccess [cfg access]
+        set bad
+    } -result {}
+
+    test EvtChannelConfig-save-1.0 {
+        EvtChannelConfig save
+    } -constraints {systemmodificationok privileged} -setup {
+        twapi::EvtSession create sess
+        sess createChannelConfig cfg Twapi-App/Operational
+        set old_max [cfg maxSize]
+    } -cleanup {
+        cfg setMaxSize $old_max
+        cfg save
+        sess destroy
+    } -body {
+        set new_max [expr {$old_max+1}]
+        cfg setMaxSize $new_max
+        cfg save
+        cfg destroy
+        sess createChannelConfig cfg Twapi-App/Operational
+        set new [cfg maxSize]
+        expr {$new == $new_max}
+    } -result 1
+
+    ###
+
+    test EvtLogInfo-1.0 {
+        Verify channel log info for ALL channels
     } -setup {
         twapi::EvtSession create sess
     } -cleanup {
         sess destroy
     } -body {
-        list [sess createChannelConfig ::ocfg Application] \
-            [info class instances twapi::EvtChannelConfig] \
-            [::ocfg destroy] \
-            [info class instances twapi::EvtChannelConfig]
-    } -result [list ::ocfg [list ::ocfg] {} {}]
+        set result ""
+        foreach chan [sess registeredChannels] {
+            if {[regexp {(Security|Debug|Analytic)$} $chan]} continue
+            set result [verify_log_info sess $chan]
+            if {$result ne ""} break
+        }
+        set result
+    } -result ""
 
-    test EvtSession-createChannelConfig-2.0 {
-        EvtSession createChannelConfig - verify object destroy with session.
+    test EvtLogInfo-2.0 {
+        Verify channel log info for Application
     } -setup {
         twapi::EvtSession create sess
+        sess createLogInfo oli -channel Application
+    } -cleanup {
+        sess destroy
     } -body {
-        list [sess createChannelConfig ocfg Application] \
-            [info class instances twapi::EvtChannelConfig] \
-            [sess destroy] \
-            [info class instances twapi::EvtChannelConfig]
-    } -result [list [namespace current]::ocfg \
-                   [list [namespace current]::ocfg] \
-                   {} {}]
+        set expected [wevtutil gli Application]
+        list \
+            [== [100ns_to_iso8601 [oli creationTime]] [dict get $expected creationTime]] \
+            [== [100ns_to_iso8601 [oli lastAccessTime]] [dict get $expected lastAccessTime]] \
+            [== [100ns_to_iso8601 [oli lastWriteTime]] [dict get $expected lastWriteTime]] \
+            [== [oli attributes] [dict get $expected attributes]] \
+            [== [oli fileSize] [dict get $expected fileSize]] \
+            [== [oli recordCount] [dict get $expected numberOfLogRecords]] \
+            [== [oli oldestRecordNumber] [dict get $expected oldestRecordNumber]] \
+            [eq [oli logName] "Application"] \
+            [eq [oli logType] "channel"]
+    } -result {1 1 1 1 1 1 1 1 1}
 
+    test EvtLogInfo-2.1 {
+        Verify channel log info for log file
+    } -setup {
+        twapi::EvtSession create sess
+        set logfile [exported_setup_events_file]
+        sess createLogInfo oli -logfile $logfile
+    } -cleanup {
+        sess destroy
+    } -body {
+        set expected [wevtutil gli [file nativename $logfile] /lf:true]
+        list \
+            [== [100ns_to_iso8601 [oli creationTime]] [dict get $expected creationTime]] \
+            [== [100ns_to_iso8601 [oli lastAccessTime]] [dict get $expected lastAccessTime]] \
+            [== [100ns_to_iso8601 [oli lastWriteTime]] [dict get $expected lastWriteTime]] \
+            [== [oli attributes] [dict get $expected attributes]] \
+            [== [oli fileSize] [dict get $expected fileSize]] \
+            [== [oli recordCount] [dict get $expected numberOfLogRecords]] \
+            [== [oli oldestRecordNumber] [dict get $expected oldestRecordNumber]] \
+            [eq [oli logName] $logfile] \
+            [eq [oli logType] "file"]
+    } -result {1 1 1 1 1 1 1 1 1}
+    ###
+
+    if {[info exists exported_setup_event_file] &&
+        [file exists $exported_setup_event_file]} {
+        file delete $exported_setup_event_file
+    }
     ::tcltest::cleanupTests
 }
 namespace delete ::twapi::evt::test

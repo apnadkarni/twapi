@@ -428,7 +428,9 @@ See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema
 Returns session GUID for a ETW session. Generally not present for event log channels.
 See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.controlGuid].
 [call "[arg EVTCHANCFG] [cmd filePath]"]
-Returns path of the backing log file.
+Returns path of the backing log file. There may be environment variable
+references in the returned path. These can be expanded with
+[uri process.html#expandenvironmentvars [cmd expand_environment_vars]].
 [call "[arg EVTCHANCFG] [cmd hasAutoBackup]"]
 Returns [const 1] if a new log file is created when the current backing file reaches its
 maximum size and [const 0] otherwise. In the former case, [cmd -retention] must
@@ -444,7 +446,7 @@ See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema
 Returns one of [const 0] (Application), [const 1] (System) or [const 2] (Custom).
 See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.isolation].
 [call "[arg EVTCHANCFG] [cmd keywordFilter]"]
-If [const 0] or unset, events are written irrespective of keywords. Otherwise,
+If [const 0] or unset (empty), events are written irrespective of keywords. Otherwise,
 only events that have a keyword included in the bitmask are written to the
 channel.
 See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.keywords].
@@ -493,10 +495,9 @@ a new log file is created when the current backing file reaches its
 maximum size. In the former case, [uri #retention [cmd retention]] must
 also be true.
 See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.autoBackup].
-[call "[arg EVTCHANCFG] [cmd disable]"]
-Disables the channel. Events logged to the channel are discarded.
-[call "[arg EVTCHANCFG] [cmd enable]"]
-Enables the channel so events logged to it are persisted.
+[call "[arg EVTCHANCFG] [cmd setEnabled]" [arg BOOL]]
+Sets the channel to be enabled if [arg BOOL] is true and disabled
+if false.
 [call "[arg EVTCHANCFG] [cmd setFilePath]" [arg FILEPATH]]
 Sets the path of the backing log file.
 [call "[arg EVTCHANCFG] [cmd setIsolation]" [arg ISOLATION]]
@@ -1088,9 +1089,9 @@ Returns a list of channel names registered on the system.
 
 [call "[arg EVTSESSOBJ] [cmd with]" [arg FACTORY] [arg TARGETMETHOD]]
 This is a convenience method to create a Evt object belonging to the
-session with the [arg FACTORY] method, invoking its [arg TARGETMETHOD]
-method and destroying the created object. The command returns the result
-of the [arg TARGETMETHOD invocation].
+session with the [arg FACTORY] method, invoking the created object's
+[arg TARGETMETHOD] method and then destroying it. The command
+returns the result of the [arg TARGETMETHOD] invocation.
 
 [call [cmd EvtSubscription]]
 

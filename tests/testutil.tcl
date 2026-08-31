@@ -1894,6 +1894,26 @@ proc setops::equal {A B} {
 }
 tcltest::customMatch set setops::equal
 
+proc wevtutil {args} {
+    set result [dict create]
+    foreach line [split [exec wevtutil {*}$args] \n] {
+        if {[regexp {^\s*([^:]+):\s*(.*)$} $line -> key value]} {
+            dict set result $key [string trim $value]
+        }
+    }
+    return $result
+}
+proc 100ns_to_iso8601 {100ns} {
+    lassign [twapi::large_system_time_to_timelist $100ns] \
+        year month day hour min secs ms
+    # Assume UTC
+    return [format "%.2d-%.2d-%.2dT%.2d:%.2d:%.2d.%.3dZ" \
+                $year $month $day $hour $min $secs $ms]
+    return $year-$month-${day}T$hour:$min:$secs.${ms}Z
+    clock format [twapi::large_system_time_to_secs_since_1970 $100ns] \
+        -format %Y-%m-%dT%H:%M:%S -timezone :UTC
+}
+
 # If this is the first argument to the shell and there are more arguments
 # execute them
 
