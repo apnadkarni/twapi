@@ -583,7 +583,9 @@ a dictionary with the following keys:
 The numeric id assigned to the channel as per its value attribute.
 See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceID]
 [opt_def [cmd -channelindex]]
-The publisher assigned channel identifier.
+The zero-based index value of the channel in the publisher's channel list.
+May be [const -1] in some cases, for example imported channels unreferenced
+from any events.
 See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceIndex].
 [opt_def [cmd -channelflags]]
 [const 1] if the channel was imported from another publisher's manifest.

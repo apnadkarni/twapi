@@ -1894,7 +1894,19 @@ proc setops::equal {A B} {
 }
 tcltest::customMatch set setops::equal
 
-proc wevtutil {args} {
+proc wevtutil args {
+    exec wevtutil {*}$args 
+}
+
+proc wevtutil_channels {{refresh 0}} {
+    variable wevtutil_channels
+    if {![info exists wevtutil_channels] || $refresh} {
+        set wevtutil_channels [lsort -nocase [split [wevtutil el] \n]]
+    }
+    return $wevtutil_channels
+}
+
+proc wevtutil_fields {args} {
     set result [dict create]
     foreach line [split [exec wevtutil {*}$args] \n] {
         if {[regexp {^\s*([^:]+):\s*(.*)$} $line -> key value]} {

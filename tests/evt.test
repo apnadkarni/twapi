@@ -165,6 +165,87 @@ namespace eval twapi::evt::test {
         return [join $errors \n]
     }
 
+    proc verify_publisher {osess publisher} {
+        puts $publisher
+        # Some publishers are listed but their files are not actually present
+        # Check wevtutil for confirmation
+        try {
+            set op [$osess newPublisher $publisher]
+        } trap {} {result ropts} {
+            if {[catch {
+                wevtutil gp $publisher
+            }]} {
+                # wevtutil also did not find it. Ignore. Happens if the
+                # publisher is present in the registry but the metadata files
+                # are not on disk.
+                return
+            } else {
+                # wevtutil had no errors. So why are we failing?
+                return -options $ropts $result
+            }
+        }
+        set errors ""
+        try {
+            #channels
+            foreach chan_dict [$op channels] {
+                array set chan $chan_dict
+                set imported $chan(-channelflags)
+                if {$imported ni {0 1}} {
+                    lappend errors "$publisher invalid -channelflags value \"$imported\""
+                }
+                if {![string is integer -strict $chan(-channelindex)] ||
+                    $chan(-channelindex) < -1} {
+                    lappend errors "$publisher invalid -channelindex value \"$chan(-channelindex)\""
+                }
+                if {![string is integer -strict $chan(-channelid)] ||
+                    $chan(-channelid) < 0} {
+                    lappend errors "$publisher invalid -channelid value \"$chan(-channelid)\""
+                }
+                set chan_path [dict get $chan_dict -channelpath]
+                if {[lsearch -nocase -ascii [wevtutil_channels] $chan_path] < 0
+                    || $chan_path eq "Security"} {
+                    continue
+                }
+                set ocfg [$osess newChannelConfig $chan_path]
+                try {
+                    set chan_publisher [$ocfg publisher]
+                    if {[lsearch -nocase [$ocfg publishers] $publisher] < 0} {
+                        lappend errors "$publisher - not present in $chan_path publishers \"[$ocfg publishers]\""
+                    }
+                    if {!$imported &&
+                        ![string equal -nocase $publisher [$ocfg publisher]]} {
+                        lappend errors "$publisher - mismatch in owner channel. \"$publisher\" versus [$ocfg publisher]"
+                    }
+                } finally {
+                    $ocfg destroy
+                }
+            }
+            #events
+            #guid
+            #handle
+            #helplink
+            #keywordLabels
+            #keywords
+            #lcid
+            #levelLabels
+            #levels
+            #message
+            #messageFile
+            #messageId
+            #name
+            #opcodeNames
+            #opcodes
+            #parameterFile
+            #resourceFile
+            #taskNames
+            #tasks
+
+        } finally {
+            $op destroy
+        }
+        return [join $errors \n]
+    }
+
     proc verify_log_info {osess channel} {
         set oli [$osess newLogInfo -channel $channel]
         set errors ""
@@ -283,22 +364,28 @@ namespace eval twapi::evt::test {
             [info class instances ::twapi::EvtSession]
     } -result [list [namespace current]::rsess 0 {} {}]
 
-    test EvtSession-publishers-channels-1.0 {
-        EvtSession publishers and channels
+    test EvtSession-channels-1.0 {
+        EvtSession channels
     } -setup {
         twapi::EvtSession create sess
+        set expected [wevtutil_channels]
     } -cleanup {
         sess destroy
     } -body {
-        set pubs [sess publishers]
-        set chans [sess registeredChannels]
-        list [expr {[llength $pubs] > 500}] \
-            [expr {[llength $chans] > 500}] \
-            [expr {"Microsoft-Windows-Eventlog" in $pubs}] \
-            [expr {"Application" in $chans}] \
-            [expr {"Microsoft-Windows-EventCollector/Operational" in $chans}]
+        string equal -nocase $expected [lsort -nocase [sess registeredChannels]]
+    } -result 1
 
-    } -result {1 1 1 1 1}
+    test EvtSession-publishers-1.0 {
+        EvtSession publishers
+    } -setup {
+        twapi::EvtSession create sess
+        set expected [lsort -nocase [split [wevtutil ep] \n]]
+    } -cleanup {
+        sess destroy
+    } -body {
+        set pubs [lsort -nocase [sess publishers]]
+        string equal -nocase $expected $pubs
+    } -result 1
 
     ###
 
@@ -511,7 +598,7 @@ namespace eval twapi::evt::test {
     } -constraints privileged -setup {
         twapi::EvtSession create sess
         sess createChannelConfig cfg Security
-        set expected [wevtutil gl Security]
+        set expected [wevtutil_fields gl Security]
     } -cleanup {
         sess destroy
     } -body {
@@ -614,7 +701,7 @@ namespace eval twapi::evt::test {
     } -cleanup {
         sess destroy
     } -body {
-        set expected [wevtutil gli Application]
+        set expected [wevtutil_fields gli Application]
         list \
             [== [100ns_to_iso8601 [oli creationTime]] [dict get $expected creationTime]] \
             [== [100ns_to_iso8601 [oli lastAccessTime]] [dict get $expected lastAccessTime]] \
@@ -636,7 +723,7 @@ namespace eval twapi::evt::test {
     } -cleanup {
         sess destroy
     } -body {
-        set expected [wevtutil gli [file nativename $logfile] /lf:true]
+        set expected [wevtutil_fields gli [file nativename $logfile] /lf:true]
         list \
             [== [100ns_to_iso8601 [oli creationTime]] [dict get $expected creationTime]] \
             [== [100ns_to_iso8601 [oli lastAccessTime]] [dict get $expected lastAccessTime]] \
@@ -648,6 +735,24 @@ namespace eval twapi::evt::test {
             [eq [oli logName] $logfile] \
             [eq [oli logType] "file"]
     } -result {1 1 1 1 1 1 1 1 1}
+
+    ###
+
+    test EvtPublisher-1.0 {
+        Verify metadata for ALL publishers
+    } -setup {
+        twapi::EvtSession create sess
+    } -cleanup {
+        sess destroy
+    } -body {
+        set result ""
+        foreach pub [sess publishers] {
+            set result [verify_publisher sess $pub]
+            if {$result ne ""} break
+        }
+        set result
+    } -result ""
+
     ###
 
     if {[info exists exported_setup_event_file] &&
