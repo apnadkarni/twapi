@@ -164,82 +164,145 @@ namespace eval twapi::evt::test {
         }
         return [join $errors \n]
     }
+    proc natural {n} {
+        expr {[string is integer -strict $n] && $n >= 0}
+    }
+    proc integer {n} {
+        string is integer -strict $n
+    }
+
+    proc verify_publisher_channels {osess publisher op} {
+        set errors {}
+        foreach chan_dict [$op channels] {
+            array set chan $chan_dict
+            set imported $chan(-channelflags)
+            if {$imported ni {0 1}} {
+                lappend errors "$publisher invalid -channelflags value \"$imported\""
+            }
+            if {![string is integer -strict $chan(-channelindex)] ||
+                $chan(-channelindex) < -1} {
+                lappend errors "$publisher invalid -channelindex value \"$chan(-channelindex)\""
+            }
+            if {![natural $chan(-channelid)]} {
+                lappend errors "$publisher invalid -channelid value \"$chan(-channelid)\""
+            }
+            set chan_path [dict get $chan_dict -channelpath]
+            if {[lsearch -nocase -ascii [wevtutil_channels] $chan_path] < 0
+                || $chan_path eq "Security"} {
+                continue
+            }
+            set ocfg [$osess newChannelConfig $chan_path]
+            try {
+                set chan_publisher [$ocfg publisher]
+                if {[lsearch -nocase [$ocfg publishers] $publisher] < 0} {
+                    lappend errors "$publisher - not present in $chan_path publishers \"[$ocfg publishers]\""
+                }
+                if {!$imported &&
+                    ![string equal -nocase $publisher [$ocfg publisher]]} {
+                    lappend errors "$publisher - mismatch in owner channel. \"$publisher\" versus [$ocfg publisher]"
+                }
+            } finally {
+                $ocfg destroy
+            }
+        }
+        return $errors
+    }
+    proc verify_publisher_events {osess publisher op} {
+        set errors {}
+        set props {-channel -eventid -keywords -level -messageid -opcode -task -template -version}
+        foreach ev_dict [$op events $props] {
+            array set ev $ev_dict
+            foreach prop {-channel -eventid -keywords -level -messageid -opcode -task -version} {
+                if {![natural $ev($prop)]} {
+                    lappend errors "$publisher - event $ev(-eventid) $prop value $ev($prop) is not a natural integer."
+                    break
+                }
+            }
+            # Some templates have broken syntax (like no terminating /template)
+            # so a loose check
+            if {$ev(-template) ne "" &&
+                ![regexp {^<template.*} $ev(-template)]
+            } {
+                lappend errors "$publisher - event $ev(-eventid) -template value $ev(-template) does not match template syntax."
+                break
+            }
+        }
+        return $errors
+    }
+    proc verify_publisher_dictionaries {osess publisher op values_meth labels_meth} {
+        set errors {}
+        set labels [$op $labels_meth]
+        foreach value_dict [$op $values_meth] {
+            set value [dict get $value_dict -value]
+            if {![dict exists $value_dict -name] ||
+                ![natural $value] ||
+                ![integer [dict get $value_dict -messageid]]
+            } {
+                lappend errors "$publisher method \"$values_meth\" returned list with invalid dictionary \"$value_dict\""
+                continue
+            }
+            if {$values_meth eq "opcodes"} {
+                if {![dict exists $value_dict -task] ||
+                    ![natural [dict get $value_dict -task]]} {
+                    lappend errors "$publisher method \"$values_meth\" returned \"$value_dict\" with missing or invalid -task key"
+                }
+            }
+            if {![dict exists $labels $value]} {
+                lappend errors "$publisher method \"$labels_meth\" returned dictionary \"$labels\" with key \"$value\" missing."
+            }
+        }
+        return $errors
+    }
 
     proc verify_publisher {osess publisher} {
         puts $publisher
-        # Some publishers are listed but their files are not actually present
-        # Check wevtutil for confirmation
-        try {
-            set op [$osess newPublisher $publisher]
-        } trap {} {result ropts} {
-            if {[catch {
-                wevtutil gp $publisher
-            }]} {
-                # wevtutil also did not find it. Ignore. Happens if the
-                # publisher is present in the registry but the metadata files
-                # are not on disk.
-                return
-            } else {
-                # wevtutil had no errors. So why are we failing?
-                return -options $ropts $result
-            }
-        }
         set errors ""
+        set op [$osess newPublisher $publisher]
         try {
-            #channels
-            foreach chan_dict [$op channels] {
-                array set chan $chan_dict
-                set imported $chan(-channelflags)
-                if {$imported ni {0 1}} {
-                    lappend errors "$publisher invalid -channelflags value \"$imported\""
-                }
-                if {![string is integer -strict $chan(-channelindex)] ||
-                    $chan(-channelindex) < -1} {
-                    lappend errors "$publisher invalid -channelindex value \"$chan(-channelindex)\""
-                }
-                if {![string is integer -strict $chan(-channelid)] ||
-                    $chan(-channelid) < 0} {
-                    lappend errors "$publisher invalid -channelid value \"$chan(-channelid)\""
-                }
-                set chan_path [dict get $chan_dict -channelpath]
-                if {[lsearch -nocase -ascii [wevtutil_channels] $chan_path] < 0
-                    || $chan_path eq "Security"} {
-                    continue
-                }
-                set ocfg [$osess newChannelConfig $chan_path]
-                try {
-                    set chan_publisher [$ocfg publisher]
-                    if {[lsearch -nocase [$ocfg publishers] $publisher] < 0} {
-                        lappend errors "$publisher - not present in $chan_path publishers \"[$ocfg publishers]\""
-                    }
-                    if {!$imported &&
-                        ![string equal -nocase $publisher [$ocfg publisher]]} {
-                        lappend errors "$publisher - mismatch in owner channel. \"$publisher\" versus [$ocfg publisher]"
-                    }
-                } finally {
-                    $ocfg destroy
-                }
+            set value [$op name]
+            if {![string equal -nocase $publisher $value]} {
+                lappend errors "$publisher method \"name\" returned \"$value\""
             }
-            #events
-            #guid
-            #handle
-            #helplink
-            #keywordLabels
-            #keywords
-            #lcid
-            #levelLabels
-            #levels
-            #message
-            #messageFile
-            #messageId
-            #name
-            #opcodeNames
-            #opcodes
-            #parameterFile
-            #resourceFile
-            #taskNames
-            #tasks
+            lappend errors {*}[verify_publisher_channels $osess $publisher $op]
+            lappend errors {*}[verify_publisher_events $osess $publisher $op]
+            set value [$op guid]
+            if {![twapi::Twapi_IsValidGUID $value]} {
+                lappend errors "$publisher method \"guid\" returned unexpected value \"$value\""
+            }
+            set value [$op handle]
+            if {![natural [lindex $value 0]] || [lindex $value 1] ne "EVT_HANDLE"} {
+                lappend errors "$publisher method \"handle\" returned unexpected value \"$value\""
+            }
+            set value [$op helpLink]
+            if {$value ne "" && ![string match https:* $value]} {
+                lappend errors "$publisher method \"helpLink\" returned unexpected value \"$value\""
+            }
+            set value [$op lcid]
+            if {![natural $value]} {
+                lappend errors "$publisher method \"lcid\" returned unexpected value \"$value\""
+            }
+            lappend errors {*}[verify_publisher_dictionaries $osess $publisher $op \
+                                   keywords keywordLabels]
+            lappend errors {*}[verify_publisher_dictionaries $osess $publisher $op \
+                                   levels levelLabels]
+            lappend errors {*}[verify_publisher_dictionaries $osess $publisher $op \
+                                   opcodes opcodeLabels]
+            lappend errors {*}[verify_publisher_dictionaries $osess $publisher $op \
+                                   tasks taskLabels]
+            foreach meth {messageFile resourceFile parameterFile} {
+                # No validation other than ensure no error raised
+                # The file path may or may not exist
+                $op $meth
+            }
 
+            set value [$op messageId]
+            if {![integer $value] || $value < -1} {
+                lappend errors "$publisher method \"messageId\" returned unexpected value \"$value\""
+            }
+            if {$value != -1} {
+                # Just verify does not raise error
+                $op message $value
+            }
         } finally {
             $op destroy
         }
@@ -739,7 +802,7 @@ namespace eval twapi::evt::test {
     ###
 
     test EvtPublisher-1.0 {
-        Verify metadata for ALL publishers
+        Verify generic metadata for ALL publishers
     } -setup {
         twapi::EvtSession create sess
     } -cleanup {
@@ -747,12 +810,31 @@ namespace eval twapi::evt::test {
     } -body {
         set result ""
         foreach pub [sess publishers] {
-            set result [verify_publisher sess $pub]
+            # Some publishers are listed but their files are not actually
+            # present. Verify with wevtutil
+            try {
+                set result [verify_publisher sess $pub]
+            } trap {} {message ropts} {
+                if {[catch {
+                    wevtutil gp $pub
+                }]} {
+                    # wevtutil also raised error. Ignore. Happens if the
+                    # publisher is present in the registry but the metadata files
+                    # are not on disk.
+                    continue
+                } else {
+                    # wevtutil had no errors. So why are we failing?
+                    return -options $ropts $message
+                }
+            }
             if {$result ne ""} break
         }
         set result
     } -result ""
 
+    # Microsoft-Windows-Hyper-V-Worker
+    # Microsoft-Windows-Hyper-V-KernelInt
+    # Microsoft-Windows-WinML
     ###
 
     if {[info exists exported_setup_event_file] &&

@@ -1895,7 +1895,7 @@ proc setops::equal {A B} {
 tcltest::customMatch set setops::equal
 
 proc wevtutil args {
-    exec wevtutil {*}$args 
+    exec wevtutil {*}$args
 }
 
 proc wevtutil_channels {{refresh 0}} {

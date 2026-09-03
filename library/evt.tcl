@@ -437,7 +437,13 @@ oo::class create twapi::EvtPublisher {
     method parameterFile {} {EvtGetPublisherMetadataProperty $hPublisher 2}
     method messageFile   {} {EvtGetPublisherMetadataProperty $hPublisher 3}
     method helpLink      {} {EvtGetPublisherMetadataProperty $hPublisher 4}
-    method messageId     {} {EvtGetPublisherMetadataProperty $hPublisher 5}
+    method messageId     {} {
+        set msg_id [EvtGetPublisherMetadataProperty $hPublisher 5]
+        if {$msg_id == 4294967295} {
+            set msg_id -1
+        }
+        return $msg_id
+    }
     method channels {} {
         return [my GetPropertiesArray 6 {
             -channelpath 7 -channelindex 8 -channelid 9
@@ -456,9 +462,14 @@ oo::class create twapi::EvtPublisher {
         } {-messageid}]
     }
     method opcodes {} {
-        return [my GetPropertiesArray 21 {
+        lmap opcode [my GetPropertiesArray 21 {
             -name 22 -value 23 -messageid 24
-        } {-messageid}]
+        } {-messageid}] {
+            set value [dict get $opcode -value]
+            dict set opcode -task [expr {$value & 0xffff}]
+            dict set opcode -value [expr {($value >> 16) & 0xffff}]
+            set opcode
+        }
     }
     method keywords {} {
         return [my GetPropertiesArray 25 {
@@ -466,11 +477,16 @@ oo::class create twapi::EvtPublisher {
         } {-messageid}]
     }
     method events {property_names} {
-        set henum [EvtOpenEventMetadataEnum $hPublisher]
+        set meta {}
+        try {
+            set henum [EvtOpenEventMetadataEnum $hPublisher]
+        } trap {} {} {
+            # Assume no events defined by the publisher
+            return $meta
+        }
 
         # It is faster to build a list and then have Tcl shimmer to a dict when
         # required
-        set meta {}
         try {
             while {[set hmeta [EvtNextEventMetadata $henum 0]] ne ""} {
                 try {
@@ -497,7 +513,13 @@ oo::class create twapi::EvtPublisher {
     method message {msg_id} {
         # TBD - cache message id's
         # 8 -> EvtFormatMessageId
-        return [EvtFormatMessage $hPublisher NULL $msg_id NULL 8]
+        try {
+            return [EvtFormatMessage $hPublisher NULL $msg_id NULL 8]
+        } trap {TWAPI_WIN32 15105} {} {
+            # The resource loader cache doesn't have loaded MUI entry.
+            # e.g. [my message [my messageId]] for Microsoft-Windows-Hyper-V-KernelInt
+            return ""
+        }
     }
     method levelLabels {} {
         if {![info exists levelLabelMap]} {

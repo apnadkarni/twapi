@@ -723,8 +723,11 @@ See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-ev
 [opt_def -name]
 Name attribute of the opcode.
 See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeName].
+[opt_def -task]
+The task id for task-specific opcodes. [const 0] for opcodes that are not
+task-specific.
 [opt_def -value]
-Value attribute of the opcode.
+The opcode value.
 See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeValue].
 [list_end]
 
