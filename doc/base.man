@@ -92,10 +92,12 @@ commands can also be used for this purpose. Note however using [cmd conceal]
 is not as secure as the argument passed to it is still in clear text.
 
 [section "Writing to the Windows event log"]
-Commands for writing to the Windows event log are included
-in the [package twapi_base] package. Documentation for these
-is however part of the
-[uri eventlog.html [package twapi_eventlog]] package.
+
+The [package twapi_base] module includes the
+[uri #eventlog_log [cmd eventlog_log]] command for writing events to the
+Windows event log. However, this command has limitations and
+if possible the commands in the [uri evt.html [package twapi_evt]]
+should be preferred.
 
 [section "Error generation and handling"]
 The [package twapi_base] module also provides various facilities 
@@ -577,6 +579,34 @@ handle in symbolic form that can be passed to functions such as
 If [cmd -targetpid] is specified, the command returns
 the literal value of the handle. This is true even if the target PID is
 that of the current process.
+
+[call [cmd eventlog_log] [arg MESSAGE] [opt [arg options]]]
+Writes a record into the specified event log. Events logged will not
+have associated message resources and therefore will be displayed by the
+Windows Event Viewer with the message
+[emph "The description for Event ID 40 from source tclsh90 cannot be found."]
+with some additional verbiage. [arg MESSAGE] will be displayed as user data.
+Therefore this command should only be used in the case where the
+recommended [uri evt.html#evt_log [cmd evt_log]] command cannot be used
+due to the TWAPI event provider not being registered on the system.
+[nl]
+The following options may be specified to control the values of the various
+fields in the event log record:
+[list_begin opt]
+[opt_def [cmd -system] [arg SYSTEMNAME]] Specifies the system on which
+the event log resides. By default, this is the local system.
+[opt_def [cmd -source] [arg SOURCENAME]] Specifies a event log source. The
+returned handle will refer to the event log to which events from
+[arg SOURCENAME] are logged. This defaults to the filename portion (without
+the path or extension) of the executable file.
+[opt_def [cmd -type] [arg EVENTTYPE]] Indicates the type or severity of
+the event. [arg EVENTTYPE] should be one of [const success], [const error],
+[const warning], [const information] (default), [const auditsuccess] or [const auditfailure].
+[opt_def [cmd -category] [arg CATEGORY]] This should be a integer corresponding
+to a category id in the event source's category or message file. This value
+defaults to [const 0].
+[list_end]
+
 
 [call [cmd export_public_commands]]
 Export public commands in the [cmd twapi::] namespace.
