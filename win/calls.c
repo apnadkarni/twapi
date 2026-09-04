@@ -675,6 +675,14 @@ static TCL_RESULT Twapi_CallNoargsObjCmd(ClientData clientdata, Tcl_Interp *inte
         result.value.ival = WTSGetActiveConsoleSessionId();
         result.type = TRT_LONG;
         break;
+    case 20:
+        result.value.ival = GetErrorMode();
+        result.type = TRT_DWORD;
+        break;
+    case 21:
+        result.value.ival = GetThreadErrorMode();
+        result.type = TRT_DWORD;
+        break;
     }
 
     return TwapiSetResult(interp, &result);
@@ -749,6 +757,16 @@ static int Twapi_CallIntArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
     case 8:
         if (WTSQueryUserToken(dw, &result.value.hval))
             result.type = TRT_HANDLE;
+        else
+            result.type = TRT_GETLASTERROR;
+        break;
+    case 9:
+        result.value.uval = SetErrorMode(dw);
+        result.type       = TRT_EXCEPTION_ON_FALSE;
+        break;
+    case 10:
+        if (SetThreadErrorMode(dw, &result.value.uval))
+            result.type = TRT_DWORD;
         else
             result.type = TRT_GETLASTERROR;
         break;
@@ -2345,13 +2363,15 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(get_system_time, 11),
         DEFINE_FNCODE_CMD(AllocateLocallyUniqueId, 12),
         DEFINE_FNCODE_CMD(LockWorkStation, 13),
-        DEFINE_FNCODE_CMD(RevertToSelf, 14), /* Left in base module as it might be
-                                       used from multiple extensions */
+        DEFINE_FNCODE_CMD(RevertToSelf, 14), /* In base module as used from
+                                                multiple extensions */
         DEFINE_FNCODE_CMD(GetSystemPowerStatus, 15),
         DEFINE_FNCODE_CMD(DebugBreak, 16),
         DEFINE_FNCODE_CMD(get_default_printer, 17),  // GetDefaultPrinter
         DEFINE_FNCODE_CMD(validate_memory, 18),
         DEFINE_FNCODE_CMD(WTSGetActiveConsoleSessionId, 19), /* TBD - tcl */
+        DEFINE_FNCODE_CMD(GetErrorMode, 20), /* TBD - tcl */
+        DEFINE_FNCODE_CMD(GetThreadErrorMode, 21), /* TBD - tcl */
     };
 
     static struct fncode_dispatch_s CallIntArgDispatch[] = {
@@ -2363,6 +2383,8 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(GlobalDeleteAtom, 6), // TBD - tcl interface
         DEFINE_FNCODE_CMD(hex32, 7),
         DEFINE_FNCODE_CMD(WTSQueryUserToken, 8), // TBD - tcl interface
+        DEFINE_FNCODE_CMD(SetErrorMode, 9), // TBD - tcl interface
+        DEFINE_FNCODE_CMD(SetThreadErrorMode, 10), // TBD - tcl interface
     };
 
     static struct fncode_dispatch_s CallOneArgDispatch[] = {
@@ -2480,11 +2502,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_TCL_CMD(FormatMessageFromString, Twapi_FormatMessageFromStringObjCmd),
         DEFINE_TCL_CMD(CredUIPromptForCredentials, Twapi_CredUIPromptObjCmd),
         DEFINE_TCL_CMD(CredUICmdLinePromptForCredentials, Twapi_CredUICmdLinePromptObjCmd),
-#ifdef OBSOLETE
-        DEFINE_TCL_CMD(ffi_load, Twapi_FfiLoadObjCmd),
-        DEFINE_TCL_CMD(ffi0, Twapi_Ffi0ObjCmd),
-        DEFINE_TCL_CMD(ffiH, Twapi_FfiHObjCmd),
-#endif
     };
 
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallHDispatch), CallHDispatch, Twapi_CallHObjCmd);
@@ -2494,8 +2511,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
     TwapiDefineFncodeCmds(interp, ARRAYSIZE(CallArgsDispatch), CallArgsDispatch, Twapi_CallArgsObjCmd);
     TwapiDefineTclCmds(interp, ARRAYSIZE(TclDispatch), TclDispatch, ticP);
     TwapiDefineAliasCmds(interp, ARRAYSIZE(AliasDispatch), AliasDispatch, "twapi::Call");
-
-    TwapiFfiInit(interp);
 
     return TCL_OK;
 }
