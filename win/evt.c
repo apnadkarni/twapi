@@ -475,8 +475,11 @@ static TCL_RESULT Twapi_EvtNextObjCmd(ClientData clientdata, Tcl_Interp *interp,
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    if (count > 1024) // TBD - why ?
-        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+    TWAPI_ASSERT(count >= 0);
+    if (count == 0)
+        return TCL_OK;
+    if (count > 1000) /* Arbitrary to avoid too much memory for little gain */
+        count = 1000;
     hevtP = MemLifoPushFrame(ticP->memlifoP, count*sizeof(*hevtP), NULL);
     if (EvtNext(hevt, count, hevtP, timeout, dw, &count) != FALSE) {
         if (count) {

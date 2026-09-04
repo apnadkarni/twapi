@@ -22,6 +22,14 @@ namespace eval twapi::evt::test {
     variable source
     variable type
 
+    proc evttest {id comment body args} {
+        set opts [dict merge {
+            -setup {twapi::EvtSession create sess}
+            -cleanup {sess destroy}
+        } $args]
+        uplevel 1 [list test $id $comment -body $body {*}$opts]
+    }
+
     proc privileged {} {
         if {[twapi::min_os_version 6]} {
             if {[twapi::process_in_administrators] &&
@@ -88,7 +96,16 @@ namespace eval twapi::evt::test {
     }
 
     proc event_count {osess args} {
-        return [sess with [list newLogInfo {*}$args] recordCount]
+        return [$osess with [list newLogInfo {*}$args] recordCount]
+    }
+
+    proc event_record_id {hev} {
+        set hctx [twapi::evt_render_context_system]
+        try {
+            return [lindex [twapi::evt_event_render $hev $hctx] 9]
+        } finally {
+            twapi::evt_close $hctx
+        }
     }
 
     proc verify_channel_config {osess channel} {
@@ -255,7 +272,6 @@ namespace eval twapi::evt::test {
     }
 
     proc verify_publisher {osess publisher} {
-        puts $publisher
         set errors ""
         set op [$osess newPublisher $publisher]
         try {
@@ -354,7 +370,79 @@ namespace eval twapi::evt::test {
         return [join $errors \n]
     }
 
-    ###
+    proc verify_event event {
+        set errors {}
+        array set ev $event
+        foreach fld {
+            -eventid -eventrecordid -pid -qualifiers -tid -timecreated -version
+        } {
+            if {![natural $ev($fld)]} {
+                lappend errors "Field \"$fld\" in event record $ev(-eventrecordid) has invalid value \"$ev($fld)\""
+            }
+        }
+        foreach fld {-providerguid -activityid -relatedactivityid} {
+            if {$ev($fld) ne "" && ![twapi::Twapi_IsValidGUID $ev($fld)]} {
+                lappend errors "Field \"$fld\" in event record $ev(-eventrecordid) has invalid GUID value \"$ev($fld)\""
+            }
+        }
+        foreach fld {-activityid -relatedactivityid} {
+            if {$ev($fld) ne "" && ![twapi::Twapi_IsValidGUID $ev($fld)]} {
+                lappend errors "Field \"$fld\" in event record $ev(-eventrecordid) has invalid GUID value \"$ev($fld)\""
+            }
+        }
+        foreach fld {-channel -computer -providername -level} {
+            if {$ev($fld) eq ""} {
+                lappend errors "Field \"$fld\" in event record $ev(-eventrecordid) is an empty string"
+            }
+        }
+        foreach fld {-keywords -message -opcode -task -userdata} {
+            if {![info exists ev($fld)]} {
+                lappend errors "Field \"$fld\" in event record $ev(-eventrecordid) is missing"
+            }
+        }
+        if {$ev(-sid) ne "" && ![twapi::is_valid_sid_syntax $ev(-sid)]} {
+            lappend errors "Field \"-sid\" in event record $ev(-eventrecordid) has invalid value \"$ev(-sid)\""
+            
+        }
+        return $errors
+    }
+    proc verify_log {verifier args} {
+        set errors [list ]
+        set or [sess newReader {*}$args]
+        set of [sess newFormatter]
+        set count 0
+        while {[llength [set hevts [$or getEvents -count 20]]] &&
+               [llength $errors] == 0} {
+            try {
+                # Just verify no errors raised
+                foreach ev [twapi::recordarray getlist \
+                    [$of decodeEvents $hevts {
+                        -providername -providerguid -eventid -qualifiers -level
+                        -task -opcode -keywords -timecreated -eventrecordid
+                        -activityid -relatedactivityid -pid -tid -channel
+                        -computer -sid -version
+                        -message -userdata
+                    }] -format dict] {
+                    incr count
+                    lappend errors {*}[verify_event $ev]
+                    dict for {key values} $verifier {
+                        set value [dict get $ev $key]
+                        if {$value ni $values} {
+                            lappend errors "Field \"$key\" value \"$value\" in event record [dict get $ev -eventrecordid] is not one of \"[join $values ,]\""
+                        }
+                    }
+                }
+            } finally {
+                twapi::evt_close {*}$hevts
+            }
+        }
+        if {$count == 0} {
+            error "Test error: no events found in log"
+        }
+        return [join $errors \n]
+    }
+
+    ### EvtSession
 
     test EvtSession-1.0 {create local session} -body {
         list [twapi::EvtSession create lsess] \
@@ -450,8 +538,6 @@ namespace eval twapi::evt::test {
         string equal -nocase $expected $pubs
     } -result 1
 
-    ###
-
     test EvtSession-with-1.0 {
         EvtSession with method
     } -setup {
@@ -473,8 +559,6 @@ namespace eval twapi::evt::test {
         list [catch {sess with {newChannelConfig Setup} publisher x y}] \
             [info class instances ::twapi::EvtChannelConfig]
     } -result [list 1 {}]
-
-    ###
 
     test EvtSession-exportEvents-1.0 {
         EvtSession exportEvents -channel and -logfile
@@ -532,8 +616,6 @@ namespace eval twapi::evt::test {
         expr {$count > $exported_count}
     } -result 1
 
-    ###
-
     test EvtSession-archiveLogFile-1.0 {
         EvtSession archiveLogFile
     } -constraints privileged -setup {
@@ -559,8 +641,6 @@ namespace eval twapi::evt::test {
             [file exists $mta0] \
             [file exists $mta1036]
     } -result {1 1 1}
-
-    ###
 
     test EvtSession-handle-1.0 {
         EvtSession handle - local
@@ -636,7 +716,7 @@ namespace eval twapi::evt::test {
     creation_tests Subscription Application
     creation_tests Formatter
 
-    ###
+    ### EvtChannelConfig
 
     test EvtChannelConfig-getter-1.0 {
         Verify channel configuration for ALL channels
@@ -738,7 +818,7 @@ namespace eval twapi::evt::test {
         expr {$new == $new_max}
     } -result 1
 
-    ###
+    ### EvtLogInfo
 
     test EvtLogInfo-1.0 {
         Verify channel log info for ALL channels
@@ -799,15 +879,9 @@ namespace eval twapi::evt::test {
             [eq [oli logType] "file"]
     } -result {1 1 1 1 1 1 1 1 1}
 
-    ###
+    ### EvtPublisher
 
-    test EvtPublisher-1.0 {
-        Verify generic metadata for ALL publishers
-    } -setup {
-        twapi::EvtSession create sess
-    } -cleanup {
-        sess destroy
-    } -body {
+    evttest EvtPublisher-1.0 {Verify generic metadata for ALL publishers} {
         set result ""
         foreach pub [sess publishers] {
             # Some publishers are listed but their files are not actually
@@ -832,10 +906,293 @@ namespace eval twapi::evt::test {
         set result
     } -result ""
 
-    # Microsoft-Windows-Hyper-V-Worker
-    # Microsoft-Windows-Hyper-V-KernelInt
-    # Microsoft-Windows-WinML
     ###
+
+    evttest EvtReader-channel-1.0 {Read all events from Application log} {
+        verify_log {-channel Application}
+    } -result {}
+    evttest EvtReader-channel-1.1 {Read all events from Setup log} {
+        verify_log {-channel Setup} -channel Setup
+    } -result {}
+    evttest EvtReader-channel-1.2 {Read all events from System log} {
+        verify_log {-channel System} -channel System
+    } -result {}
+    evttest EvtReader-channel-1.3 {Read all events from Security log} {
+        verify_log {-channel Security} -channel Security
+    } -result {} -constraints privileged
+    evttest EvtReader-logfile-1.0 {Read all events from exported log} {
+        verify_log {-channel Setup} -logfile [exported_setup_events_file]
+    } -result {}
+    evttest EvtReader-query-1.0 {Read events matching XPATH query} {
+        verify_log {-providername Microsoft-Windows-RestartManager} \
+            -channel Application -query {
+            *[System[Provider[@Name='Microsoft-Windows-RestartManager']]]
+            }
+    } -result {}
+    evttest EvtReader-query-1.1 {Read events matching structured XML query} {
+        verify_log {
+            -providername {
+                Microsoft-Windows-WindowsUpdateClient
+                {Microsoft-Windows-Windows Defender}
+            }
+        } -query {
+            <QueryList>
+            <Query Id="0">
+            <Select Path="Microsoft-Windows-Windows Defender/Operational">*</Select>
+            </Query>
+            <Query Id="1">
+            <Select Path="Microsoft-Windows-WindowsUpdateClient/Operational">*</Select>
+            </Query>
+            </QueryList>
+        }
+    } -result {}
+    evttest EvtReader-query-1.2 {Read events matching structured XML query with errors} {
+        verify_log {} -query {
+            <QueryList>
+            <Query Id="0">
+            <Select Path="NoSuchChannel">*</Select>
+            </Query>
+            <Query Id="1">
+            <Select Path="Microsoft-Windows-WindowsUpdateClient/Operational">*</Select>
+            </Query>
+            </QueryList>
+        }
+    } -result {The specified channel could not be found.} -returnCodes error
+    evttest EvtReader-query-1.3 {Read events matching structured XML query ignoring errors} {
+        verify_log {
+            -providername {Microsoft-Windows-WindowsUpdateClient}
+        } -query {
+            <QueryList>
+            <Query Id="0">
+            <Select Path="NoSuchChannel">*</Select>
+            </Query>
+            <Query Id="1">
+            <Select Path="Microsoft-Windows-WindowsUpdateClient/Operational">*</Select>
+            </Query>
+            </QueryList>
+        } -ignorequeryerrors
+    } -result {}
+
+    evttest EvtReader-getEvents-1.0 {Read events in default direction} {
+        set or [sess newReader -channel Application]
+        set of [sess newFormatter]
+        lassign [$or getEvents -count 2] hev1 hev2
+        try {
+            array set first [$of decodeEvent $hev1 {-timecreated -eventrecordid}]
+            array set second [$of decodeEvent $hev2 {-timecreated -eventrecordid}]
+            expr {
+              $first(-timecreated) <= $second(-timecreated) &&
+              $first(-eventrecordid) < $second(-eventrecordid)
+          }
+        } finally {
+            twapi::evt_close $hev1 $hev2
+        }
+    } -result 1
+
+    evttest EvtReader-getEvents-1.1 {Read events -direction forward} {
+        set or [sess newReader -channel Application -direction forward]
+        set of [sess newFormatter]
+        lassign [$or getEvents -count 2] hev1 hev2
+        try {
+            array set first [$of decodeEvent $hev1 {-timecreated -eventrecordid}]
+            array set second [$of decodeEvent $hev2 {-timecreated -eventrecordid}]
+            expr {
+              $first(-timecreated) <= $second(-timecreated) &&
+              $first(-eventrecordid) < $second(-eventrecordid)
+          }
+        } finally {
+            twapi::evt_close $hev1 $hev2
+        }
+    } -result 1
+
+    evttest EvtReader-getEvents-1.2 {Read events -direction backward} {
+        set or [sess newReader -channel Application -direction backward]
+        set of [sess newFormatter]
+        lassign [$or getEvents -count 2] hev1 hev2
+        try {
+            array set first [$of decodeEvent $hev1 {-timecreated -eventrecordid}]
+            array set second [$of decodeEvent $hev2 {-timecreated -eventrecordid}]
+            expr {
+              $first(-timecreated) >= $second(-timecreated) &&
+              $first(-eventrecordid) > $second(-eventrecordid)
+          }
+        } finally {
+            twapi::evt_close $hev1 $hev2
+            unset -nocomplain first second
+        }
+    } -result 1
+
+    evttest EvtReader-getEvents-2.0 {Read events -count} {
+        set or [sess newReader -channel Application]
+        set hevs3 [$or getEvents -count 3]
+        set hevs0 [$or getEvents -count 0]
+        try {
+            list [llength $hevs3] [llength $hevs0]
+        } finally {
+            twapi::evt_close {*}$hevs3 {*}$hevs0
+        }
+    } -result {3 0}
+
+    evttest EvtReader-getEvents-2.1 {Read events -count -1} {
+        set or [sess newReader -channel Application]
+        set hevs3 [$or getEvents -count -1]
+    } -result {expected unsigned integer*} -match glob -returnCodes error
+
+    evttest EvtReader-getEvents-2.2 {Read events -count notanint} {
+        set or [sess newReader -channel Application]
+        set hevs3 [$or getEvents -count notanint]
+    } -result {Non-integer value 'notanint' specified for option '-count'.*} -match glob -returnCodes error
+
+    evttest EvtReader-getEvents-2.3 {Read events -count} {
+        set or [sess newReader -channel Application]
+        set hevs [$or getEvents -count 100000]
+        try {
+            set len [llength $hevs]
+            expr {$len > 0 && $len < 100000}
+        } finally {
+            twapi::evt_close {*}$hevs
+        }
+    } -result 1
+
+    evttest EvtReader-getEvents-3.0 {Read events -statusvar} {
+        unset -nocomplain status
+        set or [sess newReader -channel Application]
+        set hevs [$or getEvents -count 1 -statusvar status]
+        try {
+            list [llength $hevs] [info exists status]
+        } finally {
+            twapi::evt_close {*}$hevs
+        }
+    } -result {1 0}
+
+    evttest EvtReader-getEvents-3.1 {Read events -statusvar} {
+        unset -nocomplain status
+        set or [sess newReader -channel Setup]
+        while {[llength [set hevs [$or getEvents -count 100 -statusvar status]]]} {
+            twapi::evt_close {*}$hevs
+        }
+        set status
+    } -result 259
+
+    evttest EvtReader-handle-1.0 {Get EvtReader handle} {
+        set or [sess newReader -channel Setup]
+        $or handle
+    } -result {^\d+ EVT_HANDLE$} -match regexp
+
+    evttest EvtReader-info-1.0 {Read status info after error on structured XML query ignoring errors} {
+        set or [sess newReader -query {
+            <QueryList>
+            <Query Id="0">
+            <Select Path="NoSuchChannel">*</Select>
+            </Query>
+            <Query Id="1">
+            <Select Path="Microsoft-Windows-WindowsUpdateClient/Operational">*</Select>
+            </Query>
+            </QueryList>
+        } -ignorequeryerrors]
+        lsort -index 0 [$or info]
+    } -result {{Microsoft-Windows-WindowsUpdateClient/Operational 0} {NoSuchChannel 15007}}
+
+    evttest EvtReader-seek-1.0 {Seek -origin} {
+        set hevs {}
+        try {
+            set result {}
+            lassign [sess with newReader {
+                getEvents -count 3
+            }] first second third
+            lappend hevs $first $second $third
+            set first_record_id [event_record_id $first]
+            set second_record_id [event_record_id $second]
+            set third_record_id [event_record_id $third]
+            lassign [sess with {newReader -direction backward} {
+                getEvents -count 2
+            }] last penultimate
+            lappend hevs $last $penultimate
+            set last_record_id [event_record_id $last]
+            set penultimate_record_id [event_record_id $penultimate]
+            set or [sess newReader]
+
+            $or seek 1; # Default origin (current)
+            lassign [$or getEvents -count 1] hev
+            lappend hevs $hev
+            lappend result [expr {[event_record_id $hev] == $second_record_id}]
+
+            $or seek -1 -origin current; # origin current, negative offset
+            lassign [$or getEvents -count 1] hev
+            lappend hevs $hev
+            lappend result [expr {[event_record_id $hev] == $second_record_id}]
+
+            $or seek 0 -origin last; # origin last, zero offset
+            lassign [$or getEvents -count 1] hev
+            lappend hevs $hev
+            lappend result [expr {[event_record_id $hev] == $last_record_id}]
+
+            $or seek 0 -origin first; # origin first, zero offset
+            lassign [$or getEvents -count 1] hev
+            lappend hevs $hev
+            lappend result [expr {[event_record_id $hev] == $first_record_id}]
+
+            $or seek -1 -origin last; # origin last, negative offset
+            lassign [$or getEvents -count 1] hev
+            lappend hevs $hev
+            lappend result [expr {[event_record_id $hev] == $penultimate_record_id}]
+
+            $or seek 1 -origin first; # origin first, positive offset
+            lassign [$or getEvents -count 1] hev
+            lappend hevs $hev
+            lappend result [expr {[event_record_id $hev] == $second_record_id}]
+
+        } finally {
+            twapi::evt_close {*}$hevs
+        }
+    } -result {1 1 1 1 1 1}
+
+    evttest EvtReader-seek-2.0 {Seek -strict } {
+        set hevs {}
+        try {
+            set result {}
+            lassign [sess with newReader {
+                getEvents -count 2
+            }] first second
+            lappend hevs $first $second
+            set first_record_id [event_record_id $first]
+            set second_record_id [event_record_id $second]
+            set or [sess newReader]
+            $or seek 1; # Default origin (current)
+            lassign [$or getEvents -count 1] hev
+            lappend hevs $hev
+            lappend result [expr {[event_record_id $hev] == $second_record_id}]
+            $or seek -3; # Seek before first
+            lassign [$or getEvents -count 1] hev
+            lappend hevs $hev
+            lappend result [expr {[event_record_id $hev] == $first_record_id}]
+
+            lappend result [catch {$or seek -3 -strict}] [lrange $::errorCode 0 1]
+        } finally {
+            twapi::evt_close {*}$hevs
+        }
+    } -result {1 1 1 {TWAPI_WIN32 1168}}
+
+    evttest EvtReader-seek-3.0 {Seek invalid offsets} {
+        set or [sess newReader]
+        list [catch {$or seek notanint} message] $message
+    } -result {1 {expected integer but got "notanint"}}
+
+    evttest EvtReader-seek-3.1 {Seek invalid offsets} {
+        set or [sess newReader]
+        list [catch {$or seek {}} message] $message
+    } -result {1 {expected integer but got ""}}
+
+    # Invalid options
+
+    # EvtFormatter - localization
+    # Microsoft-Windows-Kernel-EventTracing/Admin - test opcode, keyword, task values
+    # Microsoft-Windows-WindowsUpdateClient/Operational
+
+    ###
+
+    # TBD - bookmarks - copy from eventlog.test
+    # TBD - evt_render_context*
 
     if {[info exists exported_setup_event_file] &&
         [file exists $exported_setup_event_file]} {

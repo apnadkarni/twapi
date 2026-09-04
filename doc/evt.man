@@ -791,7 +791,8 @@ The following options can be specified:
 [list_begin opt]
 [opt_def [cmd -count] [arg COUNT]]
 Returns [arg COUNT] events from the result set. The actual number of
-events returned may be less if the end of the result set is reached.
+events returned may be less due to memory constraints or
+if the end of the result set is reached.
 If unspecified, the number of returned events depends on various
 internal tuning factors and applications must not rely on a specific
 number being returned.
@@ -799,10 +800,9 @@ number being returned.
 The name of a variable in which to return status. If there is an
 error when reading the next event, the command will normally generate
 an Tcl exception. If this option is specified, the command will instead
-return an empty list and store the error code in the specified variable.
-[opt_def [cmd -timeout] [arg MILLISECONDS]]
-Specifies the number of milliseconds to wait for events. A value of
-[const -1] (default) indicates call should not time out.
+return an empty list and store the Windows error code in the specified
+variable. This includes the case where no more events are available
+where the error code is [const 259] ([cmd ERROR_NO_MORE_ITEMS]).
 [list_end]
 
 [call "[arg EVTREADEROBJ] [cmd handle]"]

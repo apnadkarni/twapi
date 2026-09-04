@@ -221,7 +221,7 @@ proc twapi::_evt_dump {args} {
         while {[llength [set hevts [$oreader getEvents -count 100]]]} {
             try {
                 foreach evt [recordarray getlist \
-                                 [$ofmt decodeEvents $hevts -properties {
+                                 [$ofmt decodeEvents $hevts {
                                      -providername -eventid -level -eventrecordid
                                      -timecreated -message
                                  }] -format dict] {
@@ -608,19 +608,27 @@ oo::class create twapi::EvtResultSet {
             }
     }
     method getEvents {args} {
+        # Note -timeout is not documented because it is not clear exactly how it
+        # works or how it would be used. EvtQuery return static result sets so
+        # simply EOF when all events have been returned. Subscriptions use a
+        # event that is signalled so we can wait on that event with a timeout.
         parseargs args {
-            {timeout.int -1}
+            {timeout.int 0}
             {count.int 1}
             {statusvar.arg}
         } -maxleftover 0 -setvars
 
+        if {$timeout == -1} {
+            # INFINITE
+            set timeout 0xffffffff
+        }
         if {[info exists statusvar]} {
             upvar 1 $statusvar status
             set hevts [EvtNext $hResultSet $count $timeout 0 status]
         } else {
             set hevts [EvtNext $hResultSet $count $timeout 0]
         }
-        if {[llength $hevts]} {
+        if {[llength $hevts] || $count == 0} {
             return $hevts
         }
         my EofHandler
@@ -665,7 +673,7 @@ oo::class create twapi::EvtReader {
 
         incr flags $strict
 
-        EvtSeek [my handle] $pos $hbookmark 0 $flags
+        EvtSeek [my handle] $offset $hbookmark 0 $flags
     }
     method EofHandler {} {}
 }
@@ -844,6 +852,10 @@ oo::class create twapi::EvtFormatter {
             set publisher [lindex $system_properties 0]
             lmap prop_name $properties {
                 switch -exact -- $prop_name {
+                    -qualifiers {
+                        set value [lindex $system_properties 4]
+                        expr {$value eq "" ? 0 : $value}
+                    }
                     -level {
                         my LevelLabel $publisher [lindex $system_properties 4]
                     }
@@ -954,10 +966,27 @@ oo::class create twapi::EvtFormatter {
         }
         return [dict getdef $taskLabelMap $publisher $task $task]
     }
+    method OpcodeLabel -export {publisher opcode} {
+        if {[dict exists $opcodeLabelMap $publisher]} {
+            return [dict getdef $opcodeLabelMap $publisher $opcode $opcode]
+        }
+        # Not in cache. Get from publisher. May fail because there is no such
+        # publisher registered.
+        if {[catch {
+            dict set opcodeLabelMap $publisher [[my PublisherObj $publisher] opcodeLabels]
+        }]} {
+            # Default to the opcode id. Unlike for levels, we do not try
+            # Microsoft-Windows-Eventlog or have any predefined names for opcode.
+            dict set opcodeLabelMap $publisher $opcode $opcode
+        }
+        return [dict getdef $opcodeLabelMap $publisher $opcode $opcode]
+    }
+
     method KeywordLabels -export {publisher keywords} {
         # Treat as a bit mask else loop below will continue forever
-        # on negative 64-bit values
-        set keywords [expr {$keywords & 0xffffffffffffffff}]
+        # on negative 64-bit values. Also mask top 16 bits as Microsofr
+        # reserved
+        set keywords [expr {$keywords & 0x0000ffffffffffff}]
         set names {}
         # keywords are a bitmask, each bit being a keyword
         while {$keywords} {
