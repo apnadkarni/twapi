@@ -588,8 +588,11 @@ oo::class create twapi::EvtPublisher {
 # Intended to be used as mixin
 oo::class create twapi::EvtResultSet {
     variable hResultSet
+    variable lastStatus
+
     constructor args {
         next {*}$args
+        set lastStatus 0
     }
     destructor {
         if {[llength [self next]]} {
@@ -618,21 +621,42 @@ oo::class create twapi::EvtResultSet {
             {statusvar.arg}
         } -maxleftover 0 -setvars
 
+        if {$count == 0} {
+            return {}
+        }
         if {$timeout == -1} {
             # INFINITE
             set timeout 0xffffffff
         }
-        if {[info exists statusvar]} {
-            upvar 1 $statusvar status
-            set hevts [EvtNext $hResultSet $count $timeout 0 status]
-        } else {
-            set hevts [EvtNext $hResultSet $count $timeout 0]
-        }
-        if {[llength $hevts] || $count == 0} {
+        set hevts [EvtNext $hResultSet $count $timeout 0 status]
+        if {[llength $hevts] > 0} {
+            set lastStatus 0
             return $hevts
         }
-        my EofHandler
-        return $hevts
+        # No events can mean -
+        #  259 - ERROR_NO_MORE_ITEMS - not really an error.
+        #  4317 - ERROR_INVALID_OPERATION. This may also be returned if another
+        #         EvtNext call is made when the prior call returned
+        #         ERROR_NO_MORE_ITEMS. We do not treat this as an error in
+        #         that particular case
+        #  * - some other errors
+        if {$status == 259} {
+            set lastStatus 259
+            my EofHandler
+            return {}
+        } elseif {$status == 4317 && $lastStatus == 259} {
+            # Don't update lastStatus
+            return {}
+        }
+        # Treat as genuine error
+        set lastStatus $status
+        if {[info exists statusvar]} {
+            upvar 1 $statusvar status2
+            set status2 $status
+            return {}
+        } else {
+            twapi::win32_error $status "Error reading events from Windows event log."
+        }
     }
     method SetHandle h {
         set hResultSet $h

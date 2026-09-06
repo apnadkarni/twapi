@@ -1416,9 +1416,62 @@ namespace eval twapi::evt::test {
         twapi::evt_render_context_xpaths {}
     } -result {At least one XPATH expression must be specified. TWAPI error: Invalid data.} -returnCodes error
 
+    ### EvtSubscribe
+
+    evttest EvtSubscribe-1.0 {
+        Verify existing events ignored by default
+    } {
+        set osub [sess newSubscription Application]
+        set before [clock milliseconds]
+        $osub waitForEvent 500
+        set len1 [llength [$osub getEvents]]
+        set before [clock milliseconds]
+        $osub waitForEvent 500
+        set after [clock milliseconds]
+        set len2 [llength [$osub getEvents]]
+        list $len1 $len2 [expr {($after-$before) >= 500}] 
+    } -result {0 0 1}
+
+    evttest EvtSubscribe-1.1 {
+        Verify existing events returned with -includeexisting
+    } {
+        set osub [sess newSubscription Application -includeexisting]
+        set before [clock milliseconds]
+        $osub waitForEvent 100
+        set hevs [$osub getEvents -count 1]
+        set after [clock milliseconds]
+        twapi::evt_close {*}$hevs
+        list [llength $hevs] [expr {($after-$before) < 50}]
+    } -result {1 1}
+
+    test EvtSubscribe-2.0 {
+        EvtSession createSubscription -hbookmark
+    } -setup {
+        twapi::EvtSession create sess
+        set or [sess newReader -channel Setup]
+        set hevs [$or getEvents -count 2]
+        set hbm [twapi::evt_bookmark_create]
+        set hev [lindex $hevs 1]
+        set recid [event_record_id $hev]
+        twapi::evt_bookmark_update $hbm $hev
+        twapi::evt_close {*}$hevs
+        set hevs {}
+    } -cleanup {
+        twapi::evt_close {*}$hevs $hbm
+        sess destroy
+    } -body {
+        set osub [sess newSubscription Setup -hbookmark $hbm]
+        set before [clock milliseconds]
+        $osub waitForEvent 100
+        set hevs [$osub getEvents -count 1]
+        set after [clock milliseconds]
+        set newid [event_record_id [lindex $hevs 0]]
+        list [expr {[event_record_id [lindex $hevs 0]] == 1+$recid}] [expr {($after-$before) < 50}]
+    } -result {1 1}
+    
+
     # TBD - write events
     # TBD - eventlog_log
-    # TBD - subscriptions
 
     if {[info exists exported_setup_event_file] &&
         [file exists $exported_setup_event_file]} {
