@@ -49,6 +49,16 @@ namespace eval twapi::evt::test {
         return [file join [tcltest::temporaryDirectory] evttest-[incr file_name_ctr].$ext]
     }
 
+    proc get_event {{chan Setup}} {
+        set osess [twapi::EvtSession new]
+        try {
+            set or [$osess newReader -channel $chan]
+            return [lindex [$or getEvents -count 1] 0]
+        } finally {
+            $osess destroy
+        }
+    }
+
     # Get credentials for EVT sessions
     proc evt_test_creds {target} {
         variable evt_test_creds
@@ -718,13 +728,9 @@ namespace eval twapi::evt::test {
 
     ### EvtChannelConfig
 
-    test EvtChannelConfig-getter-1.0 {
+    evttest EvtChannelConfig-getter-1.0 {
         Verify channel configuration for ALL channels
-    } -setup {
-        twapi::EvtSession create sess
-    } -cleanup {
-        sess destroy
-    } -body {
+    } {
         set result ""
         foreach chan [sess registeredChannels] {
             if {$chan in {Security}} {
@@ -745,9 +751,6 @@ namespace eval twapi::evt::test {
     } -cleanup {
         sess destroy
     } -body {
-        puts expected:$expected
-        puts access:[cfg access]
-        puts bufferSize:[cfg bufferSize]
         list \
             [string equal -nocase [cfg access] [dict get $expected channelAccess]] \
             [string equal -nocase [cfg name] [dict get $expected name]] \
@@ -762,14 +765,10 @@ namespace eval twapi::evt::test {
             [== [cfg isolation] 2]
     } -result {1 1 1 1 1 1 1 1 1 1 1}
 
-    test EvtChannelConfig-setter-1.0 {
+    evttest EvtChannelConfig-setter-1.0 {
         Set channel configuration
-    } -setup {
-        twapi::EvtSession create sess
+    } {
         sess createChannelConfig cfg Setup
-    } -cleanup {
-        sess destroy
-    } -body {
         # Test both symol and integer value
         set bad {}
         foreach {getter setter change} {
@@ -820,13 +819,9 @@ namespace eval twapi::evt::test {
 
     ### EvtLogInfo
 
-    test EvtLogInfo-1.0 {
+    evttest EvtLogInfo-1.0 {
         Verify channel log info for ALL channels
-    } -setup {
-        twapi::EvtSession create sess
-    } -cleanup {
-        sess destroy
-    } -body {
+    } {
         set result ""
         foreach chan [sess registeredChannels] {
             if {[regexp {(Security|Debug|Analytic)$} $chan]} continue
@@ -836,14 +831,10 @@ namespace eval twapi::evt::test {
         set result
     } -result ""
 
-    test EvtLogInfo-2.0 {
+    evttest EvtLogInfo-2.0 {
         Verify channel log info for Application
-    } -setup {
-        twapi::EvtSession create sess
+    } {
         sess createLogInfo oli -channel Application
-    } -cleanup {
-        sess destroy
-    } -body {
         set expected [wevtutil_fields gli Application]
         list \
             [== [100ns_to_iso8601 [oli creationTime]] [dict get $expected creationTime]] \
@@ -1183,16 +1174,251 @@ namespace eval twapi::evt::test {
         list [catch {$or seek {}} message] $message
     } -result {1 {expected integer but got ""}}
 
-    # Invalid options
+    ### EvtFormatter
+    # Most EvtFormatter functionality is tested as part of EvtReader. Tests below
+    # exercise a few other bits like localization.
 
-    # EvtFormatter - localization
-    # Microsoft-Windows-Kernel-EventTracing/Admin - test opcode, keyword, task values
-    # Microsoft-Windows-WindowsUpdateClient/Operational
+    evttest EvtFormatter-decodeEvent-fr-1.0 {
+        EvtFormatter decode -lcid
+    } {
+        set of [sess newFormatter -lcid 1036]
+        set or [sess newReader -channel Microsoft-Windows-WindowsUpdateClient/Operational -query {*[System[EventID=31]]}]
+        set opcode Télécharger
+        set task "Agent de mise à jour automatique Windows Update"
+        set level Erreur
+        set keyword Échec
+        set message {Échec du téléchargement*}
 
-    ###
+        set hevs [$or getEvents -count 1]
+        if {[llength $hevs] == 0} {
+            $or destroy
+            set or [sess newReader -channel Microsoft-Windows-WindowsUpdateClient/Operational -query {*[System[EventID=25]]}]
+            set opcode {Rechercher les mises à jour}
+            set level Erreur
+            set message {L’erreur * s’est produite*}
+            set hevs [$or getEvents -count 1]
+        }
+        if {[llength $hevs] == 0} {
+            $or destroy
+            set or [sess newReader -channel Microsoft-Windows-WindowsUpdateClient/Operational -query {*[System[EventID=26]]}]
+            set opcode {Rechercher les mises à jour}
+            set level Information
+            set keyword Succès
+            set message {Windows Update a trouvé*}
+            set hevs [$or getEvents -count 1]
+        }
+        if {[llength $hevs] == 0} {
+            error "Could not find suitable event in channel"
+        }
+        try {
+            lassign $hevs hev
+            array set decoded [$of decodeEvent $hev {-level -opcode -task -keywords -message}]
+            list \
+                [expr {$decoded(-opcode) eq $opcode}] \
+                [expr {$decoded(-level) eq $level}] \
+                [expr {$decoded(-task) eq $task}] \
+                [expr {$keyword in $decoded(-keywords)}] \
+                [string match $message $decoded(-message)]
+        } finally {
+            twapi::evt_close $hev
+        }
+    } -result {1 1 1 1 1} -constraints haveFrenchLocale
 
-    # TBD - bookmarks - copy from eventlog.test
-    # TBD - evt_render_context*
+    # Known bug - should tru 1033 locale on failure and at least return
+    # numeric value for level etc.
+    evttest EvtFormatter-decodeEvent-fr-2.0 {
+        EvtFormatter decode -lcid for non-existing LCID
+    } {
+        set of1033 [sess newFormatter -lcid 1033]
+        set of [sess newFormatter -lcid 1037]
+        set or [sess newReader -channel Microsoft-Windows-WindowsUpdateClient/Operational -query {*[System[EventID=31]]}]
+        set hevs [$or getEvents -count 1]
+        if {[llength $hevs] == 0} {
+            $or destroy
+            set or [sess newReader -channel Microsoft-Windows-WindowsUpdateClient/Operational -query {*[System[EventID=25]]}]
+        }
+        if {[llength $hevs] == 0} {
+            $or destroy
+            set or [sess newReader -channel Microsoft-Windows-WindowsUpdateClient/Operational -query {*[System[EventID=26]]}]
+        }
+        if {[llength $hevs] == 0} {
+            error "Could not find suitable event in channel"
+        }
+        try {
+            lassign $hevs hev
+            array set dec1033 [$of1033 decodeEvent $hev {-level -opcode -task -keywords -message}]
+            array set decoded [$of decodeEvent $hev {-level -opcode -task -keywords -message}]
+            list \
+                [expr {$decoded(-opcode) eq $dec1033(-opcode)}] \
+                [expr {$decoded(-level) eq $dec1033(-level)}] \
+                [expr {$decoded(-task) eq $dec1033(-task)}] \
+                [expr {$decoded(-keywords) eq $dec1033(-keywords)}] \
+                [expr {$decoded(-message) eq $dec1033(-message)}]
+        } finally {
+            twapi::evt_close $hev
+        }
+    } -result {1 1 1 1 1} -constraints {haveFrenchLocale knownBug}
+
+    ### Bookmarks
+
+    evttest evt-bookmarks-1.0 {
+        evt_bookmark_create, evt_bookmark_update, evt_seek -bookmark
+    } {
+        set or [sess newReader -channel Setup]
+        set hevs [$or getEvents -count 2]
+        try {
+            set hev [lindex $hevs 1]
+            set xml [twapi::evt_event_xml $hev]
+            set hbm [twapi::evt_bookmark_create]
+            twapi::evt_bookmark_update $hbm $hev
+            lappend hevs {*}[$or getEvents -count 2]
+            # This next just to ensure cursor moved
+            set xml2 [twapi::evt_event_xml [lindex $hevs end]]
+            $or seek 0 -hbookmark $hbm
+            lappend hevs {*}[$or getEvents -count 1]
+            set xml3 [twapi::evt_event_xml [lindex $hevs end]]
+            list [string equal $xml $xml2] [string equal $xml $xml3]
+        } finally {
+            twapi::evt_close {*}$hevs
+            if {[info exists hbm]} {
+                twapi::evt_close $hbm
+            }
+        }
+    } -result {0 1}
+
+    evttest evt-bookmarks-2.0 {
+        evt_bookmark_render
+    } {
+        set or [sess newReader -channel Setup]
+        set hevs [$or getEvents -count 2]
+        try {
+            set hev [lindex $hevs 1]
+            set xml [twapi::evt_event_xml $hev]
+            set hbm [twapi::evt_bookmark_create]
+            twapi::evt_bookmark_update $hbm $hev
+            set xmlbm [twapi::evt_bookmark_render $hbm]
+        } finally {
+            twapi::evt_close {*}$hevs
+            if {[info exists hbm]} {
+                twapi::evt_close $hbm
+                unset hbm
+            }
+        }
+        set hevs {}
+        $or destroy
+        set or [sess newReader -channel Setup]
+        try {
+            set hbm [twapi::evt_bookmark_create $xmlbm]
+            $or seek 0 -hbookmark $hbm
+            set hevs [$or getEvents -count 1]
+            set xml2 [twapi::evt_event_xml [lindex $hevs 0]]
+            string equal $xml $xml2
+        } finally {
+            twapi::evt_close {*}$hevs
+            if {[info exists hbm]} {
+                twapi::evt_close $hbm
+            }
+        }
+    } -result 1
+
+    ### evt_event_*
+
+    test evt_event_logpath-1.0 {
+        Get the channel or file containing the event
+    } -setup {
+        set hev [get_event Setup]
+    } -cleanup {
+        twapi::evt_close $hev
+    } -body {
+        twapi::evt_event_logpath $hev
+    } -result Setup
+
+    test evt_event_xml-1.0 {
+        Render event XML
+    } -setup {
+        set hev [get_event Setup]
+    } -cleanup {
+        twapi::evt_close $hev
+    } -body {
+        twapi::evt_event_xml $hev
+    } -result {<Event*<System>*</System>*</Event>} -match glob
+
+    ### evt_render_*
+
+    test evt_render_context_system-1.0 {
+        Render context for system properties
+    } -setup {
+        set hev [get_event Setup]
+    } -cleanup {
+        twapi::evt_close $hev
+    } -body {
+        set hctx [twapi::evt_render_context_system]
+        set xml [twapi::evt_event_xml $hev]
+        regexp {Provider Name='([^']+)'\s+Guid='([^']+)'.+ProcessID='([^']+)'} $xml -> provider guid pid
+        set values [twapi::evt_event_render $hev $hctx]
+        twapi::evt_close $hctx
+        list [llength $values] \
+            [expr {$provider eq [lindex $values 0]}] \
+            [string equal -nocase $guid [lindex $values 1]] \
+            [expr {$pid eq [lindex $values 12]}] \
+            [lindex $values 14]
+    } -result [list 18 1 1 1 Setup]
+
+    test evt_render_context_userdata-1.0 {
+        Render context for userdata properties
+    } -setup {
+        set hev [get_event Setup]
+    } -cleanup {
+        twapi::evt_close $hev
+    } -body {
+        set hctx [twapi::evt_render_context_userdata]
+        set values [twapi::evt_event_render $hev $hctx]
+        twapi::evt_close $hctx
+        set xml [twapi::evt_event_xml $hev]
+        regexp {<UserData>(.*)</UserData>} $xml -> userdata
+        set xml_values [lmap {- value} [regexp -inline -all {<[^>]+>([^<]+)} $userdata] {
+            set value
+        }]
+        equal_lists $values $xml_values
+    } -result 1
+
+    test evt_render_context_xpaths-1.0 {
+        Render context for xpaths
+    } -setup {
+        set hev [get_event Setup]
+    } -cleanup {
+        twapi::evt_close $hev
+    } -body {
+        set xpaths [list "Event/System/Provider/@Name" "Event/System/Channel"]
+        set hctx [twapi::evt_render_context_xpaths $xpaths]
+        set values [twapi::evt_event_render $hev $hctx]
+        twapi::evt_close $hctx
+        set values
+    } -result {Microsoft-Windows-Servicing Setup}
+
+    test evt_render_context_xpaths-2.0 {
+        Render context for xpaths - no matches
+    } -setup {
+        set hev [get_event Setup]
+    } -cleanup {
+        twapi::evt_close $hev
+    } -body {
+        set xpaths [list "Event/System/NoSuch"]
+        set hctx [twapi::evt_render_context_xpaths $xpaths]
+        set values [twapi::evt_event_render $hev $hctx]
+        twapi::evt_close $hctx
+        set values
+    } -result [list {}]
+
+    test evt_render_context_xpaths-3.0 {
+        Render context for xpaths - empty xpath list
+    } -body {
+        twapi::evt_render_context_xpaths {}
+    } -result {At least one XPATH expression must be specified. TWAPI error: Invalid data.} -returnCodes error
+
+    # TBD - write events
+    # TBD - eventlog_log
+    # TBD - subscriptions
 
     if {[info exists exported_setup_event_file] &&
         [file exists $exported_setup_event_file]} {
@@ -1201,3 +1427,7 @@ namespace eval twapi::evt::test {
     ::tcltest::cleanupTests
 }
 namespace delete ::twapi::evt::test
+
+# Local Variables:
+# coding: utf-8
+# End:

@@ -656,18 +656,18 @@ oo::class create twapi::EvtReader {
     destructor {}
     method seek {offset args} {
         parseargs args {
-            {origin.arg current {first last current}}
+            {origin.arg default {first last current default}}
             hbookmark.arg
             {strict 0 0x10000}
         } -maxleftover 0 -setvars
 
         if {[info exists hbookmark]} {
-            if {[info exists origin]} {
+            if {$origin ne "default"} {
                 error "At most one of options -hbookmark and -origin may be specified."
             }
             set flags 4
         } else {
-            set flags [dict get {first 1 last 2 current 3} $origin]
+            set flags [dict get {first 1 last 2 current 3 default 3} $origin]
             set hbookmark NULL
         }
 
