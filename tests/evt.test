@@ -295,9 +295,9 @@ namespace eval twapi::evt::test {
         return $errors
     }
 
-    proc verify_publisher {osess publisher} {
+    proc verify_publisher {osess publisher args} {
         set errors ""
-        set op [$osess newPublisher $publisher]
+        set op [$osess newPublisher $publisher {*}$args]
         try {
             set value [$op name]
             if {![string equal -nocase $publisher $value]} {
@@ -911,7 +911,15 @@ namespace eval twapi::evt::test {
         set result
     } -result ""
 
-    ###
+    evttest EvtPublisher-2.0 {Verify generic metadata -lcid} {
+        set pub Microsoft-Windows-WindowsUpdateClient
+        set op [sess newPublisher Microsoft-Windows-WindowsUpdateClient -lcid 1036]
+        list [verify_publisher sess $pub -lcid 1036] \
+            [dict get [$op levelLabels] 2] \
+            [$op lcid]
+    } -result [list {} Erreur 1036] -constraints haveFrenchLocale
+
+    ### EvtReader
 
     evttest EvtReader-channel-1.0 {Read all events from Application log} {
         verify_log {-channel Application}
@@ -1332,8 +1340,6 @@ namespace eval twapi::evt::test {
             twapi::evt_close $hev
         }
     } -result {1 1 1 1 1} -constraints {haveFrenchLocale knownBug}
-
-
 
     ### Bookmarks
 
