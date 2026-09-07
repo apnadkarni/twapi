@@ -373,14 +373,14 @@ oo::class create twapi::EvtSession {
     method newReader {args} {
         return [my createReader [my NewName reader] {*}$args]
     }
-    method createSubscription {objname channel args} {
-        set obj [uplevel 1 [list [namespace which -command EvtSubscription] \
+    method createSubscriber {objname channel args} {
+        set obj [uplevel 1 [list [namespace which -command EvtSubscriber] \
                                 create $objname $hSession $channel {*}$args]]
         dict set dependentNamespaces [info object namespace $obj] $obj
         return $obj
     }
-    method newSubscription {channel args} {
-        return [my createSubscription [my NewName subscription] $channel {*}$args]
+    method newSubscriber {channel args} {
+        return [my createSubscriber [my NewName subscription] $channel {*}$args]
     }
     method createFormatter {objname args} {
         set obj [uplevel 1 [list [namespace which -command EvtFormatter] \
@@ -702,7 +702,7 @@ oo::class create twapi::EvtReader {
     method EofHandler {} {}
 }
 
-oo::class create twapi::EvtSubscription {
+oo::class create twapi::EvtSubscriber {
     mixin twapi::EvtResultSet
 
     variable hSession
@@ -767,7 +767,7 @@ oo::class create twapi::EvtSubscription {
         # If callback already exists, no need to register handler again
         if {![info exists commandPrefix]} {
             wait_on_handle $hSignal -async [mymethod SignalHandler] \
-                -executeonce 1 -timeout $ms
+                -executeonce 1 -wait $ms
         }
         set commandPrefix $cb
         set callbackTimeout [incr ms 0]
@@ -789,7 +789,7 @@ oo::class create twapi::EvtSubscription {
         twapi::reset_event $hSignal
         if {[info exists commandPrefix]} {
             wait_on_handle $hSignal -async [mymethod SignalHandler] \
-                -executeonce 1 -timeout $callbackTimeout
+                -executeonce 1 -wait $callbackTimeout
         }
     }
 }
@@ -905,7 +905,7 @@ oo::class create twapi::EvtFormatter {
             }
         }]]
     }
-    method decodeEvent {hevt properties} {
+    method decodeEvent {hevt {properties {-providername -eventid -level -timecreated -message}}} {
         return [recordarray index \
                     [my decodeEvents [list $hevt] $properties] \
                     0 -format dict]

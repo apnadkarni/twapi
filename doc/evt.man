@@ -117,9 +117,9 @@ XPATH expressions.
 [section Subscriptions]
 
 Applications can register to be notifified of event arrivals through the
-[uri #evtsubscription [cmd EvtSubscription]] class, instances of which are
-created by the [cmd EvtSession] [uri #createsubscription [cmd createSubscription]]
-or [uri #newsubscription [cmd newSubscription]] methods. Notifications may
+[uri #evtsubscriber [cmd EvtSubscriber]] class, instances of which are
+created by the [cmd EvtSession] [uri #createsubscriber [cmd createSubscriber]]
+or [uri #newsubscriber [cmd newSubscriber]] methods. Notifications may
 be synchronous via the [uri #waitforevent [cmd waitForEvent]] or through
 callbacks registered with [uri #registercallback [cmd registerCallback]].
 
@@ -193,7 +193,7 @@ with [uri #evt_bookmark_update [cmd evt_bookmark_update]] when given
 a event handle. A bookmark may be used to resume reading events from its
 targeted event by passing it to
 [cmd EvtReader] [uri #seek [cmd seek]] method or for initializing a
-[uri #evtsubscription subscription].
+[uri #evtsubscriber subscription].
 
 [section Commands]
 
@@ -962,9 +962,9 @@ an XPATH expression or a structured XML query. See
 [uri https://learn.microsoft.com/en-us/windows/win32/wes/consuming-events "SDK documentation"].
 [list_end]
 
-[call "[arg EVTSESSOBJ] [cmd createSubscription]" [arg EVTSUBSCRIBEOBJ] [arg CHANNAME] [opt [arg options]]]
-Creates a TclOO object named [arg EVTSUBSCRIBEOBJ] of class
-[uri #evtsubscription [cmd EvtSubscription]]
+[call "[arg EVTSESSOBJ] [cmd createSubscriber]" [arg EVTSUBSCRIBEROBJ] [arg CHANNAME] [opt [arg options]]]
+Creates a TclOO object named [arg EVTSUBSCRIBEROBJ] of class
+[uri #evtsubscriber [cmd EvtSubscriber]]
 and returns its fully qualified name. The object wraps a handle to an
 EVT event subscription containing events from one or more channels. The
 returned object is automatically destroyed when [arg EVTSESSOBJ] is destroyed.
@@ -1072,12 +1072,12 @@ event log file. The returned object is
 automatically destroyed when [arg EVTSESSIONOBJ] is destroyed. See
 [uri #createreader [cmd createReader]] for options.
 
-[call "[arg EVTSESSOBJ] [cmd newSubscription]" [opt [arg options]]]
+[call "[arg EVTSESSOBJ] [cmd newSubscriber]" [opt [arg options]]]
 Creates and returns a uniquely named TclOO object of class
-[uri #evtsubscription [cmd EvtSubscription]]. The object wraps a handle to the
+[uri #evtsubscriber [cmd EvtSubscriber]]. The object wraps a handle to the
 EVT event subscription containing events from one or more channels. The
 returned object is automatically destroyed when [arg EVTSESSOBJ] is destroyed.
-See [uri #createsubscription [cmd createSubscription]] for options.
+See [uri #createsubscriber [cmd createSubscriber]] for options.
 
 [call "[arg EVTSESSOBJ] [cmd newFormatter]" [opt [arg options]]]
 Creates and returns a uniquely named TclOO object of class
@@ -1098,16 +1098,16 @@ session with the [arg FACTORY] method, invoking the created object's
 [arg TARGETMETHOD] method and then destroying it. The command
 returns the result of the [arg TARGETMETHOD] invocation.
 
-[call [cmd EvtSubscription]]
+[call [cmd EvtSubscriber]]
 
 Class for subscribing to events.
 To guard against future implementation changes, objects of
 this class should be created through
 [uri #evtsessioncreate [cmd EvtSession]] methods
-[uri #createsubscription [cmd createSubscription]] or
-[uri #newsubscription [cmd newSubscription]] and not directly.
+[uri #createsubscriber [cmd createSubscriber]] or
+[uri #newsubscriber [cmd newSubscriber]] and not directly.
 
-[call "[arg EVTSUBSCRIBEOBJ] [cmd registerCallback]" [arg CALLBACK] [opt [arg MILLISECS]]]
+[call "[arg EVTSUBSCRIBEROBJ] [cmd registerCallback]" [arg CALLBACK] [opt [arg MILLISECS]]]
 
 Registers a callback to be invoked when an event is available on the
 subscribed channels. Any previously registered callback is replaced.
@@ -1118,12 +1118,12 @@ The callback should call [uri #getEvents [cmd getEvents]] to retrieve
 new events but be prepared to handle the case that no events have
 actually arrived.
 
-[call "[arg EVTSUBSCRIBEOBJ] [cmd unregisterCallback]"]
+[call "[arg EVTSUBSCRIBEROBJ] [cmd unregisterCallback]"]
 
 Unregisters callback previously registered with
 [uri #registercallback [cmd registerCallback]].
 
-[call "[arg EVTSUBSCRIBEOBJ] [cmd waitForEvents] [opt [arg MILLISECS]]"]
+[call "[arg EVTSUBSCRIBEROBJ] [cmd waitForEvents] [opt [arg MILLISECS]]"]
 
 Waits for [arg MILLISECS] till an event is available on the subscribed
 channels. [arg MILLISECS] defaults to [const -1] indicating no timeout.

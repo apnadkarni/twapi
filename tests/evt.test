@@ -81,13 +81,27 @@ namespace eval twapi::evt::test {
         if {![info exists exported_setup_event_file] ||
             ![file exists $exported_setup_event_file]
         } {
-            set exported_setup_event_file [new_file exported_setup_events.evt]
+            set exported_setup_event_file [new_file exported_setup_events.evtx]
             set sess [twapi::EvtSession new]
             $sess exportEvents $exported_setup_event_file -channel Setup
         }
         return $exported_setup_event_file
     }
 
+    variable archived_setup_event_file
+    proc archived_setup_event_file {} {
+        variable archived_setup_event_file
+        if {![info exists archived_setup_event_file] ||
+            ![file exists $archived_setup_event_file]
+        } {
+            set archived_setup_event_file [new_file archived_setup_events.evtx]
+            set sess [twapi::EvtSession new]
+            $sess exportEvents $archived_setup_event_file -channel Setup
+            $sess archiveLogFile $archived_setup_event_file
+            $sess destroy
+        }
+        return $archived_setup_event_file
+    }
     proc verify_event {e {expected {}}} {
         set messages {}
         foreach fld {
@@ -723,7 +737,7 @@ namespace eval twapi::evt::test {
     creation_tests LogInfo -logfile [exported_setup_events_file]
     creation_tests Publisher Microsoft-Windows-Eventlog
     creation_tests Reader
-    creation_tests Subscription Application
+    creation_tests Subscriber Application
     creation_tests Formatter
 
     ### EvtChannelConfig
@@ -1178,7 +1192,66 @@ namespace eval twapi::evt::test {
     # Most EvtFormatter functionality is tested as part of EvtReader. Tests below
     # exercise a few other bits like localization.
 
-    evttest EvtFormatter-decodeEvent-fr-1.0 {
+    evttest EvtFormatter-logarchive-1.0 {
+        EvtFormatter -logarchive
+    } {
+        set of [sess newFormatter -logarchive [archived_setup_event_file]]
+        set or [sess newReader -logfile [archived_setup_event_file]]
+        # Just check no error raised since there is not sure how to check
+        # archive data is used and not the system metadata
+        set hevs [$or getEvents -count 3]
+        try {
+            twapi::recordarray size [$of decodeEvents $hevs]
+        } finally {
+            twapi::evt_close {*}$hevs
+        }
+    } -result 3 -constraints privileged
+
+    evttest EvtFormatter-format-1.0 {
+        EvtFormatter formatEvent and formatEventAsXml
+    } {
+        set of [sess newFormatter]
+        set or [sess newReader -channel Microsoft-Windows-WindowsUpdateClient/Operational -query {*[System[EventID=26]]}]
+        lassign [$or getEvents -count 1] hev
+        try {
+            set message [$of formatEvent $hev]
+            set xml [$of formatEventAsXml $hev]
+            puts $xml
+            list [string match "Windows Update*" $message] \
+                [string equal [dict get [$of decodeEvent $hev -message] -message] $message] \
+                [string match {<Event*<System>*</System>*<Message>Windows Update*</Event>} $xml]
+        } finally {
+            twapi::evt_close $hev
+        }
+    } -result {1 1 1}
+
+    evttest EvtFormatter-decode-event-1.0 {
+        EvtFormatter decodeEvent - default properties
+    } {
+        set of [sess newFormatter]
+        set or [sess newReader]
+        lassign [$or getEvents -count 1] hev
+        try {
+            lsort [dict keys [$of decodeEvent $hev]]
+        } finally {
+            twapi::evt_close $hev
+        }
+    } -result {-eventid -level -message -providername -timecreated}
+
+    evttest EvtFormatter-decode-events-1.0 {
+        EvtFormatter decodeEvents - default properties
+    } {
+        set of [sess newFormatter]
+        set or [sess newReader]
+        set hevs [$or getEvents -count 2]
+        try {
+            lsort [twapi::recordarray fields [$of decodeEvents $hevs]]
+        } finally {
+            twapi::evt_close {*}$hevs
+        }
+    } -result {-eventid -level -message -providername -timecreated}
+
+    evttest EvtFormatter-fr-1.0 {
         EvtFormatter decode -lcid
     } {
         set of [sess newFormatter -lcid 1036]
@@ -1218,15 +1291,16 @@ namespace eval twapi::evt::test {
                 [expr {$decoded(-level) eq $level}] \
                 [expr {$decoded(-task) eq $task}] \
                 [expr {$keyword in $decoded(-keywords)}] \
-                [string match $message $decoded(-message)]
+                [string match $message $decoded(-message)] \
+                [string match $message [$of formatEvent $hev]]
         } finally {
             twapi::evt_close $hev
         }
-    } -result {1 1 1 1 1} -constraints haveFrenchLocale
+    } -result {1 1 1 1 1 1} -constraints haveFrenchLocale
 
-    # Known bug - should tru 1033 locale on failure and at least return
+    # Known bug - should try 1033 locale on failure and at least return
     # numeric value for level etc.
-    evttest EvtFormatter-decodeEvent-fr-2.0 {
+    evttest EvtFormatter-fr-2.0 {
         EvtFormatter decode -lcid for non-existing LCID
     } {
         set of1033 [sess newFormatter -lcid 1033]
@@ -1258,6 +1332,8 @@ namespace eval twapi::evt::test {
             twapi::evt_close $hev
         }
     } -result {1 1 1 1 1} -constraints {haveFrenchLocale knownBug}
+
+
 
     ### Bookmarks
 
@@ -1416,12 +1492,12 @@ namespace eval twapi::evt::test {
         twapi::evt_render_context_xpaths {}
     } -result {At least one XPATH expression must be specified. TWAPI error: Invalid data.} -returnCodes error
 
-    ### EvtSubscribe
+    ### EvtSubscriber
 
-    evttest EvtSubscribe-1.0 {
+    evttest EvtSubscriber-1.0 {
         Verify existing events ignored by default
     } {
-        set osub [sess newSubscription Application]
+        set osub [sess newSubscriber Application]
         set before [clock milliseconds]
         $osub waitForEvent 500
         set len1 [llength [$osub getEvents]]
@@ -1432,10 +1508,10 @@ namespace eval twapi::evt::test {
         list $len1 $len2 [expr {($after-$before) >= 500}] 
     } -result {0 0 1}
 
-    evttest EvtSubscribe-1.1 {
+    evttest EvtSubscriber-1.1 {
         Verify existing events returned with -includeexisting
     } {
-        set osub [sess newSubscription Application -includeexisting]
+        set osub [sess newSubscriber Application -includeexisting]
         set before [clock milliseconds]
         $osub waitForEvent 100
         set hevs [$osub getEvents -count 1]
@@ -1444,8 +1520,8 @@ namespace eval twapi::evt::test {
         list [llength $hevs] [expr {($after-$before) < 50}]
     } -result {1 1}
 
-    test EvtSubscribe-2.0 {
-        EvtSession createSubscription -hbookmark
+    test EvtSubscriber-2.0 {
+        EvtSession createSubscriber -hbookmark
     } -setup {
         twapi::EvtSession create sess
         set or [sess newReader -channel Setup]
@@ -1460,7 +1536,7 @@ namespace eval twapi::evt::test {
         twapi::evt_close {*}$hevs $hbm
         sess destroy
     } -body {
-        set osub [sess newSubscription Setup -hbookmark $hbm]
+        set osub [sess newSubscriber Setup -hbookmark $hbm]
         set before [clock milliseconds]
         $osub waitForEvent 100
         set hevs [$osub getEvents -count 1]
@@ -1468,7 +1544,45 @@ namespace eval twapi::evt::test {
         set newid [event_record_id [lindex $hevs 0]]
         list [expr {[event_record_id [lindex $hevs 0]] == 1+$recid}] [expr {($after-$before) < 50}]
     } -result {1 1}
-    
+
+    evttest EvtSubscriber-callback-1.0 {
+        EvtSubscriber callbacks
+    } {
+        set result {}
+        set os [sess newSubscriber Application]
+        set of [sess newFormatter]
+        set before [clock milliseconds]
+        set lambda [list apply [list {osess osub ofmt} {
+            variable gate
+            while {[llength [set hevs [$osub getEvents -count 1]]]} {
+                $ofmt decodeEvents $hevs -eventid
+                twapi::evt_close {*}$hevs
+                incr gate [llength $hevs]
+            }
+        } [namespace current]] sess $os $of]
+        $os registerCallback $lambda
+        twapi::eventlog_log "This is a message 1"
+        twapi::eventlog_log "This is a message 2"
+        set timer [after 1000 [list set [namespace current]::gate -1]]
+        vwait [namespace current]::gate
+        after cancel $timer
+        lappend result $gate
+        twapi::eventlog_log "This is a message 3"
+        set timer [after 1000 [list set [namespace current]::gate -1]]
+        vwait [namespace current]::gate
+        after cancel $timer
+        lappend result $gate
+        twapi::eventlog_log "This is a message 4"; # should not be seen
+        $os unregisterCallback
+        set timer [after 1000 [list set [namespace current]::gate -1]]
+        twapi::eventlog_log "This is a message 5"; # should not be seen
+        vwait [namespace current]::gate
+        after cancel $timer
+        lappend result $gate
+        set interval [expr {[clock milliseconds] - $before}]
+        lappend result [expr {$interval > 1000 && $interval < 2000}]
+        set result
+    } -result {2 3 -1 1}
 
     # TBD - write events
     # TBD - eventlog_log
@@ -1476,6 +1590,10 @@ namespace eval twapi::evt::test {
     if {[info exists exported_setup_event_file] &&
         [file exists $exported_setup_event_file]} {
         file delete $exported_setup_event_file
+    }
+    if {[info exists archived_setup_event_file] &&
+        [file exists $archived_setup_event_file]} {
+        file delete $archived_setup_event_file
     }
     ::tcltest::cleanupTests
 }
