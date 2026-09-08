@@ -128,12 +128,14 @@ proc twapi::evt_free_EVT_RENDER_VALUES {p} {
 proc twapi::evt_publisher_install {manifest resource_file message_file} {
     set wevutil [auto_execok wevtutil]
     if {[get_process_elevation] ne "full"} {
+        uplevel #0 [list package require twapi_shell]
         set params "im"
         append params " \"[file nativename [file normalize $manifest]]\""
         append params " \"/rf:[file nativename [file normalize $resource_file]]\""
         append params " \"/mf:[file nativename [file normalize $message_file]]\""
         set wevutil [lindex $wevutil 0]
-        shell_execute -verb runas -show hide -path $wevutil -params $params
+        shell_execute -verb runas -show hide -wait true -path $wevutil -params $params
+        puts installed
         return
     }
     exec {*}$wevutil im \
@@ -146,10 +148,11 @@ proc twapi::evt_publisher_install {manifest resource_file message_file} {
 proc twapi::evt_publisher_uninstall {manifest} {
     set wevutil [auto_execok wevtutil]
     if {[get_process_elevation] ne "full"} {
+        uplevel #0 [list package require twapi_shell]
         set params "um"
         append params " \"[file nativename [file normalize $manifest]]\""
         set wevutil [lindex $wevutil 0]
-        shell_execute -verb runas -show hide -path $wevutil -params $params
+        shell_execute -verb runas -show hide -wait true -path $wevutil -params $params
         return
     }
     exec {*}$wevutil um [file nativename [file normalize $manifest]]

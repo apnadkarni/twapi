@@ -21,6 +21,7 @@ namespace eval twapi::evt::test {
     variable testnum
     variable source
     variable type
+    variable twapiChannel Twapi-App/Operational
 
     proc evttest {id comment body args} {
         set opts [dict merge {
@@ -1590,8 +1591,54 @@ namespace eval twapi::evt::test {
         set result
     } -result {2 3 -1 1}
 
-    # TBD - write events
+    ### evt_log
+    test evt_log-1.0 {
+        evt_log - write events to Twapi-App/Operational
+    } -constraints {systemmodificationok } -setup {
+        catch {twapi::evt_twapi_uninstall; after 100}
+        twapi::evt_twapi_install; after 100
+        twapi::EvtSession create sess
+        set result {}
+    } -cleanup {
+        sess destroy
+        #twapi::evt_twapi_uninstall; after 100
+    } -body {
+        # May not be 0, as uninstall/install does not remove existing
+        # event file.
+        set precount [event_count sess -channel Twapi-App/Operational]
+        set levels {critical error warning informational verbose}
+        foreach level $levels {
+            twapi::evt_log $level "This is a TWAPI test $level message."
+        }
+        twapi::evt_log information "This is a message from TWAPI test app" -application "Twapi Test Application"
+        after 1000
+        set or [sess newReader -channel $twapiChannel -direction backward]
+        set of [sess newFormatter]
+        set result {}
+        set hevs [$or getEvents -count 6]
+        set hevs [lassign $hevs hev]
+        set ev [$of decodeEvent $hev {-message}]
+        lappend result [regexp "Application: Twapi Test Application" [dict get $ev -message]]
+        try {
+            foreach hev $hevs level [lreverse $levels] {
+                set ev [$of decodeEvent $hev {-level -message}]
+                set levelLabel [expr {$level eq "informational" ? "Information" : [string totitle $level]}]
+                lappend result [expr {
+                                      [string equal -nocase $levelLabel [dict get $ev -level]]
+                                      &&
+                                      [regexp "This is a TWAPI test $level message.\\s+Application: Tcl Application\\s+Image Path:.*[file tail [info nameofexecutable]]$" [dict get $ev -message]]
+                                  }]
+            }
+        } finally {
+            twapi::evt_close {*}$hevs
+        }
+
+        set postcount [event_count sess -channel Twapi-App/Operational]
+        lappend result [expr {$postcount-$precount}]
+    } -result {1 1 1 1 1 1 6}
+
     # TBD - eventlog_log
+    # sess clearChannel
 
     if {[info exists exported_setup_event_file] &&
         [file exists $exported_setup_event_file]} {

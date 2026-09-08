@@ -708,7 +708,7 @@ for the publisher name. [const -1] if undefined.
 [call "[arg EVTPUBOBJ] [cmd name]"]
 Returns the name of the publisher whose metadata is wrapped by [arg EVTPUBOBJ].
 
-[call "[arg EVTPUBOBJ] [cmd opcodeNames]"]
+[call "[arg EVTPUBOBJ] [cmd opcodeLabels]"]
 Returns a dictionary mapping opcode decimal values to localized labels.
 
 [call "[arg EVTPUBOBJ] [cmd opcodes]"]
