@@ -1591,21 +1591,28 @@ namespace eval twapi::evt::test {
         set result
     } -result {2 3 -1 1}
 
-    ### evt_log
+    ### evt_log, clearChannel, install, uninstall
+
     test evt_log-1.0 {
-        evt_log - write events to Twapi-App/Operational
-    } -constraints {systemmodificationok } -setup {
-        catch {twapi::evt_twapi_uninstall; after 100}
+        evt_log - write events to Twapi-App/Operational and clear
+    } -constraints \
+        [list systemmodificationok [expr {[privileged] ? "privileged" : "userInteraction"}]] \
+    -setup {
+        if {$twapiChannel in [wevtutil_channels 1]} {
+            catch {twapi::evt_twapi_uninstall; after 100}
+            set twapiChannelExisted 1
+        } else {
+            set twapiChannelExisted 0
+        }
         twapi::evt_twapi_install; after 100
         twapi::EvtSession create sess
         set result {}
     } -cleanup {
         sess destroy
-        #twapi::evt_twapi_uninstall; after 100
     } -body {
         # May not be 0, as uninstall/install does not remove existing
         # event file.
-        set precount [event_count sess -channel Twapi-App/Operational]
+        set precount [event_count sess -channel $twapiChannel]
         set levels {critical error warning informational verbose}
         foreach level $levels {
             twapi::evt_log $level "This is a TWAPI test $level message."
@@ -1632,10 +1639,24 @@ namespace eval twapi::evt::test {
         } finally {
             twapi::evt_close {*}$hevs
         }
-
-        set postcount [event_count sess -channel Twapi-App/Operational]
+        set postcount [event_count sess -channel $twapiChannel]
         lappend result [expr {$postcount-$precount}]
-    } -result {1 1 1 1 1 1 6}
+        if {[privileged]} {
+            sess clearChannel $twapiChannel
+            after 100
+            lappend result [event_count sess -channel $twapiChannel]
+            if {! $twapiChannelExisted} {
+                twapi::evt_twapi_uninstall
+                lappend result [expr {$twapiChannel in [wevtutil_channels 1]}]
+                after 100
+            } else {
+                lappend result 0; # Don't remove channel if it already existed
+            }
+        } else {
+            lappend result 0 0; # Ignore this piece of test
+        }
+        set result
+    } -result {1 1 1 1 1 1 6 0 0}
 
     # TBD - eventlog_log
     # sess clearChannel
