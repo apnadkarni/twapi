@@ -50,11 +50,29 @@ namespace eval twapi::evt::test {
         return [file join [tcltest::temporaryDirectory] evttest-[incr file_name_ctr].$ext]
     }
 
-    proc get_event {{chan Setup}} {
+    # Get the last event from a channel
+    proc get_last_event {{chan Setup}} {
         set osess [twapi::EvtSession new]
         try {
-            set or [$osess newReader -channel $chan]
+            set or [$osess newReader -channel $chan -direction backward]
             return [lindex [$or getEvents -count 1] 0]
+        } finally {
+            $osess destroy
+        }
+    }
+    proc get_event args {get_last_event {*}$args}
+
+    proc get_last_event_message {{chan Setup}} {
+        set osess [twapi::EvtSession new]
+        try {
+            set or [$osess newReader -channel $chan -direction backward]
+            set of [$osess newFormatter]
+            set hev [lindex [$or getEvents -count 1] 0]
+            try {
+                return [$of formatEvent $hev]
+            } finally {
+                twapi::evt_close $hev
+            }
         } finally {
             $osess destroy
         }
@@ -1658,7 +1676,55 @@ namespace eval twapi::evt::test {
         set result
     } -result {1 1 1 1 1 1 6 0 0}
 
-    # TBD - eventlog_log
+    # eventlog_log
+
+    test eventlog_log-1.0 {
+        Log a message to the default log
+    } -body {
+        twapi::eventlog_log "TWAPI test message"
+        get_last_event_message Application
+    } -match glob -result  "*TWAPI test message"
+
+    test eventlog_log-1.1 {
+        Log a message to the application log
+    } -constraints {
+        nt
+    } -body {
+        twapi::eventlog_log "TWAPI Application log test message" -source application
+        get_last_event_message Application
+    } -match glob -result  "*TWAPI Application log test message"
+
+    test eventlog_log-1.2 {
+        Log a message to the system log
+    } -constraints {
+        privileged
+    } -body {
+        twapi::eventlog_log "TWAPI System log test message" -source system
+        get_last_event_message System
+    } -match glob -result  "*TWAPI System log test message"
+    
+    set testnum 0
+    foreach source {application system} {
+        foreach {type level} {success 0 error 2 warning 3 information 4} {
+            test eventlog_log-2.[incr testnum] "Log a message of type $type to the $source log" -constraints [expr {$source eq "system" ? "privileged" : ""}] -body {
+                twapi::eventlog_log "TWAPI log $type message" -type $type -source $source
+                set hev [get_last_event $source]
+                try {
+                    set hctx [twapi::evt_render_context_system]
+                    try {
+                        set ev [twapi::evt_event_render $hev $hctx]
+                        list [lindex $ev 4] [lindex $ev 14]
+                    } finally {
+                        twapi::evt_close $hctx
+                    }
+                } finally {
+                    twapi::evt_close $hev
+                }
+            } -result [list $level [string totitle $source]]
+        }
+    }
+
+
     # sess clearChannel
 
     if {[info exists exported_setup_event_file] &&
