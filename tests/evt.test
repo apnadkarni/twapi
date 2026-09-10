@@ -856,13 +856,24 @@ namespace eval twapi::evt::test {
         Verify channel log info for ALL channels
     } {
         set result ""
+        set good 0
+        set bad 0
         foreach chan [sess registeredChannels] {
-            if {[regexp {(Security|Debug|Analytic)$} $chan]} continue
-            set result [verify_log_info sess $chan]
+            if {$chan eq "Security" && ![privileged]} {
+                continue
+            }
+            try {
+                set result [verify_log_info sess $chan]
+            } trap {TWAPI_WIN32 4201} {} {
+                # Misconfigured registry, not our problem
+                set result ""
+                incr bad
+            }
             if {$result ne ""} break
+            incr good; # Just to ensure we are not skipping all errors!
         }
-        set result
-    } -result ""
+        list [expr {$bad < 10}] [expr {$good > 100}] [string equal $result ""]
+    } -result {1 1 1}
 
     evttest EvtLogInfo-2.0 {
         Verify channel log info for Application
