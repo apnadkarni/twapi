@@ -17,22 +17,7 @@ a system. Access to event log channels and event publishers takes place through
 sessions. TclOO objects of class [uri #evtsessioncreate "EvtSession"] wrap EVT
 sessions and provide factory methods for creating objects representing publishers,
 channels etc.
-The command below will create a [cmd EvtSession] object [cmd sess] for the
-local event log using the default credentials of the current thread.
-
-[example_begin]
-EvtSession create sess
-[example_end]
-
-Options allow connection to remote systems and different credentials.
-
-[para]
 Session objects must be destroyed when no longer needed.
-
-[example_begin]
-sess destroy
-[example_end]
-
 This will free the underlying session handles as well as destroy any TclOO
 objects created using its factory methods.
 
@@ -82,6 +67,7 @@ created by the
 [uri #newformatter [cmd "newFormatter"]] methods. The class takes
 care of mapping raw event data to its publisher's metadata for
 localized messages, levels, tasks etc.
+
 [para]
 Alternatively, the following lower level functions may be used. These
 leave the caller responsible for retrieving associated publisher
@@ -147,41 +133,7 @@ The [uri #evtpublisher [cmd EvtPublisher]] class encapsulates publisher metadata
 Objects of this class are created by the
 [cmd EvtSession] [uri #createpublisher [cmd "createPublisher"]] or
 [uri #newpublisher [cmd "newPublisher"]] methods. [cmd EvtPublisher] methods
-can be then be used to retrieve various metadata for the publisher. For example,
-the following prints the channels defined by Hyper-V.
-
-[example_begin]
-% sess createPublisher pub Microsoft-Windows-Hyper-V-Compute
-% foreach chan [lb]pub channels] {puts [lb]dict get $chan -channelpath]}
-Microsoft-Windows-Hyper-V-Compute-Admin
-Microsoft-Windows-Hyper-V-Compute-Operational
-Microsoft-Windows-Hyper-V-Compute-Analytic
-[example_end]
-
-Or to get the events defined by the publisher and the corresponding
-localized message string in French (LCID 1036),
-
-[example_begin]
-% sess createPublisher frpub Microsoft-Windows-Hyper-V-Compute -lcid 1036
-::frpub
-% foreach event_def [lb]frpub events {-eventid -messageid}] {
-    puts [lb]dict get $event_def -eventid]:[lb]frpub message [lb]dict get $event_def -messageid]]
-}
-...
-500:Started DM operation add memory. Balancer requested to add %2 pages. (Virtual machine ID %1)
-501:DM operation add memory completed %3 pages were added, time %2 s. (Virtual machine ID %1)
-502:Started DM operation remove memory. Balancer requested to remove %2 pages. (Virtual machine ID %1)
-...
-1000:Le service de calcul hôte démarre.
-1001:Service de calcul hôte démarré.
-1002:Le service de calcul hôte est en cours d’arrêt.
-1003:Service de calcul hôte arrêté.
-...
-[example_end]
-
-Note above that localized messages depend on the appropriate locale being installed
-and the publisher metadata including a localized string for the message id bound
-to the event.
+can be then be used to retrieve various metadata for the publisher.
 
 [section Bookmarks]
 An EVT [emph bookmark] identifies a specific event in an event log. Bookmarks are
