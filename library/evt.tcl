@@ -9,52 +9,7 @@
 package require twapi_synch
 
 namespace eval twapi {
-    variable _evt;              # See _evt_init
 
-    # System event fields in order returned by _evt_event_decode_system_fields
-    twapi::record evt_system_properties  {
-        -providername -providerguid -eventid -qualifiers -level -task
-        -opcode -keywordmask -timecreated -eventrecordid -activityid
-        -relatedactivityid -pid -tid -channel
-        -computer -sid -version
-    }
-    interp alias {} ::twapi::evt_system_fields {} ::twapi::evt_system_properties
-
-    proc _evt_init {} {
-        variable _evt
-
-        # Various structures that we maintain / cache for efficiency as they
-        # are commonly used are kept in the _evt array with the following keys:
-
-        # system_render_context_handle - is the handle to a rendering
-        #    context for the system portion of an event
-        set _evt(system_render_context_handle) [evt_render_context_system]
-
-        # user_render_context_handle - is the handle to a rendering
-        #    context for the user data portion of an event
-        set _evt(user_render_context_handle) [evt_render_context_userdata]
-
-        # render_buffer - is NULL or holds a pointer to the buffer used to
-        #    retrieve values so does not have to be reallocated every time.
-        set _evt(render_buffer) NULL
-
-        # publisher_handles - caches publisher names to their meta information.
-        #    This is a dictionary indexed with nested keys -
-        #     publisher, session, lcid. TBD - need a mechanism to clear ?
-        set _evt(publisher_handles) [dict create]
-
-        # -levelname - dict of publisher name / level number to level names
-        set _evt(-levelname) {}
-
-        # -taskname - dict of publisher name / task number to task name
-        set _evt(-taskname) {}
-
-        # -opcodename - dict of publisher name / opcode number to opcode name
-        set _evt(-opcodename) {}
-
-        # No-op the proc once init is done
-        proc _evt_init {} {}
-    }
 }
 
 proc twapi::evt_close {args} {
@@ -96,30 +51,6 @@ proc twapi::evt_event_logpath {hevt} {
     return [EvtGetEventInfo $hevt 1]
 }
 
-twapi::proc* twapi::_evt_event_decode_system_fields {hevt} {
-    _evt_init
-} {
-    variable _evt
-    set _evt(render_buffer) [Twapi_EvtRenderValues $_evt(system_render_context_handle) $hevt $_evt(render_buffer)]
-    set rec [Twapi_ExtractEVT_RENDER_VALUES $_evt(render_buffer)]
-    return [evt_system_properties set $rec \
-                -providername [atomize [evt_system_properties -providername $rec]] \
-                -providerguid [atomize [evt_system_properties -providerguid $rec]] \
-                -channel [atomize [evt_system_properties -channel $rec]] \
-                -computer [atomize [evt_system_properties -computer $rec]]]
-}
-
-# TBD - document. Returns a list of user data values
-twapi::proc* twapi::evt_event_decode_userdata {hevt} {
-    _evt_init
-} {
-    variable _evt
-    set _evt(render_buffer) [Twapi_EvtRenderValues $_evt(user_render_context_handle) $hevt $_evt(render_buffer)]
-    return [Twapi_ExtractEVT_RENDER_VALUES $_evt(render_buffer)]
-}
-
-# TBD - document
-# Where is this used?
 proc twapi::evt_free_EVT_RENDER_VALUES {p} {
     evt_free $p
 }

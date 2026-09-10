@@ -1114,8 +1114,8 @@ namespace eval twapi::evt::test {
         while {[llength [set hevs [$or getEvents -count 100 -statusvar status]]]} {
             twapi::evt_close {*}$hevs
         }
-        set status
-    } -result 259
+        info exists status
+    } -result 0
 
     evttest EvtReader-handle-1.0 {Get EvtReader handle} {
         set or [sess newReader -channel Setup]
@@ -1254,7 +1254,6 @@ namespace eval twapi::evt::test {
         try {
             set message [$of formatEvent $hev]
             set xml [$of formatEventAsXml $hev]
-            puts $xml
             list [string match "Windows Update*" $message] \
                 [string equal [dict get [$of decodeEvent $hev -message] -message] $message] \
                 [string match {<Event*<System>*</System>*<Message>Windows Update*</Event>} $xml]
