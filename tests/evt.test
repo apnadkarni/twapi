@@ -949,6 +949,142 @@ namespace eval twapi::evt::test {
             [$op lcid]
     } -result [list {} Erreur 1036] -constraints haveFrenchLocale
 
+    evttest EvtPublisher-3.0 {Verify specific metadata} {
+        set bad {}
+        set op [sess newPublisher Microsoft-Windows-Eventlog -lcid 1033]
+        foreach {meth pat} {
+            guid {{FC65DDD8-D6EF-4962-83D5-6E5CFE9CE148}}
+            resourceFile *System32\\\\wevtsvc.dll
+            parameterFile *
+            messageFile *System32\\\\wevtsvc.dll
+            helpLink https://go.microsoft.com/*
+        } {
+            set val [$op $meth]
+            if {![string match -nocase $pat $val]} {
+                lappend bad $meth
+            }
+        }
+        set val [$op messageId]
+        if {! [string equal -nocase \
+                   [$op message $val] \
+                   Microsoft-Windows-Eventlog]} {
+            lappend bad messageId
+        }
+        set chanrefs [$op channels]
+        foreach chanref $chanrefs {
+            foreach key {-channelindex -channelid -channelflags} {
+                if {![dict exists $chanref $key] || \
+                        ![string is integer -strict [dict get $chanref $key]]} {
+                    lappend bad channels($key)
+                }
+            }
+            # File tail because the message string for Microsoft-Windows-EventLog/Debug
+            # etc is just Debug
+            if {![string equal -nocase \
+                      [$op message [dict get $chanref -channelmessageid]] \
+                      [file tail [dict get $chanref -channelpath]]]} {
+                lappend bad channels([dict get $chanref -channelpath])
+                break
+            }
+        }
+        set levels [$op levels]
+        foreach level $levels {
+            if {![regexp {^win:(.+)} [dict get $level -name] -> level_name]} {
+                lappend bad levels([dict get $level -name])
+                continue
+            }
+            set level_label \
+                [expr {
+                       $level_name eq "Informational" ? "Information" : $level_name
+                   }]
+            if {![string equal -nocase \
+                      [$op message [dict get $level -messageid]] \
+                      $level_label]} {
+                lappend bad levels($level_name)
+                continue
+            }
+            if {[dict get $level -value] != [dict get {
+                Critical 1 Error 2 Warning 3 Informational 4 Verbose 5
+            } $level_name]} {
+                lappend bad levels($level_name)
+                continue
+            }
+        }
+        set tasks [$op tasks]
+        foreach task $tasks {
+            if {![regexp {^el:(.+)} [dict get $task -name] -> task_name]} {
+                lappend bad tasks([dict get $task -name])
+                continue
+            }
+            set task_label [dict get {
+                Initialization "Service startup"
+                EventProcessing "Event processing"
+                Shutdown "Service shutdown"
+                LogClear "Log clear"
+                AutoBackup "Log automatic backup"
+                AbnormalShutdown "System abnormal shutdown"
+                UsageAudit "Service Usage Audit"
+            } $task_name]
+            if {![string equal -nocase \
+                      [$op message [dict get $task -messageid]] \
+                      $task_label]} {
+                lappend bad tasks($task_name,-messageid)
+                continue
+            }
+            if {![string is integer -strict [dict get $task -value]]} {
+                lappend bad tasks($task_name,-value)
+                continue
+            }
+            if {![valid_guid [dict get $task -eventguid]]} {
+                lappend bad tasks($task_name,-eventguid)
+            }
+        }
+
+        set opcodes [$op opcodes]
+        foreach opcode $opcodes {
+            if {![regexp {^win:(.+)} [dict get $opcode -name] -> opcode_name]} {
+                lappend bad opcodes([dict get $opcode -name])
+                continue
+            }
+            if {![string equal -nocase \
+                      [$op message [dict get $opcode -messageid]] \
+                      $opcode_name]} {
+                lappend bad opcodes($opcode_name,-messageid)
+                continue
+            }
+            if {![string is integer -strict [dict get $opcode -value]]} {
+                lappend bad opcodes($opcode_name,-value)
+                continue
+            }
+        }
+        set keywords [$op keywords]
+        foreach keyword $keywords {
+            if {![regexp {^[^:]+:(.+)} [dict get $keyword -name] -> keyword_name]} {
+                lappend bad keywords([dict get $keyword -name])
+                continue
+            }
+            set keyword_label [dict get {
+                Availability "Service availability"
+                Settings "Service configuration"
+                SystemAvailability "System availability"
+                Audit "API Usage Audit"
+                AuditSuccess "Audit Success"
+            } $keyword_name]
+            if {![string equal -nocase \
+                      [$op message [dict get $keyword -messageid]] \
+                      $keyword_label]} {
+                lappend bad keywords($keyword_name,-messageid)
+                continue
+            }
+            if {![string is integer -strict [dict get $keyword -value]]} {
+                lappend bad keywords($keyword_name,-value)
+                continue
+            }
+        }
+
+        set bad
+    } -result {}
+
     ### EvtReader
 
     evttest EvtReader-channel-1.0 {Read all events from Application log} {
