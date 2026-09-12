@@ -110,9 +110,11 @@ static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP,
         objP = ObjFromInt(varP->Int32Val);
         break;
     case EvtVarTypeUInt32:
+    case EvtVarTypeHexInt32:
         objP = ObjFromDWORD(varP->UInt32Val);
         break;
     case EvtVarTypeInt64:
+    case EvtVarTypeHexInt64:
         objP = ObjFromWideInt(varP->Int64Val);
         break;
     case EvtVarTypeUInt64:
@@ -147,10 +149,6 @@ static Tcl_Obj *ObjFromEVT_VARIANT(TwapiInterpContext *ticP, EVT_VARIANT *varP,
         break;
     case EvtVarTypeEvtHandle:
         objP = ObjFromEVT_HANDLE(varP->EvtHandleVal);
-        break;
-    case EvtVarTypeHexInt32:      /* TBD - do not know how to interpret this  */
-        break;
-    case EvtVarTypeHexInt64:      /* TBD - do not know how to interpret this  */
         break;
     default:
         /* Check if an array. */
@@ -477,8 +475,11 @@ static TCL_RESULT Twapi_EvtNextObjCmd(ClientData clientdata, Tcl_Interp *interp,
                      ARGEND) != TCL_OK)
         return TCL_ERROR;
 
-    if (count > 1024) // TBD - why ?
-        return TwapiReturnError(interp, TWAPI_INVALID_ARGS);
+    TWAPI_ASSERT(count >= 0);
+    if (count == 0)
+        return TCL_OK;
+    if (count > 1000) /* Arbitrary to avoid too much memory for little gain */
+        count = 1000;
     hevtP = MemLifoPushFrame(ticP->memlifoP, count*sizeof(*hevtP), NULL);
     if (EvtNext(hevt, count, hevtP, timeout, dw, &count) != FALSE) {
         if (count) {
@@ -877,7 +878,14 @@ Twapi_EvtCallObjCmd(ClientData clientdata,
                          GETHANDLE(h), GETOBJ(sObj), GETOBJ(s2Obj),
                          GETEVTH(hevt2), GETDWORD(dw), ARGEND) != TCL_OK)
             return TCL_ERROR;
-        TwapiResult_SET_NONNULL_PTR(result, EVT_HANDLE, EvtSubscribe(hevt, h, ObjToWinChars(sObj), ObjToWinChars(s2Obj), hevt2, NULL, NULL, dw));
+        s2 = ObjToWinChars(s2Obj);
+	if (*s2 == 0)
+            s2 = NULL;
+        TwapiResult_SET_NONNULL_PTR(
+            result,
+            EVT_HANDLE,
+            EvtSubscribe(
+                hevt, h, ObjToWinChars(sObj), s2, hevt2, NULL, NULL, dw));
         break;
     case 8: // EvtExportLog
         if (TwapiGetArgs(interp, objc, objv, GETEVTH(hevt),
@@ -885,7 +893,8 @@ Twapi_EvtCallObjCmd(ClientData clientdata,
                          ARGEND) != TCL_OK)
             return TCL_ERROR;
         result.type = TRT_EXCEPTION_ON_FALSE;
-        result.value.ival = EvtExportLog(hevt, ObjToWinChars(sObj), ObjToWinChars(s2Obj), ObjToWinChars(s3Obj), dw);
+        result.value.ival = EvtExportLog(hevt, ObjToLPWSTR_NULL_IF_EMPTY(sObj),
+		 ObjToLPWSTR_NULL_IF_EMPTY(s2Obj), ObjToWinChars(s3Obj), dw);
         break;
 
     case 9: // EvtSetChannelConfigProperty
@@ -1258,11 +1267,11 @@ int TwapiEvtInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(evt_bookmark_create, 11),
         DEFINE_FNCODE_CMD(evt_bookmark_update, 12),
         DEFINE_FNCODE_CMD(evt_free, 13), // TBD docs
-        DEFINE_FNCODE_CMD(evt_close, 14),
+        DEFINE_FNCODE_CMD(EvtClose, 14),
         DEFINE_FNCODE_CMD(evt_cancel, 102), // TBD docs
         DEFINE_FNCODE_CMD(EvtOpenChannelEnum, 103),
         DEFINE_FNCODE_CMD(EvtNextChannelPath, 104),
-        DEFINE_FNCODE_CMD(evt_channel_config_save, 105),
+        DEFINE_FNCODE_CMD(EvtSaveChannelConfig, 105),
         DEFINE_FNCODE_CMD(EvtOpenPublisherEnum, 106),
         DEFINE_FNCODE_CMD(EvtOpenEventMetadataEnum, 107),
         DEFINE_FNCODE_CMD(EvtNextEventMetadata, 108),

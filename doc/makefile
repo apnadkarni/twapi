@@ -51,7 +51,7 @@ MANFILES= \
 	network.man \
 	namedpipe.man \
 	security.man \
-	eventlog.man \
+	evt.man \
 	etw.man \
 	apputil.man \
 	crypto.man \

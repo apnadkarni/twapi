@@ -73,10 +73,13 @@ proc twapi::wait_on_handle {hwait args} {
 
     # 0x00000008 ->   # WT_EXECUTEONCEONLY
     array set opts [parseargs args {
-        {wait.int -1}
+        {wait.int 0xFFFFFFFF}
         async.arg
         {executeonce.bool false 0x00000008}
     }]
+    if {$opts(wait) == -1} {
+        set opts(wait) 0xFFFFFFFF
+    }
 
     if {![info exists opts(async)]} {
         if {[info exists _wait_handle_ids($h)]} {

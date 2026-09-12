@@ -4711,14 +4711,15 @@ negative_error:
 }
 
 TWAPI_EXTERN TCL_RESULT ObjToDWORD(Tcl_Interp *interp, Tcl_Obj *objP, DWORD *dwP) {
-    long l;
-    /* TBD - should we convert to Tcl_WideInt and check the range?
-       How much code depends on silent long<->unsigned long conversions? */
-    /* TBD - Test that full 32 bit unsigned is returned correctly */
-    TCL_RESULT res = Tcl_GetLongFromObj(interp, objP, &l);
-    if (res == TCL_OK)
-        *dwP = (DWORD) l;
-    return res;
+    Tcl_WideUInt uwide;
+    if (Tcl_GetWideUIntFromObj(interp, objP, &uwide) != TCL_OK)
+        return TCL_ERROR;
+    if (uwide > ULONG_MAX) {
+        return TwapiReturnErrorMsg(
+            interp, TWAPI_OUT_OF_RANGE, "Value does not fit DWORD type.");
+    }
+    *dwP = (DWORD)uwide;
+    return TCL_OK;
 }
 
 /* Define as a function to avoid gcc squawking about signed pointers */

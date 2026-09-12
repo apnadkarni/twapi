@@ -1,0 +1,1093 @@
+[comment {-*- tcl -*- doctools manpage}]
+[manpage_begin "Event log" n ""]
+[copyright "2026, Ashok P. Nadkarni"]
+[moddesc "Event Log"]
+[titledesc "Commands relating to reading and writing the Windows event log"]
+[require twapi_evt]
+[description]
+[para]
+
+The [cmd twapi_evt] package implements commands for reading and writing to
+the Windows Event log.
+
+[section Sessions]
+
+An event log (EVT) [emph session] is a connection to the event log service on
+a system. Access to event log channels and event publishers takes place through
+sessions. TclOO objects of class [uri #evtsessioncreate "EvtSession"] wrap EVT
+sessions and provide factory methods for creating objects representing publishers,
+channels etc.
+Session objects must be destroyed when no longer needed.
+This will free the underlying session handles as well as destroy any TclOO
+objects created using its factory methods.
+
+[section "Channels and file stores"]
+
+Event log [emph channels] are named event streams storing event records
+that can be read and written. The configuration properties for a channel are
+managed through objects of the [uri #evtchannelconfig [cmd EvtChannelConfig]]
+class created through the [cmd EvtSession]
+[uri #createchannelconfig [cmd "createChannelConfig"]] or
+[uri #newchannelconfig [cmd "newChannelConfig"]] methods.
+The channels registered on a system can be retrieved with the
+[cmd EvtSession] [uri #registeredchannels [cmd "registeredChannels"]] method.
+
+[para]
+Event records can also be stored in files by exporting them from a channel
+with the [uri #exportevents [cmd exportEvents]] method. These can be read
+back from the file using the same mechanisms as used for channels. Events
+exported from a channel do not store message strings associated with the
+events. To include these, the file must be further processed using the
+[uri #archivelogfile [cmd archiveLogFile]] method.
+
+[para]
+Information about individual channels and file stores can be retrieved using
+objects of class [uri #evtloginfo [cmd EvtLogInfo]] created by the
+[cmd EvtSession] [uri #createloginfo [cmd "createLogInfo"]] or
+[uri #newloginfo [cmd "newLogInfo"]] methods.
+
+[section "Reading events"]
+
+Events are read from channels and file stores by invoking
+the [uri #getevents [cmd getEvents]] method on objects of class
+[uri #evtreader [cmd EvtReader]] created using
+[cmd EvtSession] [uri #createreader [cmd "createReader"]] or
+[uri #newreader [cmd "newReader"]] methods. The event handles
+returned are passed to rendering functions depending on the
+event data desired.
+
+[section "Rendering events"]
+
+There are several options for retrieving the event data referenced
+by event handles returned from [uri #getevents [cmd getEvents]].
+The methods of the [uri #evtformatter [cmd EvtFormatter]] class
+provides high-level access to event data. Objects of this class are
+created by the
+[cmd EvtSession] [uri #createformatter [cmd "createFormatter"]] or
+[uri #newformatter [cmd "newFormatter"]] methods. The class takes
+care of mapping raw event data to its publisher's metadata for
+localized messages, levels, tasks etc.
+
+[para]
+Alternatively, the following lower level functions may be used. These
+leave the caller responsible for retrieving associated publisher
+metadata if needed.
+
+[list_begin opt]
+[opt_def [uri #evt_event_logpath [cmd evt_event_logpath]]]
+Returns the channel or file from which the event was read.
+[opt_def [uri #evt_event_render [cmd evt_event_render]]]
+Returns event fields as a list based on a rendering context.
+[opt_def [uri #evt_event_xml [cmd evt_event_xml]]]
+Returns the event fields in XML format. Does not include rendered
+messages. Use the [cmd EvtFormatter]
+[uri #formateventasxml [cmd formatEventAsXml]] if that is
+required.
+[list_end]
+
+The [cmd evt_event_render] command requires a
+[emph "render context"] to be passed which selects the event properties
+that are to be rendered from an event. The following commands create
+a render context.
+
+[list_begin opt]
+[opt_def [uri #evt_render_context_system [cmd evt_render_context_system]]]
+Returns a handle to a render context for system-defined fields.
+[opt_def [uri #evt_render_context_userdata [cmd evt_render_context_userdata]]]
+Returns a handle to a render context for publisher-defined fields.
+[opt_def [uri #evt_render_context_xpaths [cmd evt_render_context_xpaths]]]
+Returns a handle to a render context for fields matching
+XPATH expressions.
+[list_end]
+
+[section Subscriptions]
+
+Applications can register to be notifified of event arrivals through the
+[uri #evtsubscriber [cmd EvtSubscriber]] class, instances of which are
+created by the [cmd EvtSession] [uri #createsubscriber [cmd createSubscriber]]
+or [uri #newsubscriber [cmd newSubscriber]] methods. Notifications may
+be synchronous via the [uri #waitforevent [cmd waitForEvent]] or through
+callbacks registered with [uri #registercallback [cmd registerCallback]].
+
+[section "Writing events"]
+
+The [uri #evtlog [cmd evt_log]] command writes events to the
+[const Twapi-App/Operational] event log channel on the local system.
+
+[section Publishers]
+An event [emph publisher], or [emph provider] (the Windows SDK uses the term
+interchangeably) defines the structure of events it may generate, the channels
+to which it writes events, and localized message strings. This structure is
+described by metadata in a publisher manifest that is installed on the system
+or in [uri #archivelogfile "archived event files"] so it can be accessed without
+registration on the system. The commands
+[uri #evtpublisherinstall [cmd evt_publisher_install]] and
+[uri #evtpublisherinstall [cmd evt_publisher_install]] respectively install
+and uninstall publisher metadata in the local system.
+[para]
+The list of publishers registered on a system can be retrieved with the
+[cmd EvtSession] [uri #publishers [cmd "publishers"]] method.
+
+[para]
+The [uri #evtpublisher [cmd EvtPublisher]] class encapsulates publisher metadata.
+Objects of this class are created by the
+[cmd EvtSession] [uri #createpublisher [cmd "createPublisher"]] or
+[uri #newpublisher [cmd "newPublisher"]] methods. [cmd EvtPublisher] methods
+can be then be used to retrieve various metadata for the publisher.
+
+[section Bookmarks]
+An EVT [emph bookmark] identifies a specific event in an event log. Bookmarks are
+created with [uri #evt_bookmark_create [cmd evt_bookmark_create]] and
+set to point to a specific event either by passing a
+XML representation previously generated with
+[uri #evt_bookmark_render [cmd evt_bookmark_render]] to that command or
+with [uri #evt_bookmark_update [cmd evt_bookmark_update]] when given
+a event handle. A bookmark may be used to resume reading events from its
+targeted event by passing it to
+[cmd EvtReader] [uri #seek [cmd seek]] method or for initializing a
+[uri #evtsubscriber subscription].
+
+[section Commands]
+
+[list_begin definitions]
+
+[call [cmd evt_bookmark_create] [opt [arg XML]]]
+Creates and returns a handle to an event bookmark. A bookmark identifies a
+specific event in an event log and may be used to restart event processing from
+that event at a later time.
+If [arg XML] is specified, it must be the XML representation of a
+bookmark as previously returned by
+[uri #evt_bookmark_render [cmd evt_bookmark_render]].
+[nl]
+The returned bookmark identifies the event represented by the XML. If [arg XML]
+is an empty string, the returned bookmark is not associated with any event and
+may subsequently be updated using [cmd evt_bookmark_update].
+[nl]
+The returned handle should be released via [cmd evt_close].
+
+[call [cmd evt_bookmark_render] [arg HBOOOK]]
+Returns the XML form of a bookmark. This can then be passed to the
+[uri #evt_bookmark_create [cmd evt_bookmark_create]] command to
+recreate the bookmark to an event at some later time.
+
+[call [cmd evt_bookmark_update] [arg HBOOK] [arg HEVT]]
+
+Updates the bookmark specified by its handle [arg HBOOK]
+to identify the event specified by the event handle [arg HEVT].
+
+[call [cmd evt_close] [opt "[arg HEVT] [arg HEVT]..."]]
+Close handles returned by various EVT API's. Primary purpose is to
+close event handles returned by [uri #getEvents [cmd getEvents]].
+
+[call [cmd evt_event_logpath] [arg HEVT]]
+Returns the path of the channel or file from which the event
+identified by [arg HEVT] was retrieved.
+
+[call [cmd evt_event_render] [arg HEVENT] [arg HCTX]]
+Returns a list of field values from event referenced by [arg HEVENT]
+as per the rendering context referenced by [arg HCTX] which must be
+a handle returned by
+[uri #evt_render_context_xpaths [cmd evt_render_context_xpaths]],
+[uri #evt_render_context_userdata [cmd evt_render_context_userdata]], or
+[uri #evt_render_context_system [cmd evt_render_context_system]].
+The order of values in the first two cases is the order of the XPATHS
+in the render context and order of event's user data fields respectively. In
+the third case, the order is always that of the
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_system_property_id "EVT_SYSTEM_PROPERTY_ID"]
+enumeration in the Windows SDK.
+
+[call [cmd evt_event_xml] [arg HEVENT]]
+
+Returns the XML representation of the event referenced by [arg HEVENT],
+including including system-defined metadata and provider-defined event data.
+
+[call [cmd evt_log] [arg LEVEL] [arg MESSAGE] [opt [arg options]]]
+Writes an event to the [const Twapi-App/Operational] channel on the local
+system. The Twapi event provider should have been previously registered
+on the system by some means such as the
+[uri #evttwapiinstall [cmd evt_twapi_install]] command. Otherwise, logged
+events are silently discarded by the system.
+[nl]
+[arg LEVEL] should be an integer or one of [const critical], [const error],
+[const warning], [const informational] or [const verbose]. [arg MESSAGE]
+is an arbitrary string. The message logged to the channel automatically
+includes the path of the executable and the application name, which is
+just [const "Tcl Application"] by default but can be changed by passing
+the [cmd -application] option to the command.
+
+[call [cmd evt_publisher_install] [arg MANPATH] [arg RESPATH] [arg MSGPATH]]
+
+Registers an event publisher with the local system. [arg MANPATH], [arg RESPATH]
+and [arg MSGPATH] are the paths to the publisher's manifest file, resource file
+and message files respectively. The command may display an elevation prompt if
+the process is not running in elevated mode.
+
+[call [cmd evt_publisher_uninstall] [arg MANPATH]]
+
+Unregisters an event publisher with the local system. [arg MANPATH] is the path
+to the publisher's manifest file. The command may display an elevation prompt if
+the process is not running in elevated mode.
+
+[call [cmd evt_render_context_system]]
+Returns a handle to a render context that can be passed to
+[uri #evt_event_render [cmd evt_event_render]] to render the
+system-defined properties of an event.
+[nl]
+The returned handle should be released using [uri #evt_close [cmd evt_close]]
+when no longer needed.
+
+[call [cmd evt_render_context_userdata]]
+Returns a handle to a render context that can be passed to
+[uri #evt_event_render [cmd evt_event_render]] to render the
+user-defined properties of an event under the [const UserData]
+section of the event, and the [const EventData] section if no
+[const UserData] section is present.
+[nl]
+The returned values correspond to the properties defined by the
+publisher in the event schema and returned in the same order.
+[nl]
+The returned handle should be released using [uri #evt_close [cmd evt_close]]
+when no longer needed.
+
+[call [cmd evt_render_context_xpaths] [arg XPATHLIST]]
+
+Returns a handle to a render context for rendering the event properties
+selected by the list of XPATH expressions passed in [arg XPATHLIST]
+which must contain at least one XPATH expression.
+The handle can then be passed to
+[uri #evt_event_render [cmd evt_event_render]] to render the selected
+property values.
+[nl]
+Each element of [arg XPATHLIST] specifies an XPath expression that
+selects a [emph single] property from an event, for example
+[const Event/System/Provider/@Name] or [const Event/System/Channel].
+The values are returned in the
+same order as the corresponding XPath expressions in the list.
+[nl]
+The returned handle should be released using [cmd evt_close].
+
+[call [cmd evt_twapi_install]]
+
+Registers the TWAPI event publisher with the local system. The command may
+display an elevation prompt if the process is not running in elevated mode.
+
+[call [cmd evt_twapi_uninstall]]
+
+Unregisters the TWAPI event publisher from the local system.
+
+[call [cmd EvtFormatter]]
+Class for rendering and formatting events.
+To guard against future implementation changes, objects of
+this class should be created through
+[uri #evtsessioncreate [cmd EvtSession]] methods
+[uri #createformatter [cmd createFormatter]] or
+[uri #newformatter [cmd newFormatter]] and not directly.
+
+[call "[arg EVTFMTOBJ] [cmd decodeEvent]" [arg HEVT] [arg PROPERTIES]]
+
+Returns a dictionary containing event data in fully decoded form.
+[arg HEVT] is a handle to a single event. See the
+[uri #decodeevents [cmd decodeEvents]] method for more information.
+This method only differs in that it accepts a single handle and
+return format is a dictionary.
+
+[call "[arg EVTFMTOBJ] [cmd decodeEvents]" [arg HEVTS] [arg PROPERTIES]]
+
+Returns a [uri base.html#recordarrays "record array"] containing
+event data in fully decoded form. [arg HEVTS] is a list of handles
+to events as returned from [uri #getEvents [cmd getEvents]].
+The fields of the record array are those specified in [arg PROPERTIES]
+which defaults to the list [const -providername], [const -eventid],
+[const -level], [const -timecreated] and [const -message].
+The table below shows the possible event fields that may be included
+in [arg PROPERTIES].
+[list_begin opt]
+[opt_def [cmd -activityid]]
+GUID containing the activity id associated with the event.
+[opt_def [cmd -channel]]
+The channel to which the event was logged.
+[opt_def [cmd -computer]]
+The name of the system on which the event was logged.
+[opt_def [cmd -eventid]]
+The event id for the event's definition in the publisher's metadata.
+[opt_def [cmd -eventrecordid]]
+The id of this event record.
+[opt_def [cmd -keywords]]
+Contains a list of keywords with which the event is tagged.
+[opt_def [cmd -level]]
+The localized string associated by the publisher with the numeric level.
+[opt_def [cmd -message]]
+Contains the localized formatted message corresponding to the event. This
+is similar to what is displayed in the Windows Event Viewer application.
+[opt_def [cmd -opcode]]
+The localized string associated by the publisher with the event opcode.
+[opt_def [cmd -pid]]
+The process id of the process that logged the event.
+[opt_def [cmd -providerguid]]
+The GUID of the logging event provider.
+[opt_def [cmd -providername]]
+The name of the logging event provider.
+[opt_def [cmd -qualifiers]]
+The high 16 bits of the event id for legacy event providers. This is combined with
+the [cmd -eventid] field as low 16 bits to form a 32-bit id to retrieve messages.
+[opt_def [cmd -relatedactivityid]]
+GUID containing the relative activity id associated with the event.
+[opt_def [cmd -task]]
+The localized string associated by the publisher with the event task property.
+[opt_def [cmd -tid]]
+The thread id of the logging thread.
+[opt_def [cmd -timecreated]]
+The time the event was logged in 100ns units since January 1, 1601 UTC.
+[opt_def [cmd -sid]]
+The SID of the account under which the logging thread was running.
+[opt_def [cmd -userdata]]
+A list of the publisher-specific properties for the event.
+[opt_def [cmd -version]]
+The version of the event definition.
+[list_end]
+
+[call "[arg EVTFMTOBJ] [cmd formatEvent]" [arg HEVT]]
+Returns the localized formatted message form of an event.
+[arg HEVT] is a handle to an event.
+
+[call "[arg EVTFMTOBJ] [cmd formatEventAsXml]" [arg HEVT]]
+Returns event data in XML format. [arg HEVT] is a handle to an event.
+Unlike the [uri #evteventxml [cmd evt_event_xml]] command, this includes
+a [const <RenderingInfo>] XML element with the localized strings for the event.
+
+[call [cmd EvtChannelConfig]]
+Class wrapping a handle to a channel configuration information.
+To guard against future implementation changes, objects of
+this class should be created through
+[uri #evtsessioncreate [cmd EvtSession]] methods
+[uri #createchannelconfig [cmd createChannelConfig]] or
+[uri #newchannelconfig [cmd newChannelConfig]] and not directly.
+[nl]
+Note that changes made to a channel configuration to not take effect
+until they are saved.
+
+[call "[arg EVTCHANCFG] [cmd access]"]
+Returns an SDDL access descriptor that controls access to the channel and the backing
+store in conjunction with the [cmd -isolation] property.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.access].
+[call "[arg EVTCHANCFG] [cmd bufferSize]"]
+Returns memory buffer size for the channel in Kilobytes.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.bufferSize].
+[call "[arg EVTCHANCFG] [cmd clockType]"]
+Returns [const 0] if using system time for time stamps and [const 1] for QPC.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.clockType].
+[call "[arg EVTCHANCFG] [cmd controlGuid]"]
+Returns session GUID for a ETW session. Generally not present for event log channels.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.controlGuid].
+[call "[arg EVTCHANCFG] [cmd filePath]"]
+Returns path of the backing log file. There may be environment variable
+references in the returned path. These can be expanded with
+[uri process.html#expandenvironmentvars [cmd expand_environment_vars]].
+[call "[arg EVTCHANCFG] [cmd hasAutoBackup]"]
+Returns [const 1] if a new log file is created when the current backing file reaches its
+maximum size and [const 0] otherwise. In the former case, [cmd -retention] must
+have a true value.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.retention].
+[call "[arg EVTCHANCFG] [cmd isClassic]"]
+Returns [const 1] or [const 0] indicating whether the channel is a classic (pre-Vista)
+channel or not.
+[call "[arg EVTCHANCFG] [cmd isEnabled]"]
+Returns [const 1] or [const 0] depending on whether the channel is enabled or not.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.enabled].
+[call "[arg EVTCHANCFG] [cmd isolation]"]
+Returns one of [const 0] (Application), [const 1] (System) or [const 2] (Custom).
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.isolation].
+[call "[arg EVTCHANCFG] [cmd keywordFilter]"]
+If [const 0] or unset (empty), events are written irrespective of keywords. Otherwise,
+only events that have a keyword included in the bitmask are written to the
+channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.keywords].
+[call "[arg EVTCHANCFG] [cmd latency]"]
+Returns milliseconds to wait before flushing buffers. If 0, buffers are flushed only
+when full.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.latency].
+[call "[arg EVTCHANCFG] [cmd levelFilter]"]
+Returns the severity level threshold for writing events to the channel. Events with
+severity values above this are ignored. If [const 0] or unset (empty), all
+events are written to the channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.level].
+[call "[arg EVTCHANCFG] [cmd maxBuffers]"]
+Returns maximum number of buffers to allocate for the channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.maxBuffers].
+[call "[arg EVTCHANCFG] [cmd maxFiles]"]
+Returns maximum number of times a new log file should be created when the channel is
+enabled including reboots.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.fileMax].
+[call "[arg EVTCHANCFG] [cmd maxSize]"]
+Returns maximum size of the log file.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.maxSize].
+[call "[arg EVTCHANCFG] [cmd minBuffers]"]
+Returns minimum number of buffers to allocate for the channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.minBuffers].
+[call "[arg EVTCHANCFG] [cmd name]"]
+Returns name of the channel.
+[call "[arg EVTCHANCFG] [cmd publisher]"]
+Returns name of the publisher defining the channel.
+[call "[arg EVTCHANCFG] [cmd publishers]"]
+Returns list of publishers logging to the channel including the owning publisher that
+defined the channel as well as those importing the channel.
+[call "[arg EVTCHANCFG] [cmd retention]"]
+Returns [const 1] or [const 0] depending on whether the backing log file is sequential
+or circular.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.retention].
+[call "[arg EVTCHANCFG] [cmd save]"]
+Save changes made to the channel configuration.
+[call "[arg EVTCHANCFG] [cmd setAccess]"]
+Sets the SDDL access descriptor that controls access to the channel and the backing
+store in conjunction with the [cmd -isolation] property.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.access].
+[call "[arg EVTCHANCFG] [cmd setAutoBackup]" [arg BOOL]]
+If set to true,
+a new log file is created when the current backing file reaches its
+maximum size. In the former case, [uri #retention [cmd retention]] must
+also be true.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.autoBackup].
+[call "[arg EVTCHANCFG] [cmd setEnabled]" [arg BOOL]]
+Sets the channel to be enabled if [arg BOOL] is true and disabled
+if false.
+[call "[arg EVTCHANCFG] [cmd setFilePath]" [arg FILEPATH]]
+Sets the path of the backing log file.
+[call "[arg EVTCHANCFG] [cmd setIsolation]" [arg ISOLATION]]
+Sets the isolation level for the channel.
+[arg ISOLATION] must be
+one of [const 0] (Application), [const 1] (System) or [const 2] (Custom).
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.isolation].
+[call "[arg EVTCHANCFG] [cmd setKeywordFilter]" [arg KEYFILTER]]
+Sets the keyword filter for the channel. If [const 0], event keywords
+are not used to filter events.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.keywords].
+[call "[arg EVTCHANCFG] [cmd setLevelFilter]"]
+Sets the severity level threshold for writing events to the channel. Events with
+severity values above this are ignored. If [const 0] or unset (empty), all
+events are written to the channel.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.level].
+[call "[arg EVTCHANCFG] [cmd setMaxFiles]"]
+Sets the maximum number of times a new log file should be created when the channel is
+enabled including reboots.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.fileMax].
+[call "[arg EVTCHANCFG] [cmd setMaxSize]"]
+Sets the maximum size of the log file.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.maxSize].
+[call "[arg EVTCHANCFG] [cmd setRetention]" [arg BOOL]]
+Set to [const 1] if events are to be retained when file is at max size limit
+or [const 0] if old events are to be overwritten.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelloggingtype-complextype ChannelLoggingType.retention].
+[call "[arg EVTCHANCFG] [cmd sidType]"]
+Returns [const 1] or [const 0] indicating whether the SID of the logging principal
+should be included in events logged to the channel or not.
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channelpublishingtype-complextype ChannelPublishingType.sidType].
+[call "[arg EVTCHANCFG] [cmd type]"]
+Returns one of [const 0] (Admin), [const 1] (Operational), [const 2]
+(Analytic) or [const 3] (Debug).
+See [uri https://learn.microsoft.com/en-us/windows/win32/wes/eventmanifestschema-channeltype-complextype ChannelType.type].
+
+[call [cmd EvtLogInfo]]
+Class holding information about an event log channel or file.
+To guard against future implementation changes, objects of
+this class should be created through
+[uri #evtsessioncreate [cmd EvtSession]] methods
+[uri #createloginfo [cmd createLogInfo]] or
+[uri #newloginfo [cmd newLogInfo]] and not directly.
+
+[call "[arg EVTLOGINFOOBJ] [cmd attributes]"]
+Bit mask of the file
+[uri https://learn.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants attributes].
+[call "[arg EVTLOGINFOOBJ] [cmd creationTime]"]
+Time the channel or file was created in units of 100 nanoseconds.
+since Jan 1, 1601.
+[call "[arg EVTLOGINFOOBJ] [cmd fileSize]"]
+Size of the file in bytes. In the case of channels, the size of the backing store.
+[call "[arg EVTLOGINFOOBJ] [cmd isFull]"]
+Boolean indicating if the event log channel or file is full.
+[call "[arg EVTLOGINFOOBJ] [cmd lastAccessTime]"]
+Time the channel or file was last accessed in units of 100 nanoseconds
+since Jan 1, 1601.
+[call "[arg EVTLOGINFOOBJ] [cmd lastWriteTime]"]
+Time of writing the most recent event to the channel or file
+in units of 100 nanoseconds since Jan 1, 1601.
+[call "[arg EVTLOGINFOOBJ] [cmd logName]"]
+Name of the channel or file.
+[call "[arg EVTLOGINFOOBJ] [cmd logType]"]
+One of [const channel] or [const file].
+[call "[arg EVTLOGINFOOBJ] [cmd oldestRecordNumber]"]
+Record number of the oldest record in the file.
+[call "[arg EVTLOGINFOOBJ] [cmd recordCount]"]
+Number of event records in the channel or file.
+
+[call [cmd EvtPublisher]]
+Class wrapping a handle to the metadata of an event publisher.
+To guard against future implementation changes, objects of
+this class should be created through
+[uri #evtsessioncreate [cmd EvtSession]] methods
+[uri #createPublisher [cmd createPublisher]] or
+[uri #newpublisher [cmd newPublisher]] and not directly.
+
+[call "[arg EVTPUBOBJ] [cmd channels]"]
+Returns a list of the publisher's channel definitions. Each element is
+a dictionary with the following keys:
+[list_begin opt]
+[opt_def [cmd -channelid]]
+The numeric id assigned to the channel as per its value attribute.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceID]
+[opt_def [cmd -channelindex]]
+The zero-based index value of the channel in the publisher's channel list.
+May be [const -1] in some cases, for example imported channels unreferenced
+from any events.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceIndex].
+[opt_def [cmd -channelflags]]
+[const 1] if the channel was imported from another publisher's manifest.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceFlags]
+[opt_def [cmd -channelmessageid]]
+Contains the numeric message id for the channel name.
+This can be passed
+to the [uri #message [cmd message]] method to retrieve the name of the
+channel, generally the last component of the full channel path.
+[const -1] if not defined.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferenceMessageID]
+[opt_def [cmd -channelpath]]
+Contains the canonical full path of the channel, e.g.
+[const Microsoft-Windows-EventLog/Debug].
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataChannelReferencePath].
+[list_end]
+
+[call "[arg EVTPUBOBJ] [cmd events]" [arg PROPNAMES]]
+Returns a list of the publisher's event definitions.
+Each event's definition
+includes the event's metadata properties as a dictionary keyed by
+the event property names passed in [arg PROPNAMES].
+[list_begin opt]
+[opt_def -channel]
+The numeric value attribute of the associated channel. 0 if no association.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventChannel].
+[opt_def -eventid]
+The numeric value attribute of the event definition which is its id when
+the event is logged.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventID].
+[opt_def -keywords]
+64-bit keyword mask of the all keywords for the event definition.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventKeyword].
+[opt_def -level]
+The level attribute of the event definition. 0 if not specified.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventLevel].
+[opt_def -messageid]
+Message id attribute that can be passed to the
+[uri #message [cmd message]] method to retrieve the localized string
+for the event. [const -1] if unassigned.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventMessageID].
+[opt_def -opcode]
+The opcode attribute of the event. 0 if not specified.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventOpcode].
+[opt_def -task]
+The task attribute of the event. 0 if not specified.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventTask].
+[opt_def -template]
+The XML string from the template attribute of the event definition.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventTemplate].
+[opt_def -version]
+The version attribute of the event definition.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_event_metadata_property_id EventMetadataEventVersion].
+[list_end]
+
+[call "[arg EVTPUBOBJ] [cmd guid]"]
+Returns the GUID of the publisher whose metadata is encapsulated by [arg EVTPUBOBJ].
+
+[call "[arg EVTPUBOBJ] [cmd handle]"]
+Returns the EVT handle of the publisher metadata encapsulated by [arg EVTPUBOBJ].
+
+[call "[arg EVTPUBOBJ] [cmd helpLink]"]
+Returns the URL of the publisher's help page.
+
+[call "[arg EVTPUBOBJ] [cmd keywordLabels]"]
+Returns a dictionary mapping keyword decimal values to localized labels.
+
+[call "[arg EVTPUBOBJ] [cmd keywords]"]
+Returns a list of the publisher's keyword definitions. Each element is
+a dictionary with the following keys.
+[list_begin opt]
+[opt_def -messageid]
+Message id attribute of the keyword that can be passed to the
+[uri #message [cmd message]] method to retrieve the localized string
+for the keyword. [const -1] if undefined.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordMessageID].
+[opt_def -name]
+Name attribute of the keyword.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordName].
+[opt_def -value]
+Value attribute of the keyword.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataKeywordValue].
+[list_end]
+
+[call "[arg EVTPUBOBJ] [cmd lcid]"]
+The locale id that will be used to access the publisher metadata
+encapsulated by [arg EVTPUBLOBJ].
+
+[call "[arg EVTPUBOBJ] [cmd levelLabels]"]
+Returns a dictionary mapping event level decimal values to localized labels.
+
+[call "[arg EVTPUBOBJ] [cmd levels]"]
+Returns a list of the publisher's event level definitions. Each element is
+a dictionary with the following keys:
+[list_begin opt]
+[opt_def -messageid]
+Message id attribute that can be passed to the
+[uri #message [cmd message]] method to retrieve the localized string
+for the level. [const -1] if undefined.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataMessageID].
+[opt_def -name]
+Name attribute of the level.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataLevelName].
+[opt_def -value]
+Value attribute of the level.
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataLevelValue].
+[list_end]
+
+[call "[arg EVTPUBOBJ] [cmd message]" [arg MSGID]]
+Returns the localized string for message id [arg MSGID].
+
+[call "[arg EVTPUBOBJ] [cmd messageFile]"]
+Returns the path to the publisher's message file.
+
+[call "[arg EVTPUBOBJ] [cmd messageId]"]
+Message id attribute that can be passed to the
+[uri #message [cmd message]] method to retrieve the localized string
+for the publisher name. [const -1] if undefined.
+
+[call "[arg EVTPUBOBJ] [cmd name]"]
+Returns the name of the publisher whose metadata is wrapped by [arg EVTPUBOBJ].
+
+[call "[arg EVTPUBOBJ] [cmd opcodeLabels]"]
+Returns a dictionary mapping opcode decimal values to localized labels.
+
+[call "[arg EVTPUBOBJ] [cmd opcodes]"]
+Returns a list of the publisher's opcode definitions. Each element is
+a dictionary with the following keys:
+[list_begin opt]
+[opt_def -messageid]
+Message id attribute that can be passed to the
+[uri #message [cmd message]] method to retrieve the localized string
+for the opcode. [const -1] if undefined.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeMessageID].
+[opt_def -name]
+Name attribute of the opcode.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeName].
+[opt_def -task]
+The task id for task-specific opcodes. [const 0] for opcodes that are not
+task-specific.
+[opt_def -value]
+The opcode value.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataOpcodeValue].
+[list_end]
+
+[call "[arg EVTPUBOBJ] [cmd parameterFile]"]
+Returns the path to the publisher's parameter file.
+
+[call "[arg EVTPUBOBJ] [cmd resourceFile]"]
+Returns the path to the publisher's resource file.
+
+[call "[arg EVTPUBOBJ] [cmd taskNames]"]
+Returns a dictionary mapping task decimal values to localized labels.
+
+[call "[arg EVTPUBOBJ] [cmd tasks]"]
+Returns a list of the publisher's opcode definitions. Each element is
+a dictionary with the following keys:
+[list_begin opt]
+[opt_def -eventguid]
+The eventGuid attribute of the task.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskEventGuid].
+[opt_def -messageid]
+Message id attribute that can be passed to the
+[uri #message [cmd message]] method to retrieve the localized string
+for the task. [const -1] if undefined.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskMessageID].
+[opt_def -name]
+Name attribute of the task.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskName]
+[opt_def -value]
+Value attribute of the task.
+See [uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_publisher_metadata_property_id EvtPublisherMetadataTaskValue].
+[list_end]
+
+[call [cmd EvtReader]]
+
+[uri #evtreader [cmd EvtReader]] class instances can be used to read
+events from a result set returned by a query on channels or event log files.
+To guard against future implementation changes, objects of
+this class should be created through
+[uri #evtsessioncreate [cmd EvtSession]] methods
+[uri #createreader [cmd createReader]] or
+[uri #newreader [cmd newReader]] and not directly.
+
+[call "[arg EVTREADEROBJ] [cmd getEvents]" [opt [arg options]]]
+Returns a list containing events from an event result set.
+The returned list elements are event handles which can be rendered
+using [uri #evtformatter [cmd EvtFormatter]] or commands
+[uri #evteventxml [cmd evt_event_xml]] and
+[uri #evteventrender [cmd evt_event_render]].
+The event handles
+must be explicitly closed via [uri #evt_close [cmd evt_close]].
+They are not automatically closed along with the session.
+[nl]
+The command returns an empty list if no more events are available
+in the result set. Additional events logged to the channel subsequent
+to the query are not returned.
+[nl]
+The cursor in the event result set is moved past the returned events
+so each [cmd getEvents] call returns events from the result set in sequence.
+[nl]
+The following options can be specified:
+[list_begin opt]
+[opt_def [cmd -count] [arg COUNT]]
+Returns [arg COUNT] events from the result set. The actual number of
+events returned may be less due to memory constraints or
+if the end of the result set is reached.
+If unspecified, the number of returned events depends on various
+internal tuning factors and applications must not rely on a specific
+number being returned.
+[opt_def [cmd -statusvar] [arg VARNAME]]
+The name of a variable in which to return status. If there is an
+error when reading the next event, the command will normally generate
+an Tcl exception. If this option is specified, the command will instead
+return an empty list and store the Windows error code in the specified
+variable. This includes the case where no more events are available
+where the error code is [const 259] ([cmd ERROR_NO_MORE_ITEMS]).
+[list_end]
+
+[call "[arg EVTREADEROBJ] [cmd handle]"]
+Returns the handle to the underlying EVT query.
+
+[call "[arg EVTREADEROBJ] [cmd info]"]
+Returns the status information for a query. For a structured XML
+query, this is a list each element of which is a pair consisting of
+a channel name in the query and a Win32 error code.
+
+[call "[arg EVTREADEROBJ] [cmd seek]" [arg OFFSET] [opt [arg options]]]
+
+Changes the position of the cursor from which events are read in the
+wrapped result set by [arg OFFSET] records. A negative value will move
+the cursor in the backward direction. A positive value will move it
+forward. By default the offset is interpreted relative to the current
+position of the cursor. The following options may be passed to the
+method.
+
+[list_begin opt]
+[opt_def [cmd -hbookmark] [arg HBOOK]]
+Causes [arg OFFSET] to be interpreted relative to the bookmark referenced
+by the handle [arg HBOOK].
+[opt_def [cmd -origin] [arg ORIGIN]]
+Causes [arg OFFSET] to be interpreted relative to the current cursor
+position, the first record of the result set or the last for [arg ORIGIN] values
+[const current], [const first] and [const last] respectively.
+[opt_def [cmd -strict]]
+If specified, the command will raise an error if the offset or bookmark
+seeks past the boundaries of the result set. By default, the cursor is
+set to the position of the record at the boundary in such cases.
+[list_end]
+
+[call [cmd "EvtSession create"] [arg EVTSESSOBJ] [opt [arg options]]]
+Creates a new TclOO object named [arg EVTSESSOBJ] encapsulating an event
+log session. The command returns the fully qualified name of the
+object.
+[nl]
+By default, the session is created for the local system
+using the current process credentials.
+The following options may be specified to instead connect to
+a remote system or use different credentials.
+
+[list_begin opt]
+[opt_def -authtype [arg AUTHTYPE]]
+Specifies the
+[uri https://learn.microsoft.com/en-us/windows/win32/api/winevt/ne-winevt-evt_rpc_login_flags "authentication method"]
+to use for the connection.
+
+[opt_def -domain [arg DOMAIN]]
+Specifies the domain for the account specified by the [cmd -user]
+option. This may be a Windows domain name or the name of the remote
+computer for local accounts.
+
+[opt_def -password [arg PASSWORD]]
+Specifies the password corresponding to the account specified by the
+[cmd -user] option. Must be in
+[uri base.html#passwordprotection "encrypted form"].
+
+[opt_def -system [arg SYSTEMNAME]]
+Connects to the event log service on the system named [arg SYSTEMNAME]
+
+[opt_def -user [arg USERNAME]]
+Specifies the user account to use for the connection.
+If omitted, the credentials of the current process are used.
+
+[list_end]
+
+[call [cmd "EvtSession new"] [opt [arg options]]]
+
+Creates a new TclOO object with a unique name encapsulating an event log
+session. Aside from generation of the object name, behaves identically
+to [uri #evtsessioncreate [cmd "EvtSession create"]]
+
+[call "[arg EVTSESSOBJ] [cmd archiveLogFile]" [arg LOGFILE] [opt "[cmd -lcid] [arg LCID]"]]
+Adds localized strings to the events in the previously exported event log
+file [arg LOGFILE]. Option [cmd -lcid] specifies the locale to use and defaults
+to the process locale.
+
+[call "[arg EVTSESSOBJ] [cmd clearChannel] [arg CHANNAME] [opt [arg options]]"]
+Clears the specified channel. If option [cmd -backup] is specified, the channel
+event records are backed up to the file whose path is given by the option value.
+
+[call "[arg EVTSESSOBJ] [cmd createChannelConfig]" [arg CHANCFGOBJ] [arg CHANNAME]]
+Creates a TclOO object named [arg CHANCFGOBJ]
+of class [uri #evtchannelconfig [cmd EvtChannelConfig]]
+and returns its fully qualified name. The object wraps a handle to the
+configuration information for the channel [arg CHANNAME]. The returned object
+is automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+
+[call "[arg EVTSESSOBJ] [cmd createLogInfo]" [arg EVTLOGINFOOBJ] [opt [arg options]]]
+Creates a TclOO object named [arg EVTLOGINFOOBJ] of class
+[uri #evtloginfo [cmd EvtLogInfo]] and returns its fully qualified name.
+The object wraps a handle to the configuration information for a channel or event
+log file. The returned object is automatically destroyed when
+[arg EVTSESSOBJ] is destroyed.
+[nl]
+The channel or log file is specified through one of the following options.
+The [cmd Application] channel is the default if no options are passed.
+[list_begin opt]
+[opt_def [cmd -channel] [arg CHANNAME]]
+The name of the channel to export. Must not be specified with [cmd -logfile].
+[opt_def [cmd -logfile] [arg INFILE]]
+The path to a event log file from which to read events.
+Must not be specified with [cmd -channel].
+[list_end]
+
+[call "[arg EVTSESSOBJ] [cmd createPublisher]" [arg EVTPUBOBJ] [arg PUBNAME] [opt [arg options]]]
+Creates a TclOO object named [arg EVTPUBOBJ] of class
+[uri #evtpublisher [cmd EvtPublisher]]
+and returns its fully qualified name. The object wraps a handle to the
+metadata for the publisher named [arg PUBNAME]. The returned object is
+automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+[nl]
+The following options may be passed to the command.
+[list_begin opt]
+[opt_def [cmd -lcid] [arg LCID]]
+The LCID for accessing localized metadata. The default value of `0` uses
+the thread's locale.
+[opt_def [cmd -logarchive] [arg LOGARCHIVE]]
+Path to an [uri #archivelogfile archived] log holding the publisher
+metadata instead of the default metadata installed on the system.
+[list_end]
+
+[call "[arg EVTSESSOBJ] [cmd createReader]" [arg EVTREADEROBJ] [opt [arg options]]]
+Creates a TclOO object named [arg EVTREADEROBJ] of class
+[uri #evtreader [cmd EvtReader]]
+and returns its fully qualified name. The object wraps a handle to
+a EVT result set containing events from one or more channels or an
+event log file. The returned object is
+automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+[nl]
+The following options may be passed to select events to be included
+in the result set.
+[list_begin opt]
+[opt_def [cmd -channel] [arg CHANNAME]]
+Specifies the event channel from which events are to be read. Cannot
+be used with the [cmd -file] option. Defaults to the [const Application]
+channel if neither [cmd -channel] nor [cmd -logfile] is passed.
+[opt_def [cmd -direction] [arg DIRECTION]]
+If [arg DIRECTION] is [const forward] events are returned oldest
+first. If [arg DIRECTION] is [const backward], events are returned
+newest first.
+[opt_def [cmd -logfile] [arg LOGFILE]]
+Specifies the event file from which events are to be read. Cannot
+be used with the [cmd -channel] option.
+[opt_def [cmd -ignorequeryerrors]]
+Normally, if retrieving a specific event results in an error, Windows
+will fail the query and a Tcl exception will be raised.
+If [cmd -ignorequeryerrors] is specified, such events are simply skipped
+and any further events are returned.
+[opt_def [cmd -query] [arg QUERY]]
+Specifies the selection criteria for events that should be included in the
+returned result set.
+[arg QUERY] should be the empty string or [const *] (for all events, default),
+an XPATH expression or a structured XML query. See
+[uri https://learn.microsoft.com/en-us/windows/win32/wes/consuming-events "SDK documentation"].
+[list_end]
+
+[call "[arg EVTSESSOBJ] [cmd createSubscriber]" [arg EVTSUBSCRIBEROBJ] [arg CHANNAME] [opt [arg options]]]
+Creates a TclOO object named [arg EVTSUBSCRIBEROBJ] of class
+[uri #evtsubscriber [cmd EvtSubscriber]]
+and returns its fully qualified name. The object wraps a handle to an
+EVT event subscription containing events from one or more channels. The
+returned object is automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+[nl]
+The [arg CHANNAME] argument specifies the name of the channel. Pass an empty
+string if and only if the [cmd -query] option value is a structured XML query.
+[nl]
+The following options may be passed to select events to be included
+in the result set.
+[list_begin opt]
+[opt_def [cmd -hbookmark] [arg HBOOKMARK]]
+Handle to a bookmark. If specified, all events after the bookmark
+that match the query are included in the subscription.
+[opt_def [cmd -ignorequeryerrors]]
+Normally, if retrieving a specific event results in an error, Windows
+will fail the query and a Tcl exception will be raised.
+If this option is specified, such events are simply skipped
+and any further events are returned.
+[opt_def [cmd -includeexisting]]
+By default the command will only subscribe to new events. If this option
+is specified, notification is sent for existing events as well.
+[opt_def [cmd -query] [arg QUERY]]
+Specifies the selection criteria for events that should be included in the
+returned result set.
+[arg QUERY] should be an empty string or [const *] (for all events, default),
+an XPATH expression or a structured XML query. See
+[uri https://learn.microsoft.com/en-us/windows/win32/wes/consuming-events "SDK documentation"].
+[opt_def [cmd -strict]]
+If specified, an error is raised if the event referenced by passed bookmark
+does not exist.
+[list_end]
+
+[call "[arg EVTSESSOBJ] [cmd createFormatter]" [arg EVTFMTOBJ] [opt [arg options]]]
+Creates a TclOO object named [arg EVTFMTOBJ] of class
+[uri #evtformatter [cmd EvtFormatter]] and returns its fully qualified name.
+The object is automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+[nl]
+The following options may be passed to the command.
+[list_begin opt]
+[opt_def [cmd -lcid] [arg LCID]]
+The LCID for accessing localized metadata. The default value of [const 0] uses
+the thread's locale.
+[opt_def [cmd -logarchive] [arg LOGARCHIVE]]
+Path to an [uri #archivelogfile archived] log holding the publisher
+metadata instead of the default metadata installed on the system.
+[list_end]
+
+[call "[arg EVTSESSOBJ] [cmd destroy]"]
+Calling the [cmd destroy] method on a [cmd EvtSession] object will
+close the wrapped Win32 EVT session handle. Any objects created, such as
+[cmd EvtPublisher], [cmd EvtChannel] etc., through its factory
+methods will also be destroyed.
+
+[call "[arg EVTSESSOBJ] [cmd exportEvents]" [arg OUTFILE] [arg options]]
+Exports events from a channel, logfile or a query to the file [arg OUTFILE]
+which is overwritten. The following options may be specified.
+
+[list_begin opt]
+[opt_def -channel [arg CHANNAME]]
+The name of the channel to export. Must not be specified with [cmd -logfile].
+[opt_def -logfile [arg INFILE]]
+The path to a event log file from which to read events.
+Must not be specified with [cmd -channel].
+[opt_def -query [arg QUERY]]
+An XPath or structured XML query to select events to include in the export.
+A value of [const *] or the empty string selects all events.
+By default, all events are exported.
+[opt_def -ignorequeryerrors [arg BOOL]]
+If set to true, any errors in the query are ignored. Default is false.
+[list_end]
+
+[call "[arg EVTSESSOBJ] [cmd handle]"]
+Returns the wrapped Win32 EVT session handle.
+
+[call "[arg EVTSESSOBJ] [cmd isLocal]"]
+Return 1 if the session wrapped by the [arg SESSOBJ] object is the default local
+session and 0 otherwise.
+
+[call "[arg EVTSESSOBJ] [cmd newChannelConfig]" [arg CHANNAME]]
+Creates and returns a uniquely named TclOO object of class
+[uri #evtchannelconfig [cmd EvtChannelConfig]].
+The object wraps a handle to the
+configuration information for the channel [arg CHANNAME]. The returned object
+is automatically destroyed when [arg EVTSESSIONOBJ] is destroyed.
+
+[call "[arg EVTSESSOBJ] [cmd newLogInfo]" [opt [arg options]]]
+Creates and returns a uniquely named TclOO object of class
+[uri #evtloginfo [cmd EvtLogInfo]]. The object wraps a handle to the
+configuration information for a channel or event log file.
+The returned object is automatically destroyed when [arg EVTSESSIONOBJ]
+is destroyed. See [uri #createloginfo [cmd createLogInfo]] for options.
+
+[call "[arg EVTSESSOBJ] [cmd newPublisher]" [arg PUBNAME] [opt [arg options]]]
+Creates and returns a uniquely named TclOO object of class
+[uri #evtpublisher [cmd EvtPublisher]]. The object wraps a handle to the
+metadata for the publisher named [arg PUBNAME]. The returned object is
+automatically destroyed when [arg EVTSESSIONOBJ] is destroyed. See
+[uri #createpublisher [cmd createPublisher]] for options.
+
+[call "[arg EVTSESSOBJ] [cmd newReader]" [opt [arg options]]]
+Creates and returns a uniquely named TclOO object of class
+[uri #evtreader [cmd EvtReader]]. The object wraps a handle to the
+a EVT result set containing events from one or more channels or an
+event log file. The returned object is
+automatically destroyed when [arg EVTSESSIONOBJ] is destroyed. See
+[uri #createreader [cmd createReader]] for options.
+
+[call "[arg EVTSESSOBJ] [cmd newSubscriber]" [opt [arg options]]]
+Creates and returns a uniquely named TclOO object of class
+[uri #evtsubscriber [cmd EvtSubscriber]]. The object wraps a handle to the
+EVT event subscription containing events from one or more channels. The
+returned object is automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+See [uri #createsubscriber [cmd createSubscriber]] for options.
+
+[call "[arg EVTSESSOBJ] [cmd newFormatter]" [opt [arg options]]]
+Creates and returns a uniquely named TclOO object of class
+[uri #evtformatter [cmd EvtFormatter]].
+The object is automatically destroyed when [arg EVTSESSOBJ] is destroyed.
+See [uri #createformatter [cmd createFormatter]] for options.
+
+[call "[arg EVTSESSOBJ] [cmd publishers]"]
+Returns a list of the names of event publishers registered on
+the system connected by the session.
+
+[call "[arg EVTSESSOBJ] [cmd registeredChannels]"]
+Returns a list of channel names registered on the system.
+
+[call "[arg EVTSESSOBJ] [cmd with]" [arg FACTORY] [arg TARGETMETHOD]]
+This is a convenience method to create a Evt object belonging to the
+session with the [arg FACTORY] method, invoking the created object's
+[arg TARGETMETHOD] method and then destroying it. The command
+returns the result of the [arg TARGETMETHOD] invocation.
+
+[call [cmd EvtSubscriber]]
+
+Class for subscribing to events.
+To guard against future implementation changes, objects of
+this class should be created through
+[uri #evtsessioncreate [cmd EvtSession]] methods
+[uri #createsubscriber [cmd createSubscriber]] or
+[uri #newsubscriber [cmd newSubscriber]] and not directly.
+
+[call "[arg EVTSUBSCRIBEROBJ] [cmd registerCallback]" [arg CALLBACK] [opt [arg MILLISECS]]]
+
+Registers a callback to be invoked when an event is available on the
+subscribed channels. Any previously registered callback is replaced.
+[arg MILLISECS] defaults to [const -1] indicating no timeout. Otherwise
+the callback is invoked after [arg MILLISECS] irrespective of whether
+an event is available.
+The callback should call [uri #getEvents [cmd getEvents]] to retrieve
+new events but be prepared to handle the case that no events have
+actually arrived.
+
+[call "[arg EVTSUBSCRIBEROBJ] [cmd unregisterCallback]"]
+
+Unregisters callback previously registered with
+[uri #registercallback [cmd registerCallback]].
+
+[call "[arg EVTSUBSCRIBEROBJ] [cmd waitForEvents] [opt [arg MILLISECS]]"]
+
+Waits for [arg MILLISECS] till an event is available on the subscribed
+channels. [arg MILLISECS] defaults to [const -1] indicating no timeout.
+On return, the caller should call [uri #getEvents [cmd getEvents]]
+but be prepared to handle the case that no events have actually arrived.
+[nl]
+The method should not be called on subscriptions where a callback has
+been registered.
+
+[list_end]
+
+
+[keywords "event log"]
+
+[manpage_end]
