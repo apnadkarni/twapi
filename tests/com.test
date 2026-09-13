@@ -1678,7 +1678,7 @@ namespace eval twapi::com::test {
     test generate_code_from_typelib-3.0 {
         Verify generate_code_from_typelib from imports module constants
     } -constraints {
-        OBSOLETE - file does not exist on all systems
+        TBD - file does not exist on all systems
     } -body {
         eval [ twapi::generate_code_from_typelib [file join $::env(SYSTEMROOT) system32/Speech/Common/sapi.dll] -namespace [namespace current]::tempns -type module]
         set tempns::SpeechStringConstants(SpeechRegistryUserRoot)

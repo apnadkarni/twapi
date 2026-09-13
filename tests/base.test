@@ -90,30 +90,6 @@ namespace eval twapi::base::test {
         }
     } -result ""
 
-    test get_build_config-1.1 {
-        Get the build configuration (platform)
-    } -constraints {
-        OBSOLETE
-    } -body {
-        twapi::get_build_config platform
-    } -result {x86 x64} -match oneof
-
-    test get_build_config-1.2 {
-        Get the build configuration (build_id)
-    } -constraints {
-        OBSOLETE
-    } -body {
-        string is integer -strict [twapi::get_build_config build_id]
-    } -result 1
-
-    test get_build_config-1.3 {
-        Get the build configuration (embed_type)
-    } -constraints {
-        OBSOLETE
-    } -body {
-        twapi::get_build_config embed_type
-    } -result {plain lzma none} -match oneof
-
     test get_build_config-1.4 {
         Get the build configuration (opts)
     } -body {

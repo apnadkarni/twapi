@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004-2024 Ashok P. Nadkarni
+ * Copyright (c) 2004-2026 Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
@@ -1237,35 +1237,6 @@ int Twapi_GetPerAdapterInfo(TwapiInterpContext *ticP, int adapter_index)
     return error == ERROR_SUCCESS ? TCL_OK : TCL_ERROR;
 }
 
-#ifdef NOTUSED
-int Twapi_GetIfEntry(Tcl_Interp *interp, int if_index)
-{
-    int error;
-    MIB_IFROW ifr;
-
-    ifr.dwIndex = if_index;
-    error = GetIfEntry(&ifr);
-    if (error) {
-        return Twapi_AppendSystemError(interp, error);
-    }
-    ObjSetResult(interp, ObjFromMIB_IFROW(interp, &ifr));
-    return TCL_OK;
-}
-#endif
-
-#ifdef NOTUSED
-int Twapi_GetIfTable(TwapiInterpContext *ticP, int sort)
-{
-    return TwapiIpConfigTableHelper(
-        ticP,
-        GetIfTable,
-        ObjFromMIB_IFTABLE,
-        1,
-        sort
-        );
-}
-#endif
-
 int Twapi_GetIpNetTable(TwapiInterpContext *ticP, int sort)
 {
     return TwapiIpConfigTableHelper(
@@ -1769,20 +1740,11 @@ static int Twapi_NetworkCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             switch (func) {
             case 201:
                 return Twapi_GetPerAdapterInfo(ticP, dw);
-            case 202: // UNUSED
-                // return Twapi_GetIfEntry(interp, dw);
-                break;
-            case 203: // UNUSED
-                //return Twapi_GetIfTable(ticP, dw);
-                break;
-            case 204: // UNUSED
-                // OBSOLETE return Twapi_GetIpAddrTable(ticP, dw);
-                break;
-            case 205:
+            case 202:
                 return Twapi_GetIpNetTable(ticP, dw);
-            case 206:
+            case 203:
                 return Twapi_GetIpForwardTable(ticP, dw);
-            case 207:
+            case 204:
                 result.value.ival = FlushIpNetTable(dw);
                 result.type = TRT_EXCEPTION_ON_ERROR;
                 break;
@@ -1884,11 +1846,9 @@ static int TwapiNetworkInitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_ALIAS_CMD(GetNetworkParams, 1),
         DEFINE_ALIAS_CMD(SetTcpEntry,  101),
         DEFINE_ALIAS_CMD(GetPerAdapterInfo,  201),
-        DEFINE_ALIAS_CMD(GetIfEntry,  202),
-        DEFINE_ALIAS_CMD(GetIfTable,  203),
-        DEFINE_ALIAS_CMD(GetIpNetTable,  205),
-        DEFINE_ALIAS_CMD(GetIpForwardTable,  206),
-        DEFINE_ALIAS_CMD(FlushIpNetTable,  207),
+        DEFINE_ALIAS_CMD(GetIpNetTable,  202),
+        DEFINE_ALIAS_CMD(GetIpForwardTable,  203),
+        DEFINE_ALIAS_CMD(FlushIpNetTable,  204),
         DEFINE_ALIAS_CMD(GetAdapterIndex,  251),
         DEFINE_ALIAS_CMD(Twapi_IPAddressFamily,  252), // TBD - Tcl interface
         DEFINE_ALIAS_CMD(Twapi_NormalizeIPAddress,  253), // TBD - Tcl interface

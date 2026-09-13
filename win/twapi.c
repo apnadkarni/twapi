@@ -871,12 +871,7 @@ TwapiInterpContext *TwapiRegisterModule(
 
     /* Call SourceResource to either read from a resource or from
        a script file if the resource does not exist. */
-    if ((modP->initializer && modP->initializer(interp, ticP) != TCL_OK)
-#ifdef OBSOLETE
-        || Twapi_SourceResource(interp, hmod, modP->name, 1) != TCL_OK
-        || Tcl_PkgProvide(interp, modP->name, MODULEVERSION) != TCL_OK
-#endif
-        ) {
+    if (modP->initializer && modP->initializer(interp, ticP) != TCL_OK) {
         if (context_type)
             TwapiInterpContextUnref(ticP, 1);
         return NULL;
