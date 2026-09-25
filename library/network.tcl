@@ -1,25 +1,23 @@
 #
-# Copyright (c) 2004-2014, Ashok P. Nadkarni
+# Copyright (c) 2004-2026, Ashok P. Nadkarni
 # All rights reserved.
 #
 # See the file LICENSE for license
 
 namespace eval twapi {
-    record IP_ADAPTER_ADDRESSES_XP {
+    record IP_ADAPTER_ADDRESSES {
         -ipv4ifindex -adaptername -unicastaddresses -anycastaddresses
         -multicastaddresses -dnsservers -dnssuffix -description
         -friendlyname -physicaladdress -flags -mtu -type -operstatus
         -ipv6ifindex -zoneindices -prefixes
-    }
-
-    if {[min_os_version 6]} {
-        record IP_ADAPTER_ADDRESSES [list {*}[IP_ADAPTER_ADDRESSES_XP] -transmitspeed -receivespeed -winsaddresses -gatewayaddresses -ipv4metric -ipv6metric -luid -dhcpv4server -compartmentid -networkguid -connectiontype -tunneltype -dhcpv6server -dhcpv6clientduid -dhcpv6iaid -dnssuffixes]
-    } else {
-        record IP_ADAPTER_ADDRESSES [IP_ADAPTER_ADDRESSES_XP]
+        -transmitspeed -receivespeed -winsaddresses -gatewayaddresses
+        -ipv4metric -ipv6metric -luid -dhcpv4server -compartmentid
+        -networkguid -connectiontype -tunneltype -dhcpv6server
+        -dhcpv6clientduid -dhcpv6iaid -dnssuffixes
     }
 
     record IP_ADAPTER_UNICAST_ADDRESS {
-        -flags -address -prefixorigin -suffixorigin -dadstate -validlifetime -preferredlifetime -leaselifetime 
+        -flags -address -prefixorigin -suffixorigin -dadstate -validlifetime -preferredlifetime -leaselifetime -onlinkprefixlength
     }
 
     record IP_ADAPTER_ANYCAST_ADDRESS {-flags -address}
@@ -33,20 +31,55 @@ proc twapi::get_network_adapters {} {
     return [lpick [GetAdaptersAddresses 0 0x2f] [enum [IP_ADAPTER_ADDRESSES] -adaptername]]
 }
 
-proc twapi::get_network_adapters_detail {} {
-    set recs {}
-    # We only return fields common to all platforms
-    set fields [IP_ADAPTER_ADDRESSES_XP]
-    foreach rec [GetAdaptersAddresses 0 0] {
-        set rec [IP_ADAPTER_ADDRESSES set $rec \
-                     -physicaladdress [_hwaddr_binary_to_string [IP_ADAPTER_ADDRESSES -physicaladdress $rec]] \
-                     -unicastaddresses [ntwine [IP_ADAPTER_UNICAST_ADDRESS] [IP_ADAPTER_ADDRESSES -unicastaddresses $rec]] \
-                     -multicastaddresses [ntwine [IP_ADAPTER_MULTICAST_ADDRESS] [IP_ADAPTER_ADDRESSES -multicastaddresses $rec]] \
-                     -anycastaddresses [ntwine [IP_ADAPTER_ANYCAST_ADDRESS] [IP_ADAPTER_ADDRESSES -anycastaddresses $rec]] \
-                     -dnsservers [ntwine [IP_ADAPTER_DNS_SERVER_ADDRESS] [IP_ADAPTER_ADDRESSES -dnsservers $rec]]]
-
-        lappend recs [IP_ADAPTER_ADDRESSES select $rec $fields]
+proc twapi::_decode_address_flags {addr_list} {
+    lmap addr_dict $addr_list {
+        set addr_flags [dict get $addr_dict -flags]
+        dict set addr_dict -dnseligible [expr {$addr_flags & 1}]
+        dict set addr_dict -transient [expr {$addr_flags & 2}]
     }
+}
+proc twapi::get_network_adapters_detail {args} {
+    parseargs args {
+        {includeallndis 0 0x100}
+        {tunnelorder 0 0x0400}
+    } -setvars
+    set recs {}
+    # 0xD0 -> INCLUDE_PREFIX|INCLUDE_WINS|INCLUDE_GATEWAYS
+    set flags [expr {$includeallndis | $tunnelorder | 0xD0}]
+    foreach rec [GetAdaptersAddresses 0 $flags] {
+        set rec [IP_ADAPTER_ADDRESSES set $rec \
+                     -unicastaddresses [_decode_address_flags [ntwine [IP_ADAPTER_UNICAST_ADDRESS] [IP_ADAPTER_ADDRESSES -unicastaddresses $rec]]] \
+                     -multicastaddresses [_decode_address_flags [ntwine [IP_ADAPTER_MULTICAST_ADDRESS] [IP_ADAPTER_ADDRESSES -multicastaddresses $rec]]] \
+                     -anycastaddresses [_decode_address_flags [ntwine [IP_ADAPTER_ANYCAST_ADDRESS] [IP_ADAPTER_ADDRESSES -anycastaddresses $rec]]] \
+                     -dnsservers [ntwine [IP_ADAPTER_DNS_SERVER_ADDRESS] [IP_ADAPTER_ADDRESSES -dnsservers $rec]]]
+        set rec_flags [IP_ADAPTER_ADDRESSES -flags $rec]
+        # IMPORTANT: Order must match order of field names below in the return statement
+        lappend rec \
+            [expr {$rec_flags & 1}] \
+            [expr {$rec_flags & 2}] \
+            [expr {$rec_flags & 4}] \
+            [expr {$rec_flags & 8}] \
+            [expr {$rec_flags & 16}] \
+            [expr {$rec_flags & 32}] \
+            [expr {$rec_flags & 64}] \
+            [expr {$rec_flags & 128}] \
+            [expr {$rec_flags & 256}] \
+            [expr {$rec_flags & 512}]
+        lappend recs $rec
+    }
+    set fields [list {*}[IP_ADAPTER_ADDRESSES] {*}{
+        -ddnsenabled
+        -registerdnssuffix
+        -dhcpenabled
+        -receiveonly
+        -nomulticast
+        -ipv6otherstateconfig
+        -netbiosovertcp
+        -ipv4enabled
+        -ipv6enabled
+        -ipv6managedaddressconfig
+    }]
+    # Return record array
     return [list $fields $recs]
 }
 
@@ -125,84 +158,36 @@ proc twapi::get_network_info {args} {
     return $result
 }
 
-
-proc twapi::get_network_adapter_info {interface args} {
-    array set opts [parseargs args {
-        all
-        adaptername
-        anycastaddresses
-        description
-        dhcpenabled
-        dnsservers
-        dnssuffix
-        friendlyname
-        ipv4ifindex
-        ipv6ifindex
-        multicastaddresses
-        mtu
-        operstatus
-        physicaladdress
-        prefixes
-        type
-        unicastaddresses
-        zoneindices
-
-        {ipversion.arg 0}
-    } -maxleftover 0 -hyphenated]
-    
-    set ipversion [_ipversion_to_af $opts(-ipversion)]
-
-    set flags 0
-    if {! $opts(-all)} {
-        # If not asked for some fields, don't bother getting them
-        if {! $opts(-unicastaddresses)} { incr flags 0x1 }
-        if {! $opts(-anycastaddresses)} { incr flags 0x2 }
-        if {! $opts(-multicastaddresses)} { incr flags 0x4 }
-        if {! $opts(-dnsservers)} { incr flags 0x8 }
-        if {! $opts(-friendlyname)} { incr flags 0x20 }
-
-        if {$opts(-prefixes)} { incr flags 0x10 }
-    } else {
-        incr flags 0x10;        # Want prefixes also
+proc twapi::_decode_IP_ADAPTER_ADDRESSES_flags {flags} {
+    foreach {opt flag} {
+        -ddnsenabled 1
+        -registerdnssuffix 2
+        -dhcpenabled 4
+        -receiveonly 8
+        -nomulticast 16
+        -ipv6otherstateconfig 32
+        -netbiosovertcp 64
+        -ipv4enabled 128
+        -ipv6enabled 256
+        -ipv6managedaddressconfig 512
+    } {
+        dict set result $opt [expr {($flags & $flag}) != 0]
     }
-    
-    set entries [GetAdaptersAddresses $ipversion $flags]
-    set nameindex [enum [IP_ADAPTER_ADDRESSES] -adaptername]
-    set entry [lsearch -nocase -exact -inline -index $nameindex $entries $interface]
-    if {[llength $entry] == 0} {
-        error "No interface matching '$interface'."
-    }
+    return $result
+}
 
-    array set result [IP_ADAPTER_ADDRESSES $entry]
-    if {$opts(-all) || $opts(-dhcpenabled)} {
-        set result(-dhcpenabled) [expr {($result(-flags) & 0x4) != 0}]
-    }
-    # Note even if -all is specified, we still loop through because
-    # the fields of IP_ADAPTER_ADDRESSES are a superset of options
-    foreach opt [IP_ADAPTER_ADDRESSES] {
-        # Select only those fields that have an option defined
-        # and that option is selected
-        if {!([info exists opts($opt)] && ($opts(-all) || $opts($opt)))} {
-            unset result($opt)
+proc twapi::get_network_adapter_info {adaptername} {
+    set ra [get_network_adapters_detail]
+    set filter [list [list -adaptername eq $adaptername -nocase]]
+    set ra [recordarray get $ra -filter $filter]
+    if {[recordarray size $ra] == 0} {
+        set ra [get_network_adapters_detail -includeallndis]
+        set ra [recordarray get $ra -filter $filter]
+        if {[recordarray size $ra] == 0} {
+            error "Could not find adapter $adaptername."
         }
     }
-    if {[info exists result(-physicaladdress)]} {
-        set result(-physicaladdress) [_hwaddr_binary_to_string $result(-physicaladdress)]
-    }
-    if {[info exists result(-unicastaddresses)]} {
-        set result(-unicastaddresses) [ntwine [IP_ADAPTER_UNICAST_ADDRESS] $result(-unicastaddresses)]
-    }
-    if {[info exists result(-multicastaddresses)]} {
-        set result(-multicastaddresses) [ntwine [IP_ADAPTER_MULTICAST_ADDRESS] $result(-multicastaddresses)]
-    }
-    if {[info exists result(-anycastaddresses)]} {
-        set result(-anycastaddresses) [ntwine [IP_ADAPTER_ANYCAST_ADDRESS] $result(-anycastaddresses)]
-    }
-    if {[info exists result(-dnsservers)]} {
-        set result(-dnsservers) [ntwine [IP_ADAPTER_DNS_SERVER_ADDRESS] $result(-dnsservers)]
-    }
-
-    return [array get result]
+    return [recordarray index $ra 0 -format dict]
 }
 
 # Get the address->h/w address table
@@ -220,7 +205,7 @@ proc twapi::get_arp_table {args} {
         if {$type == ""} {
             set type other
         }
-        lappend arps [list $ifindex [_hwaddr_binary_to_string $hwaddr] $ipaddr $type]
+        lappend arps [list $ifindex $hwaddr $ipaddr $type]
     }
     return [list [list ifindex hwaddr ipaddr type] $arps]
 }
@@ -234,7 +219,7 @@ proc twapi::ipaddr_to_hwaddr {ipaddr {varname ""}} {
     foreach arp [GetIpNetTable 0] {
         if {[lindex $arp 3] == 2} continue;       # Invalid entry type
         if {[string equal $ipaddr [lindex $arp 2]]} {
-            set result [_hwaddr_binary_to_string [lindex $arp 1]]
+            set result [lindex $arp 1]
             break
         }
     }
@@ -274,12 +259,11 @@ proc twapi::ipaddr_to_hwaddr {ipaddr {varname ""}} {
     }
 }
 
-# Return hw address for a IP address
 proc twapi::hwaddr_to_ipaddr {hwaddr {varname ""}} {
-    set hwaddr [string map {- "" : ""} $hwaddr]
+    set hwaddr [string map {: -} $hwaddr]
     foreach arp [GetIpNetTable 0] {
         if {[lindex $arp 3] == 2} continue;       # Invalid entry type
-        if {[string equal $hwaddr [_hwaddr_binary_to_string [lindex $arp 1] ""]]} {
+        if {[string equal -nocase $hwaddr [lindex $arp 1]]} {
             set result [lindex $arp 2]
             break
         }
@@ -329,7 +313,7 @@ proc twapi::flush_arp_tables {args} {
         set args [get_network_adapters]
     }
     foreach arg $args {
-        array set ifc [get_network_adapter_info $arg -type -ipv4ifindex]
+        array set ifc [get_network_adapter_info $arg]
         if {$ifc(-type) != 24} {
             trap {
                 FlushIpNetTable $ifc(-ipv4ifindex)
@@ -902,20 +886,6 @@ proc twapi::_format_route {route} {
     }
 
     return [array get r]
-}
-
-
-# Convert binary hardware address to string format
-proc twapi::_hwaddr_binary_to_string {b {joiner -}} {
-    if {[binary scan $b H* str]} {
-        set s ""
-        foreach {x y} [split $str ""] {
-            lappend s $x$y
-        }
-        return [join $s $joiner]
-    } else {
-        error "Could not convert binary hardware address"
-    }
 }
 
 # Callback for address resolution

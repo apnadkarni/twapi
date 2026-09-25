@@ -4892,7 +4892,7 @@ static const char HexDigits[16] = {
     '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'
 };
 
-TWAPI_EXTERN Tcl_Obj *ObjFromByteArrayHex(const unsigned char *bytes, Tcl_Size len)
+TWAPI_EXTERN Tcl_Obj *ObjFromBytesHex(const unsigned char *bytes, Tcl_Size len)
 {
     Tcl_Obj *resultObj = NULL;
     unsigned char *cursor = NULL;
@@ -4902,6 +4902,30 @@ TWAPI_EXTERN Tcl_Obj *ObjFromByteArrayHex(const unsigned char *bytes, Tcl_Size l
     cursor = Tcl_SetByteArrayLength(resultObj, len * 2);
     for (offset = 0; offset < len; ++offset) {
 	*cursor++ = HexDigits[((bytes[offset] >> 4) & 0x0f)];
+	*cursor++ = HexDigits[(bytes[offset] & 0x0f)];
+    }
+    return resultObj;
+}
+
+TWAPI_EXTERN Tcl_Obj *
+ObjFromBytesHexSeparated(const unsigned char *bytes,
+                             Tcl_Size len,
+                             char separator) /* ASCII, non-nul! */
+{
+    Tcl_Obj *resultObj = NULL;
+    unsigned char *cursor = NULL;
+    Tcl_Size offset = 0;
+
+    resultObj = Tcl_NewObj();
+    if (len == 0)
+        return resultObj;
+    TWAPI_ASSERT(separator > 0 && separator <= 127);
+    cursor    = Tcl_SetByteArrayLength(resultObj, (len * 3) - 1);
+    *cursor++ = HexDigits[((bytes[offset] >> 4) & 0x0f)];
+    *cursor++ = HexDigits[(bytes[offset] & 0x0f)];
+    for (offset = 1; offset < len; ++offset) {
+        *cursor++ = separator;
+        *cursor++ = HexDigits[((bytes[offset] >> 4) & 0x0f)];
 	*cursor++ = HexDigits[(bytes[offset] & 0x0f)];
     }
     return resultObj;

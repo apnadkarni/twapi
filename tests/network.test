@@ -11,6 +11,7 @@ eval tcltest::configure $argv
 
 source [file join [file dirname [info script]] testutil.tcl]
 load_twapi_package twapi_network
+load_twapi_package twapi_process; # Needed for proc privileged
 
 namespace eval twapi::network::test {
     namespace import ::tcltest::test
@@ -26,6 +27,7 @@ namespace eval twapi::network::test {
     ::tcltest::testConstraint win2k [twapi::min_os_version 5]
     ::tcltest::testConstraint ipv6  [expr {! [catch {exec netsh interface ipv6 show address}]}]
     ::tcltest::testConstraint tclipv6 [package vsatisfies [package require Tcl] 8.6b1.2]
+    ::tcltest::testConstraint privileged [privileged]
 
     variable udp_system_port;   # A port we know will be open. We cannot use 137/138 for reasons I don't remember (maybe they are owned by a process we cannot open)
     regexp {\d+\.\d+\.\d+\.\d+:(1900|5355)\s} [exec netstat -anp udp] dummy udp_system_port
@@ -42,12 +44,58 @@ namespace eval twapi::network::test {
         -bindtime
     }
     variable get_udp_connections_fields {
-            -localaddr
-            -localport
-            -pid
-            -modulename
-            -modulepath
-            -bindtime
+        -localaddr
+        -localport
+        -pid
+        -modulename
+        -modulepath
+        -bindtime
+    }
+
+    variable adapter_addresses_fields {
+        -adaptername
+        -anycastaddresses
+        -compartmentid
+        -connectiontype
+        -ddnsenabled
+        -description
+        -dhcpenabled
+        -dhcpv4server
+        -dhcpv6clientduid
+        -dhcpv6iaid
+        -dhcpv6server
+        -dnsservers
+        -dnssuffix
+        -dnssuffixes
+        -flags
+        -friendlyname
+        -gatewayaddresses
+        -ipv4enabled
+        -ipv4ifindex
+        -ipv4metric
+        -ipv6enabled
+        -ipv6ifindex
+        -ipv6managedaddressconfig
+        -ipv6metric
+        -ipv6otherstateconfig
+        -luid
+        -mtu
+        -multicastaddresses
+        -netbiosovertcp
+        -networkguid
+        -nomulticast
+        -operstatus
+        -physicaladdress
+        -prefixes
+        -receiveonly
+        -receivespeed
+        -registerdnssuffix
+        -transmitspeed
+        -tunneltype
+        -type
+        -unicastaddresses
+        -winsaddresses
+        -zoneindices
     }
 
     proc resolvable_hostname {} {
@@ -147,7 +195,7 @@ namespace eval twapi::network::test {
     proc validate_connections [list conns \
                                    [list mincount 1] \
                                    [list fields $get_tcp_connections_fields] \
-                                  [list matchdata {}]] {
+                                   [list matchdata {}]] {
         set conns [twapi::recordarray getlist $conns -format dict]
         if {[llength $conns] < $mincount} {
             return "Connection list contains only [llength $conns] connections. Expected at least $mincount"
@@ -241,11 +289,30 @@ namespace eval twapi::network::test {
                 if {! [validate_ip_addresses $addrs 6]} {
                     lappend msgs "Invalid IP addresses '$netif($opt)' for $opt."
                 }
+                if {$opt in {-anycastaddresses -unicastaddresses -multicastaddresses}} {
+                    foreach elem $netif($opt) {
+                        if {![string is boolean -strict [dict get $elem -dnseligible]]} {
+                            lappend msgs "Invalid -dnseligible field"
+                        }
+                        if {![string is boolean -strict [dict get $elem -transient]]} {
+                            lappend msgs "Invalid -transient field"
+                        }
+                    }
+                }
             }
         }
 
         foreach opt {
+            -ddnsenabled
+            -registerdnssuffix
             -dhcpenabled
+            -receiveonly
+            -nomulticast
+            -ipv6otherstateconfig
+            -netbiosovertcp
+            -ipv4enabled
+            -ipv6enabled
+            -ipv6managedaddressconfig
         } {
             if {[info exists netif($opt)] &&
                 ! [string is boolean -strict $netif($opt)]} {
@@ -315,6 +382,15 @@ namespace eval twapi::network::test {
     } -result {1 1 -1 -1 -1}
 
     test get_system_ipaddrs-4.0 {
+        Get all IP addresses
+    } -constraints {
+        powershell
+    } -body {
+        string equal [lsort [twapi::get_system_ipaddrs]] \
+            [lsort [powershell "Get-NetIPAddress | Select-Object -ExpandProperty IPAddress"]]
+    } -result 1
+
+    test get_system_ipaddrs-xx.0 {
         Get IP addresses of a specific type (unicast, multicast, anycast)
     } -constraints {
         TBD
@@ -504,61 +580,58 @@ namespace eval twapi::network::test {
     test get_network_adapters_detail-1.0 {
         Get details of network adapters
     } -body {
-        set fields {
-            -adaptername
-            -anycastaddresses
-            -description
-            -dnsservers
-            -dnssuffix
-            -flags
-            -friendlyname
-            -ipv4ifindex
-            -ipv6ifindex
-            -mtu
-            -multicastaddresses
-            -operstatus
-            -physicaladdress
-            -prefixes
-            -type
-            -unicastaddresses
-            -zoneindices
-        }                
         set msgs ""
         foreach adapter [twapi::recordarray getlist [twapi::get_network_adapters_detail] -format dict] {
-            verify_kl_fields $adapter $fields
+            verify_kl_fields $adapter $adapter_addresses_fields
             validate_network_adapter $adapter msgs
         }
         join $msgs \n
     } -result ""
+
+    test get_network_adapters_detail-2.0 {
+        Get details of network adapters including hidden
+    } -body {
+        set msgs ""
+        set all [twapi::get_network_adapters_detail -includeallndis]
+        set visible [twapi::get_network_adapters_detail]
+        foreach adapter [twapi::recordarray getlist $all -format dict] {
+            verify_kl_fields $adapter $adapter_addresses_fields
+            validate_network_adapter $adapter msgs
+        }
+        list [join $msgs \n] \
+            [expr {
+                   [twapi::recordarray size $all] > [twapi::recordarray size $visible]
+               }]
+    } -result {{} 1}
+
+    test get_network_adapters_detail-3.0 {
+        Get details of network adapters in tunnel binding order
+    } -body {
+        set msgs ""
+        set ordered [twapi::get_network_adapters_detail -tunnelorder]
+        set unordered [twapi::get_network_adapters_detail]
+        foreach adapter [twapi::recordarray getlist $ordered -format dict] {
+            verify_kl_fields $adapter $adapter_addresses_fields
+            validate_network_adapter $adapter msgs
+        }
+        list [join $msgs \n] \
+            [expr {
+                   [twapi::recordarray size $ordered] == [twapi::recordarray size $unordered]
+               }]
+    } -result {{} 1}
 
     ################################################################
 
     test get_network_adapter_info-1.0 {
         Get network adapter info
     } -body {
-        set msgs ""
+        set msgs [list ]
         foreach ind [twapi::get_network_adapters] {
-            set netif [twapi::get_network_adapter_info $ind -all]
-            set fields {
-                -adaptername
-                -anycastaddresses
-                -description
-                -dhcpenabled
-                -dnsservers
-                -dnssuffix
-                -friendlyname
-                -ipv4ifindex
-                -ipv6ifindex
-                -mtu
-                -multicastaddresses
-                -operstatus
-                -physicaladdress
-                -prefixes
-                -type
-                -unicastaddresses
-                -zoneindices
-            }                
-            verify_kl_fields $netif $fields
+            set netif [twapi::get_network_adapter_info $ind]
+            if {$ind ne [dict get $netif -adaptername]} {
+                lappend msgs "Adapter name $ind does not match."
+            }
+            verify_kl_fields $netif $adapter_addresses_fields
             validate_network_adapter $netif msgs
         }
         join $msgs \n
@@ -1076,7 +1149,7 @@ namespace eval twapi::network::test {
 
     test terminate_tcp_connections-1.0 {
         Terminate TCP connections for a specific process (-matchpid)
-    } -setup {
+    } -constraints privileged -setup {
         set server_socket [socket -server [list lappend ::connection_establised 1] 9341]
         set client_socket [socket 127.0.0.1 9341]
         set client_socket2 [socket 127.0.0.1 9341]
@@ -1093,7 +1166,7 @@ namespace eval twapi::network::test {
 
     test terminate_tcp_connections-2.0 {
         Terminate TCP connections for a remote port (-matchremoteport)
-    } -setup {
+    } -constraints privileged -setup {
         set server_socket [socket -server [list lappend ::connection_establised 1] 9341]
         set server_socket2 [socket -server [list lappend ::connection_establised 1] 9342]
         set client_socket [socket 127.0.0.1 9341]
@@ -1114,7 +1187,7 @@ namespace eval twapi::network::test {
 
     test terminate_tcp_connections-3.0 {
         Terminate TCP connections for a remote address (-matchremoteaddress)
-    } -setup {
+    } -constraints privileged -setup {
         set addr8 8.8.8.8
         set addr4 8.8.4.4
         set client8 [socket $addr8 53]
@@ -1132,7 +1205,7 @@ namespace eval twapi::network::test {
 
     test terminate_tcp_connections-4.0 {
         Terminate TCP connections for a local address (-matchlocaladdress)
-    } -setup {
+    } -constraints privileged -setup {
         set addrA 127.0.0.1
         set addrB [our_ipaddr]
         set nconns [twapi::recordarray size [twapi::get_tcp_connections -pid]]
@@ -1149,7 +1222,7 @@ namespace eval twapi::network::test {
         # we did not kill connections from other processes.
         set nconnsdiff [expr {[twapi::recordarray size $conns] - $nconns}]
         # Depending on Tcl version 2 or 4 sockets will be created
-puts $nconnsdiff
+        puts $nconnsdiff
         list [expr {$nconnsdiff == 2 || $nconnsdiff == 4}] \
             [twapi::get_tcp_connections -pid -matchpid [pid]]
     } -cleanup {
@@ -1201,7 +1274,7 @@ puts $nconnsdiff
 
     test flush_arp_tables-1.0 {
         Flush all arp tables
-    } -setup {
+    } -constraints privileged -setup {
         set dest [twapi::kl_get [twapi::get_route] -nexthop]
         # Try to make sure ARP table populated
         catch { close [socket $dest 1234] }

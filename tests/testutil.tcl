@@ -1894,6 +1894,18 @@ proc setops::equal {A B} {
 }
 tcltest::customMatch set setops::equal
 
+proc powershell command {
+    set command [string cat {[Console]::OutputEncoding=[Text.Encoding]::UTF8;} $command]
+    set base64 [binary encode base64 [encoding convertto unicode $command]]
+    # The >NUL is because powershell writes progress messages to stderr
+    # -ignorestderr does not seem to suffice because tcltest seems to track
+    # stderr and report file generated error.
+    exec -ignorestderr -encoding utf-8 -- {*}[auto_execok powershell] \
+        -NoProfile -NoLogo -OutputFormat Text -EncodedCommand $base64 2>NUL
+}
+tcltest::testConstraint powershell \
+    [expr {! [catch {powershell exit}]}]
+
 proc wevtutil args {
     exec wevtutil {*}$args
 }
@@ -1924,6 +1936,19 @@ proc 100ns_to_iso8601 {100ns} {
     return $year-$month-${day}T$hour:$min:$secs.${ms}Z
     clock format [twapi::large_system_time_to_secs_since_1970 $100ns] \
         -format %Y-%m-%dT%H:%M:%S -timezone :UTC
+}
+
+proc privileged {} {
+    if {[twapi::min_os_version 6]} {
+        if {[twapi::process_in_administrators] &&
+            [twapi::get_process_elevation] eq "full"} {
+            return 1
+        } else {
+            return 0
+        }
+    } else {
+        return [twapi::process_in_administrators]
+    }
 }
 
 # If this is the first argument to the shell and there are more arguments

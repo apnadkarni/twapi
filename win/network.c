@@ -7,58 +7,7 @@
 
 #include "twapi.h"
 #include <ntverp.h>
-
-/*
- * Vista+ IP_ADAPTER_ADDRESSES. We define our own structure even for newer
- * SDK's because we determine field availability at runtime and not compile
- * time whereas the SDKS disable fields based on the compile time selection
- * of target platform.
- */
-typedef struct {
-  union {
-    ULONGLONG Alignment;
-    struct {
-      ULONG Length;
-      DWORD IfIndex;
-    };
-  };
-  struct _IP_ADAPTER_ADDRESSES  *Next;
-  PCHAR                              AdapterName;
-  PIP_ADAPTER_UNICAST_ADDRESS        FirstUnicastAddress;
-  PIP_ADAPTER_ANYCAST_ADDRESS        FirstAnycastAddress;
-  PIP_ADAPTER_MULTICAST_ADDRESS      FirstMulticastAddress;
-  PIP_ADAPTER_DNS_SERVER_ADDRESS     FirstDnsServerAddress;
-  PWCHAR                             DnsSuffix;
-  PWCHAR                             Description;
-  PWCHAR                             FriendlyName;
-  BYTE                               PhysicalAddress[MAX_ADAPTER_ADDRESS_LENGTH];
-  DWORD                              PhysicalAddressLength;
-  DWORD                              Flags;
-  DWORD                              Mtu;
-  DWORD                              IfType;
-  IF_OPER_STATUS                     OperStatus;
-  DWORD                              Ipv6IfIndex;
-  DWORD                              ZoneIndices[16];
-  PIP_ADAPTER_PREFIX                 FirstPrefix;
-  ULONG64                            TransmitLinkSpeed;
-  ULONG64                            ReceiveLinkSpeed;
-  PIP_ADAPTER_WINS_SERVER_ADDRESS_LH FirstWinsServerAddress;
-  PIP_ADAPTER_GATEWAY_ADDRESS_LH     FirstGatewayAddress;
-  ULONG                              Ipv4Metric;
-  ULONG                              Ipv6Metric;
-  IF_LUID                            Luid;
-  SOCKET_ADDRESS                     Dhcpv4Server;
-  NET_IF_COMPARTMENT_ID              CompartmentId;
-  NET_IF_NETWORK_GUID                NetworkGuid;
-  NET_IF_CONNECTION_TYPE             ConnectionType;
-  TUNNEL_TYPE                        TunnelType;
-  SOCKET_ADDRESS                     Dhcpv6Server;
-  BYTE                               Dhcpv6ClientDuid[MAX_DHCPV6_DUID_LENGTH];
-  ULONG                              Dhcpv6ClientDuidLength;
-  ULONG                              Dhcpv6Iaid;
-  PIP_ADAPTER_DNS_SUFFIX             FirstDnsSuffix;
-} TWAPI_IP_ADAPTER_ADDRESSES_LH, *PTWAPI_IP_ADAPTER_ADDRESSES_LH;
-
+#include <mstcpip.h>
 
 typedef struct _TwapiHostnameEvent {
     Tcl_Event tcl_ev;           /* Must be first field */
@@ -112,6 +61,11 @@ Tcl_Obj *ObjFromMIB_UDPTABLE_OWNER_PID(Tcl_Interp *, MIB_UDPTABLE_OWNER_PID *tab
 Tcl_Obj *ObjFromMIB_UDPTABLE_OWNER_MODULE(Tcl_Interp *, MIB_UDPTABLE_OWNER_MODULE *tab);
 Tcl_Obj *ObjFromTcpExTable(Tcl_Interp *interp, void *buf);
 Tcl_Obj *ObjFromUdpExTable(Tcl_Interp *interp, void *buf);
+
+Tcl_Obj *ObjFromPhysicalAddress(const BYTE *addrP, DWORD addrLen)
+{
+        return ObjFromBytesHexSeparated(addrP, addrLen, '-');
+}
 
 #define ObjFromIF_LUID ObjFromNET_LUID
 Tcl_Obj *ObjFromNET_LUID(NET_LUID *nlP)
@@ -305,7 +259,7 @@ static Tcl_Obj *ObjFromIP_ADDR_STRINGAddress (
 
 static Tcl_Obj *ObjFromIP_ADAPTER_UNICAST_ADDRESS(IP_ADAPTER_UNICAST_ADDRESS *iauaP)
 {
-    Tcl_Obj *objv[8];
+    Tcl_Obj *objv[9];
 
     objv[0] = ObjFromDWORD(iauaP->Flags);
     objv[1] = ObjFromSOCKET_ADDRESS(&iauaP->Address);
@@ -317,7 +271,7 @@ static Tcl_Obj *ObjFromIP_ADAPTER_UNICAST_ADDRESS(IP_ADAPTER_UNICAST_ADDRESS *ia
     objv[5] = ObjFromULONG(iauaP->ValidLifetime);
     objv[6] = ObjFromULONG(iauaP->PreferredLifetime);
     objv[7] = ObjFromULONG(iauaP->LeaseLifetime);
-
+    objv[8] = ObjFromULONG(iauaP->OnLinkPrefixLength);
 
     return ObjNewList(ARRAYSIZE(objv), objv);
 }
@@ -362,7 +316,6 @@ Tcl_Obj *ObjFromIP_ADAPTER_ADDRESSES(IP_ADAPTER_ADDRESSES *iaaP)
 {
     Tcl_Obj *objv[33];
     Tcl_Obj *fieldObjs[16];
-    TWAPI_IP_ADAPTER_ADDRESSES_LH *ilhP = NULL;
     IP_ADAPTER_UNICAST_ADDRESS *unicastP;
     IP_ADAPTER_ANYCAST_ADDRESS *anycastP;
     IP_ADAPTER_MULTICAST_ADDRESS *multicastP;
@@ -373,7 +326,7 @@ Tcl_Obj *ObjFromIP_ADAPTER_ADDRESSES(IP_ADAPTER_ADDRESSES *iaaP)
     IP_ADAPTER_GATEWAY_ADDRESS_LH *gatewayP;
     Tcl_Obj *objP;
     int i;
-    
+
     objv[0] = ObjFromDWORD(iaaP->IfIndex);
     objv[1] = ObjFromString(iaaP->AdapterName);
     objv[2] = ObjEmptyList();
@@ -404,7 +357,8 @@ Tcl_Obj *ObjFromIP_ADAPTER_ADDRESSES(IP_ADAPTER_ADDRESSES *iaaP)
     objv[6] = ObjFromWinChars(iaaP->DnsSuffix);
     objv[7] = ObjFromWinChars(iaaP->Description);
     objv[8] = ObjFromWinChars(iaaP->FriendlyName);
-    objv[9] = ObjFromByteArray(iaaP->PhysicalAddress, iaaP->PhysicalAddressLength);
+    objv[9]  = ObjFromPhysicalAddress(iaaP->PhysicalAddress,
+                                      iaaP->PhysicalAddressLength);
     objv[10] = ObjFromDWORD(iaaP->Flags);
     objv[11] = ObjFromDWORD(iaaP->Mtu);
     objv[12] = ObjFromDWORD(iaaP->IfType);
@@ -415,66 +369,52 @@ Tcl_Obj *ObjFromIP_ADAPTER_ADDRESSES(IP_ADAPTER_ADDRESSES *iaaP)
      * length against the size of our struct definition.
      */
 
-    if (iaaP->Length >= sizeof(*iaaP)) {
-        objv[14] = ObjFromDWORD(iaaP->Ipv6IfIndex);
-        for (i=0; i < 16; ++i) {
-            fieldObjs[i] = ObjFromDWORD(iaaP->ZoneIndices[i]);
-        }
-        objv[15] = ObjNewList(16, fieldObjs);
-        objv[16] = ObjEmptyList();
-        prefixP = iaaP->FirstPrefix;
-        while (prefixP) {
-            ObjAppendElement(NULL, objv[16],
-                                     ObjFromIP_ADAPTER_PREFIX(prefixP));
-            prefixP = prefixP->Next;
-        }
-    } else {
-        objv[14] = ObjFromDWORD(0);
-        objv[15] = ObjEmptyList(); /* Empty object */
-        ObjIncrRefs(objv[15]);
-        objv[16] = objv[15];
+    TWAPI_ASSERT(iaaP->Length >= sizeof(*iaaP));
+    objv[14] = ObjFromDWORD(iaaP->Ipv6IfIndex);
+    for (i = 0; i < 16; ++i) {
+        fieldObjs[i] = ObjFromDWORD(iaaP->ZoneIndices[i]);
+    }
+    objv[15] = ObjNewList(16, fieldObjs);
+    objv[16] = ObjEmptyList();
+    prefixP  = iaaP->FirstPrefix;
+    while (prefixP) {
+        ObjAppendElement(NULL, objv[16], ObjFromIP_ADAPTER_PREFIX(prefixP));
+        prefixP = prefixP->Next;
     }
 
-    /* Remainining fields only available on Vista SP1 and later */
-    if (iaaP->Length < sizeof(*ilhP)) {
-        return ObjNewList(17, objv);
-    }
-
-    ilhP = (TWAPI_IP_ADAPTER_ADDRESSES_LH *)iaaP;
-
-    objv[17] = ObjFromULONGLONG(ilhP->TransmitLinkSpeed);
-    objv[18] = ObjFromULONGLONG(ilhP->ReceiveLinkSpeed);
+    objv[17] = ObjFromULONGLONG(iaaP->TransmitLinkSpeed);
+    objv[18] = ObjFromULONGLONG(iaaP->ReceiveLinkSpeed);
     objv[19] = ObjEmptyList();
-    winsserverP = ilhP->FirstWinsServerAddress;
+    winsserverP = iaaP->FirstWinsServerAddress;
     while (winsserverP) {
         objP = ObjFromSOCKET_ADDRESS(&winsserverP->Address);
         ObjAppendElement(NULL, objv[19], objP ? objP : ObjEmptyList());
         winsserverP = winsserverP->Next;
     }
     objv[20] = ObjEmptyList();
-    gatewayP = ilhP->FirstGatewayAddress;
+    gatewayP = iaaP->FirstGatewayAddress;
     while (gatewayP) {
         objP = ObjFromSOCKET_ADDRESS(&gatewayP->Address);
         ObjAppendElement(NULL, objv[20], objP ? objP : ObjEmptyList());
         gatewayP = gatewayP->Next;
     }
-    objv[21] = ObjFromULONG(ilhP->Ipv4Metric);
-    objv[22] = ObjFromULONG(ilhP->Ipv6Metric);
-    objv[23] = ObjFromIF_LUID(&ilhP->Luid);
-    objv[24] = ObjFromSOCKET_ADDRESS(&ilhP->Dhcpv4Server);
+    objv[21] = ObjFromULONG(iaaP->Ipv4Metric);
+    objv[22] = ObjFromULONG(iaaP->Ipv6Metric);
+    objv[23] = ObjFromIF_LUID(&iaaP->Luid);
+    objv[24] = ObjFromSOCKET_ADDRESS(&iaaP->Dhcpv4Server);
     if (objv[24] == NULL)
         objv[24] = ObjEmptyList();
-    objv[25] = ObjFromULONG(ilhP->CompartmentId);
-    objv[26] = ObjFromGUID(&ilhP->NetworkGuid);
-    objv[27] = ObjFromULONG(ilhP->ConnectionType);
-    objv[28] = ObjFromULONG(ilhP->TunnelType);
-    objv[29] = ObjFromSOCKET_ADDRESS(&ilhP->Dhcpv6Server);
+    objv[25] = ObjFromULONG(iaaP->CompartmentId);
+    objv[26] = ObjFromGUID(&iaaP->NetworkGuid);
+    objv[27] = ObjFromULONG(iaaP->ConnectionType);
+    objv[28] = ObjFromULONG(iaaP->TunnelType);
+    objv[29] = ObjFromSOCKET_ADDRESS(&iaaP->Dhcpv6Server);
     if (objv[29] == NULL)
         objv[29] = ObjEmptyList();
-    objv[30] = ObjFromByteArray(ilhP->Dhcpv6ClientDuid, ilhP->Dhcpv6ClientDuidLength);
-    objv[31] = ObjFromULONG(ilhP->Dhcpv6Iaid);
+    objv[30] = ObjFromByteArray(iaaP->Dhcpv6ClientDuid, iaaP->Dhcpv6ClientDuidLength);
+    objv[31] = ObjFromULONG(iaaP->Dhcpv6Iaid);
     objv[32] = ObjEmptyList();
-    dnssuffixP = ilhP->FirstDnsSuffix;
+    dnssuffixP = iaaP->FirstDnsSuffix;
     while (dnssuffixP) {
         ObjAppendElement(NULL, objv[32], ObjFromWinCharsLimited(dnssuffixP->String, MAX_DNS_SUFFIX_STRING_LENGTH, NULL));
         dnssuffixP = dnssuffixP->Next;
@@ -499,7 +439,7 @@ Tcl_Obj *ObjFromMIB_IFROW(Tcl_Interp *interp, const MIB_IFROW *ifrP)
     objv[2] = ObjFromDWORD(ifrP->dwType);
     objv[3] = ObjFromDWORD(ifrP->dwMtu);
     objv[4] = ObjFromDWORD(ifrP->dwSpeed);
-    objv[5] = ObjFromByteArray(ifrP->bPhysAddr,ifrP->dwPhysAddrLen);
+    objv[5] = ObjFromPhysicalAddress(ifrP->bPhysAddr,ifrP->dwPhysAddrLen);
     objv[6] = ObjFromDWORD(ifrP->dwAdminStatus);
     objv[7] = ObjFromDWORD(ifrP->dwOperStatus);
     objv[8] = ObjFromDWORD(ifrP->dwLastChange);
@@ -546,7 +486,8 @@ Tcl_Obj *ObjFromMIB_IPNETROW(Tcl_Interp *interp, const MIB_IPNETROW *netrP)
     Tcl_Obj *objv[4];
 
     objv[0] = ObjFromDWORD(netrP->dwIndex);
-    objv[1] = ObjFromByteArray(netrP->bPhysAddr, netrP->dwPhysAddrLen);
+    objv[1] =
+        ObjFromPhysicalAddress(netrP->bPhysAddr, netrP->dwPhysAddrLen);
     objv[2] = IPAddrObjFromDWORD(netrP->dwAddr);
     objv[3] = ObjFromDWORD(netrP->dwType);
     return ObjNewList(4, objv);
@@ -1753,6 +1694,7 @@ static int Twapi_NetworkCallObjCmd(ClientData clientdata, Tcl_Interp *interp, in
             s = ObjToWinChars(objv[2]);
             switch (func) {
             case 251:
+                // TBD - remove - obsoleted by ConvertLuid functions
                 result.type = GetAdapterIndex((LPWSTR)s, &result.value.uval)
                     ? TRT_GETLASTERROR
                     : TRT_DWORD;

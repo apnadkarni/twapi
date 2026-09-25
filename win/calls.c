@@ -1027,11 +1027,6 @@ static int Twapi_CallOneArgObjCmd(ClientData clientdata, Tcl_Interp *interp, int
         result.value.ival=swap2(u16);
         result.type = TRT_LONG;
         break;
-    case 1028: // hex
-        pv = Tcl_GetByteArrayFromObj(objv[0], &i);
-        result.type = TRT_OBJ;
-        result.value.obj = ObjFromByteArrayHex(pv, i);
-        break;
     }
 
     res = TwapiSetResult(interp, &result);
@@ -1059,6 +1054,7 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
         LSA_OBJECT_ATTRIBUTES lsa_oattr;
         FARPROC fn;
     } u;
+    char ch;
     DWORD dw, dw2, dw3, dw4;
     int ival, ival2;
     DWORD_PTR dwp, dwp2;
@@ -1281,7 +1277,31 @@ static int Twapi_CallArgsObjCmd(ClientData clientdata, Tcl_Interp *interp, int o
                                  guidP,
                                  ObjToLPWSTR_NULL_IF_EMPTY(objv[3]),
                                  dw);
-    case 10023: // unused
+    case 10023: // hex
+        CHECK_NARGS_RANGE(interp, objc, 1, 2);
+        if (objc == 1)
+            ch = 0;
+        else {
+            cP = ObjToStringN(objv[1], &count);
+            if (count == 1)
+                ch = *cP;
+            else if (count == 0)
+                ch = 0;
+            else {
+                return TwapiReturnErrorMsg(
+                    interp,
+                    TWAPI_INVALID_ARGS,
+                    "Separator must be a single non-null ASCII character.");
+            }
+        }
+	/* Note do this AFTER processing objv[1] to avoid shimmering issues */
+        pv = Tcl_GetBytesFromObj(interp, objv[0], &count);
+        if (pv == NULL)
+            return TCL_ERROR;
+        result.type = TRT_OBJ;
+        result.value.obj = ch ? ObjFromBytesHexSeparated(pv, count, ch)
+                              : ObjFromBytesHex(pv, count);
+        break;
 
     case 10024: // Unuused
         break;
@@ -2415,7 +2435,6 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(swap8, 1025),
         DEFINE_FNCODE_CMD(swap4, 1026),
         DEFINE_FNCODE_CMD(swap2, 1027),
-        DEFINE_FNCODE_CMD(hex, 1028), // TBD - document
     };
 
     static struct fncode_dispatch_s CallArgsDispatch[] = {
@@ -2441,6 +2460,7 @@ int Twapi_InitCalls(Tcl_Interp *interp, TwapiInterpContext *ticP)
         DEFINE_FNCODE_CMD(SendMessageTimeout, 10020),
         DEFINE_FNCODE_CMD(SetWindowLongPtr, 10021),
         DEFINE_FNCODE_CMD(DsGetDcName, 10022),
+        DEFINE_FNCODE_CMD(hex, 10023), // TBD - document
         DEFINE_FNCODE_CMD(win32_error, 10025),
         DEFINE_FNCODE_CMD(CreateMutex, 10026),
         DEFINE_FNCODE_CMD(OpenMutex, 10027),

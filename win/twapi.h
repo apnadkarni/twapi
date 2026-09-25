@@ -2,14 +2,26 @@
 #define TWAPI_H
 
 /*
- * Copyright (c) 2010-2024, Ashok P. Nadkarni
+ * Copyright (c) 2010-2026, Ashok P. Nadkarni
  * All rights reserved.
  *
  * See the file LICENSE for license
  */
 
-#if _WIN32_WINNT < 0x0601
-#error _WIN32_WINNT too low
+#if _WIN32_WINNT < 0x0A00
+#error _WIN32_WINNT must be 0x0A00 or higher.
+#endif
+#ifdef NTDDI_VERSION
+/*
+ * NTDDI_VERSION must be at least 0x0A000004 corresponding to Windows 10 1709
+ * which is Windows build 10.0.16299.0. Required for GetTcpStatisticsEx2 
+ * and maybe others.
+ */
+#if NTDDI_VERSION < 0x0A000004
+#error NTDDI_VERSION must be at least 0x0A000004
+#endif
+#else
+#define NTDDI_VERSION 0x0A000004
 #endif
 
 #ifndef _UNICODE
@@ -1616,12 +1628,17 @@ TWAPI_EXTERN TCL_RESULT ObjToWinCharsDW(Tcl_Interp *interp,
                                         Tcl_Obj    *objP,
                                         DWORD      *lenP,
                                         WCHAR     **wsPP);
-TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsLimited(const WCHAR *wstrP, Tcl_Size max, Tcl_Size *remain);
+TWAPI_EXTERN Tcl_Obj * ObjFromWinCharsLimited(const WCHAR *wstrP, Tcl_Size max, Tcl_Size *remain);
 TWAPI_EXTERN Tcl_Obj *ObjFromWinCharsNoTrailingSpace(const WCHAR *strP);
 
-TWAPI_EXTERN Tcl_Obj *ObjFromByteArray(const unsigned char *bytes, Tcl_Size len);
+TWAPI_EXTERN Tcl_Obj *ObjFromByteArray(const unsigned char *bytes,
+                                       Tcl_Size len);
 TWAPI_EXTERN Tcl_Obj *ObjAllocateByteArray(Tcl_Size len, void **);
-TWAPI_EXTERN Tcl_Obj *ObjFromByteArrayHex(const unsigned char *bytes, Tcl_Size len);
+TWAPI_EXTERN Tcl_Obj *ObjFromBytesHex(const unsigned char *bytes,
+                                          Tcl_Size len);
+TWAPI_EXTERN Tcl_Obj *ObjFromBytesHexSeparated(const unsigned char *bytes,
+                                                   Tcl_Size len,
+                                                   char sep);
 TWAPI_EXTERN unsigned char *ObjToByteArray(Tcl_Obj *objP, Tcl_Size *lenP);
 TWAPI_EXTERN TCL_RESULT     ObjToByteArrayDW(Tcl_Interp     *ip,
                                              Tcl_Obj        *objP,

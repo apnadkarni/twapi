@@ -31,18 +31,6 @@ namespace eval twapi::evt::test {
         uplevel 1 [list test $id $comment -body $body {*}$opts]
     }
 
-    proc privileged {} {
-        if {[twapi::min_os_version 6]} {
-            if {[twapi::process_in_administrators] &&
-                [twapi::get_process_elevation] eq "full"} {
-                return 1
-            } else {
-                return 0
-            }
-        } else {
-            return [twapi::process_in_administrators]
-        }
-    }
     ::tcltest::testConstraint privileged [privileged]
 
     proc new_file {{ext evtx}} {

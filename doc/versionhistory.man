@@ -11,13 +11,22 @@ Summarizes the list of changes for each version of TWAPI.
 [list_begin bullet]
 [bullet]
 [emph "Incompatible change"]
-Dropped support for Windows 8.1 and earlier.
-[bullet] New package
-[uri evt.html [cmd twapi_evt]]
+Requires Windows 10 or later.
+[bullet]
+New module [uri evt.html [cmd twapi_evt]] for Windows events.
+[bullet]
+[uri network.html#get_network_adapters [cmd get_network_adapters]] returns more detail.
 [bullet]
 [emph "Incompatible change"]
-Removed [cmd twapi_eventlog] package and [cmd eventlog_*] and
-[cmd winlog_*] commands. Use [cmd twapi_evt] package instead.
+Removed [cmd twapi_eventlog] package.
+[bullet]
+Commands
+[uri network.html#get_network_adapters_detail [cmd get_network_adapters_detail]]
+and
+[uri network.html#get_network_adapter_info [cmd get_network_adapter_info]]
+have changed API's and return additional information.
+[emph "Incompatible change"]
+
 [bullet]
 New Vista+ options for [uri base.html#load_library [cmd load_library]].
 [bullet]
