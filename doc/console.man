@@ -123,6 +123,9 @@ specified as arguments to these functions and may contain
 zero or more of the following elements:
 
 [list_begin opt]
+[opt_def [cmd -autoposition] [arg BOOL]]
+Corresponds to the undocumented Windows [const ENABLE_AUTO_POSITION] flag.
+Applications should not normally need to change this setting.
 [opt_def [cmd -echoinput] [arg BOOL]]
 If true, characters are echoed as they are read in.
 This is only valid if the [cmd -lineinput] mode is true.
@@ -150,6 +153,11 @@ carriage returns, line feeds and tabs are also handled by the system.
 [opt_def [cmd -quickeditmode] [arg BOOL]]
 If true, allows the user to use the mouse to
 select and edit text.
+[opt_def [cmd -virtualterminalinput] [arg BOOL]]
+If true, keys such as Escape, the cursor keys and function keys are
+returned by console reads as virtual terminal sequences. If false, the
+Escape key is discarded and not returned by character reads. Requires
+Windows 10 or later. See [uri https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences "Console Virtual Terminal Sequences"].
 [opt_def [cmd -windowinput] [arg BOOL]]
 If true, changes in the console window coordinates are
 reported through the input queue.
@@ -163,10 +171,23 @@ specified as arguments to these functions and may contain
 zero or more of the following elements:
 
 [list_begin opt]
+[opt_def [cmd -disablenewlineautoreturn] [arg BOOL]]
+If true and [cmd -wrapoutput] is also true, writing a character in the
+last column of a row does not immediately move the cursor to the next row.
+The wrap is deferred until the next printable character is written, matching
+the behavior of other terminal emulators. Requires Windows 10 or later.
+[opt_def [cmd -lvbgridworldwide] [arg BOOL]]
+If true, the grid line, reverse video and underscore character attributes
+are honored for all code pages. Otherwise they are only honored for
+double byte character set code pages. Requires Windows 10 or later.
 [opt_def [cmd -processedoutput] [arg BOOL]]
 If true, characters written to the screen buffer are processed for
 ASCII control characters - backspace, tab, bell, carriage return, linefeed -
 and appropriate action taken.
+[opt_def [cmd -virtualterminalprocessing] [arg BOOL]]
+If true, virtual terminal sequences written to the screen buffer are
+interpreted to control cursor movement, colors and other operations
+instead of being displayed. Requires Windows 10 or later. See [uri https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences "Console Virtual Terminal Sequences"].
 [opt_def [cmd -wrapoutput] [arg BOOL]]
 If true, characters written to the screen buffer will wrap around to the next
 row when the end of row is reached. Otherwise, the last character in the row

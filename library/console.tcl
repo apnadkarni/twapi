@@ -272,8 +272,10 @@ proc twapi::_console_write {conh s args} {
     # Get screen buffer info including cursor position
     array set csbi [get_console_screen_buffer_info $conh -cursorpos -size]
 
-    # Get current console mode for later restoration
+    # Get current console mode for later restoration. The raw value is
+    # restored so bits without a named option are preserved.
     # If console is in processed mode, set it to raw mode
+    set rawmode [GetConsoleMode $conh]
     set oldmode [get_console_output_mode $conh]
     set processed_index [lsearch -exact $oldmode "processed"]
     if {$processed_index >= 0} {
@@ -326,7 +328,7 @@ proc twapi::_console_write {conh s args} {
         }
         # Restore output mode if changed
         if {[info exists newmode]} {
-            set_console_output_mode $conh $oldmode
+            SetConsoleMode $conh $rawmode
         }
     }
 
@@ -546,13 +548,15 @@ proc twapi::set_console_input_codepage {cp} {
 # Read a line of input
 proc twapi::_console_read {conh args} {
     if {[llength $args]} {
-        set oldmode [modify_console_input_mode $conh {*}$args]
+        # Save the raw mode so bits without a named option are also restored
+        set oldmode [GetConsoleMode $conh]
+        modify_console_input_mode $conh {*}$args
     }
     trap {
         return [ReadConsole $conh 1024]
     } finally {
         if {[info exists oldmode]} {
-            set_console_input_mode $conh {*}$oldmode
+            SetConsoleMode $conh $oldmode
         }
     }
 }
@@ -696,11 +700,18 @@ proc twapi::_console_input_mode_syms {} {
         -quickeditmode  0x0040
         -extendedmode   0x0080
         -autoposition   0x0100
+        -virtualterminalinput 0x0200
     }
 }
 
 proc twapi::_console_output_mode_syms {} {
-    return { -processedoutput 1 -wrapoutput 2 }
+    return {
+        -processedoutput           0x0001
+        -wrapoutput                0x0002
+        -virtualterminalprocessing 0x0004
+        -disablenewlineautoreturn  0x0008
+        -lvbgridworldwide          0x0010
+    }
 }
 
 twapi::proc* twapi::_console_output_attr {sym} {

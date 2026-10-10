@@ -22,6 +22,19 @@ namespace eval twapi::console::test {
     # Some tests that generate and trap ^C 
     ::tcltest::testConstraint singleproc [tcltest::configure -singleproc]
 
+    # Virtual terminal modes need a Windows 10 or later console. Probe by
+    # trying to enable VT processing on stdout and then restoring the mode.
+    ::tcltest::testConstraint vtconsole [expr {![catch {
+        set conh [twapi::get_console_handle stdout]
+        twapi::trap {
+            set mode [twapi::GetConsoleMode $conh]
+            twapi::SetConsoleMode $conh [expr {$mode | 0x4}]
+            twapi::SetConsoleMode $conh $mode
+        } finally {
+            twapi::close_handle $conh
+        }
+    }]}]
+
     set textattr_fields {
         -fgblue
         -fggreen
@@ -280,6 +293,22 @@ namespace eval twapi::console::test {
         }
         set new [twapi::get_console_input_mode stdin]
         list $yesno [twapi::kl_equal $orig $new]
+    } -result {1 1}
+
+    test console_read-2.1 {
+        Read the console with options preserves -virtualterminalinput
+    } -constraints {
+        userInteraction vtconsole
+    } -setup {
+        set orig [twapi::modify_console_input_mode stdin -virtualterminalinput true]
+    } -body {
+        set before [twapi::get_console_input_mode stdin]
+        puts "Please type a few characters and hit Return."
+        twapi::console_read stdin -insertmode [expr {![twapi::kl_get $before -insertmode]}]
+        set after [twapi::get_console_input_mode stdin]
+        list [twapi::kl_get $after -virtualterminalinput] [twapi::kl_equal $before $after]
+    } -cleanup {
+        twapi::set_console_input_mode stdin {*}$orig
     } -result {1 1}
 
     ################################################################
@@ -683,7 +712,7 @@ namespace eval twapi::console::test {
     } -constraints {
         nt
     } -body {
-        verify_kl_fields [twapi::get_console_input_mode stdin] {-echoinput -quickeditmode -windowinput -lineinput -processedinput -mouseinput -autoposition -extendedmode -insertmode}
+        verify_kl_fields [twapi::get_console_input_mode stdin] {-echoinput -quickeditmode -windowinput -lineinput -processedinput -mouseinput -autoposition -extendedmode -insertmode -virtualterminalinput}
     } -result ""
 
     ################################################################
@@ -693,7 +722,7 @@ namespace eval twapi::console::test {
     } -constraints {
         nt
     } -body {
-        verify_kl_fields [twapi::get_console_output_mode stdout] {-processedoutput -wrapoutput}
+        verify_kl_fields [twapi::get_console_output_mode stdout] {-processedoutput -wrapoutput -virtualterminalprocessing -disablenewlineautoreturn -lvbgridworldwide}
     } -result ""
 
 
@@ -1039,6 +1068,28 @@ namespace eval twapi::console::test {
         eval [list twapi::set_console_input_mode stdin] $orig
     } -result {1 0 1}
 
+    test modify_console_input_mode-6.0 {
+        Modify console input mode -virtualterminalinput
+    } -constraints {
+        vtconsole
+    } -setup {
+        set conh [twapi::get_console_handle stdin]
+        set rawmode [twapi::GetConsoleMode $conh]
+        set orig [twapi::get_console_input_mode $conh]
+    } -body {
+        set prevmode [twapi::modify_console_input_mode $conh -virtualterminalinput true]
+        set on [twapi::GetConsoleMode $conh]
+        set prevmode2 [twapi::modify_console_input_mode $conh -virtualterminalinput false]
+        set off [twapi::GetConsoleMode $conh]
+        list [twapi::kl_equal $orig $prevmode] \
+            [twapi::kl_get $prevmode2 -virtualterminalinput] \
+            [expr {$on == ($rawmode | 0x200)}] \
+            [expr {$off == ($rawmode & ~0x200)}]
+    } -cleanup {
+        twapi::SetConsoleMode $conh $rawmode
+        twapi::close_handle $conh
+    } -result {1 1 1 1}
+
 
     ################################################################
 
@@ -1099,6 +1150,34 @@ namespace eval twapi::console::test {
     } -cleanup {
         eval [list twapi::modify_console_output_mode stdin] $orig
     } -result {1 0 1}
+
+    foreach {testnum opt bit} {
+        4.0 -virtualterminalprocessing 0x4
+        4.1 -disablenewlineautoreturn  0x8
+        4.2 -lvbgridworldwide          0x10
+    } {
+        test modify_console_output_mode-$testnum [list \
+            Modify console output mode $opt \
+        ] -constraints {
+            vtconsole
+        } -setup {
+            set conh [twapi::get_console_handle stdout]
+            set rawmode [twapi::GetConsoleMode $conh]
+            set orig [twapi::get_console_output_mode $conh]
+        } -body {
+            set prevmode [twapi::modify_console_output_mode $conh $opt true]
+            set on [twapi::GetConsoleMode $conh]
+            set prevmode2 [twapi::modify_console_output_mode $conh $opt false]
+            set off [twapi::GetConsoleMode $conh]
+            list [twapi::kl_equal $orig $prevmode] \
+                [twapi::kl_get $prevmode2 $opt] \
+                [expr {$on == ($rawmode | $bit)}] \
+                [expr {$off == ($rawmode & ~$bit)}]
+        } -cleanup {
+            twapi::SetConsoleMode $conh $rawmode
+            twapi::close_handle $conh
+        } -result {1 1 1 1}
+    }
 
     ################################################################
 
