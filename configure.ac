@@ -90,7 +90,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
                         AC_DEFINE(HAVE_SYSTEM_STATUS_FLAG)
                     ], [], [[#include <windows.h>]])
 
-    TEA_ADD_INCLUDES([-I. -I\"$(${CYGPATH} ${srcdir}/twapi/include)\" -I\"${srcdir}/dyncall/dyncall-0.9/include\"])
+    TEA_ADD_INCLUDES([-I. -I\"$(${CYGPATH} ${srcdir}/win/rc)\"])
 
     TEA_ADD_CFLAGS([-DUNICODE -D_UNICODE -DWINVER=0x0A00 -D_WIN32_WINNT=0x0A00 -DPSAPI_VERSION=2])
 
@@ -128,7 +128,6 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 	    win/pbkdf2.c
 	    win/device.c
 	    win/etw.c
-	    win/eventlog.c
 	    win/evt.c
 	    win/input.c
 	    win/mstask.c
@@ -189,9 +188,7 @@ if test "${TEA_PLATFORM}" = "windows" ; then
 	    library/tls.tcl
 	    library/device.tcl
 	    library/etw.tcl
-	    library/eventlog.tcl
 	    library/evt.tcl
-	    library/winlog.tcl
 	    library/input.tcl
 	    library/msi.tcl
 	    library/mstask.tcl
@@ -261,14 +258,6 @@ TEA_ENABLE_SHARED
 #--------------------------------------------------------------------
 
 TEA_CONFIG_CFLAGS
-
-# Link to either the 64- or 32-bit dyncall libs. This check has to happen
-# after TEA_CONFIG_CFLAGS because that sets the do64bit variable
-AS_IF([test "$do64bit" != "yes" -a "x$MSYSTEM" != "xMINGW64"], [
-	  AC_SUBST(DYNCALL_LIBS, "${srcdir}/dyncall/dyncall-0.9/lib/release_x86/libdyncall_s.lib")
-      ], [
-	  AC_SUBST(DYNCALL_LIBS, "${srcdir}/dyncall/dyncall-0.9/lib/release_amd64/libdyncall_s.lib")
-      ])
 
 #--------------------------------------------------------------------
 # Set the default compiler switches based on the --enable-symbols option.

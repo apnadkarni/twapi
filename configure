@@ -630,7 +630,6 @@ MAKE_SHARED_LIB
 MAKE_LIB
 LDFLAGS_DEFAULT
 CFLAGS_DEFAULT
-DYNCALL_LIBS
 LD_LIBRARY_PATH_VAR
 SHLIB_CFLAGS
 SHLIB_LD_LIBS
@@ -5008,7 +5007,7 @@ fi
 
 
 
-    vars="-I. -I\"$(${CYGPATH} ${srcdir}/twapi/include)\" -I\"${srcdir}/dyncall/dyncall-0.9/include\""
+    vars="-I. -I\"$(${CYGPATH} ${srcdir}/win/rc)\""
     for i in $vars; do
 	PKG_INCLUDES="$PKG_INCLUDES $i"
     done
@@ -5055,7 +5054,6 @@ fi
 	    win/pbkdf2.c
 	    win/device.c
 	    win/etw.c
-	    win/eventlog.c
 	    win/evt.c
 	    win/input.c
 	    win/mstask.c
@@ -5170,9 +5168,7 @@ fi
 	    library/tls.tcl
 	    library/device.tcl
 	    library/etw.tcl
-	    library/eventlog.tcl
 	    library/evt.tcl
-	    library/winlog.tcl
 	    library/input.tcl
 	    library/msi.tcl
 	    library/mstask.tcl
@@ -8120,20 +8116,6 @@ $as_echo "no" >&6; }
     fi
 
 
-
-# Link to either the 64- or 32-bit dyncall libs. This check has to happen
-# after TEA_CONFIG_CFLAGS because that sets the do64bit variable
-if test "$do64bit" != "yes" -a "x$MSYSTEM" != "xMINGW64"; then :
-
-	  DYNCALL_LIBS="${srcdir}/dyncall/dyncall-0.9/lib/release_x86/libdyncall_s.lib"
-
-
-else
-
-	  DYNCALL_LIBS="${srcdir}/dyncall/dyncall-0.9/lib/release_amd64/libdyncall_s.lib"
-
-
-fi
 
 #--------------------------------------------------------------------
 # Set the default compiler switches based on the --enable-symbols option.
